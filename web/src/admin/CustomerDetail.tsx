@@ -11,17 +11,9 @@ import {
   Money,
   Panel,
   StatusPill,
+  useToast,
 } from '../ui-app';
-import {
-  ConfirmWithReason,
-  DASH,
-  can,
-  denseDanger,
-  denseGhost,
-  fmtDate,
-  maskEmail,
-  useStaffUser,
-} from './Overview';
+import { ConfirmWithReason, DASH, LiveRegion, can, denseDanger, denseGhost, fmtDate, maskEmail, useStaffUser } from './Overview';
 
 /**
  * Staff customer record — GET /api/admin/customers/:id
@@ -87,6 +79,7 @@ interface AdminCustomerDetail {
 export default function CustomerDetail() {
   const { id = '' } = useParams();
   const staff = useStaffUser();
+  const toast = useToast();
   const [reason, setReason] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reasonError, setReasonError] = useState<string | null>(null);
@@ -118,11 +111,13 @@ export default function CustomerDetail() {
       setReasonError('Give a reason. It is written to the audit log.');
       return;
     }
-    const result = await suspend.run(!suspended);
+    const next = !suspended;
+    const result = await suspend.run(next);
     if (!result) return;
     setDialogOpen(false);
     setReason('');
     state.reload();
+    toast.push(next ? 'Customer suspended' : 'Customer reinstated', 'ok');
   };
 
   if (state.loading) {
@@ -155,6 +150,7 @@ export default function CustomerDetail() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`Customer ${customer.name ?? customer.id} loaded`} />
       <Panel title={customer.name ?? 'No name'} description={`Customer ${customer.id}`}>
         <div className="grid gap-3">
           <dl className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -236,7 +232,7 @@ export default function CustomerDetail() {
               <button
                 type="button"
                 disabled
-                title="Your role does not allow \"customers.write\"."
+                title={'Your role does not allow "customers.write".'}
                 className={denseDanger}
               >
                 {suspended ? 'Reinstate customer' : 'Suspend customer'}

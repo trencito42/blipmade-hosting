@@ -9,9 +9,11 @@ const MEDIA = 'Application/vnd.pterodactyl.v1+json';
  *
  * The Application API key is administrative and grants no client privileges, so
  * every customer-facing call (power, files, console, resources) is signed with
- * the separate **Client API key** using the scheme Pterodactyl 1.15 expects:
+ * the separate **Client API key**:
  *
- *   HS256 JWT, payload { user_id: "<pterodactyl user id>", perms: "*" }
+ *   - a client key issued by the panel (`ptc_...`) is sent as it is;
+ *   - a shared secret is signed as an HS256 JWT with the payload
+ *     { user_id: "<pterodactyl user id>", perms: "*" }.
  *
  * The token is generated on the server and never sent to the browser.
  */
@@ -24,7 +26,10 @@ export function clientToken(userId: string | number, perms: '*' | string[] = '*'
   if (!env.pterodactylClientEnabled) {
     throw unavailable('The Pterodactyl Client API key is not configured on this environment.');
   }
-  return jwt.sign({ user_id: String(userId), perms }, env.PTERODACTYL_CLIENT_KEY, {
+  const key = env.PTERODACTYL_CLIENT_KEY;
+  // A key issued by the panel is already a bearer token.
+  if (key.startsWith('ptc_')) return key;
+  return jwt.sign({ user_id: String(userId), perms }, key, {
     algorithm: 'HS256',
     expiresIn: '10m',
   });

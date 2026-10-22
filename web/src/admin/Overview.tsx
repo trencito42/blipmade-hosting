@@ -79,6 +79,15 @@ export const denseSoft = `${denseButton} bg-s3 text-ink hover:bg-line`;
 export const denseDanger = `${denseButton} bg-bad/12 text-bad hover:bg-bad/20`;
 export const denseGhost = `${denseButton} bg-s2 text-ink2 hover:bg-s3 hover:text-ink`;
 
+/** Announces the result of an async region to screen readers. */
+export function LiveRegion({ message }: { message: string }) {
+  return (
+    <p className="sr-only" aria-live="polite">
+      {message}
+    </p>
+  );
+}
+
 /**
  * Confirm dialog with a reason field. The shared ConfirmDialog has no slot for
  * the reason the staff rules require, so this one adds it. Same flat language.
@@ -163,7 +172,7 @@ export function ConfirmWithReason({
             disabled={busy}
             className={
               destructive
-                ? 'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-white transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50'
+                ? 'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50'
                 : densePrimary
             }
           >

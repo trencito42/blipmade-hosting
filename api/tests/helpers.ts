@@ -12,7 +12,7 @@ export interface TestClient {
     method: string,
     url: string,
     payload?: unknown,
-    options?: { withCsrf?: boolean },
+    options?: { withCsrf?: boolean; headers?: Record<string, string> },
   ) => Promise<{
     status: number;
     body: any;
@@ -49,7 +49,7 @@ export function makeClient(instance: FastifyInstance): TestClient {
   const client: TestClient = {
     cookies,
     csrf: '',
-    async request(method: string, url: string, payload?: unknown, options?: { withCsrf?: boolean }) {
+    async request(method: string, url: string, payload?: unknown, options?: { withCsrf?: boolean; headers?: Record<string, string> }) {
       const upper = method.toUpperCase();
       const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(upper);
       const withCsrf = options?.withCsrf ?? true;
@@ -68,6 +68,9 @@ export function makeClient(instance: FastifyInstance): TestClient {
       if (cookies.size) headers.cookie = [...cookies.entries()].map(([name, value]) => `${name}=${value}`).join('; ');
       if (mutating && withCsrf && client.csrf) {
         headers['x-csrf-token'] = client.csrf;
+      }
+      for (const [key, value] of Object.entries(options?.headers ?? {})) {
+        headers[key.toLowerCase()] = value;
       }
 
       const response = await instance.inject({ method: method as never, url, payload: payload as never, headers });

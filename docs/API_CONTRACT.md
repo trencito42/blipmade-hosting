@@ -128,6 +128,7 @@ TicketMessage = { id, body, internal, author: { id, name, role }, createdAt, att
 - `GET /api/admin/overview` → `200 { overview }` — real counts only: `{ customers, instances, activeInstances, openTickets, ordersToday, revenueMonth, provisioningFailures, mrr }`
 - `GET /api/admin/customers` → `200 { customers: AdminCustomer[] }`
 - `GET /api/admin/customers/:id` → `200 { customer }` — `{ id, email, name, role, createdAt, instances, invoices, tickets, totalSpent }`
+- `POST /api/admin/customers/:id/suspend` → `{ suspended: boolean, reason?: string }` → `200 { customer: { id, suspended } }` — suspending ends the account's sessions.
 - `GET /api/admin/orders` → `200 { orders: Order[] }`
 - `GET /api/admin/services` → `200 { services: Instance[] }`
 - `GET /api/admin/products` → `200 { products: Product[] }`

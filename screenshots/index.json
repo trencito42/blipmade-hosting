@@ -1,0 +1,152 @@
+[
+  {
+    "path": "/",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/home-mobile.png"
+  },
+  {
+    "path": "/login",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/login-mobile.png"
+  },
+  {
+    "path": "/register",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/register-mobile.png"
+  },
+  {
+    "path": "/status",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/status-mobile.png"
+  },
+  {
+    "path": "/docs",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/docs-mobile.png"
+  },
+  {
+    "path": "/app",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/app-overview-mobile.png"
+  },
+  {
+    "path": "/app/instances",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/app-instances-mobile.png"
+  },
+  {
+    "path": "/app/billing",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/app-billing-mobile.png"
+  },
+  {
+    "path": "/app/tickets",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/app-tickets-mobile.png"
+  },
+  {
+    "path": "/app/settings",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/app-settings-mobile.png"
+  },
+  {
+    "path": "/admin",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/admin-overview-mobile.png"
+  },
+  {
+    "path": "/admin/products",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/admin-products-mobile.png"
+  },
+  {
+    "path": "/admin/orders",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/admin-orders-mobile.png"
+  },
+  {
+    "path": "/admin/customers",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/admin-customers-mobile.png"
+  },
+  {
+    "path": "/admin/infrastructure",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/admin-infrastructure-mobile.png"
+  },
+  {
+    "path": "/",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/home-desktop.png"
+  },
+  {
+    "path": "/login",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/login-desktop.png"
+  },
+  {
+    "path": "/register",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/register-desktop.png"
+  },
+  {
+    "path": "/status",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/status-desktop.png"
+  },
+  {
+    "path": "/docs",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/docs-desktop.png"
+  },
+  {
+    "path": "/app",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/app-overview-desktop.png"
+  },
+  {
+    "path": "/app/instances",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/app-instances-desktop.png"
+  },
+  {
+    "path": "/app/billing",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/app-billing-desktop.png"
+  },
+  {
+    "path": "/app/tickets",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/app-tickets-desktop.png"
+  },
+  {
+    "path": "/app/settings",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/app-settings-desktop.png"
+  },
+  {
+    "path": "/admin",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/admin-overview-desktop.png"
+  },
+  {
+    "path": "/admin/products",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/admin-products-desktop.png"
+  },
+  {
+    "path": "/admin/orders",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/admin-orders-desktop.png"
+  },
+  {
+    "path": "/admin/customers",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/admin-customers-desktop.png"
+  },
+  {
+    "path": "/admin/infrastructure",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/admin-infrastructure-desktop.png"
+  }
+]

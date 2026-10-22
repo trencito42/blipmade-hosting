@@ -4,7 +4,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
-import { ConfirmWithReason, DASH, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useStaffUser } from './Overview';
+import { ConfirmWithReason, DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useStaffUser } from './Overview';
 
 /**
  * Staff service list — GET /api/admin/services?status=&search=
@@ -112,6 +112,7 @@ export default function Services() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${services.length} service${services.length === 1 ? '' : 's'}`} />
       <Panel
         title="Services"
         description="Every instance on the platform. Retrying a provisioning run re-queues the worker for that instance."
@@ -279,7 +280,7 @@ export default function Services() {
         title="Retry provisioning"
         description={
           target
-            ? `This sets ${target.name} back to provisioning and re-queues the worker for it. The run is idempotent, but a half-created server may be replaced. The customer is not notified.`
+            ? `This puts ${target.name} back into provisioning and re-queues the worker for it. The run is idempotent, but a half-created server may be replaced and the instance is unavailable while it runs again. The customer is not notified.`
             : undefined
         }
         confirmLabel="Retry provisioning"

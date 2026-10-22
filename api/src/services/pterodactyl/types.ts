@@ -96,5 +96,9 @@ export interface CreateServerInput {
   limits: { memory: number; swap: number; disk: number; io: number; cpu: number };
   resource_limits: { memory: number; swap: number; disk: number; io: number; cpu: number };
   feature_limits: { databases: number; backups: number };
-  allocation: { default: boolean; allocations: number[] };
+  /**
+   * `default` is the id of the allocation that becomes the server's primary
+   * address, and `allocations` lists every address assigned to it.
+   */
+  allocation: { default: number; allocations: number[] };
 }

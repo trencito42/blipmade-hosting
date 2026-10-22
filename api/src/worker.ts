@@ -1,3 +1,4 @@
+import { createServer } from 'node:http';
 import type { Job } from 'bullmq';
 import { prisma } from './db.js';
 import { redis } from './redis.js';
@@ -62,8 +63,40 @@ async function pruneQueue(): Promise<void> {
 
 const timers: NodeJS.Timeout[] = [];
 
+/**
+ * The worker answers a small health endpoint so the container can report
+ * whether it is alive and connected to the database and the queue. Without it
+ * the container inherits the API health check, which it can never pass.
+ */
+const healthPort = Number(env.WORKER_HEALTH_PORT ?? 3101);
+const healthServer = createServer((request, response) => {
+  if (request.url !== '/health') {
+    response.writeHead(404, { 'Content-Type': 'application/json' });
+    response.end('{"error":"not found"}');
+    return;
+  }
+  void (async () => {
+    const checks = { database: false, redis: false, worker: worker.isRunning() };
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      checks.database = true;
+    } catch {
+      checks.database = false;
+    }
+    try {
+      checks.redis = (await redis.ping()) === 'PONG';
+    } catch {
+      checks.redis = false;
+    }
+    const healthy = checks.database && checks.redis && checks.worker;
+    response.writeHead(healthy ? 200 : 503, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ status: healthy ? 'ok' : 'degraded', ...checks }));
+  })();
+});
+
 async function main(): Promise<void> {
   console.info(`[worker] starting in ${env.NODE_ENV}`);
+  healthServer.listen(healthPort, '0.0.0.0');
   await reconcile();
   timers.push(setInterval(() => void reconcile().catch((error) => console.error('[worker] reconcile failed', error)), 60_000));
   timers.push(setInterval(() => void pruneQueue().catch(() => undefined), 10 * 60_000));
@@ -72,6 +105,7 @@ async function main(): Promise<void> {
 
 const shutdown = async () => {
   for (const timer of timers) clearInterval(timer);
+  healthServer.close();
   await worker.close();
   await closeQueue();
   await redis.quit().catch(() => undefined);

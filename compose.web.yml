@@ -12,7 +12,10 @@ services:
     depends_on:
       - api
     ports:
-      - "127.0.0.1:3000:3000"
+      # Staging is reachable from the LAN so it can be reviewed before the
+      # gateway route exists. The API stays on loopback; the web container
+      # proxies /api to it.
+      - "10.77.0.13:3000:3000"
     security_opt:
       - no-new-privileges:true
     cap_drop:

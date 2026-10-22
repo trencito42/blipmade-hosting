@@ -19,6 +19,11 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY index.html server.mjs ./
 COPY public ./public
+# The source files may carry restrictive permissions from the build machine, so
+# the runtime user is given read access to everything it serves.
+RUN chmod -R a+rX /app/dist /app/public \
+  && chmod 644 /app/index.html /app/server.mjs \
+  && chmod -R a+rX /app/node_modules
 
 USER node
 EXPOSE 3000

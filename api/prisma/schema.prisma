@@ -29,6 +29,11 @@ model User {
   emailVerifiedAt DateTime?
   // Pterodactyl application user id, used for Client API calls.
   pterodactylUserId String?
+  // Panel password of the customer account, encrypted with the session
+  // secret. It is kept so the panel account can be reset and so the
+  // credential can be shown to the customer once.
+  pterodactylPasswordEnc String?
+  pterodactylPasswordSetAt DateTime?
   suspendedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -123,6 +128,8 @@ model Product {
   eggUuid     String?
   dockerImage String?
   startup     Json?
+  // The command the container runs. Overrides the egg default when set.
+  startupCommand String?
   // Minimum resources required to run.
   minRam      Int      @default(512)
   minCpu      Int      @default(1)

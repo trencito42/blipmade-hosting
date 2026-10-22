@@ -124,11 +124,17 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
 
   /**
    * Test gateway endpoint. It only exists when the local test gateway is
-   * enabled, so it cannot be used to fake a payment in production.
+   * enabled, so it cannot be used to fake a payment in production. It also
+   * requires the internal API token, so it is never a public way to mark an
+   * order as paid.
    */
   app.post('/webhooks/stripe/test', async (request: FastifyRequest, reply) => {
     if (!stripeTestGateway()) {
       return reply.code(404).send({ error: { code: 'not_found', message: 'Not found.' } });
+    }
+    const token = request.headers['x-internal-token'];
+    if (!env.internalToken || token !== env.internalToken) {
+      return reply.code(401).send({ error: { code: 'unauthorized', message: 'The internal token is required.' } });
     }
     const body = z
       .object({

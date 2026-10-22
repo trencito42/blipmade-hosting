@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Panel, useToast } from '../ui-app';
-import { can, denseDanger, denseGhost, denseInput, densePrimary, useStaffUser } from './Overview';
+import { LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, useStaffUser } from './Overview';
 
 /**
  * System settings — GET /api/admin/settings, PUT /api/admin/settings
@@ -97,6 +97,7 @@ export default function Settings() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${rows.length} setting${rows.length === 1 ? '' : 's'}`} />
       <Panel
         title="Settings"
         description="Feature flags and provider switches. The API stores a free key and value object."

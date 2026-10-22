@@ -1,7 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
+import { encryptSecret } from '../lib/secrets.js';
 import * as ptero from './pterodactyl/application.js';
+import * as pteroClient from './pterodactyl/client.js';
 import type { Instance, Product } from '@prisma/client';
 
 /** Steps recorded on the instance so an interrupted job can be reconciled. */
@@ -12,6 +15,7 @@ export const PROVISION_STEPS = [
   'server_created',
   'image_built',
   'installed',
+  'started',
   'health_verified',
   'subscription_linked',
   'activated',
@@ -82,19 +86,47 @@ async function ensurePterodactylUser(instance: Instance & { user: { id: string; 
   }
 
   // Pterodactyl requires a usable password. A random value is generated because
-  // customers never sign in to the panel directly.
-  const password = `bm-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
-  const created = await ptero.createUser({
-    email: instance.user.email,
-    username: (instance.user.name ?? instance.user.email.split('@')[0] ?? 'customer').replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 30) || 'customer',
-    password,
-    root_admin: false,
-  });
-  await prisma.user.update({
-    where: { id: instance.user.id },
-    data: { pterodactylUserId: String(created.id) },
-  });
-  return created.id;
+  // customers never sign in to the panel directly, but it is kept encrypted so
+  // the panel account can be reset later and the credential can be handed to
+  // the customer once.
+  const password = `bm-${randomBytes(9).toString('base64url')}-${Date.now().toString(36)}`;
+
+  // The username comes from the address, which is unique per customer. The
+  // panel rejects a name that is already taken, so a suffix is added and the
+  // request is retried.
+  const base =
+    (instance.user.email.split('@')[0] ?? instance.user.name ?? 'customer')
+      .replace(/[^a-zA-Z0-9_.-]/g, '')
+      .slice(0, 24) || 'customer';
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const username = attempt === 0 ? base : `${base}-${randomBytes(3).toString('base64url')}`;
+    try {
+      const created = await ptero.createUser({
+        email: instance.user.email,
+        username,
+        password,
+        root_admin: false,
+        name: instance.user.name,
+      });
+      await prisma.user.update({
+        where: { id: instance.user.id },
+        data: {
+          pterodactylUserId: String(created.id),
+          pterodactylPasswordEnc: encryptSecret(password),
+          pterodactylPasswordSetAt: new Date(),
+        },
+      });
+      return created.id;
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('username has already been taken')) throw error;
+    }
+  }
+
+  throw lastError;
 }
 
 interface NodeChoice {
@@ -128,8 +160,13 @@ async function chooseNode(ram: number, disk: number): Promise<NodeChoice> {
   throw new ProvisioningError('node_selected', 'No node has enough free capacity for this configuration.');
 }
 
-/** Maps the Blipmade product onto a Pterodactyl egg and image. */
-async function resolveEgg(product: Product): Promise<{ egg: number; image: string; startup: string }> {
+/**
+ * Maps the Blipmade product onto a Pterodactyl egg, image and environment.
+ * The environment starts from the egg's defaults and is then overridden by the
+ * product configuration, so a product can change the startup variables of its
+ * container.
+ */
+async function resolveEgg(product: Product): Promise<{ egg: number; image: string; startup: string; environment: Record<string, string> }> {
   if (!product.eggId) {
     throw new ProvisioningError('server_created', `${product.name} has no egg mapping yet.`);
   }
@@ -138,10 +175,13 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
     const eggs = await ptero.listEggs(nest.id);
     const egg = eggs.find((candidate) => candidate.id === product.eggId);
     if (egg) {
+      const template = await ptero.eggEnvironmentTemplate(egg.id);
+      const overrides = (product.startup as Record<string, string> | undefined) ?? {};
       return {
         egg: egg.id,
         image: product.dockerImage ?? egg.docker_image,
-        startup: (product.startup as string | undefined) ?? egg.startup,
+        startup: product.startupCommand ?? egg.startup,
+        environment: { ...template, ...overrides },
       };
     }
   }
@@ -212,9 +252,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       const egg = await resolveEgg(product);
       await beginProvisioning(instance, 'server_created');
 
-      const environment: Record<string, string> = {
-        ...((product.startup as Record<string, string> | undefined) ?? {}),
-      };
+      const environment: Record<string, string> = { ...egg.environment };
 
       const created = await ptero.createServer({
         name: instance.name,
@@ -240,7 +278,9 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
           cpu: instance.cpu * 100,
         },
         feature_limits: { databases: 0, backups: 0 },
-        allocation: { default: true, allocations: [choice.allocationId] },
+        // The panel expects the id of the allocation that becomes the primary
+        // address, plus the list of assigned allocations.
+        allocation: { default: choice.allocationId, allocations: [choice.allocationId] },
       });
 
       await prisma.instance.update({
@@ -261,14 +301,32 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     if (!port) throw new ProvisioningError('allocation_selected', 'No port is assigned to this server.');
 
     await beginProvisioning(instance, 'image_built');
-    await ptero.buildServer(server.id, { image: server.container.image, pull_image: true, rebuild_container: false, allow_failure: true });
+    // The node installs the server when it is reinstalled: the panel asks the
+    // node to pull the image and run the egg's install script.
+    await ptero.reinstallServer(server.id);
 
     await beginProvisioning(instance, 'installed');
-    await ptero.installServer(server.id).catch(() => undefined);
-
-    // Wait for Pterodactyl to finish the install before checking the container.
-    const installed = await waitForInstall(server.id, 180_000);
+    // The install script prepares the container on the node, which takes a
+    // few minutes, so the worker waits for the panel to report it as done.
+    const installed = await ptero.waitForServerInstalled(server.id, 900_000);
     if (!installed) throw new ProvisioningError('installed', 'The installation did not finish in time.');
+
+    await beginProvisioning(instance, 'started');
+    // An installed container is stopped, so the platform starts it before the
+    // service is handed over. Power control lives on the Client API, which
+    // needs the separate client key.
+    if (!pteroClient.clientApiAvailable()) {
+      throw new ProvisioningError(
+        'started',
+        'The Pterodactyl Client API key is not configured, so the container cannot be started.',
+      );
+    }
+    await pteroClient.sendPower(
+      pteroClient.clientToken(pterodactylUserId),
+      server.uuid,
+      'start',
+    );
+    await recordEvent(instance.id, 'provisioning', 'Container started.');
 
     await beginProvisioning(instance, 'health_verified');
     const health = await verifyDeployment(ip, port);
@@ -315,17 +373,6 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     await failProvisioning(instance.id, step, message);
     throw error;
   }
-}
-
-/** Polls the server until Pterodactyl reports the install finished. */
-async function waitForInstall(serverId: number, timeoutMs: number): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const server = await ptero.getServer(serverId).catch(() => null);
-    if (server && (server.container.installed === 1 || server.container.installed === 2)) return true;
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-  }
-  return false;
 }
 
 /**

@@ -3,7 +3,7 @@ import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatusPill, useToast } from '../ui-app';
-import { DASH, denseGhost, densePrimary, maskEmail, useStaffUser } from './Overview';
+import { DASH, LiveRegion, denseGhost, densePrimary, maskEmail, useStaffUser } from './Overview';
 
 /**
  * Staff and permissions — GET /api/admin/staff, PUT /api/admin/staff/:userId
@@ -93,6 +93,7 @@ export default function Staff() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${members.length} staff member${members.length === 1 ? '' : 's'}`} />
       <Panel
         title="Staff and permissions"
         description={

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
-import { can, denseGhost, denseInput, densePrimary, denseSelect, fmtDate, useStaffUser } from './Overview';
+import { LiveRegion, can, denseGhost, denseInput, densePrimary, denseSelect, fmtDate, useStaffUser } from './Overview';
 
 /**
  * Staff promotions — GET /api/admin/promotions, POST /api/admin/promotions
@@ -102,6 +102,7 @@ export default function Promotions() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${promotions.length} promotion${promotions.length === 1 ? '' : 's'}`} />
       <Panel
         title="Promotions"
         description="Codes with the real redemption count against the real cap. Nothing here is a simulated counter."

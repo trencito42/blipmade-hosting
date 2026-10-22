@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { prisma } from '../db.js';
+import { env } from '../env.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
@@ -47,7 +48,7 @@ export async function createSession(
   reply.setCookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+    secure: env.cookieSecure,
     path: '/',
     expires: expiresAt,
   });

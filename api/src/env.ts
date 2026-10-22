@@ -13,6 +13,7 @@ const bool = (fallback: boolean) =>
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(3100),
+  WORKER_HEALTH_PORT: z.coerce.number().default(3101),
   HOST: z.string().default('0.0.0.0'),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
@@ -21,7 +22,8 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(16, 'SESSION_SECRET must be at least 16 characters'),
   APP_ORIGIN: z.string().default('http://localhost:5173'),
   APP_PUBLIC_URL: z.string().default('http://localhost:5173'),
-  COOKIE_SECURE: bool(false),
+  /** "true", "false" or unset. Unset means the cookie follows the origin. */
+  COOKIE_SECURE: z.string().optional(),
 
   PTERODACTYL_URL: z.string().default(''),
   PTERODACTYL_APP_KEY: z.string().default(''),
@@ -60,6 +62,18 @@ export const env = {
   isProduction: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test',
   internalToken: raw.INTERNAL_API_TOKEN || raw.BLIPMADE_INTERNAL_API_TOKEN,
+  /**
+   * The session and CSRF cookies are only marked Secure when they are actually
+   * served over HTTPS. The setting follows the public origin, so a staging
+   * environment on plain HTTP still works, while the production origin keeps
+   * the cookies protected.
+   */
+  cookieSecure:
+    raw.COOKIE_SECURE === 'true'
+      ? true
+      : raw.COOKIE_SECURE === 'false'
+        ? false
+        : raw.APP_ORIGIN.startsWith('https://'),
   stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   mailEnabled: Boolean(raw.SMTP_URL),
   pterodactylEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_APP_KEY),

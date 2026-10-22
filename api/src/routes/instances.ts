@@ -229,7 +229,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const environment = { ...server.container.environment, ...(body.environment ?? {}) };
     await pteroApp.setServerEnvironment(instance.pterodactylServerId, environment);
     if (body.startup) {
-      await pteroApp.updateServerDetails(instance.pterodactylServerId, { startup: body.startup });
+      await pteroApp.updateServerStartup(instance.pterodactylServerId, { startup: body.startup });
     }
     await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'startup', message: 'Startup configuration updated.' } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.startup_updated', targetType: 'instance', targetId: instance.id });
@@ -259,13 +259,13 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const newPrice = priceConfiguration(price, product, body);
     const priceDelta = newPrice - instance.price;
 
-    // Push the new limits to the panel. The application API has no partial
-    // update, so the full server payload is sent.
+    // Push the new limits to the panel. The build route takes the allocation
+    // and the limits of the server.
     let panelUpdated = true;
     let panelError: string | null = null;
     if (instance.pterodactylServerId) {
       try {
-        await pteroApp.updateServerDetails(instance.pterodactylServerId, {
+        await pteroApp.updateServerBuild(instance.pterodactylServerId, {
           limits: {
             memory: body.ram,
             swap: 0,

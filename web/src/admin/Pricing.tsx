@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
-import { DASH, denseInput, densePrimary, denseSoft } from './Overview';
+import { DASH, LiveRegion, denseInput, densePrimary, denseSoft } from './Overview';
 
 /**
  * Staff pricing — GET /api/admin/pricing, PUT /api/admin/pricing/:id
@@ -38,6 +38,7 @@ export default function Pricing() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${prices.length} price${prices.length === 1 ? '' : 's'}`} />
       <Panel
         title="Pricing"
         description="Base price for the minimum configuration plus the rate for every extra gigabyte of memory, vCPU and disk."

@@ -4,8 +4,12 @@
 node_modules/
 dist/
 build/
+coverage/
 *.log
+*.backup
 .DS_Store
 backups/
-coverage/
-*.backup
+tmp/
+*.tsbuildinfo
+# Scratch tooling installed on the server (playwright-core, ws)
+tools/

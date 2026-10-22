@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db.js';
 import { closeApp, getApp, makeClient, registerAndLogin, resetDatabase } from './helpers.js';
+import { env } from '../src/env.js';
 import type { FastifyInstance } from 'fastify';
 
 let app: FastifyInstance;
@@ -61,7 +62,8 @@ describe('stripe webhook handling', () => {
       amount: 149,
     };
 
-    const first = await webhook.request('POST', '/api/webhooks/stripe/test', event);
+    const internal = { headers: { 'x-internal-token': env.internalToken } };
+    const first = await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
     expect(first.status).toBe(200);
 
     const order = await prisma.order.findUnique({ where: { id: orderId } });
@@ -85,8 +87,9 @@ describe('stripe webhook handling', () => {
     const webhook = makeClient(app);
     const event = { id: 'evt_test_duplicate', type: 'checkout.session.completed', orderId, subscriptionId: 'sub_dup' };
 
-    const first = await webhook.request('POST', '/api/webhooks/stripe/test', event);
-    const second = await webhook.request('POST', '/api/webhooks/stripe/test', event);
+    const internal = { headers: { 'x-internal-token': env.internalToken } };
+    const first = await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
+    const second = await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
@@ -110,8 +113,9 @@ describe('stripe webhook handling', () => {
 
     const webhook = makeClient(app);
     const event = { id: 'evt_test_payment', type: 'checkout.session.completed', orderId, paymentIntentId: 'pi_once' };
-    await webhook.request('POST', '/api/webhooks/stripe/test', event);
-    await webhook.request('POST', '/api/webhooks/stripe/test', event);
+    const internal = { headers: { 'x-internal-token': env.internalToken } };
+    await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
+    await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
 
     const payments = await prisma.payment.findMany({ where: { stripePaymentIntentId: 'pi_once' } });
     expect(payments).toHaveLength(1);
@@ -124,7 +128,7 @@ describe('stripe webhook handling', () => {
       id: 'evt_test_unknown',
       type: 'checkout.session.completed',
       orderId: 'does-not-exist',
-    });
+    }, { headers: { 'x-internal-token': env.internalToken } });
     expect(response.status).toBe(200);
     expect(await prisma.instance.count()).toBe(0);
   });
@@ -143,14 +147,14 @@ describe('stripe webhook handling', () => {
       id: 'evt_test_order',
       type: 'checkout.session.completed',
       orderId,
-    });
+    }, { headers: { 'x-internal-token': env.internalToken } });
 
     // A different event id for the same order must not create a second instance.
     await webhook.request('POST', '/api/webhooks/stripe/test', {
       id: 'evt_test_order_2',
       type: 'checkout.session.completed',
       orderId,
-    });
+    }, { headers: { 'x-internal-token': env.internalToken } });
 
     const instances = await prisma.instance.findMany({ where: { orderId } });
     expect(instances).toHaveLength(1);

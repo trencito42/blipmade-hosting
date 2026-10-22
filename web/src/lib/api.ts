@@ -117,6 +117,8 @@ export interface SessionUser {
   name: string | null;
   role: Role;
   emailVerified: boolean;
+  /** Staff permissions granted to this account. Empty for customers. */
+  permissions: string[];
 }
 
 export type InstanceStatus =

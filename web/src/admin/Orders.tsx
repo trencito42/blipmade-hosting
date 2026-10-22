@@ -4,7 +4,7 @@ import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, Panel, Segmented, StatusPill } from '../ui-app';
-import { DASH, denseGhost, fmtDate, maskEmail } from './Overview';
+import { DASH, LiveRegion, denseGhost, fmtDate, maskEmail } from './Overview';
 
 /**
  * Staff order list — GET /api/admin/orders?status=
@@ -62,6 +62,7 @@ export default function Orders() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${orders.length} order${orders.length === 1 ? '' : 's'}`} />
       <Panel
         title="Orders"
         description="Every order with its status, items and total. Amounts are minor units from the API."

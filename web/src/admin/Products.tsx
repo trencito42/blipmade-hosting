@@ -14,7 +14,7 @@ import {
   StatusPill,
   useToast,
 } from '../ui-app';
-import { DASH, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useStaffUser } from './Overview';
+import { DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useStaffUser } from './Overview';
 
 /**
  * Staff catalog — GET /api/admin/products, POST /api/admin/products,
@@ -115,6 +115,7 @@ export default function Products() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${products.length} product${products.length === 1 ? '' : 's'}`} />
       <Panel
         title="Catalog"
         description="Apps and databases that customers can buy. Visibility controls the catalog, deployable controls ordering."

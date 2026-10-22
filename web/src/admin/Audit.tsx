@@ -3,7 +3,7 @@ import { get } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Panel } from '../ui-app';
-import { DASH, denseGhost, denseInput, fmtDateTime, maskEmail } from './Overview';
+import { DASH, LiveRegion, denseGhost, denseInput, fmtDateTime, maskEmail } from './Overview';
 
 /**
  * Staff audit log — GET /api/admin/audit?actor=&action=&targetType=
@@ -61,6 +61,7 @@ export default function Audit() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${logs.length} audit entr${logs.length === 1 ? 'y' : 'ies'}`} />
       <Panel
         title="Audit log"
         description="Every staff action the API recorded, newest first. Actor and action match on part of the text."

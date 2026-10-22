@@ -12,6 +12,18 @@ const panel = {
 
 vi.mock('../src/services/pterodactyl/application.js', () => ({
   listServers: vi.fn(async () => []),
+  eggEnvironmentTemplate: vi.fn(async () => ({
+    USER_UPLOAD: '1',
+    AUTO_UPDATE: '0',
+    MAIN_FILE: 'index.js',
+    NODE_ARGS: '',
+    NODE_PACKAGES: '',
+    UNNODE_PACKAGES: '',
+    GIT_ADDRESS: '',
+    BRANCH: '',
+    USERNAME: '',
+    ACCESS_TOKEN: '',
+  })),
   getServer: vi.fn(async (id: number) => {
     const server = panel.servers.find((entry) => entry.id === id);
     if (!server) throw new Error('server not found');
@@ -68,11 +80,11 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
       updated_at: new Date().toISOString(),
     };
   }),
-  buildServer: vi.fn(async () => undefined),
-  installServer: vi.fn(async (id: number) => {
-    panel.installed.add(id);
-  }),
+  reinstallServer: vi.fn(async () => undefined),
+  waitForServerInstalled: vi.fn(async () => true),
   updateServerDetails: vi.fn(async () => ({})),
+  updateServerBuild: vi.fn(async () => ({})),
+  updateServerStartup: vi.fn(async () => ({})),
   setServerEnvironment: vi.fn(async () => undefined),
   listNodes: vi.fn(async () => [
     {
@@ -109,6 +121,17 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
   ping: vi.fn(async () => true),
 }));
 
+/**
+ * The Client API is faked as well. Power control needs the separate client
+ * key, so the tests cover both the configured and the missing case.
+ */
+const clientState = { available: true };
+vi.mock('../src/services/pterodactyl/client.js', () => ({
+  clientApiAvailable: vi.fn(() => clientState.available),
+  clientToken: vi.fn(() => 'test-client-token'),
+  sendPower: vi.fn(async () => undefined),
+}));
+
 const { prisma } = await import('../src/db.js');
 const { provisionInstance } = await import('../src/services/provisioning.js');
 const { closeApp, getApp, registerAndLogin, resetDatabase } = await import('./helpers.js');
@@ -127,6 +150,7 @@ beforeEach(async () => {
   panel.servers = [];
   panel.nextServerId = 100;
   panel.installed = new Set();
+  clientState.available = true;
 
   // The deployment health check talks to the container over HTTP. The panel
   // is faked, so the HTTP answer is faked too.
@@ -196,8 +220,7 @@ describe('provisioning', () => {
     expect(secondServerId).toBe(firstServerId);
   });
 
-  it('records the failure and does not activate the instance', async () => {
-    const instance = await seedInstance();
+  it('records the failure and does not activate the instance', async () => {    const instance = await seedInstance();
 
     // Break the panel so provisioning cannot finish.
     const application = await import('../src/services/pterodactyl/application.js');
@@ -214,5 +237,19 @@ describe('provisioning', () => {
     expect(updated?.pterodactylServerId).toBeNull();
 
     (application as unknown as { listAllocations: unknown }).listAllocations = original;
+  });
+
+  it('names the missing client key when the container cannot be started', async () => {
+    const instance = await seedInstance();
+    clientState.available = false;
+
+    await expect(provisionInstance(instance.id)).rejects.toBeTruthy();
+
+    const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(updated?.status).toBe('FAILED');
+    expect(updated?.provisionError).toContain('Client API key');
+    // The server is created and installed before the start step, so it must
+    // not be created a second time when the job is retried.
+    expect(panel.servers).toHaveLength(1);
   });
 });

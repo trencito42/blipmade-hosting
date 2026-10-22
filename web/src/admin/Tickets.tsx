@@ -15,7 +15,7 @@ import {
   TextArea,
   useToast,
 } from '../ui-app';
-import { DASH, can, denseGhost, denseSelect, denseSoft, fmtDateTime, maskEmail, useStaffUser } from './Overview';
+import { DASH, LiveRegion, can, denseGhost, denseSelect, denseSoft, fmtDateTime, maskEmail, useStaffUser } from './Overview';
 
 /**
  * Staff support queue — GET /api/admin/tickets
@@ -77,11 +77,11 @@ const QUEUE_FILTERS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'OPEN', label: 'Open' },
-  { value: 'AWAITING_CUSTOMER', label: 'Awaiting customer' },
-  { value: 'AWAITING_STAFF', label: 'Awaiting staff' },
-  { value: 'ON_HOLD', label: 'On hold' },
-  { value: 'CLOSED', label: 'Closed' },
+  { value: 'open', label: 'Open' },
+  { value: 'awaiting_customer', label: 'Awaiting customer' },
+  { value: 'awaiting_staff', label: 'Awaiting staff' },
+  { value: 'on_hold', label: 'On hold' },
+  { value: 'closed', label: 'Closed' },
 ];
 
 export default function Tickets() {
@@ -111,13 +111,15 @@ export default function Tickets() {
   });
 
   const changeStatus = useAction(async (next: string) => {
-    return post<{ ticket: { id: string; status: string } }>(`/tickets/${selectedId}/status`, { status: next });
+    // The API stores the status in upper case.
+    return post<{ ticket: { id: string; status: string } }>(`/tickets/${selectedId}/status`, { status: next.toUpperCase() });
   });
 
   const selected = tickets.find((ticket) => ticket.id === selectedId) ?? null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+      <LiveRegion message={`${tickets.length} ticket${tickets.length === 1 ? '' : 's'} in the queue`} />
       <div className={selectedId ? 'hidden lg:block' : 'block'}>
         <Panel title="Queue" description="Newest activity first. Pick a ticket to open the thread.">
           <div className="grid gap-3">
@@ -354,6 +356,7 @@ function TicketDetailPanel({
                       const result = await assignAction.run(assignee || null);
                       if (!result) return;
                       setAssignee('');
+                      detail.reload();
                       onChanged();
                     }}
                     className={denseSoft}
@@ -397,6 +400,7 @@ function TicketDetailPanel({
                       const result = await statusAction.run(status);
                       if (!result) return;
                       setStatus('');
+                      detail.reload();
                       onChanged();
                     }}
                     className={denseSoft}

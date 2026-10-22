@@ -4,7 +4,7 @@ import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
-import { DASH, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
+import { DASH, LiveRegion, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
 
 /**
  * Staff customer list — GET /api/admin/customers?search=
@@ -105,6 +105,7 @@ export default function Customers() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${customers.length} customer${customers.length === 1 ? '' : 's'}`} />
       <Panel
         title="Customers"
         description="Search by name or e-mail address. Every row links to the customer record."

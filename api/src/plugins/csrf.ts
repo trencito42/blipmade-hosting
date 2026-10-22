@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { CSRF_COOKIE } from './auth.js';
+import { env } from '../env.js';
 import { safeEqual } from '../lib/password.js';
 import { randomToken } from '../lib/tokens.js';
 import { forbidden } from '../lib/errors.js';
@@ -44,7 +45,7 @@ export function ensureCsrfCookie(request: FastifyRequest, reply: FastifyReply): 
   reply.setCookie(CSRF_COOKIE, randomToken(24), {
     httpOnly: false,
     sameSite: 'lax',
-    secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+    secure: env.cookieSecure,
     path: '/',
     maxAge: 60 * 60 * 24,
   });

@@ -1,7 +1,7 @@
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatTile, StatusPill, useToast } from '../ui-app';
-import { DASH, can, densePrimary, useStaffUser } from './Overview';
+import { DASH, LiveRegion, can, densePrimary, useStaffUser } from './Overview';
 
 /**
  * Staff infrastructure — GET /api/admin/infrastructure,
@@ -76,6 +76,7 @@ export default function Infrastructure() {
 
   return (
     <div className="grid gap-4">
+      <LiveRegion message={`${nodes.length} node${nodes.length === 1 ? '' : 's'}, ${eggs.length} egg${eggs.length === 1 ? '' : 's'}`} />
       <Panel
         title="Infrastructure"
         description="Nodes and eggs as the panel reports them. Syncing re-reads the panel and refreshes these numbers."
