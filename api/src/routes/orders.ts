@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
-import { buildQuote } from '../services/pricing.js';
+import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { createCheckout, stripeTestGateway } from '../services/stripe.js';
 import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
@@ -69,7 +69,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         .object({ items: z.array(orderItemSchema).min(1, 'Choose at least one app.'), promotionCode: z.string().trim().optional() })
         .parse(request.body);
 
-      const quote = await buildQuote(body.items, body.promotionCode);
+      const quote = await buildQuote(body.items, body.promotionCode, user.id);
 
       const order = await prisma.order.create({
         data: {
@@ -100,10 +100,15 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         include: { items: { include: { product: { select: { slug: true } } } } },
       });
 
+      // The promotion is reserved, not consumed. The campaign slot is only
+      // used when the payment is confirmed, so unpaid orders cannot exhaust a
+      // campaign. The reservation expires on its own if the order is abandoned.
       if (quote.promotionRecord) {
-        await prisma.promotion.update({
-          where: { id: quote.promotionRecord.id },
-          data: { usedCount: { increment: 1 } },
+        await reservePromotion({
+          promotionId: quote.promotionRecord.id,
+          userId: user.id,
+          orderId: order.id,
+          amount: quote.discount,
         });
       }
 
@@ -166,6 +171,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (order.status === 'PAID') throw badRequest('A paid order cannot be cancelled. Cancel the subscription instead.');
 
     await prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+    // The campaign slot goes back into the pool.
+    await releasePromotionReservation(order.id);
     await audit({ actorId: user.id, actorEmail: user.email, action: 'order.cancelled', targetType: 'order', targetId: order.id });
     return reply.code(204).send();
   });

@@ -27,18 +27,36 @@ interface SeedProduct {
   baseAmount: number;
   eggId: number | null;
   dockerImage: string | null;
+  /** The command the container runs. Overrides the egg default when set. */
+  startupCommand: string | null;
   /** Environment variables passed to the container. */
   startup: Record<string, string>;
   deployable: boolean;
   sortOrder: number;
 }
 
+/**
+ * The only mapping that has been verified end to end on the live panel is
+ * egg 15 ("node.js generic", nest 5) with the image
+ * ghcr.io/ptero-eggs/yolks:nodejs_25. A Node.js container was smoke tested
+ * on it and answered HTTP 200 on 10.77.0.11:30000.
+ *
+ * So only the product that runs on that egg is deployable. Every other
+ * product stays unavailable until its own image is installed on the panel and
+ * smoke tested, which means it must not advertise an egg, an image or a
+ * startup command that does not exist there. An invented mapping would fail
+ * at provisioning time, in front of a paying customer.
+ */
+const VERIFIED_EGG_ID = 15;
+const VERIFIED_IMAGE = 'ghcr.io/ptero-eggs/yolks:nodejs_25';
+
 const PRODUCTS: SeedProduct[] = [
   {
     slug: 'wordpress',
     name: 'WordPress',
     category: 'WEB_CMS',
-    description: 'The most widely used CMS. Run a website, blog or storefront on your own resources.',
+    description:
+      'The most widely used CMS. Its image is not installed on the platform yet, so it is listed but cannot be deployed.',
     icon: 'globe',
     minRam: 512,
     minCpu: 1,
@@ -50,9 +68,10 @@ const PRODUCTS: SeedProduct[] = [
     maxCpu: 4,
     maxDisk: 100,
     baseAmount: 149,
-    eggId: 15,
-    dockerImage: 'ghcr.io/ptero-eggs/yolks:nodejs_25',
-    startup: { MAIN_FILE: 'server.js', NODE_PACKAGES: 'express' },
+    eggId: null,
+    dockerImage: null,
+    startupCommand: null,
+    startup: {},
     deployable: false,
     sortOrder: 10,
   },
@@ -60,7 +79,8 @@ const PRODUCTS: SeedProduct[] = [
     slug: 'code-server',
     name: 'Code Server',
     category: 'DEVELOPER_TOOLS',
-    description: 'Visual Studio Code in the browser, running on your own resources.',
+    description:
+      'Visual Studio Code in the browser, running on your own resources. Its image is not installed on the platform yet, so it cannot be deployed.',
     icon: 'term',
     minRam: 1024,
     minCpu: 1,
@@ -72,9 +92,10 @@ const PRODUCTS: SeedProduct[] = [
     maxCpu: 4,
     maxDisk: 100,
     baseAmount: 299,
-    eggId: 15,
-    dockerImage: 'ghcr.io/ptero-eggs/yolks:nodejs_25',
-    startup: { MAIN_FILE: 'server.js', NODE_PACKAGES: 'code-server' },
+    eggId: null,
+    dockerImage: null,
+    startupCommand: null,
+    startup: {},
     deployable: false,
     sortOrder: 20,
   },
@@ -82,7 +103,8 @@ const PRODUCTS: SeedProduct[] = [
     slug: 'discord-bot',
     name: 'Discord Bot',
     category: 'BOTS',
-    description: 'Run a bot around the clock from Node.js or Python without a home server.',
+    description:
+      'Run a Node.js bot around the clock without a home server. Runs on the verified Node.js image.',
     icon: 'bot',
     minRam: 256,
     minCpu: 1,
@@ -94,17 +116,21 @@ const PRODUCTS: SeedProduct[] = [
     maxCpu: 4,
     maxDisk: 50,
     baseAmount: 149,
-    eggId: 15,
-    dockerImage: 'ghcr.io/ptero-eggs/yolks:nodejs_25',
+    eggId: VERIFIED_EGG_ID,
+    dockerImage: VERIFIED_IMAGE,
+    // The generic Node.js egg starts the container with `npm run start`, and
+    // MAIN_FILE tells it which file that script runs.
+    startupCommand: 'npm run start',
     startup: { MAIN_FILE: 'index.js' },
-    deployable: false,
+    deployable: true,
     sortOrder: 30,
   },
   {
     slug: 'uptime-kuma',
     name: 'Uptime Kuma',
     category: 'MONITORING',
-    description: 'Simple uptime monitoring with public status pages.',
+    description:
+      'Simple uptime monitoring with public status pages. Its image is not installed on the platform yet, so it cannot be deployed.',
     icon: 'mon',
     minRam: 256,
     minCpu: 1,
@@ -116,9 +142,10 @@ const PRODUCTS: SeedProduct[] = [
     maxCpu: 2,
     maxDisk: 50,
     baseAmount: 149,
-    eggId: 15,
-    dockerImage: 'ghcr.io/ptero-eggs/yolks:nodejs_25',
-    startup: { MAIN_FILE: 'server.js', NODE_PACKAGES: 'uptime-kuma' },
+    eggId: null,
+    dockerImage: null,
+    startupCommand: null,
+    startup: {},
     deployable: false,
     sortOrder: 40,
   },
@@ -126,7 +153,8 @@ const PRODUCTS: SeedProduct[] = [
     slug: 'postgresql',
     name: 'PostgreSQL',
     category: 'DATABASES',
-    description: 'Relational database with a connection string for your applications.',
+    description:
+      'Relational database with a connection string for your applications. Its image is not installed on the platform yet, so it cannot be deployed.',
     icon: 'db',
     minRam: 1024,
     minCpu: 1,
@@ -138,9 +166,10 @@ const PRODUCTS: SeedProduct[] = [
     maxCpu: 4,
     maxDisk: 200,
     baseAmount: 449,
-    eggId: 15,
-    dockerImage: 'ghcr.io/ptero-eggs/yolks:nodejs_25',
-    startup: { MAIN_FILE: 'server.js' },
+    eggId: null,
+    dockerImage: null,
+    startupCommand: null,
+    startup: {},
     deployable: false,
     sortOrder: 50,
   },
@@ -169,6 +198,7 @@ async function main(): Promise<void> {
         eggId: product.eggId,
         dockerImage: product.dockerImage,
         startup: product.startup,
+        startupCommand: product.startupCommand,
         deployable: product.deployable,
         visible: true,
         sortOrder: product.sortOrder,
@@ -188,9 +218,14 @@ async function main(): Promise<void> {
         maxRam: product.maxRam,
         maxCpu: product.maxCpu,
         maxDisk: product.maxDisk,
+        // The egg mapping and the deployable flag state what has been
+        // verified on the panel, so the seed is authoritative for them. A
+        // product that lost its mapping here loses it in the database too.
         eggId: product.eggId,
         dockerImage: product.dockerImage,
         startup: product.startup,
+        startupCommand: product.startupCommand,
+        deployable: product.deployable,
         sortOrder: product.sortOrder,
       },
     });

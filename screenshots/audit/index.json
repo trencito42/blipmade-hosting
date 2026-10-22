@@ -1,0 +1,52 @@
+[
+  {
+    "path": "/",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/audit/home-mobile.png"
+  },
+  {
+    "path": "/login",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/audit/login-mobile.png"
+  },
+  {
+    "path": "/register",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/audit/register-mobile.png"
+  },
+  {
+    "path": "/status",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/audit/status-mobile.png"
+  },
+  {
+    "path": "/docs",
+    "viewport": "mobile",
+    "file": "/opt/blipmade/screenshots/audit/docs-mobile.png"
+  },
+  {
+    "path": "/",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/audit/home-desktop.png"
+  },
+  {
+    "path": "/login",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/audit/login-desktop.png"
+  },
+  {
+    "path": "/register",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/audit/register-desktop.png"
+  },
+  {
+    "path": "/status",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/audit/status-desktop.png"
+  },
+  {
+    "path": "/docs",
+    "viewport": "desktop",
+    "file": "/opt/blipmade/screenshots/audit/docs-desktop.png"
+  }
+]

@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 """Reads the Pterodactyl node and server state. Only safe GET requests."""
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 
-ENV = {}
-with open(sys.argv[1] if len(sys.argv) > 1 else ".env") as handle:
-    for line in handle:
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in stripped:
-            continue
-        key, value = stripped.split("=", 1)
-        ENV[key.strip()] = value.strip().strip("'\"")
-BASE = ENV["PTERODACTYL_URL"]
-KEY = ENV["PTERODACTYL_APP_KEY"]
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
+BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
+NODE_ID = int(os.environ.get("PROBE_NODE_ID", "1"))
+SERVER_ID = int(os.environ.get("PROBE_SERVER_ID", "6"))
 
 
 def get(path):
@@ -34,10 +40,11 @@ def get(path):
         return "ERR", str(error)[:200]
 
 
+print("=== read-only requests ===")
 for path in [
-    "/api/application/nodes/1/system",
-    "/api/application/nodes/1",
-    "/api/application/servers/6",
+    f"/api/application/nodes/{NODE_ID}/system",
+    f"/api/application/nodes/{NODE_ID}",
+    f"/api/application/servers/{SERVER_ID}",
 ]:
     status, body = get(path)
     print("==", path, "->", status)

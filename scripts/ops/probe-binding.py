@@ -4,23 +4,46 @@
 The panel's build route wants `allocation` as an integer id, while the create
 route was being sent an object. This creates a server both ways so the
 difference is visible, then waits for the install and checks the port.
+
+The script creates a server on the panel, so it only prints its plan unless
+--execute is given.
 """
+import argparse
 import json
 import os
 import socket
+import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
 BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
-KEY = os.environ.get("PTERODACTYL_APP_KEY", "")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
 COOKIE_FILE = os.environ.get("COOKIE_FILE", "/tmp/panel-cookie.json")
 HOST = os.environ.get("PROBE_HOST", "10.77.0.11")
+PROBE_USER = int(os.environ.get("PROBE_USER", "11"))
+PROBE_EGG = int(os.environ.get("PROBE_EGG", "15"))
 STARTUP = os.environ.get(
     "NEW_STARTUP",
     "node -e \"require('http').createServer((req,res)=>{res.end('blipmade verification')}).listen(3000)\"",
 )
+
+parser = argparse.ArgumentParser(description="Create a test server and watch its port bind.")
+parser.add_argument("--execute", action="store_true",
+                    help="actually create the server (the default only prints the plan)")
+ARGS = parser.parse_args()
 
 
 def app_request(method, path, body=None):
@@ -120,15 +143,33 @@ if alloc.get("assigned"):
     raise SystemExit(f"allocation {target} is already assigned")
 
 # The environment template of the existing server on this egg.
-status, data = app_request("GET", "/servers/6")
+template_id = int(os.environ.get("PROBE_TEMPLATE_SERVER_ID", "6"))
+status, data = app_request("GET", f"/servers/{template_id}")
+if status != 200:
+    print(f"cannot read the template server {template_id}: {status} {str(data)[:200]}")
+    print("Nothing was created.")
+    sys.exit(1)
 environment = data["attributes"]["container"]["environment"]
+
+print("\n=== what would change ===")
+print("  create the server 'Blipmade port binding test' on the panel")
+print(f"    owner user {PROBE_USER}, egg {PROBE_EGG}, allocation {target} (port {alloc.get('port')})")
+print(f"    startup: {STARTUP}")
+print("  reinstall it and wait for the daemon to install it")
+print("  start it and check whether the port opens")
+print("  the server stays behind and has to be removed again with scripts/cleanup-panel.py")
+if not ARGS.execute:
+    print("\n=== result ===")
+    print("nothing was created (dry run)")
+    print("To create the server, re-run with --execute.")
+    raise SystemExit(0)
 
 print("\n=== create server with allocation as a plain integer id ===")
 status, data = app_request("POST", "/servers", {
     "name": "Blipmade port binding test",
     "description": "Blipmade allocation binding verification",
-    "user": 11,
-    "egg": 15,
+    "user": PROBE_USER,
+    "egg": PROBE_EGG,
     "docker_image": "ghcr.io/ptero-eggs/yolks:nodejs_25",
     "startup": STARTUP,
     "environment": environment,

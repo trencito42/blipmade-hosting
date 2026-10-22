@@ -15,10 +15,23 @@ BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/
 COOKIE_FILE = os.environ.get("COOKIE_FILE", "/tmp/panel-cookie.json")
 SERVER_UUID = os.environ.get("PROBE_SERVER_UUID", "")
 
+if not SERVER_UUID:
+    print("error: PROBE_SERVER_UUID is not set (the uuid of the server to read).")
+    print("Nothing was read and nothing was changed.")
+    sys.exit(1)
+
 
 def load_cookies():
-    with open(COOKIE_FILE) as handle:
-        data = json.load(handle)
+    try:
+        with open(COOKIE_FILE) as handle:
+            data = json.load(handle)
+    except FileNotFoundError:
+        print(f"error: the session file {COOKIE_FILE} does not exist.")
+        print("Create it first with scripts/ops/browser-session.mjs.")
+        sys.exit(1)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"error: the session file {COOKIE_FILE} could not be read: {exc}")
+        sys.exit(1)
     jar = {}
     xsrf = None
     for cookie in data["cookies"]:

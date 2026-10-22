@@ -102,3 +102,86 @@ export interface CreateServerInput {
    */
   allocation: { default: number; allocations: number[] };
 }
+
+/**
+ * Shapes returned by the Pterodactyl Client API (v1 media type).
+ *
+ * The client API answers with a JSON:API style envelope: a single resource
+ * carries `attributes`, a collection carries `data` with one entry per
+ * resource.
+ */
+
+/** A single JSON:API resource object: `{ object, attributes }`. */
+export interface PteroClientResource<A = Record<string, unknown>> {
+  object?: string;
+  attributes: A;
+}
+
+/** A JSON:API collection: `{ object, data: [{ object, attributes }] }`. */
+export interface PteroClientCollection<A = Record<string, unknown>> {
+  object?: string;
+  data: PteroClientResource<A>[];
+  meta?: Record<string, unknown>;
+}
+
+/** Attributes of a file entry of `GET /files/list`. */
+export interface PteroFileAttributes {
+  name: string;
+  created_at: string;
+  modified_at: string;
+  mode: string;
+  size: number;
+  is_directory?: boolean;
+  is_file?: boolean;
+  is_symlink?: boolean;
+}
+
+/** Attributes of `GET /files/contents`. */
+export interface PteroFileContentsAttributes {
+  content: string;
+  encoding: string;
+}
+
+/** Attributes of `GET /resources`. */
+export interface PteroStatsAttributes {
+  state?: string;
+  current_state?: string;
+  is_suspended?: boolean;
+  cpu_absolute?: number;
+  memory_bytes?: number;
+  network?: { rx?: number; tx?: number };
+  disk?: { used?: number };
+  uptime?: number;
+  /** Older panels nest the counters below "resources". */
+  resources?: {
+    memory_bytes?: number;
+    cpu_absolute?: number;
+    disk_bytes?: number;
+    network_rx_bytes?: number;
+    network_tx_bytes?: number;
+  };
+}
+
+/** Attributes of a backup of `GET /backups`. */
+export interface PteroBackupAttributes {
+  uuid: string;
+  name: string;
+  size?: number;
+  bytes?: number;
+  created_at: string;
+  is_locked?: boolean;
+}
+
+/** Attributes of `GET /servers/{uuid}`. */
+export interface PteroClientServerAttributes {
+  uuid: string;
+  identifier: string;
+  name?: string;
+  server_name?: string;
+  state?: string;
+  current_state?: string;
+  is_suspended?: boolean;
+  limits?: { memory: number; swap: number; disk: number; io: number; cpu: number };
+  features?: string[];
+  created_at?: string;
+}

@@ -3,18 +3,34 @@
  *
  * The Application API does not expose runtime state, so a panel session is
  * used exactly the way the panel's own UI does.
+ *
+ * Environment:
+ *   PTERODACTYL_URL     the panel (default https://panel.blipmade.com)
+ *   PANEL_EMAIL         the panel account that signs in
+ *   PANEL_PASSWORD      its password (never printed)
+ *   PROBE_SERVER_UUID   the uuid of the server to read
  */
 import fs from 'node:fs';
+
+const BASE = process.env.PTERODACTYL_URL ?? 'https://panel.blipmade.com';
+const EMAIL = process.env.PANEL_EMAIL ?? '';
+const PASSWORD = process.env.PANEL_PASSWORD ?? '';
+const SERVER_UUID = process.env.PROBE_SERVER_UUID ?? '';
+
+if (!EMAIL || !PASSWORD) {
+  console.error('error: PANEL_EMAIL and PANEL_PASSWORD have to be set (the panel account that signs in).');
+  console.error('The password is never printed and never written to a file.');
+  process.exit(1);
+}
+if (!SERVER_UUID) {
+  console.error('error: PROBE_SERVER_UUID is not set (the uuid of the server to read).');
+  process.exit(1);
+}
 
 const PLAYWRIGHT = process.env.PLAYWRIGHT_PATH ??
   '/opt/blipmade/tools/browser/node_modules/playwright-core/index.js';
 const playwright = await import(PLAYWRIGHT);
 const chromium = playwright.chromium ?? playwright.default?.chromium;
-
-const BASE = process.env.PTERODACTYL_URL ?? 'https://panel.blipmade.com';
-const EMAIL = process.env.PANEL_EMAIL ?? 'blipmade-ops@blipmade.test';
-const PASSWORD = process.env.PANEL_PASSWORD ?? 'BmOps-Verify-2026!';
-const SERVER_UUID = process.env.PROBE_SERVER_UUID ?? '';
 
 const browser = await chromium.launch({
   executablePath: '/usr/bin/chromium',

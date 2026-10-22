@@ -147,6 +147,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await resetDatabase();
+  // The panel mocks are shared by the whole file, so the call counters start
+  // at zero for every test.
+  vi.clearAllMocks();
   panel.servers = [];
   panel.nextServerId = 100;
   panel.installed = new Set();
@@ -209,6 +212,7 @@ describe('provisioning', () => {
 
   it('does not create a second server when it is retried', async () => {
     const instance = await seedInstance();
+    const application = await import('../src/services/pterodactyl/application.js');
 
     await provisionInstance(instance.id);
     const firstServerId = (await prisma.instance.findUnique({ where: { id: instance.id } }))?.pterodactylServerId;
@@ -218,6 +222,42 @@ describe('provisioning', () => {
 
     expect(panel.servers).toHaveLength(1);
     expect(secondServerId).toBe(firstServerId);
+
+    // A retry must never reinstall a server that already exists: the files of
+    // the customer would be lost.
+    expect(application.reinstallServer).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reinstall a server after a crash between the install and the start', async () => {
+    const instance = await seedInstance();
+    const application = await import('../src/services/pterodactyl/application.js');
+
+    // The container cannot be started, so the run stops after the install.
+    clientState.available = false;
+    await expect(provisionInstance(instance.id)).rejects.toBeTruthy();
+
+    const afterFirst = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(afterFirst?.provisionStep).toBe('installed');
+    expect(afterFirst?.pterodactylServerId).toBe(100);
+
+    clientState.available = true;
+    await provisionInstance(instance.id);
+
+    // The second run continues after the install instead of reinstalling.
+    expect(application.reinstallServer).toHaveBeenCalledTimes(1);
+    const afterSecond = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(afterSecond?.status).toBe('ONLINE');
+    expect(afterSecond?.provisionStep).toBe('activated');
+  });
+
+  it('refuses a second run while another run holds the instance', async () => {
+    const instance = await seedInstance();
+    await prisma.instance.update({ where: { id: instance.id }, data: { provisionLockAt: new Date() } });
+
+    await expect(provisionInstance(instance.id)).rejects.toThrow(/already working/i);
+
+    const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(updated?.status).toBe('PENDING');
   });
 
   it('records the failure and does not activate the instance', async () => {    const instance = await seedInstance();

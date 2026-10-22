@@ -1,13 +1,28 @@
 #!/usr/bin/env python3
-"""Watch a Blipmade test server's install progress for a while."""
+"""Watch a Blipmade test server's install progress for a while.
+
+Read-only: it only sends GET requests and opens TCP connections.
+"""
 import json
 import os
 import socket
+import sys
 import time
 import urllib.request
 
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
 BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
-KEY = os.environ.get("PTERODACTYL_APP_KEY", "")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
 SERVER_ID = int(os.environ.get("PROBE_SERVER_ID", "6"))
 HOST = os.environ.get("PROBE_HOST", "10.77.0.11")
 PORT = int(os.environ.get("PROBE_PORT", "30002"))

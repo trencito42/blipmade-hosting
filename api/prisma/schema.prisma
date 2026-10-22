@@ -50,6 +50,7 @@ model User {
   payments       Payment[]
   subscriptions  Subscription[]
   promotions     Promotion[] @relation("PromotionCreator")
+  promotionRedemptions PromotionRedemption[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -144,6 +145,9 @@ model Product {
   visible     Boolean  @default(true)
   // Only genuinely validated products may be ordered.
   deployable  Boolean  @default(false)
+  // How the deployment of this product is verified: { kind: 'http' | 'tcp',
+  // path, expectStatus, expectBody }.
+  healthProbe Json?
   docsUrl     String?
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
@@ -232,17 +236,43 @@ enum OrderStatus {
   REFUNDED
 }
 
+/// A new purchase, or a paid change applied to an existing instance.
+enum OrderKind {
+  NEW
+  UPGRADE
+}
+
+/// Tracks whether the paid order actually produced running services.
+/// It is deliberately separate from Order.status, which only describes money.
+enum FulfillmentStatus {
+  NOT_STARTED
+  PROVISIONING
+  FULFILLED
+  FAILED
+}
+
 model Order {
   id         String      @id @default(cuid())
   number     String      @unique
   userId     String
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   status     OrderStatus @default(PENDING)
+  /// NEW orders create instances, UPGRADE orders change the resources of one.
+  kind       OrderKind   @default(NEW)
+  /// Set on UPGRADE orders: the instance whose resources are being changed.
+  instanceId String?
+  instance   Instance?   @relation("UpgradeOrders", fields: [instanceId], references: [id], onDelete: SetNull)
+  /// The requested resources of an UPGRADE order, frozen like an order item.
+  requestedConfig Json?
+  /// Money state and fulfilment state are tracked separately.
+  fulfillmentStatus FulfillmentStatus @default(NOT_STARTED)
   total      Int
   currency   String      @default("EUR")
   promotionId String?
   promotion  Promotion?  @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   discount   Int         @default(0)
+  /// Set when the promotion was actually consumed by a paid order.
+  promotionRedeemedAt DateTime?
   stripeCheckoutSessionId String? @unique
   stripePaymentIntentId   String?
   paidAt     DateTime?
@@ -253,9 +283,12 @@ model Order {
   payments Payment[]
   invoices Invoice[]
   instances Instance[]
+  promotionRedemption PromotionRedemption?
 
   @@index([userId, status])
   @@index([status])
+  @@index([kind])
+  @@index([instanceId])
 }
 
 model OrderItem {
@@ -271,6 +304,11 @@ model OrderItem {
   currency   String   @default("EUR")
   // Frozen resource configuration, so prices never change retroactively.
   config     Json?
+
+  // Every order line owns at most one subscription, so a multi-item checkout
+  // produces one subscription per item instead of one for the whole order.
+  subscription Subscription?
+  instances    Instance[]
 
   @@index([orderId])
 }
@@ -291,7 +329,13 @@ model Subscription {
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   instanceId           String?            @unique
   instance             Instance?          @relation(fields: [instanceId], references: [id], onDelete: SetNull)
-  stripeSubscriptionId String?            @unique
+  // The order line this subscription pays for.
+  orderItemId          String?            @unique
+  orderItem            OrderItem?         @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  // The Stripe subscription can cover several order lines, so the id is not
+  // unique here. The Stripe subscription *item* is what identifies one line.
+  stripeSubscriptionId String?
+  stripeSubscriptionItemId String? @unique
   stripePriceId        String?
   status               SubscriptionStatus @default(INCOMPLETE)
   quantity             Int                @default(1)
@@ -301,11 +345,15 @@ model Subscription {
   currentPeriodEnd     DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
   cancelledAt          DateTime?
+  /// Last time the renewal sweep looked at this subscription.
+  lastRenewalCheckAt   DateTime?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
   @@index([userId])
   @@index([status])
+  @@index([cancelAtPeriodEnd])
+  @@index([stripeSubscriptionId])
 }
 
 enum InvoiceStatus {
@@ -324,6 +372,8 @@ model Invoice {
   orderId        String?
   order          Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
   stripeInvoiceId String?      @unique
+  stripeSubscriptionId String?
+  stripeCustomerId String?
   status         InvoiceStatus @default(DRAFT)
   amount         Int
   tax            Int           @default(0)
@@ -357,7 +407,11 @@ model Payment {
   order                  Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
   stripePaymentIntentId  String?       @unique
   stripeChargeId         String?
+  // The Stripe customer is what the billing portal needs, so it is stored as
+  // soon as a checkout session exposes it.
   stripeCustomerId       String?       @unique
+  stripeSubscriptionId   String?
+  stripeInvoiceId        String?       @unique
   amount                 Int
   currency               String        @default("EUR")
   status                 PaymentStatus @default(PENDING)
@@ -380,6 +434,8 @@ model Promotion {
   type           PromotionType
   value          Int
   maxRedemptions Int?
+  /// How many times a single account may use the code.
+  maxPerUser     Int?
   usedCount      Int           @default(0)
   startsAt       DateTime?
   endsAt         DateTime?
@@ -390,6 +446,30 @@ model Promotion {
   updatedAt      DateTime      @updatedAt
 
   orders Order[]
+  /// One row per paid order that used the promotion. Redemptions are counted
+  /// from this table, never from an unpaid order.
+  redemptions PromotionRedemption[]
+
+  @@index([active])
+}
+
+/// A promotion that was actually used by a paid order.
+/// The unique constraint makes the redemption idempotent: a redelivered
+/// webhook cannot consume the promotion twice.
+model PromotionRedemption {
+  id          String    @id @default(cuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId     String    @unique
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// The discounted amount, in minor units.
+  amount      Int
+  createdAt   DateTime  @default(now())
+
+  @@index([promotionId, userId])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +496,10 @@ model Instance {
   product           Product        @relation(fields: [productId], references: [id])
   orderId           String?
   order             Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  // The order line this instance was provisioned from. A line with a quantity
+  // above one produces several instances that all point at the same line.
+  orderItemId       String?
+  orderItem         OrderItem?     @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   name              String
   status            InstanceStatus @default(PENDING)
   pterodactylServerId Int?          @unique
@@ -428,6 +512,12 @@ model Instance {
   // Idempotency key used by the provisioning worker.
   provisioningKey   String?        @unique
   provisionError    String?
+  // The last provisioning step that completed successfully. A retry resumes
+  // after this step instead of starting over, which is what keeps a retry
+  // from reinstalling a server that is already running.
+  provisionStep     String?
+  // Set while a worker holds the instance, so two jobs cannot provision it.
+  provisionLockAt   DateTime?
   suspendedAt       DateTime?
   cancelledAt       DateTime?
   createdAt         DateTime       @default(now())
@@ -438,8 +528,10 @@ model Instance {
   events          InstanceEvent[]
   subscription    Subscription?
   provisioningJobs ProvisioningJob[]
+  upgradeOrders   Order[]          @relation("UpgradeOrders")
 
   @@index([userId, status])
+  @@index([orderItemId])
 }
 
 model InstanceEvent {
@@ -467,13 +559,20 @@ model InstanceDomain {
   hostname    String       @unique
   targetPort  Int          @default(30000)
   status      DomainStatus @default(PENDING_DNS)
+  // Random per-domain proof of ownership. The customer has to publish it as a
+  // TXT record before the domain can be routed.
   verificationToken String?
+  verificationHost  String?
+  verifiedAt        DateTime?
+  // Who claimed the hostname. A hostname can only be claimed once.
+  claimedByUserId   String?
   caddyRouteId String?
   lastError   String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   @@index([instanceId])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
@@ -523,6 +622,7 @@ model Ticket {
 
   messages TicketMessage[]
   events   TicketEvent[]
+  attachments Attachment[]
 
   @@index([userId, status])
   @@index([assignedToId])
@@ -537,7 +637,10 @@ model TicketMessage {
   body       String
   // Internal notes are never visible to the customer.
   internal   Boolean  @default(false)
-  attachments Json?
+  // Metadata written by clients that only describe a file. Real uploads are
+  // stored as Attachment rows and referenced from here.
+  attachmentMeta Json?
+  attachments Attachment[]
   createdAt  DateTime @default(now())
 
   @@index([ticketId, createdAt])
@@ -577,18 +680,26 @@ model AuditLog {
 }
 
 /// Idempotency ledger for provider webhooks.
+///
+/// status moves received -> processing -> processed, or -> failed. A failed
+/// event keeps its row so a redelivery is retried instead of being discarded
+/// as a duplicate.
 model WebhookEvent {
   id         String   @id @default(cuid())
   provider   String
   eventId    String
   type       String
   payload    Json?
+  status     String   @default("received")
+  attempts   Int      @default(0)
+  lastAttemptAt DateTime?
   processedAt DateTime?
   error      String?
   createdAt  DateTime @default(now())
 
   @@unique([provider, eventId])
   @@index([provider, type])
+  @@index([status])
 }
 
 /// Key/value platform settings managed by staff.
@@ -613,4 +724,24 @@ model ProvisioningJob {
 
   @@index([instanceId])
   @@index([status])
+}
+
+/// A file uploaded to a support ticket. The bytes live in the attachment
+/// store; the row only holds the metadata and the access rules.
+model Attachment {
+  id              String        @id @default(cuid())
+  ticketMessageId String
+  ticketMessage   TicketMessage @relation(fields: [ticketMessageId], references: [id], onDelete: Cascade)
+  ticketId        String
+  ticket          Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  filename        String
+  contentType     String
+  size            Int
+  /// Path inside the attachment store. Never a public path.
+  storageKey      String
+  sha256          String
+  createdAt       DateTime      @default(now())
+
+  @@index([ticketMessageId])
+  @@index([ticketId])
 }

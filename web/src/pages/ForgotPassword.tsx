@@ -1,3 +1,4 @@
+import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { useState, type FormEvent } from 'react';
 import { cn } from '../lib';
 import { Button, Eyebrow, Headline, Logo } from '../ui';
@@ -13,6 +14,7 @@ const field = (err: boolean) =>
   );
 
 function PromisePanel() {
+  const catalog = useCatalogSummary();
   return (
     <aside aria-hidden="true" className="hidden flex-col justify-between gap-8 rounded-[32px] bg-acc p-12 text-on-acc lg:flex">
       <span className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] opacity-70">Blipmade</span>
@@ -20,7 +22,13 @@ function PromisePanel() {
         <h2 className="text-[clamp(52px,6vw,96px)] font-extrabold leading-[0.88] tracking-[-0.07em]">Pick an app.<br />Deploy it.</h2>
         <p className="mt-6 max-w-[26em] text-[19px] opacity-75">One account for your apps, databases, domains and billing. No VPS to set up.</p>
       </div>
-      <ul className="flex flex-wrap gap-2">{['Apps from €1.49/mo', 'Databases from €4.49/mo', 'Start small, scale freely'].map((t) => <li key={t} className="rounded-full bg-on-acc/10 px-4 py-2 text-[14.5px] font-bold">{t}</li>)}</ul>
+      <ul className="flex flex-wrap gap-2">
+        {[
+          `Apps from ${formatPrice(catalog.minAppPrice, catalog.currency)}/mo`,
+          `Databases from ${formatPrice(catalog.minDatabasePrice, catalog.currency)}/mo`,
+          'Start small, scale freely',
+        ].map((t) => <li key={t} className="rounded-full bg-on-acc/10 px-4 py-2 text-[14.5px] font-bold">{t}</li>)}
+      </ul>
     </aside>
   );
 }

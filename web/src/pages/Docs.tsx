@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { APPS, fmtMb, type App } from '../data';
+import { useCatalogProducts } from '../lib/pricing';
 import { Icon, type IconName } from '../icons';
 import { cn } from '../lib';
 import { Link, scrollToId, useRouter } from '../router';
@@ -76,6 +77,27 @@ function appByName(name: string): App {
   return app;
 }
 
+/**
+ * The price of an app comes from the catalog of the platform. An app that is
+ * documented but not offered has no price, and the page says so instead of
+ * showing a number the platform does not charge.
+ */
+function CatalogPrice({ name }: { name: string }) {
+  const { products } = useCatalogProducts();
+  const product = products.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
+  if (!product) return <span className="text-ink2">Not in the catalog yet</span>;
+  if (!product.price) return <span className="text-ink2">Price on request</span>;
+  return <Money amount={product.price.amount} currency={product.price.currency} period="month" />;
+}
+
+/** The smallest configuration of an app, taken from the catalog when it is offered. */
+function CatalogResources({ name, fallback }: { name: string; fallback: string }) {
+  const { products } = useCatalogProducts();
+  const product = products.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
+  if (!product) return <>{fallback}</>;
+  return <>{`${fmtMb(product.minRam)} RAM · ${product.minDisk} GB disk`}</>;
+}
+
 interface AppDoc {
   id: string;
   group: string;
@@ -135,9 +157,9 @@ function appPage(doc: AppDoc): DocPage {
           {
             t: 'spec',
             rows: [
-              { k: 'Minimum resources', v: `${fmtMb(app.mb)} RAM · ${app.disk} GB disk` },
+              { k: 'Minimum resources', v: <CatalogResources name={doc.title} fallback={`${fmtMb(app.mb)} RAM · ${app.disk} GB disk`} /> },
               { k: 'CPU', v: 'Selectable when you deploy' },
-              { k: 'Price from', v: <Money amount={Math.round(app.from * 100)} currency="EUR" period="month" /> },
+              { k: 'Price from', v: <CatalogPrice name={doc.title} /> },
               { k: 'Billing', v: 'Monthly, billed in euros' },
             ],
           },
@@ -1541,12 +1563,17 @@ www   CNAME @`,
               {
                 title: 'Open the domain',
                 body: 'Go to the domains page and open the domain.',
-                result: 'You see its status and the records it expects.',
+                result: 'You see its status, the address record and the proof of ownership it expects.',
+              },
+              {
+                title: 'Publish the proof',
+                body: 'Add the TXT record the domain shows: the name and the value are on the domain itself. An address record is not enough, because every customer points at the same address.',
+                result: 'The hostname is proven to be yours.',
               },
               {
                 title: 'Verify',
-                body: 'Start the verification. Blipmade checks the records you created.',
-                result: 'The status moves from pending to verifying and then to active.',
+                body: 'Start the verification. Blipmade reads the TXT record and compares it with the token of the domain.',
+                result: 'The status moves from verifying to active.',
               },
               {
                 title: 'Open the hostname',
@@ -1565,8 +1592,8 @@ www   CNAME @`,
             t: 'trouble',
             items: [
               {
-                q: 'The status stays pending',
-                a: 'The records are not visible yet. Wait for the DNS to spread and verify again.',
+                q: 'The status stays verifying',
+                a: 'The TXT record is not visible yet or does not carry the expected value. Wait for the DNS to spread and verify again.',
               },
               {
                 q: 'The status turns to error',
@@ -1604,6 +1631,7 @@ www   CNAME @`,
             items: [
               'A record for the bare hostname, usually an A record with an address.',
               'A CNAME record for the subdomains you want, pointing at the bare hostname.',
+              'A TXT record that proves the hostname belongs to you. The domain shows the name and the value.',
               'Nothing else. Do not add a second A record for the same name, because the resolver has to pick one.',
             ],
           },

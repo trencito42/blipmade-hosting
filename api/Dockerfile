@@ -16,7 +16,8 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache openssl wget \
   && addgroup -S blip && adduser -S blip -G blip \
-  && mkdir -p /var/backups/blipmade && chown -R blip:blip /var/backups/blipmade
+  && mkdir -p /var/backups/blipmade /data/uploads \
+  && chown -R blip:blip /var/backups/blipmade /data
 
 ENV NODE_ENV=production
 COPY package.json package-lock.json* ./

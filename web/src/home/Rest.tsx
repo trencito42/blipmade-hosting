@@ -1,6 +1,7 @@
 import { FAQ } from '../data';
 import { Icon } from '../icons';
 import { Eyebrow, Headline, Logo, Reveal, Wrap } from '../ui';
+import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { scrollToId } from '../router';
 
 function Plan({ title, price, items }: { title: string; price: string; items: string[] }) {
@@ -14,13 +15,14 @@ function Plan({ title, price, items }: { title: string; price: string; items: st
 }
 
 export function Pricing() {
+  const catalog = useCatalogSummary();
   return (
     <section id="pricing" className="scroll-mt-24 pb-16 sm:pb-24">
       <Wrap>
         <div className="mb-10 grid max-w-2xl gap-4"><Eyebrow>Pricing</Eyebrow><Headline lines={['Transparent pricing.']} className="text-[clamp(40px,7vw,100px)] leading-[0.9]" /><Reveal as="p" className="text-[18px] text-ink2">You pay for the resources you choose. Nothing hidden.</Reveal></div>
         <div className="grid gap-3.5 md:grid-cols-2">
-          <Plan title="Apps" price="€1.49" items={['Billed monthly for the resources you pick', 'Upgrade resources any time', 'Files, logs and domains included']} />
-          <Plan title="Databases" price="€4.49" items={['PostgreSQL, MySQL, Redis and more', 'Storage scales with your data', 'Support by ticket']} />
+          <Plan title="Apps" price={formatPrice(catalog.minAppPrice, catalog.currency)} items={['Billed monthly for the resources you pick', 'Upgrade resources any time', 'Files, logs and domains included']} />
+          <Plan title="Databases" price={formatPrice(catalog.minDatabasePrice, catalog.currency)} items={['PostgreSQL, MySQL, Redis and more', 'Storage scales with your data', 'Support by ticket']} />
         </div>
         <div className="mt-6 grid gap-2">
           {FAQ.map(([q, a]) => (

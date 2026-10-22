@@ -59,15 +59,16 @@ find "$BACKUP_DIR" -maxdepth 1 -name "blipmade-*.tar.gz" -mtime "+$KEEP_DAYS" -p
 
 # Offsite copy. The target is configured through OFFSITE_TARGET, for example
 # "user@host:/path" for scp or an rclone remote name.
+#
+# The copy itself is made by scripts/backup-offsite.sh, which encrypts the
+# archive before it leaves the host. A backup must never travel unencrypted,
+# so this script never copies the archive on its own.
 if [[ -n "${OFFSITE_TARGET:-}" ]]; then
-  echo "==> Sending a copy to $OFFSITE_TARGET"
-  if command -v rclone >/dev/null 2>&1 && [[ "$OFFSITE_TARGET" != *":"* || "$OFFSITE_TARGET" == *"://"* ]]; then
-    rclone copy "$ARCHIVE" "$OFFSITE_TARGET"
-    rclone copy "$ARCHIVE.sha256" "$OFFSITE_TARGET"
-  else
-    scp "$ARCHIVE" "$ARCHIVE.sha256" "$OFFSITE_TARGET"
+  echo "==> Sending an encrypted copy to the offsite target"
+  if ! OFFSITE_TARGET="$OFFSITE_TARGET" bash "$(dirname "$0")/backup-offsite.sh"; then
+    echo "==> The encrypted offsite copy failed. The local backup is still there." >&2
+    exit 1
   fi
-  echo "==> Offsite copy complete"
 else
   echo "==> OFFSITE_TARGET is not set, so the copy stayed on this host."
   echo "    The host uses RAID 0. Configure OFFSITE_TARGET before relying on these backups."

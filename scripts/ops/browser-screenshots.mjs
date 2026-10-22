@@ -4,18 +4,30 @@
  * The four states the design system asks for (loading, empty, error,
  * populated) are exercised by signing in, so the screenshots show real data
  * instead of placeholders.
+ *
+ * Environment:
+ *   BM_BASE       the platform (default http://127.0.0.1:3000)
+ *   BM_EMAIL      the account that signs in (optional, the public pages are
+ *                 captured without it)
+ *   BM_PASSWORD   its password (optional, never printed)
+ *   SHOT_DIR      where the images are written
  */
 import fs from 'node:fs';
-
-const PLAYWRIGHT = process.env.PLAYWRIGHT_PATH ??
-  '/opt/blipmade/tools/browser/node_modules/playwright-core/index.js';
-const playwright = await import(PLAYWRIGHT);
-const chromium = playwright.chromium ?? playwright.default?.chromium;
 
 const BASE = process.env.BM_BASE ?? 'http://127.0.0.1:3000';
 const EMAIL = process.env.BM_EMAIL ?? '';
 const PASSWORD = process.env.BM_PASSWORD ?? '';
 const OUT_DIR = process.env.SHOT_DIR ?? '/opt/blipmade/screenshots';
+
+if (!EMAIL || !PASSWORD) {
+  console.log('warning: BM_EMAIL and BM_PASSWORD are not set.');
+  console.log('Only the public pages are captured; the signed-in areas are skipped.');
+}
+
+const PLAYWRIGHT = process.env.PLAYWRIGHT_PATH ??
+  '/opt/blipmade/tools/browser/node_modules/playwright-core/index.js';
+const playwright = await import(PLAYWRIGHT);
+const chromium = playwright.chromium ?? playwright.default?.chromium;
 
 const VIEWPORTS = [
   { name: 'mobile', width: 390, height: 844, deviceScaleFactor: 2, isMobile: true },

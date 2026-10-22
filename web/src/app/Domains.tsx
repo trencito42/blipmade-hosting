@@ -69,7 +69,9 @@ export default function Domains() {
     const result = await post<{ domain: Domain }>(`/instances/${targetInstanceId}/domains`, { hostname: host });
     const created = result.domain;
     domainsState.reload();
-    push(`${created.hostname} added. Add the DNS records below at your registrar.`);
+    push(
+      `${created.hostname} claimed. Publish the TXT record below at your registrar, then verify.`,
+    );
     return created;
   });
 
@@ -123,7 +125,10 @@ export default function Domains() {
 
   return (
     <div className="grid gap-4 pb-16 lg:pb-0">
-      <Panel title="Add a domain" description="Point a hostname at one of your instances.">
+      <Panel
+        title="Add a domain"
+        description="Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed."
+      >
         {instancesState.loading ? (
           <LoadingBlock rows={1} label="Loading your instances" />
         ) : instancesState.error ? (
@@ -215,8 +220,60 @@ export default function Domains() {
                   </p>
                 )}
 
+                {!domain.verification.verified && domain.verification.instructions && (
+                  <div className="mt-3 rounded-2xl bg-acc-bg p-4">
+                    <p className="text-[14px] font-bold text-acc">Prove that you own this hostname</p>
+                    <p className="mt-1 text-[13.5px] text-ink2">
+                      An address record is not enough, because every customer points at the same address. Add a TXT
+                      record with the value below at your registrar, then press Verify now.
+                    </p>
+                    <dl className="mt-3 grid gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Name</dt>
+                        <dd className="min-w-0 flex-1 truncate font-mono text-[12.5px] break-all text-ink">
+                          {domain.verification.host}
+                        </dd>
+                        <button
+                          type="button"
+                          onClick={() => void copy(domain.verification.host ?? '', 'TXT name')}
+                          aria-label="Copy the TXT name"
+                          className={cn(
+                            'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
+                            'focus-visible:ring-2 focus-visible:ring-acc',
+                          )}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Type</dt>
+                        <dd className="font-mono text-[12.5px] text-ink">TXT</dd>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Value</dt>
+                        <dd className="min-w-0 flex-1 truncate font-mono text-[12.5px] break-all text-ink">
+                          {domain.verification.token}
+                        </dd>
+                        <button
+                          type="button"
+                          onClick={() => void copy(domain.verification.token ?? '', 'TXT value')}
+                          aria-label="Copy the TXT value"
+                          className={cn(
+                            'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
+                            'focus-visible:ring-2 focus-visible:ring-acc',
+                          )}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </dl>
+                  </div>
+                )}
+
                 <div className="mt-4">
-                  <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">DNS records to create</p>
+                  <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
+                    Address record to create
+                  </p>
                   {domain.dnsRecords.length ? (
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse text-left">

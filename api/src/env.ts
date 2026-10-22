@@ -41,11 +41,23 @@ const schema = z.object({
   ADMIN_ENROLLMENT_KEY: z.string().default(''),
 
   BACKUP_DIR: z.string().default('/var/backups/blipmade'),
+  /** Where the files attached to support tickets are stored. */
+  ATTACHMENT_DIR: z.string().default('/data/uploads'),
   DOMAIN_BASE: z.string().default(''),
   CADDY_ADMIN_URL: z.string().default(''),
   CADDY_ADMIN_TOKEN: z.string().default(''),
   METRICS_ENABLED: bool(true),
   LOG_LEVEL: z.string().default('info'),
+
+  /**
+   * The addresses that are allowed to set the forwarding headers. Only these
+   * are trusted, so a client cannot forge its own address and slip past the
+   * rate limit.
+   */
+  TRUSTED_PROXIES: z.string().default('127.0.0.1,::1,172.16.0.0/12'),
+
+  /** Where the worker serves its own health endpoint. */
+  WORKER_URL: z.string().default('http://worker:3101'),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -78,6 +90,10 @@ export const env = {
   mailEnabled: Boolean(raw.SMTP_URL),
   pterodactylEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_APP_KEY),
   pterodactylClientEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_CLIENT_KEY),
+  /** The proxy addresses the API believes when it reads the forwarding headers. */
+  trustProxies: raw.TRUSTED_PROXIES.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean),
 } as const;
 
 export type Env = typeof env;

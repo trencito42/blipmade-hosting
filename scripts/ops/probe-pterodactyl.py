@@ -1,20 +1,36 @@
 #!/usr/bin/env python3
-"""Probes the Pterodactyl Application API for the build contract."""
+"""Probes the Pterodactyl Application API for the build contract.
+
+The script rebuilds a test server with different images, so it only prints
+its plan unless --execute is given.
+"""
+import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 
-ENV = {}
-with open(sys.argv[1] if len(sys.argv) > 1 else ".env") as handle:
-    for line in handle:
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in stripped:
-            continue
-        key, value = stripped.split("=", 1)
-        ENV[key.strip()] = value.strip().strip("'\"")
-BASE = ENV["PTERODACTYL_URL"]
-KEY = ENV["PTERODACTYL_APP_KEY"]
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
+BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
+
+parser = argparse.ArgumentParser(description="Probe the build contract of a test server.")
+parser.add_argument("server_id", nargs="?", type=int, default=int(os.environ.get("PROBE_SERVER_ID", "6")),
+                    help="the id of the test server (default 6)")
+parser.add_argument("--execute", action="store_true",
+                    help="actually rebuild the server (the default only prints the plan)")
+ARGS = parser.parse_args()
 
 
 def call(method, path, body=None):
@@ -39,13 +55,21 @@ def call(method, path, body=None):
 
 
 status, body = call("GET", "/api/application/nests/5/eggs/15")
+if status != 200:
+    print(f"cannot read the egg: {status} {str(body)[:200]}")
+    print("Nothing was changed.")
+    sys.exit(1)
 egg = json.loads(body)["attributes"]
 print("egg docker_images:", json.dumps(egg.get("docker_images"), indent=1)[:600])
 print("egg config:", json.dumps(egg.get("config"), indent=1)[:800])
 print()
 
-sid = int(sys.argv[2]) if len(sys.argv) > 2 else 6
+sid = ARGS.server_id
 status, body = call("GET", "/api/application/servers/%d" % sid)
+if status != 200:
+    print(f"cannot read server {sid}: {status} {str(body)[:200]}")
+    print("Nothing was changed.")
+    sys.exit(1)
 srv = json.loads(body)["attributes"]
 print("server image:", srv["container"]["image"])
 print("server allocations:", srv["feature_limits"])
@@ -87,6 +111,19 @@ def payload(image, extra=None):
         body.update(extra)
     return body
 
+
+print("\n=== what would change ===")
+print(f"  rebuild server {sid} four times with a different image each time:")
+print(f"    1. the current image ({srv['container']['image']})")
+print(f"    2. the image of the egg ({candidate})")
+print(f"    3. the current image, with rebuild_container")
+print(f"    4. the current image, without pulling it")
+print("  the server is rebuilt and restarted with every attempt")
+if not ARGS.execute:
+    print("\n=== result ===")
+    print("nothing was changed (dry run)")
+    print("To rebuild the server, re-run with --execute.")
+    sys.exit(0)
 
 for label, image, extra in [
     ("current image", srv["container"]["image"], None),

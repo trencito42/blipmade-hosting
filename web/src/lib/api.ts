@@ -231,6 +231,18 @@ export interface Domain {
   targetPort: number;
   dnsRecords: { name: string; type: string; value: string }[];
   lastError: string | null;
+  /**
+   * The proof of ownership. The customer has to publish a TXT record with the
+   * token before the hostname is routed.
+   */
+  verification: {
+    host: string | null;
+    token: string | null;
+    verified: boolean;
+    verifiedAt: string | null;
+    expiresAt: string | null;
+    instructions: string | null;
+  };
 }
 
 export interface Ticket {

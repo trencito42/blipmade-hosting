@@ -5,6 +5,8 @@ import { redis } from './redis.js';
 import { env } from './env.js';
 import { createProvisionWorker, closeQueue, enqueueProvisioning, getQueue } from './services/queue.js';
 import { provisionInstance, reconcileInterruptedInstances } from './services/provisioning.js';
+import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
+import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
 import { audit } from './lib/audit.js';
 
@@ -61,6 +63,30 @@ async function pruneQueue(): Promise<void> {
   await queue.clean(0, 1000, 'failed');
 }
 
+/**
+ * The billing sweep: renewals, suspensions of services that were not paid
+ * for and withdrawals at the end of a paid period.
+ */
+async function sweepBilling(): Promise<void> {
+  const result = await sweepSubscriptions();
+  if (result.renewed || result.suspended || result.withdrawn) {
+    console.info(
+      `[worker] billing sweep: ${result.renewed} renewed, ${result.suspended} suspended, ${result.withdrawn} withdrawn`,
+    );
+  }
+  await reconcileWithProvider().catch(() => undefined);
+  await releaseStalePromotionReservations().catch(() => undefined);
+}
+
+/**
+ * The events that the provider could not deliver are retried here, so a
+ * failed payment is never lost.
+ */
+async function retryWebhooks(): Promise<void> {
+  const recovered = await retryFailedWebhookEvents().catch(() => 0);
+  if (recovered) console.info(`[worker] recovered ${recovered} failed webhook event(s)`);
+}
+
 const timers: NodeJS.Timeout[] = [];
 
 /**
@@ -101,6 +127,8 @@ async function main(): Promise<void> {
   timers.push(setInterval(() => void reconcile().catch((error) => console.error('[worker] reconcile failed', error)), 60_000));
   timers.push(setInterval(() => void pruneQueue().catch(() => undefined), 10 * 60_000));
   timers.push(setInterval(() => void pruneSessions().catch(() => undefined), 60 * 60_000));
+  timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));
+  timers.push(setInterval(() => void retryWebhooks().catch((error) => console.error('[worker] webhook retry failed', error)), 5 * 60_000));
 }
 
 const shutdown = async () => {

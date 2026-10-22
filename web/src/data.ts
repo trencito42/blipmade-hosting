@@ -5,7 +5,16 @@ export type Category = (typeof CATEGORIES)[number];
 
 export interface App { name: string; cat: Exclude<Category, 'All'>; blurb: string; from: number; mb: number; disk: number; icon: IconName }
 
-/** Placeholder catalog. Prices and minimum resources are illustrative until billing is defined. */
+/**
+ * Sample apps for the Studio simulation and the marketing scenes.
+ *
+ * These entries are illustrative only. `from` is a placeholder rate card, not
+ * a price of the platform, and the list is not the catalog: it holds products
+ * the platform does not offer. The real catalog is served by the API
+ * (GET /api/catalog/products) and the homepage renders the amounts it
+ * returns. Never present an amount or an app from this list as the offer of
+ * the platform.
+ */
 export const APPS: App[] = [
   { name: 'WordPress', cat: 'Web & CMS', blurb: 'Websites, blogs and stores with the most popular CMS.', from: 1.49, mb: 512, disk: 5, icon: 'globe' },
   { name: 'Ghost', cat: 'Web & CMS', blurb: 'Modern publishing platform for newsletters and blogs.', from: 1.99, mb: 512, disk: 5, icon: 'doc' },

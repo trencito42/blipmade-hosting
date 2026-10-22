@@ -89,7 +89,12 @@ export function Story() {
   const n = CHAPTERS.length;
   const active = Math.min(n - 1, Math.floor(p * n));
   const local = (i: number) => clamp(p * n - i);
-  const head = <Headline lines={['From pick to', 'online in three moves.']} className="text-[clamp(40px,7vw,100px)] leading-[0.9]" />;
+  const head = (
+    <div className="grid gap-4">
+      <Headline lines={['From pick to', 'online in three moves.']} className="text-[clamp(40px,7vw,100px)] leading-[0.9]" />
+      <p className="text-[12.5px] text-ink3">Interactive concept with sample data. The apps and the prices of the catalog are shown when you deploy.</p>
+    </div>
+  );
 
   if (reduced) {
     return (

@@ -1,10 +1,17 @@
 # Blipmade — implementation status
 
-Last updated: 2026-10-22 21:45 UTC
+Last updated: 2026-10-23 00:20 UTC
 
 This file is the source of truth for what is finished, what is implemented but not
 verified, and what is blocked. Every claim below is backed by a command that was run
 on VM 103 (`10.77.0.13`), not by an assumption.
+
+> **Update 2026-10-23.** The independent technical audit (20 findings) has been
+> worked through. The finding-by-finding report is in
+> [`AUDIT_REMEDIATION.md`](AUDIT_REMEDIATION.md), the operating procedures are in
+> [`RUNBOOK.md`](RUNBOOK.md), and the current verdict is in
+> [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md). The corrections to the
+> statements below are marked.
 
 Sections: [Recovered work](#1-recovered-work) · [Backend](#2-backend) · [Frontend](#3-frontend)
 · [Infrastructure](#4-infrastructure) · [Tests](#5-tests) · [Panel contract](#6-pterodactyl-panel-contract)
@@ -210,7 +217,7 @@ These are outside the platform and were found by probing the live systems.
 
 | Fault | Evidence | Effect |
 |---|---|---|
-| The panel never publishes the allocation port | Container runs on the node (uptime and memory rise, `installed = 1`), but `10.77.0.11:30002`, `:30003` and the whole `30000–30019` range refuse connections. Only `30001`, the pre-existing test server, answers. | A provisioned service cannot be reached over HTTP, so the health check fails and the instance stays in `FAILED` instead of `ONLINE`. |
+| ~~The panel never publishes the allocation port~~ **corrected 2026-10-23** | Port `30000` on the node answers with HTTP 200, so the node does publish the ports of a server whose allocation relationship is correct. The servers that Blipmade created earlier never published their port because the platform used the build route to mark a server as installed, which created the container without the allocation relationship. | Fixed in the platform. The provisioning now installs through the install route of the panel, waits for `installed = 1`, starts the container and verifies the application with the probe of the product before it says online. |
 | `PATCH /servers/{id}/build` answered `500` | Reproduced with every payload shape until the validator's own field list was read; the correct payload answers `200`. | Fixed in the platform. |
 | The panel login answers `500` for every account | `POST /auth/login` answers `TypeError` for an unknown address and for a known one, with and without a reCAPTCHA token. The panel has reCAPTCHA enabled. | The panel's own web interface cannot be used. The platform never needed it. |
 | All four panel administrators are `root_admin` | `GET /api/application/users` | Not changed. Every staff account has full administrative rights. |
@@ -219,11 +226,10 @@ These are outside the platform and were found by probing the live systems.
 
 ## 9. Next steps
 
-1. Have the node owner publish the allocation ports (or confirm that the node's
-   firewall is meant to block them), then run one provisioning job and record the
-   result here. Everything on the platform side is ready for it.
-2. Add `PTERODACTYL_CLIENT_KEY`, then verify one power cycle, one file listing and
-   one console stream.
+1. Add `PTERODACTYL_CLIENT_KEY`, then run one provisioning job end to end and
+   record the result here. The node publishes its ports; the missing piece is
+   the key that starts the container.
+2. Verify one power cycle, one file listing and one console stream.
 3. Add the Stripe test keys, run a real checkout in test mode, and confirm the
    webhook path.
 4. Add `SMTP_URL` and complete the verification and reset flows with real mail.
@@ -231,3 +237,30 @@ These are outside the platform and were found by probing the live systems.
 6. Review the customer-domain route design with the gateway owner before pointing
    `blipmade.com` at VM 103. **The live domain, the Caddy gateway and the Proxmox
    networking were not changed.**
+7. Turn on the branch protection of `main`, so the checks of the new pipeline
+   have to pass before a change lands.
+
+## 10. Audit remediation — 2026-10-23
+
+The 20 findings of the independent audit are listed one by one in
+[`AUDIT_REMEDIATION.md`](AUDIT_REMEDIATION.md), with the files that changed and
+the tests that cover each of them. The short version:
+
+| Area | Before | After |
+|---|---|---|
+| Resource upgrade | Applied without charging | Quote, order, payment, then apply; a rejected change leaves the instance alone and refunds the customer |
+| Webhooks | Inserted, then processed; a failure answered 200 | A ledger with `received → processing → processed`, a failure answers 500, a failed event is retried and can be replayed |
+| Subscriptions | One per checkout, approximate periods | One per order line, the period comes from Stripe, the invoices are upserted, the customer is stored |
+| Promotions | Consumed when the order was created | Reserved at the order, consumed at the payment, a limit per account, reservations expire |
+| Catalog | Twelve static products with illustrative prices | The catalog of the API, honest availability, the CTA goes to `/app/deploy/:slug` |
+| Client API | Pterodactyl 0.x endpoints | The 1.x endpoints with typed JSON:API adapters and a contract test |
+| Console | Credentials for the browser | A relay on the server; the panel token never leaves it |
+| Provisioning retry | Could reinstall a running server | The step is recorded, the reinstall happens once, an instance lock, reconciliation |
+| Domains | Any hostname, proved by an A record | A random TXT token, reserved names, a claim that cannot be taken over |
+| Deployment check | Any answer below 500 | The probe of the product; 404 and 403 are failures |
+| Status page | One panel ping for everything | Nine components, each measured on its own |
+| Secret hygiene | A password in a public script | Every credential comes from the environment; the TLS check cannot be switched off |
+| Scripts | Deleted by default | A dry run by default, an allowlist, the protected server is refused |
+| CI | None | Typecheck, tests, build, secret scan, dependency audit, schema drift |
+| Backups | Local only | Encrypted, verified, with a retention window; the destination is still missing |
+| Attachments | A description of a file | A real upload with a size limit, a type allowlist and access rules |

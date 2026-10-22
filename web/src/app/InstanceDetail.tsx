@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
@@ -52,11 +52,6 @@ interface FileEntry {
   size: number;
   modifiedAt: string;
   mode: string;
-}
-
-interface ConsoleCredentials {
-  token: string;
-  websocket: string;
 }
 
 const TABS: { value: Tab; label: string }[] = [
@@ -139,12 +134,6 @@ function fmtDateTime(iso: string): string {
 
 function joinPath(base: string, name: string): string {
   return base ? `${base}/${name}` : name;
-}
-
-function maskToken(token: string | undefined): string {
-  if (!token) return '—';
-  if (token.length <= 10) return '••••••••';
-  return `${token.slice(0, 4)}••••${token.slice(-4)}`;
 }
 
 /** Text files are editable, binary files are shown as read only. */
@@ -249,53 +238,114 @@ function OverviewTab({ instance }: { instance: Instance }) {
   );
 }
 
+/**
+ * The console. The browser opens the relay of the API, which opens the panel
+ * console on the server side, so the panel token never reaches the browser.
+ */
 function ConsoleTab({ instance }: { instance: Instance }) {
-  const credentials = useAsync(
-    (signal) => get<ConsoleCredentials>(`/instances/${instance.id}/console`, undefined, signal),
-    [instance.id],
-  );
-  const [showToken, setShowToken] = useState(false);
+  const { push } = useToast();
+  const [lines, setLines] = useState<string[]>([]);
+  const [state, setState] = useState<'connecting' | 'open' | 'closed' | 'error'>('connecting');
+  const [command, setCommand] = useState('');
+  const socketRef = useRef<WebSocket | null>(null);
 
-  if (credentials.loading) return <LoadingBlock rows={2} label="Loading console" />;
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${window.location.host}/api/instances/${instance.id}/console/stream`;
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(url);
+    } catch {
+      setState('error');
+      return;
+    }
+    socketRef.current = socket;
+    setState('connecting');
 
-  if (credentials.error) {
-    return (
-      <ErrorState
-        title="Console unavailable"
-        message={`${credentials.error.message} The console is not configured for this instance.`}
-        onRetry={credentials.reload}
-      />
-    );
-  }
+    socket.onopen = () => setState('open');
+    socket.onmessage = (event) => {
+      const raw = typeof event.data === 'string' ? event.data : String(event.data);
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw) as { event?: string; message?: string };
+        if (parsed?.event === 'connected') {
+          setLines([]);
+          return;
+        }
+        if (parsed?.event === 'error') {
+          setState('error');
+          setLines((previous) => [...previous, parsed.message ?? 'The console connection failed.']);
+          return;
+        }
+      } catch {
+        // Not a control message, so it is console output.
+      }
+      setLines((previous) => [...previous.slice(-400), raw]);
+    };
+    socket.onerror = () => setState('error');
+    socket.onclose = () => {
+      socketRef.current = null;
+      setState((current) => (current === 'error' ? current : 'closed'));
+    };
+
+    return () => {
+      socketRef.current = null;
+      socket.close();
+    };
+  }, [instance.id]);
+
+  const sendCommand = async () => {
+    const value = command.trim();
+    if (!value) return;
+    try {
+      await post(`/instances/${instance.id}/command`, { command: value });
+      setCommand('');
+      push('Command sent.', 'ok');
+    } catch (error) {
+      push(error instanceof Error ? error.message : 'The command could not be sent.', 'error');
+    }
+  };
 
   return (
     <div className="grid gap-3">
-      <div className="rounded-2xl bg-con p-4 font-mono text-[13px] leading-relaxed text-con-ink">
-        <p>No console output loaded.</p>
-        <p className="mt-2 text-con-ink/70">
-          The API returns console credentials for a live WebSocket session. This dashboard does not open one and the API
-          exposes no console command endpoint, so no log lines or commands are shown here.
-        </p>
-      </div>
+      <Panel
+        title="Console"
+        description={
+          state === 'open'
+            ? 'Connected to the server console.'
+            : state === 'connecting'
+              ? 'Opening the console.'
+              : state === 'closed'
+                ? 'The console connection was closed.'
+                : 'The console could not be opened.'
+        }
+      >
+        <div className="rounded-2xl bg-con p-4 font-mono text-[13px] leading-relaxed text-con-ink">
+          {lines.length === 0 ? (
+            <p className="text-con-ink/70">Waiting for output.</p>
+          ) : (
+            lines.map((line, index) => (
+              <p key={`${index}-${line.slice(0, 12)}`} className="break-words whitespace-pre-wrap">
+                {line}
+              </p>
+            ))
+          )}
+        </div>
 
-      <Panel title="Connection details">
-        <dl className="grid gap-2.5">
-          <div>
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">WebSocket</dt>
-            <dd className="truncate font-mono text-[13.5px] text-ink">{credentials.data?.websocket ?? '—'}</dd>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <TextInput
+              label="Command"
+              value={command}
+              onChange={(event) => setCommand(event.target.value)}
+              placeholder="Send a command to the server"
+              disabled={state !== 'open'}
+            />
           </div>
-          <div>
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Token</dt>
-            <dd className="flex flex-wrap items-center gap-2">
-              <span className="min-w-0 flex-1 truncate font-mono text-[13.5px] text-ink">
-                {showToken ? credentials.data?.token ?? '—' : maskToken(credentials.data?.token)}
-              </span>
-              <SoftButton onClick={() => setShowToken((value) => !value)} aria-label={showToken ? 'Hide console token' : 'Show console token'}>
-                {showToken ? 'Hide' : 'Show'}
-              </SoftButton>
-            </dd>
-          </div>
-        </dl>
+          <PrimaryButton onClick={() => void sendCommand()} disabled={state !== 'open' || !command.trim()}>
+            Send
+          </PrimaryButton>
+        </div>
       </Panel>
     </div>
   );
@@ -545,6 +595,13 @@ function Stepper({
   );
 }
 
+/**
+ * The resources of an instance.
+ *
+ * A change that costs more is a paid product: the API creates an order and
+ * a checkout session, and the limits are only changed once the payment is
+ * confirmed. A change that costs less is applied right away.
+ */
 function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: (next: Instance) => void }) {
   const { push } = useToast();
   const product = useAsync(
@@ -556,6 +613,7 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
   const [cpu, setCpu] = useState(instance.cpu);
   const [disk, setDisk] = useState(instance.disk);
   const [delta, setDelta] = useState<number | null>(null);
+  const [checkout, setCheckout] = useState<{ url: string; orderNumber: string } | null>(null);
 
   const bounds = product.data?.product;
   const ready = Boolean(bounds);
@@ -566,22 +624,46 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
   const minDisk = bounds?.minDisk ?? instance.disk;
   const maxDisk = bounds?.maxDisk ?? instance.disk;
 
+  const quote = useAsync(
+    (signal) =>
+      get<{ quote: { priceDelta: number; newPrice: number; currency: string; requiresPayment: boolean } }>(
+        `/instances/${instance.id}/resources/quote`,
+        { ram, cpu, disk },
+        signal,
+      ),
+    [instance.id, ram, cpu, disk],
+  );
+
   const save = useAction(async () => {
-    const res = await put<{ instance: Instance; priceDelta: number }>(`/instances/${instance.id}/resources`, {
-      ram,
-      cpu,
-      disk,
-    });
-    if (res?.instance) onUpdated(res.instance);
+    const res = await put<{
+      status: 'applied' | 'requires_payment' | 'failed';
+      instance?: Instance;
+      priceDelta: number;
+      price: number;
+      currency: string;
+      checkoutUrl?: string;
+      order?: { number: string };
+      reason?: string | null;
+    }>(`/instances/${instance.id}/resources`, { ram, cpu, disk });
+    if (res?.status === 'applied' && res.instance) onUpdated(res.instance);
     return res;
   });
 
   const onSave = async () => {
     const res = await save.run();
-    if (res) {
-      setDelta(res.priceDelta ?? 0);
-      push('Resources updated.', 'ok');
+    if (!res) return;
+    setDelta(res.priceDelta ?? 0);
+    if (res.status === 'requires_payment' && res.checkoutUrl) {
+      setCheckout({ url: res.checkoutUrl, orderNumber: res.order?.number ?? '' });
+      push('Pay for the change before it is applied.', 'ok');
+      return;
     }
+    if (res.status === 'applied') {
+      setCheckout(null);
+      push('Resources updated.', 'ok');
+      return;
+    }
+    push(res.reason ?? 'The resources could not be changed.', 'error');
   };
 
   return (
@@ -612,6 +694,16 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
         <p className="font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-ink">
           <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
         </p>
+        {quote.data?.quote && quote.data.quote.priceDelta !== 0 && (
+          <p className="mt-1 text-[13.5px] text-ink2" aria-live="polite">
+            {quote.data.quote.priceDelta > 0 ? 'New price' : 'Price after the change'}:{' '}
+            <Money amount={quote.data.quote.newPrice} currency={quote.data.quote.currency} period="month" />
+            <span className="ml-2 text-ink3">
+              ({quote.data.quote.priceDelta > 0 ? '+' : '−'}
+              <Money amount={Math.abs(quote.data.quote.priceDelta)} currency={quote.data.quote.currency} period="month" />)
+            </span>
+          </p>
+        )}
         {delta !== null && (
           <p className="mt-1 text-[13.5px] text-ink2" aria-live="polite">
             Price change: <Money amount={delta} currency={instance.currency} period="month" />
@@ -622,12 +714,26 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
             {save.error}
           </p>
         )}
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <PrimaryButton onClick={onSave} disabled={!ready || save.pending}>
             {save.pending ? 'Saving…' : 'Save resources'}
           </PrimaryButton>
+          {quote.data?.quote.requiresPayment && (
+            <span className="text-[13px] text-ink3">This change is paid for before it is applied.</span>
+          )}
         </div>
       </Panel>
+
+      {checkout && (
+        <Panel title="Payment needed" description={`Order ${checkout.orderNumber} covers the price difference.`}>
+          <a
+            href={checkout.url}
+            className="inline-flex h-11 items-center justify-center rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97]"
+          >
+            Pay and apply the change
+          </a>
+        </Panel>
+      )}
     </div>
   );
 }

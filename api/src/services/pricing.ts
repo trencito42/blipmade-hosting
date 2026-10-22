@@ -133,7 +133,39 @@ export async function priceItems(
   return priced;
 }
 
-export async function resolvePromotion(code: string | undefined | null): Promise<PromotionResult> {
+/**
+ * How long an unpaid order keeps a promotion reserved. After that the
+ * reservation is ignored, so an abandoned checkout cannot hold a campaign
+ * hostage.
+ */
+export const PROMOTION_RESERVATION_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * Counts the redemptions that currently consume a campaign: the paid orders
+ * and the reservations of orders that are still awaiting payment and have not
+ * expired yet.
+ */
+export async function countEffectiveRedemptions(
+  promotionId: string,
+  userId?: string | null,
+): Promise<number> {
+  const cutoff = new Date(Date.now() - PROMOTION_RESERVATION_MS);
+  return prisma.promotionRedemption.count({
+    where: {
+      promotionId,
+      ...(userId ? { userId } : {}),
+      OR: [
+        { order: { status: { in: ['PAID', 'FULFILLED'] } } },
+        { order: { status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gte: cutoff } } },
+      ],
+    },
+  });
+}
+
+export async function resolvePromotion(
+  code: string | undefined | null,
+  userId?: string | null,
+): Promise<PromotionResult> {
   if (!code) return { code: '', valid: false, discount: 0 };
   const promotion = await prisma.promotion.findUnique({ where: { code: code.trim().toUpperCase() } });
   if (!promotion) return { code, valid: false, reason: 'This code is not valid.', discount: 0 };
@@ -144,10 +176,86 @@ export async function resolvePromotion(code: string | undefined | null): Promise
   if (promotion.endsAt && promotion.endsAt < new Date()) {
     return { code: promotion.code, valid: false, reason: 'This code has expired.', discount: 0 };
   }
-  if (promotion.maxRedemptions !== null && promotion.usedCount >= promotion.maxRedemptions) {
-    return { code: promotion.code, valid: false, reason: 'This code has reached its redemption limit.', discount: 0 };
+  if (promotion.maxRedemptions !== null) {
+    const used = await countEffectiveRedemptions(promotion.id);
+    if (used >= promotion.maxRedemptions) {
+      return { code: promotion.code, valid: false, reason: 'This code has reached its redemption limit.', discount: 0 };
+    }
+  }
+  if (promotion.maxPerUser !== null && userId) {
+    const usedByUser = await countEffectiveRedemptions(promotion.id, userId);
+    if (usedByUser >= promotion.maxPerUser) {
+      return { code: promotion.code, valid: false, reason: 'This code has already been used on your account.', discount: 0 };
+    }
   }
   return { code: promotion.code, valid: true, discount: 0 };
+}
+
+/**
+ * Reserves a promotion for an order. The reservation is what holds the slot
+ * while the customer pays; it becomes a redemption when the payment lands and
+ * it is released when the order is cancelled.
+ */
+export async function reservePromotion(params: {
+  promotionId: string;
+  userId: string;
+  orderId: string;
+  amount: number;
+}): Promise<void> {
+  const promotion = await prisma.promotion.findUnique({ where: { id: params.promotionId } });
+  if (!promotion) throw badRequest('This code is not valid.');
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.promotionRedemption.findUnique({ where: { orderId: params.orderId } });
+    if (existing) return;
+
+    if (promotion.maxRedemptions !== null) {
+      const cutoff = new Date(Date.now() - PROMOTION_RESERVATION_MS);
+      const used = await tx.promotionRedemption.count({
+        where: {
+          promotionId: params.promotionId,
+          OR: [
+            { order: { status: { in: ['PAID', 'FULFILLED'] } } },
+            { order: { status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gte: cutoff } } },
+          ],
+        },
+      });
+      if (used >= promotion.maxRedemptions) {
+        throw badRequest('This code has reached its redemption limit.');
+      }
+    }
+
+    if (promotion.maxPerUser !== null) {
+      const cutoff = new Date(Date.now() - PROMOTION_RESERVATION_MS);
+      const usedByUser = await tx.promotionRedemption.count({
+        where: {
+          promotionId: params.promotionId,
+          userId: params.userId,
+          OR: [
+            { order: { status: { in: ['PAID', 'FULFILLED'] } } },
+            { order: { status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gte: cutoff } } },
+          ],
+        },
+      });
+      if (usedByUser >= promotion.maxPerUser) {
+        throw badRequest('This code has already been used on your account.');
+      }
+    }
+
+    await tx.promotionRedemption.create({
+      data: {
+        promotionId: params.promotionId,
+        userId: params.userId,
+        orderId: params.orderId,
+        amount: params.amount,
+      },
+    });
+  });
+}
+
+/** Releases the reservation of an order that will never be paid. */
+export async function releasePromotionReservation(orderId: string): Promise<void> {
+  await prisma.promotionRedemption.deleteMany({ where: { orderId } });
 }
 
 /**
@@ -184,12 +292,13 @@ export interface QuoteResult {
 export async function buildQuote(
   items: { productSlug: string; ram: number; cpu: number; disk: number; optionCodes?: string[]; quantity?: number }[],
   promotionCode?: string | null,
+  userId?: string | null,
 ): Promise<QuoteResult> {
   const priced = await priceItems(items);
   const subtotal = priced.reduce((sum, item) => sum + item.total, 0);
   const currency = priced[0]?.currency ?? 'EUR';
 
-  const resolved = await resolvePromotion(promotionCode);
+  const resolved = await resolvePromotion(promotionCode, userId);
   let discount = 0;
   let promotionRecord: QuoteResult['promotionRecord'] = null;
 

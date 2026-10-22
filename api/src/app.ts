@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { env } from './env.js';
@@ -9,6 +10,8 @@ import { prisma } from './db.js';
 import { loadSession } from './plugins/auth.js';
 import { csrfGuard, ensureCsrfCookie } from './plugins/csrf.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
+import { MAX_ATTACHMENT_BYTES } from './lib/attachments.js';
+import { rateLimitRun } from './lib/rate-limit.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCatalogRoutes } from './routes/catalog.js';
 import { registerOrderRoutes } from './routes/orders.js';
@@ -34,7 +37,12 @@ export async function buildApp(): Promise<FastifyInstance> {
         remove: true,
       },
     },
-    trustProxy: true,
+    /**
+     * Only the addresses that are known proxies may set the forwarding
+     * headers. Trusting every proxy would let a client forge its own address
+     * and walk around the rate limit.
+     */
+    trustProxy: env.trustProxies,
     bodyLimit: 2 * 1024 * 1024,
   });
 
@@ -51,7 +59,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
   await app.register(rateLimit, {
     global: false,
-    keyGenerator: (request) => request.ip,
+    // The address of the caller is the key. In the test environment the key
+    // carries the run number, so the counters of one test do not count
+    // against the next one.
+    keyGenerator: (request) => (env.isTest ? `${request.ip}:${rateLimitRun()}` : request.ip),
     errorResponseBuilder: (_request, context) => ({
       statusCode: 429,
       error: {
@@ -62,6 +73,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
   await app.register(websocket, {
     options: { maxPayload: 1024 * 1024 },
+  });
+
+  // Support tickets accept one file at a time, up to the attachment limit.
+  await app.register(multipart, {
+    limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1, fields: 5 },
   });
 
   /**

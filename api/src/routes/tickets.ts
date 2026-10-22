@@ -5,6 +5,14 @@ import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { requireAuth, requireStaff } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { sendMail } from '../lib/mailer.js';
+import {
+  readAttachment,
+  removeAttachment,
+  safeFilename,
+  storageKeyFor,
+  storeAttachment,
+  validateAttachment,
+} from '../lib/attachments.js';
 
 const CATEGORIES = [
   { id: 'TECHNICAL', label: 'Technical' },
@@ -104,7 +112,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
           create: {
             authorId: user.id,
             body: body.body,
-            attachments: (body.attachments ?? []) as never,
+            attachmentMeta: (body.attachments ?? []) as never,
           },
         },
         events: { create: { type: 'created', message: 'Ticket opened.', actorId: user.id } },
@@ -128,7 +136,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         instance: { select: { name: true } },
         assignedTo: { include: { user: { select: { name: true, email: true } } } },
         messages: {
-          include: { author: { select: { id: true, name: true, email: true, role: true } } },
+          include: {
+            author: { select: { id: true, name: true, email: true, role: true } },
+            attachments: true,
+          },
           orderBy: { createdAt: 'asc' },
         },
         events: { orderBy: { createdAt: 'asc' } },
@@ -151,7 +162,16 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
           role: message.author.role,
         },
         createdAt: message.createdAt,
-        attachments: (message.attachments ?? []) as { name: string; size: number; type: string }[],
+        attachments: [
+          ...((message.attachmentMeta ?? []) as { name: string; size: number; type: string }[]),
+          ...message.attachments.map((file) => ({
+            name: file.filename,
+            size: file.size,
+            type: file.contentType,
+            id: file.id,
+            downloadable: true,
+          })),
+        ],
       }));
 
     return {
@@ -187,7 +207,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         authorId: user.id,
         body: body.body,
         internal: body.internal ?? false,
-        attachments: (body.attachments ?? []) as never,
+        attachmentMeta: (body.attachments ?? []) as never,
       },
       include: { author: { select: { id: true, name: true, email: true, role: true } } },
     });
@@ -218,9 +238,101 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         internal: message.internal,
         author: { id: message.author.id, name: message.author.name ?? message.author.email, role: message.author.role },
         createdAt: message.createdAt,
-        attachments: (message.attachments ?? []) as { name: string; size: number; type: string }[],
+        attachments: (message.attachmentMeta ?? []) as { name: string; size: number; type: string }[],
       },
     });
+  });
+
+  /**
+   * Uploads a file to a ticket. The file is stored on the attachment volume
+   * and can only be read through the download route, which checks who is
+   * allowed to see it.
+   */
+  app.post('/tickets/:id/attachments', async (request: FastifyRequest, reply) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+
+    const ticket = await prisma.ticket.findUnique({ where: { id } });
+    if (!ticket) throw notFound('Ticket not found.');
+    const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
+    if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
+
+    if (!request.isMultipart()) {
+      throw badRequest('The file has to be sent as multipart form data.');
+    }
+
+    const file = await request.file();
+    if (!file) throw badRequest('No file was uploaded.');
+
+    const content = await file.toBuffer();
+    validateAttachment(file.mimetype, content.byteLength);
+
+    const message = await prisma.ticketMessage.create({
+      data: {
+        ticketId: ticket.id,
+        authorId: user.id,
+        body: `Attached ${file.filename}.`,
+        internal: false,
+      },
+    });
+
+    const storageKey = storageKeyFor(ticket.id, message.id, file.filename);
+    const stored = await storeAttachment({ storageKey, content });
+
+    const attachment = await prisma.attachment.create({
+      data: {
+        ticketMessageId: message.id,
+        ticketId: ticket.id,
+        filename: file.filename,
+        contentType: file.mimetype,
+        size: stored.size,
+        storageKey: stored.storageKey,
+        sha256: stored.sha256,
+      },
+    });
+
+    await prisma.ticketEvent.create({
+      data: { ticketId: ticket.id, type: 'attachment', message: `File attached: ${file.filename}.`, actorId: user.id },
+    });
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'ticket.attachment_uploaded',
+      targetType: 'ticket',
+      targetId: ticket.id,
+      meta: { filename: file.filename, size: stored.size },
+    });
+
+    return reply.code(201).send({
+      attachment: {
+        id: attachment.id,
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        size: attachment.size,
+        messageId: message.id,
+      },
+    });
+  });
+
+  /** Downloads a file that was attached to a ticket. */
+  app.get('/tickets/:id/attachments/:attachmentId', async (request: FastifyRequest, reply) => {
+    const user = await requireAuth(request);
+    const { id, attachmentId } = z.object({ id: z.string(), attachmentId: z.string() }).parse(request.params);
+
+    const ticket = await prisma.ticket.findUnique({ where: { id } });
+    if (!ticket) throw notFound('Ticket not found.');
+    const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
+    if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
+
+    const attachment = await prisma.attachment.findFirst({ where: { id: attachmentId, ticketId: id } });
+    if (!attachment) throw notFound('Attachment not found.');
+
+    const content = await readAttachment(attachment.storageKey);
+    reply.header('content-type', attachment.contentType);
+    reply.header('content-length', String(content.byteLength));
+    reply.header('content-disposition', `attachment; filename="${safeFilename(attachment.filename)}"`);
+    reply.header('x-content-type-options', 'nosniff');
+    return reply.send(content);
   });
 
   app.post('/tickets/:id/status', async (request: FastifyRequest) => {

@@ -4,15 +4,36 @@
 An empty payload makes the panel's validator answer with 422 and the list of
 required fields, which is far more useful than the 500 the real payload
 triggers. Only the Blipmade test server 6 is touched.
+
+The reinstall probe can make the daemon reinstall the server, so the script
+only prints its plan unless --execute is given.
 """
+import argparse
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
 BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
-KEY = os.environ.get("PTERODACTYL_APP_KEY", "")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
 SERVER_ID = int(os.environ.get("PROBE_SERVER_ID", "6"))
+
+parser = argparse.ArgumentParser(description="Ask the panel which fields its server routes expect.")
+parser.add_argument("--execute", action="store_true",
+                    help="actually send the probe requests (the default only prints the plan)")
+ARGS = parser.parse_args()
 
 
 def app_request(method, path, body=None):
@@ -52,6 +73,16 @@ def show(label, method, path, body):
         print("   ", str(data)[:400])
     return status, data
 
+
+print("\n=== what would change ===")
+print(f"  send four empty requests against server {SERVER_ID} so the validator answers:")
+print("    PATCH /build, PATCH /startup, PATCH /details, POST /reinstall")
+print("  the reinstall probe can make the daemon reinstall the server")
+if not ARGS.execute:
+    print("\n=== result ===")
+    print("nothing was sent (dry run)")
+    print("To send the probe requests, re-run with --execute.")
+    sys.exit(0)
 
 show("build (empty)", "PATCH", f"/servers/{SERVER_ID}/build", {})
 show("startup (empty)", "PATCH", f"/servers/{SERVER_ID}/startup", {})

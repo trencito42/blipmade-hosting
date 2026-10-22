@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { APPS, CATEGORIES, type Category } from '../data';
+import { CATEGORIES, type Category } from '../data';
+import { useCatalogSummary } from '../lib/pricing';
+
+/** The number shown while the catalog is still loading. */
+const APPS_COUNT = 12;
 import { Icon, type IconName } from '../icons';
 import { cn, useScrollY } from '../lib';
 import { scrollToId, useRouter } from '../router';
@@ -15,6 +19,7 @@ const CATS: Record<string, [IconName, string]> = {
 };
 
 export function Nav({ setCat }: { setCat: (c: Category) => void }) {
+  const catalog = useCatalogSummary();
   const y = useScrollY();
   const { path, navigate } = useRouter();
   const [menu, setMenu] = useState(false);
@@ -77,7 +82,7 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
                   ))}
                 </ul>
                 <div className="grid content-between gap-6 rounded-[22px] bg-acc p-7 text-on-acc">
-                  <div><p className="font-mono text-[11.5px] uppercase tracking-[0.1em] opacity-70">{APPS.length} apps and databases</p><p className="mt-2 text-[30px] font-extrabold leading-[1] tracking-[-0.055em]">Skip the server setup.</p></div>
+                  <div><p className="font-mono text-[11.5px] uppercase tracking-[0.1em] opacity-70">{catalog.count ?? APPS_COUNT} apps and databases</p><p className="mt-2 text-[30px] font-extrabold leading-[1] tracking-[-0.055em]">Skip the server setup.</p></div>
                   <button type="button" tabIndex={menu ? 0 : -1} onClick={() => go('apps', 'All')} className="inline-flex h-11 w-fit items-center gap-1.5 rounded-full bg-on-acc px-5 text-[14.5px] font-bold text-acc">Explore apps<Icon name="arrowUR" size={15} /></button>
                 </div>
               </div>

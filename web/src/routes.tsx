@@ -1,8 +1,8 @@
-import { Suspense, lazy, type ComponentType, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, type ComponentType, type ReactNode } from 'react';
 import { AppShell, ErrorState, LoadingBlock } from './ui-app';
 import { ADMIN_NAV, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS } from './nav';
 import { useSession } from './session';
-import { ParamsProvider, matchPath, useRouter } from './router';
+import { ParamsProvider, matchPath, useParams, useRouter } from './router';
 import { Link } from './router';
 
 // The marketing homepage stays in the main bundle. Everything else is split so
@@ -51,6 +51,27 @@ interface RouteDef {
   exact?: boolean;
 }
 
+/**
+ * Marketing links of the shape /deploy/:slug point at the deploy page that
+ * exists, /app/deploy/:slug. The page itself is not duplicated here: the
+ * redirect hands over and the session guard on /app takes it from there, so
+ * an anonymous visitor ends up on the login with ?next=/app/deploy/:slug.
+ */
+function DeployRedirect() {
+  const { slug } = useParams();
+  const { navigate } = useRouter();
+
+  useEffect(() => {
+    navigate(`/app/deploy/${encodeURIComponent(slug)}`, { replace: true });
+  }, [navigate, slug]);
+
+  return (
+    <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
+      <LoadingBlock rows={2} label="Opening the deploy page" />
+    </div>
+  );
+}
+
 const ROUTES: RouteDef[] = [
   { pattern: '/login', component: Login, title: 'Log in' },
   { pattern: '/register', component: Register, title: 'Create account' },
@@ -59,6 +80,7 @@ const ROUTES: RouteDef[] = [
   { pattern: '/verify-email', component: VerifyEmail, title: 'Verify email' },
   { pattern: '/docs', component: Docs, title: 'Documentation' },
   { pattern: '/status', component: Status, title: 'Service status' },
+  { pattern: '/deploy/:slug', component: DeployRedirect, title: 'Deploy' },
 
   { pattern: '/app', component: AppOverview, title: 'Overview', area: 'customer', exact: true },
   { pattern: '/app/instances', component: AppInstances, title: 'Apps & databases', area: 'customer' },

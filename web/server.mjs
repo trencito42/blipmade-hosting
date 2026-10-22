@@ -24,6 +24,49 @@ function send(res, status, message) {
   res.end(message);
 }
 
+/**
+ * The addresses whose forwarding headers are believed. Every other request is
+ * treated as coming straight from the client, so a forged header cannot be
+ * used to fake an address.
+ */
+const TRUSTED_PROXY_IPS = (process.env.TRUSTED_PROXY_IPS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+function normalizeAddress(address) {
+  return (address || '').replace(/^::ffff:/, '');
+}
+
+function isTrustedProxy(address) {
+  return TRUSTED_PROXY_IPS.includes(normalizeAddress(address));
+}
+
+/**
+ * The address of the client. The forwarding headers are only used when the
+ * request came from a known proxy, and only the last entry is believed,
+ * because that is the one the proxy itself added.
+ */
+function clientAddress(req) {
+  const peer = normalizeAddress(req.socket.remoteAddress);
+  if (!isTrustedProxy(peer)) return peer;
+  const forwarded = req.headers['x-forwarded-for'];
+  const chain =
+    typeof forwarded === 'string'
+      ? forwarded.split(',').map((value) => value.trim()).filter(Boolean)
+      : [];
+  return chain.length ? chain[chain.length - 1] : peer;
+}
+
+/** The scheme the client used, taken from a trusted proxy only. */
+function clientProtocol(req) {
+  const peer = normalizeAddress(req.socket.remoteAddress);
+  const forwarded = req.headers['x-forwarded-proto'];
+  const value = typeof forwarded === 'string' ? forwarded.split(',').pop()?.trim() : undefined;
+  if (isTrustedProxy(peer) && value) return value;
+  return 'http';
+}
+
 if (!existsSync(join(root, 'index.html'))) {
   console.error('Missing dist/index.html. Run: npm ci --include=dev && npm run build');
   process.exit(1);
@@ -43,6 +86,18 @@ const server = createServer((req, res) => {
   // first-party and never needs a cross-site exemption.
   if (req.url?.startsWith('/api/')) {
     const target = new URL(req.url, API_URL);
+    // The forwarding headers of the request are replaced, so the API only
+    // ever sees an address that this server established itself.
+    const headers = { ...req.headers, host: target.host };
+    delete headers['x-forwarded-for'];
+    delete headers['x-forwarded-host'];
+    delete headers['x-forwarded-proto'];
+    delete headers['x-real-ip'];
+    const address = clientAddress(req);
+    headers['x-forwarded-for'] = address;
+    headers['x-real-ip'] = address;
+    headers['x-forwarded-proto'] = clientProtocol(req);
+
     const proxy = httpRequest(
       {
         protocol: target.protocol,
@@ -50,7 +105,7 @@ const server = createServer((req, res) => {
         port: target.port,
         path: target.pathname + target.search,
         method: req.method,
-        headers: { ...req.headers, host: target.host },
+        headers,
       },
       (upstream) => {
         res.writeHead(upstream.statusCode ?? 502, upstream.headers);
@@ -100,4 +155,50 @@ const server = createServer((req, res) => {
 });
 server.listen(port, '0.0.0.0', () => {
   console.log(`Blipmade site listening on 0.0.0.0:${port}`);
+});
+
+/**
+ * The console of an instance is a WebSocket, so the upgrade is proxied to the
+ * API. The session cookie travels with the handshake and the API checks the
+ * ownership of the instance before it opens the console.
+ */
+server.on('upgrade', (req, socket, head) => {
+  if (!req.url?.startsWith('/api/')) {
+    socket.destroy();
+    return;
+  }
+  const target = new URL(req.url, API_URL);
+  const headers = { ...req.headers, host: target.host };
+  const address = clientAddress(req);
+  delete headers['x-forwarded-for'];
+  delete headers['x-forwarded-host'];
+  delete headers['x-forwarded-proto'];
+  delete headers['x-real-ip'];
+  headers['x-forwarded-for'] = address;
+  headers['x-real-ip'] = address;
+  headers['x-forwarded-proto'] = clientProtocol(req);
+
+  const proxy = httpRequest({
+    protocol: target.protocol,
+    hostname: target.hostname,
+    port: target.port,
+    path: target.pathname + target.search,
+    method: req.method,
+    headers,
+  });
+
+  proxy.on('upgrade', (upstream, upstreamSocket, upstreamHead) => {
+    socket.write(`HTTP/1.1 101 Switching Protocols\r\n${upstreamSocket.readableHead}\r\n`);
+    if (upstreamHead && upstreamHead.length) upstreamSocket.unshift(upstreamHead);
+    upstreamSocket.pipe(socket).pipe(upstreamSocket);
+  });
+  proxy.on('response', (response) => {
+    // The API refused the upgrade, so the browser gets a clear answer.
+    socket.write('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
+    socket.destroy();
+  });
+  proxy.on('error', () => socket.destroy());
+
+  if (head && head.length) proxy.write(head);
+  proxy.end();
 });

@@ -1,3 +1,4 @@
+import { rotateRateLimitRun } from '../src/lib/rate-limit.js';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
 import { prisma } from '../src/db.js';
@@ -33,7 +34,9 @@ export async function getApp(): Promise<FastifyInstance> {
  */
 export async function resetDatabase(): Promise<void> {
   await clearTables();
-  if (app?.rateLimit?.resetKey) app.rateLimit.resetKey();
+  // The rate limit counters are kept per key, so the key is rotated to give
+  // every test its own counters.
+  rotateRateLimitRun();
 }
 
 export async function closeApp(): Promise<void> {

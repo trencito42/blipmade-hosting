@@ -4,7 +4,11 @@
 The panel splits server updates into details, build and startup. This uses the
 startup route with the schema the panel's validator reports, reinstalls the
 server and watches the daemon's reported state.
+
+The script changes a server, so it only prints its plan unless --execute is
+given.
 """
+import argparse
 import json
 import os
 import sys
@@ -13,13 +17,29 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
 BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
-KEY = os.environ.get("PTERODACTYL_APP_KEY", "")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
 COOKIE_FILE = os.environ.get("COOKIE_FILE", "/tmp/panel-cookie.json")
 SERVER_ID = int(os.environ.get("PROBE_SERVER_ID", "6"))
 SERVER_UUID = os.environ.get("PROBE_SERVER_UUID", "")
 STARTUP = os.environ.get("NEW_STARTUP", "sleep infinity")
 WAIT = int(os.environ.get("WAIT_SECONDS", "60"))
+
+parser = argparse.ArgumentParser(description="Change the startup command of a test server.")
+parser.add_argument("--execute", action="store_true",
+                    help="actually change the server (the default only prints the plan)")
+ARGS = parser.parse_args()
 
 
 def app_request(method, path, body=None):
@@ -84,6 +104,16 @@ if status != 200:
 attrs = data["attributes"]
 container = attrs["container"]
 print(f"server {SERVER_ID} current startup: {container['startup_command']!r}")
+
+print("\n=== what would change ===")
+print(f"  set the startup command of server {SERVER_ID} to {STARTUP!r}")
+print(f"  reinstall the server and power cycle it ({WAIT}s of watching)")
+print("  the previous startup command is overwritten")
+if not ARGS.execute:
+    print("\n=== result ===")
+    print("nothing was changed (dry run)")
+    print("To change the server, re-run with --execute.")
+    sys.exit(0)
 
 print(f"\n=== PATCH /servers/{SERVER_ID}/startup -> {STARTUP!r} ===")
 status, data = app_request("PATCH", f"/servers/{SERVER_ID}/startup", {

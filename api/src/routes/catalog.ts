@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { notFound } from '../lib/errors.js';
 import { buildQuote } from '../services/pricing.js';
@@ -81,19 +82,25 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     const staff = request.user?.role === 'ADMIN' || request.user?.role === 'STAFF';
     const includeHidden = staff && query.includeHidden === 'true';
 
+    const where: Prisma.ProductWhereInput = {
+      // The public catalog only offers what is listed and what can actually
+      // be priced. A product without an active price is not an offer, so it
+      // never reaches the public list. Staff can ask for the hidden ones,
+      // and they see a null price when a product has no price yet.
+      ...(includeHidden ? {} : { visible: true, prices: { some: { active: true } } }),
+      ...(query.category && query.category !== 'All' ? { category: query.category as never } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { description: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
     const products = await prisma.product.findMany({
-      where: {
-        ...(includeHidden ? {} : { visible: true }),
-        ...(query.category && query.category !== 'All' ? { category: query.category as never } : {}),
-        ...(query.search
-          ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { description: { contains: query.search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
+      where,
       include: { prices: { where: { active: true } }, options: { where: { active: true } } },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
@@ -103,12 +110,17 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
 
   app.get('/catalog/products/:slug', async (request) => {
     const { slug } = z.object({ slug: z.string() }).parse(request.params);
+    const staff = request.user?.role === 'ADMIN' || request.user?.role === 'STAFF';
     const product = await prisma.product.findUnique({
       where: { slug },
       include: { prices: { where: { active: true } }, options: { where: { active: true } } },
     });
-    if (!product || (!product.visible && request.user?.role === 'CUSTOMER')) {
-      throw notFound('This product does not exist.');
+    if (!product) throw notFound('This product does not exist.');
+    if (!staff) {
+      // A hidden product is staff-only, and a product without an active price
+      // is not something the public can look at or order.
+      if (!product.visible) throw notFound('This product does not exist.');
+      if (!product.prices.length) throw notFound('This product has no active price.');
     }
     return { product: serializeProduct(product) };
   });

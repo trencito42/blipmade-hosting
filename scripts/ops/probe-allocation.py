@@ -1,14 +1,33 @@
 #!/usr/bin/env python3
-"""Inspect the allocation attached to a server and probe every plausible address."""
+"""Inspect the allocation attached to a server and probe every plausible address.
+
+Read-only: it only sends GET requests and opens TCP connections.
+"""
 import json
 import os
 import socket
+import sys
 import urllib.error
 import urllib.request
 
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
 BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
-KEY = os.environ.get("PTERODACTYL_APP_KEY", "")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
 SERVER_ID = int(os.environ.get("PROBE_SERVER_ID", "6"))
+NODE_ID = int(os.environ.get("PROBE_NODE_ID", "1"))
+RELEVANT_ALLOCATIONS = [
+    int(value) for value in os.environ.get("PROBE_ALLOCATIONS", "73,74,75,76").split(",") if value.strip()
+]
 
 CANDIDATES = [
     ("10.77.0.11", 30002),
@@ -39,8 +58,8 @@ if status == 200:
     print("  container.installed:", attrs["container"]["installed"])
     print("  startup:", attrs["container"]["startup_command"])
 
-print("\n=== allocations on node 1 ===")
-for path in ["/nodes/1/allocations", "/allocations?node=1"]:
+print(f"\n=== allocations on node {NODE_ID} ===")
+for path in [f"/nodes/{NODE_ID}/allocations", f"/allocations?node={NODE_ID}"]:
     status, data = app_get(path)
     print(f"GET {path} -> {status}")
     if status == 200 and isinstance(data, dict) and data.get("data"):
@@ -48,7 +67,7 @@ for path in ["/nodes/1/allocations", "/allocations?node=1"]:
         for entry in data["data"]:
             a = entry.get("attributes", {})
             rows.append(a)
-        hit = [r for r in rows if r.get("id") in (73, 74, 75, 76)]
+        hit = [r for r in rows if r.get("id") in RELEVANT_ALLOCATIONS]
         print(f"  {len(rows)} allocations; relevant: {json.dumps(hit)[:1200]}")
         if rows:
             print("  sample:", json.dumps(rows[0])[:400])

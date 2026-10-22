@@ -1,12 +1,27 @@
 #!/usr/bin/env python3
-"""List the panel servers and users so the test artifacts can be identified."""
+"""List the panel servers and users so the test artifacts can be identified.
+
+Read-only: it only sends GET requests.
+"""
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 
+
+def require_env(name, purpose):
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).", file=sys.stderr)
+        print("Nothing was read and nothing was changed.", file=sys.stderr)
+        raise SystemExit(1)
+    return value
+
+
 BASE = os.environ.get("PTERODACTYL_URL", "https://panel.blipmade.com").rstrip("/")
-KEY = os.environ.get("PTERODACTYL_APP_KEY", "")
+KEY = require_env("PTERODACTYL_APP_KEY", "the panel Application API key")
 
 
 def get(path):

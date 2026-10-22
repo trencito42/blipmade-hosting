@@ -59,7 +59,7 @@ describe('stripe webhook handling', () => {
       orderId,
       subscriptionId: 'sub_test_1',
       paymentIntentId: 'pi_test_1',
-      amount: 149,
+      amount: orderResponse.body.order.total,
     };
 
     const internal = { headers: { 'x-internal-token': env.internalToken } };
@@ -67,12 +67,166 @@ describe('stripe webhook handling', () => {
     expect(first.status).toBe(200);
 
     const order = await prisma.order.findUnique({ where: { id: orderId } });
-    expect(order?.status).toBe('FULFILLED');
+    // The money state and the fulfilment state are separate: the order is
+    // paid, and the services are still being provisioned.
+    expect(order?.status).toBe('PAID');
+    expect(order?.fulfillmentStatus).toBe('PROVISIONING');
     expect(order?.paidAt).toBeTruthy();
 
     const instances = await prisma.instance.findMany({ where: { orderId } });
     expect(instances).toHaveLength(1);
     expect(instances[0]?.status).toBe('PENDING');
+  });
+
+  it('creates one subscription per order line', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'multi@example.com');
+
+    const orderResponse = await client.request('POST', '/api/orders', {
+      items: [
+        { productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 },
+        { productSlug: 'wordpress', ram: 2048, cpu: 2, disk: 10 },
+      ],
+    });
+    const orderId = orderResponse.body.order.id as string;
+
+    const webhook = makeClient(app);
+    const internal = { headers: { 'x-internal-token': env.internalToken } };
+    const response = await webhook.request('POST', '/api/webhooks/stripe/test', {
+      id: 'evt_test_multi',
+      type: 'checkout.session.completed',
+      orderId,
+      subscriptionId: 'sub_multi',
+      customerId: 'cus_multi',
+    }, internal);
+    expect(response.status).toBe(200);
+
+    const subscriptions = await prisma.subscription.findMany({ where: { orderItem: { orderId } } });
+    expect(subscriptions).toHaveLength(2);
+    expect(subscriptions.every((subscription) => subscription.stripeSubscriptionId === 'sub_multi')).toBe(true);
+    expect(subscriptions.every((subscription) => subscription.status === 'ACTIVE')).toBe(true);
+
+    // The customer is stored, so the billing portal can find it.
+    const payment = await prisma.payment.findFirst({ where: { orderId } });
+    expect(payment?.stripeCustomerId).toBe('cus_multi');
+  });
+
+  it('provisions one instance per unit of a line', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'quantity@example.com');
+
+    const orderResponse = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10, quantity: 3 }],
+    });
+    const orderId = orderResponse.body.order.id as string;
+
+    const webhook = makeClient(app);
+    await webhook.request('POST', '/api/webhooks/stripe/test', {
+      id: 'evt_test_quantity',
+      type: 'checkout.session.completed',
+      orderId,
+    }, { headers: { 'x-internal-token': env.internalToken } });
+
+    const instances = await prisma.instance.findMany({ where: { orderId } });
+    expect(instances).toHaveLength(3);
+    expect(new Set(instances.map((instance) => instance.provisioningKey)).size).toBe(3);
+  });
+
+  it('refuses a payment that does not match the order and keeps the event for a replay', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'mismatch@example.com');
+
+    const orderResponse = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = orderResponse.body.order.id as string;
+
+    const webhook = makeClient(app);
+    const internal = { headers: { 'x-internal-token': env.internalToken } };
+    const response = await webhook.request('POST', '/api/webhooks/stripe/test', {
+      id: 'evt_test_mismatch',
+      type: 'checkout.session.completed',
+      orderId,
+      amount: 9999,
+    }, internal);
+
+    // The event could not be processed, so the provider is told to retry it.
+    expect(response.status).toBe(500);
+
+    const event = await prisma.webhookEvent.findUnique({
+      where: { provider_eventId: { provider: 'stripe', eventId: 'evt_test_mismatch' } },
+    });
+    expect(event?.status).toBe('failed');
+    expect(event?.error).toBeTruthy();
+
+    const instances = await prisma.instance.findMany({ where: { orderId } });
+    expect(instances).toHaveLength(0);
+  });
+
+  it('replays a failed event', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'replay@example.com');
+
+    const orderResponse = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = orderResponse.body.order.id as string;
+
+    const webhook = makeClient(app);
+    const internal = { headers: { 'x-internal-token': env.internalToken } };
+    await webhook.request('POST', '/api/webhooks/stripe/test', {
+      id: 'evt_test_replay',
+      type: 'checkout.session.completed',
+      orderId,
+      amount: 9999,
+    }, internal);
+
+    // The order is corrected to the amount the provider collected, and the
+    // event is replayed from the ledger.
+    await prisma.order.update({ where: { id: orderId }, data: { total: 9999 } });
+    const replay = await webhook.request('POST', '/api/webhooks/stripe/replay', { eventId: 'evt_test_replay' }, internal);
+    expect(replay.status).toBe(200);
+
+    const event = await prisma.webhookEvent.findUnique({
+      where: { provider_eventId: { provider: 'stripe', eventId: 'evt_test_replay' } },
+    });
+    expect(event?.status).toBe('processed');
+
+    const instances = await prisma.instance.findMany({ where: { orderId } });
+    expect(instances).toHaveLength(1);
+  });
+
+  it('does not consume a promotion before the payment', async () => {
+    await seedProduct();
+    const promotion = await prisma.promotion.create({
+      data: { code: 'SAVE10', type: 'PERCENT', value: 1000, maxRedemptions: 1 },
+    });
+    const { client } = await registerAndLogin(app, 'promo@example.com');
+
+    const orderResponse = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+      promotionCode: 'SAVE10',
+    });
+    expect(orderResponse.status).toBe(201);
+    const orderId = orderResponse.body.order.id as string;
+
+    // The campaign is reserved, not used.
+    const beforePayment = await prisma.promotion.findUnique({ where: { id: promotion.id } });
+    expect(beforePayment?.usedCount).toBe(0);
+
+    const webhook = makeClient(app);
+    await webhook.request('POST', '/api/webhooks/stripe/test', {
+      id: 'evt_test_promo',
+      type: 'checkout.session.completed',
+      orderId,
+      amount: orderResponse.body.order.total,
+    }, { headers: { 'x-internal-token': env.internalToken } });
+
+    const afterPayment = await prisma.promotion.findUnique({ where: { id: promotion.id } });
+    expect(afterPayment?.usedCount).toBe(1);
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    expect(order?.promotionRedeemedAt).toBeTruthy();
   });
 
   it('processes a redelivered event only once', async () => {

@@ -5,19 +5,43 @@ Creates a product, a customer and an order, marks the order paid through the
 local test gateway, then waits for the worker to provision a real Pterodactyl
 server and checks that the instance becomes active.
 
-Usage: scripts/verify-provisioning.py <base-url>
+Nothing is created unless --execute is given: the default run prints the
+plan. Every credential comes from the environment and is never printed.
+
+Environment:
+    BM_BASE_URL        base url of the platform (default http://127.0.0.1:3100)
+    BM_ADMIN_EMAIL     the administrator account that creates the product
+    BM_ADMIN_PASSWORD  its password
+    BM_INTERNAL_TOKEN  the token the local test gateway checks
+
+Usage:
+    scripts/verify-provisioning.py            # plan only, nothing is created
+    scripts/verify-provisioning.py --execute
 """
+import argparse
 import json
+import os
+import secrets
 import sys
 import time
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:3100"
-INTERNAL_TOKEN = sys.argv[2] if len(sys.argv) > 2 else ""
-ADMIN_EMAIL = sys.argv[3] if len(sys.argv) > 3 else "admin@blipmade.com"
-ADMIN_PASSWORD = sys.argv[4] if len(sys.argv) > 4 else ""
+BASE = ""
+INTERNAL_TOKEN = ""
+ADMIN_EMAIL = ""
+ADMIN_PASSWORD = ""
+
+
+def require_env(name: str, purpose: str) -> str:
+    """Read a credential from the environment or stop with a clear message."""
+    value = os.environ.get(name, "").strip()
+    if not value:
+        print(f"error: {name} is not set ({purpose}).")
+        print("The script has no built-in credentials; nothing was created.")
+        raise SystemExit(1)
+    return value
 
 
 class Client:
@@ -73,9 +97,49 @@ def ok(step, detail=""):
     print(f"OK    {step}{(' - ' + detail) if detail else ''}")
 
 
-def main():
+def print_plan(stamp: int, execute: bool) -> None:
+    print("=== verify-provisioning.py ===")
+    print(f"mode            : {'EXECUTE - the rows below are created' if execute else 'DRY RUN - nothing is created'}")
+    print(f"base url        : {BASE}")
+    print("administrator   : read from BM_ADMIN_EMAIL, the password is never printed")
+    print("internal token  : read from BM_INTERNAL_TOKEN, never printed")
+    print()
+    print("=== what would change ===")
+    print(f"  create the product    nginx-verify-{stamp} ('Nginx verification')")
+    print(f"  register the customer verify-{stamp}@blipmade.test")
+    print("                         (a random password is generated per run and never printed)")
+    print("  quote and order the product, then mark the order paid")
+    print("                         through the local test gateway")
+    print("  wait up to 5 minutes for the worker to provision a Pterodactyl server")
+    print()
+
+
+def main(argv=None) -> int:
+    global BASE, INTERNAL_TOKEN, ADMIN_EMAIL, ADMIN_PASSWORD
+
+    parser = argparse.ArgumentParser(
+        description="Verify the provisioning flow end to end (creates real rows).")
+    parser.add_argument("--execute", action="store_true",
+                        help="actually create the product, the customer and the order")
+    args = parser.parse_args(argv)
+
+    BASE = os.environ.get("BM_BASE_URL", "").strip().rstrip("/") or "http://127.0.0.1:3100"
+    INTERNAL_TOKEN = require_env("BM_INTERNAL_TOKEN", "the local test gateway checks it")
+    ADMIN_EMAIL = require_env("BM_ADMIN_EMAIL", "the account that creates the product")
+    ADMIN_PASSWORD = require_env("BM_ADMIN_PASSWORD", "the account that creates the product")
+
     stamp = int(time.time())
-    email = f"verify-{stamp}@blipmade.test"
+    print_plan(stamp, args.execute)
+
+    if not args.execute:
+        print("=== result ===")
+        print("nothing was created (dry run)")
+        print("To run the verification, re-run with --execute.")
+        return 0
+
+    # The throwaway customer gets a password that only exists in this run.
+    # It is never printed and never stored in this repository.
+    customer_password = secrets.token_urlsafe(18)
 
     admin = Client()
     admin.get("/api/health")
@@ -123,11 +187,11 @@ def main():
     customer.get("/api/health")
     status, registered = customer.post(
         "/api/auth/register",
-        {"email": email, "password": "VerifyHorseBattery9", "name": "Verification"},
+        {"email": f"verify-{stamp}@blipmade.test", "password": customer_password, "name": "Verification"},
     )
     if status != 201:
         fail("register customer", f"{status} {registered}")
-    ok("registered customer", email)
+    ok("registered customer", f"verify-{stamp}@blipmade.test")
 
     # 3. The catalog shows it with a server-side price.
     status, catalog = customer.get("/api/catalog/products")
@@ -212,7 +276,8 @@ def main():
     print()
     print("PROVISIONING VERIFIED")
     print(json.dumps({"order": order["number"], "instance": instance_id, "status": final["status"]}, indent=2))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import WebSocket from 'ws';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { badRequest, notFound, unavailable } from '../lib/errors.js';
@@ -6,7 +7,8 @@ import { requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
-import { priceConfiguration } from '../services/pricing.js';
+import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange } from '../services/upgrades.js';
+import { createCheckout } from '../services/stripe.js';
 
 function serializeInstance(instance: {
   id: string;
@@ -20,8 +22,10 @@ function serializeInstance(instance: {
   createdAt: Date;
   product: { slug: string; name: string; icon: string };
   subscription: { status: string; currentPeriodEnd: Date | null } | null;
+  orderItem?: { subscription: { status: string; currentPeriodEnd: Date | null } | null } | null;
   pterodactylServerId: number | null;
 }) {
+  const subscription = subscriptionOf(instance);
   return {
     id: instance.id,
     name: instance.name,
@@ -35,8 +39,8 @@ function serializeInstance(instance: {
     url: instance.pterodactylServerId ? `/app/instances/${instance.id}` : null,
     createdAt: instance.createdAt,
     node: null as { name: string } | null,
-    subscription: instance.subscription
-      ? { status: instance.subscription.status.toLowerCase(), currentPeriodEnd: instance.subscription.currentPeriodEnd }
+    subscription: subscription
+      ? { status: subscription.status.toLowerCase(), currentPeriodEnd: subscription.currentPeriodEnd }
       : null,
   };
 }
@@ -52,11 +56,22 @@ async function loadInstance(userId: string, id: string) {
     include: {
       product: true,
       subscription: true,
+      // A line that was ordered with a quantity above one links its
+      // subscription through the order line.
+      orderItem: { include: { subscription: true } },
       user: { select: { pterodactylUserId: true } },
     },
   });
   if (!instance) throw notFound('Instance not found.');
   return instance;
+}
+
+/** The subscription that pays for an instance, whichever way it is linked. */
+function subscriptionOf(instance: {
+  subscription: { status: string; currentPeriodEnd: Date | null } | null;
+  orderItem?: { subscription: { status: string; currentPeriodEnd: Date | null } | null } | null;
+}) {
+  return instance.subscription ?? instance.orderItem?.subscription ?? null;
 }
 
 function clientTokenFor(instance: { user: { pterodactylUserId: string | null } }) {
@@ -145,17 +160,56 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     }
   });
 
+  /**
+   * The console of an instance. The browser is told which path to open; the
+   * panel address and the panel token stay on the server.
+   */
   app.get('/instances/:id/console', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const instance = await loadInstance(user.id, id);
     if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
 
+    // The relay checks the ownership again when the socket is opened, so the
+    // route only confirms that the service exists.
+    if (!client.clientApiAvailable()) {
+      throw unavailable('The Pterodactyl client API key is not configured on this environment.');
+    }
+    return { websocket: `/api/instances/${instance.id}/console/stream` };
+  });
+
+  /**
+   * Console relay. The browser opens this socket with its session cookie, the
+   * API opens the panel console on its behalf and the traffic is piped in both
+   * directions. The panel token never reaches the browser, and the socket is
+   * only opened for an instance the caller owns.
+   */
+  app.get('/instances/:id/console/stream', { websocket: true }, (socket, request: FastifyRequest) => {
+    void relayConsole(socket, request);
+  });
+
+  /** Sends a command to the running server. */
+  app.post('/instances/:id/command', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { command } = z.object({ command: z.string().trim().min(1).max(1000) }).parse(request.body);
+
+    const instance = await loadInstance(user.id, id);
+    if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
+
     const token = clientTokenFor(instance);
-    const socket = await client.consoleWebsocket(token, instance.pterodactylUuid);
-    // The signed token stays on the server; the browser only receives the
-    // websocket path it connects to through the API relay.
-    return { websocket: `/api/instances/${instance.id}/console/stream`, socket: socket.socket };
+    await client.sendCommand(token, instance.pterodactylUuid, command);
+    await prisma.instanceEvent.create({
+      data: { instanceId: instance.id, type: 'command', message: `Command sent: ${command}` },
+    });
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'instance.command_sent',
+      targetType: 'instance',
+      targetId: instance.id,
+    });
+    return { sent: true };
   });
 
   app.get('/instances/:id/files', async (request: FastifyRequest) => {
@@ -237,6 +291,32 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     return { instance: serializeInstance(instance), environment };
   });
 
+  /**
+   * Prices a resource change without changing anything. The client shows the
+   * difference before the customer commits to it.
+   */
+  app.get('/instances/:id/resources/quote', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const query = z
+      .object({
+        ram: z.coerce.number().int().positive(),
+        cpu: z.coerce.number().int().positive(),
+        disk: z.coerce.number().int().positive(),
+      })
+      .parse(request.query ?? {});
+    const instance = await loadInstance(user.id, id);
+    const quote = await quoteResourceChange(instance, query);
+    return { quote };
+  });
+
+  /**
+   * Changes the resources of an instance.
+   *
+   * A change that costs more is a paid product: the route creates an order
+   * and a checkout session, and the instance is only changed once the payment
+   * is confirmed. A change that costs less is applied immediately.
+   */
   app.put('/instances/:id/resources', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
@@ -245,65 +325,41 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
       .parse(request.body);
 
     const instance = await loadInstance(user.id, id);
-    const product = instance.product;
+    const quote = await quoteResourceChange(instance, body);
 
-    const price = await prisma.productPrice.findFirst({
-      where: { productId: product.id, period: 'MONTHLY', active: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!price) throw badRequest('This product has no active price.');
-
-    const { validateConfiguration } = await import('../services/pricing.js');
-    validateConfiguration(product, body);
-
-    const newPrice = priceConfiguration(price, product, body);
-    const priceDelta = newPrice - instance.price;
-
-    // Push the new limits to the panel. The build route takes the allocation
-    // and the limits of the server.
-    let panelUpdated = true;
-    let panelError: string | null = null;
-    if (instance.pterodactylServerId) {
-      try {
-        await pteroApp.updateServerBuild(instance.pterodactylServerId, {
-          limits: {
-            memory: body.ram,
-            swap: 0,
-            disk: body.disk * 1024,
-            io: 500,
-            cpu: body.cpu * 100,
-          },
-        });
-      } catch (error) {
-        panelUpdated = false;
-        panelError = error instanceof Error ? error.message : 'The panel rejected the new limits.';
-      }
+    if (!quote.requiresPayment) {
+      // A change that costs less is applied right away and the recurring
+      // amount is lowered afterwards.
+      const order = await createUpgradeOrder(instance, body, quote, user);
+      const result = await applyUpgradeOrder(order.id);
+      const updated = await loadInstance(user.id, instance.id);
+      return {
+        status: result.applied ? 'applied' : 'failed',
+        instance: serializeInstance(updated),
+        order: { id: order.id, number: order.number },
+        priceDelta: quote.priceDelta,
+        price: quote.newPrice,
+        currency: quote.currency,
+        reason: result.reason,
+      };
     }
 
-    await prisma.instance.update({
-      where: { id: instance.id },
-      data: { ram: body.ram, cpu: body.cpu, disk: body.disk, price: newPrice },
-    });
-    await prisma.instanceEvent.create({
-      data: { instanceId: instance.id, type: 'resources', message: `Resources changed to ${body.ram} MB, ${body.cpu} vCPU, ${body.disk} GB.` },
-    });
-    await audit({
-      actorId: user.id,
-      actorEmail: user.email,
-      action: 'instance.resources_changed',
-      targetType: 'instance',
-      targetId: instance.id,
-      meta: { ram: body.ram, cpu: body.cpu, disk: body.disk, priceDelta, panelUpdated },
-    });
+    // The change has to be paid for before it touches the server.
+    const order = await createUpgradeOrder(instance, body, quote, user);
+    const checkout = await createCheckout({ ...order, items: [] });
+    if (!checkout.url) {
+      throw unavailable(checkout.reason ?? 'Checkout is unavailable on this environment.');
+    }
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'AWAITING_PAYMENT' } });
 
-    const updated = await loadInstance(user.id, instance.id);
     return {
-      instance: serializeInstance(updated),
-      priceDelta,
-      price: newPrice,
-      currency: price.currency,
-      panelUpdated,
-      panelError,
+      status: 'requires_payment',
+      order: { id: order.id, number: order.number },
+      priceDelta: quote.priceDelta,
+      price: quote.newPrice,
+      currency: quote.currency,
+      checkoutUrl: checkout.url,
+      sessionId: checkout.sessionId,
     };
   });
 
@@ -359,4 +415,88 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
 /** The power route answers 202 because the container reacts asynchronously. */
 function reply202(instanceId: string) {
   return { instanceId, accepted: true };
+}
+
+/**
+ * Connects a browser to the console of a server.
+ *
+ * The panel token is added by the server and never leaves it, so a customer
+ * cannot use it for anything else. Everything the browser sends is forwarded
+ * to the console and everything the console sends is forwarded back.
+ */
+async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise<void> {
+  const user = request.user;
+  if (!user) {
+    socket.close(4401, 'Sign in to use the console.');
+    return;
+  }
+
+  let instanceId: string;
+  try {
+    instanceId = z.object({ id: z.string() }).parse(request.params).id;
+  } catch {
+    socket.close(4400, 'Bad request.');
+    return;
+  }
+
+  const instance = await prisma.instance.findFirst({
+    where: { id: instanceId, userId: user.id },
+    include: { user: { select: { pterodactylUserId: true } } },
+  });
+  if (!instance) {
+    socket.close(4404, 'Instance not found.');
+    return;
+  }
+  if (!instance.pterodactylUuid) {
+    socket.close(4009, 'This instance is not deployed yet.');
+    return;
+  }
+  if (!client.clientApiAvailable() || !instance.user.pterodactylUserId) {
+    socket.close(4001, 'The Pterodactyl client API is not available on this environment.');
+    return;
+  }
+
+  let credentials: { socket: string; token: string };
+  try {
+    credentials = await client.consoleWebsocket(
+      client.clientToken(instance.user.pterodactylUserId),
+      instance.pterodactylUuid,
+    );
+  } catch {
+    socket.close(1011, 'The console could not be opened.');
+    return;
+  }
+
+  const separator = credentials.socket.includes('?') ? '&' : '?';
+  const target = new WebSocket(
+    `${credentials.socket}${separator}token=${encodeURIComponent(credentials.token)}`,
+  );
+
+  target.on('open', () => {
+    socket.send(JSON.stringify({ event: 'connected' }));
+  });
+  target.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
+    if (socket.readyState === socket.OPEN) socket.send(data.toString());
+  });
+  target.on('close', (code: number, reason: Buffer) => {
+    if (socket.readyState === socket.OPEN) {
+      socket.close(1000, reason?.toString() || 'The console closed.');
+    }
+  });
+  target.on('error', () => {
+    if (socket.readyState === socket.OPEN) {
+      socket.send(JSON.stringify({ event: 'error', message: 'The console connection failed.' }));
+      socket.close(1011, 'Console error.');
+    }
+  });
+
+  socket.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
+    if (target.readyState === target.OPEN) target.send(data.toString());
+  });
+  socket.on('close', () => {
+    if (target.readyState === target.OPEN) target.close();
+  });
+  socket.on('error', () => {
+    if (target.readyState === target.OPEN) target.close();
+  });
 }
