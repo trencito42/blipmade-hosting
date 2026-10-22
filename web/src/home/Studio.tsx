@@ -96,7 +96,7 @@ export function Studio({ cat, setCat }: { cat: Category; setCat: (c: Category) =
   const showBar = mobile && !(phase === 'browse' && screen === 'pick');
 
   const catChips = (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] lg:grid lg:overflow-visible lg:pb-0" role="group" aria-label="Categories">
+    <div className="flex gap-1.5 overflow-x-auto pb-1 bm-hide-scroll lg:grid lg:overflow-visible lg:pb-0" role="group" aria-label="Categories">
       {CATEGORIES.map((c) => {
         const n = c === 'All' ? APPS.length : APPS.filter((a) => a.cat === c).length;
         return (

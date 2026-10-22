@@ -20,7 +20,7 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
           <Reveal as="p" className="text-[17px] text-ink2 sm:text-[18px]">Search, filter, pick. Every app shows its starting price up front.</Reveal>
         </div>
 
-        <div className="-mx-4 mb-3.5 flex snap-x gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0">
+        <div className="-mx-4 mb-3.5 flex snap-x gap-3 overflow-x-auto px-4 pb-1 bm-hide-scroll sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0">
           {POP.map(([n, tone], i) => {
             const a = APPS.find((x) => x.name === n)!;
             return (
@@ -43,7 +43,7 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
             <span className="sr-only">Search apps and databases</span>
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search apps and databases" autoComplete="off" className="min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink3" />
           </label>
-          <div role="group" aria-label="Categories" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
+          <div role="group" aria-label="Categories" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 bm-hide-scroll sm:mx-0 sm:flex-wrap sm:px-0">
             {CATEGORIES.map((c) => (
               <button key={c} type="button" aria-pressed={cat === c} onClick={() => setCat(c)} className={cn('h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold transition-colors duration-[180ms]', cat === c ? 'bg-ink text-bg' : 'bg-s1 text-ink2 hover:bg-s2 hover:text-ink')}>{c}</button>
             ))}

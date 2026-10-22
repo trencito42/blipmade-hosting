@@ -499,7 +499,7 @@ export function Segmented<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+    <div role="tablist" aria-label={ariaLabel} className="flex gap-1.5 overflow-x-auto pb-1 bm-hide-scroll">
       {options.map((option) => (
         <button
           key={option.value}

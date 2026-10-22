@@ -75,6 +75,7 @@ labelled Studio simulation are **unchanged**.
 | Public pages | Login, register, forgot password, reset password, verify email, documentation, status, not found (`src/pages/*`). |
 | Routing | `src/router.tsx` — path parameters, query strings, `safeNext` for post-login redirects, guarded areas. |
 | API client | `src/lib/api.ts` — typed client, CSRF header from the readable cookie, session refresh. |
+| Scrollbars | One treatment for the whole interface: a flat 10 px track that is invisible, a 6 px thumb in `--color-ink3` (5:1 against the page, so it stays visible without being loud) that turns `--color-acc` on hover and `--color-acc-h` while it is dragged. Chromium and Safari get the `::-webkit-scrollbar` pseudo-elements, Firefox gets `scrollbar-width: thin` with `scrollbar-color` inside a `@supports (-moz-appearance: none)` block, so neither engine ignores the other. `scrollbar-gutter: stable` keeps the layout from shifting between pages. The sideways chip strips keep their bar hidden in every engine through the `bm-hide-scroll` class. |
 | Build | `main` bundle 316.71 kB (94.78 kB gzip); every route chunk ≤ 26 kB. |
 
 ---

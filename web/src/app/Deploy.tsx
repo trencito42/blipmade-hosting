@@ -361,7 +361,7 @@ export default function Deploy() {
     <div className="grid gap-4 pb-16 lg:pb-0">
       {/* Stepper */}
       <nav aria-label="Deploy steps">
-        <ol className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+        <ol className="flex items-center gap-1 overflow-x-auto bm-hide-scroll">
           {STEP_LABELS.map((label, index) => {
             const number = index + 1;
             const done = number < step;
