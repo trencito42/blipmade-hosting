@@ -1,0 +1,12 @@
+{
+  "name": "blipmade-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0"
+  }
+}

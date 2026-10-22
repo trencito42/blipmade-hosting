@@ -1,0 +1,16 @@
+services:
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      PTERODACTYL_URL: https://panel.blipmade.com
+      PTERODACTYL_APP_KEY: ${PTERODACTYL_APP_KEY:?required}
+      BLIPMADE_INTERNAL_API_TOKEN: ${BLIPMADE_INTERNAL_API_TOKEN:?required}
+    extra_hosts:
+      - "panel.blipmade.com:10.77.0.10"
+    ports:
+      - "127.0.0.1:3100:3100"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
