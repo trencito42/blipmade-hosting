@@ -2,14 +2,45 @@ services:
   api:
     build: ./api
     restart: unless-stopped
+    env_file: .env
     environment:
-      PTERODACTYL_URL: https://panel.blipmade.com
-      PTERODACTYL_APP_KEY: ${PTERODACTYL_APP_KEY:?required}
-      BLIPMADE_INTERNAL_API_TOKEN: ${BLIPMADE_INTERNAL_API_TOKEN:?required}
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3100
     extra_hosts:
       - "panel.blipmade.com:10.77.0.10"
     ports:
       - "127.0.0.1:3100:3100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  worker:
+    build: ./api
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    extra_hosts:
+      - "panel.blipmade.com:10.77.0.10"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     cap_drop:

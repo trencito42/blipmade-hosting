@@ -1,0 +1,25 @@
+services:
+  web:
+    build:
+      context: ./web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      SERVER_PORT: 3000
+      # The frontend is served from the same origin as the API, so the browser
+      # never needs a cross-site cookie.
+      API_URL: http://api:3100
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3000:3000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3

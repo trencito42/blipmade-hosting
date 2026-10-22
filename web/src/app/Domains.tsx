@@ -1,0 +1,323 @@
+import { useEffect, useMemo, useState } from 'react';
+import { del, get, post, type Domain, type Instance } from '../lib/api';
+import { useAction, useAsync } from '../lib/useAsync';
+import { cn } from '../lib';
+import { Link } from '../router';
+import {
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  LoadingBlock,
+  Panel,
+  PrimaryButton,
+  SoftButton,
+  StatusPill,
+  TextInput,
+  Select,
+  useToast,
+} from '../ui-app';
+
+/**
+ * Custom domains. A domain is only shown as Active when the server says so.
+ */
+
+const DOMAIN_STATUS_LABELS: Record<Domain['status'], string> = {
+  pending_dns: 'Pending DNS',
+  verifying: 'Verifying',
+  active: 'Active',
+  error: 'Error',
+};
+
+/** Maps the domain status onto a status the pill can colour, keeping the real label. */
+const DOMAIN_TONES: Record<Domain['status'], string> = {
+  pending_dns: 'pending',
+  verifying: 'provisioning',
+  active: 'active',
+  error: 'error',
+};
+
+const linkButton =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc';
+
+export default function Domains() {
+  const { push } = useToast();
+
+  const domainsState = useAsync<{ domains: Domain[] }>(
+    (signal) => get<{ domains: Domain[] }>('/domains', undefined, signal),
+    [],
+  );
+  const instancesState = useAsync<{ instances: Instance[] }>(
+    (signal) => get<{ instances: Instance[] }>('/instances', undefined, signal),
+    [],
+  );
+
+  const [instanceId, setInstanceId] = useState('');
+  const [hostname, setHostname] = useState('');
+  const [hostnameError, setHostnameError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Domain | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const instances = useMemo(() => instancesState.data?.instances ?? [], [instancesState.data]);
+  const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
+
+  useEffect(() => {
+    const first = instances[0];
+    if (!instanceId && first) setInstanceId(first.id);
+  }, [instances, instanceId]);
+
+  const create = useAction(async (targetInstanceId: string, host: string) => {
+    const result = await post<{ domain: Domain }>(`/instances/${targetInstanceId}/domains`, { hostname: host });
+    const created = result.domain;
+    domainsState.reload();
+    push(`${created.hostname} added. Add the DNS records below at your registrar.`);
+    return created;
+  });
+
+  const verify = useAction(async (id: string) => {
+    const result = await post<{ domain: Domain }>(`/domains/${id}/verify`);
+    domainsState.reload();
+    push(`Verification started for ${result.domain.hostname}.`);
+    return result.domain;
+  });
+
+  const remove = useAction(async (id: string) => {
+    try {
+      await del(`/domains/${id}`);
+    } catch (err) {
+      // Close the dialog so the failure is readable instead of hidden behind it.
+      setPendingDelete(null);
+      throw err;
+    }
+    domainsState.reload();
+    setPendingDelete(null);
+    push('Domain deleted.');
+  });
+
+  const submit = async () => {
+    const host = hostname.trim().toLowerCase();
+    if (!host) {
+      setHostnameError('Enter the hostname you want to use.');
+      return;
+    }
+    if (!instanceId) {
+      setHostnameError('Choose the instance this domain points to.');
+      return;
+    }
+    setHostnameError(null);
+    const created = await create.run(instanceId, host);
+    if (created) {
+      setHostname('');
+    }
+  };
+
+  const copy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      push(`${label} copied.`);
+    } catch {
+      push('Copy failed. Select the value and copy it manually.', 'error');
+    }
+  };
+
+  const addDisabled = create.pending || !instanceId || hostname.trim().length === 0;
+
+  return (
+    <div className="grid gap-4 pb-16 lg:pb-0">
+      <Panel title="Add a domain" description="Point a hostname at one of your instances.">
+        {instancesState.loading ? (
+          <LoadingBlock rows={1} label="Loading your instances" />
+        ) : instancesState.error ? (
+          <ErrorState
+            title="Could not load your instances"
+            message={instancesState.error.message}
+            onRetry={instancesState.reload}
+          />
+        ) : !instances.length ? (
+          <EmptyState
+            title="No instances yet"
+            description="Deploy an app or database first, then attach a domain to it."
+            action={
+              <Link to="/app" className={linkButton}>
+                Go to your dashboard
+              </Link>
+            }
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
+            <Select
+              label="Instance"
+              value={instanceId}
+              onChange={(e) => setInstanceId(e.target.value)}
+              hint="The domain is attached to this instance."
+            >
+              {instances.map((instance) => (
+                <option key={instance.id} value={instance.id}>
+                  {instance.name} · {instance.product.name}
+                </option>
+              ))}
+            </Select>
+            <TextInput
+              label="Hostname"
+              value={hostname}
+              onChange={(e) => setHostname(e.target.value)}
+              placeholder="app.example.com"
+              error={hostnameError ?? undefined}
+              hint="The full hostname, without a protocol."
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <div className="sm:col-span-2">
+              <PrimaryButton onClick={() => void submit()} disabled={addDisabled}>
+                {create.pending ? 'Adding…' : 'Add domain'}
+              </PrimaryButton>
+              {create.error && (
+                <p role="alert" className="mt-2 text-[13.5px] font-bold text-bad">
+                  {create.error}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Your domains">
+        {domainsState.loading ? (
+          <LoadingBlock rows={3} label="Loading your domains" />
+        ) : domainsState.error ? (
+          <ErrorState
+            title="Could not load your domains"
+            message={domainsState.error.message}
+            onRetry={domainsState.reload}
+          />
+        ) : !domains.length ? (
+          <EmptyState
+            title="No domains yet"
+            description="Add a hostname above. We will tell you exactly which DNS records to create."
+          />
+        ) : (
+          <div className="grid gap-3">
+            {domains.map((domain) => (
+              <article key={domain.id} className="rounded-2xl bg-s2 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[16px] font-extrabold tracking-[-0.02em] text-ink">{domain.hostname}</p>
+                    <p className="mt-0.5 text-[13px] text-ink3">
+                      {domain.instanceName} · port {domain.targetPort}
+                    </p>
+                  </div>
+                  <StatusPill status={DOMAIN_TONES[domain.status]} label={DOMAIN_STATUS_LABELS[domain.status]} />
+                </div>
+
+                {domain.lastError && (
+                  <p role="alert" className="mt-3 rounded-2xl bg-bad/12 px-3.5 py-2.5 text-[13.5px] text-ink2">
+                    <span className="font-bold text-bad">Last error: </span>
+                    {domain.lastError}
+                  </p>
+                )}
+
+                <div className="mt-4">
+                  <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">DNS records to create</p>
+                  {domain.dnsRecords.length ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left">
+                        <thead>
+                          <tr>
+                            <th scope="col" className="px-2 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">
+                              Name
+                            </th>
+                            <th scope="col" className="px-2 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">
+                              Type
+                            </th>
+                            <th scope="col" className="px-2 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">
+                              Value
+                            </th>
+                            <th scope="col" className="px-2 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">
+                              <span className="sr-only">Actions</span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="grid gap-1.5">
+                          {domain.dnsRecords.map((record) => (
+                            <tr key={`${record.name}-${record.type}`} className="rounded-2xl bg-s3">
+                              <td className="px-2.5 py-2.5 align-middle font-mono text-[12.5px] break-all text-ink2">{record.name}</td>
+                              <td className="px-2.5 py-2.5 align-middle font-mono text-[12.5px] text-ink2">{record.type}</td>
+                              <td className="px-2.5 py-2.5 align-middle font-mono text-[12.5px] break-all text-ink">{record.value}</td>
+                              <td className="px-2.5 py-2.5 align-middle text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => void copy(record.value, `${record.type} value`)}
+                                  aria-label={`Copy the ${record.type} value for ${record.name}`}
+                                  className={cn(
+                                    'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
+                                    'focus-visible:ring-2 focus-visible:ring-acc',
+                                  )}
+                                >
+                                  Copy
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] text-ink2">
+                      The server did not return DNS records for this domain yet.
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <SoftButton
+                    onClick={() => {
+                      setVerifyingId(domain.id);
+                      void verify.run(domain.id).finally(() => setVerifyingId(null));
+                    }}
+                    disabled={verify.pending}
+                  >
+                    {verifyingId === domain.id ? 'Working…' : 'Verify now'}
+                  </SoftButton>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(domain)}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:ring-2 focus-visible:ring-bad"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      {verify.error && (
+        <p role="alert" className="text-[13.5px] font-bold text-bad">
+          {verify.error}
+        </p>
+      )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this domain?"
+        description={
+          pendingDelete
+            ? `${pendingDelete.hostname} stops resolving as soon as it is deleted. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Delete domain"
+        requireText={pendingDelete?.hostname}
+        busy={remove.pending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) void remove.run(pendingDelete.id);
+        }}
+      />
+      {remove.error && (
+        <p role="alert" className="text-[13.5px] font-bold text-bad">
+          {remove.error}
+        </p>
+      )}
+    </div>
+  );
+}

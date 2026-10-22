@@ -1,9 +1,10 @@
-import { createServer } from 'node:http';
+import { createServer, request as httpRequest } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { resolve, join, extname, sep } from 'node:path';
 
 const root = resolve(process.cwd(), 'dist');
 const port = Number(process.env.SERVER_PORT || process.env.PORT || 30001);
+const API_URL = process.env.API_URL || 'http://127.0.0.1:3100';
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -33,11 +34,38 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 }
 
 const server = createServer((req, res) => {
-  if (!['GET', 'HEAD'].includes(req.method)) return send(res, 405, 'Method not allowed');
   if (req.url === '/healthz') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     return res.end(req.method === 'HEAD' ? undefined : '{"status":"ok"}');
   }
+
+  // The API is served from the same origin so the session cookie stays
+  // first-party and never needs a cross-site exemption.
+  if (req.url?.startsWith('/api/')) {
+    const target = new URL(req.url, API_URL);
+    const proxy = httpRequest(
+      {
+        protocol: target.protocol,
+        hostname: target.hostname,
+        port: target.port,
+        path: target.pathname + target.search,
+        method: req.method,
+        headers: { ...req.headers, host: target.host },
+      },
+      (upstream) => {
+        res.writeHead(upstream.statusCode ?? 502, upstream.headers);
+        upstream.pipe(res);
+      },
+    );
+    proxy.on('error', () => {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: { code: 'upstream_error', message: 'The API is not reachable.' } }));
+    });
+    req.pipe(proxy);
+    return;
+  }
+
+  if (!['GET', 'HEAD'].includes(req.method)) return send(res, 405, 'Method not allowed');
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);

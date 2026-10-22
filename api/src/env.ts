@@ -1,0 +1,69 @@
+import { config as loadEnv } from 'dotenv';
+import { z } from 'zod';
+
+// Load .env from the repository root or the api directory, whichever exists.
+loadEnv({ path: ['.env', '../.env'] });
+
+const bool = (fallback: boolean) =>
+  z
+    .string()
+    .optional()
+    .transform((v) => (v === undefined ? fallback : v === 'true' || v === '1'));
+
+const schema = z.object({
+  NODE_ENV: z.string().default('development'),
+  PORT: z.coerce.number().default(3100),
+  HOST: z.string().default('0.0.0.0'),
+
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
+
+  SESSION_SECRET: z.string().min(16, 'SESSION_SECRET must be at least 16 characters'),
+  APP_ORIGIN: z.string().default('http://localhost:5173'),
+  APP_PUBLIC_URL: z.string().default('http://localhost:5173'),
+  COOKIE_SECURE: bool(false),
+
+  PTERODACTYL_URL: z.string().default(''),
+  PTERODACTYL_APP_KEY: z.string().default(''),
+  PTERODACTYL_CLIENT_KEY: z.string().default(''),
+
+  STRIPE_SECRET_KEY: z.string().default(''),
+  STRIPE_PUBLISHABLE_KEY: z.string().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().default(''),
+
+  SMTP_URL: z.string().default(''),
+  MAIL_FROM: z.string().default('Blipmade <no-reply@blipmade.com>'),
+
+  INTERNAL_API_TOKEN: z.string().default(''),
+  BLIPMADE_INTERNAL_API_TOKEN: z.string().default(''),
+  ADMIN_ENROLLMENT_KEY: z.string().default(''),
+
+  BACKUP_DIR: z.string().default('/var/backups/blipmade'),
+  DOMAIN_BASE: z.string().default(''),
+  CADDY_ADMIN_URL: z.string().default(''),
+  CADDY_ADMIN_TOKEN: z.string().default(''),
+  METRICS_ENABLED: bool(true),
+  LOG_LEVEL: z.string().default('info'),
+});
+
+const parsed = schema.safeParse(process.env);
+
+if (!parsed.success) {
+  const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
+  throw new Error(`Invalid environment configuration:\n${issues}`);
+}
+
+const raw = parsed.data;
+
+export const env = {
+  ...raw,
+  isProduction: raw.NODE_ENV === 'production',
+  isTest: raw.NODE_ENV === 'test',
+  internalToken: raw.INTERNAL_API_TOKEN || raw.BLIPMADE_INTERNAL_API_TOKEN,
+  stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
+  mailEnabled: Boolean(raw.SMTP_URL),
+  pterodactylEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_APP_KEY),
+  pterodactylClientEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_CLIENT_KEY),
+} as const;
+
+export type Env = typeof env;

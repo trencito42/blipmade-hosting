@@ -1,0 +1,284 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Icon, type IconName } from '../icons';
+import { get, type Instance } from '../lib/api';
+import { useAsync } from '../lib/useAsync';
+import { Link } from '../router';
+import { EmptyState, ErrorState, ListRow, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
+
+/**
+ * Customer overview. Reads the real instance list only: every number on this
+ * page comes from GET /api/instances. Nothing here is simulated.
+ */
+
+const KNOWN_ICONS: readonly IconName[] = [
+  'arrow', 'arrowUR', 'check', 'search', 'menu', 'close', 'eye', 'eyeOff', 'globe', 'db',
+  'folder', 'term', 'chart', 'card', 'rocket', 'shield', 'restart', 'box', 'bolt', 'bot',
+  'mon', 'flow', 'code', 'doc',
+];
+
+function productIcon(icon: string): IconName {
+  return KNOWN_ICONS.includes(icon as IconName) ? (icon as IconName) : 'box';
+}
+
+function ProductIcon({ icon, size = 40 }: { icon: string; size?: number }) {
+  return (
+    <span style={{ width: size, height: size }} className="grid shrink-0 place-items-center rounded-[28%] bg-s3 text-acc">
+      <Icon name={productIcon(icon)} size={Math.round(size * 0.5)} />
+    </span>
+  );
+}
+
+/** Purchased memory, never live usage. */
+function fmtRam(mb: number): string {
+  if (!Number.isFinite(mb)) return '—';
+  if (mb < 1024) return `${mb} MB`;
+  const gb = Math.round((mb / 1024) * 100) / 100;
+  return `${gb} GB`;
+}
+
+function fmtDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+const primaryLink =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+const softLink =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+
+/** Reasons this instance needs the customer to act. Empty when all is well. */
+function attentionReasons(instance: Instance): string[] {
+  const reasons: string[] = [];
+  if (instance.status === 'failed') reasons.push('Status is failed.');
+  else if (instance.status === 'degraded') reasons.push('Status is degraded.');
+  else if (instance.status === 'suspended') reasons.push('Status is suspended.');
+  if (instance.subscription?.status === 'past_due') reasons.push('Subscription payment is past due.');
+  return reasons;
+}
+
+interface InstanceEvent {
+  id: string;
+  type: string;
+  message: string;
+  createdAt: string;
+}
+
+interface ActivityRow {
+  instanceId: string;
+  instanceName: string;
+  event: InstanceEvent;
+}
+
+/**
+ * The events endpoint is per instance, so the overview asks each of the most
+ * recent instances for its latest event. Failures are reported, never hidden.
+ */
+function useRecentActivity(instances: Instance[] | undefined) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [rows, setRows] = useState<ActivityRow[]>([]);
+  const [nonce, setNonce] = useState(0);
+
+  const ids = useMemo(() => (instances ?? []).slice(0, 5).map((instance) => instance.id), [instances]);
+  const key = ids.join(',');
+
+  useEffect(() => {
+    if (!instances) return;
+    if (!ids.length) {
+      setRows([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    Promise.all(
+      ids.map(async (id) => {
+        try {
+          const res = await get<{ events: InstanceEvent[] }>(`/instances/${id}/events`, undefined, controller.signal);
+          return { id, events: res.events ?? [], ok: true };
+        } catch {
+          return { id, events: [] as InstanceEvent[], ok: false };
+        }
+      }),
+    ).then((results) => {
+      if (!active) return;
+      const names = new Map<string, string>(instances.map((instance) => [instance.id, instance.name] as const));
+      const latest: ActivityRow[] = [];
+      for (const result of results) {
+        const sorted = result.events
+          .slice()
+          .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+        const event = sorted[0];
+        if (event) latest.push({ instanceId: result.id, instanceName: names.get(result.id) ?? result.id, event });
+      }
+      latest.sort((a, b) => Date.parse(b.event.createdAt) - Date.parse(a.event.createdAt));
+      setRows(latest);
+      const allFailed = results.every((result) => !result.ok);
+      setError(allFailed ? new Error('The activity feed could not be loaded from the API.') : null);
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, nonce]);
+
+  return { loading, error, rows, reload: () => setNonce((n) => n + 1) };
+}
+
+export default function Overview() {
+  const { data, loading, error, reload } = useAsync(
+    (signal) => get<{ instances: Instance[] }>('/instances', undefined, signal),
+    [],
+  );
+
+  const instances = data?.instances;
+  const activity = useRecentActivity(instances);
+
+  const attention = (instances ?? []).filter((instance) => attentionReasons(instance).length > 0);
+  const total = (instances ?? []).reduce((sum, instance) => sum + (instance.price ?? 0), 0);
+  const currency = instances?.[0]?.currency ?? 'EUR';
+
+  return (
+    <div className="grid gap-4">
+      {attention.length > 0 && (
+        <Panel title="Needs attention">
+          <div className="grid gap-1.5">
+            {attention.map((instance) => (
+              <ListRow
+                key={instance.id}
+                to={`/app/instances/${instance.id}`}
+                title={instance.name}
+                meta={attentionReasons(instance).join(' ')}
+                right={<StatusPill status={instance.status} />}
+              />
+            ))}
+          </div>
+        </Panel>
+      )}
+
+      <Panel title="Your instances">
+        {loading ? (
+          <LoadingBlock rows={3} label="Loading your instances" />
+        ) : error ? (
+          <ErrorState title="We could not load your instances" message={error.message} onRetry={reload} />
+        ) : !instances || instances.length === 0 ? (
+          <EmptyState
+            title="No instances yet. Pick an app."
+            description="Deploy an app or database and it runs on the resources you choose."
+            action={
+              <Link to="/app/deploy/wordpress" className={primaryLink}>
+                Deploy an app
+              </Link>
+            }
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {instances.map((instance) => (
+              <article key={instance.id} className="grid content-start gap-3 rounded-2xl bg-s2 p-4">
+                <div className="flex items-start gap-3">
+                  <ProductIcon icon={instance.product.icon} />
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      to={`/app/instances/${instance.id}`}
+                      className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                    >
+                      {instance.name}
+                    </Link>
+                    <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
+                  </div>
+                  <StatusPill status={instance.status} />
+                </div>
+
+                <div className="grid gap-1">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Purchased limits</p>
+                  <p className="font-mono text-[13.5px] text-ink">
+                    {fmtRam(instance.ram)} · {instance.cpu} vCPU · {instance.disk} GB disk
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {instance.url ? (
+                    <a
+                      href={instance.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="min-w-0 truncate text-[13.5px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:ring-2 focus-visible:ring-acc"
+                    >
+                      {instance.url}
+                    </a>
+                  ) : (
+                    <span className="text-[13.5px] text-ink3">No public URL yet</span>
+                  )}
+                  <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Deploy something" description="Start a new app or database on the resources you choose.">
+        <div className="flex flex-wrap gap-2">
+          <Link to="/app/deploy/wordpress" className={primaryLink}>
+            <Icon name="rocket" size={16} />
+            Deploy an app
+          </Link>
+          <Link to="/" className={softLink}>
+            Browse the catalog
+          </Link>
+        </div>
+      </Panel>
+
+      <Panel title="Monthly total">
+        {loading ? (
+          <>
+            <p className="font-mono text-[22px] font-semibold tabular-nums text-ink3">—</p>
+            <p className="mt-1 text-[12.5px] text-ink3">Not available yet</p>
+          </>
+        ) : !instances || instances.length === 0 ? (
+          <>
+            <Money amount={0} currency={currency} />
+            <p className="mt-1 text-[13px] text-ink3">You have no instances, so nothing is billed.</p>
+          </>
+        ) : (
+          <>
+            <Money amount={total} currency={currency} period="month" />
+            <p className="mt-1 text-[13px] text-ink3">Sum of the monthly price of your {instances.length} instances.</p>
+          </>
+        )}
+      </Panel>
+
+      {instances && instances.length > 0 && (
+        <Panel title="Recent activity" description="The latest event of each instance.">
+          {activity.loading ? (
+            <LoadingBlock rows={2} label="Loading recent activity" />
+          ) : activity.error ? (
+            <ErrorState title="Activity unavailable" message={activity.error.message} onRetry={activity.reload} />
+          ) : activity.rows.length === 0 ? (
+            <EmptyState title="No activity yet." description="Events appear here when something changes on an instance." />
+          ) : (
+            <div className="grid gap-1.5">
+              {activity.rows.map((row) => (
+                <ListRow
+                  key={row.instanceId}
+                  to={`/app/instances/${row.instanceId}`}
+                  title={row.instanceName}
+                  meta={`${row.event.type}: ${row.event.message}`}
+                  right={<span className="font-mono text-[12px] text-ink3">{fmtDate(row.event.createdAt)}</span>}
+                />
+              ))}
+            </div>
+          )}
+        </Panel>
+      )}
+    </div>
+  );
+}
