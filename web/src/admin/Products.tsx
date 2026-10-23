@@ -234,7 +234,7 @@ export default function Products() {
                 {(product) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <div className="w-0 min-w-0 flex-1">
                         <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={product.name}>
                           {product.name}
                         </p>

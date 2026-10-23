@@ -100,7 +100,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-s2 px-3.5 py-3">
       <dt className="text-[13.5px] text-ink2">{label}</dt>
-      <dd className="min-w-0 truncate text-right text-[14.5px] font-bold text-ink">{children}</dd>
+      <dd className="w-0 min-w-0 flex-1 truncate text-right text-[14.5px] font-bold text-ink">{children}</dd>
     </div>
   );
 }

@@ -219,7 +219,7 @@ export default function Overview() {
                     className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <ProductIcon icon={product.icon} size={36} />
-                    <span className="min-w-0 flex-1">
+                    <span className="w-0 min-w-0 flex-1">
                       <span className="block truncate text-[14.5px] font-bold text-ink">{product.name}</span>
                       <span className="block truncate text-[12.5px] text-ink3">{product.description}</span>
                     </span>
@@ -301,7 +301,7 @@ export default function Overview() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
                   <ProductIcon icon={instance.product.icon} />
-                  <div className="min-w-0 flex-1">
+                  <div className="w-0 min-w-0 flex-1">
                     <Link
                       to={`/app/instances/${instance.id}`}
                       className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"

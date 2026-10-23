@@ -169,7 +169,7 @@ export default function Staff() {
                 {(member) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <div className="w-0 min-w-0 flex-1">
                         <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
                           {member.name ?? 'No name'}
                         </p>
@@ -187,7 +187,7 @@ export default function Staff() {
                 {members.map((member) => (
                   <div key={member.userId} className="rounded-2xl bg-s2 p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <div className="min-w-0">
+                      <div className="w-0 min-w-0 flex-1">
                         <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
                           {member.name ?? 'No name'}
                         </p>

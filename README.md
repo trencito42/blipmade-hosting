@@ -261,8 +261,7 @@ it is invalid. The values below are the placeholders, never a real value.
 | `POSTGRES_PASSWORD` | The password of the PostgreSQL container. | **yes** | **yes** | `<redacted>` |
 | `API_URL` | Where the web container proxies `/api` to. | no | no | `http://api:3100` |
 | `SERVER_PORT` | The port the web container listens on. | no | no | `3000` |
-| `ADOBE_FONTS_KIT_URL` | The Adobe Fonts **web** project of proxima nova, for example `https://use.typekit.net/abcd1234.css`. Only `use.typekit.net` and `p.typekit.net` are accepted. Empty keeps the Geist fallback. | no | no | empty |
-| `ADOBE_FONTS_FAMILY` | The name of the family exactly as Adobe writes it, for example `proxima-nova`. When it is empty the server reads the name from the stylesheet of the kit. | no | no | empty |
+| _(none)_ | proxima nova is served from this machine under `/fonts/`. The licensed web files are placed under `web/public/fonts/` and the site is built again. There is no variable and no address of a third party. See `docs/TYPOGRAPHY.md`. | — | — | — |
 
 ### The backup scripts
 

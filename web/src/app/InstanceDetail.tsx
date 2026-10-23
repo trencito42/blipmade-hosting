@@ -459,10 +459,10 @@ function DomainsTab({ instance }: { instance: Instance }) {
                         className="grid gap-1.5 rounded-2xl bg-s2 p-3 sm:flex sm:flex-wrap sm:items-center sm:gap-2"
                       >
                         <span className="font-mono text-[11.5px] uppercase tracking-[0.08em] text-ink3">{record.type}</span>
-                        <span className="min-w-0 truncate font-mono text-[13px] text-ink" title={record.name}>
+                        <span className="w-0 min-w-0 flex-1 truncate font-mono text-[13px] text-ink" title={record.name}>
                           {record.name}
                         </span>
-                        <span className="min-w-0 truncate font-mono text-[13px] text-ink2" title={record.value}>
+                        <span className="w-0 min-w-0 flex-1 truncate font-mono text-[13px] text-ink2" title={record.value}>
                           {record.value}
                         </span>
                         <SoftButton
@@ -641,7 +641,7 @@ export default function InstanceDetail() {
           Instances
         </Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page" className="min-w-0 truncate font-bold text-ink" title={instance.name}>
+        <span aria-current="page" className="w-0 min-w-0 flex-1 truncate font-bold text-ink" title={instance.name}>
           {instance.name}
         </span>
       </nav>
@@ -650,7 +650,7 @@ export default function InstanceDetail() {
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <ProductIcon icon={instance.product.icon} size={46} />
-            <div className="min-w-0 flex-1">
+            <div className="w-0 min-w-0 flex-1">
               <h2 className="truncate text-[20px] font-extrabold tracking-[-0.035em] text-ink" title={instance.name}>
                 {instance.name}
               </h2>

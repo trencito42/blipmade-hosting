@@ -23,9 +23,6 @@ The two families are declared once, in the theme block of
 --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 ```
 
-Both spellings of the family are asked for, because the Adobe Fonts web
-project may declare it as `Proxima Nova` or as `proxima-nova`.
-
 Nothing else in the codebase sets a font family, so the interface uses the
 sans stack and the data uses the mono stack everywhere.
 
@@ -51,133 +48,163 @@ The browser never has to synthesise a weight it cannot draw.
 
 ## 3. How the typeface reaches the browser
 
-The only licensed way to serve proxima nova on a website is the **web
-project of Adobe Fonts** — the kit of the account, which Adobe serves from
-`https://use.typekit.net/<kit-id>.css`.
+**The typeface is served from this machine, under `/fonts/`.** There is no
+third party involved: the browser asks `blipmade.com` for the files, exactly
+like it asks for the stylesheet and the code of the page.
 
-The web server loads that kit when the host tells it where the kit is:
+The interface declares the three faces itself, in `web/src/index.css`:
 
-| Variable | Purpose | Required | Secret |
-|---|---|---|---|
-| `ADOBE_FONTS_KIT_URL` | The full stylesheet URL of the Adobe Fonts web project, for example `https://use.typekit.net/abc1234.css`. | no | no |
-| `ADOBE_FONTS_FAMILY` | The name of the family, exactly as Adobe writes it, when the operator wants to write it down instead of letting the server read it. | no | no |
-
-The value is checked before it is used:
-
-* it has to be a valid `https:` URL,
-* its host has to be exactly `use.typekit.net` or `p.typekit.net`.
-
-Anything else — a URL of another host, an `http:` URL, a value that is not a
-URL — is refused with a warning in the server console, and nothing is
-written into the page. A stylesheet that is written into the page is loaded
-by every visitor, so only a URL of Adobe itself may end up there.
-
-When the variable is set and valid, the served HTML gets these lines in its
-head:
-
-```html
-<!-- Webfonts loaded by Adobe Fonts -->
-<link rel="preconnect" href="https://use.typekit.net" crossorigin>
-<link rel="stylesheet" href="https://use.typekit.net/abc1234.css">
-<!-- The typeface of the interface, with the name the kit declares -->
-<style>:root{--font-sans:"proxima-nova","Geist Variable","Inter","system-ui","sans-serif";}</style>
+```css
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proxima-nova-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 ```
 
-That is the whole integration. The kit declares its own `@font-face` rules
-and its own `font-display: swap`, so there is **no** preload, **no**
-tracking script and **no** local `@font-face` rule for proxima nova.
+The weights 600 and 700 are declared the same way. The paths are absolute, so
+they point at the files on the site and not at a file of the build.
 
-The last line is written by the server, and it carries the **name the kit
-declares**. See section 7.
+The build copies `web/public/` next to the page, so the files end up in the
+image under `/app/dist/fonts/` and are served from `/fonts/`.
 
-When the variables are not set, the HTML is served exactly as it is on disk:
-no link, no empty tag, no comment. The page is not slower and not different
-in any way.
+The web server serves them with the right type and with an `ETag`:
 
-## 4. The desktop font files stay out of the repository
+```text
+Content-Type: font/woff2
+Cache-Control: public, max-age=0, must-revalidate
+ETag: "1a2b-6551f2a1"
+```
+
+The name of a file does not change when the file does, so the browser is asked
+whether the file changed instead of being told to keep it for a year.
+
+## 4. The files that are needed
+
+**The web files of proxima nova are not in the repository and must not be
+added.** A desktop Adobe license covers the desktop applications, not a
+website. Serving a desktop font file from a website — self-hosted, converted
+to `woff2`, subsetted, or inlined as base64 in a stylesheet — needs a web
+license, and nobody has confirmed one. Converting the file does not change
+the license.
 
 Three desktop Adobe font files were supplied for reference: `Proxima Nova.otf`
 (Regular 400), `Proxima Nova Semibold - 173.otf` (600) and
 `Proxima Nova Bold.otf` (700).
 
-**They are not in the repository, and they must not be added.** A desktop
-Adobe license covers the desktop applications, not a website. Serving a
-desktop font file from a website — self-hosted, converted to `woff2`,
-subsetted, or inlined as base64 in a stylesheet — needs a web license, and
-nobody has confirmed one. Converting the file does not change the license.
-
 The font files themselves say the same thing: the `OS/2` table of all three
 files has `fsType = 0x0004`, the *preview and print* embedding permission.
 They may be printed, not embedded in a web page.
 
-The consequence, written down so that nobody has to rediscover it:
+### What the operator has to place
 
-* no `.otf`, `.woff` or `.woff2` of proxima nova in the repository,
-* none in `web/public`, so none in the build output and none in the image,
-* no `@font-face` rule for proxima nova in `web/src/index.css`,
-* no conversion of the supplied files anywhere.
+Three **woff2** files, named exactly like this, under `web/public/fonts/`:
 
-The licensed path is the one in section 3.
+| File | Weight | Style | Subsets |
+|---|---|---|---|
+| `proxima-nova-400.woff2` | 400 | normal | latin + latin-ext |
+| `proxima-nova-600.woff2` | 600 | normal | latin + latin-ext |
+| `proxima-nova-700.woff2` | 700 | normal | latin + latin-ext |
 
-## 5. The fallback, and why the site looks the same today
+The names have to be exactly these. The interface asks for them by name and
+`web/fonts.mjs` names the ones that are missing when they are not there.
 
-Until a web project is configured, `"Proxima Nova"` resolves to nothing and
-the browser falls through to **Geist Variable**. The site looks and works
-exactly as it does now.
+The files have to be **licensed for the web** — a webfont license that allows
+self-hosting. The three weights of one family are enough; the interface asks
+for nothing else.
 
-That is the current state, and it is deliberate. The typeface is asked for
-by the tokens from the start, so the moment the kit is configured the
-interface switches over — without a rebuild, without a commit and without
-editing a single component.
+`latin` is the required subset. `latin-ext` is wanted, because the names of
+customers, the subjects of tickets and the addresses of domains are written
+with the letters of the eastern and the southern half of Europe. A file
+without `latin-ext` still works: the browser takes the missing letters from
+the fallback of the stack.
 
-Geist Mono is never affected: `--font-mono` stays `"Geist Mono Variable"`,
-so ports, console output, code and numbers keep their typeface whatever
-happens with the kit.
+The files are **not** in the repository. `.gitignore` keeps `*.woff2` under
+`web/public/fonts/` out of the history.
 
-## 6. Checklist for the operator
+### What happens when they are not there
 
-1. **Find the kit.** Sign in at [fonts.adobe.com](https://fonts.adobe.com)
-   and open the web project (kit) that contains proxima nova. If there is
-   none, create one and add proxima nova to it. Use the **web project**, not
-   the desktop app activation.
-2. **Copy the kit URL.** The web project panel shows the embed code; the URL
-   is the `https://use.typekit.net/<kit-id>.css` inside it.
-3. **Set it on the host.** In `/opt/blipmade/.env` on the server:
+The site works without them and says so, in three places:
 
-   ```bash
-   ADOBE_FONTS_KIT_URL=https://use.typekit.net/abc1234.css
-   ```
+* **The console of the web container** names the files that are missing:
 
-   The variable is read by `compose.web.yml`, so it is enough to write it
-   there. Then start the web container again:
+  ```text
+  Typeface: the files of Proxima Nova are not all there, so the interface uses Geist Variable. Missing: /fonts/proxima-nova-400.woff2, /fonts/proxima-nova-600.woff2, /fonts/proxima-nova-700.woff2. See docs/TYPOGRAPHY.md.
+  ```
+
+* **The health of the site** answers with the state of the typeface:
+
+  ```bash
+  curl -s https://blipmade.com/healthz
+  ```
+
+  ```json
+  {
+    "status": "ok",
+    "fonts": {
+      "family": "Proxima Nova",
+      "installed": false,
+      "files": [
+        { "file": "/fonts/proxima-nova-400.woff2", "weight": 400, "present": false },
+        { "file": "/fonts/proxima-nova-600.woff2", "weight": 600, "present": false },
+        { "file": "/fonts/proxima-nova-700.woff2", "weight": 700, "present": false }
+      ],
+      "missing": [
+        "/fonts/proxima-nova-400.woff2",
+        "/fonts/proxima-nova-600.woff2",
+        "/fonts/proxima-nova-700.woff2"
+      ],
+      "fallback": "Geist Variable"
+    }
+  }
+  ```
+
+* **The browser** asks for the files, gets a 404 and falls through to the
+  fallback of the stack. The interface is readable and looks the same. The
+  face is simply not used.
+
+**The typeface is never quietly replaced.** The fallback is written in the
+stack on purpose and is named in the health of the site.
+
+## 5. The checklist for the operator
+
+1. **Get the licensed web files.** The webfont files of proxima nova for the
+   weights 400, 600 and 700, in the `woff2` format, licensed for self-hosting
+   on a website. The desktop `.otf` files are not those files.
+2. **Put them in place**, under `web/public/fonts/`, with the names of the
+   table in section 4.
+3. **Build and start the site again:**
 
    ```bash
    cd /opt/blipmade
-   docker compose -f compose.yml -f compose.api.yml -f compose.web.yml up -d web
+   docker compose -f compose.yml -f compose.api.yml -f compose.web.yml build web
+   docker compose -f compose.yml -f compose.api.yml -f compose.web.yml up -d --force-recreate web
    ```
 
-   No rebuild and no commit: the server reads the variable when it starts.
-   (When the server runs directly, set it in the environment of the process
-   that runs `node server.mjs`.)
-4. **Check the console.** A working kit prints three lines:
+   The files are part of the image, so the container has to be built again.
+   There is no variable to set and nothing to configure.
+4. **Check the console** of the container:
 
    ```text
-   Adobe Fonts web project: https://use.typekit.net/abc1234.css
-   Adobe Fonts family: proxima-nova
-   Interface typeface: :root{--font-sans:"proxima-nova","Geist Variable",...;}
+   Typeface: Proxima Nova is served from /fonts (3 files)
    ```
 
-   A refused URL prints a warning and the site keeps the Geist fallback. A
-   stylesheet that cannot be read prints `The Adobe Fonts stylesheet could
-   not be read: ...` and the site also keeps the Geist fallback — the
-   interface never breaks because of the font.
-5. **Check the browser.** Open `https://blipmade.com` in a clean session
+5. **Check the health of the site:**
+
+   ```bash
+   curl -s https://blipmade.com/healthz | grep -o '"installed":[a-z]*'
+   ```
+
+   The answer has to be `"installed":true`.
+6. **Check the browser.** Open `https://blipmade.com` in a clean session
    (private window, no cache) and look at the network tab:
-   * there is a request for `use.typekit.net/....css`,
-   * there are requests for the `woff2` files that stylesheet points at,
-   * the computed `font-family` of `body` lists the family of the kit first,
+   * there are requests for `/fonts/proxima-nova-400.woff2`,
+     `/fonts/proxima-nova-600.woff2` and `/fonts/proxima-nova-700.woff2`,
+   * they answer `200` with `content-type: font/woff2`,
    * `document.fonts` lists the faces of proxima nova with the weights
-     400, 600 and 700.
+     400, 600 and 700, and their state is `loaded`.
 
    The check can also be made from the console of the page:
 
@@ -186,48 +213,28 @@ happens with the kit.
    [...document.fonts].filter((f) => f.family.includes('roxima')).map((f) => `${f.family} ${f.weight} ${f.status}`)
    ```
 
-   The second line has to name the family of the kit and show `loaded` for
-   the three weights.
-6. **Check the family name** — see the next section.
+   The second line has to name the family and show `loaded` for the three
+   weights.
 
-## 7. The family name of the kit
+## 6. The fallback
 
-The name of the family is written down in the stylesheet of the kit and
-nowhere else. The server reads that stylesheet once, when it starts, and
-writes the names it declares into the page:
+Until the files are there, `"Proxima Nova"` resolves to nothing and the
+browser falls through to **Geist Variable**. The site looks and works exactly
+as it does with the typeface.
 
-```text
-Adobe Fonts family: proxima-nova
-```
+Geist Mono is never affected: `--font-mono` stays `"Geist Mono Variable"`,
+so ports, console output, code and numbers keep their typeface whatever
+happens with proxima nova.
 
-CSS matches family names case-insensitively, but a space and a hyphen are
-not the same name, so a kit that declares `proxima-nova` does not answer to
-`Proxima Nova`. That is why the name is read instead of guessed.
-
-There are two ways to settle it:
-
-* let the server read the stylesheet — this is the default and it is what
-  the operator should use,
-* write the name down, when the kit declares several families or when the
-  operator wants to decide:
-
-  ```bash
-  ADOBE_FONTS_FAMILY=proxima-nova
-  ```
-
-  The value is a comma separated list, and the first name is the one the
-  browser asks for first.
-
-Nothing else changes. The rule the server writes is placed after the
-stylesheet of the bundle, so it is the one that counts.
-
-## 8. What not to do
+## 7. What not to do
 
 * Do not add the desktop `.otf` files to the repository, to `web/public` or
   to the image — see section 4.
 * Do not convert them to `woff2` to get around that. The license does not
   change with the format.
-* Do not add a local `@font-face` rule for proxima nova. The kit declares its
-  own faces; a local rule would shadow the licensed ones.
-* Do not add a tracking script for the font. The stylesheet link is the
-  whole integration.
+* Do not add a stylesheet of Adobe Fonts, a kit URL or any other address of a
+  third party. The typeface is served from this machine.
+* Do not remove the fallback of the stack. The site has to stay readable
+  while the files are not there yet.
+* Do not rename the files without changing `web/fonts.mjs` and
+  `web/src/index.css` together. The browser asks for them by name.

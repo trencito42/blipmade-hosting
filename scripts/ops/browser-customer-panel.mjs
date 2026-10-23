@@ -53,7 +53,9 @@ async function signedIn(email, password) {
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
-  await page.waitForURL(/\/app(\/|$)/, { timeout: 20000 });
+  // A customer lands in the panel and a staff member lands in the area of the
+  // staff. Both are a session.
+  await page.waitForURL(/\/(app|admin)(\/|$)/, { timeout: 20000 });
   return { context, page };
 }
 
@@ -436,15 +438,46 @@ for (const width of WIDTHS) {
 if (ADMIN_EMAIL && ADMIN_PASSWORD) {
   try {
     const { context, page } = await signedIn(ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.setViewportSize({ width: 320, height: 780 });
-    await page.goto(`${BASE}/admin`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(900);
-    const measure = await page.evaluate(() => {
-      const root = document.documentElement;
-      return { overflow: root.scrollWidth - root.clientWidth };
-    });
-    check(measure.overflow <= 1, `the admin area is ${measure.overflow} pixels too wide at 320 pixels`);
-    await shot(page, '320-admin');
+    for (const width of [320, 440]) {
+      await page.setViewportSize({ width, height: 780 });
+      for (const route of ['/admin', '/admin/tickets', '/admin/orders', '/admin/customers']) {
+        await page.goto(`${BASE}${route}`, { waitUntil: 'networkidle' });
+        await page.waitForTimeout(900);
+        const measure = await page.evaluate(() => {
+          const root = document.documentElement;
+          const nav = document.querySelector('[data-bottom-nav]');
+          return {
+            // The width of the layout viewport: it grows to hold the content
+            // that does not fit, and the width of the document always agrees
+            // with it, so only this number tells that the page is too wide.
+            layout: window.innerWidth,
+            overflow: root.scrollWidth - root.clientWidth,
+            nav: nav ? Math.round(nav.getBoundingClientRect().width) : null,
+            tabs: nav
+              ? [...nav.querySelectorAll('a, button')].map((t) => {
+                  const box = t.getBoundingClientRect();
+                  return { text: (t.textContent || '').trim().slice(0, 12), left: Math.round(box.left), right: Math.round(box.right) };
+                })
+              : [],
+          };
+        });
+        check(
+          measure.layout <= width + 1,
+          `the page ${route} is laid out at ${measure.layout} pixels on a ${width} pixel screen`,
+        );
+        check(
+          measure.nav === null || measure.nav <= width + 1,
+          `the navigation of the phone on ${route} is ${measure.nav} pixels wide and does not fit on a ${width} pixel screen`,
+        );
+        for (const tab of measure.tabs) {
+          check(
+            tab.right <= width + 1 && tab.left >= -1,
+            `the tab "${tab.text}" of ${route} is outside the screen (${tab.left}..${tab.right})`,
+          );
+        }
+        if (width === 320) await shot(page, '320-admin');
+      }
+    }
     await context.close();
   } catch (error) {
     // The account of the staff is not ours to use. The area of the staff was

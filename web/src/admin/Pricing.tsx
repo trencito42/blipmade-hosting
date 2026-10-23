@@ -108,7 +108,7 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
   return (
     <div className="rounded-2xl bg-s2 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
+        <div className="w-0 min-w-0 flex-1">
           <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={price.product.name}>
             {price.product.name}
           </p>

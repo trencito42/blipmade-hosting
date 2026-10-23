@@ -180,7 +180,7 @@ export default function Tickets() {
                       className="block w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                        <div className="w-0 min-w-0 flex-1">
                           <p className="truncate text-[14.5px] font-bold tracking-[-0.02em] text-ink" title={`#${ticket.number} ${ticket.subject}`}>
                             #{ticket.number} {ticket.subject}
                           </p>

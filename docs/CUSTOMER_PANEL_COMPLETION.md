@@ -72,13 +72,13 @@ that were added.
 
 | What was asked | Where it is | State |
 |---|---|---|
-| The configuration of the running container was read | `ADOBE_FONTS_KIT_URL` is empty in `blipmade-web-1` | done |
-| An authorised web project with proxima nova 400/600/700 | the kit is the project of the account | **waiting for the operator** |
-| The name the stylesheet declares | `web/fontkit.mjs`, read when the server starts | done |
+| The configuration of the running container was read | `/healthz` answers with the state of the typeface | done |
+| The typeface is served from this machine | `web/fonts.mjs`, `web/src/index.css`, `web/server.mjs` | done |
+| The licensed web files of proxima nova 400/600/700 | three woff2 files under `web/public/fonts/` | **waiting for the operator** |
 | No desktop `.otf` of Adobe | nothing of the kind is in this project | done |
-| Geist stays the fallback | `--font-sans` keeps Geist behind the family of the kit | done |
-| The exact step of the operator | `docs/TYPOGRAPHY.md`, section 6 | done |
-| The requests of the stylesheet and the faces that are loaded | `scripts/ops/browser-customer-panel.mjs`, section 7 | done in Chromium |
+| Geist stays the fallback | `--font-sans` keeps Geist behind proxima nova | done |
+| The exact step of the operator | `docs/TYPOGRAPHY.md`, section 5 | done |
+| The requests of the files and the faces that are loaded | `scripts/ops/browser-mobile-real.mjs` and `scripts/ops/browser-overflow-source.mjs` | done in Chromium |
 | The typography in a clean Safari session | — | **not possible here**: there is no Safari and no WebKit in this environment |
 
 ### 3.3 The phone

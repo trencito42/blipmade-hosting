@@ -209,7 +209,7 @@ export default function Status() {
                     return (
                       <li key={component.id} className="flex items-center gap-3 rounded-2xl bg-s1 px-4 py-3.5">
                         <span aria-hidden="true" className={cn('size-2.5 shrink-0 rounded-full', KIND_DOT[kind])} />
-                        <span className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={component.name}>
+                        <span className="w-0 min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={component.name}>
                           {component.name}
                         </span>
                         <span

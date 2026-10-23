@@ -2,6 +2,38 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/geist-mono";
 
+/* proxima nova is served from this machine, under /fonts/.
+ *
+ * The files are placed by the operator, because a typeface that is licensed
+ * for the desktop is not licensed for the web. The desktop files are never
+ * converted and never published here.
+ *
+ * The paths are absolute, so the browser asks this site for the files and
+ * not a third party. A file that is not there answers 404, the face is not
+ * used and the interface keeps the Geist fallback of the stack below, so the
+ * page is never left without a typeface. */
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proxima-nova-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proxima-nova-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proxima-nova-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Blipmade tokens. Near-black base, fine borders, one green accent. */
 @theme {
   --color-bg: #090a09;
@@ -20,11 +52,10 @@
   --color-on-acc: #06130b;
   --color-bad: #ff6b6b;
   --color-warn: #f0b232;
-  /* proxima nova is the typeface of the interface. It is loaded from the
-     authorized Adobe Fonts web project when one is configured; until then
-     Geist stays the fallback, so the site never waits for a font that is not
-     there. The web project may declare the family as "Proxima Nova" or as
-     "proxima-nova", so both names are asked for. */
+  /* proxima nova is the typeface of the interface. It is served from this
+     machine under /fonts/, and Geist stays the fallback, so the site never
+     waits for a font that is not there. The name is written twice, because
+     some tools write the family in small letters. */
   --font-sans: "Proxima Nova", "proxima-nova", "Geist Variable", "Inter", system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -51,6 +82,21 @@ body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); f
    outline of the page. */
 @layer base {
   :focus-visible { outline: 2px solid var(--color-acc); outline-offset: 3px; border-radius: 8px; }
+
+  /* A grid that names no column of its own gets one column that may be
+     smaller than its content.
+
+     Without this the column takes the width of the widest thing inside it.
+     A text that is cut with an ellipsis asks for the width of the whole
+     phrase, so one long ticket subject or one long customer name makes the
+     column, the card and the page wider than the phone. The browser then
+     widens the layout viewport to hold it and the page is cut off at the
+     edge of the screen, with the navigation of the phone spread over the
+     width of the wide screen.
+
+     The columns a page names itself (grid-cols-2, sm:grid-cols-3, ...) are
+     utilities, and a utility wins over this rule. */
+  .grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 ::selection { background: rgb(107 229 152 / 0.3); }

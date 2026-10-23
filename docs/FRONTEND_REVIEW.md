@@ -23,7 +23,7 @@ The integration is ready for the kit of the operator:
 
 | Piece | Where | What it does |
 |---|---|---|
-| `ADOBE_FONTS_KIT_URL` | `compose.web.yml`, `web/server.mjs` | The kit of the web project. Only `https://use.typekit.net` and `https://p.typekit.net` are accepted; anything else is refused and the page is served exactly as it is on disk. |
+| _(none)_ | `web/src/index.css`, `web/server.mjs` | proxima nova is served from this machine under `/fonts/`. The licensed web files are placed under `web/public/fonts/`; the health of the site names the ones that are missing. |
 | `--font-sans` | `web/src/index.css` | `"Proxima Nova", "proxima-nova", "Geist Variable", "Inter", system-ui, sans-serif`. Both spellings are asked for, because the web project may declare the family either way. |
 | `--font-weight-*` | `web/src/index.css` | 400, 600 and 700 only. `medium` is 400, `extrabold` and `black` are 700. |
 
@@ -161,7 +161,7 @@ The screenshots are not committed; they are a review artefact.
 
 | Blocker | Effect |
 |---|---|
-| The kit of the Adobe Fonts web project is unknown. | The interface keeps Geist. Everything else works. The operator sets `ADOBE_FONTS_KIT_URL` and the typeface is there. |
+| The licensed web files of proxima nova are not in the machine. | The interface keeps Geist. Everything else works. The operator places the three woff2 files under `web/public/fonts/`, builds the site again and the typeface is there. |
 | The web login of the panel answers `500 TypeError` for every account. | A `ptlc_` client key cannot be issued from the browser, so the relay of the console, the power control of a customer and the key per customer stay blocked. The interface around them is ready. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`, `SMTP_URL`, `CADDY_ADMIN_URL`, `CADDY_ADMIN_TOKEN`, `OFFSITE_TARGET`, `OFFSITE_ENCRYPTION_KEY` are still empty. | The pages of the billing and of the mail show the honest empty state. |
 | There is no endpoint to change the password of a signed in account. | The settings page offers the reset by mail and says so. |

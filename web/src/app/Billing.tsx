@@ -227,7 +227,7 @@ export default function Billing() {
                   {/* The name keeps its room. On a phone the status and the
                       amount move to the next line instead of cutting the name
                       to a few letters. */}
-                  <div className="min-w-[10rem] flex-1">
+                  <div className="w-0 min-w-[10rem] flex-1">
                     <p
                       className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink"
                       title={subscription.instanceName ?? undefined}
@@ -369,7 +369,7 @@ export default function Billing() {
               {(invoice) => (
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    <div className="w-0 min-w-0 flex-1">
                       <p className="truncate font-mono text-[14px] font-bold text-ink" title={invoice.number}>
                         {invoice.number}
                       </p>

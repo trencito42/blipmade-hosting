@@ -87,7 +87,7 @@ function NoInstances() {
                 <span className="grid size-11 shrink-0 place-items-center rounded-[28%] bg-s3 text-acc">
                   <Icon name={productIcon(product.icon)} size={20} />
                 </span>
-                <div className="min-w-0">
+                <div className="w-0 min-w-0 flex-1">
                   <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{product.name}</p>
                   <p className="mt-0.5 text-[13px] leading-relaxed text-ink2">{product.description}</p>
                   <p className="mt-1 font-mono text-[13px] text-ink3">
@@ -283,7 +283,7 @@ export default function Instances() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <Link
                     to={`/app/instances/${instance.id}`}
-                    className="min-w-0 flex-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    className="w-0 min-w-0 flex-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <span className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{instance.name}</span>
                     <span className="block truncate text-[12.5px] text-ink3">{instance.product.name}</span>

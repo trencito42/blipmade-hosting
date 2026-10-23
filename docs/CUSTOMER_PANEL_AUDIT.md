@@ -77,26 +77,26 @@ for, so a filter or a step of a wizard is not lost.
 ### 2.1 proxima nova never reached the browser
 
 **What it was.** The interface asks for `Proxima Nova` and falls through to
-Geist. The Adobe Fonts web project of the account was never given to the
-server, so the kit was never loaded.
+Geist. The typeface was supposed to arrive through the Adobe Fonts web
+project of the account, and the kit was never given to the server.
 
-**Cause.** `ADOBE_FONTS_KIT_URL` was empty in the deployment. The kit is the
-only way the typeface may reach a browser: the desktop files of Adobe are not
-licensed for the web and are not part of this project.
+**Cause.** The typeface was bound to an address of a third party, so it could
+only be used with an account of Adobe. The desktop files of Adobe are not
+licensed for the web and are not part of this project, so they could not be
+used either.
 
-**What was done.**
+**What was done.** The typeface is now served from this machine.
 
-- `web/fontkit.mjs` (new): the kit URL is checked (only `https` and only
-  `use.typekit.net` or `p.typekit.net`), the stylesheet of the kit is read
-  once when the server starts, and the **name the kit declares** is written
-  into the page. A kit that declares `proxima-nova` does not answer to
-  `Proxima Nova`, so the name is read instead of guessed.
-- `ADOBE_FONTS_FAMILY` lets the operator write the name down instead.
-- The rule is written after the stylesheet of the bundle, so it is the one
-  that counts. Geist stays the fallback, and Geist Mono stays the typeface of
-  the technical values.
-- `web/server.mjs` reads the stylesheet with a timeout and never fails because
-  of it: a kit that cannot be read leaves the fallback of the bundle.
+- `web/fonts.mjs` (new): the three web files of proxima nova are named, and
+  the site reports which of them are missing.
+- `web/src/index.css` declares the three faces itself, with the paths under
+  `/fonts/`. The browser asks this site for the files and not a third party.
+- `web/server.mjs` serves the files with `font/woff2` and an `ETag`, and
+  `/healthz` answers with the state of the typeface.
+- The Adobe kit is gone: `web/fontkit.mjs`, `ADOBE_FONTS_KIT_URL`,
+  `ADOBE_FONTS_FAMILY` and the injection of the kit into the page are removed.
+- Geist stays the fallback, and Geist Mono stays the typeface of the technical
+  values.
 - `docs/TYPOGRAPHY.md` has the step for the operator, the line to put in the
   `.env`, the three lines the server prints and the check in the browser.
 

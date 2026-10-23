@@ -232,7 +232,13 @@ export function AppShell({
           {/* Top bar. The padding keeps the bar clear of the notch of a
               phone, so the title is never under the camera. */}
           <header className="sticky top-0 z-20 flex items-center gap-3 bg-bg px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6">
-            <Link to="/" className="flex items-center gap-2 lg:hidden" aria-label="Blipmade home">
+            {/* The mark of the site is a link on a phone, so it is given the
+                room a finger needs, without changing the size of the mark. */}
+            <Link
+              to="/"
+              className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-full lg:hidden"
+              aria-label="Blipmade home"
+            >
               <img src={logo} alt="" className="h-6 w-auto" />
             </Link>
             <div className="min-w-0 flex-1">
@@ -432,7 +438,11 @@ export function ListRow({
 }) {
   const inner = (
     <>
-      <div className="min-w-0 flex-1">
+      {/* The text of the row may be cut, so the row asks for the width of the
+          screen and not for the width of the phrase. `w-0` with `flex-1`
+          keeps the text in the room that is left and takes the phrase out of
+          the measurement of the page. */}
+      <div className="w-0 min-w-0 flex-1">
         <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{title}</p>
         {meta && <p className="mt-0.5 truncate text-[13px] text-ink3">{meta}</p>}
       </div>
@@ -1069,7 +1079,9 @@ export function DataTable<T>({
 export function CardList<T>({ rows, rowKey, children }: { rows: T[]; rowKey: (row: T) => string; children: (row: T) => ReactNode }) {
   if (!rows.length) return null;
   return (
-    <div className="grid gap-1.5 md:hidden">
+    // The column of the cards may be smaller than a long text inside a card,
+    // so the cards never make the page wider than the screen.
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 md:hidden">
       {rows.map((row) => (
         <div key={rowKey(row)} className="rounded-2xl bg-s2 p-3.5">
           {children(row)}

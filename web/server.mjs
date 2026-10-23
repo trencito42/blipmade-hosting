@@ -1,13 +1,7 @@
 import { createServer, request as httpRequest } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import { resolve, join, extname, sep } from 'node:path';
-import {
-  adobeFontsKitUrl,
-  familyNames,
-  fontSansRule,
-  orderFamilies,
-} from './fontkit.mjs';
+import { PROXIMA_NOVA_FILES, fontStatus } from './fonts.mjs';
 
 const root = resolve(process.cwd(), 'dist');
 const port = Number(process.env.SERVER_PORT || process.env.PORT || 30001);
@@ -32,104 +26,39 @@ function send(res, status, message) {
 }
 
 /**
- * proxima nova is served from the Adobe Fonts web project of the account.
- * The desktop font files are not licensed for web use, so the typeface only
- * ever reaches the browser through the kit of that web project.
+ * The typefaces of the interface.
  *
- * The kit URL comes from the host, and a URL of an unknown host is refused:
- * a stylesheet that is written into the page is loaded by every visitor, so
- * only a URL of Adobe itself may end up there.
+ * proxima nova is served from this machine, under `/fonts/`. The files are
+ * placed by the operator, because a typeface that is licensed for the
+ * desktop is not licensed for the web.
+ *
+ * The site does not pretend that the typeface is there when it is not: the
+ * health of the site names the files that are missing, and the interface
+ * keeps Geist as the fallback until the files arrive.
  */
-const kitUrl = adobeFontsKitUrl(process.env.ADOBE_FONTS_KIT_URL);
-if (process.env.ADOBE_FONTS_KIT_URL?.trim() && !kitUrl) {
-  console.warn(
-    'ADOBE_FONTS_KIT_URL must be an https URL on use.typekit.net or p.typekit.net. ' +
-      'The Adobe Fonts web project is not loaded.',
+const fontDirectory = join(root, 'fonts');
+
+/**
+ * The state of the typeface, read from the disk.
+ *
+ * The files are looked at every time the state is asked for, so the answer is
+ * true even when a file is put in place while the site is running.
+ */
+function currentFontStatus() {
+  const present = PROXIMA_NOVA_FILES.map(({ file }) => file).filter((file) =>
+    existsSync(join(fontDirectory, file)),
   );
-}
-if (kitUrl) console.log(`Adobe Fonts web project: ${kitUrl.origin}${kitUrl.pathname}`);
-
-/**
- * The name of the family the kit declares.
- *
- * The stylesheet of the kit is the only place where the name is written down,
- * so it is read once, when the server starts. A kit that cannot be read does
- * not stop the server: the interface keeps the fallback of the bundle, which
- * asks for proxima nova by name and then for Geist.
- */
-async function readKitFamilies() {
-  const written = (process.env.ADOBE_FONTS_FAMILY || '').trim();
-  if (written) {
-    console.log(`Adobe Fonts family: ${written}`);
-    return orderFamilies([], written);
-  }
-  if (!kitUrl) return [];
-  try {
-    const response = await fetch(kitUrl.href, {
-      signal: AbortSignal.timeout(Number(process.env.ADOBE_FONTS_FETCH_TIMEOUT_MS || 8000)),
-      headers: { accept: 'text/css,*/*;q=0.1' },
-    });
-    if (!response.ok) {
-      console.warn(`The Adobe Fonts stylesheet answered ${response.status}. The name of the family is not read.`);
-      return [];
-    }
-    const css = await response.text();
-    const families = orderFamilies(familyNames(css), '');
-    if (!families.length) {
-      console.warn('The Adobe Fonts stylesheet declares no family. The name of the family is not read.');
-      return [];
-    }
-    console.log(`Adobe Fonts family: ${families.join(', ')}`);
-    return families;
-  } catch (error) {
-    console.warn(`The Adobe Fonts stylesheet could not be read: ${error.message}`);
-    return [];
-  }
+  return fontStatus(present);
 }
 
-const kitFamilies = await readKitFamilies();
-const sansRule = kitFamilies.length ? fontSansRule(kitFamilies) : null;
-if (sansRule) console.log(`Interface typeface: ${sansRule}`);
-
-/**
- * The stylesheet of the kit is added to the head of the page. The kit declares
- * its own font faces and its own swap behaviour, so nothing is preloaded and
- * no tracking is added: the browser asks Adobe for the stylesheet, and the
- * stylesheet points at the fonts.
- */
-function injectAdobeFonts(html) {
-  const tags = [];
-  if (kitUrl) {
-    tags.push('<!-- Webfonts loaded by Adobe Fonts -->');
-    tags.push(`<link rel="preconnect" href="${kitUrl.origin}" crossorigin>`);
-    tags.push(`<link rel="stylesheet" href="${kitUrl.href}">`);
-  }
-  if (sansRule) {
-    // The rule comes after the stylesheet of the bundle, so the name the kit
-    // declares is the one the interface uses.
-    tags.push('<!-- The typeface of the interface, with the name the kit declares -->');
-    tags.push(`<style>${sansRule}</style>`);
-  }
-  if (!tags.length) return html;
-  const block = tags.join('\n    ');
-  const headEnd = html.search(/<\/head\s*>/i);
-  if (headEnd !== -1) {
-    // The indent of the closing head tag is replaced, so the new lines sit at
-    // the same indent as the rest of the head.
-    const before = html.slice(0, headEnd).replace(/\s*$/, '');
-    return before + '\n    ' + block + '\n  ' + html.slice(headEnd);
-  }
-  const headStart = html.search(/<head\b[^>]*>/i);
-  if (headStart !== -1) {
-    const at = html.indexOf('>', headStart) + 1;
-    return html.slice(0, at) + '\n    ' + block + '\n  ' + html.slice(at);
-  }
-  const bodyStart = html.search(/<body\b[^>]*>/i);
-  if (bodyStart !== -1) {
-    const at = html.indexOf('>', bodyStart) + 1;
-    return html.slice(0, at) + '\n    ' + block + '\n  ' + html.slice(at);
-  }
-  return block + html;
+const fonts = currentFontStatus();
+if (fonts.installed) {
+  console.log(`Typeface: ${fonts.family} is served from /fonts (${fonts.files.length} files)`);
+} else {
+  console.warn(
+    `Typeface: the files of ${fonts.family} are not all there, so the interface uses ${fonts.fallback}. ` +
+      `Missing: ${fonts.missing.join(', ')}. See docs/TYPOGRAPHY.md.`,
+  );
 }
 
 /**
@@ -187,7 +116,11 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 const server = createServer(async (req, res) => {
   if (req.url === '/healthz') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    return res.end(req.method === 'HEAD' ? undefined : '{"status":"ok"}');
+    // The health of the site names the typeface of the interface and the
+    // files that are still missing, so the operator does not have to look
+    // into the container to find out.
+    const body = JSON.stringify({ status: 'ok', fonts: currentFontStatus() });
+    return res.end(req.method === 'HEAD' ? undefined : body);
   }
 
   // The API is served from the same origin so the session cookie stays
@@ -247,18 +180,25 @@ const server = createServer(async (req, res) => {
     }
     const stat = statSync(filename);
     const ext = extname(filename).toLowerCase();
-    // The web project of Adobe Fonts is only loaded when the host has one.
-    // Without it the page is served exactly as it is on disk.
-    if (ext === '.html' && (kitUrl || sansRule)) {
-      const page = Buffer.from(injectAdobeFonts(await readFile(filename, 'utf8')), 'utf8');
+    // The typefaces are served from this machine. The name of a file does not
+    // change when the file does, so the browser is asked whether the file
+    // changed instead of being told to keep it for a year.
+    const isFont = pathname.startsWith('/fonts/') && ['.woff2', '.woff'].includes(ext);
+    if (isFont) {
+      const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+      if (req.headers['if-none-match'] === etag) {
+        res.writeHead(304, { ETag: etag, 'Cache-Control': 'public, max-age=0, must-revalidate' });
+        return res.end();
+      }
       res.writeHead(200, {
-        'Content-Type': types['.html'],
-        'Content-Length': page.length,
-        'Cache-Control': 'no-cache',
+        'Content-Type': types[ext],
+        'Content-Length': stat.size,
+        'Cache-Control': 'public, max-age=0, must-revalidate',
+        ETag: etag,
         'X-Content-Type-Options': 'nosniff'
       });
       if (req.method === 'HEAD') return res.end();
-      return res.end(page);
+      return createReadStream(filename).pipe(res);
     }
     res.writeHead(200, {
       'Content-Type': types[ext] || 'application/octet-stream',

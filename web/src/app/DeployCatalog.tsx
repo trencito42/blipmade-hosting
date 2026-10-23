@@ -66,7 +66,7 @@ function ProductCard({ product }: { product: CatalogProduct }) {
     <li className="flex flex-col gap-3 rounded-[22px] bg-s1 p-4 sm:p-5">
       <div className="flex flex-wrap items-start gap-3">
         <AppMark icon={productIcon(product.icon)} size={44} />
-        <div className="min-w-0 flex-1">
+        <div className="w-0 min-w-0 flex-1">
           <p className="truncate text-[16px] font-extrabold tracking-[-0.03em] text-ink">{product.name}</p>
           <p className="mt-0.5 text-[12.5px] font-mono uppercase tracking-[0.08em] text-ink3">
             {categoryLabel(product.category)}

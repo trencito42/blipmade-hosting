@@ -158,7 +158,7 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
                 <>
                   <div className="flex items-center gap-3">
                     <AppMark icon={productIcon(product.icon)} size={46} />
-                    <div className="min-w-0"><h3 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.035em]">{product.name}</h3><span className="font-mono text-[12px] text-ink3">{categoryLabel(product.category)}</span></div>
+                    <div className="w-0 min-w-0 flex-1"><h3 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.035em]">{product.name}</h3><span className="font-mono text-[12px] text-ink3">{categoryLabel(product.category)}</span></div>
                   </div>
                   <p className="text-[14.5px] text-ink2">{product.description}</p>
                   <div className="flex items-end justify-between gap-3">

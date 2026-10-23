@@ -283,7 +283,7 @@ export default function Promotions() {
                 {(promotion) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <div className="w-0 min-w-0 flex-1">
                         <p className="truncate font-mono text-[14px] font-bold text-ink" title={promotion.code}>
                           {promotion.code}
                         </p>

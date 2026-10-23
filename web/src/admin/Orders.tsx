@@ -162,7 +162,7 @@ export default function Orders() {
                 {(order) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <div className="w-0 min-w-0 flex-1">
                         <p className="truncate font-mono text-[13.5px] text-ink" title={order.number}>
                           {order.number}
                         </p>
