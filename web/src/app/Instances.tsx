@@ -3,8 +3,9 @@ import { Icon } from '../icons';
 import { get, type CatalogProduct, type Instance } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
-import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, StatusPill, TextInput } from '../ui-app';
-import { catalogPath, formatPrice, periodLabel, productIcon, productPath } from '../lib/pricing';
+import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, ScrollRow, StatusPill, TextInput } from '../ui-app';
+import { cn } from '../lib';
+import { catalogPath, deployPath, formatPrice, periodLabel, productIcon } from '../lib/pricing';
 
 /**
  * Instance list. Filters are applied to the real list returned by
@@ -48,7 +49,13 @@ function NoInstances() {
     <div className="grid gap-4">
       <EmptyState
         title="You have no apps or databases yet."
-        description="Pick one of the products below. You choose the resources on the next screen and the server sets the price."
+        description="Pick a product from the catalog. You choose the resources on the next screen and the server sets the price."
+        action={
+          <Link to="/app/deploy" className={primaryLink}>
+            <Icon name="rocket" size={16} />
+            Choose a product
+          </Link>
+        }
       />
 
       {catalog.loading ? (
@@ -63,6 +70,11 @@ function NoInstances() {
         <EmptyState
           title="Nothing can be deployed right now."
           description="The catalog is empty at the moment. Please check back later."
+          action={
+            <Link to={catalogPath()} className={primaryLink}>
+              Browse the public catalog
+            </Link>
+          }
         />
       ) : (
         <ul className="grid gap-2.5">
@@ -85,7 +97,7 @@ function NoInstances() {
                   </p>
                 </div>
               </div>
-              <Link to={productPath(product.slug)} className={`${primaryLink} w-full shrink-0 sm:w-auto`}>
+              <Link to={deployPath(product.slug)} className={`${primaryLink} w-full shrink-0 sm:w-auto`}>
                 Deploy
               </Link>
             </li>
@@ -132,9 +144,9 @@ export default function Instances() {
           <h2 className="text-[19px] font-extrabold tracking-[-0.035em] text-ink">Instances</h2>
           <p className="text-[13.5px] text-ink3">Your apps and databases, with the limits you bought.</p>
         </div>
-        {/* The catalog, not a product picked for the customer: the choice
-            belongs to the customer. */}
-        <Link to={catalogPath()} className={primaryLink}>
+        {/* The selector of the customer area, so the customer picks the
+            product instead of being sent to one by surprise. */}
+        <Link to="/app/deploy" className={cn(primaryLink, 'w-full sm:w-auto')}>
           <Icon name="rocket" size={16} />
           Deploy new
         </Link>
@@ -150,7 +162,14 @@ export default function Instances() {
           autoComplete="off"
         />
 
-        <div role="group" aria-label="Filter by status" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 bm-hide-scroll sm:mx-0 sm:flex-wrap sm:px-0">
+        {/* The filters scroll sideways on a phone. The strip stays inside the
+            page and its right edge fades, so it is clear that there is more
+            to swipe. */}
+        <ScrollRow
+          label="Filter by status"
+          className="-mx-4 sm:mx-0"
+          innerClassName="gap-2 px-4 pb-1 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
+        >
           <button
             type="button"
             aria-pressed={status === 'all'}
@@ -174,7 +193,7 @@ export default function Instances() {
               {value.replace(/_/g, ' ')}
             </button>
           ))}
-        </div>
+        </ScrollRow>
       </div>
 
       {loading ? (
@@ -261,15 +280,19 @@ export default function Instances() {
           <CardList rows={filtered} rowKey={(instance: Instance) => instance.id}>
             {(instance: Instance) => (
               <div className="grid gap-2">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
                   <Link
                     to={`/app/instances/${instance.id}`}
-                    className="min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    className="min-w-0 flex-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <span className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{instance.name}</span>
                     <span className="block truncate text-[12.5px] text-ink3">{instance.product.name}</span>
                   </Link>
-                  <StatusPill status={instance.status} />
+                  {/* The status gets a line of its own on a phone, so a long
+                      name is not cut to make room for the pill. */}
+                  <div className="w-full sm:w-auto">
+                    <StatusPill status={instance.status} />
+                  </div>
                 </div>
                 <p className="font-mono text-[13px] text-ink2">{limitsOf(instance)}</p>
                 <div className="flex items-center justify-between gap-3">

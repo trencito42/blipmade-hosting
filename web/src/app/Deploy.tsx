@@ -4,7 +4,8 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
 import { Icon } from '../icons';
 import { Link, useParams, useRouter } from '../router';
-import { catalogPath, productPath } from '../lib/pricing';
+import { catalogPath, formatPrice, periodSuffix, productPath } from '../lib/pricing';
+import { rangeInput } from '../ui';
 import {
   EmptyState,
   ErrorState,
@@ -13,6 +14,7 @@ import {
   Money,
   Panel,
   PrimaryButton,
+  ScrollRow,
   SoftButton,
   StatusPill,
   TextInput,
@@ -310,11 +312,11 @@ export default function Deploy() {
             title={`${product.name} cannot be ordered`}
             description={`${reasons.join(' ')} Ordering is blocked until the catalog team enables it.`}
             action={
-              <div className="flex flex-wrap justify-center gap-2">
-                <Link to="/app" className={linkButton}>
+              <div className="grid w-full gap-2 sm:flex sm:flex-wrap sm:justify-center">
+                <Link to="/app" className={cn(linkButton, 'w-full sm:w-auto')}>
                   Back to your dashboard
                 </Link>
-                <Link to={catalogPath()} className={cn(linkButton, 'bg-s3 text-ink hover:bg-line')}>
+                <Link to={catalogPath()} className={cn(linkButton, 'bg-s3 text-ink hover:bg-line', 'w-full sm:w-auto')}>
                   Browse the catalog
                 </Link>
               </div>
@@ -370,10 +372,14 @@ export default function Deploy() {
   );
 
   return (
-    <div className="grid gap-4 pb-16 lg:pb-0">
+    <div className="grid gap-4">
       {/* Stepper */}
       <nav aria-label="Deploy steps">
-        <ol className="flex items-center gap-1 overflow-x-auto bm-hide-scroll">
+        {/* The steps stay in one row and scroll sideways on a phone. The strip
+            fades at the right edge, so it is clear that there is more to the
+            side, and the step under the finger is always named below. */}
+        <ScrollRow className="-mx-4 sm:mx-0" innerClassName="items-center gap-1 px-4 sm:px-0">
+        <ol className="flex w-max shrink-0 items-center gap-1">
           {STEP_LABELS.map((label, index) => {
             const number = index + 1;
             const done = number < step;
@@ -396,6 +402,7 @@ export default function Deploy() {
             );
           })}
         </ol>
+        </ScrollRow>
         <p className="mt-2 px-1 text-[12.5px] text-ink3 sm:hidden">
           Step {step} of {STEP_LABELS.length} · {STEP_LABELS[step - 1]}
         </p>
@@ -418,7 +425,7 @@ export default function Deploy() {
 
               <div>
                 <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">Memory</p>
-                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4" role="group" aria-label="Memory in gigabytes">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="Memory in gigabytes">
                   {ramOptions.map((value) => (
                     <button key={value} type="button" aria-pressed={ram === value} onClick={() => setRam(value)} className={pill(ram === value)}>
                       {formatGb(value, scale)} GB
@@ -431,7 +438,7 @@ export default function Deploy() {
                 <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">
                   CPU <span className="font-mono font-normal text-ink3">vCPU</span>
                 </p>
-                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4" role="group" aria-label="vCPU cores">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="vCPU cores">
                   {cpuOptions.map((value) => (
                     <button key={value} type="button" aria-pressed={cpu === value} onClick={() => setCpu(value)} className={pill(cpu === value)}>
                       {value}
@@ -445,6 +452,8 @@ export default function Deploy() {
                   Storage
                   <span className="font-mono font-medium text-acc">{disk} GB</span>
                 </label>
+                {/* The control is 44px tall, so the finger has room to
+                    drag it, and the track is drawn inside that height. */}
                 <input
                   id="deploy-disk"
                   type="range"
@@ -453,7 +462,7 @@ export default function Deploy() {
                   step={diskStep}
                   value={disk}
                   onChange={(e) => onDisk(Number(e.target.value))}
-                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-s3 accent-acc [&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-s1 [&::-webkit-slider-thumb]:bg-acc [&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-s1 [&::-moz-range-thumb]:bg-acc"
+                  className={rangeInput}
                 />
                 <p className="mt-2 px-1 text-[12.5px] text-ink3">
                   Between {product.minDisk} GB and {product.maxDisk} GB.
@@ -513,6 +522,16 @@ export default function Deploy() {
                 </div>
               ) : (
                 <p className="text-[14px] text-ink3">Not available yet</p>
+              )}
+              {product.price && (
+                <p className="text-[12.5px] leading-relaxed text-ink3">
+                  The price of the smallest configuration is{' '}
+                  <span className="font-mono text-ink2">
+                    {formatPrice(product.price.amount, product.price.currency)}
+                    {periodSuffix(product.price.period)}
+                  </span>
+                  . The amount above is the price of the configuration you chose.
+                </p>
               )}
               <p className="text-[12.5px] text-ink3">Priced by the server on every change.</p>
             </div>
@@ -751,15 +770,25 @@ export default function Deploy() {
         {primary()}
       </div>
 
-      {/* Phone sticky action bar */}
-      <div className="fixed inset-x-0 bottom-[76px] z-20 flex items-center justify-between gap-3 bg-s3 px-4 py-3 lg:hidden">
-        <div className="min-w-0">
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Per month</p>
-          <p className="font-mono text-[20px] font-semibold leading-tight tracking-[-0.04em] tabular-nums text-ink">
-            {totalBlock}
-          </p>
+      {/* Phone action row. It is part of the page and not pinned to the bottom
+          of the screen: a pinned bar is covered by the software keyboard and
+          can hide the field that is being typed into. The price sits right
+          above the action, so the number is always next to the button. */}
+      <div className="grid gap-2 lg:hidden">
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-s3 px-4 py-3">
+          <div className="min-w-0">
+            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Per month</p>
+            <p className="font-mono text-[20px] font-semibold leading-tight tracking-[-0.04em] tabular-nums text-ink">
+              {totalBlock}
+            </p>
+          </div>
+          {step > 1 && step < 4 && (
+            <SoftButton onClick={() => setStep(Math.max(1, step - 1) as DeployStep)} className="shrink-0">
+              Back
+            </SoftButton>
+          )}
         </div>
-        {primary()}
+        <div className="[&>*]:w-full">{primary()}</div>
       </div>
     </div>
   );

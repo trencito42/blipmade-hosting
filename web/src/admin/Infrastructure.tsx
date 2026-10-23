@@ -80,6 +80,7 @@ export default function Infrastructure() {
       <Panel
         title="Infrastructure"
         description="Nodes and eggs as the panel reports them. Syncing re-reads the panel and refreshes these numbers."
+        actionBelow
         action={
           mayWrite ? (
             <button type="button" onClick={runSync} disabled={sync.pending} className={densePrimary}>

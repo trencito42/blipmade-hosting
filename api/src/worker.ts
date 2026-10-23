@@ -3,7 +3,16 @@ import type { Job } from 'bullmq';
 import { prisma } from './db.js';
 import { redis } from './redis.js';
 import { env } from './env.js';
-import { createProvisionWorker, closeQueue, enqueueProvisioning, getQueue } from './services/queue.js';
+import {
+  createEmailWorker,
+  createProvisionWorker,
+  closeQueue,
+  enqueueProvisioning,
+  getQueue,
+  type EmailJobData,
+  type EmailJobResult,
+} from './services/queue.js';
+import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import { provisionInstance, reconcileInterruptedInstances } from './services/provisioning.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
@@ -37,6 +46,32 @@ worker.on('completed', (job) => {
 });
 worker.on('failed', (job, error) => {
   console.error(`[worker] job ${job?.id} failed: ${error.message}`);
+});
+
+/**
+ * The mail worker.
+ *
+ * The messages are sent here and not while a request waits for them. A
+ * message that keeps failing stays in the failed state of the queue, where it
+ * can be read. The name of a job is a hash, so it never carries a token.
+ */
+const emailWorker = createEmailWorker(async (job: Job<EmailJobData, EmailJobResult>): Promise<EmailJobResult> => {
+  try {
+    const result = await deliverMail(job.data);
+    return { state: result.state, delivered: result.delivered, id: result.id };
+  } catch (error) {
+    // The class of the failure is part of the message, so the report of the
+    // queue shows what kind of problem it was.
+    const errorClass = error instanceof MailDeliveryError ? error.errorClass : 'Error';
+    throw new Error(`${errorClass}: ${(error as Error).message}`);
+  }
+});
+
+emailWorker.on('completed', (job) => {
+  console.info(`[worker] mail job ${job.id} completed`);
+});
+emailWorker.on('failed', (job, error) => {
+  console.error(`[worker] mail job ${job?.id} failed: ${error.message}`);
 });
 
 /** Puts instances that were left running mid-flight back into the queue. */
@@ -115,8 +150,11 @@ const healthServer = createServer((request, response) => {
       checks.redis = false;
     }
     const healthy = checks.database && checks.redis && checks.worker;
+    // The state of the mail is part of the health of the worker: it is the
+    // process that really delivers the messages.
+    const mail = mailDeliverySummary();
     response.writeHead(healthy ? 200 : 503, { 'Content-Type': 'application/json' });
-    response.end(JSON.stringify({ status: healthy ? 'ok' : 'degraded', ...checks }));
+    response.end(JSON.stringify({ status: healthy ? 'ok' : 'degraded', ...checks, mail: mail.transport, email: mail.counts }));
   })();
 });
 
@@ -135,6 +173,7 @@ const shutdown = async () => {
   for (const timer of timers) clearInterval(timer);
   healthServer.close();
   await worker.close();
+  await emailWorker.close();
   await closeQueue();
   await redis.quit().catch(() => undefined);
   await prisma.$disconnect().catch(() => undefined);

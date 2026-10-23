@@ -291,6 +291,7 @@ function TicketDetailPanel({
       <Panel
         title={current ? `#${current.number} ${current.subject}` : 'Ticket'}
         description={current ? `Opened ${fmtDateTime(current.createdAt)}` : undefined}
+        actionBelow
         action={
           <button type="button" onClick={onClose} className={denseSoft}>
             Back to queue

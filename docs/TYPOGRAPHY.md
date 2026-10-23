@@ -60,6 +60,7 @@ The web server loads that kit when the host tells it where the kit is:
 | Variable | Purpose | Required | Secret |
 |---|---|---|---|
 | `ADOBE_FONTS_KIT_URL` | The full stylesheet URL of the Adobe Fonts web project, for example `https://use.typekit.net/abc1234.css`. | no | no |
+| `ADOBE_FONTS_FAMILY` | The name of the family, exactly as Adobe writes it, when the operator wants to write it down instead of letting the server read it. | no | no |
 
 The value is checked before it is used:
 
@@ -71,20 +72,25 @@ URL — is refused with a warning in the server console, and nothing is
 written into the page. A stylesheet that is written into the page is loaded
 by every visitor, so only a URL of Adobe itself may end up there.
 
-When the variable is set and valid, the served HTML gets three lines in its
+When the variable is set and valid, the served HTML gets these lines in its
 head:
 
 ```html
 <!-- Webfonts loaded by Adobe Fonts -->
 <link rel="preconnect" href="https://use.typekit.net" crossorigin>
 <link rel="stylesheet" href="https://use.typekit.net/abc1234.css">
+<!-- The typeface of the interface, with the name the kit declares -->
+<style>:root{--font-sans:"proxima-nova","Geist Variable","Inter","system-ui","sans-serif";}</style>
 ```
 
 That is the whole integration. The kit declares its own `@font-face` rules
 and its own `font-display: swap`, so there is **no** preload, **no**
 tracking script and **no** local `@font-face` rule for proxima nova.
 
-When the variable is not set, the HTML is served exactly as it is on disk:
+The last line is written by the server, and it carries the **name the kit
+declares**. See section 7.
+
+When the variables are not set, the HTML is served exactly as it is on disk:
 no link, no empty tag, no comment. The page is not slower and not different
 in any way.
 
@@ -124,6 +130,10 @@ by the tokens from the start, so the moment the kit is configured the
 interface switches over — without a rebuild, without a commit and without
 editing a single component.
 
+Geist Mono is never affected: `--font-mono` stays `"Geist Mono Variable"`,
+so ports, console output, code and numbers keep their typeface whatever
+happens with the kit.
+
 ## 6. Checklist for the operator
 
 1. **Find the kit.** Sign in at [fonts.adobe.com](https://fonts.adobe.com)
@@ -132,49 +142,84 @@ editing a single component.
    the desktop app activation.
 2. **Copy the kit URL.** The web project panel shows the embed code; the URL
    is the `https://use.typekit.net/<kit-id>.css` inside it.
-3. **Set it on the host.** In `compose.web.yml`, in the `web` service:
-
-   ```yaml
-   environment:
-     ADOBE_FONTS_KIT_URL: https://use.typekit.net/abc1234.css
-   ```
-
-   Then start the web container again:
+3. **Set it on the host.** In `/opt/blipmade/.env` on the server:
 
    ```bash
+   ADOBE_FONTS_KIT_URL=https://use.typekit.net/abc1234.css
+   ```
+
+   The variable is read by `compose.web.yml`, so it is enough to write it
+   there. Then start the web container again:
+
+   ```bash
+   cd /opt/blipmade
    docker compose -f compose.yml -f compose.api.yml -f compose.web.yml up -d web
    ```
 
    No rebuild and no commit: the server reads the variable when it starts.
    (When the server runs directly, set it in the environment of the process
    that runs `node server.mjs`.)
-4. **Check the console.** A working kit prints
-   `Adobe Fonts web project: https://use.typekit.net/abc1234.css`. A refused
-   URL prints a warning and the site keeps the Geist fallback.
-5. **Check the browser.** The network tab shows a request for
-   `use.typekit.net/....css` (and for the font files that stylesheet points
-   at), and the computed `font-family` of `body` lists proxima nova first.
+4. **Check the console.** A working kit prints three lines:
+
+   ```text
+   Adobe Fonts web project: https://use.typekit.net/abc1234.css
+   Adobe Fonts family: proxima-nova
+   Interface typeface: :root{--font-sans:"proxima-nova","Geist Variable",...;}
+   ```
+
+   A refused URL prints a warning and the site keeps the Geist fallback. A
+   stylesheet that cannot be read prints `The Adobe Fonts stylesheet could
+   not be read: ...` and the site also keeps the Geist fallback — the
+   interface never breaks because of the font.
+5. **Check the browser.** Open `https://blipmade.com` in a clean session
+   (private window, no cache) and look at the network tab:
+   * there is a request for `use.typekit.net/....css`,
+   * there are requests for the `woff2` files that stylesheet points at,
+   * the computed `font-family` of `body` lists the family of the kit first,
+   * `document.fonts` lists the faces of proxima nova with the weights
+     400, 600 and 700.
+
+   The check can also be made from the console of the page:
+
+   ```js
+   getComputedStyle(document.body).fontFamily
+   [...document.fonts].filter((f) => f.family.includes('roxima')).map((f) => `${f.family} ${f.weight} ${f.status}`)
+   ```
+
+   The second line has to name the family of the kit and show `loaded` for
+   the three weights.
 6. **Check the family name** — see the next section.
 
 ## 7. The family name of the kit
 
-The token asks for the family `Proxima Nova`. The kit stylesheet declares
-the family name Adobe uses for the project, which can differ in spelling
-(`proxima-nova`, for instance).
+The name of the family is written down in the stylesheet of the kit and
+nowhere else. The server reads that stylesheet once, when it starts, and
+writes the names it declares into the page:
 
-Open the kit CSS once and compare its `font-family:` value with
-`--font-sans` in `web/src/index.css`. CSS matches family names
-case-insensitively, but a space and a hyphen are not the same name, so a kit
-that declares `proxima-nova` does not answer to `Proxima Nova`.
+```text
+Adobe Fonts family: proxima-nova
+```
 
-There are two ways to settle it, and both are one line:
+CSS matches family names case-insensitively, but a space and a hyphen are
+not the same name, so a kit that declares `proxima-nova` does not answer to
+`Proxima Nova`. That is why the name is read instead of guessed.
 
-* name the family `Proxima Nova` in the web project, so the kit declares
-  that name, or
-* add the name of the kit to the token:
-  `--font-sans: "Proxima Nova", "proxima-nova", "Geist Variable", ...`.
+There are two ways to settle it:
 
-Nothing else changes.
+* let the server read the stylesheet — this is the default and it is what
+  the operator should use,
+* write the name down, when the kit declares several families or when the
+  operator wants to decide:
+
+  ```bash
+  ADOBE_FONTS_FAMILY=proxima-nova
+  ```
+
+  The value is a comma separated list, and the first name is the one the
+  browser asks for first.
+
+Nothing else changes. The rule the server writes is placed after the
+stylesheet of the bundle, so it is the one that counts.
 
 ## 8. What not to do
 

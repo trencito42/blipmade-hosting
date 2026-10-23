@@ -5,7 +5,9 @@ import { env } from '../env.js';
 import { badRequest, conflict, notFound, unauthorized } from '../lib/errors.js';
 import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
-import { sendMail } from '../lib/mailer.js';
+import { mailEnabled, mailLogLine, mailNotice, registrationNotice, tokenReference, type MailSendResult } from '../lib/mailer.js';
+import { passwordResetTemplate, verificationTemplate } from '../lib/email-templates.js';
+import { dispatchEmail } from '../services/queue.js';
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import {
@@ -82,32 +84,47 @@ async function issueToken(userId: string, type: 'EMAIL_VERIFY' | 'PASSWORD_RESET
   return token;
 }
 
-export async function sendVerificationEmail(userId: string, email: string, name: string): Promise<void> {
+/**
+ * Sends the confirmation of an address.
+ *
+ * The token lives in the message and in the database, where it is stored
+ * hashed. It is never written to a log line, to a file name or to the name of
+ * a job, so the only reference to it is the short hash.
+ */
+export async function sendVerificationEmail(userId: string, email: string, name: string): Promise<MailSendResult> {
   const token = await issueToken(userId, 'EMAIL_VERIFY', 24);
-  const url = `${env.APP_PUBLIC_URL.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
-  const result = await sendMail({
+  const template = verificationTemplate(name, token);
+  const result = await dispatchEmail({
+    key: `verification-${tokenReference(token)}`,
+    kind: 'verification',
     to: email,
-    subject: 'Confirm your Blipmade email address',
-    text: `Hi${name ? ` ${name}` : ''},\n\nConfirm your email address to activate your Blipmade account:\n${url}\n\nThe link expires in 24 hours. If you did not create this account, ignore this message.`,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
   });
-  if (!result.delivered) {
-    // Without SMTP the message was written to disk; log the link so an operator
-    // can complete the flow manually.
-    console.info(`[mail:file] verification link for ${email}: ${url}`);
-  }
+  console.info(mailLogLine('verification', result, email, token));
+  return result;
 }
 
-export async function sendResetEmail(userId: string, email: string, name: string): Promise<void> {
+/**
+ * Sends the link that opens the page where a new password is chosen.
+ *
+ * The token is treated like the token of the confirmation: it never reaches a
+ * log line or a file.
+ */
+export async function sendResetEmail(userId: string, email: string, name: string): Promise<MailSendResult> {
   const token = await issueToken(userId, 'PASSWORD_RESET', 1);
-  const url = `${env.APP_PUBLIC_URL.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
-  const result = await sendMail({
+  const template = passwordResetTemplate(name, token);
+  const result = await dispatchEmail({
+    key: `reset-${tokenReference(token)}`,
+    kind: 'reset',
     to: email,
-    subject: 'Reset your Blipmade password',
-    text: `Hi${name ? ` ${name}` : ''},\n\nUse this link to choose a new Blipmade password:\n${url}\n\nThe link expires in 1 hour. If you did not ask for it, nothing changed and you can ignore this message.`,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
   });
-  if (!result.delivered) {
-    console.info(`[mail:file] reset link for ${email}: ${url}`);
-  }
+  console.info(mailLogLine('reset', result, email, token));
+  return result;
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -135,10 +152,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       });
 
       await createSession(request, reply, user.id);
-      await sendVerificationEmail(user.id, user.email, fullName(user));
+      const mail = await sendVerificationEmail(user.id, user.email, fullName(user));
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.register', targetType: 'user', targetId: user.id, ip: request.ip });
 
-      return reply.code(201).send({ user: publicUser(user) });
+      return reply.code(201).send({
+        user: publicUser(user),
+        // The account exists, so the state of the message can be shown.
+        mail: { state: mail.state, message: registrationNotice() },
+      });
     },
   });
 
@@ -212,7 +233,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         await sendVerificationEmail(user.id, user.email, fullName(user));
       }
       // Always the same answer, so this cannot be used to test for accounts.
-      return reply.code(204).send();
+      // The message says what really happened with the delivery.
+      return reply.code(200).send({
+        message: mailNotice('verification'),
+        mail: { configured: mailEnabled() },
+      });
     },
   });
 
@@ -226,7 +251,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.reset_requested', ip: request.ip });
       }
       // Always the same answer, so this cannot be used to test for accounts.
-      return reply.code(204).send();
+      // The message says what really happened with the delivery.
+      return reply.code(200).send({
+        message: mailNotice('reset'),
+        mail: { configured: mailEnabled() },
+      });
     },
   });
 

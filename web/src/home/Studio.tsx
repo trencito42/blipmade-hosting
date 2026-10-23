@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { APPS, CATEGORIES, fmtMb, minLabel, priceOf, slug, type App, type Category } from '../data';
 import { Icon } from '../icons';
 import { cn, eur, useMediaQuery, useReducedMotion, useTween } from '../lib';
-import { AppMark, Button, StatusDot } from '../ui';
+import { AppMark, Button, StatusDot, rangeInput } from '../ui';
+import { ScrollRow } from '../ui-app';
 
 type Phase = 'browse' | 'deploying' | 'running';
 const STEPS = ['Pulling image', 'Allocating resources', 'Starting container', 'Health check'];
@@ -96,7 +97,13 @@ export function Studio({ cat, setCat }: { cat: Category; setCat: (c: Category) =
   const showBar = mobile && !(phase === 'browse' && screen === 'pick');
 
   const catChips = (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 bm-hide-scroll lg:grid lg:overflow-visible lg:pb-0" role="group" aria-label="Categories">
+    // The chips scroll sideways on a phone and the edge fades, so it is clear
+    // that there are more categories to the side.
+    <ScrollRow
+      label="Categories"
+      surface="s1"
+      innerClassName="gap-1.5 pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0"
+    >
       {CATEGORIES.map((c) => {
         const n = c === 'All' ? APPS.length : APPS.filter((a) => a.cat === c).length;
         return (
@@ -105,7 +112,7 @@ export function Studio({ cat, setCat }: { cat: Category; setCat: (c: Category) =
           </button>
         );
       })}
-    </div>
+    </ScrollRow>
   );
 
   const action = phase === 'browse'
@@ -130,7 +137,7 @@ export function Studio({ cat, setCat }: { cat: Category; setCat: (c: Category) =
         <span className="font-mono text-[11.5px] text-ink3">sample</span>
       </div>
 
-      <div className="grid gap-2.5 lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5 lg:grid-cols-[210px_minmax(0,1fr)_330px] lg:gap-3">
         {!mobile && <aside className="rounded-[22px] bg-s1 p-4"><p className="px-2 pb-2 font-mono text-[11.5px] uppercase tracking-[0.1em] text-ink3">Categories</p>{catChips}</aside>}
 
         <div className="min-w-0 rounded-[22px] bg-s1 p-3 sm:p-4 lg:min-h-[560px]">
@@ -139,16 +146,16 @@ export function Studio({ cat, setCat }: { cat: Category; setCat: (c: Category) =
               {mobile && catChips}
               <label className="flex h-12 items-center gap-2.5 rounded-full bg-s2 px-4 text-ink3 transition-colors duration-[180ms] focus-within:bg-s3">
                 <Icon name="search" size={17} /><span className="sr-only">Search apps</span>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search apps and databases" className="min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink3" />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search apps and databases" className="min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink3 lg:text-[15px]" />
                 <span className="font-mono text-[11.5px]">{list.length}</span>
               </label>
-              <div className="grid gap-2 lg:max-h-[440px] lg:grid-cols-2 lg:overflow-y-auto lg:pr-1" role="radiogroup" aria-label="App">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2 lg:max-h-[440px] lg:grid-cols-2 lg:overflow-y-auto lg:pr-1" role="radiogroup" aria-label="App">
                 {list.map((a) => {
                   const sel = !mobile && app.name === a.name;
                   return (
-                    <button key={a.name} type="button" role="radio" aria-checked={sel} onClick={() => pick(a)} className={cn('flex items-center gap-3 rounded-2xl p-3 text-left transition-colors duration-[180ms] active:scale-[0.99]', sel ? 'bg-acc text-on-acc' : 'bg-s2 hover:bg-s3')}>
+                    <button key={a.name} type="button" role="radio" aria-checked={sel} onClick={() => pick(a)} className={cn('flex min-w-0 flex-wrap items-center gap-3 overflow-hidden rounded-2xl p-3 text-left transition-colors duration-[180ms] active:scale-[0.99]', sel ? 'bg-acc text-on-acc' : 'bg-s2 hover:bg-s3')}>
                       <AppMark icon={a.icon} size={44} tone={sel ? 'acc' : 'dark'} />
-                      <span className="min-w-0 flex-1"><span className="block truncate text-[16px] font-extrabold leading-tight tracking-[-0.025em]">{a.name}</span><span className={cn('block truncate text-[12.5px]', sel ? 'opacity-70' : 'text-ink3')}>{minLabel(a)}</span></span>
+                      <span className="w-0 min-w-0 flex-1"><span className="block line-clamp-1 text-[16px] font-extrabold leading-tight tracking-[-0.025em]">{a.name}</span><span className={cn('block line-clamp-1 text-[12.5px]', sel ? 'opacity-70' : 'text-ink3')}>{minLabel(a)}</span></span>
                       <span className="font-mono text-[13px] font-medium">{eur(a.from)}</span>
                       {mobile && <Icon name="arrow" size={16} className="text-ink3" />}
                     </button>
@@ -179,7 +186,7 @@ export function Studio({ cat, setCat }: { cat: Category; setCat: (c: Category) =
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3"><AppMark icon={app.icon} size={46} tone="lit" /><div><p className="text-[20px] font-extrabold leading-tight tracking-[-0.04em]">{slug(app.name)}</p><p className={cn('flex items-center gap-1.5 font-mono text-[12.5px]', on ? 'text-acc' : 'text-ink3')}><StatusDot live={on} />{on ? 'online' : 'offline'}</p></div></div>
                 <div className="flex gap-1.5" role="group" aria-label="Power controls">
-                  {(['start', 'restart', 'stop'] as const).map((a) => <button key={a} type="button" disabled={(a === 'start' && on) || (a === 'stop' && !on)} onClick={() => power(a)} className="h-10 rounded-full bg-s2 px-4 text-[13.5px] font-bold capitalize transition-colors duration-[180ms] hover:bg-s3 disabled:opacity-40">{a}</button>)}
+                  {(['start', 'restart', 'stop'] as const).map((a) => <button key={a} type="button" disabled={(a === 'start' && on) || (a === 'stop' && !on)} onClick={() => power(a)} className="h-11 rounded-full bg-s2 px-4 text-[13.5px] font-bold capitalize transition-colors duration-[180ms] hover:bg-s3 disabled:opacity-40">{a}</button>)}
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -205,9 +212,9 @@ export function Studio({ cat, setCat }: { cat: Category; setCat: (c: Category) =
             <div className="flex items-center gap-3"><AppMark icon={app.icon} size={48} tone="lit" /><div className="min-w-0"><p className="truncate text-[22px] font-extrabold leading-tight tracking-[-0.04em]">{app.name}</p><p className="font-mono text-[12px] text-ink3">{app.cat}</p></div></div>
             <p className="mt-3 text-[14.5px] text-ink2">{app.blurb}</p>
             <fieldset disabled={phase !== 'browse'} className="mt-5 grid gap-5 disabled:opacity-60">
-              <div><p className="mb-2 text-[13px] font-bold">Memory</p><div className="grid grid-cols-4 gap-1.5">{sizes.map((s) => <button key={s} type="button" aria-pressed={mb === s} onClick={() => setMb(s)} className={pill(mb === s)}>{fmtMb(s)}</button>)}</div></div>
-              <div><p className="mb-2 text-[13px] font-bold">CPU <span className="font-mono font-normal text-ink3">vCPU</span></p><div className="grid grid-cols-4 gap-1.5">{[1, 2, 4, 8].map((c) => <button key={c} type="button" aria-pressed={cpu === c} onClick={() => setCpu(c)} className={pill(cpu === c)}>{c}</button>)}</div></div>
-              <div><label htmlFor="studio-disk" className="mb-3 flex justify-between text-[13px] font-bold">Storage<span className="font-mono font-medium text-acc">{disk} GB</span></label><input id="studio-disk" type="range" min={app.disk} max={100} step={5} value={disk} onChange={(e) => setDisk(+e.target.value)} className="h-2 w-full cursor-pointer appearance-none rounded-full bg-s3 accent-acc [&::-webkit-slider-thumb]:size-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-s1 [&::-webkit-slider-thumb]:bg-acc [&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-s1 [&::-moz-range-thumb]:bg-acc" /></div>
+              <div><p className="mb-2 text-[13px] font-bold">Memory</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{sizes.map((s) => <button key={s} type="button" aria-pressed={mb === s} onClick={() => setMb(s)} className={pill(mb === s)}>{fmtMb(s)}</button>)}</div></div>
+              <div><p className="mb-2 text-[13px] font-bold">CPU <span className="font-mono font-normal text-ink3">vCPU</span></p><div className="grid grid-cols-4 gap-2">{[1, 2, 4, 8].map((c) => <button key={c} type="button" aria-pressed={cpu === c} onClick={() => setCpu(c)} className={pill(cpu === c)}>{c}</button>)}</div></div>
+              <div><label htmlFor="studio-disk" className="mb-3 flex justify-between text-[13px] font-bold">Storage<span className="font-mono font-medium text-acc">{disk} GB</span></label><input id="studio-disk" type="range" min={app.disk} max={100} step={5} value={disk} onChange={(e) => setDisk(+e.target.value)} className={rangeInput} /></div>
             </fieldset>
             {!mobile && (
               <>

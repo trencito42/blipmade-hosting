@@ -29,6 +29,24 @@ export function readCookie(name: string): string | undefined {
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/**
+ * Called when the API answers that the session is not valid any more.
+ *
+ * The session can end while the page is open: the cookie expires, the account
+ * is suspended, or the session is revoked from another device. The pages that
+ * need a session have to know about it, so the handler clears the session and
+ * the guard sends the visitor to the login.
+ */
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function onUnauthorized(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
+
+/** The paths where a 401 is an answer, not the end of a session. */
+const UNAUTHORIZED_IS_ANSWER = ['/auth/session', '/auth/login', '/auth/register', '/auth/logout'];
+
 export interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -76,6 +94,11 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
   const requestId = response.headers.get('x-request-id') ?? undefined;
 
   if (!response.ok) {
+    if (response.status === 401 && !UNAUTHORIZED_IS_ANSWER.some((p) => path === p || path.startsWith(`${p}?`))) {
+      // The session is gone. The page that needs it will send the visitor to
+      // the login, with the page they wanted.
+      unauthorizedHandler?.();
+    }
     let code = 'request_failed';
     let message = `Request failed (${response.status}).`;
     let fields: Record<string, string> | undefined;
@@ -104,6 +127,8 @@ export const post = <T,>(path: string, body?: unknown, query?: RequestOptions['q
   api<T>(path, { method: 'POST', body, query });
 
 export const put = <T,>(path: string, body?: unknown) => api<T>(path, { method: 'PUT', body });
+
+export const patch = <T,>(path: string, body?: unknown) => api<T>(path, { method: 'PATCH', body });
 
 export const del = <T,>(path: string, body?: unknown) => api<T>(path, { method: 'DELETE', body });
 

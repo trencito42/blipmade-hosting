@@ -1,6 +1,6 @@
 import type { Category } from '../data';
 import { Icon } from '../icons';
-import { cn, clamp, useReducedMotion, useScrollY } from '../lib';
+import { cn, clamp, useMediaQuery, useReducedMotion, useScrollY } from '../lib';
 import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { Button, Eyebrow, Headline, Reveal, StatusDot, Wrap } from '../ui';
 import { scrollToId } from '../router';
@@ -38,6 +38,11 @@ export function Hero({ cat, setCat }: { cat: Category; setCat: (c: Category) => 
   const y = useScrollY();
   const reduced = useReducedMotion();
   const k = reduced ? 1 : clamp(y / 380);
+  // The tilt of the panel is a picture for a wide screen. On a phone it is
+  // not used: a picture that is turned in depth reaches past the edges of
+  // the screen and makes the page wider than it should be.
+  const wide = useMediaQuery('(min-width: 1024px)');
+  const tilt = wide && !reduced ? (1 - k) * 8 : 0;
   const lg = 'leading-[0.88] tracking-[-0.065em]';
   return (
     <section aria-labelledby="hero-title" className="relative pt-[104px] sm:pt-[132px]">
@@ -45,7 +50,7 @@ export function Hero({ cat, setCat }: { cat: Category; setCat: (c: Category) => 
         <Stickers />
         <Eyebrow>The simpler way to self-host</Eyebrow>
         <Headline as="h1" lines={['Pick an app.', <span key="d" className="text-acc">Deploy it.</span>]} className={cn('mt-5 hidden whitespace-nowrap text-[clamp(60px,13.4vw,176px)] sm:block', lg)} />
-        <Headline as="div" hidden lines={['Pick an', 'app.', <span key="d" className="text-acc">Deploy it.</span>]} className={cn('mt-4 whitespace-nowrap text-[clamp(60px,19.5vw,110px)] sm:hidden', lg)} />
+        <Headline as="div" hidden lines={['Pick an', 'app.', <span key="d" className="text-acc">Deploy it.</span>]} className={cn('mt-4 whitespace-nowrap text-[clamp(54px,18vw,110px)] sm:hidden', lg)} />
         <span className="sr-only sm:hidden">Pick an app. Deploy it.</span>
         <Reveal delay={300} className="mt-7 grid items-end gap-7 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_auto]">
           <p id="hero-title" className="max-w-[30em] text-[clamp(17px,1.8vw,22px)] leading-snug text-ink2">Your favorite apps and databases, ready to run. No VPS setup, no complicated infrastructure. Start small and scale as you grow.</p>
@@ -60,7 +65,7 @@ export function Hero({ cat, setCat }: { cat: Category; setCat: (c: Category) => 
             : `Apps from ${formatPrice(catalog.minAppPrice, catalog.currency)}/mo · Databases from ${formatPrice(catalog.minDatabasePrice, catalog.currency)}/mo`}
         </p>
         <Reveal delay={200} className="mt-10 [perspective:1600px] sm:mt-12">
-          <div className="origin-top will-change-transform" style={{ transform: `rotateX(${(1 - k) * 8}deg) scale(${0.96 + k * 0.04})`, opacity: 0.85 + k * 0.15 }}>
+          <div className="origin-top will-change-transform" style={{ transform: `rotateX(${tilt}deg) scale(${0.96 + k * 0.04})`, opacity: 0.85 + k * 0.15 }}>
             <Studio cat={cat} setCat={setCat} />
           </div>
           <p className="mt-3 px-1 text-[13px] text-ink3">Try it: pick an app, change the size, press Deploy, then type <code className="rounded-md bg-s2 px-1.5 py-0.5 font-mono text-[12px] text-ink">help</code> in the console.</p>

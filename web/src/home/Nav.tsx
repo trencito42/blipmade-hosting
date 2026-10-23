@@ -8,6 +8,8 @@ import { Icon, type IconName } from '../icons';
 import { cn, useScrollY } from '../lib';
 import { scrollToId, useRouter } from '../router';
 import { Button, Logo } from '../ui';
+import { useSession } from '../session';
+import { homeOf } from '../auth-guard';
 
 const CATS: Record<string, [IconName, string]> = {
   'Web & CMS': ['globe', 'WordPress, Ghost and other site builders'],
@@ -22,22 +24,61 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
   const catalog = useCatalogSummary();
   const y = useScrollY();
   const { path, navigate } = useRouter();
+  const { user } = useSession();
   const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState(false);
   const root = useRef<HTMLElement>(null);
+  const sheetPanel = useRef<HTMLDivElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenu(false); setSheet(false); } };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setMenu(false);
+      // The sheet is a dialog: it gives the focus back to the button that
+      // opened it.
+      if (sheetPanel.current) {
+        setSheet(false);
+        menuButton.current?.focus();
+      }
+    };
     const out = (e: MouseEvent) => { if (root.current && !root.current.contains(e.target as Node)) setMenu(false); };
     addEventListener('keydown', esc); addEventListener('mousedown', out);
     return () => { removeEventListener('keydown', esc); removeEventListener('mousedown', out); };
   }, []);
   useEffect(() => { document.body.style.overflow = sheet ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [sheet]);
 
+  // While the sheet is open the focus stays inside it.
+  useEffect(() => {
+    if (!sheet) return;
+    sheetPanel.current?.querySelector<HTMLElement>('a, button')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const panel = sheetPanel.current;
+      if (!panel) return;
+      const focusable = panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !panel.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [sheet]);
+
   const hover = (v: boolean) => { clearTimeout(timer.current); if (v) setMenu(true); else timer.current = window.setTimeout(() => setMenu(false), 160); };
   const go = (id: string, c?: Category) => {
+    const hadSheet = sheet;
     setSheet(false); setMenu(false);
+    if (hadSheet) menuButton.current?.focus();
     const run = () => { if (c) setCat(c); scrollToId(id); };
     if (path === '/') setTimeout(run, sheet ? 60 : 0); else { navigate('/'); setTimeout(run, 140); }
   };
@@ -62,9 +103,13 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
               <li><a className={link} href="/status">Status</a></li>
             </ul>
             <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
-              <a href="/login" onClick={(e) => { e.preventDefault(); navigate('/login'); }} className="hidden h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink2 hover:text-ink sm:inline-flex">Log in</a>
+              {user ? (
+                <a href={homeOf(user.role)} onClick={(e) => { e.preventDefault(); navigate(homeOf(user.role)); }} className="hidden h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink2 hover:text-ink sm:inline-flex">Dashboard</a>
+              ) : (
+                <a href="/login" onClick={(e) => { e.preventDefault(); navigate('/login'); }} className="hidden h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink2 hover:text-ink sm:inline-flex">Log in</a>
+              )}
               <Button icon="arrowUR" className="max-sm:hidden" onClick={() => go('apps', 'All')}>Get started</Button>
-              <button type="button" aria-label={sheet ? 'Close menu' : 'Open menu'} aria-expanded={sheet} onClick={() => setSheet(!sheet)} className="grid size-11 place-items-center rounded-full bg-s3 text-ink transition-transform duration-[180ms] active:scale-95 lg:hidden"><Icon name={sheet ? 'close' : 'menu'} size={20} /></button>
+              <button ref={menuButton} type="button" aria-label={sheet ? 'Close menu' : 'Open menu'} aria-expanded={sheet} onClick={() => setSheet(!sheet)} className="grid size-11 place-items-center rounded-full bg-s3 text-ink transition-transform duration-[180ms] active:scale-95 lg:hidden"><Icon name={sheet ? 'close' : 'menu'} size={20} /></button>
             </div>
           </nav>
 
@@ -92,7 +137,7 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
       </div>
 
       {sheet && (
-        <div className="pointer-events-auto fixed inset-0 -z-10 overflow-y-auto bg-bg px-4 pb-8 pt-[84px] lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+        <div ref={sheetPanel} className="pointer-events-auto fixed inset-0 -z-10 overflow-y-auto bg-bg px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[84px] lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <div className="bm-in grid gap-3">
             <div className="rounded-[24px] bg-s1 p-2">
               <p className="px-4 pb-1 pt-3 font-mono text-[12px] uppercase tracking-[0.1em] text-ink3">Browse</p>
@@ -107,7 +152,7 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
               <a href="/docs" className="grid h-14 place-items-center rounded-2xl bg-s1 text-[16px] font-extrabold active:bg-s2">Docs</a>
               <a href="/status" className="grid h-14 place-items-center rounded-2xl bg-s1 text-[16px] font-extrabold active:bg-s2">Status</a>
             </div>
-            <div className="mt-1 grid gap-2"><Button size="lg" icon="arrowUR" onClick={() => go('apps', 'All')}>Get started</Button><Button size="lg" variant="soft" to="/login">Log in</Button></div>
+            <div className="mt-1 grid gap-2"><Button size="lg" icon="arrowUR" onClick={() => go('apps', 'All')}>Get started</Button><Button size="lg" variant="soft" to={user ? homeOf(user.role) : '/login'}>{user ? 'Dashboard' : 'Log in'}</Button></div>
           </div>
         </div>
       )}

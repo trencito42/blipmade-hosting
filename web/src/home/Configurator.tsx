@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { eur, cn, useTween } from '../lib';
-import { Button, Eyebrow, Headline, Reveal, Wrap } from '../ui';
+import { Button, Eyebrow, Headline, Reveal, Wrap, rangeInput } from '../ui';
 import { scrollToId } from '../router';
 
 const RAM = [512, 1024, 2048, 3072, 4096, 6144, 8192];
 const fmtRam = (m: number) => (m < 1024 ? `${m} MB` : `${m / 1024} GB`);
 const PRESETS = [{ n: 'Starter', r: 0, c: 1, d: 5 }, { n: 'Standard', r: 2, c: 2, d: 30 }, { n: 'Large', r: 4, c: 4, d: 80 }];
-const range = 'h-2 w-full cursor-pointer appearance-none rounded-full bg-s3 accent-acc [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-s1 [&::-webkit-slider-thumb]:bg-acc [&::-moz-range-thumb]:size-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-s1 [&::-moz-range-thumb]:bg-acc';
+const range = rangeInput;
 
 function Slider({ id, label, value, display, min, max, step, lo, hi, onChange }: { id: string; label: string; value: number; display: string; min: number; max: number; step: number; lo: string; hi: string; onChange: (n: number) => void }) {
   return (
@@ -37,7 +37,7 @@ export function Configurator() {
         </div>
         <Reveal className="grid items-start gap-3 rounded-[28px] bg-acc-bg p-2.5 sm:p-3 lg:grid-cols-[1.35fr_1fr]">
           <div className="grid gap-2.5 rounded-[22px] bg-s1 p-3 sm:p-4">
-            <div role="group" aria-label="Presets" className="grid grid-cols-3 gap-1.5">
+            <div role="group" aria-label="Presets" className="grid grid-cols-3 gap-2">
               {PRESETS.map((p) => {
                 const on = ram === p.r && cpu === p.c && disk === p.d;
                 return <button key={p.n} type="button" aria-pressed={on} onClick={() => { setRam(p.r); setCpu(p.c); setDisk(p.d); }} className={cn('h-12 rounded-full text-[14.5px] font-bold transition-colors duration-[180ms]', on ? 'bg-ink text-bg' : 'bg-s2 text-ink2 hover:bg-s3 hover:text-ink')}>{p.n}</button>;

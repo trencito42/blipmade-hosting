@@ -6,17 +6,38 @@ Money is always an **integer number of minor units** (EUR cents). Never a float.
 
 ## Auth & session
 
-- `POST /api/auth/register` → `{ email, password, name? }` → `201 { user }`, sets session cookie.
+- `POST /api/auth/register` → `{ email, password, name? }` → `201 { user, mail: { state, message } }`, sets session cookie.
 - `POST /api/auth/login` → `{ email, password }` → `200 { user }`, sets session cookie.
 - `POST /api/auth/logout` → `204`.
 - `GET  /api/auth/session` → `200 { user: User | null }`.
 - `POST /api/auth/verify-email` → `{ token }` → `204`.
-- `POST /api/auth/resend-verification` → `204` (always 204, never reveals existence).
-- `POST /api/auth/forgot-password` → `{ email }` → `204` (always 204).
+- `POST /api/auth/resend-verification` → `200 { message, mail: { configured } }` (the same answer for every address, never reveals existence).
+- `POST /api/auth/forgot-password` → `{ email }` → `200 { message, mail: { configured } }` (the same answer for every address).
 - `POST /api/auth/reset-password` → `{ token, password }` → `204`.
 - `POST /api/auth/enroll-admin` → `{ email, password, enrollmentKey }` → `200 { user }`. Only works while there is no admin in the database.
 
 `User = { id, email, name, role: "CUSTOMER"|"STAFF"|"ADMIN", emailVerified: boolean }`
+
+The answers of `resend-verification` and `forgot-password` say whether the message could really leave. While
+`SMTP_URL` is empty the message is written to a file and nobody receives it, and the answer says so instead of
+claiming that a message is on its way. The answer is the same for an address that has an account and for one that
+has not, so it never tells whether an account exists.
+
+## Settings
+
+All of these need a session.
+
+- `GET    /api/settings` → `200 { profile, pendingEmail, preferences, sessions, account }`
+- `PATCH  /api/settings/profile` → `{ firstName, lastName }` → `200 { firstName, lastName }`
+- `POST   /api/settings/email` → `{ email }` → `200 { pendingEmail, expiresAt, delivery, delivered, message }`. The address of the account changes only after the link is opened.
+- `POST   /api/settings/email/confirm` → `{ token }` → `200 { email }`
+- `POST   /api/settings/password` → `{ currentPassword, newPassword }` → `200 { changed, closedSessions }`. The other sessions of the account end.
+- `GET    /api/settings/sessions` → `200 { sessions }`
+- `DELETE /api/settings/sessions/:id` → `200 { revoked, current }`
+- `GET    /api/settings/notifications` → `200 { preferences }`
+- `PUT    /api/settings/notifications` → `{ productUpdates, billing, support, incidents, marketing }` → `200 { preferences }`
+- `POST   /api/settings/account/closure` → `{ password, confirmation: "CLOSE MY ACCOUNT" }` → `200 { requestedAt, services, subscriptions, message }`. The request is recorded; nothing is deleted.
+- `DELETE /api/settings/account/closure` → `200 { requestedAt: null }`
 
 Cookies: `bm_session` (HttpOnly, SameSite=Lax, Secure in production), `bm_csrf` (readable by JS).
 CSRF: send `X-CSRF-Token` header on every state-changing request, value = `bm_csrf` cookie.

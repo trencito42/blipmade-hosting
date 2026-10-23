@@ -177,7 +177,11 @@ export default function Billing() {
             Manage the card or payment method used for your subscriptions. You are taken to the secure billing portal.
           </p>
           <div>
-            <PrimaryButton onClick={() => void paymentMethodAction.run()} disabled={paymentMethodAction.pending}>
+            <PrimaryButton
+              onClick={() => void paymentMethodAction.run()}
+              disabled={paymentMethodAction.pending}
+              className="w-full sm:w-auto"
+            >
               {paymentMethodAction.pending ? 'Working…' : 'Manage payment method'}
             </PrimaryButton>
           </div>
@@ -220,7 +224,10 @@ export default function Billing() {
             {subscriptions.map((subscription) => (
               <div key={subscription.id} className="rounded-2xl bg-s2 p-3.5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  {/* The name keeps its room. On a phone the status and the
+                      amount move to the next line instead of cutting the name
+                      to a few letters. */}
+                  <div className="min-w-[10rem] flex-1">
                     <p
                       className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink"
                       title={subscription.instanceName ?? undefined}
@@ -251,11 +258,16 @@ export default function Billing() {
                         void resume.run(subscription.id).finally(() => setBusySubscriptionId(null));
                       }}
                       disabled={resume.pending}
+                      className="w-full sm:w-auto"
                     >
                       {busySubscriptionId === subscription.id ? 'Working…' : 'Resume'}
                     </SoftButton>
                   ) : (
-                    <SoftButton onClick={() => setPendingCancel(subscription)} disabled={cancel.pending}>
+                    <SoftButton
+                      onClick={() => setPendingCancel(subscription)}
+                      disabled={cancel.pending}
+                      className="w-full sm:w-auto"
+                    >
                       Cancel at period end
                     </SoftButton>
                   )}
@@ -377,7 +389,7 @@ export default function Billing() {
                         href={invoice.hostedUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="text-[13.5px] font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                        className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         Open invoice
                       </a>
@@ -386,7 +398,7 @@ export default function Billing() {
                         href={invoice.pdfUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="text-[13.5px] font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                        className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         PDF
                       </a>

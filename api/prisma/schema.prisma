@@ -37,6 +37,9 @@ model User {
   // between the two identities, and it is what a reconciliation looks up.
   pterodactylExternalId String? @unique
   suspendedAt    DateTime?
+  // The moment the customer asked for the account to be closed. The account is
+  // not deleted by the request: a person looks at it first.
+  deletionRequestedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -54,9 +57,73 @@ model User {
   promotions     Promotion[] @relation("PromotionCreator")
   promotionRedemptions PromotionRedemption[]
   panelCredential PanelCredential?
+  emailChangeRequests EmailChangeRequest[]
+  notificationPreference NotificationPreference?
 
   @@index([role])
   @@index([pterodactylUserId])
+}
+
+/// What is known about one message of the platform.
+///
+/// The row holds the state of the delivery, never the body of the message and
+/// never a token: it says that a message was queued, delivered or written to
+/// disk, and how many attempts it took.
+model MailDelivery {
+  /// The key of the message. It is a hash of the token, so it cannot be used
+  /// to sign in and it is the same in every process.
+  key             String   @id
+  kind            String
+  to              String
+  /// queued, delivered, written-to-file or failed.
+  state           String
+  transport       String   @default("file")
+  attempts        Int      @default(0)
+  lastErrorClass  String?
+  lastError       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deliveredAt     DateTime?
+
+  @@index([state])
+  @@index([createdAt])
+}
+
+/// A change of the address of a customer.
+///
+/// The new address is only used when it has answered. Until then the address
+/// of the account stays the old one, so a mistyped address cannot lock a
+/// customer out of the account.
+model EmailChangeRequest {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String
+  // The hash of the token that was sent to the new address. The token itself
+  // is never stored and never written in a log.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// What a customer wants to hear about.
+///
+/// The preferences are kept with the account. They say what the customer
+/// wants, not what has been sent: the delivery itself depends on the mail
+/// relay of the deployment.
+model NotificationPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productUpdates Boolean  @default(true)
+  billing        Boolean  @default(true)
+  support        Boolean  @default(true)
+  incidents      Boolean  @default(true)
+  marketing      Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
 }
 
 /// The client credential of one customer on the panel.

@@ -124,7 +124,7 @@ export default function Domains() {
   const addDisabled = create.pending || !instanceId || hostname.trim().length === 0;
 
   return (
-    <div className="grid gap-4 pb-16 lg:pb-0">
+    <div className="grid gap-4">
       <Panel
         title="Add a domain"
         description="Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed."
@@ -174,7 +174,7 @@ export default function Domains() {
               className="scroll-mt-16"
             />
             <div className="sm:col-span-2">
-              <PrimaryButton onClick={() => void submit()} disabled={addDisabled}>
+              <PrimaryButton onClick={() => void submit()} disabled={addDisabled} className="w-full sm:w-auto">
                 {create.pending ? 'Adding…' : 'Add domain'}
               </PrimaryButton>
               {create.error && (
@@ -205,8 +205,8 @@ export default function Domains() {
           <div className="grid gap-3">
             {domains.map((domain) => (
               <article key={domain.id} className="rounded-2xl bg-s2 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
                     <p
                       className="truncate text-[16px] font-extrabold tracking-[-0.02em] text-ink"
                       title={domain.hostname}
@@ -217,7 +217,11 @@ export default function Domains() {
                       {domain.instanceName} · port {domain.targetPort}
                     </p>
                   </div>
-                  <StatusPill status={DOMAIN_TONES[domain.status]} label={DOMAIN_STATUS_LABELS[domain.status]} />
+                  {/* The status gets a line of its own on a phone, so the
+                      hostname is not cut to make room for the pill. */}
+                  <div className="w-full sm:w-auto">
+                    <StatusPill status={DOMAIN_TONES[domain.status]} label={DOMAIN_STATUS_LABELS[domain.status]} />
+                  </div>
                 </div>
 
                 {domain.lastError && (
@@ -288,7 +292,8 @@ export default function Domains() {
                     Address record to create
                   </p>
                   {domain.dnsRecords.length ? (
-                    <div className="overflow-x-auto overscroll-x-contain bm-hide-scroll">
+                    <>
+                    <div className="hidden overflow-x-auto overscroll-x-contain bm-hide-scroll md:block">
                       <table className="w-full border-collapse text-left">
                         <thead>
                           <tr>
@@ -330,6 +335,33 @@ export default function Domains() {
                         </tbody>
                       </table>
                     </div>
+                    {/* The phone reads the same rows as cards: a table of
+                        four columns does not fit in 320px. */}
+                    <div className="grid gap-1.5 md:hidden">
+                      {domain.dnsRecords.map((record) => (
+                        <div key={`${record.name}-${record.type}`} className="grid gap-1 rounded-2xl bg-s3 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
+                              {record.type}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => void copy(record.value, `${record.type} value`)}
+                              aria-label={`Copy the ${record.type} value for ${record.name}`}
+                              className={cn(
+                                'h-11 shrink-0 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
+                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+                              )}
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <span className="min-w-0 break-all font-mono text-[12.5px] text-ink2">{record.name}</span>
+                          <span className="min-w-0 break-all font-mono text-[12.5px] text-ink">{record.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    </>
                   ) : (
                     <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] text-ink2">
                       The server did not return DNS records for this domain yet.

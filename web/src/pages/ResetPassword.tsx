@@ -100,7 +100,7 @@ export default function ResetPassword() {
 
   if (done) {
     return (
-      <div className="grid min-h-[100svh] gap-3 p-3 lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
+      <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
         <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
           <Logo />
           <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
@@ -120,7 +120,7 @@ export default function ResetPassword() {
 
   if (!token || linkInvalid) {
     return (
-      <div className="grid min-h-[100svh] gap-3 p-3 lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
+      <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
         <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
           <Logo />
           <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
@@ -131,7 +131,7 @@ export default function ResetPassword() {
             </div>
             <p className="text-[15px] text-ink2">Reset links can only be used once and stop working after a while. A new one takes a moment to arrive.</p>
             <Button to="/forgot-password" full size="lg">Request a new link</Button>
-            <p className="text-center text-[14.5px] text-ink2">Remembered it? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
+            <p className="text-center text-[14.5px] text-ink2">Remembered it? <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
           </div>
           <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
         </main>
@@ -141,7 +141,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="grid min-h-[100svh] gap-3 p-3 lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
+    <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
       <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
         <Logo />
         <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
@@ -183,7 +183,7 @@ export default function ResetPassword() {
             />
             <Button type="submit" full size="lg" disabled={pending}>{pending ? 'Saving…' : 'Save new password'}</Button>
           </form>
-          <p className="text-center text-[14.5px] text-ink2">Changed your mind? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
+          <p className="text-center text-[14.5px] text-ink2">Changed your mind? <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
       </main>

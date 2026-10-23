@@ -3,6 +3,8 @@ import { Icon } from '../icons';
 import { Eyebrow, Headline, Logo, Reveal, Wrap } from '../ui';
 import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { scrollToId } from '../router';
+import { useSession } from '../session';
+import { homeOf } from '../auth-guard';
 
 function Plan({ title, price, items }: { title: string; price: string; items: string[] }) {
   return (
@@ -43,7 +45,7 @@ export function FinalCta() {
       <Wrap>
         <Reveal className="relative grid justify-items-start gap-8 overflow-hidden rounded-[32px] bg-acc px-6 py-14 text-on-acc sm:px-12 sm:py-24">
           <span className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] opacity-70">Ready when you are</span>
-          <h2 className="text-[clamp(52px,10vw,148px)] font-extrabold leading-[0.88] tracking-[-0.07em]">Your next app<br />is waiting.</h2>
+          <h2 className="text-[clamp(44px,9.6vw,148px)] font-extrabold leading-[0.88] tracking-[-0.07em]">Your next app<br />is waiting.</h2>
           <button type="button" onClick={() => scrollToId('apps')} className="group inline-flex h-14 items-center gap-2 rounded-full bg-on-acc px-7 text-[16px] font-semibold text-acc transition-transform duration-[180ms] active:scale-[0.98]">Explore apps<Icon name="arrow" size={18} className="transition-transform duration-[180ms] group-hover:translate-x-0.5" /></button>
         </Reveal>
       </Wrap>
@@ -52,12 +54,15 @@ export function FinalCta() {
 }
 
 export function Footer() {
-  const a = 'transition-colors duration-[180ms] hover:text-ink';
+  // The links of the footer are pressed with a finger, so they keep the
+  // height of a touch target.
+  const a = 'inline-flex min-h-11 items-center transition-colors duration-[180ms] hover:text-ink';
+  const { user } = useSession();
   return (
     <footer className="py-10 text-[14px] text-ink3">
       <Wrap className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
         <div className="flex items-center gap-4"><Logo className="!text-[17px] text-ink" /><span>© {new Date().getFullYear()}</span></div>
-        <nav className="flex flex-wrap gap-5"><button type="button" className={a} onClick={() => scrollToId('apps')}>Apps</button><button type="button" className={a} onClick={() => scrollToId('pricing')}>Pricing</button><a className={a} href="/docs">Docs</a><a className={a} href="/status">Status</a><a className={a} href="/login">Log in</a></nav>
+        <nav className="flex flex-wrap gap-5"><button type="button" className={a} onClick={() => scrollToId('apps')}>Apps</button><button type="button" className={a} onClick={() => scrollToId('pricing')}>Pricing</button><a className={a} href="/docs">Docs</a><a className={a} href="/status">Status</a>{user ? <a className={a} href={homeOf(user.role)}>Dashboard</a> : <a className={a} href="/login">Log in</a>}</nav>
       </Wrap>
     </footer>
   );

@@ -242,8 +242,10 @@ export default function Status() {
                 </p>
               </div>
 
-              <div className="flex justify-end">
-                <Button variant="soft" onClick={state.reload}>
+              {/* The refresh fills the width of a phone, so it is within
+                  reach of a thumb. */}
+              <div className="flex sm:justify-end">
+                <Button variant="soft" onClick={state.reload} full className="sm:w-auto">
                   Refresh
                 </Button>
               </div>
@@ -255,7 +257,7 @@ export default function Status() {
       <footer className="mx-auto w-full max-w-[1280px] px-4 pb-10 sm:px-6">
         <p className="text-[13.5px] text-ink3">
           Something broken that is not listed here?{' '}
-          <Link to="/app/tickets" className="font-bold text-acc hover:underline">
+          <Link to="/app/tickets" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline">
             Open a ticket
           </Link>
           .

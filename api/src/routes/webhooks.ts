@@ -9,6 +9,8 @@ import {
   upsertInvoice,
 } from '../services/stripe.js';
 import { enqueueProvisioning } from '../services/queue.js';
+import { notifyInvoiceFailed, notifyInvoicePaid } from '../services/notifications.js';
+import { fullName } from '../lib/people.js';
 import { applyUpgradeOrder } from '../services/upgrades.js';
 import { audit } from '../lib/audit.js';
 
@@ -289,6 +291,25 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
             periodStart: typeof object.period_start === 'number' ? new Date(object.period_start * 1000) : null,
             periodEnd: typeof object.period_end === 'number' ? new Date(object.period_end * 1000) : null,
           });
+          // The customer hears about the payment. The message follows the
+          // preferences of the account and its state is the one of the mailer:
+          // while no relay is configured, it is written to a file and nobody
+          // receives it.
+          const invoice = await prisma.invoice.findUnique({
+            where: { stripeInvoiceId: invoiceId },
+            include: { user: true },
+          });
+          if (invoice) {
+            await notifyInvoicePaid({
+              userId: invoice.userId,
+              email: invoice.user.email,
+              name: fullName(invoice.user),
+              number: invoice.number,
+              amount: invoice.amount,
+              currency: invoice.currency,
+              periodEnd: invoice.periodEnd,
+            });
+          }
         }
       }
 
@@ -322,6 +343,20 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       const dbInvoice = await prisma.invoice.findUnique({ where: { stripeInvoiceId: invoiceId } });
       if (dbInvoice) {
         await prisma.invoice.update({ where: { id: dbInvoice.id }, data: { status: 'OPEN' } });
+        const customer = await prisma.user.findUnique({ where: { id: dbInvoice.userId } });
+        if (customer) {
+          const failure = object.last_payment_error as { message?: unknown } | undefined;
+          await notifyInvoiceFailed({
+            userId: customer.id,
+            email: customer.email,
+            name: fullName(customer),
+            number: dbInvoice.number,
+            amount: dbInvoice.amount,
+            currency: dbInvoice.currency,
+            reason: typeof failure?.message === 'string' ? failure.message : null,
+            periodEnd: dbInvoice.periodEnd,
+          });
+        }
       }
       break;
     }

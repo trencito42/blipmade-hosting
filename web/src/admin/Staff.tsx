@@ -101,6 +101,7 @@ export default function Staff() {
             ? 'Changes are saved with the permission list of that member and written to the audit log.'
             : 'Only an administrator can change permissions. You see the list read-only.'
         }
+        actionBelow
         action={
           <button
             type="button"

@@ -6,7 +6,7 @@ import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { requireStaff, requirePermission } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as ptero from '../services/pterodactyl/application.js';
-import { enqueueProvisioning } from '../services/queue.js';
+import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
 import { PERMISSIONS } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
 import {
@@ -816,6 +816,19 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const result: Record<string, unknown> = {};
     for (const setting of settings) result[setting.key] = setting.value;
     return { settings: result };
+  });
+
+  /**
+   * The state of the mail.
+   *
+   * It shows what happened to every message the platform knows about: the
+   * state, the number of attempts, the class of the last failure and when it
+   * happened. It never shows the body of a message, a token or a credential,
+   * and it is only readable by a member of the staff.
+   */
+  app.get('/admin/email/delivery', { preHandler: requirePermission('settings.read') }, async (request: FastifyRequest) => {
+    const report = await emailDeliveryReport();
+    return { email: report };
   });
 
   app.put('/admin/settings', { preHandler: requirePermission('settings.write') }, async (request: FastifyRequest) => {

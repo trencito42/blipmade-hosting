@@ -111,6 +111,7 @@ export default function Customers() {
       <Panel
         title="Customers"
         description="Search by name or e-mail address. Every row links to the customer record."
+        actionBelow
         action={
           <button
             type="button"

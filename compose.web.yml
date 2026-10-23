@@ -14,6 +14,15 @@ services:
       # of the page. Only https://use.typekit.net or https://p.typekit.net is
       # accepted. See docs/TYPOGRAPHY.md.
       ADOBE_FONTS_KIT_URL: "${ADOBE_FONTS_KIT_URL:-}"
+      # The name of the family the kit declares, when the operator wants to
+      # write it down instead of letting the server read the stylesheet. The
+      # name is written exactly as Adobe writes it, for example "proxima-nova".
+      ADOBE_FONTS_FAMILY: "${ADOBE_FONTS_FAMILY:-}"
+      # The addresses whose forwarding headers are believed. The gateway that
+      # terminates the TLS is one of them, so the interface and the API know
+      # that the visitor is on https and that the session cookie is protected.
+      # Every other request is treated as coming straight from the visitor.
+      TRUSTED_PROXY_IPS: "${TRUSTED_PROXY_IPS:-}"
     depends_on:
       - api
     ports:

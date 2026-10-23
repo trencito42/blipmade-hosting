@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon, type IconName } from '../icons';
 import { get, type Instance } from '../lib/api';
+import { cn } from '../lib';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
@@ -13,7 +14,7 @@ import {
   StatTile,
   StatusPill,
 } from '../ui-app';
-import { catalogPath, deployPath, productPath, useDeployableProducts } from '../lib/pricing';
+import { catalogPath, deployPath, useDeployableProducts } from '../lib/pricing';
 
 /**
  * Customer overview. Reads the real instance list only: every number on this
@@ -161,9 +162,6 @@ export default function Overview() {
   const currency = instances?.[0]?.currency ?? 'EUR';
   const count = instances?.length ?? 0;
 
-  // The deploy button only ever points at a product that can be ordered.
-  const firstDeployable = deployable[0];
-
   if (loading) {
     return (
       <div className="grid gap-4">
@@ -196,42 +194,46 @@ export default function Overview() {
             order, and you can change the size of a service whenever you need more room.
           </p>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {firstDeployable ? (
-              <Link to={deployPath(firstDeployable.slug)} className={primaryLink}>
-                <Icon name="rocket" size={16} />
-                Deploy {firstDeployable.name}
-              </Link>
-            ) : (
-              <span className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink3">
-                <Icon name="rocket" size={16} />
-                No app is ready to order yet
-              </span>
-            )}
-            <Link to={catalogPath()} className={softLink}>
-              Browse the catalog
+          {/* The next step is one button on a phone, both of them within reach
+              of a thumb instead of side by side in a narrow row. */}
+          <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap">
+            <Link to="/app/deploy" className={cn(primaryLink, 'w-full sm:w-auto')}>
+              <Icon name="rocket" size={16} />
+              Choose an app
+            </Link>
+            <Link to={catalogPath()} className={cn(softLink, 'w-full sm:w-auto')}>
+              Browse the public catalog
             </Link>
           </div>
 
           {catalogLoading ? (
             <p className="mt-4 text-[13px] text-ink3">Loading the catalog…</p>
           ) : deployable.length > 0 ? (
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {deployable.slice(0, 4).map((product) => (
-                <Link
-                  key={product.id}
-                  to={productPath(product.slug)}
-                  className="flex items-center gap-3 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                >
-                  <ProductIcon icon={product.icon} size={36} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14.5px] font-bold text-ink">{product.name}</span>
-                    <span className="block truncate text-[12.5px] text-ink3">{product.description}</span>
-                  </span>
-                  {product.price && <Money amount={product.price.amount} currency={product.price.currency} period="month" />}
-                </Link>
-              ))}
-            </div>
+            <>
+              <p className="mt-5 text-[13px] text-ink3">Ready to deploy right now:</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {deployable.slice(0, 4).map((product) => (
+                  <Link
+                    key={product.id}
+                    to={deployPath(product.slug)}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  >
+                    <ProductIcon icon={product.icon} size={36} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14.5px] font-bold text-ink">{product.name}</span>
+                      <span className="block truncate text-[12.5px] text-ink3">{product.description}</span>
+                    </span>
+                    {/* The price gets a line of its own on a phone, so the
+                        name of the product is not cut to make room for it. */}
+                    {product.price && (
+                      <span className="w-full sm:w-auto">
+                        <Money amount={product.price.amount} currency={product.price.currency} period="month" />
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </>
           ) : (
             <p className="mt-4 rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
               Nothing can be ordered at the moment. The catalog on the site lists what is coming, and we will let you
@@ -278,14 +280,17 @@ export default function Overview() {
         <StatTile
           label="Deploy"
           value={
-            firstDeployable ? (
-              <Link to={deployPath(firstDeployable.slug)} className="text-acc underline underline-offset-2 hover:text-acc-h">
-                Add a service
-              </Link>
-            ) : (
-              <span className="text-ink3">Nothing ready yet</span>
-            )}
-          hint={firstDeployable ? `Start with ${firstDeployable.name}` : 'The catalog lists what is coming'}
+            // A link that is only a word is too small for a finger, so the
+            // action in this tile is a real button of its own.
+            <Link
+              to="/app/deploy"
+              className="inline-flex h-11 w-full max-w-full items-center justify-center gap-2 rounded-full bg-s3 px-4 font-sans text-[14px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+            >
+              <Icon name="rocket" size={15} />
+              Add a service
+            </Link>
+          }
+          hint="Choose from the catalog"
         />
       </div>
 
@@ -293,18 +298,24 @@ export default function Overview() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {instances!.map((instance) => (
             <article key={instance.id} className="grid content-start gap-3 rounded-2xl bg-s2 p-4">
-              <div className="flex items-start gap-3">
-                <ProductIcon icon={instance.product.icon} />
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to={`/app/instances/${instance.id}`}
-                    className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                  >
-                    {instance.name}
-                  </Link>
-                  <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <ProductIcon icon={instance.product.icon} />
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      to={`/app/instances/${instance.id}`}
+                      className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    >
+                      {instance.name}
+                    </Link>
+                    <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
+                  </div>
                 </div>
-                <StatusPill status={instance.status} />
+                {/* On a phone the status gets a line of its own, so a long
+                    name is not cut to make room for the pill. */}
+                <div className="w-full sm:w-auto">
+                  <StatusPill status={instance.status} />
+                </div>
               </div>
 
               <div className="grid gap-1">
@@ -320,9 +331,9 @@ export default function Overview() {
                     href={instance.url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="min-w-0 truncate text-[13.5px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    className="-ml-2 inline-flex min-h-11 max-w-full items-center rounded-2xl px-2 text-[13.5px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
-                    {instance.url}
+                    <span className="truncate">{instance.url}</span>
                   </a>
                 ) : (
                   <span className="text-[13.5px] text-ink3">No public URL yet</span>

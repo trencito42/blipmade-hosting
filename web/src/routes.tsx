@@ -1,9 +1,11 @@
-import { Suspense, lazy, useEffect, type ComponentType, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { AppShell, ErrorState, LoadingBlock } from './ui-app';
 import { ADMIN_NAV, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS } from './nav';
 import { useSession } from './session';
 import { ParamsProvider, matchPath, useParams, useRouter } from './router';
 import { Link } from './router';
+import { isStaff, loginRedirect, postLoginTarget } from './auth-guard';
+import { Icon } from './icons';
 
 // The marketing homepage stays in the main bundle. Everything else is split so
 // the public site does not pay for the dashboard.
@@ -21,6 +23,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const AppOverview = lazy(() => import('./app/Overview'));
 const AppInstances = lazy(() => import('./app/Instances'));
 const AppInstanceDetail = lazy(() => import('./app/InstanceDetail'));
+const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
 const AppBilling = lazy(() => import('./app/Billing'));
@@ -54,6 +57,8 @@ interface RouteDef {
   subtitle?: string;
   area?: 'customer' | 'admin';
   exact?: boolean;
+  /** The route is only shown to a visitor without a session. */
+  guestOnly?: boolean;
 }
 
 /**
@@ -78,8 +83,8 @@ function DeployRedirect() {
 }
 
 const ROUTES: RouteDef[] = [
-  { pattern: '/login', component: Login, title: 'Log in' },
-  { pattern: '/register', component: Register, title: 'Create account' },
+  { pattern: '/login', component: Login, title: 'Log in', guestOnly: true },
+  { pattern: '/register', component: Register, title: 'Create account', guestOnly: true },
   { pattern: '/forgot-password', component: ForgotPassword, title: 'Reset password' },
   { pattern: '/reset-password', component: ResetPassword, title: 'Choose a new password' },
   { pattern: '/verify-email', component: VerifyEmail, title: 'Verify email' },
@@ -92,6 +97,7 @@ const ROUTES: RouteDef[] = [
   { pattern: '/app', component: AppOverview, title: 'Overview', area: 'customer', exact: true },
   { pattern: '/app/instances', component: AppInstances, title: 'Apps & databases', area: 'customer' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
+  { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
@@ -116,9 +122,19 @@ const ROUTES: RouteDef[] = [
 
 function Guard({ area, children }: { area: 'customer' | 'admin'; children: ReactNode }) {
   const { user, loading } = useSession();
-  const { navigate } = useRouter();
+  const { navigate, path, search } = useRouter();
 
-  if (loading) {
+  // The redirect is an effect and not a part of the render: a side effect in
+  // the render runs twice under StrictMode and leaves a broken page behind.
+  useEffect(() => {
+    if (loading || user) return;
+    // Replace and not push, so the back button does not return to a page that
+    // needs a session.
+    navigate(loginRedirect(path, search), { replace: true });
+  }, [loading, user, navigate, path, search]);
+
+  if (loading || !user) {
+    // The page is never shown without a session, not even for one frame.
     return (
       <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
         <LoadingBlock rows={4} label="Checking your session" />
@@ -126,13 +142,7 @@ function Guard({ area, children }: { area: 'customer' | 'admin'; children: React
     );
   }
 
-  if (!user) {
-    // Replace rather than push so the back button does not return to a guarded page.
-    navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true });
-    return null;
-  }
-
-  if (area === 'admin' && user.role !== 'STAFF' && user.role !== 'ADMIN') {
+  if (area === 'admin' && !isStaff(user.role)) {
     return (
       <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
         <ErrorState
@@ -152,8 +162,65 @@ function Guard({ area, children }: { area: 'customer' | 'admin'; children: React
   return <>{children}</>;
 }
 
-export default function AppRoutes() {
-  const { path } = useRouter();
+/**
+ * The guard of the two routes that only make sense without a session.
+ *
+ * While the session is being checked the form is not shown: the visitor never
+ * sees a form that disappears a moment later. Once the session is known, the
+ * visitor is sent to the page of their role, or to the page they asked for
+ * when that page is one their role is allowed to open.
+ *
+ * The session is read once. A session that appears later comes from an action
+ * on the page itself, and the page decides where it goes: the register form
+ * keeps its "check your email" screen instead of being taken away.
+ */
+function GuestOnly({ children }: { children: ReactNode }) {
+  const { user, loading } = useSession();
+  const { navigate, query } = useRouter();
+  const [target, setTarget] = useState<string | null>(null);
+  const settled = useRef(false);
+
+  useEffect(() => {
+    if (loading || settled.current) return;
+    settled.current = true;
+    if (user) setTarget(postLoginTarget(user.role, query.next));
+  }, [loading, user, query.next]);
+
+  useEffect(() => {
+    if (!target) return;
+    navigate(target, { replace: true });
+  }, [target, navigate]);
+
+  if (loading || target) {
+    return (
+      <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
+        <LoadingBlock rows={2} label="Checking your session" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+/**
+ * The action of the bar of the customer area.
+ *
+ * Deploying is the thing a customer comes to do, so the way to the catalog of
+ * products is always one press away, on a phone as well as on a desktop.
+ */
+function DeployAction() {
+  return (
+    <Link
+      to="/app/deploy"
+      className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-acc px-4 text-[13.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+    >
+      <Icon name="rocket" size={15} />
+      Deploy
+    </Link>
+  );
+}
+
+export default function AppRoutes() {  const { path } = useRouter();
 
   if (path === '/' || path === '') return <Home />;
 
@@ -175,6 +242,7 @@ export default function AppRoutes() {
       </Suspense>
     );
 
+    if (route.guestOnly) return <GuestOnly>{content}</GuestOnly>;
     if (!route.area) return content;
 
     const nav = route.area === 'admin' ? ADMIN_NAV : CUSTOMER_NAV;
@@ -188,6 +256,7 @@ export default function AppRoutes() {
           title={route.title}
           subtitle={route.subtitle}
           environment={route.area === 'admin' ? 'Staff · Production' : undefined}
+          actions={route.area === 'customer' ? <DeployAction /> : undefined}
         >
           {content}
         </AppShell>

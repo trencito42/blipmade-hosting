@@ -116,6 +116,7 @@ export default function Services() {
       <Panel
         title="Services"
         description="Every instance on the platform. Retrying a provisioning run re-queues the worker for that instance."
+        actionBelow
         action={
           <button
             type="button"

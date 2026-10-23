@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { badRequest, forbidden, notFound } from '../lib/errors.js';
+import { AppError, badRequest, forbidden, notFound } from '../lib/errors.js';
 import { requireAuth, requireStaff } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { sendMail } from '../lib/mailer.js';
@@ -15,15 +15,27 @@ import {
   validateAttachment,
 } from '../lib/attachments.js';
 
-const CATEGORIES = [
-  { id: 'TECHNICAL', label: 'Technical' },
-  { id: 'BILLING', label: 'Billing' },
-  { id: 'ACCOUNT', label: 'Account' },
-  { id: 'ABUSE', label: 'Abuse report' },
-  { id: 'OTHER', label: 'Other' },
-];
-
+/**
+ * The enums of a ticket, in the shape the Prisma enums have them.
+ *
+ * This is the one shape the API speaks: UPPER_CASE. The values of
+ * `TicketCategory`, `TicketPriority` and `TicketStatus` are the ones that go
+ * out in every answer, and a request may write them in any case, so a client
+ * that sends "normal" is understood and always reads back "NORMAL".
+ */
+const CATEGORY_IDS = ['TECHNICAL', 'BILLING', 'ACCOUNT', 'ABUSE', 'OTHER'] as const;
 const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
+const STATUSES = ['OPEN', 'AWAITING_CUSTOMER', 'AWAITING_STAFF', 'ON_HOLD', 'CLOSED'] as const;
+
+const CATEGORY_LABELS: Record<(typeof CATEGORY_IDS)[number], string> = {
+  TECHNICAL: 'Technical',
+  BILLING: 'Billing',
+  ACCOUNT: 'Account',
+  ABUSE: 'Abuse report',
+  OTHER: 'Other',
+};
+
+const CATEGORIES = CATEGORY_IDS.map((id) => ({ id, label: CATEGORY_LABELS[id] }));
 
 const attachmentSchema = z.object({
   name: z.string().min(1).max(200),
@@ -36,6 +48,52 @@ const attachmentSchema = z.object({
       'That file type cannot be attached.',
     ),
 });
+
+/**
+ * A field that takes one of the values of an enum.
+ *
+ * The value is read in any case and with the spaces around it removed, and it
+ * is kept in the canonical form. A value that is not allowed is refused with
+ * a message that says which values are allowed.
+ */
+function enumField<T extends string>(allowed: readonly [T, ...T[]]) {
+  return z.preprocess(
+    (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
+    z.enum(allowed, {
+      errorMap: () => ({ message: `must be one of: ${allowed.join(', ')}.` }),
+    }),
+  );
+}
+
+/**
+ * Parses a request and turns a failure into an error that names the field
+ * that is wrong and says what is allowed there, so the client can show the
+ * problem next to the input instead of a general message.
+ *
+ * The code stays the one of the shared validation error, so the answer keeps
+ * the shape the client already reads.
+ */
+function parse<T extends z.ZodTypeAny>(schema: T, data: unknown): z.infer<T> {
+  const result = schema.safeParse(data);
+  if (result.success) return result.data;
+
+  const fields: Record<string, string> = {};
+  for (const issue of result.error.issues) {
+    const field = issue.path.join('.') || 'form';
+    fields[field] ??= `${field}: ${issue.message}`;
+  }
+  const message = Object.values(fields)[0] ?? 'Some fields need attention.';
+  throw new AppError(400, 'validation_failed', message, fields);
+}
+
+/**
+ * The form an enum takes when it leaves the API: the upper case of the
+ * Prisma enum. It is applied in one place, so every answer carries the same
+ * shape, whatever the client wrote in the request.
+ */
+function canonicalEnum(value: string): string {
+  return value.trim().toUpperCase();
+}
 
 function serializeTicket(ticket: {
   id: string;
@@ -56,9 +114,9 @@ function serializeTicket(ticket: {
     id: ticket.id,
     number: ticket.number,
     subject: ticket.subject,
-    category: ticket.category.toLowerCase(),
-    priority: ticket.priority.toLowerCase(),
-    status: ticket.status.toLowerCase(),
+    category: canonicalEnum(ticket.category),
+    priority: canonicalEnum(ticket.priority),
+    status: canonicalEnum(ticket.status),
     instanceId: ticket.instanceId,
     instanceName: ticket.instance?.name ?? null,
     createdAt: ticket.createdAt,
@@ -87,16 +145,17 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
   app.post('/tickets', async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
-    const body = z
-      .object({
+    const body = parse(
+      z.object({
         subject: z.string().trim().min(3, 'Give the ticket a short subject.').max(160),
-        category: z.enum(['TECHNICAL', 'BILLING', 'ACCOUNT', 'ABUSE', 'OTHER']).default('TECHNICAL'),
-        priority: z.enum(PRIORITIES).default('NORMAL'),
+        category: enumField(CATEGORY_IDS).default('TECHNICAL'),
+        priority: enumField(PRIORITIES).default('NORMAL'),
         body: z.string().trim().min(1, 'Describe the problem.').max(20_000),
         instanceId: z.string().optional(),
         attachments: z.array(attachmentSchema).max(5).optional(),
-      })
-      .parse(request.body);
+      }),
+      request.body,
+    );
 
     if (body.instanceId) {
       const owned = await prisma.instance.findFirst({ where: { id: body.instanceId, userId: user.id } });
@@ -132,7 +191,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
   app.get('/tickets/:id', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { id } = parse(z.object({ id: z.string() }), request.params);
     const ticket = await prisma.ticket.findUnique({
       where: { id },
       include: {
@@ -188,14 +247,15 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
   app.post('/tickets/:id/replies', async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z
-      .object({
+    const { id } = parse(z.object({ id: z.string() }), request.params);
+    const body = parse(
+      z.object({
         body: z.string().trim().min(1, 'Write a reply.').max(20_000),
         internal: z.boolean().optional(),
         attachments: z.array(attachmentSchema).max(5).optional(),
-      })
-      .parse(request.body);
+      }),
+      request.body,
+    );
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
@@ -253,7 +313,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
    */
   app.post('/tickets/:id/attachments', async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { id } = parse(z.object({ id: z.string() }), request.params);
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
@@ -320,7 +380,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
   /** Downloads a file that was attached to a ticket. */
   app.get('/tickets/:id/attachments/:attachmentId', async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
-    const { id, attachmentId } = z.object({ id: z.string(), attachmentId: z.string() }).parse(request.params);
+    const { id, attachmentId } = parse(z.object({ id: z.string(), attachmentId: z.string() }), request.params);
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
@@ -340,10 +400,8 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
   app.post('/tickets/:id/status', async (request: FastifyRequest) => {
     const user = await requireStaff(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const { status } = z
-      .object({ status: z.enum(['OPEN', 'AWAITING_CUSTOMER', 'AWAITING_STAFF', 'ON_HOLD', 'CLOSED']) })
-      .parse(request.body);
+    const { id } = parse(z.object({ id: z.string() }), request.params);
+    const { status } = parse(z.object({ status: enumField(STATUSES) }), request.body);
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');

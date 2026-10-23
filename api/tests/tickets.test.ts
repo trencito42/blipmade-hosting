@@ -30,7 +30,7 @@ describe('support tickets', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.ticket.subject).toBe('The container will not start');
-    expect(response.body.ticket.status).toBe('open');
+    expect(response.body.ticket.status).toBe('OPEN');
     expect(response.body.ticket.messageCount).toBe(1);
   });
 
@@ -97,7 +97,7 @@ describe('support tickets', () => {
     const { client: admin } = await createAdmin(app);
     const response = await admin.request('POST', `/api/tickets/${ticketId}/status`, { status: 'ON_HOLD' });
     expect(response.status).toBe(200);
-    expect(response.body.ticket.status).toBe('on_hold');
+    expect(response.body.ticket.status).toBe('ON_HOLD');
 
     const events = await prisma.ticketEvent.findMany({ where: { ticketId } });
     expect(events.some((event) => event.type === 'status')).toBe(true);

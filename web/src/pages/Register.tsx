@@ -49,7 +49,7 @@ function PromisePanel() {
 }
 
 export default function Register() {
-  const { register } = useSession();
+  const { register, registrationNotice } = useSession();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -122,8 +122,10 @@ export default function Register() {
     setResend('sending');
     setResendMsg(null);
     try {
-      // The API wants the address in the body and answers 204 without a body.
-      await post<void>('/auth/resend-verification', { email: accountEmail });
+      // The API answers with the same words for every address and says whether
+      // the message could really be sent. The page shows that answer.
+      const answer = await post<{ message?: string }>('/auth/resend-verification', { email: accountEmail });
+      setResendMsg(answer?.message ?? null);
       setResend('sent');
     } catch (err) {
       setResend('failed');
@@ -137,7 +139,7 @@ export default function Register() {
 
   if (accountEmail) {
     return (
-      <div className="grid min-h-[100svh] gap-3 p-3 lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
+      <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
         <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
           <Logo />
           <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
@@ -145,7 +147,7 @@ export default function Register() {
             <Headline as="h1" lines={['Check', 'your email.']} className="text-[clamp(52px,12vw,76px)] leading-[0.9]" />
             <p className="text-[17px] text-ink2">Your account is ready. Confirm your address to finish setting it up.</p>
             <div role="status" className="rounded-2xl bg-acc-bg px-4 py-3 text-[14.5px] font-bold text-acc">
-              We sent a confirmation link to {accountEmail}. Open it to confirm your address.
+              {registrationNotice ?? `We sent a confirmation link to ${accountEmail}. Open it to confirm your address.`}
             </div>
             <Button to="/app" full size="lg">Go to your dashboard</Button>
             <div className="grid gap-2">
@@ -153,14 +155,16 @@ export default function Register() {
                 {resend === 'sending' ? 'Sending…' : 'Resend the email'}
               </Button>
               {resend === 'sent' && (
-                <p role="status" className="px-1 text-[13.5px] text-ink2">We sent a new confirmation link to {accountEmail}.</p>
+                <p role="status" className="px-1 text-[13.5px] text-ink2">
+                  {resendMsg ?? `If that address still needs a confirmation, we sent a new link to ${accountEmail}.`}
+                </p>
               )}
               {resend === 'failed' && (
                 <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">{resendMsg ?? 'We could not send another email. Try again in a moment.'}</p>
               )}
             </div>
             <p className="text-[14px] text-ink3">Some features, such as billing and domain changes, need a verified email address. You can confirm it later.</p>
-            <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
+            <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
           </div>
           <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
         </main>
@@ -170,7 +174,7 @@ export default function Register() {
   }
 
   return (
-    <div className="grid min-h-[100svh] gap-3 p-3 lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
+    <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
       <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
         <Logo />
         <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
@@ -239,7 +243,7 @@ export default function Register() {
             />
             <Button type="submit" full size="lg" disabled={pending}>{pending ? 'Working…' : 'Create account'}</Button>
           </form>
-          <p className="text-center text-[14.5px] text-ink2">Already have an account? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
+          <p className="text-center text-[14.5px] text-ink2">Already have an account? <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
       </main>

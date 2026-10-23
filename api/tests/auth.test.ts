@@ -161,8 +161,18 @@ describe('password reset', () => {
     const client = makeClient(app);
     const known = await client.request('POST', '/api/auth/forgot-password', { email: 'known@example.com' });
     const unknown = await client.request('POST', '/api/auth/forgot-password', { email: 'unknown@example.com' });
-    expect(known.status).toBe(204);
-    expect(unknown.status).toBe(204);
+    expect(known.status).toBe(200);
+    expect(unknown.status).toBe(200);
+    // The answer must not tell whether the address has an account.
+    expect(known.body.message).toBe(unknown.body.message);
+    expect(known.body.mail).toEqual(unknown.body.mail);
+  });
+
+  it('does not claim that a message was sent while the relay is not configured', async () => {
+    const client = makeClient(app);
+    const response = await client.request('POST', '/api/auth/forgot-password', { email: 'known@example.com' });
+    expect(response.body.mail.configured).toBe(false);
+    expect(String(response.body.message).toLowerCase()).not.toContain('on its way');
   });
 
   it('rejects an invalid reset token', async () => {

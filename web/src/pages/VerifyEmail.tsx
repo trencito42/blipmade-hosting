@@ -81,8 +81,10 @@ export default function VerifyEmail() {
     setResend('sending');
     setResendMsg(null);
     try {
-      // The API wants the address in the body and answers 204 without a body.
-      await post<void>('/auth/resend-verification', { email: accountEmail });
+      // The API answers with the same words for every address and says whether
+      // the message could really be sent. The page shows that answer.
+      const answer = await post<{ message?: string }>('/auth/resend-verification', { email: accountEmail });
+      setResendMsg(answer?.message ?? null);
       setResend('sent');
     } catch (err) {
       setResend('failed');
@@ -95,7 +97,7 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="grid min-h-[100svh] gap-3 p-3 lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
+    <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
       <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
         <Logo />
         <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
@@ -140,7 +142,9 @@ export default function VerifyEmail() {
                     {resend === 'sending' ? 'Sending…' : 'Resend the email'}
                   </Button>
                   {resend === 'sent' && (
-                    <p role="status" className="px-1 text-[13.5px] text-ink2">If that address still needs a confirmation, we sent a new link to {accountEmail}.</p>
+                    <p role="status" className="px-1 text-[13.5px] text-ink2">
+                      {resendMsg ?? `If that address still needs a confirmation, we sent a new link to ${accountEmail}.`}
+                    </p>
                   )}
                   {resend === 'failed' && (
                     <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">{resendMsg ?? 'We could not send another email. Try again in a moment.'}</p>
@@ -148,10 +152,10 @@ export default function VerifyEmail() {
                 </>
               ) : (
                 <p className="px-1 text-[13.5px] text-ink3">
-                  We cannot send another link without the account. <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link> to ask for one.
+                  We cannot send another link without the account. <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link> to ask for one.
                 </p>
               )}
-              <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/app" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Go to your dashboard</Link></p>
+              <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/app" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Go to your dashboard</Link></p>
             </>
           )}
         </div>

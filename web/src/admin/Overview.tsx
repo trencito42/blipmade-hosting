@@ -67,15 +67,21 @@ export function fmtDateTime(value: string | null | undefined): string {
   return `${DAY.format(date)}, ${TIME.format(date)}`;
 }
 
-/** Dense mode: 38 px controls, 14 px body. */
+/**
+ * Dense mode: 38 px controls, 14 px body.
+ *
+ * On a phone the controls grow to 44px and the text of a field grows to 16px,
+ * so a finger finds the control and iOS does not zoom the page when the field
+ * is focused. The desktop keeps the dense look.
+ */
 export const denseInput =
   // scroll-mt keeps the sticky top bar from covering a field the phone scrolls
   // into view when it takes the focus.
-  'h-[38px] w-full scroll-mt-16 rounded-full bg-s2 px-4 text-[14px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3';
+  'h-11 w-full scroll-mt-24 rounded-full bg-s2 px-4 text-[16px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3 lg:h-[38px] lg:text-[14px]';
 export const denseSelect =
-  'h-[38px] w-full scroll-mt-16 appearance-none rounded-full bg-s2 px-4 text-[14px] text-ink outline-none transition-colors duration-[180ms] focus:bg-s3';
+  'h-11 w-full scroll-mt-24 appearance-none rounded-full bg-s2 px-4 text-[16px] text-ink outline-none transition-colors duration-[180ms] focus:bg-s3 lg:h-[38px] lg:text-[14px]';
 export const denseButton =
-  'inline-flex h-[38px] items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50 lg:h-[38px]';
 export const densePrimary = `${denseButton} bg-acc text-on-acc hover:bg-acc-h`;
 export const denseSoft = `${denseButton} bg-s3 text-ink hover:bg-line`;
 export const denseDanger = `${denseButton} bg-bad/12 text-bad hover:bg-bad/20`;
@@ -124,10 +130,14 @@ export function ConfirmWithReason({
   const confirmRef = useRef<HTMLButtonElement>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const cancelRef = useRef(onCancel);
+  const openerRef = useRef<HTMLElement | null>(null);
   cancelRef.current = onCancel;
 
   useEffect(() => {
     if (!open) return;
+    // The control that opened the dialog keeps the focus, so it can be given
+    // back when the dialog closes.
+    openerRef.current = document.activeElement as HTMLElement | null;
     // Focus the reason field once, when the dialog opens. Re-running this on
     // every render would steal the focus while the operator types.
     reasonRef.current?.focus();
@@ -135,14 +145,17 @@ export function ConfirmWithReason({
       if (event.key === 'Escape') cancelRef.current();
     };
     addEventListener('keydown', onKey);
-    return () => removeEventListener('keydown', onKey);
+    return () => {
+      removeEventListener('keydown', onKey);
+      openerRef.current?.focus?.();
+    };
   }, [open]);
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-3 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-3"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -160,7 +173,7 @@ export function ConfirmWithReason({
                 value={reason}
                 onChange={(event) => onReasonChange(event.target.value)}
                 placeholder="Recorded in the audit log."
-                className="w-full scroll-mt-16 rounded-2xl bg-s2 p-3 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3"
+                className="w-full scroll-mt-24 rounded-2xl bg-s2 p-3 text-[16px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3 lg:text-[14px]"
               />
             </Field>
           </div>

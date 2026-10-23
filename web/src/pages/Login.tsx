@@ -2,7 +2,8 @@ import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { useState, type FormEvent } from 'react';
 import { cn } from '../lib';
 import { Button, Eyebrow, Headline, Logo } from '../ui';
-import { Link, safeNext, useRouter } from '../router';
+import { Link, useRouter } from '../router';
+import { postLoginTarget } from '../auth-guard';
 import { useSession } from '../session';
 import { ApiError } from '../lib/api';
 import { AuthField } from './auth-field';
@@ -35,8 +36,10 @@ export default function Login() {
     setPending(true);
     setMsg(null);
     try {
-      await login(email.trim(), pw);
-      navigate(safeNext(query.next) ?? '/app');
+      const session = await login(email.trim(), pw);
+      // The page the visitor asked for is only used when their role is allowed
+      // to open it. Otherwise they land on the home of their role.
+      navigate(postLoginTarget(session.role, query.next), { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 429 || err.code === 'rate_limited') {
@@ -62,7 +65,7 @@ export default function Login() {
   };
 
   return (
-    <div className="grid min-h-[100svh] gap-3 p-3 lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
+    <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
       <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
         <Logo />
         <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
@@ -108,10 +111,10 @@ export default function Login() {
             />
             <Button type="submit" full size="lg" disabled={pending}>{pending ? 'Working…' : 'Log in'}</Button>
             <div className="flex justify-end px-1 text-[14px]">
-              <Link to="/forgot-password" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Forgot password?</Link>
+              <Link to="/forgot-password" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Forgot password?</Link>
             </div>
           </form>
-          <p className="text-center text-[14.5px] text-ink2">New to Blipmade? <Link to="/register" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Create account</Link></p>
+          <p className="text-center text-[14.5px] text-ink2">New to Blipmade? <Link to="/register" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Create account</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
       </main>

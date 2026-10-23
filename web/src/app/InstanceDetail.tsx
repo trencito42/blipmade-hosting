@@ -450,16 +450,26 @@ function DomainsTab({ instance }: { instance: Instance }) {
                 {domain.dnsRecords.length > 0 ? (
                   <div className="grid gap-2">
                     <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">DNS records</p>
+                    {/* On a phone the record is a small stack of facts: the
+                        name and the value are not squeezed into one line by
+                        the button next to them. */}
                     {domain.dnsRecords.map((record) => (
-                      <div key={`${record.name}-${record.type}`} className="flex flex-wrap items-center gap-2 rounded-2xl bg-s2 p-3">
+                      <div
+                        key={`${record.name}-${record.type}`}
+                        className="grid gap-1.5 rounded-2xl bg-s2 p-3 sm:flex sm:flex-wrap sm:items-center sm:gap-2"
+                      >
                         <span className="font-mono text-[11.5px] uppercase tracking-[0.08em] text-ink3">{record.type}</span>
-                        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink" title={record.name}>
+                        <span className="min-w-0 truncate font-mono text-[13px] text-ink" title={record.name}>
                           {record.name}
                         </span>
-                        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink2" title={record.value}>
+                        <span className="min-w-0 truncate font-mono text-[13px] text-ink2" title={record.value}>
                           {record.value}
                         </span>
-                        <SoftButton onClick={() => copy(record.value, 'DNS record')} aria-label={`Copy ${record.type} record for ${record.name}`}>
+                        <SoftButton
+                          onClick={() => copy(record.value, 'DNS record')}
+                          aria-label={`Copy ${record.type} record for ${record.name}`}
+                          className="justify-self-start sm:ml-auto"
+                        >
                           Copy
                         </SoftButton>
                       </div>
@@ -538,7 +548,7 @@ function SettingsPanel({
           </p>
         )}
         <div>
-          <PrimaryButton onClick={onRename} disabled={rename.pending || !name.trim()}>
+          <PrimaryButton onClick={onRename} disabled={rename.pending || !name.trim()} className="w-full sm:w-auto">
             {rename.pending ? 'Saving…' : 'Save name'}
           </PrimaryButton>
         </div>
@@ -555,7 +565,7 @@ function SettingsPanel({
           </p>
         )}
         <div>
-          <DangerButton onClick={() => setConfirmOpen(true)} disabled={cancel.pending}>
+          <DangerButton onClick={() => setConfirmOpen(true)} disabled={cancel.pending} className="w-full sm:w-auto">
             Cancel instance
           </DangerButton>
         </div>
@@ -637,17 +647,21 @@ export default function InstanceDetail() {
       </nav>
 
       <header className="grid gap-3">
-        <div className="flex min-w-0 flex-wrap items-start gap-3">
-          <ProductIcon icon={instance.product.icon} size={46} />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[20px] font-extrabold tracking-[-0.035em] text-ink" title={instance.name}>
-              {instance.name}
-            </h2>
-            <p className="truncate text-[13px] text-ink3" title={instance.product.name}>
-              {instance.product.name}
-            </p>
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <ProductIcon icon={instance.product.icon} size={46} />
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-[20px] font-extrabold tracking-[-0.035em] text-ink" title={instance.name}>
+                {instance.name}
+              </h2>
+              <p className="truncate text-[13px] text-ink3" title={instance.product.name}>
+                {instance.product.name}
+              </p>
+            </div>
           </div>
-          <StatusPill status={instance.status} />
+          <div className="w-full sm:w-auto">
+            <StatusPill status={instance.status} />
+          </div>
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center gap-2">

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db.js';
 import { redisPing } from '../redis.js';
-import { mailTransportName } from '../lib/mailer.js';
+import { mailDeliverySummary, mailTransportName } from '../lib/mailer.js';
 import { env } from '../env.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { getQueue } from '../services/queue.js';
@@ -27,6 +27,7 @@ async function healthHandler() {
     database,
     redis,
     mail: mailTransportName(),
+    mailDelivery: mailDeliverySummary(),
     stripe: env.stripeEnabled ? 'live' : env.isTest ? 'test' : 'not_configured',
     pterodactyl: env.pterodactylEnabled ? 'configured' : 'not_configured',
     panelKeyBridge: env.panelBridgeEnabled ? 'configured' : 'not_installed',

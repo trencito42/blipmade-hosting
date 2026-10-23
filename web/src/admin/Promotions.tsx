@@ -106,6 +106,7 @@ export default function Promotions() {
       <Panel
         title="Promotions"
         description="Codes with the real redemption count against the real cap. Nothing here is a simulated counter."
+        actionBelow
         action={
           mayWrite ? (
             <button type="button" onClick={() => setCreating((value) => !value)} aria-expanded={creating} className={densePrimary}>

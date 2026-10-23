@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { get, post, type Instance, type Ticket } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
@@ -10,6 +10,7 @@ import {
   LoadingBlock,
   Panel,
   PrimaryButton,
+  Segmented,
   Select,
   SoftButton,
   StatusPill,
@@ -62,18 +63,29 @@ function fmtRelative(value: string | null | undefined): string {
 }
 
 function statusLabel(status: string): string {
-  return STATUS_LABEL[status] ?? status.replace(/_/g, ' ');
+  // The API answers with the upper case of the enumeration. The label is
+  // found either way, so the page keeps working with both.
+  return STATUS_LABEL[status.toLowerCase()] ?? status.replace(/_/g, ' ');
 }
 
 export default function Tickets() {
   const toast = useToast();
   const [creating, setCreating] = useState(false);
+  const newTicketButton = useRef<HTMLButtonElement>(null);
 
   const tickets = useAsync((signal) => get<{ tickets: Ticket[] }>('/tickets', undefined, signal), []);
   const categories = useAsync((signal) => get<{ categories: TicketCategory[] }>('/tickets/categories', undefined, signal), []);
 
   const categoryLabel = (id: string) => categories.data?.categories.find((c) => c.id === id)?.label ?? id;
   const rows = tickets.data?.tickets ?? [];
+
+  // Closing the form gives the focus back to the button that opened it. The
+  // function keeps its identity, so the form is not focused again on every
+  // render of the page.
+  const closeForm = useCallback(() => {
+    setCreating(false);
+    newTicketButton.current?.focus();
+  }, []);
 
   return (
     <div className="grid gap-4">
@@ -83,11 +95,12 @@ export default function Tickets() {
           categoriesLoading={categories.loading}
           categoriesError={categories.error ? categories.error.message : null}
           reloadCategories={categories.reload}
-          onClose={() => setCreating(false)}
+          onClose={closeForm}
           onCreated={(ticket) => {
             setCreating(false);
             tickets.reload();
             toast.push(`Ticket #${ticket.number} created`, 'ok');
+            newTicketButton.current?.focus();
           }}
         />
       )}
@@ -95,8 +108,14 @@ export default function Tickets() {
       <Panel
         title="Your tickets"
         description="Every conversation with Blipmade support, newest activity first."
+        actionBelow
         action={
-          <PrimaryButton onClick={() => setCreating(true)} aria-expanded={creating}>
+          <PrimaryButton
+            ref={newTicketButton}
+            onClick={() => setCreating(true)}
+            aria-expanded={creating}
+            aria-controls="new-ticket-form"
+          >
             New ticket
           </PrimaryButton>
         }
@@ -113,7 +132,16 @@ export default function Tickets() {
           <EmptyState
             title="No tickets yet."
             description="Open a ticket and we will answer in the same thread."
-            action={<PrimaryButton onClick={() => setCreating(true)}>Create a ticket</PrimaryButton>}
+            action={
+              <PrimaryButton
+                ref={newTicketButton}
+                onClick={() => setCreating(true)}
+                aria-expanded={creating}
+                aria-controls="new-ticket-form"
+              >
+                Create a ticket
+              </PrimaryButton>
+            }
           />
         ) : (
           <div className="grid gap-3">
@@ -168,8 +196,11 @@ export default function Tickets() {
 
             <CardList<Ticket> rows={rows} rowKey={(t) => t.id}>
               {(t) => (
-                <Link to={`/app/tickets/${t.id}`} className="flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
-                  <div className="min-w-0 flex-1">
+                <Link
+                  to={`/app/tickets/${t.id}`}
+                  className="flex min-w-0 flex-wrap items-start justify-between gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                >
+                  <div className="w-0 min-w-0 flex-1">
                     <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink" title={t.subject}>
                       {t.subject}
                     </p>
@@ -180,7 +211,11 @@ export default function Tickets() {
                       #{t.number} · {categoryLabel(t.category)} · {fmtRelative(t.lastReplyAt)}
                     </p>
                   </div>
-                  <StatusPill status={t.status} label={statusLabel(t.status)} />
+                  {/* The status gets a line of its own on a phone, so a long
+                      subject is not cut to make room for the pill. */}
+                  <div className="w-full sm:w-auto">
+                    <StatusPill status={t.status} label={statusLabel(t.status)} />
+                  </div>
                 </Link>
               )}
             </CardList>
@@ -212,8 +247,23 @@ function NewTicketForm({
   const [instanceId, setInstanceId] = useState('');
   const [body, setBody] = useState('');
   const [touched, setTouched] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
   const instances = useAsync((signal) => get<{ instances: Instance[] }>('/instances', undefined, signal), []);
+
+  // The form is a region of the page: the focus goes into it when it opens
+  // and it closes with Escape.
+  useEffect(() => {
+    formRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      // Escape inside a dropdown belongs to the dropdown, not to the form.
+      if (event.key !== 'Escape') return;
+      if (event.target instanceof HTMLSelectElement) return;
+      onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const create = useAction(async () => {
     const payload: { subject: string; category: string; priority: string; body: string; instanceId?: string } = {
@@ -234,15 +284,27 @@ function NewTicketForm({
 
   const submit = async () => {
     setTouched(true);
-    if (blocked) return;
+    if (blocked) {
+      // The first field that is missing takes the focus, so the user is taken
+      // to the problem instead of hunting for it.
+      const first = !subject.trim() ? 'ticket-subject' : !category ? 'ticket-category' : 'ticket-message';
+      document.getElementById(first)?.focus();
+      return;
+    }
     const ticket = await create.run();
     if (ticket) onCreated(ticket);
   };
 
   return (
-    <>
-      <div className="fixed inset-0 z-30 bg-bg/80 lg:hidden" onClick={onClose} aria-hidden="true" />
-      <div className="fixed inset-x-0 bottom-0 z-40 max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[26px] bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:z-auto lg:mt-0 lg:max-h-none lg:rounded-[22px] lg:p-5">
+    // The form is part of the page and not a sheet pinned to the bottom of the
+    // screen: a pinned sheet is covered by the software keyboard and the
+    // field that is being typed into cannot be reached.
+    <div
+      id="new-ticket-form"
+      ref={formRef}
+      tabIndex={-1}
+      className="scroll-mt-24 rounded-[22px] bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] focus:outline-none sm:p-5"
+    >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">New ticket</h2>
@@ -260,13 +322,14 @@ function NewTicketForm({
 
         <div className="grid gap-3">
           <TextInput
+            id="ticket-subject"
             label="Subject"
             placeholder="Short summary of the problem"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             error={subjectError}
             autoComplete="off"
-            className="scroll-mt-16"
+            className="scroll-mt-24"
           />
 
           {categoriesLoading ? (
@@ -283,11 +346,12 @@ function NewTicketForm({
             </div>
           ) : (
             <Select
+              id="ticket-category"
               label="Category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               error={categoryError}
-              className="scroll-mt-16"
+              className="scroll-mt-24"
             >
               <option value="">Choose a category</option>
               {categories.map((c) => (
@@ -298,25 +362,25 @@ function NewTicketForm({
             </Select>
           )}
 
-          <Select
-            label="Priority"
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            className="scroll-mt-16"
-          >
-            {PRIORITIES.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </Select>
+          {/* The priority is three choices: a strip of buttons is easier to
+              hit than a dropdown on a phone. */}
+          <div className="grid gap-2">
+            <p className="px-1 text-[13.5px] font-bold text-ink">Priority</p>
+            <Segmented
+              role="group"
+              ariaLabel="Priority"
+              options={PRIORITIES}
+              value={priority}
+              onChange={setPriority}
+            />
+          </div>
 
           <Select
             label="Related instance"
             hint="Optional. Links the ticket to one of your apps or databases."
             value={instanceId}
             onChange={(e) => setInstanceId(e.target.value)}
-            className="scroll-mt-16"
+            className="scroll-mt-24"
           >
             <option value="">No related instance</option>
             {instances.data?.instances.map((i) => (
@@ -327,13 +391,14 @@ function NewTicketForm({
           </Select>
 
           <TextArea
+            id="ticket-message"
             label="Message"
             placeholder="What did you expect, and what happened instead?"
             rows={5}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             error={bodyError}
-            className="scroll-mt-16"
+            className="scroll-mt-24"
           />
 
           {create.error && (
@@ -351,7 +416,6 @@ function NewTicketForm({
             </PrimaryButton>
           </div>
         </div>
-      </div>
-    </>
+    </div>
   );
 }

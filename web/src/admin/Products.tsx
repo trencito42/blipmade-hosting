@@ -119,6 +119,7 @@ export default function Products() {
       <Panel
         title="Catalog"
         description="Apps and databases that customers can buy. Visibility controls the catalog, deployable controls ordering."
+        actionBelow
         action={
           mayWrite ? (
             <button type="button" onClick={() => setCreating((value) => !value)} aria-expanded={creating} className={densePrimary}>
@@ -469,7 +470,7 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="What the customer gets with this app."
-          className="w-full scroll-mt-16 rounded-2xl bg-s3 p-3 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-line"
+          className="w-full scroll-mt-24 rounded-2xl bg-s3 p-3 text-[16px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-line lg:text-[14px]"
         />
       </Field>
 

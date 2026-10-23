@@ -25,6 +25,55 @@ import logo from './logo.svg';
 
 // --- layout ---------------------------------------------------------------
 
+/**
+ * A strip that scrolls sideways on purpose: filters, chips, a stepper.
+ *
+ * The strip scrolls inside its own box, so the page never scrolls sideways.
+ * The scrollbar of the design system stays out of the way, but the strip still
+ * says that it scrolls: the right edge fades out, so the finger can see that
+ * there is more to the side.
+ *
+ * The items of the strip must not shrink (`shrink-0`), otherwise the strip
+ * would squeeze them instead of scrolling.
+ */
+export function ScrollRow({
+  children,
+  className,
+  innerClassName,
+  surface = 'bg',
+  label,
+}: {
+  children: ReactNode;
+  className?: string;
+  innerClassName?: string;
+  /** The surface the strip lies on: the fade has to end in that colour. */
+  surface?: 'bg' | 's1';
+  label?: string;
+}) {
+  return (
+    <div className={cn('relative min-w-0', className)}>
+      <div
+        {...(label ? { role: 'group', 'aria-label': label } : {})}
+        className={cn(
+          // No gap in the base: the caller asks for the gap it needs, so two
+          // different gaps never fight over the same property.
+          'flex min-w-0 overflow-x-auto overscroll-x-contain bm-hide-scroll',
+          innerClassName,
+        )}
+      >
+        {children}
+      </div>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l to-transparent',
+          surface === 's1' ? 'from-s1' : 'from-bg',
+        )}
+      />
+    </div>
+  );
+}
+
 export interface NavEntry {
   to: string;
   label: string;
@@ -107,18 +156,39 @@ export function AppShell({
 
   // The sheet is a dialog: it closes with Escape and returns the focus to the
   // button that opened it.
+  const closeMore = useCallback(() => {
+    setMoreOpen(false);
+    moreButton.current?.focus();
+  }, []);
+
   useEffect(() => {
     if (!moreOpen) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setMoreOpen(false);
-        moreButton.current?.focus();
+        closeMore();
+        return;
+      }
+      // The focus stays inside the sheet while it is open.
+      if (event.key !== 'Tab') return;
+      const panel = sheet.current;
+      if (!panel) return;
+      const focusable = panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !panel.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
     document.addEventListener('keydown', onKey);
     sheet.current?.querySelector<HTMLElement>('a, button')?.focus();
     return () => document.removeEventListener('keydown', onKey);
-  }, [moreOpen]);
+  }, [moreOpen, closeMore]);
 
   return (
     <div className="min-h-[100svh] bg-bg">
@@ -169,7 +239,9 @@ export function AppShell({
               <h1 className="truncate text-[19px] font-extrabold tracking-[-0.04em] text-ink sm:text-[22px]">{title}</h1>
               {subtitle && <p className="truncate text-[13px] text-ink3">{subtitle}</p>}
             </div>
-            <div className="flex shrink-0 items-center gap-2">{actions}</div>
+            {/* The action of the bar is a touch target on a phone, so it
+                grows to 44px there and keeps its dense look on a desktop. */}
+            <div className="flex shrink-0 items-center gap-2 [&_a]:min-h-11 lg:[&_a]:min-h-0">{actions}</div>
           </header>
 
           {/* The phone tab bar is 71px tall plus the safe area of the phone
@@ -241,7 +313,7 @@ export function AppShell({
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
             className="absolute inset-0 bg-bg/80"
-            onClick={() => setMoreOpen(false)}
+            onClick={closeMore}
             aria-hidden="true"
           />
           <div
@@ -256,10 +328,7 @@ export function AppShell({
               <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">All pages</h2>
               <button
                 type="button"
-                onClick={() => {
-                  setMoreOpen(false);
-                  moreButton.current?.focus();
-                }}
+                onClick={closeMore}
                 aria-label="Close"
                 className="grid h-11 w-11 place-items-center rounded-full bg-s3 text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
               >
@@ -301,6 +370,7 @@ export function Panel({
   children,
   className,
   tone,
+  actionBelow,
 }: {
   title?: string;
   description?: string;
@@ -308,16 +378,28 @@ export function Panel({
   children: ReactNode;
   className?: string;
   tone?: 'default' | 'accent';
+  /**
+   * Puts the action under the title on a phone, where the header row is too
+   * narrow for a title and a button side by side.
+   */
+  actionBelow?: boolean;
 }) {
   return (
     <section className={cn('rounded-[22px] p-4 sm:p-5', tone === 'accent' ? 'bg-acc-bg' : 'bg-s1', className)}>
       {(title || action) && (
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div
+          className={cn(
+            'mb-4 flex gap-3',
+            actionBelow ? 'flex-col items-stretch sm:flex-row sm:items-start' : 'items-start justify-between',
+          )}
+        >
           <div className="min-w-0">
             {title && <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">{title}</h2>}
             {description && <p className="mt-1 text-[13.5px] text-ink2">{description}</p>}
           </div>
-          {action && <div className="shrink-0">{action}</div>}
+          {action && (
+            <div className={cn('shrink-0', actionBelow && '[&>*]:w-full sm:[&>*]:w-auto')}>{action}</div>
+          )}
         </div>
       )}
       {children}
@@ -329,7 +411,7 @@ export function StatTile({ label, value, hint }: { label: string; value: ReactNo
   return (
     <div className="rounded-2xl bg-s2 p-4">
       <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">{label}</p>
-      <p className="mt-1 font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-ink">{value}</p>
+      <p className="mt-1 break-words font-mono text-[22px] font-semibold leading-tight tracking-[-0.03em] tabular-nums text-ink">{value}</p>
       {hint && <p className="mt-1 text-[12.5px] text-ink3">{hint}</p>}
     </div>
   );
@@ -402,12 +484,14 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl bg-s2 px-5 py-8 text-center sm:py-10">
+    // One short line of what is missing, one action, and the facts that help.
+    // The action fills the width of a phone, so it is within reach of a thumb.
+    <div className="rounded-2xl bg-s2 px-4 py-6 text-center sm:px-5 sm:py-8">
       <p className="break-words text-[16px] font-extrabold tracking-[-0.02em] text-ink">{title}</p>
       {description && (
         <p className="mx-auto mt-1.5 max-w-[38ch] break-words text-[14px] leading-relaxed text-ink2">{description}</p>
       )}
-      {action && <div className="mt-4 flex justify-center [&>*]:max-w-full">{action}</div>}
+      {action && <div className="mt-4 flex justify-center [&>*]:w-full sm:[&>*]:w-auto">{action}</div>}
     </div>
   );
 }
@@ -662,7 +746,7 @@ export function Select({
 export function PrimaryButton({
   children,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) {
+}: React.ComponentProps<'button'> & { children: ReactNode }) {
   return (
     <button
       {...props}
@@ -679,7 +763,7 @@ export function PrimaryButton({
 export function SoftButton({
   children,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) {
+}: React.ComponentProps<'button'> & { children: ReactNode }) {
   return (
     <button
       {...props}
@@ -696,7 +780,7 @@ export function SoftButton({
 export function DangerButton({
   children,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) {
+}: React.ComponentProps<'button'> & { children: ReactNode }) {
   return (
     <button
       {...props}
@@ -715,31 +799,51 @@ export function Segmented<T extends string>({
   value,
   onChange,
   ariaLabel,
+  surface = 'bg',
+  role = 'tablist',
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   ariaLabel: string;
+  surface?: 'bg' | 's1';
+  /**
+   * A strip of tabs is a tablist. A strip that chooses a value inside a form
+   * is a group of pressed buttons, and says so.
+   */
+  role?: 'tablist' | 'group';
 }) {
+  const isTabs = role === 'tablist';
   return (
-    // The segments wrap onto a second row on a narrow phone, so no label is
-    // cut and the strip never scrolls the page sideways.
-    <div role="tablist" aria-label={ariaLabel} className="flex min-w-0 flex-wrap gap-1.5">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          role="tab"
-          aria-selected={option.value === value}
-          onClick={() => onChange(option.value)}
-          className={cn(
-            'h-11 max-w-full shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4',
-            option.value === value ? 'bg-ink text-bg' : 'bg-s2 text-ink2 hover:bg-s3 hover:text-ink',
-          )}
-        >
-          {option.label}
-        </button>
-      ))}
+    // On a narrow phone the segments stay in one row and the strip scrolls
+    // sideways, with the edge fading out. On a wider screen the segments
+    // wrap onto a second row, so no label is cut.
+    <div role={role} aria-label={ariaLabel} className="relative min-w-0">
+      <div className="flex min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain bm-hide-scroll sm:flex-wrap sm:overflow-visible">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role={isTabs ? 'tab' : undefined}
+            aria-selected={isTabs ? option.value === value : undefined}
+            aria-pressed={isTabs ? undefined : option.value === value}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              'h-11 max-w-full shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4',
+              option.value === value ? 'bg-ink text-bg' : 'bg-s2 text-ink2 hover:bg-s3 hover:text-ink',
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l to-transparent sm:hidden',
+          surface === 's1' ? 'from-s1' : 'from-bg',
+        )}
+      />
     </div>
   );
 }
@@ -813,20 +917,50 @@ export function ConfirmDialog({
   const [typed, setTyped] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const openerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       setTyped('');
       return;
     }
+    // The control that opened the dialog keeps the focus, so it can be given
+    // back when the dialog closes.
+    openerRef.current = document.activeElement as HTMLElement | null;
     // The focus goes to the panel, so the dialog is announced and the action
     // is not focused before it can be used.
     panelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') {
+        onCancel();
+        return;
+      }
+      // The focus stays inside the dialog: Tab walks the actions of the
+      // dialog and comes back to the first one.
+      if (e.key !== 'Tab') return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     addEventListener('keydown', onKey);
-    return () => removeEventListener('keydown', onKey);
+    return () => {
+      removeEventListener('keydown', onKey);
+      // The focus goes back to the control that opened the dialog.
+      openerRef.current?.focus?.();
+    };
   }, [open, onCancel]);
 
   // The page behind the dialog must not scroll.
@@ -845,7 +979,12 @@ export function ConfirmDialog({
   const blocked = Boolean(requireText) && typed.trim() !== requireText;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-3 sm:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-3"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
       <div
         ref={panelRef}
         tabIndex={-1}

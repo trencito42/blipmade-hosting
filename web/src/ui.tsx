@@ -27,6 +27,20 @@ export function Headline({ as = 'h2', lines, className, hidden }: { as?: 'h1' | 
   );
 }
 
+/**
+ * The look of a slider.
+ *
+ * The control is 44px tall and the track is drawn inside that height, so the
+ * finger has room to drag it on a phone. The thumb keeps the size it had.
+ */
+export const rangeInput =
+  'h-11 w-full cursor-pointer appearance-none bg-transparent ' +
+  '[&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-s3 ' +
+  '[&::-webkit-slider-thumb]:mt-[-10px] [&::-webkit-slider-thumb]:size-7 [&::-webkit-slider-thumb]:appearance-none ' +
+  '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-s1 [&::-webkit-slider-thumb]:bg-acc ' +
+  '[&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-s3 ' +
+  '[&::-moz-range-thumb]:size-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-s1 [&::-moz-range-thumb]:bg-acc';
+
 export const Eyebrow = ({ children, className }: { children: ReactNode; className?: string }) => (
   <span className={cn('font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-acc', className)}>{children}</span>
 );

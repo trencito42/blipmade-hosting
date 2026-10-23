@@ -4,6 +4,103 @@ import { prisma } from '../db.js';
 import { requireAuth } from '../plugins/auth.js';
 import { cancelSubscription, createBillingPortal, resumeSubscription } from '../services/stripe.js';
 import { notFound } from '../lib/errors.js';
+import {
+  formatAmount,
+  formatDate,
+  invoiceFailedTemplate,
+  invoicePaidTemplate,
+  subscriptionChangedTemplate,
+  type EmailTemplate,
+} from '../lib/email-templates.js';
+import { dispatchEmail } from '../services/queue.js';
+
+/**
+ * Sends a message about the billing.
+ *
+ * The message goes through the queue, so the request is never held up by the
+ * relay. A message that cannot be sent never breaks the request that
+ * triggered it.
+ */
+async function sendBillingMail(kind: string, key: string, to: string, template: EmailTemplate): Promise<void> {
+  try {
+    await dispatchEmail({
+      key,
+      kind,
+      to,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+  } catch (error) {
+    console.error('[mail] the billing message could not be sent', (error as Error).message);
+  }
+}
+
+/**
+ * Tells the customer that an invoice was paid.
+ *
+ * The function is exported so the webhook of the payment provider can call it
+ * when an invoice changes.
+ */
+export async function notifyInvoicePaid(input: {
+  key: string;
+  email: string;
+  number: string;
+  /** The amount in the smallest unit, the way the platform stores money. */
+  amount: number;
+  currency: string;
+  periodEnd?: Date | null;
+}): Promise<void> {
+  const template = invoicePaidTemplate({
+    number: input.number,
+    amount: formatAmount(input.amount, input.currency),
+    periodEnd: formatDate(input.periodEnd),
+  });
+  await sendBillingMail('invoice-paid', input.key, input.email, template);
+}
+
+/**
+ * Tells the customer that an invoice could not be paid.
+ *
+ * The function is exported so the webhook of the payment provider can call it
+ * when an invoice changes.
+ */
+export async function notifyInvoiceFailed(input: {
+  key: string;
+  email: string;
+  number: string;
+  /** The amount in the smallest unit, the way the platform stores money. */
+  amount: number;
+  currency: string;
+  periodEnd?: Date | null;
+  reason?: string | null;
+}): Promise<void> {
+  const template = invoiceFailedTemplate({
+    number: input.number,
+    amount: formatAmount(input.amount, input.currency),
+    periodEnd: formatDate(input.periodEnd),
+    reason: input.reason ?? null,
+  });
+  await sendBillingMail('invoice-failed', input.key, input.email, template);
+}
+
+/** Tells the customer that the subscription of a service changed. */
+export async function notifySubscriptionChange(input: {
+  key: string;
+  email: string;
+  instanceName: string;
+  status: string;
+  periodEnd?: Date | null;
+  cancelAtPeriodEnd: boolean;
+}): Promise<void> {
+  const template = subscriptionChangedTemplate({
+    instanceName: input.instanceName,
+    status: input.status,
+    periodEnd: formatDate(input.periodEnd),
+    cancelAtPeriodEnd: input.cancelAtPeriodEnd,
+  });
+  await sendBillingMail('subscription', input.key, input.email, template);
+}
 
 export async function registerBillingRoutes(app: FastifyInstance): Promise<void> {
   app.get('/billing/summary', async (request: FastifyRequest) => {
@@ -94,10 +191,21 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
   app.post('/billing/subscriptions/:id/cancel', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const subscription = await prisma.subscription.findFirst({ where: { id, userId: user.id } });
+    const subscription = await prisma.subscription.findFirst({
+      where: { id, userId: user.id },
+      include: { user: { select: { email: true } }, instance: { select: { name: true } } },
+    });
     if (!subscription) throw notFound('Subscription not found.');
 
     const updated = await cancelSubscription(subscription);
+    await notifySubscriptionChange({
+      key: `subscription-${subscription.id}-${updated.updatedAt.getTime()}`,
+      email: subscription.user.email,
+      instanceName: subscription.instance?.name ?? 'your service',
+      status: 'cancelled at the end of the paid period',
+      periodEnd: updated.currentPeriodEnd,
+      cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+    });
     return {
       subscription: {
         id: updated.id,
@@ -111,10 +219,21 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
   app.post('/billing/subscriptions/:id/resume', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const subscription = await prisma.subscription.findFirst({ where: { id, userId: user.id } });
+    const subscription = await prisma.subscription.findFirst({
+      where: { id, userId: user.id },
+      include: { user: { select: { email: true } }, instance: { select: { name: true } } },
+    });
     if (!subscription) throw notFound('Subscription not found.');
 
     const updated = await resumeSubscription(subscription);
+    await notifySubscriptionChange({
+      key: `subscription-${subscription.id}-${updated.updatedAt.getTime()}`,
+      email: subscription.user.email,
+      instanceName: subscription.instance?.name ?? 'your service',
+      status: 'active',
+      periodEnd: updated.currentPeriodEnd,
+      cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+    });
     return {
       subscription: {
         id: updated.id,

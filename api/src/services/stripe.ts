@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { env } from '../env.js';
 import { prisma } from '../db.js';
-import { badRequest, unavailable } from '../lib/errors.js';
+import { AppError, badRequest, unavailable } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
 
@@ -23,9 +23,96 @@ export function stripeLive(): boolean {
  * no Stripe credentials exist so the order -> payment -> provisioning flow can
  * still be exercised end to end, with data kept strictly separate from real
  * billing.
+ *
+ * The gateway is only a stand-in for the flow of the tests and of a local
+ * installation, never of the live site: `STRIPE_TEST_MODE=false` turns it off,
+ * so an environment that has no Stripe key at all behaves like the live site
+ * and says that payments are not available.
  */
 export function stripeTestGateway(): boolean {
+  // The local gateway stands in for Stripe while the tests and a local
+  // installation run. A live site never uses it: there, the absence of a
+  // Stripe key means that payments are not available and that a webhook
+  // without a signature is refused. Without this rule anybody could send a
+  // signed-look-alike event to the webhook of the live site and have an
+  // order marked as paid.
+  if (process.env.NODE_ENV === 'production') return false;
+  if (process.env.STRIPE_TEST_MODE === 'false') return false;
   return !env.stripeEnabled && (env.isTest || process.env.STRIPE_TEST_MODE === 'true');
+}
+
+/**
+ * The origin every outward link is built from.
+ *
+ * The public origin of the site (`PUBLIC_WEB_URL`) is the only source of the
+ * links a customer follows. The address of the API is never used for them: a
+ * checkout that points at `127.0.0.1` sends the customer to the server itself.
+ * When the origin is not usable the request fails with a clear error instead
+ * of building a broken link.
+ */
+function publicOrigin(): string {
+  const origin = env.publicWebUrl;
+  if (!origin) {
+    throw new AppError(500, 'public_origin_missing', 'The public origin of the site is not configured.');
+  }
+  let address: URL;
+  try {
+    address = new URL(origin);
+  } catch {
+    throw new AppError(500, 'public_origin_invalid', `The public origin of the site ("${origin}") is not a valid address.`);
+  }
+  if (address.protocol !== 'http:' && address.protocol !== 'https:') {
+    throw new AppError(500, 'public_origin_invalid', `The public origin of the site ("${origin}") is not an http address.`);
+  }
+  return origin.replace(/\/+$/, '');
+}
+
+export interface PaymentState {
+  /** True when a real payment can be taken. */
+  enabled: boolean;
+  /** True when the local test gateway stands in for Stripe. */
+  simulated: boolean;
+  /** Why no payment is possible, or null when it is. */
+  reason: string | null;
+}
+
+/**
+ * The state of the payments of this environment.
+ *
+ * Payments are only possible when the operator turns them on and a Stripe key
+ * is present. Until then the answer says so, instead of pretending that a
+ * payment can be taken.
+ */
+export function paymentState(): PaymentState {
+  if (env.paymentsEnabled) {
+    return { enabled: true, simulated: false, reason: null };
+  }
+  if (stripeTestGateway()) {
+    return {
+      enabled: false,
+      simulated: true,
+      reason: 'The local test gateway is in use, so no real payment is taken.',
+    };
+  }
+  return {
+    enabled: false,
+    simulated: false,
+    reason: env.stripeEnabled
+      ? 'Payments are not available at the moment: payments are turned off on this environment.'
+      : 'Payments are not available at the moment: no Stripe key is configured on this environment.',
+  };
+}
+
+/**
+ * The error of a request that needs a payment while payments are off.
+ *
+ * It has a code of its own, so the client can tell it apart from a missing
+ * Stripe key and tell the customer that the payment cannot be taken now. No
+ * session is created and no link is handed out.
+ */
+export function paymentsUnavailable(): AppError {
+  const state = paymentState();
+  return new AppError(503, 'payments_unavailable', state.reason ?? 'Payments are not available at the moment.');
 }
 
 export interface CheckoutResult {
@@ -53,19 +140,19 @@ export async function findStripeCustomerId(userId: string): Promise<string | nul
  * an upgrade order is charged exactly the price difference.
  */
 export async function createCheckout(order: Order & { items: OrderItem[] }): Promise<CheckoutResult> {
-  const baseUrl = env.APP_PUBLIC_URL.replace(/\/$/, '');
-
   if (stripeTestGateway()) {
     const sessionId = `test_cs_${order.id}`;
     await prisma.order.update({ where: { id: order.id }, data: { stripeCheckoutSessionId: sessionId } });
-    const url = `${baseUrl}/app/billing?checkout=${encodeURIComponent(sessionId)}`;
+    const url = `${publicOrigin()}/app/billing?checkout=${encodeURIComponent(sessionId)}`;
     return { url, sessionId, reason: null };
   }
 
-  if (!env.stripeEnabled) {
-    return { url: null, sessionId: null, reason: 'Payment processing is not configured on this environment.' };
+  if (!env.paymentsEnabled) {
+    // Payments are off: no session is created and no link is handed out.
+    throw paymentsUnavailable();
   }
 
+  const baseUrl = publicOrigin();
   const stripe = getClient();
   const customer = await findStripeCustomerId(order.userId);
   // An upgrade is paid once, for the difference. The recurring amount of the
@@ -117,7 +204,6 @@ export async function createCheckout(order: Order & { items: OrderItem[] }): Pro
     success_url: `${baseUrl}/app/billing?checkout=success`,
     cancel_url: `${baseUrl}/app/billing?checkout=cancelled`,
   });
-
   await prisma.order.update({ where: { id: order.id }, data: { stripeCheckoutSessionId: session.id } });
   return { url: session.url, sessionId: session.id, reason: null };
 }
@@ -441,8 +527,9 @@ export async function resumeSubscription(subscription: Subscription): Promise<Su
 
 /** Opens the Stripe customer portal so a customer can manage payment methods. */
 export async function createBillingPortal(userId: string): Promise<{ url: string | null; reason: string | null }> {
-  if (!stripeLive()) {
-    return { url: null, reason: 'Payment processing is not configured on this environment.' };
+  if (!env.paymentsEnabled) {
+    // Payments are off: no session is created and no link is handed out.
+    throw paymentsUnavailable();
   }
   const customerId = await findStripeCustomerId(userId);
   if (!customerId) {
@@ -450,7 +537,7 @@ export async function createBillingPortal(userId: string): Promise<{ url: string
   }
   const session = await getClient().billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${env.APP_PUBLIC_URL.replace(/\/$/, '')}/app/billing`,
+    return_url: `${publicOrigin()}/app/billing`,
   });
   return { url: session.url, reason: null };
 }

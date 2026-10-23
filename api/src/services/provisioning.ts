@@ -2,6 +2,8 @@ import { connect } from 'node:net';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
+import { fullName } from '../lib/people.js';
+import { notifyInstanceProvisioned } from './notifications.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
@@ -659,6 +661,19 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     }
 
     await audit({ action: 'instance.provisioned', targetType: 'instance', targetId: instance.id });
+
+    // The customer hears that the service is ready. The message follows the
+    // preferences of the account and its state is the one of the mailer: while
+    // no relay is configured, it is written to a file and nobody receives it.
+    const owner = await prisma.user.findUnique({ where: { id: instance.userId } });
+    if (owner) {
+      await notifyInstanceProvisioned({
+        userId: owner.id,
+        email: owner.email,
+        name: fullName(owner),
+        instanceName: instance.name,
+      });
+    }
   } catch (error) {
     const step = error instanceof ProvisioningError ? error.step : 'server_created';
     const message = error instanceof Error ? error.message : String(error);

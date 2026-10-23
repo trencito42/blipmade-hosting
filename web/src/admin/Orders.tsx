@@ -66,6 +66,7 @@ export default function Orders() {
       <Panel
         title="Orders"
         description="Every order with its status, items and total. Amounts are minor units from the API."
+        actionBelow
         action={
           <button
             type="button"

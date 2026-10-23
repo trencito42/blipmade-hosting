@@ -2,6 +2,12 @@ import { createServer, request as httpRequest } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve, join, extname, sep } from 'node:path';
+import {
+  adobeFontsKitUrl,
+  familyNames,
+  fontSansRule,
+  orderFamilies,
+} from './fontkit.mjs';
 
 const root = resolve(process.cwd(), 'dist');
 const port = Number(process.env.SERVER_PORT || process.env.PORT || 30001);
@@ -34,30 +40,56 @@ function send(res, status, message) {
  * a stylesheet that is written into the page is loaded by every visitor, so
  * only a URL of Adobe itself may end up there.
  */
-const ADOBE_FONTS_HOSTS = ['use.typekit.net', 'p.typekit.net'];
-
-function adobeFontsKitUrl() {
-  const raw = (process.env.ADOBE_FONTS_KIT_URL || '').trim();
-  if (!raw) return null;
-  let url;
-  try {
-    url = new URL(raw);
-  } catch {
-    console.warn('ADOBE_FONTS_KIT_URL is not a URL. The Adobe Fonts web project is not loaded.');
-    return null;
-  }
-  if (url.protocol !== 'https:' || !ADOBE_FONTS_HOSTS.includes(url.host)) {
-    console.warn(
-      `ADOBE_FONTS_KIT_URL must be an https URL on ${ADOBE_FONTS_HOSTS.join(' or ')}. ` +
+const kitUrl = adobeFontsKitUrl(process.env.ADOBE_FONTS_KIT_URL);
+if (process.env.ADOBE_FONTS_KIT_URL?.trim() && !kitUrl) {
+  console.warn(
+    'ADOBE_FONTS_KIT_URL must be an https URL on use.typekit.net or p.typekit.net. ' +
       'The Adobe Fonts web project is not loaded.',
-    );
-    return null;
+  );
+}
+if (kitUrl) console.log(`Adobe Fonts web project: ${kitUrl.origin}${kitUrl.pathname}`);
+
+/**
+ * The name of the family the kit declares.
+ *
+ * The stylesheet of the kit is the only place where the name is written down,
+ * so it is read once, when the server starts. A kit that cannot be read does
+ * not stop the server: the interface keeps the fallback of the bundle, which
+ * asks for proxima nova by name and then for Geist.
+ */
+async function readKitFamilies() {
+  const written = (process.env.ADOBE_FONTS_FAMILY || '').trim();
+  if (written) {
+    console.log(`Adobe Fonts family: ${written}`);
+    return orderFamilies([], written);
   }
-  return url;
+  if (!kitUrl) return [];
+  try {
+    const response = await fetch(kitUrl.href, {
+      signal: AbortSignal.timeout(Number(process.env.ADOBE_FONTS_FETCH_TIMEOUT_MS || 8000)),
+      headers: { accept: 'text/css,*/*;q=0.1' },
+    });
+    if (!response.ok) {
+      console.warn(`The Adobe Fonts stylesheet answered ${response.status}. The name of the family is not read.`);
+      return [];
+    }
+    const css = await response.text();
+    const families = orderFamilies(familyNames(css), '');
+    if (!families.length) {
+      console.warn('The Adobe Fonts stylesheet declares no family. The name of the family is not read.');
+      return [];
+    }
+    console.log(`Adobe Fonts family: ${families.join(', ')}`);
+    return families;
+  } catch (error) {
+    console.warn(`The Adobe Fonts stylesheet could not be read: ${error.message}`);
+    return [];
+  }
 }
 
-const kitUrl = adobeFontsKitUrl();
-if (kitUrl) console.log(`Adobe Fonts web project: ${kitUrl.origin}${kitUrl.pathname}`);
+const kitFamilies = await readKitFamilies();
+const sansRule = kitFamilies.length ? fontSansRule(kitFamilies) : null;
+if (sansRule) console.log(`Interface typeface: ${sansRule}`);
 
 /**
  * The stylesheet of the kit is added to the head of the page. The kit declares
@@ -66,29 +98,38 @@ if (kitUrl) console.log(`Adobe Fonts web project: ${kitUrl.origin}${kitUrl.pathn
  * stylesheet points at the fonts.
  */
 function injectAdobeFonts(html) {
-  const tags = [
-    '<!-- Webfonts loaded by Adobe Fonts -->',
-    `<link rel="preconnect" href="${kitUrl.origin}" crossorigin>`,
-    `<link rel="stylesheet" href="${kitUrl.href}">`,
-  ].join('\n    ');
+  const tags = [];
+  if (kitUrl) {
+    tags.push('<!-- Webfonts loaded by Adobe Fonts -->');
+    tags.push(`<link rel="preconnect" href="${kitUrl.origin}" crossorigin>`);
+    tags.push(`<link rel="stylesheet" href="${kitUrl.href}">`);
+  }
+  if (sansRule) {
+    // The rule comes after the stylesheet of the bundle, so the name the kit
+    // declares is the one the interface uses.
+    tags.push('<!-- The typeface of the interface, with the name the kit declares -->');
+    tags.push(`<style>${sansRule}</style>`);
+  }
+  if (!tags.length) return html;
+  const block = tags.join('\n    ');
   const headEnd = html.search(/<\/head\s*>/i);
   if (headEnd !== -1) {
-    // The indent of the closing head tag is replaced, so the three new lines
-    // sit at the same indent as the rest of the head.
+    // The indent of the closing head tag is replaced, so the new lines sit at
+    // the same indent as the rest of the head.
     const before = html.slice(0, headEnd).replace(/\s*$/, '');
-    return before + '\n    ' + tags + '\n  ' + html.slice(headEnd);
+    return before + '\n    ' + block + '\n  ' + html.slice(headEnd);
   }
   const headStart = html.search(/<head\b[^>]*>/i);
   if (headStart !== -1) {
     const at = html.indexOf('>', headStart) + 1;
-    return html.slice(0, at) + '\n    ' + tags + '\n  ' + html.slice(at);
+    return html.slice(0, at) + '\n    ' + block + '\n  ' + html.slice(at);
   }
   const bodyStart = html.search(/<body\b[^>]*>/i);
   if (bodyStart !== -1) {
     const at = html.indexOf('>', bodyStart) + 1;
-    return html.slice(0, at) + '\n    ' + tags + '\n  ' + html.slice(at);
+    return html.slice(0, at) + '\n    ' + block + '\n  ' + html.slice(at);
   }
-  return tags + html;
+  return block + html;
 }
 
 /**
@@ -208,7 +249,7 @@ const server = createServer(async (req, res) => {
     const ext = extname(filename).toLowerCase();
     // The web project of Adobe Fonts is only loaded when the host has one.
     // Without it the page is served exactly as it is on disk.
-    if (ext === '.html' && kitUrl) {
+    if (ext === '.html' && (kitUrl || sansRule)) {
       const page = Buffer.from(injectAdobeFonts(await readFile(filename, 'utf8')), 'utf8');
       res.writeHead(200, {
         'Content-Type': types['.html'],

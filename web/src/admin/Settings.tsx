@@ -101,6 +101,7 @@ export default function Settings() {
       <Panel
         title="Settings"
         description="Feature flags and provider switches. The API stores a free key and value object."
+        actionBelow
         action={
           mayWrite ? (
             <button type="button" onClick={addRow} className={denseGhost}>

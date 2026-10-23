@@ -3,6 +3,7 @@ import { get, post, type Ticket, type TicketMessage } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useParams, Link } from '../router';
 import { useSession } from '../session';
+import { cn } from '../lib';
 import {
   ErrorState,
   LoadingBlock,
@@ -220,6 +221,7 @@ export default function TicketDetail() {
                 toast.push('Ticket status updated', 'ok');
               }}
               disabled={changeStatus.pending || !statusChoice || statusChoice === ticket.status}
+              className="w-full sm:w-auto"
             >
               {changeStatus.pending ? 'Saving…' : 'Update status'}
             </PrimaryButton>
@@ -240,7 +242,16 @@ export default function TicketDetail() {
         ) : (
           <ul className="grid gap-2.5">
             {messages.map((message) => (
-              <li key={message.id} className="rounded-2xl bg-s2 p-4">
+              <li
+                key={message.id}
+                className={cn(
+                  'rounded-2xl p-4',
+                  // The message of the customer sits on the accent surface, so
+                  // the thread can be read on a phone without reading the
+                  // names first.
+                  user?.id && message.author.id === user.id ? 'bg-acc-bg' : 'bg-s2',
+                )}
+              >
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <p className="text-[14.5px] font-bold text-ink">{authorName(message, user?.id ?? null)}</p>
                   <span className="rounded-full bg-s3 px-2.5 py-0.5 text-[11.5px] font-bold text-ink2">
@@ -312,8 +323,8 @@ export default function TicketDetail() {
             </p>
           )}
 
-          <div className="flex justify-end">
-            <PrimaryButton onClick={submitReply} disabled={reply.pending}>
+          <div className="flex sm:justify-end">
+            <PrimaryButton onClick={submitReply} disabled={reply.pending} className="w-full sm:w-auto">
               {reply.pending ? 'Sending…' : 'Send reply'}
             </PrimaryButton>
           </div>
@@ -321,7 +332,10 @@ export default function TicketDetail() {
       </Panel>
 
       <p className="px-1 text-[13.5px] text-ink3">
-        <Link to="/app/tickets" className="font-bold text-acc hover:underline">
+        <Link
+          to="/app/tickets"
+          className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+        >
           Back to your tickets
         </Link>
       </p>

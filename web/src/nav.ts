@@ -1,21 +1,23 @@
 import type { NavEntry } from './ui-app';
 
-export const CUSTOMER_NAV: NavEntry[] = [
-  { to: '/app', label: 'Overview', shortLabel: 'Overview', icon: 'box', exact: true },
-  { to: '/app/instances', label: 'Apps & databases', shortLabel: 'Apps', icon: 'rocket' },
-  { to: '/app/domains', label: 'Domains', shortLabel: 'Domains', icon: 'globe' },
-  { to: '/app/billing', label: 'Billing', shortLabel: 'Billing', icon: 'card' },
-  { to: '/app/tickets', label: 'Support', shortLabel: 'Support', icon: 'doc' },
-  { to: '/app/settings', label: 'Settings', shortLabel: 'Settings', icon: 'shield' },
-];
+/**
+ * The navigation of the customer area.
+ *
+ * "Deploy" is a section of its own: the customer picks a product there, and
+ * the choice belongs to them. Every other entry is a place of the account.
+ */
+const OVERVIEW: NavEntry = { to: '/app', label: 'Overview', shortLabel: 'Overview', icon: 'chart', exact: true };
+const DEPLOY: NavEntry = { to: '/app/deploy', label: 'Deploy', shortLabel: 'Deploy', icon: 'rocket' };
+const INSTANCES: NavEntry = { to: '/app/instances', label: 'Apps & databases', shortLabel: 'Apps', icon: 'box' };
+const DOMAINS: NavEntry = { to: '/app/domains', label: 'Domains', shortLabel: 'Domains', icon: 'globe' };
+const BILLING: NavEntry = { to: '/app/billing', label: 'Billing', shortLabel: 'Billing', icon: 'card' };
+const SUPPORT: NavEntry = { to: '/app/tickets', label: 'Support', shortLabel: 'Support', icon: 'doc' };
+const SETTINGS: NavEntry = { to: '/app/settings', label: 'Settings', shortLabel: 'Settings', icon: 'shield' };
+
+export const CUSTOMER_NAV: NavEntry[] = [OVERVIEW, DEPLOY, INSTANCES, DOMAINS, BILLING, SUPPORT, SETTINGS];
 
 /** Phone bottom bar: Overview, Apps, Billing, Support. */
-export const CUSTOMER_PHONE_TABS: NavEntry[] = [
-  CUSTOMER_NAV[0]!,
-  CUSTOMER_NAV[1]!,
-  CUSTOMER_NAV[3]!,
-  CUSTOMER_NAV[4]!,
-];
+export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, INSTANCES, BILLING, SUPPORT];
 
 export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin', label: 'Dashboard', shortLabel: 'Home', icon: 'chart', exact: true },

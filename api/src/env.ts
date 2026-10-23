@@ -59,6 +59,20 @@ const schema = z.object({
 
   SMTP_URL: z.string().default(''),
   MAIL_FROM: z.string().default('Blipmade <no-reply@blipmade.com>'),
+  /** The inbox that receives the notifications about new support tickets. */
+  MAIL_SUPPORT_EMAIL: z.string().default('support@blipmade.com'),
+  /**
+   * The public origin of the site. Every link that leaves the system, in an
+   * email or in a checkout, is built from it. Nothing is ever derived from
+   * the host of the request, so a link can never point at a local address.
+   */
+  PUBLIC_WEB_URL: z.string().default('https://blipmade.com'),
+  /**
+   * Payments are only possible when the operator turns them on and a Stripe
+   * key is present. Until then the checkout says that it is not available,
+   * instead of pretending that it works.
+   */
+  PAYMENTS_ENABLED: bool(false),
 
   INTERNAL_API_TOKEN: z.string().default(''),
   BLIPMADE_INTERNAL_API_TOKEN: z.string().default(''),
@@ -111,6 +125,15 @@ export const env = {
         ? false
         : raw.APP_ORIGIN.startsWith('https://'),
   stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
+  /**
+   * The origin every outward link is built from, without a trailing slash.
+   */
+  publicWebUrl: raw.PUBLIC_WEB_URL.replace(/\/+$/, ''),
+  /**
+   * True when a checkout can actually be started: payments are turned on and
+   * a Stripe key is configured.
+   */
+  paymentsEnabled: raw.PAYMENTS_ENABLED && raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   mailEnabled: Boolean(raw.SMTP_URL),
   pterodactylEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_APP_KEY),
   /**

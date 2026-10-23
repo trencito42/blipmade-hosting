@@ -1978,7 +1978,8 @@ www   CNAME @`,
           {
             t: 'code',
             lang: 'bash',
-            code: `# the API answers 204 either way, so nobody can learn whether the address exists
+            code: `# the API answers the same way either way, so nobody can learn whether the address exists
+# and it says whether the message could really be sent
 curl -X POST "$BASE/api/auth/forgot-password" \\
   -H "Content-Type: application/json" \\
   -d '{"email":"you@example.com"}'`,
@@ -2303,7 +2304,7 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
           type="button"
           onClick={copy}
           aria-label={copied ? 'Code copied to the clipboard' : 'Copy the code to the clipboard'}
-          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-s3 px-3 text-[12.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-s3 px-3 text-[12.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:h-9 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
         >
           <Icon name={copied ? 'check' : 'doc'} size={14} />
           {copied ? 'Copied' : 'Copy'}
@@ -2450,9 +2451,42 @@ export default function Docs() {
   const [term, setTerm] = useState('');
   const [contentsOpen, setContentsOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const contentsButton = useRef<HTMLButtonElement>(null);
+  const contentsSheet = useRef<HTMLDivElement>(null);
 
   const pageId = query.p || PAGES[0]!.id;
   const page = PAGE_BY_ID.get(pageId) ?? PAGES[0]!;
+
+  // The list of contents is a dialog on a phone: the focus goes into it, it
+  // closes with Escape and the focus goes back to the button that opened it.
+  useEffect(() => {
+    if (!contentsOpen) return;
+    const panel = contentsSheet.current;
+    panel?.querySelector<HTMLElement>('a[href], button:not([disabled])')?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setContentsOpen(false);
+        contentsButton.current?.focus();
+        return;
+      }
+      if (event.key !== 'Tab' || !panel) return;
+      const focusable = panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !panel.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [contentsOpen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -2557,6 +2591,7 @@ export default function Docs() {
                 Home
               </Link>
               <button
+                ref={contentsButton}
                 type="button"
                 onClick={() => setContentsOpen(true)}
                 aria-expanded={contentsOpen}
@@ -2651,7 +2686,8 @@ export default function Docs() {
 
       {contentsOpen && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-bg px-4 pb-12 pt-4 lg:hidden"
+          ref={contentsSheet}
+          className="fixed inset-0 z-50 overflow-y-auto bg-bg px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-label="Documentation contents"
@@ -2660,7 +2696,10 @@ export default function Docs() {
             <p className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">Contents</p>
             <button
               type="button"
-              onClick={() => setContentsOpen(false)}
+              onClick={() => {
+                setContentsOpen(false);
+                contentsButton.current?.focus();
+              }}
               aria-label="Close the contents"
               className="grid size-11 place-items-center rounded-full bg-s2 text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
@@ -2683,7 +2722,13 @@ export default function Docs() {
               Home
             </Link>
           </nav>
-          <NavTree activeId={page.id} onNavigate={() => setContentsOpen(false)} />
+          <NavTree
+            activeId={page.id}
+            onNavigate={() => {
+              setContentsOpen(false);
+              contentsButton.current?.focus();
+            }}
+          />
         </div>
       )}
     </div>

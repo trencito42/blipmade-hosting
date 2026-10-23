@@ -232,8 +232,10 @@ it is invalid. The values below are the placeholders, never a real value.
 | `REDIS_URL` | The Redis connection string. | no | **yes**, if it carries a password | `redis://127.0.0.1:6379` |
 | `SESSION_SECRET` | Signs the session cookie, the CSRF token and the encrypted client key of a customer. At least 16 characters. | **yes** | **yes** | `<redacted>` |
 | `APP_ORIGIN` | The origin the browser uses. It is the only allowed CORS origin. | no | no | `http://localhost:5173` |
-| `APP_PUBLIC_URL` | The public address of the platform, used in the links of the emails. | no | no | `http://localhost:5173` |
-| `COOKIE_SECURE` | `true`, `false` or unset. Unset follows `APP_ORIGIN`. | no | no | unset |
+| `APP_PUBLIC_URL` | The public address of the platform. | no | no | `http://localhost:5173` |
+| `PUBLIC_WEB_URL` | The canonical public origin of the site. Every link of an email and every address of a checkout is built from it. | no | no | `https://blipmade.com` |
+| `PAYMENTS_ENABLED` | `true` or `false`. While it is `false`, a checkout answers that payments are not available instead of starting one. | no | no | `false` |
+| `COOKIE_SECURE` | `true`, `false` or unset. Unset follows the protocol of the request. | no | no | unset |
 | `PTERODACTYL_URL` | The address of the Pterodactyl panel. | for provisioning | no | `<redacted>` |
 | `PTERODACTYL_APP_KEY` | The administrative key of the panel. | for provisioning | **yes** | `<redacted>` |
 | `PANEL_KEYMINT_URL` | The endpoint of the panel that issues the client key of a customer, for example `https://panel.example.com/api/blipmade/keymint`. It is the bridge of the panel, see `docs/PANEL_BRIDGE.md`. | for the customer tools | **yes** | empty |
@@ -243,6 +245,7 @@ it is invalid. The values below are the placeholders, never a real value.
 | `STRIPE_WEBHOOK_SECRET` | The signature secret of the Stripe webhook. | for real payments | **yes** | `<redacted>` |
 | `SMTP_URL` | The SMTP server. Without it the mail is written to `BACKUP_DIR/mail` instead of being sent. | for real mail | **yes** | `<redacted>` |
 | `MAIL_FROM` | The sender of the emails. | no | no | `Blipmade <no-reply@blipmade.com>` |
+| `MAIL_SUPPORT_EMAIL` | The inbox that receives the notifications about new support tickets. | no | no | `support@blipmade.com` |
 | `INTERNAL_API_TOKEN` | The token of the internal service calls. `BLIPMADE_INTERNAL_API_TOKEN` is accepted as an alias. | no | **yes** | `<redacted>` |
 | `ADMIN_ENROLLMENT_KEY` | The key that admits the first administrator. | for the first setup | **yes** | `<redacted>` |
 | `BACKUP_DIR` | Where the backups and the mail spool are written. | no | no | `/var/backups/blipmade` |
@@ -259,6 +262,7 @@ it is invalid. The values below are the placeholders, never a real value.
 | `API_URL` | Where the web container proxies `/api` to. | no | no | `http://api:3100` |
 | `SERVER_PORT` | The port the web container listens on. | no | no | `3000` |
 | `ADOBE_FONTS_KIT_URL` | The Adobe Fonts **web** project of proxima nova, for example `https://use.typekit.net/abcd1234.css`. Only `use.typekit.net` and `p.typekit.net` are accepted. Empty keeps the Geist fallback. | no | no | empty |
+| `ADOBE_FONTS_FAMILY` | The name of the family exactly as Adobe writes it, for example `proxima-nova`. When it is empty the server reads the name from the stylesheet of the kit. | no | no | empty |
 
 ### The backup scripts
 

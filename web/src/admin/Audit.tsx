@@ -65,6 +65,7 @@ export default function Audit() {
       <Panel
         title="Audit log"
         description="Every staff action the API recorded, newest first. Actor and action match on part of the text."
+        actionBelow
         action={
           <button
             type="button"

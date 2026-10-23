@@ -20,6 +20,7 @@ import { registerInstanceRoutes } from './routes/instances.js';
 import { registerInstanceServerRoutes } from './routes/instance-server.js';
 import { registerDomainRoutes } from './routes/domains.js';
 import { registerTicketRoutes } from './routes/tickets.js';
+import { registerSettingsRoutes } from './routes/settings.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerHealthRoutes, registerStatusRoutes } from './routes/health.js';
@@ -138,6 +139,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerInstanceServerRoutes(api);
       await registerDomainRoutes(api);
       await registerTicketRoutes(api);
+      await registerSettingsRoutes(api);
       await registerAdminRoutes(api);
       await registerWebhookRoutes(api);
     },

@@ -6,12 +6,14 @@ import { Eyebrow, Headline, Wrap } from '../ui';
 function Tile({ icon, title, text, className, children, delay = 0 }: { icon: IconName; title: string; text: string; className?: string; children: (seen: boolean) => ReactNode; delay?: number }) {
   const [ref, seen] = useInView<HTMLDivElement>('0px 0px -8% 0px');
   return (
-    <div ref={ref} data-in={seen ? '' : undefined} style={{ '--d': delay } as React.CSSProperties} className={cn('rv grid content-between gap-6 rounded-[28px] bg-s1 p-6 sm:p-7', className)}>
+    <div ref={ref} data-in={seen ? '' : undefined} style={{ '--d': delay } as React.CSSProperties} className={cn('rv grid min-w-0 content-between gap-6 rounded-[28px] bg-s1 p-6 sm:p-7', className)}>
       <div className="grid gap-3">
         <span className="grid size-11 place-items-center rounded-2xl bg-s3 text-acc"><Icon name={icon} size={20} /></span>
         <div><p className="text-[clamp(26px,2.6vw,34px)] font-extrabold leading-none tracking-[-0.055em]">{title}</p><p className="mt-2 max-w-sm text-[15px] text-ink2">{text}</p></div>
       </div>
-      <div aria-hidden="true">{children(seen)}</div>
+      {/* The mock is a picture, not a text: it is clipped so that a long line
+          never asks the page to be wider than the screen. */}
+      <div aria-hidden="true" className="min-w-0 overflow-hidden">{children(seen)}</div>
     </div>
   );
 }
@@ -75,7 +77,7 @@ function Upgrade() {
   const ram = big ? 100 : 25;
   return (
     <div className="grid gap-3">
-      <div className="flex items-end justify-between"><div><p className="font-mono text-[12px] text-ink3">wordpress</p><p className="font-mono text-[15px]">{big ? '2 GB · 2 vCPU' : '512 MB · 1 vCPU'}</p></div><p className="font-mono text-[28px] font-semibold leading-none tracking-[-0.04em] tabular-nums">{eur(price)}</p></div>
+      <div className="flex flex-wrap items-end justify-between gap-2"><div className="min-w-0"><p className="font-mono text-[12px] text-ink3">wordpress</p><p className="font-mono text-[15px]">{big ? '2 GB · 2 vCPU' : '512 MB · 1 vCPU'}</p></div><p className="font-mono text-[28px] font-semibold leading-none tracking-[-0.04em] tabular-nums">{eur(price)}</p></div>
       <div className="h-2.5 overflow-hidden rounded-full bg-s3"><i className="block h-full rounded-full bg-acc transition-[width] duration-[320ms]" style={{ width: `${ram}%` }} /></div>
       <button type="button" onClick={() => setBig(!big)} className="h-12 rounded-full bg-s3 text-[14.5px] font-bold transition-colors duration-[180ms] hover:bg-acc hover:text-on-acc">{big ? 'Scale back down' : 'Upgrade in place'}</button>
     </div>
@@ -101,7 +103,7 @@ export function Platform() {
           <Headline lines={['One place to', 'run everything.']} className="text-[clamp(40px,7vw,100px)] leading-[0.9]" />
           <p className="text-[18px] text-ink2">Status, logs, files, domains, usage and billing for every app and database, in a single dashboard.</p>
         </div>
-        <div className="grid gap-3.5 lg:grid-cols-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5 lg:grid-cols-6">
           <Tile icon="term" title="Live logs" text="See what your app prints, as it prints it." className="lg:col-span-4" delay={0}>{(s) => <Logs seen={s} />}</Tile>
           <Tile icon="folder" title="Files" text="Browse and edit what is on disk." className="lg:col-span-2" delay={60}>{() => <Files />}</Tile>
           <Tile icon="globe" title="Domains" text="Point a domain, get SSL." className="lg:col-span-2" delay={0}>{(s) => <Domains seen={s} />}</Tile>

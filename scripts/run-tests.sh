@@ -36,6 +36,10 @@ export TEST_DATABASE_URL="$TEST_URL"
 export REDIS_URL="${REDIS_URL/redis:\/\/redis:/redis:\/\/localhost:}"
 export NODE_ENV=test
 export LOG_LEVEL="${LOG_LEVEL:-silent}"
+# The suite runs against the local gateway of Stripe, so the flows of the
+# payments can be checked without a key. The gateway is never used when
+# NODE_ENV is "production", so it cannot reach a live site.
+export STRIPE_TEST_MODE=true
 export STRIPE_SECRET_KEY=""
 export STRIPE_WEBHOOK_SECRET=""
 export STRIPE_PUBLISHABLE_KEY=""
@@ -49,4 +53,11 @@ echo "==> Generating the Prisma client"
 npx prisma generate
 
 echo "==> Running the test suite against blipmade_test"
-exec npx vitest run "$@"
+npx vitest run "$@"
+
+# The rules of the routing of the session live in the web application and are
+# checked with the test runner of Node, without a browser and without a
+# database.
+echo "==> Running the web tests"
+cd "$ROOT/web"
+node --test --experimental-strip-types tests/*.test.ts tests/*.test.mjs

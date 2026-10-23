@@ -39,7 +39,7 @@ function Shape({ t }: { t: number }) {
   const price = priceOf(W, mb, cpu, disk);
   return (
     <div className="grid gap-3">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {['512 MB', '1 GB', '1.5 GB', '2 GB'].map((l, i) => <div key={l} className={cn('rounded-full p-3 text-center font-mono text-[13px] font-medium transition-colors duration-[220ms]', i === mbi ? 'bg-ink text-bg' : 'bg-s2 text-ink3')}>{l}</div>)}
       </div>
       {([['Memory', mb / 2048, `${(mb / 1024).toFixed(1)} GB`], ['CPU', cpu / 4, `${cpu} vCPU`], ['Storage', disk / 30, `${disk} GB`]] as const).map(([l, v, d]) => (
@@ -99,7 +99,7 @@ export function Story() {
   if (reduced) {
     return (
       <section id="how" aria-label="How it works" className="py-24"><Wrap className="grid gap-12">{head}
-        <ol className="grid gap-5 lg:grid-cols-3">{CHAPTERS.map((c, i) => <li key={c.id} className="grid gap-4 rounded-[24px] bg-s1 p-6"><p className="text-[26px] font-extrabold tracking-[-0.04em]"><span className="mr-3 font-mono text-[14px] text-acc">0{i + 1}</span>{c.title}</p><p className="text-ink2">{c.text}</p>{c.scene(1)}</li>)}</ol>
+        <ol className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-3">{CHAPTERS.map((c, i) => <li key={c.id} className="grid gap-4 rounded-[24px] bg-s1 p-6"><p className="text-[26px] font-extrabold tracking-[-0.04em]"><span className="mr-3 font-mono text-[14px] text-acc">0{i + 1}</span>{c.title}</p><p className="text-ink2">{c.text}</p>{c.scene(1)}</li>)}</ol>
       </Wrap></section>
     );
   }

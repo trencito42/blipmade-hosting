@@ -31,6 +31,27 @@ declare module 'fastify' {
   }
 }
 
+/**
+ * Whether the session cookie is marked Secure.
+ *
+ * `COOKIE_SECURE` is the override of the operator: "true" always marks the
+ * cookie Secure, "false" never does. When it is not set, the attribute
+ * follows the protocol of the request that carries the cookie, so an operator
+ * who works on the panel over plain HTTP still gets a cookie the browser sends
+ * back, while a request that really came in over HTTPS always gets a Secure
+ * cookie.
+ *
+ * The protocol is the one Fastify resolves for the request. `request.protocol`
+ * only takes `x-forwarded-proto` into account when the request came through
+ * one of the trusted proxies (`env.trustProxies`), so a client cannot forge
+ * the header to force a Secure cookie on a plain HTTP request.
+ */
+export function resolveCookieSecure(request: FastifyRequest): boolean {
+  if (env.COOKIE_SECURE === 'true') return true;
+  if (env.COOKIE_SECURE === 'false') return false;
+  return request.protocol === 'https';
+}
+
 /** Creates a server-side session and sets the cookies. */
 export async function createSession(
   request: FastifyRequest,
@@ -53,7 +74,9 @@ export async function createSession(
   reply.setCookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.cookieSecure,
+    // The attribute follows the protocol of the request, so the cookie is
+    // usable over plain HTTP and protected over HTTPS.
+    secure: resolveCookieSecure(request),
     path: '/',
     expires: expiresAt,
   });
@@ -65,6 +88,8 @@ export async function destroySession(request: FastifyRequest, reply: FastifyRepl
   if (token) {
     await prisma.session.deleteMany({ where: { tokenHash: hashToken(token) } });
   }
+  // The path has to be the one the cookie was set with, or the browser keeps
+  // the cookie it is asked to clear.
   reply.clearCookie(SESSION_COOKIE, { path: '/' });
 }
 
