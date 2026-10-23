@@ -261,7 +261,7 @@ O lansare **per produs**, în ordinea certificării, nu o lansare simultană:
 | **Reducere de lansare** | ⚠️ **doar după repararea lui B1**, și **maxim €4,19** (41,9%) | **B1**; și plafonul de promoție pe 12 luni: **€379,25** la 15 clienți / **€404,54** la 16 (`09-pricing-recommendations.md` §5.2) |
 | **„Primii 50 de clienți" per produs** | ❌ **nu** | `maxPerUser` e cod mort ⇒ „eligibil" nu poate însemna „unul per cont" |
 | **Plan anual** | ❌ **nu** | **B7** + **B4** |
-| **Preț blocat pentru fondatori** | ✅ **da** — și acum are **valoare reală**: prețul de €9,99 e sub pragul de absorbție la 16 clienți | contractual, cu confirmare juridică |
+| **Preț blocat pentru fondatori** | ✅ **da** — și acum are **valoare reală**: prețul de €9,99 e **peste** pragul de absorbție a costului fix la 16 clienți (€9.60, `09-unit-economics.md` §4.2), deci e sustenabil economic | contractual, cu confirmare juridică |
 
 ### 3.4 Canale
 

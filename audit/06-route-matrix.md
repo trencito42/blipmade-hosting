@@ -91,7 +91,7 @@ Toate rutele de staff au același comportament de gard: **anonim → `/login?nex
 
 ### 3.1 Catalogul de pe `/apps` arată gol cât timp se încarcă
 
-Starea de încărcare a catalogului este **8 dreptunghiuri goale** (`Skeleton h-[190px]`), fără text și fără niciun indicator vizual. Sunt exact la fel ca 8 carduri de produs fără conținut. Timpul real de încărcare e sub un secundă (`firstText` 523–596 ms, măsurat de trei ori), deci problema **nu e viteza, ci starea de așteptare**. `VERIFIED` — `audit/screenshots/apps-catalog-1280.png` (captură în starea de încărcare) vs. `audit/screenshots/apps-check-1280.png` (cu conținut).
+Starea de încărcare a catalogului este **8 dreptunghiuri goale** (`Skeleton h-[190px]`), fără text și fără niciun indicator vizual. Sunt exact la fel ca 8 carduri de produs fără conținut. Timpul real de încărcare e sub un secundă (`firstText` 523–596 ms, măsurat de trei ori), deci problema **nu e viteza, ci starea de așteptare**. `VERIFIED` — `audit/screenshots/apps-catalog-loading-1280.png` (captură în starea de încărcare) vs. `audit/screenshots/apps-check-1280.png` (cu conținut).
 
 ### 3.2 Pagina de pornire cere de cinci ori același catalog
 

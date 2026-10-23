@@ -47,20 +47,27 @@ Constatările din rapoartele `03-*` nu au ID-uri numerotate în sursă; aici pri
 
 ### 0.4 Contoare
 
+Contoarele de mai jos sunt **calculate din tabelele acestui document** (scriptul `_tools/count-register.cjs`), nu numărate cu mâna. Banda **P0 este exclusivă**: un rând e P0 dacă severitatea lui spune P0 **sau** dacă e marcat ca blocant de lansare în coloana „P0". De aceea benzile adună exact la numărul de constatări.
+
 | Domeniu | Constatări | P0 | Critical | High | Medium | Low/Info |
 |---|---:|---:|---:|---:|---:|---:|
-| Securitate (`SEC-*`) | 29 | 2 | 2 | 3 | 9 | 13 |
-| Provisionare (`PROV-*`) | 14 | 3 | 1 | 3 | 4 | 3 |
-| Comerț și facturare (`COMM-*`) | 12 | 6 | 1 | 2 | 2 | 1 |
-| Promoții (`PROMO-*`) | 12 | 2 | 0 | 2 | 5 | 3 |
-| Documentație (`DOC-*`) | 13 | 0 | 2 | 4 | 4 | 3 |
-| Infrastructură / rețea / capacitate / DR | 14 | 3 | 4 | 3 | 3 | 1 |
-| UX și design (`UX-*`) | 12 | 0 | 0 | 3 | 5 | 4 |
-| Asistență și conformitate (`OPS-*`) | 11 | 1 | 1 | 3 | 4 | 2 |
-| Creștere și marketing (`MKT-*`) | 8 | 0 | 0 | 1 | 4 | 3 |
-| **Total** | **115** | **17** | **10** | **21** | **39** | **28** |
+| Securitate (`SEC-*`) | 29 | 2 | 0 | 3 | 10 | 14 |
+| Provisionare și produs (`PROV-*`) | 14 | 3 | 0 | 5 | 5 | 1 |
+| Comerț și facturare (`COMM-*`) | 12 | 3 | 2 | 3 | 4 | 0 |
+| Promoții (`PROMO-*`) | 12 | 2 | 0 | 3 | 6 | 1 |
+| Documentație (`DOC-*`) | 13 | 0 | 2 | 5 | 5 | 1 |
+| Infrastructură (`INF-*`) | 8 | 3 | 0 | 2 | 2 | 1 |
+| Rețea și IP (`NET-*`) | 4 | 0 | 0 | 2 | 2 | 0 |
+| Capacitate (`CAP-*`) | 4 | 0 | 0 | 2 | 2 | 0 |
+| Recuperare la dezastre (`DR-*`) | 5 | 4 | 0 | 1 | 0 | 0 |
+| Catalog și prețuri (`PRICE-*`) | 6 | 3 | 0 | 0 | 2 | 1 |
+| Suport și operațiuni (`OPS-*`) | 11 | 3 | 0 | 3 | 4 | 1 |
+| Portofoliu și competitivitate (`PORT-*`) | 9 | 5 | 0 | 3 | 1 | 0 |
+| Creștere și marketing (`MKT-*`) | 12 | 0 | 2 | 4 | 4 | 2 |
+| UX și design (`UX-*`) | 28 | 0 | 4 | 6 | 7 | 11 |
+| **Total** | **167** | **28** | **10** | **42** | **54** | **33** |
 
-> Contoarele sunt atribuite de orchestrator pe baza conținutului rapoartelor-sursă; clasele `VERIFIED`/`CODE-INSPECTED` rămân cele ale sursei.
+> **De ce registrul are 28 de P0, iar backlog-ul are 23.** Backlog-ul grupează constatările în **acțiuni de reparare**: aceleași două constatări se repară împreună. De exemplu `COMM-01` (reducerea nu ajunge la Stripe) și `PROMO-01` (aceeași problemă, văzută din pagina de promoții) sunt **două constatări, un singur rând de backlog** (`B-03`). Cele 28 se reduc la 23 rânduri de acțiune. **Nicio constatare nu se pierde între cele două documente** — fiecare P0 din registru e acoperit de cel puțin un rând din `13-PRIORITIZED-BACKLOG.md`.
 
 ---
 
@@ -319,6 +326,51 @@ Două rapoarte folosesc două modele de cost diferite și **ajung la concluzii d
 **De ce contează:** `discord-bot` la **€1.72** e sub ambele praguri și sub prețul de piață (€0), deci e imposibil de vândut pe acest hardware. `08-product-launch-order.md` propune în schimb `minecraft-paper` la €4.09–€5.99, care trece pragul la 1 vCPU. **Cele două recomandări sunt compatibile**: `discord-bot` rămâne produsul de test și de învățare (e singurul deployable), iar primul produs **vândut** e cel care trece pragurile.
 
 **Notă de prudență:** `C_node ≈ €54.44` e o ancoră `INFERRED` (Contabo VPS 60, 18 vCPU / 96 GB la €49.00/lună, citită 2026-10-23). **Operatorul trebuie să o înlocuiască cu valoarea reală a facturii**, pentru că fiecare prag se deplasează liniar cu ea.
+
+---
+
+## 7f. UX, design și parcursul clientului — `UX-01` … `UX-28`
+
+Sursă: `06-route-matrix.md`, `06-design-system.md`, `06-customer-journeys.md`, `06-ux-ui-complete.md`, `06-design-improvement-backlog.md`.
+
+**Măsurătoare:** 35 de intrări de rută (33 de pattern-uri în `web/src/routes.tsx:85-121` + `/` + fallback 404), 36 de URL-uri, măsurate în 3 roluri la 6 lățimi de telefon și 2 lățimi desktop. **59 de pași de parcurs: 36 `WORKS`, 6 `PARTIAL`, 1 `BROKEN`, 13 `BLOCKED`, 3 `NOT-IMPLEMENTED`.**
+
+| ID | Sev. | Clasă | Constatare | P0 | Evidență |
+|---|---|---|---|---|---|
+| UX-01 | **Critical** | `VERIFIED` | **`DataTable` strică modelul de tabel**: `class="grid"` pe `<tbody>` ⇒ antetul nu se aliniază cu corpul, decalaj **105–562 px** pe 9 rute; un subiect de 100 de caractere împinge rândul cu 479 px în afara fundalului lui | Nu | măsurătoare DOM pe 22 de tabele, 9 rute |
+| UX-02 | **Critical** | `VERIFIED` | **Antetul spune „No public URL yet", dar adresa `10.77.0.11:30001` există** și e în al 6-lea din 12 taburi | Nu | captură live |
+| UX-03 | **Critical** | `VERIFIED` | **„Online" (pastilă) și „Container: offline" (metrici) pe același ecran**, toate metricile la 0 | Nu | captură live |
+| UX-04 | High | `VERIFIED` | **Staff-ul nu poate inspecta o instanță**: nicio rută, niciun link, iar adresa din zona de client răspunde 404 | Nu | `/admin/services` |
+| UX-05 | **Critical** | `VERIFIED` | **`503 payments_unavailable` blochează 8 pași de parcurs** — checkout, comandă, subscripție și domeniu | Nu (blocaj de produs) | captură live |
+| UX-06 | High | `VERIFIED` | **Catalogul e cerut de 5 ori pe pagina de pornire** — `pricing.ts` cacheuiește rezultatul, nu promisiunea în zbor | Nu | contor de apeluri de rețea |
+| UX-07 | High | `VERIFIED` | **Starea de încărcare a catalogului arată ca un catalog gol** — 8 carduri goale, indistinctibile de un catalog gol | Nu | captură live + măsurare a duratei skeletului |
+| UX-08 | High | `VERIFIED` | **Butonul „Retry" al stării de acces interzis te duce în panoul client**, pe 13 rute de staff | Nu | captură live |
+| UX-09 | High | `VERIFIED` | **`--ink-3` (`#7b827b`) nu trece 4.5:1** pe `--s2` (4.31), `--s3` (3.80), `--acc-bg` (3.92) — **toate cele 63 de elemente de text care eșuează în produs provin din acest singur token**; corecția e **o linie de CSS** (`#8a9090`) | Nu | măsurătoare de contrast pe 202 de elemente |
+| UX-10 | High | `VERIFIED` | **Alb pe `--bad` = 2.78:1** în dialogul de confirmare; `--ink` pe `--bad` = 2.55:1 în panoul staff — **o linie de CSS** | Nu | măsurătoare de contrast |
+| UX-11 | Medium | `VERIFIED` | **42 de casete de permisiuni la 16×16 px**, sub 24×24 cerut de WCAG 2.5.8 — **o clasă** | Nu | măsurătoare de ținte |
+| UX-12 | Medium | `VERIFIED` | **Instanța are 12 taburi**; adresa, consola și fișierele sunt pe 2–6, iar parametrii de pornire există doar după plată | Nu | captură live |
+| UX-13 | Medium | `VERIFIED` | **Zona de client nu cere rolul** — staff-ul vede contul lui de client, gol | Nu | captură live |
+| UX-14 | Medium | `VERIFIED` | **`CURRENT PERIOD ENDS —`** — câmpul există, valoarea e `null` | Nu | captură live |
+| UX-15 | Medium | `VERIFIED` | **Panoul nu avertizează că adresa de e-mail nu e verificată** — textul există doar în Setări | Nu | captură live |
+| UX-16 | Medium | `VERIFIED` | **Defectul de tăiere pe telefon nu s-a recurs** pe niciuna din cele 32 de rute sweeping la 6 lățimi (`layout == visual == scroll == width`, `sideways=false`) | Nu (pozitiv) | sweep mobil |
+| UX-17 | Medium | `VERIFIED` | **Zona de admin e curată pe telefon la fiecare lățime** | Nu (pozitiv) | sweep mobil |
+| UX-18 | Low | `VERIFIED` | **Cele două câmpuri de căutare n-au indicator de focus**; 5 casete de notificare fără legătură etichetă↔input; 6 rute cu ținte de 20–23 px | Nu | măsurătoare de focus |
+| UX-19 | Low | `VERIFIED` | `prefers-reduced-motion` oprește 47 de elemente din 213; **166 continuă să animeze** | Nu | măsurătoare de mișcare |
+| UX-20 | Low | `VERIFIED` | **3 cereri 404 la fiecare încărcare** — blocul `@font-face` Proxima Nova, ale cărei fișiere nu există | Nu | `06-design-system.md` |
+| UX-21 | Low | `VERIFIED` | 42 de blocuri de eroare cu două nuanțe de roșu (`bg-bad/10` și `bg-bad/12`); butonul periculos are trei reprezentări; 5 raze de card, 3 formate de dată, fără token | Nu | tokenuri |
+| UX-22 | Low | `CODE-INSPECTED` | **Nu există `DELETE /api/tickets/:id`** — un ticket nu poate fi șters, nici prin API, nici din interfață | Nu | `api/src/routes/tickets.ts` |
+| UX-23 | Low | `CODE-INSPECTED` | Lipsește `Alert`/`Banner`, `Tabs`, `Progress`, `DateFormat`, `Card`, `Checkbox` din design system | Nu | `06-design-system.md` §4 |
+| UX-24 | Low | `VERIFIED` | Formularul de deploy nu are câmp pentru imagine, comandă și variabile de mediu | Nu | captură live |
+| UX-25 | Low | `VERIFIED` | Atașamentul de ticket trimite doar numele, marimea și tipul, nu conținutul | Nu | `api/src/routes/tickets.ts` |
+| UX-26 | Low | `VERIFIED` | Câmpurile de preț din `/admin/pricing` poartă id-ul intern în hash (`base-cmvjyo5yh0003dxtl58rz6pjt`) | Nu | captură live |
+| UX-27 | Low | `VERIFIED` | Mesajul de refuz la înregistrare nu spune care câmp e greșit | Nu | captură live |
+| UX-28 | Low | `VERIFIED` | `06-ux-ui-complete.md` — **defectul de tăiere pe telefon nu s-a recurs**, dar a apărut un **nou overflow pe latură** în pagina instanței — verificat ca fals pozitiv (ancestrul `p.truncate` taie cu elipsă) | Nu | `06-ux-ui-complete.md` §0 |
+
+### 7f.1 Artefact rezidual pe producție — declarat
+
+Verificarea UX a creat **ticket #48 „Audit journey probe 2026-10-23"** (2026-10-23, 17:39 UTC) pe contul de test `browser-admin@blipmade.test`. **Nu există endpoint `DELETE /api/tickets/:id` și niciun buton de ștergere** (`UX-22`), iar o ștergere directă în baza de date ar fi încălcat regula read-only a auditului. **A rămas în urmă, intentionat, și e semnalat aici.**
+
+Impact: un ticket de test, pe un cont de test, fără date de client. **Niciun client real n-a fost afectat.** DB-ul e altfel neschimbat: 3 instanțe, 5 comenzi, 6 utilizatori, 0 abonamente, 0 facturi.
 
 ---
 

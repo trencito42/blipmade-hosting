@@ -92,7 +92,7 @@ async function textOf(page, selector) {
 
   // the same address again: the server refuses, and no user is written
   const before = await page.evaluate(async () => (await (await fetch('/api/auth/session')).json()).user ?? null);
-  const pwValue = 'QaHeadless!2026';
+  const pwValue = process.env.BM_PASSWORD ?? '';
   await page.fill('#firstName', 'Qa');
   await page.fill('#lastName', 'One');
   await page.fill('#email', 'qa.headless.one@example.test');

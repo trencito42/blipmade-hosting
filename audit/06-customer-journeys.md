@@ -76,7 +76,7 @@ Pagina produsului arată **„€1.49 / per month"** pentru configurația minim�
 
 ### 2.4 Catalogul în timpul încărcării — `PARTIAL`
 
-Am prins catalogul în starea de încărcare: **8 dreptunghiuri goale**, identice cu 8 carduri de produs fără conținut. Fără text, fără scheletare vizibilă, fără indicator. Clientul nu poate deosebi „se încarcă" de „catalogul e gol". `VERIFIED` — `audit/screenshots/apps-catalog-1280.png` (captură luată în starea de încărcare).
+Am prins catalogul în starea de încărcare: **8 dreptunghiuri goale**, identice cu 8 carduri de produs fără conținut. Fără text, fără scheletare vizibilă, fără indicator. Clientul nu poate deosebi „se încarcă" de „catalogul e gol". `VERIFIED` — `audit/screenshots/apps-catalog-loading-1280.png` (captură luată în starea de încărcare).
 
 Timpul real de încărcare e sub un secundă (`firstText` 523–596 ms, măsurat de trei ori), deci problema nu e viteza, ci **cum arată starea de așteptare**. `VERIFIED`
 
@@ -127,7 +127,7 @@ Pagina de deploy are patru pași, iar pasul al patrulea interoghează comanda **
 
 ### 3.7 **Adresa — aici se pierde clientul** — `BROKEN`
 
-Pagina instanței afișează, în antet, **„No public URL yet"**. `audit/screenshots/journey-j3-instance-detail.png`, `audit/screenshots/cust-320-app_instances_cmvkbgm9h0001r18096ep5jzl.png`.
+Pagina instanței afișează, în antet, **„No public URL yet"**. `audit/screenshots/journey-j3-instance-detail.png`, `audit/screenshots/mobile/cust-320-app_instances_cmvkbgm9h0001r18096ep5jzl.png`.
 
 Dar adresa **există**. API-ul o are, în al nouălea tab al paginii:
 

@@ -20,7 +20,7 @@ Severități: **S1** — împiedică clientul să facă ce a venit să facă; **
 
 La fiecare măsurătoare: `layout == visual == scroll == width`, `sideways=false`, iar bara de navigație are lățimea ecranului. **Defectul de tăiere ține, pe toate cele 32 de rute și toate cele șase lățimi.** `VERIFIED`
 
-Singurul „element care trece de margine" raportat de sweep pe pagina de pornire (`div.whitespace-nowrap.will-change-transform`, 3832 px într-o cutie de 320) este **benzile decorative care se deplasează cu derularea** (`home/Ticker.tsx`): strămoșul are `overflow-hidden` și `aria-hidden="true"`, iar când `prefers-reduced-motion: reduce` e activ, `useReducedMotion()` oprește deplasarea. **Nu e un defect.** `VERIFIED` — `audit/screenshots/mobile/pub-320-.png`.
+Singurul „element care trece de margine" raportat de sweep pe pagina de pornire (`div.whitespace-nowrap.will-change-transform`, 3832 px într-o cutie de 320) este **benzile decorative care se deplasează cu derularea** (`home/Ticker.tsx`): strămoșul are `overflow-hidden` și `aria-hidden="true"`, iar când `prefers-reduced-motion: reduce` e activ, `useReducedMotion()` oprește deplasarea. **Nu e un defect.** `VERIFIED` — `audit/screenshots/mobile/pub-320-home.png`.
 
 Pe pagina instanței, singurul „element care trece de margine" raportat de sweep (`span.break-words` la 444 px) e tot un **fals pozitiv**: strămoșul `p.truncate` are `overflow: hidden` + `text-overflow: ellipsis` + `white-space: nowrap` și taie corect textul cu trei puncte („provisioni…", „Instance is o…", „Started at st…"). `VERIFIED` — `audit/screenshots/inst-320-activity.png`.
 
@@ -32,7 +32,7 @@ Pe pagina instanței, singurul „element care trece de margine" raportat de swe
 
 1. **Defectul cel mai grav e pe desktop**, nu pe telefon (tabelele, §1).
 2. Pe telefon, **bara fixă de jos e tratată corect** (`main` are `padding-bottom: 128px` pentru o bară de 71 px) — nimic nu rămâne ascuns. `VERIFIED`
-3. **Țintele mici** au rămas: 42 de casete la 16×16 px pe `/admin/staff` și patru linkuri de text la 20–23 px (vezi §2, UX-07).
+3. **Țintele mici** au rămas: 42 de casete la 16×16 px pe `/admin/staff` și patru linkuri de text la 20–23 px (vezi §2, UX-17).
 
 ---
 
@@ -129,37 +129,27 @@ Deci rândul iese cu **479 px** din cutia lui, iar **fundalul rândului (`rounde
 
 ## 2. Problemele comune tuturor rutelor
 
-### UX-01 · S1 · Adresa instanței nu se vede — `/app/instances/:id`
+Identificatorii de mai jos sunt aceiași ca în `06-design-improvement-backlog.md`. Defectul de la §1 este **UX-01** în backlog.
+
+### UX-02 · S1 · Adresa instanței nu se vede — `/app/instances/:id`
 
 Antetul paginii spune **„No public URL yet"**, dar adresa există: `10.77.0.11:30001` (alocarea de pe panou). API-ul o are în `GET /api/instances/:id/allocations`, iar interfața o afișează în tabul **„Network"**, al șaselea dintre douăsprezece. `api/src/routes/instances.ts:33-36` calculează `url` **doar** dintr-un domeniu `ACTIVE`, deci antetul nu vorbește despre adresa de serviciu.
 
-**Fix:** în antetul instanței (`web/src/app/InstanceDetail.tsx:675-685`), arată rândul de alocare primară (`10.77.0.11:30001`) ca text secundar, cu un link „Network"; păstrează „No public URL yet" doar pentru adresa HTTPS și redenumește-l „No public domain yet".
+**Fix (backlog UX-02):** în antetul instanței (`web/src/app/InstanceDetail.tsx:675-685`), arată rândul de alocare primară (`10.77.0.11:30001`) ca text secundar, cu un link „Network"; păstrează „No public URL yet" doar pentru adresa HTTPS și redenumește-l „No public domain yet".
 
-### UX-02 · S1 · Două stări contrazicătoare pe același ecran — `/app/instances/:id`
+### UX-03 · S1 · Două stări contrazicătoare pe același ecran — `/app/instances/:id`
 
 Pastila din antet spune **„Online"** (starea din baza de date). Tabul „Overview" spune, imediat sub ea, **„Container: offline"**, cu MEMORY 0 B, DISK 8.6 KB, PROCESSOR 0%, UPTIME 0 m. `GET /api/instances/:id/metrics` → `{"state":"offline","cpuAbsolute":0,"memoryBytes":0,"uptimeMs":0,"diskBytes":8814}`. `VERIFIED` — `audit/screenshots/tab-console.png`.
 
-**Fix:** `StatusPill` (`web/src/ui-app.tsx:573`) ar trebui să primească starea reală a containerului, nu starea rândului. Minim: când `metrics.state !== 'online'`, antetul afișează pastila de starea containerului și adaugă o linie „Provisioned on {date}. The container reports {state}."
+**Fix (backlog UX-03):** `StatusPill` (`web/src/ui-app.tsx:573`) ar trebui să primească starea reală a containerului, nu starea rândului. Minim: când `metrics.state !== 'online'`, antetul afișează pastila de starea containerului și adaugă o linie „Provisioned on {date}. The container reports {state}."
 
-### UX-03 · S2 · Catalogul pare gol cât timp se încarcă — `/apps`
-
-Starea de încărcare a catalogului este **8 dreptunghiuri goale** (`Skeleton h-[190px]`), fără text, fără strălucire, fără indicator — identice cu 8 carduri de produs fără conținut. Timpul real e sub un secundă (`firstText` 523–596 ms, de trei ori). `VERIFIED` — `audit/screenshots/apps-catalog-1280.png` (încărcare) vs. `audit/screenshots/apps-check-1280.png` (cu conținut).
-
-**Fix:** `Skeleton` (`web/src/ui-app.tsx:469`) primește un `animate-pulse` și un `aria-label="Loading the catalog"`; alternativa mai bună: `LoadingBlock rows={3} label="Loading the catalog"` (`web/src/ui-app.tsx:473`), care există deja și e folosit peste tot.
-
-### UX-04 · S2 · Butonul „Retry" nu reîncearcă — toate rutele de staff
-
-`ErrorState` (`web/src/ui-app.tsx:532`) are eticheta **hard-codată** pe „Retry". Gardul de staff o folosește cu `onRetry={() => navigate('/app')}` (`web/src/routes.tsx:145-153`), deci pe toate cele 13 rute de staff, un client vede butonul **„Retry"** care îl duce în panoul client. `VERIFIED` — `route-report.json`, `errorHits: ['Retry']`.
-
-**Fix:** `ErrorState` primește o prop `actionLabel` (implicit „Retry"), iar gardul trece `actionLabel="Back to your dashboard"`.
-
-### UX-05 · S2 · Catalogul e cerut de cinci ori pe pagina de pornire — `/`
+### UX-06 · S2 · Catalogul e cerut de cinci ori pe pagina de pornire — `/`
 
 `GET /api/catalog/products` × 5 pe `/`, × 2 pe `/apps`. `VERIFIED` — jurnalul de rețea.
 
 Cauza: `web/src/lib/pricing.ts:31-38` memorează în cache **rezultatul**, nu **promisiunea în curs**. Patru montări de `useCatalogSummary()` (`home/Nav.tsx:24`, `home/Rest.tsx:20`, `home/Hero.tsx:12`, `home/Hero.tsx:37`) pornesc simultan, fiecare cu propriul `get()`, plus `home/Catalog.tsx:51` cu un `useAsync` propriu.
 
-**Fix:** în `pricing.ts`, `load()` trebuie să memoreze promisiunea:
+**Fix (backlog UX-06):** în `pricing.ts`, `load()` trebuie să memoreze promisiunea:
 
 ```ts
 let inflight: Promise<CatalogProduct[]> | null = null;
@@ -173,13 +163,25 @@ async function load(): Promise<CatalogProduct[]> {
 }
 ```
 
-### UX-06 · S2 · Zona de client nu cere rolul de client — `/app/*`
+### UX-07 · S2 · Catalogul pare gol cât timp se încarcă — `/apps`
+
+Starea de încărcare a catalogului este **8 dreptunghiuri goale** (`Skeleton h-[190px]`), fără text, fără strălucire, fără indicator — identice cu 8 carduri de produs fără conținut. Timpul real e sub un secundă (`firstText` 523–596 ms, de trei ori). `VERIFIED` — `audit/screenshots/apps-catalog-loading-1280.png` (încărcare) vs. `audit/screenshots/apps-check-1280.png` (cu conținut).
+
+**Fix (backlog UX-07):** `Skeleton` (`web/src/ui-app.tsx:469`) primește un `animate-pulse` și un `aria-label="Loading the catalog"`; alternativa mai bună: `LoadingBlock rows={3} label="Loading the catalog"` (`web/src/ui-app.tsx:473`), care există deja și e folosit peste tot.
+
+### UX-08 · S2 · Butonul „Retry" nu reîncearcă — toate rutele de staff
+
+`ErrorState` (`web/src/ui-app.tsx:532`) are eticheta **hard-codată** pe „Retry". Gardul de staff o folosește cu `onRetry={() => navigate('/app')}` (`web/src/routes.tsx:145-153`), deci pe toate cele 13 rute de staff, un client vede butonul **„Retry"** care îl duce în panoul client. `VERIFIED` — `route-report.json`, `errorHits: ['Retry']`.
+
+**Fix (backlog UX-08):** `ErrorState` primește o prop `actionLabel` (implicit „Retry"), iar gardul trece `actionLabel="Back to your dashboard"`.
+
+### UX-12 · S2 · Zona de client nu cere rolul de client — `/app/*`
 
 `area: 'customer'` verifică doar existența unei sesiuni (`web/src/routes.tsx:97`), nu rolul. Un cont de staff deschide `/app` și vade contul lui de client, **gol** — un „Overview" cu „No apps yet", fără nicio explicație. `VERIFIED`.
 
-**Fix:** în `Guard` (`web/src/routes.tsx:123-160`), când `area === 'customer'` și `isStaff(user.role)`, redirecționează la `/admin` (staff-ul are deja interfața lui).
+**Fix (backlog UX-12):** în `Guard` (`web/src/routes.tsx:123-160`), când `area === 'customer'` și `isStaff(user.role)`, redirecționează la `/admin` (staff-ul are deja interfața lui).
 
-### UX-07 · S3 · Barele de jos de pe telefon sunt bine, dar țintele mici rămân
+### UX-17 · S3 · Barele de jos de pe telefon sunt bine, dar țintele mici rămân
 
 `main` are `padding-bottom: 128px` pentru o bară de 71 px — **nimic nu rămâne ascuns**. `VERIFIED`.
 
@@ -193,19 +195,19 @@ async function load(): Promise<CatalogProduct[]> {
 | linkul „← Back to the catalog" | înălțime **20** | `/apps/:slug` |
 | casetele de notificare | 24×24 (la prag) | `/app/settings` |
 
-**Fix:** `size-4` → `size-6` pe casetele de permisiuni (`web/src/admin/Staff.tsx`); `py-1` pe cele patru linkuri de text.
+**Fix (backlog UX-17):** `size-4` → `size-6` pe casetele de permisiuni (`web/src/admin/Staff.tsx`); `py-1` pe cele patru linkuri de text.
 
-### UX-08 · S3 · 42 de blocuri de eroare, două nuanțe de roșu — toate rutele
+### UX-18 · S3 · 42 de blocuri de eroare, două nuanțe de roșu — toate rutele
 
 `bg-bad/10` în 20 de locuri, `bg-bad/12` în 9 (`web/src/app/Deploy.tsx:586,654,659,726`, `web/src/app/InstanceDetail.tsx:361,445,546,563,695`, `web/src/app/Billing.tsx:189`, `web/src/app/Domains.tsx:228,385`, `web/src/app/instance/FilesTab.tsx:489,519`). `CODE-INSPECTED`
 
-**Fix:** creează `--color-bad-soft` în `@theme` (`web/src/index.css:38-54`) și folosește-l peste tot.
+**Fix (backlog UX-18):** creează `--color-bad-soft` în `@theme` (`web/src/index.css:38-54`) și folosește-l peste tot.
 
-### UX-09 · S3 · Trei butoane periculoase, trei reprezentări — toate rutele
+### UX-19 · S3 · Trei butoane periculoase, trei reprezentări — toate rutele
 
 `DangerButton` (`web/src/ui-app.tsx:798`) = `bg-bad/12` + `text-bad` (5.18:1, corect). Dialogul (`web/src/ui-app.tsx:1023`) = `bg-bad` + `text-white` (**2.78:1**, eșec). Panoul de staff (`web/src/admin/Overview.tsx:192`) = `bg-bad` + `text-ink` (**2.55:1**, eșec). `VERIFIED` pentru dialog (măsurat cu dialogul deschis, `audit/screenshots/a11y-confirm-dialog.png`).
 
-**Fix:** adaugă `--color-on-bad: #2b0606` (7.34:1 pe `--bad`) și folosește-l în toate cele trei.
+**Fix (backlog UX-19):** adaugă `--color-on-bad: #2b0606` (7.34:1 pe `--bad`) și folosește-l în toate cele trei.
 
 ---
 
@@ -217,8 +219,8 @@ Format: **rută** · capturi · ce e greșit · severitate · fix în vocabularu
 
 | Rută | 320–440 | 1280 / 1920 | Ce e greșit | Sev | Fix |
 |---|---|---|---|---|---|
-| `/` | ✅ fără tăiere; benzile decorative se deplasează cu derularea, `overflow-hidden` + `aria-hidden` — **corect** | ✅ | 5 apeluri identice la catalog (UX-05); câmpul de căutare e la 21 px și n-are inel de focus; linkul „← Back to the catalog" la 20 px | S2 / S3 / S4 | `pricing.ts` (UX-05); `focus-within:ring-2` (UX-20); `py-1` (UX-17) |
-| `/apps` | ✅ | ⚠️ starea de încărcare e indistinctă de un catalog gol | UX-03, UX-07, UX-20 | S2 / S3 | `LoadingBlock` / `Skeleton` cu `animate-pulse`; `focus-within:ring-2` pe `<label>` |
+| `/` | ✅ fără tăiere; benzile decorative se deplasează cu derularea, `overflow-hidden` + `aria-hidden` — **corect** | ✅ | 5 apeluri identice la catalog (UX-06); câmpul de căutare e la 21 px și n-are inel de focus; linkul „← Back to the catalog" la 20 px | S2 / S3 / S4 | `pricing.ts` (UX-06); `focus-within:ring-2` (UX-20); `py-1` (UX-17) |
+| `/apps` | ✅ | ⚠️ starea de încărcare e indistinctă de un catalog gol | UX-07, UX-17, UX-20 | S2 / S3 | `LoadingBlock` / `Skeleton` cu `animate-pulse`; `focus-within:ring-2` pe `<label>` |
 | `/apps/discord-bot` | ✅ | ✅ | prețul e clar înainte de orice acțiune — **bine** | S4 | `py-1` pe „← Back to the catalog" (20 px) |
 | `/apps/wordpress` | ✅ | ✅ | „its image is not installed on the platform yet" — **onest și bine** | S4 | `py-1` pe link |
 | `/docs` | ✅ | ✅ | fără probleme | — | — |
@@ -234,7 +236,7 @@ Format: **rută** · capturi · ce e greșit · severitate · fix în vocabularu
 |---|---|---|---|---|---|
 | `/app` | ✅ | ✅ | **nu avertizează** că adresa de e-mail nu e verificată (textul există doar în Setări) | S2 | `Alert` nou în `app/Overview.tsx`, cu `Link` spre `/app/settings` |
 | `/app/instances` | ✅ | ❌ **antetul nu se aliniază cu corpul (decalaj 557 px)**; linkul numelui are 23 px înălțime | UX-01 (tabel), S2 | `DataTable` cu `border-separate` (§1.4); `py-1` pe link |
-| `/app/instances/:id` | ✅ banda de 12 taburi e bandă de derulare (`overflow-x: auto`, 1092 px în 328) — **corect**; rândurile de activitate sunt trunchiate cu trei puncte — **corect** | ❌ „No public URL yet" în antet în timp ce adresa e la „Network"; „Online" vs „Container: offline"; 12 taburi fără grupare | S1 (adresa), S1 (stările) | §2 UX-01, UX-02 |
+| `/app/instances/:id` | ✅ banda de 12 taburi e bandă de derulare (`overflow-x: auto`, 1092 px în 328) — **corect**; rândurile de activitate sunt trunchiate cu trei puncte — **corect** | ❌ „No public URL yet" în antet în timp ce adresa e la „Network"; „Online" vs „Container: offline"; 12 taburi fără grupare | S1 (adresa), S1 (stările) | §2 UX-02, UX-03 |
 | `/app/deploy` | ✅ | ✅ | prețul se recalculează în timp real — **bine** | — | — |
 | `/app/deploy/:slug` | ✅ banda de pași e `w-max` și derulează — **corect** | ✅ | formularul **nu are** câmp pentru imagine, comandă sau variabile de mediu; clientul plătește înainte să aleagă ce rulează | S2 | câmpuri noi în pasul 1, cu `TextInput` și `Select` din `ui-app.tsx` |
 | `/app/domains` | ✅ | ✅ | starea goală e clară — **bine** | — | — |
@@ -247,7 +249,7 @@ Format: **rută** · capturi · ce e greșit · severitate · fix în vocabularu
 
 | Rută | 320–440 | 1280 / 1920 | Ce e greșit | Sev | Fix |
 |---|---|---|---|---|---|
-| `/admin` | ✅ | ✅ | butonul „Retry" care duce în panoul client | S2 | UX-04 |
+| `/admin` | ✅ | ✅ | butonul „Retry" care duce în panoul client | S2 | UX-08 |
 | `/admin/customers` | ✅ | ❌ decalaj 424 px | S1 | §1.4 |
 | `/admin/customers/:id` | ✅ | ✅ | e-mailul e mascat (`q***@example…`) — **bine pentru confidențialitate** | — | — |
 | `/admin/orders` | ✅ | ❌ decalaj 499 px | S1 | §1.4 |
@@ -267,9 +269,9 @@ Format: **rută** · capturi · ce e greșit · severitate · fix în vocabularu
 
 | Stare | Unde e implementată bine | Unde nu |
 |---|---|---|
-| **încărcare** | `Skeleton` cu `aria-busy="true"` și `role="status"`; `LoadingBlock` cu etichetă | `/apps`: scheletele arată ca un catalog gol (UX-03) |
+| **încărcare** | `Skeleton` cu `aria-busy="true"` și `role="status"`; `LoadingBlock` cu etichetă | `/apps`: scheletele arată ca un catalog gol (UX-07) |
 | **goală** | `EmptyState` pe 9 din 10 rute de client și 6 din 13 de staff; fiecare are titlu, explicație și acțiune | niciuna |
-| **eroare** | `ErrorState` cu `role="alert"`, mesaj, buton și `requestId` | eticheta „Retry" minte (UX-04); textul mesajului la `/api/auth/register` nu spune care câmp e greșit |
+| **eroare** | `ErrorState` cu `role="alert"`, mesaj, buton și `requestId` | eticheta „Retry" minte (UX-08); textul mesajului la `/api/auth/register` nu spune care câmp e greșit |
 | **succes** | toast prin `ToastProvider` (`ui-app.tsx:872`) + reîncărcare | — |
 | **text lung** | **telefon:** corect (carduri trunchiate cu trei puncte, `truncate`); **detaliul ticketului:** corect (`h2` se îndoaie) | **desktop:** rândul de tabel iese din cutie cu 479 px (§1.3) |
 

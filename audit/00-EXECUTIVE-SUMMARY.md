@@ -1,7 +1,7 @@
 # 00 — Rezumat executiv
 
 **Audit al platformei Blipmade** · 2026-10-23 · read-only, fără modificări de producție
-**Corpus:** 43 de rapoarte în `audit/`, 115+ constatări clasificate, 23 de P0, 13 porți de lansare
+**Corpus:** 44 de rapoarte în `audit/`, **167 de constatări clasificate** (28 P0, 10 Critical, 42 High, 54 Medium, 33 Low/Info), 23 de rânduri de acțiune P0 în backlog, 13 porți de lansare
 **Întrebări:** cele 25 din brief-ul master, §16
 
 ---
@@ -32,7 +32,7 @@ Platforma **nu poate lua nicio plată** azi (`STRIPE_SECRET_KEY` gol, `PAYMENTS_
 
 ## 2. What exactly is broken or unverified?
 
-**23 de defecte P0**, din care cele mai grave:
+**28 de constatări P0** (care se reduc la **23 de rânduri de acțiune** în backlog, fiindcă aceleași defecte se repară împreună), din care cele mai grave:
 
 | # | Defect | Unde | Clasă |
 |---|---|---|---|

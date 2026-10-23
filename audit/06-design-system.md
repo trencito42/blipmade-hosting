@@ -432,7 +432,11 @@ Sistemul **nu** e o stivă de stiluri ad-hoc, și merită spus limpede, pentru c
 | `audit/_tools/tab-dump.mjs` | `box-shadow` brut al fiecărei opriri din ordinea de tabulare |
 | `audit/_tools/motion-check.mjs` | `prefers-reduced-motion`, inelul câmpului de autentificare |
 | `audit/_tools/danger-measure.mjs` | butoanele pe roșu, măsurate cu dialogul deschis |
+| `audit/_tools/ring-debug.mjs` | variabilele inelului (`--tw-ring-shadow`, `--tw-ring-color`) pe un control focalizat |
 | `audit/_tools/a11y-report.json` | raportul brut (contrast, ținte, câmpuri) |
 | `audit/_tools/focus-report.json` | raportul brut (focus) |
+| `audit/_tools/downscale.mjs` | micșorează capturile de telefon la o treime, ca artefactul să nu fie greu |
 
 Toate rulează pe VM 103 și nu scriu nimic pe server: măsurătorile sunt `getComputedStyle` și `getBoundingClientRect` peste pagini deja servite.
+
+**Documentele sursă ale acestui audit:** `06-route-matrix.md` (rutele), `06-customer-journeys.md` (călătoriile), `06-ux-ui-complete.md` (recenzia pe rute), `06-design-improvement-backlog.md` (backlogul cu ID-urile `UX-01`…`UX-28`).

@@ -1,6 +1,6 @@
 # 13 — Backlog prioritizat
 
-**Data:** 2026-10-23 · **Sursa:** registrul din `12-FULL-FINDINGS-REGISTER.md` (115 constatări).
+**Data:** 2026-10-23 · **Sursa:** registrul din `12-FULL-FINDINGS-REGISTER.md` (167 constatări, 28 P0).
 **Regula de prioritizare:** P0 blochează lansarea ⇒ se repară primul, indiferent de efort. P1 trebuie reparat înainte de lansarea publică. P2 îmbunătățește și poate aștepta după lansare. P3 e igienă și consistență.
 
 **Cum se citește fiecare rând:**
@@ -166,6 +166,23 @@ Nu blochează lansarea, dar blochează **creșterea**. Ordinea contează: primel
 | B-57 | `SEC-27` + `SEC-23` + `SEC-24` | Comparații de token în timp constant; eșecul de audit nu mai e înghițit | 1 z | — | — |
 | B-58 | `SEC-14` + `NET-04` | Origine protejată: autentificare de origine sau retragerea adreselor de origine din DNS | 1 z | — | — |
 | B-59 | `NET-01` + `NET-03` | **Cele trei adrese publice goale se fie atribuie, fie se elimină din DNS**; portul de alocare închis se deschide | 1 z | acces la nod | Fiecare adresă declarată în DNS servește ceva sau e înlăturată |
+
+### 3.1 UX și design — cele mai rentabile rânduri (din `06-design-improvement-backlog.md`, 28 de constatări)
+
+Acestea **nu blochează lansarea**, dar trei dintre ele sunt **defecte de onestitudine**, nu de aspect, și trei se repară cu **o singură linie de CSS** sau **o singură clasă**.
+
+| # | Constatări | Ce se repară | Efort | Cum se verifică |
+|---|---|---|---|---|
+| B-80 | `UX-01` | **`DataTable` nu mai strică modelul de tabel**: `class="grid"` se mută de pe `<tbody>` pe un element wrapper, iar `<tbody>` rămâne `<tbody>` | M | Antetul și corpul aliniate pe toate cele 22 de tabele; decalaj 0 px |
+| B-81 | `UX-02` + `UX-03` | **Interfața nu mai minte**: antetul nu mai spune „No public URL yet" când adresa există, iar pastila de stare nu mai spune „Online" când containerul e oprit | S | Pe o instanță oprită, starea afișată și metricile coincid cu realitatea |
+| B-82 | `UX-09` | **`--ink-3` trece 4.5:1** pe `--s2`, `--s3` și `--acc-bg` (`#8a9090`) | **o linie de CSS** | Zero eșecuri de contrast în cele 63 de elemente măsurate |
+| B-83 | `UX-10` | **Alb pe `--bad` ajunge la 4.5:1**, și `--ink` pe `--bad` la fel | **o linie de CSS** | Dialogul de confirmare și panoul staff trec contrastul |
+| B-84 | `UX-13` + `UX-11` | **Casetele de permisiuni la 24×24**, cu o clasă reutilizabilă; și rolul cerut în zona de client | S | 42 de casete la 24×24; staff-ul vede contul de client, nu un panou gol |
+| B-85 | `UX-04` | **Rută de staff pentru inspecția unei instanțe** — cu link din `/admin/services` | L | Staff-ul ajunge la instanță fără să schimbe rolul |
+| B-86 | `UX-06` + `UX-07` | **Catalogul e cerut o singură dată** (se cacheuiește promisiunea, nu rezultatul), iar starea de încărcare e diferențiată de un catalog gol | S | Un singur apel de rețea pe pagina de pornire; scheletul e distinct de gol |
+| B-87 | `UX-22` + `UX-25` | **`DELETE /api/tickets/:id`** și conținutul real al atașamentului | M | Un ticket poate fi șters din interfață; fișierul atașat se descarcă |
+| B-88 | `UX-12` + `UX-14` + `UX-15` | **12 taburi pe pagina instanței** devin grupate; câmpurile cu valoare `null` se ascund; avertismentul de e-mail neverificat apare în panou | S | — |
+| B-89 | `UX-18` + `UX-19` + `UX-20` | **Indicator de focus pe cele două câmpuri de căutare**, ținte de minimum 24×24, `prefers-reduced-motion` aplicat la toate cele 213 de elemente | S | Sweep de focus și de mișcare fără eșecuri |
 
 ---
 
