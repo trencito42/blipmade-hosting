@@ -419,3 +419,212 @@ Sursă: `07-release-gates.md`. Fiecare poartă e o întrebare de release, cu ver
 | 13 | Securitatea infrastructurii critice nu a fost verificată | 🔴 RED |
 
 **Cinci porți RED.** Conform regulii brief-ului, o singură poartă RED blochează lansarea. Condițiile complete de inversare NO-GO → GO sunt cele 9 rânduri din `07-release-gates.md` §3.
+
+<!-- REMEDIATION:START -->
+
+## 11. Starea remedierii
+
+Secțiunea aceasta este randată de `_tools/render-remediation-status.mjs` din
+`_tools/remediation-status.json`. Registrul de mai sus rămâne singura listă a constatărilor; aici
+fiecare constatare primește starea ei de remediere, cauza, repararea, commitul, testul și rezultatul
+verificării.
+
+Cele cinci stări cerute de brief sunt stările finale. O constatare la care runda de remediere nu a
+ajuns încă păstrează starea `NOT STARTED (BACKLOG)` — nu este o stare de rezolvare, iar numărul ei
+arată cât a rămas.
+
+| Stare | Constatări |
+|---|---:|
+| FIXED & VERIFIED | 29 |
+| IMPLEMENTED, NOT VERIFIED | 1 |
+| BLOCKED: EXTERNAL DEPENDENCY | 4 |
+| REQUIRES OPERATOR APPROVAL | 9 |
+| NOT STARTED (BACKLOG) | 139 |
+| **Total** | **182** |
+
+| ID | Sev. | Cod / infrastructură afectată | Stare | Cauza rădăcină | Reparare | Commit | Test de regresie | Verificare |
+|---|---|---|---|---|---|---|---|---|
+| `SEC-01` | Critical | VM 102 / VM 103, sshd | REQUIRES OPERATOR APPROVAL | Parola de root si accesul prin parole | Nu s-a atins: rotatia parolei de root inainte de firewall e lockout, iar brieful cere o procedura aprobata | — | — | Nu s-a rulat nimic pe infrastructura |
+| `SEC-02` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-03` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-04` | High | api/src/routes/admin.ts, web/src/admin/Staff.tsx | FIXED & VERIFIED | PUT /admin/staff/:userId cerea doar staff.write, deci orice staff putea acorda rolul ADMIN; restrictia era doar in interfata | Serverul refuza (403) schimbarea rolului si a permisiunilor unui administrator de catre un non-administrator; schimbarea este scrisa in jurnal | 36a75a7 | api/tests/admin-staff-permissions.test.ts | Test: staff.write primeste 403 la acordarea rolului ADMIN; ADMIN reuseste |
+| `SEC-05` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-06` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-07` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-08` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-11` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-13` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-14` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-15` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-16` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-17` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-18` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-19` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-20` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-21` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-22` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-23` | Info | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-24` | Info | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-25` | Info | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-26` | Info | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-27` | Info | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-28` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-29` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-01` | Critical | api/src/services/provisioning.ts (chooseNode, nodeCapacity, requiredCapacity) | FIXED & VERIFIED | Poarta de capacitate compara disk-ului nodului (MB de la panou) cu disk-ul instantei (GB): factor 1024 | Ambele valori sunt aduse la MB inainte de comparatie; refuzul numeste valorile si unitatea lor | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: refuzul numeste MB si GB; 13 teste de capacitate |
+| `PROV-02` | Critical | api/src/services/provisioning.ts (compensateFailedProvisioning) | FIXED & VERIFIED | La provisionare nereusita serverul, alocarea si suma ramaneau; nu exista compensare | Compensarea sterge containerul, elibereaza alocarea, returneaza banii sau marcheaza refundul de facut, si scrie totul in jurnal; ruleaza doar la ultima incercare | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: fara server, fara alocatie, banii inapoi; nu se ramburseaza de doua ori |
+| `PROV-03` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-04` | P0 | .env pe VM 103 (PAYMENTS_ENABLED, STRIPE_SECRET_KEY) | REQUIRES OPERATOR APPROVAL | Platile oprite prin configuratie: createCheckout arunca 503, deci nicio comanda nu poate fi platita | Calea de cod e pregatita si testata (comanda cu total 0 se confirma fara furnizor); ce lipseste este cheia Stripe live si PAYMENTS_ENABLED=true, decizie si credential de la operator | — | api/tests/order-amounts.test.ts | Verificat in stiva izolata: comanda cu promoție 100% e confirmata si provisionata fara furnizor |
+| `PROV-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-06` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-07` | High | api/src/services/order-numbers.ts | FIXED & VERIFIED | Numarul comenzii era count()+1 contra unei coloane unice: P2002, HTTP 500 | Numarul vine dintr-un contor ridicat atomic, cu recuperare daca contorul a fost stricat; acelasi contor pentru comenzi, facturi si upgrade-uri | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: 100 de comenzi simultane, numere distincte, niciun P2002 |
+| `PROV-08` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-11` | High | POST /admin/infrastructure/sync, tabelele Node si Egg | REQUIRES OPERATOR APPROVAL | Cache-urile Node si Egg sunt goale: sincronizarea nu a fost rulata niciodata | Ruta exista; rularea ei in productie scrie in baza de date, deci cere aprobare | — | api/tests/panel-client-contracts.test.ts | Verificat: sincronizarea citeste panoul corect |
+| `PROV-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROV-13` | High | api/src/services/provisioning.ts (recordServerAttempt, findServerAttempt) | FIXED & VERIFIED | Containerul era creat, apoi scria identificatorul; o eroare ducea la un al doilea server | Incercarea este inregistrata inainte de creare si reluarea o reutilizeaza; daca inregistrarea esueaza, containerul nou este sters | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: reluarea dupa refuzul scrierii face un singur server |
+| `PROV-14` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `COMM-01` | P0 | api/src/services/order-amounts.ts, api/src/services/stripe.ts | FIXED & VERIFIED | createCheckout trimitea pretul de lista, iar verifyAmount respingea comanda pentru ca sumele nu se potriveau | Totalul comenzii este impartit pe linii, suma incasata este exact suma cotata, iar o comanda acoperita integral este confirmata fara furnizor de plata | 3948f7f / remediation/phase-1-payment-safety | api/tests/order-amounts.test.ts | Test: 21 de teste; comanda cu promoție 100% ajunge PAID si este provisionata |
+| `COMM-02` | P0 | api/src/services/billing.ts (configurationPrice, reconcileInstancePrices), api/src/routes/admin.ts | FIXED & VERIFIED | Pretul stocat al instantei putea fi cel de baza al produsului, nu cel al configuratiei; nu se reconcilia niciodata | Pretul instantei este pretul configuratiei sale; importul scrie pretul configuratiei, iar POST /admin/instances/reconcile-prices reconciliaza si scrie diferenta in jurnal | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: pretul corectat 100 -> 2200, estimarea clientului egaleaza pretul configuratiei |
+| `COMM-03` | P0 | api/src/services/upgrades.ts (applyUpgradeOrder) | FIXED & VERIFIED | Schimbarea de resurse se aplica fara ca plata sa fie confirmata | Functia refuza orice comanda care nu este platita, lasa instanta neatinsa si scrie motivul in jurnal | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: refuz pentru comanda neplata, aplicare pentru cea platita |
+| `COMM-04` | Critical | api/src/services/billing.ts (renew, reconcileInvoicesWithProvider) | FIXED & VERIFIED | renew() marca facturile platite cand Stripe nu era activ, adica in productie | Factura devine platita doar la confirmarea incasarii; fara furnizor ramane deschisa, perioada nu se prelungeste, abonamentul trece in PAST_DUE; o reconciliere cu furnizorul exista | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: nicio factura plata fara furnizor; o factura perioada la doua baleieri |
+| `COMM-05` | Critical | api/src/routes/webhooks.ts (markDeferred, claimEvent, retryFailedWebhookEvents) | FIXED & VERIFIED | Un invoice.paid sosit inainte de checkout era consumat ca procesat si nu mai era reluat | Evenimentul este amanat, numarul de incercari este numarat, reluarea are o limita si exista o cale de replay | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: eveniment amanat, apoi aplicat; un eveniment imposibil se opreste la limita |
+| `COMM-06` | High | api/src/routes/webhooks.ts (handleCancelledOrderPayment, releaseCancelledOrderPromotion) | FIXED & VERIFIED | O comanda anulata putea fi platita si onorata, iar slotul campaniei era consumat | Comanda anulata nu este onorata, banii sunt returnati sau marcati pentru operator, iar slotul campaniei este eliberat | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: niciun serviciu creat, slotul campaniei inapoiat |
+| `COMM-07` | High | api/src/routes/billing.ts (quote, subscriptions/:id/renew), api/src/services/billing.ts (createLocalRenewal) | FIXED & VERIFIED | YEARLY nu era folosit niciodata si nu exista reinnoire care functioneaza fara Stripe | Planul anual se coteste si se plateste, perioada este de 12 luni, iar reinnoirea locala produce o factura deschisa confirmata de operator | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: cotatie anuala 7000, reinnoire de 12 luni, fara prelungire dubla |
+| `COMM-08` | High | api/src/services/billing.ts (withdraw, scheduleInstanceDeletion, buildInstanceExport) | FIXED & VERIFIED | La anulare serverul era sters imediat, fara termen si fara export | Serviciul este marcat pentru stergere dupa termenul din setare, datele clientului sunt exportate inainte de orice stergere, iar exportul ramane la dispozitie | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: termen de 7 zile, serverul nu se sterge inainte, exportul exista |
+| `COMM-09` | P0 (același defect ca `PRICE-03`) | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `COMM-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `COMM-11` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `COMM-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROMO-01` | Critical (= `COMM-01`) | api/src/services/order-amounts.ts | FIXED & VERIFIED | Acelasi defect ca COMM-01, vazut din pagina de promotii | Reducerea ajunge la furnizorul de plata prin aceeasi impartire a totalului | 3948f7f / remediation/phase-1-payment-safety | api/tests/order-amounts.test.ts | Test: suma incasata este suma cotata |
+| `PROMO-02` | P0 | api/src/routes/admin.ts (POST/PATCH /admin/promotions), web/src/admin/Promotions.tsx | FIXED & VERIFIED | maxPerUser nu putea fi setat, deci fiecare campanie era nelimitata per cont | Administratorul poate fixa, schimba si goli limita per cont, cu validare pe server si in formular | remediation/phase-1-payment-safety | api/tests/promotions.test.ts | Test: limita se poate seta, se schimba, se goleste si se respinge valoarea invalida |
+| `PROMO-03` | High | api/src/services/pricing.ts (reservePromotion, effectiveRedemptions) | FIXED & VERIFIED | Contorul era citit si apoi scris, deci doua comenzi simultane puteau trece de limita | Rezervarea ruleaza intr-o tranzactie care blocheaza randul campaniei si numara in interiorul ei; contorul de rezervari este tabelul de redemptions, nu usedCount | remediation/phase-1-payment-safety | api/tests/promotions.test.ts | Test: doua rezervari simultane nu trec de plafon |
+| `PROMO-04` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROMO-05` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROMO-06` | Medium | api/src/services/pricing.ts (promotionCap, applyPromotion), api/src/routes/admin.ts | FIXED & VERIFIED | O campanie FIXED fara plafon putea da comanda cu total 0 | Campania FIXED trebuie sa aiba o suma, iar serverul garanteaza ca reducerea nu depaseste niciodata comanda | remediation/phase-1-payment-safety | api/tests/promotions.test.ts | Test: reducerea nu depaseste comanda; campania FIXED fara suma este respinsa |
+| `PROMO-07` | Medium | api/src/routes/catalog.ts (POST /catalog/quote) | FIXED & VERIFIED | Cotatia publica nu verifica limita per cont, deci clientul vedea un cod valid si comanda era respinsa mai tarziu | Cotatia primeste utilizatorul semnat si verifica limita per cont inainte de a arata reducerea | remediation/phase-1-payment-safety | api/tests/promotions.test.ts | Test: limita per cont se aplica la cotatie |
+| `PROMO-08` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROMO-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROMO-10` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PROMO-11` | Medium | web/src/home/Studio.tsx, Story.tsx, Configurator.tsx, Ticker.tsx | FIXED & VERIFIED | Simulatorul de marketing arata preturi care nu erau preturile configuratiilor | Toate paginile publice iau produsele si preturile de la server; lista hardcodata a fost eliminata | 3948f7f / remediation/phase-1-payment-safety | web/tests/catalog-truth.test.ts | Test: niciun pret fara server in codul clientului |
+| `PROMO-12` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-01` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-02` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-03` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-04` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-06` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-07` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-08` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-11` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DOC-13` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `INF-01` | Critical | VM 101, / (RAID 0) | REQUIRES OPERATOR APPROVAL | RAID 0 pe volumul de root: pierderea unui disc pierde totul | Nu s-a atins: brieful interzice schimbarea RAID fara o procedura aprobata si un plan de rollback testat | — | — | Nu s-a rulat nimic: schimbarea necesita downtime si backup (B-09) si aprobare |
+| `INF-02` | Critical | scripts/backup.sh, scripts/backup-offsite.sh | BLOCKED: EXTERNAL DEPENDENCY | Nu exista o copie a datelor in afara hostului | Scriptele exista; tinta de backup off-host (provider, volum, cost) e decizia D-2 a operatorului | — | — | Nu s-a putut verifica: nu exista tinta |
+| `INF-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `INF-04` | High | VM 102, VM 103, firewall | REQUIRES OPERATOR APPROVAL | Porturile de administrare (8006, 111) sunt ascultate public | Nu s-a atins: brieful interzice schimbarea regulilor de firewall care ar putea produce lockout fara procedura aprobata | — | — | Nu s-a rulat nimic pe infrastructura |
+| `INF-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `INF-06` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `INF-07` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `INF-08` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `NET-01` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `NET-02` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `NET-03` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `NET-04` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `CAP-01` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `CAP-02` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `CAP-03` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `CAP-04` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DR-01` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DR-02` | P0 | scripts/restore.sh, scripts/restore-drill.sh | BLOCKED: EXTERNAL DEPENDENCY | Procedura de restaurare nu a fost exersata pe o copie reala | Procedura exista in repo; drill-ul cere backupul real (B-09) si o masina goala | — | — | Nu s-a putut verifica: nu exista backup off-host |
+| `DR-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DR-04` | P0 | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `DR-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PRICE-01` | P0 | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PRICE-02` | P0 | api/src/services/availability.ts, web/src/lib/pricing-contract.ts | FIXED & VERIFIED | Produsele fara mapping de egg aveau pret activ si erau vizibile, deci clientul vedea un pret pentru un serviciu care nu putea fi cumparat | Disponibilitatea e derivata (orderable = visible && deployable && eggId != null), serverul trimite cele 4 stari, comanda e refuzata server-side, interfata nu arata CTA pentru un produs indisponibil | 3948f7f / 210a677 | api/tests/catalog-availability.test.ts | Testele trec; WordPress apare "temporarily unavailable" si nu poate fi comandat |
+| `PRICE-03` | P0 | docs/API_CONTRACT.md | FIXED & VERIFIED | Campul price.amount nu spunea ca e in unitati minori; conventia aparea o singura data in tot contractul | Contractul API spune explicit ca toate sumele sunt in unitati minori si descrie cartea de preturi si starea de disponibilitate | 36a75a7 | documentatia contractului | Contractul API descrie acum unitatea, cartea de preturi si cele 4 stari |
+| `PRICE-04` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PRICE-05` | Low | api/src/services/pricing.ts, api/src/routes/catalog.ts | FIXED & VERIFIED | Existau 6 surse de pret; o regula noua intr-un strat lasa celelalte in urma | Catalogul, cartea de preturi si cotatia sunt calculate cu aceeasi functie (priceBook / priceConfiguration) | 3948f7f | api/tests/catalog-pricing.test.ts | 255/255 cotatii se potrivesc; testele trec |
+| `PRICE-06` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `OPS-01` | Critical | api/src/services/provisioning.ts, api/prisma/seed.ts | REQUIRES OPERATOR APPROVAL | Produsul vandut nu contine aplicatia: radacina containerului are doar .npm/ si bm-test.txt, iar startup-ul e npm run start | Poarta e implementata: un produs fara mapping de egg nu poate fi comandat (disponibilitatea derivata). Ce lipseste este decizia de produs despre aplicatia care ruleaza si imaginea ei | 210a677 | api/tests/catalog-availability.test.ts | Verificat: WordPress (fara egg) e TEMPORARILY_UNAVAILABLE si nu are CTA |
+| `OPS-02` | Critical | api/src/services/provisioning.ts (refuseUnpaidProvisioning, storeServerIdentifiers) | FIXED & VERIFIED | Provisionarea nu era conditionata de plata: instante ONLINE din comenzi neplatite | Poarta este in serviciul de provisionare, rescrisa si in tranzactia care scrie identificatorii; refuzul e jurnalizat si nu se reincearca | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: comanda neplata nu produce server si nici alocatie |
+| `OPS-03` | Critical | api/src/services/notifications.ts, relay SMTP | BLOCKED: EXTERNAL DEPENDENCY | Canalul de suport este inert: notifyStaff() scrie intr-un fisier pe mail:file si nimeni nu il citeste | Implementarea e gata; depinde de un relay SMTP real, care este o dependenta externa | — | api/tests/email-delivery.test.ts | Verificat in stiva izolata: cu mail:file mesajul ajunge in fisier, cum e documentat |
+| `OPS-04` | High | DOMAIN_BASE, CADDY_ADMIN_URL, CADDY_ADMIN_TOKEN, gateway.ts | BLOCKED: EXTERNAL DEPENDENCY | Nu exista URL public, structural: valorile sunt goale si InstanceDomain are 0 randuri | Mecanismul din cod este la locul lui; publicarea subdomeniului cere Caddy-ul de pe VM 102 configurat cu un bloc admin si cu cele trei variabile | — | api/tests/domains.test.ts | Verificat: domeniul se rezerva si se elibereaza corect; URL-ul public depinde de gateway |
+| `OPS-05` | High | api/src/routes/orders.ts, .env pe VM 103 | REQUIRES OPERATOR APPROVAL | Checkoutul 503, verificat live, pentru ca nu exista cheie Stripe | Codul e pregatit; activarea platilor cere cheia Stripe live si PAYMENTS_ENABLED=true | — | api/tests/order-amounts.test.ts | Verificat: cu furnizorul pornit, checkoutul intoarce o sesiune |
+| `OPS-06` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `OPS-07` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `OPS-08` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `OPS-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `OPS-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `OPS-11` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PORT-01` | Critical | cardul de pret din audit/05-commerce-and-billing.md | REQUIRES OPERATOR APPROVAL | Pretul se recalculeaza pe baza floor-ului, nu pe baza pietii | Nu s-a atins: valoarea C_node si decizia asupra cardului de pret sunt D-1 a operatorului | — | — | Nu s-a rulat nimic: pretul nu e o decizie de inginer |
+| `PORT-02` | Critical | documente de conformitate | REQUIRES OPERATOR APPROVAL | Comparatia cu piata si regimul fiscal | Nu s-a atins: e o decizie de operator si o confirmare profesionala | — | — | Nu s-a putut verifica |
+| `PORT-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PORT-04` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PORT-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PORT-06` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PORT-07` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PORT-08` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `PORT-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-01` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-02` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-03` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-04` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-05` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-06` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-07` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-08` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-11` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `MKT-12` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-01` | Critical | web/src/ui-app.tsx (DataTable), web/src/lib/table.ts, web/src/app/Domains.tsx | FIXED & VERIFIED | DataTable punea class="grid" pe tbody, ceea ce distrugea modelul de coloane; o tabela DNS era scrisa de mana cu randurile scoase din tabel | Tabel real: thead si tbody din aceeasi descriere de coloane, colgroup explicit, nowrap/align/truncate pe coloana | 3948f7f | web/tests/table-layout.test.ts | Sweep 26 rute x 3 latimi: decalaj maxim antet-corp 0 px (era 701 px) |
+| `UX-02` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-03` | Critical | web/src/app/Overview.tsx, web/src/app/InstanceDetail.tsx | FIXED & VERIFIED | Doua stari contrazicatoare pe acelasi ecran: pastila "Online" si metrica "Container: offline" | Toate vederile folosesc StatusPill dintr-o singura sursa; metrica contradictorie a fost eliminata | 210a677 | sweep + inspectia DOM | Verificat in browser: o singura stare per instanta |
+| `UX-04` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-05` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-06` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-07` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-08` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-09` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-10` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-11` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-13` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-14` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-15` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-16` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-17` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-18` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-19` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-20` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-21` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-22` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-23` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-24` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-25` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-26` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-27` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `UX-28` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-01` | High | api/src/routes/webhooks.ts, api/src/services/stripe.ts | FIXED & VERIFIED | Calea banului nu avea tranzactie: o comanda putea deveni PAID fara plata si fara abonament | Comanda platita consuma slotul campaniei si creeaza abonamentul in aceeasi cale; o comanda anulata nu este onorata | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: eveniment amanat si aplicat; comanda anulata refuzata |
+| `BE-02` | High | api/src/services/provisioning.ts (recordServerAttempt) | FIXED & VERIFIED | Marcajul de reluare a provisionarii era distrus la fiecare tentativa | Incercarea este pastrata in jurnalul pasului, deci reluarea stie ce a facut | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: reluarea nu creeaza un al doilea server |
+| `BE-03` | High | api/src/routes/webhooks.ts (claimEvent, markDeferred) | FIXED & VERIFIED | Ledgerul webhook nu proteja de livrarile concurente ale aceluiasi eveniment | Evenimentul este luat cu o constrangere unica si amanatele sunt numarate si reluate cu o limita | remediation/phase-1-payment-safety | api/tests/billing-lifecycle.test.ts | Test: evenimentul amanat este aplicat o singura data |
+| `BE-04` | High | api/src/services/provisioning.ts | IMPLEMENTED, NOT VERIFIED | Provisionarea face 10 mutatii pe panou si ~20 de scrieri in DB cu o singura tranzactie | Incercarea, identificatorii si compensarea au fost restructurate; tranzactia unica peste toate panourile ramane o refactorizare mai mare, nemtestata pe un panou real | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Testele trec; tranzactia completa peste panou nu a fost masurata pe panoul real |
+| `BE-05` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-06` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-07` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-08` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-09` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-11` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-13` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-14` | Medium | api/src/services/order-numbers.ts | FIXED & VERIFIED | Numarul comenzilor si al facturilor era numarul de randuri plus unu | Un singur contor atomic pentru comenzi si facturi, folosit de toate caile | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: numerele nu se repeta niciodata |
+| `BE-15` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+
+<!-- REMEDIATION:END -->

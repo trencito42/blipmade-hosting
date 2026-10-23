@@ -1,0 +1,24 @@
+[Unit]
+# The backup of the Blipmade platform.
+#
+# The physical host uses RAID 0, so a copy that stays on this machine is not a
+# backup. This unit runs the local backup and, when an off-site target is
+# configured, the encrypted copy that leaves the host.
+Description=Blipmade platform backup
+Documentation=file:///opt/blipmade/scripts/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=debian
+Group=debian
+WorkingDirectory=/opt/blipmade
+EnvironmentFile=-/opt/blipmade/.env
+ExecStart=/opt/blipmade/scripts/backup.sh scheduled
+# The off-site copy is encrypted with a key that must never appear in the
+# process list, so it is read from the environment of the service.
+ExecStartPost=/opt/blipmade/scripts/backup-offsite.sh
+TimeoutStartSec=3600
+Nice=10
+IOSchedulingClass=idle

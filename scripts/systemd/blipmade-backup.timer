@@ -1,0 +1,19 @@
+[Unit]
+# The schedule of the backup of the Blipmade platform.
+#
+# The backup runs every night, a few minutes after the hour of low traffic,
+# and the timer survives a reboot. The schedule can be changed by the
+# operator; what matters is that it runs and that its result is verified.
+Description=Run the Blipmade platform backup every night
+Documentation=file:///opt/blipmade/scripts/README.md
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+# A machine that was off at that hour runs the backup when it comes back.
+Persistent=true
+# The backup does not overlap with itself.
+RandomizedDelaySec=900
+Unit=blipmade-backup.service
+
+[Install]
+WantedBy=timers.target

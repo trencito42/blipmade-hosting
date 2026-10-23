@@ -1,0 +1,389 @@
+{
+ "UX-01": {
+  "status": "FIXED & VERIFIED",
+  "area": "web/src/ui-app.tsx (DataTable), web/src/lib/table.ts, web/src/app/Domains.tsx",
+  "rootCause": "DataTable punea class=\"grid\" pe tbody, ceea ce distrugea modelul de coloane; o tabela DNS era scrisa de mana cu randurile scoase din tabel",
+  "fix": "Tabel real: thead si tbody din aceeasi descriere de coloane, colgroup explicit, nowrap/align/truncate pe coloana",
+  "commit": "3948f7f",
+  "test": "web/tests/table-layout.test.ts",
+  "verification": "Sweep 26 rute x 3 latimi: decalaj maxim antet-corp 0 px (era 701 px)"
+ },
+ "UX-03": {
+  "status": "FIXED & VERIFIED",
+  "area": "web/src/app/Overview.tsx, web/src/app/InstanceDetail.tsx",
+  "rootCause": "Doua stari contrazicatoare pe acelasi ecran: pastila \"Online\" si metrica \"Container: offline\"",
+  "fix": "Toate vederile folosesc StatusPill dintr-o singura sursa; metrica contradictorie a fost eliminata",
+  "commit": "210a677",
+  "test": "sweep + inspectia DOM",
+  "verification": "Verificat in browser: o singura stare per instanta"
+ },
+ "PRICE-02": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/availability.ts, web/src/lib/pricing-contract.ts",
+  "rootCause": "Produsele fara mapping de egg aveau pret activ si erau vizibile, deci clientul vedea un pret pentru un serviciu care nu putea fi cumparat",
+  "fix": "Disponibilitatea e derivata (orderable = visible && deployable && eggId != null), serverul trimite cele 4 stari, comanda e refuzata server-side, interfata nu arata CTA pentru un produs indisponibil",
+  "commit": "3948f7f / 210a677",
+  "test": "api/tests/catalog-availability.test.ts",
+  "verification": "Testele trec; WordPress apare \"temporarily unavailable\" si nu poate fi comandat"
+ },
+ "PRICE-03": {
+  "status": "FIXED & VERIFIED",
+  "area": "docs/API_CONTRACT.md",
+  "rootCause": "Campul price.amount nu spunea ca e in unitati minori; conventia aparea o singura data in tot contractul",
+  "fix": "Contractul API spune explicit ca toate sumele sunt in unitati minori si descrie cartea de preturi si starea de disponibilitate",
+  "commit": "36a75a7",
+  "test": "documentatia contractului",
+  "verification": "Contractul API descrie acum unitatea, cartea de preturi si cele 4 stari"
+ },
+ "PRICE-05": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/pricing.ts, api/src/routes/catalog.ts",
+  "rootCause": "Existau 6 surse de pret; o regula noua intr-un strat lasa celelalte in urma",
+  "fix": "Catalogul, cartea de preturi si cotatia sunt calculate cu aceeasi functie (priceBook / priceConfiguration)",
+  "commit": "3948f7f",
+  "test": "api/tests/catalog-pricing.test.ts",
+  "verification": "255/255 cotatii se potrivesc; testele trec"
+ },
+ "SEC-04": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/admin.ts, web/src/admin/Staff.tsx",
+  "rootCause": "PUT /admin/staff/:userId cerea doar staff.write, deci orice staff putea acorda rolul ADMIN; restrictia era doar in interfata",
+  "fix": "Serverul refuza (403) schimbarea rolului si a permisiunilor unui administrator de catre un non-administrator; schimbarea este scrisa in jurnal",
+  "commit": "36a75a7",
+  "test": "api/tests/admin-staff-permissions.test.ts",
+  "verification": "Test: staff.write primeste 403 la acordarea rolului ADMIN; ADMIN reuseste"
+ },
+ "PROV-01": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/provisioning.ts (chooseNode, nodeCapacity, requiredCapacity)",
+  "rootCause": "Poarta de capacitate compara disk-ului nodului (MB de la panou) cu disk-ul instantei (GB): factor 1024",
+  "fix": "Ambele valori sunt aduse la MB inainte de comparatie; refuzul numeste valorile si unitatea lor",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Test: refuzul numeste MB si GB; 13 teste de capacitate"
+ },
+ "PROV-02": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/provisioning.ts (compensateFailedProvisioning)",
+  "rootCause": "La provisionare nereusita serverul, alocarea si suma ramaneau; nu exista compensare",
+  "fix": "Compensarea sterge containerul, elibereaza alocarea, returneaza banii sau marcheaza refundul de facut, si scrie totul in jurnal; ruleaza doar la ultima incercare",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Test: fara server, fara alocatie, banii inapoi; nu se ramburseaza de doua ori"
+ },
+ "PROV-13": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/provisioning.ts (recordServerAttempt, findServerAttempt)",
+  "rootCause": "Containerul era creat, apoi scria identificatorul; o eroare ducea la un al doilea server",
+  "fix": "Incercarea este inregistrata inainte de creare si reluarea o reutilizeaza; daca inregistrarea esueaza, containerul nou este sters",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Test: reluarea dupa refuzul scrierii face un singur server"
+ },
+ "PROV-07": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/order-numbers.ts",
+  "rootCause": "Numarul comenzii era count()+1 contra unei coloane unice: P2002, HTTP 500",
+  "fix": "Numarul vine dintr-un contor ridicat atomic, cu recuperare daca contorul a fost stricat; acelasi contor pentru comenzi, facturi si upgrade-uri",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Test: 100 de comenzi simultane, numere distincte, niciun P2002"
+ },
+ "OPS-02": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/provisioning.ts (refuseUnpaidProvisioning, storeServerIdentifiers)",
+  "rootCause": "Provisionarea nu era conditionata de plata: instante ONLINE din comenzi neplatite",
+  "fix": "Poarta este in serviciul de provisionare, rescrisa si in tranzactia care scrie identificatorii; refuzul e jurnalizat si nu se reincearca",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Test: comanda neplata nu produce server si nici alocatie"
+ },
+ "BE-02": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/provisioning.ts (recordServerAttempt)",
+  "rootCause": "Marcajul de reluare a provisionarii era distrus la fiecare tentativa",
+  "fix": "Incercarea este pastrata in jurnalul pasului, deci reluarea stie ce a facut",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Test: reluarea nu creeaza un al doilea server"
+ },
+ "BE-14": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/order-numbers.ts",
+  "rootCause": "Numarul comenzilor si al facturilor era numarul de randuri plus unu",
+  "fix": "Un singur contor atomic pentru comenzi si facturi, folosit de toate caile",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Test: numerele nu se repeta niciodata"
+ },
+ "BE-04": {
+  "status": "IMPLEMENTED, NOT VERIFIED",
+  "area": "api/src/services/provisioning.ts",
+  "rootCause": "Provisionarea face 10 mutatii pe panou si ~20 de scrieri in DB cu o singura tranzactie",
+  "fix": "Incercarea, identificatorii si compensarea au fost restructurate; tranzactia unica peste toate panourile ramane o refactorizare mai mare, nemtestata pe un panou real",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/provisioning-safety.test.ts",
+  "verification": "Testele trec; tranzactia completa peste panou nu a fost masurata pe panoul real"
+ },
+ "COMM-01": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/order-amounts.ts, api/src/services/stripe.ts",
+  "rootCause": "createCheckout trimitea pretul de lista, iar verifyAmount respingea comanda pentru ca sumele nu se potriveau",
+  "fix": "Totalul comenzii este impartit pe linii, suma incasata este exact suma cotata, iar o comanda acoperita integral este confirmata fara furnizor de plata",
+  "commit": "3948f7f / remediation/phase-1-payment-safety",
+  "test": "api/tests/order-amounts.test.ts",
+  "verification": "Test: 21 de teste; comanda cu promoție 100% ajunge PAID si este provisionata"
+ },
+ "PROMO-01": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/order-amounts.ts",
+  "rootCause": "Acelasi defect ca COMM-01, vazut din pagina de promotii",
+  "fix": "Reducerea ajunge la furnizorul de plata prin aceeasi impartire a totalului",
+  "commit": "3948f7f / remediation/phase-1-payment-safety",
+  "test": "api/tests/order-amounts.test.ts",
+  "verification": "Test: suma incasata este suma cotata"
+ },
+ "COMM-02": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/billing.ts (configurationPrice, reconcileInstancePrices), api/src/routes/admin.ts",
+  "rootCause": "Pretul stocat al instantei putea fi cel de baza al produsului, nu cel al configuratiei; nu se reconcilia niciodata",
+  "fix": "Pretul instantei este pretul configuratiei sale; importul scrie pretul configuratiei, iar POST /admin/instances/reconcile-prices reconciliaza si scrie diferenta in jurnal",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: pretul corectat 100 -> 2200, estimarea clientului egaleaza pretul configuratiei"
+ },
+ "COMM-03": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/upgrades.ts (applyUpgradeOrder)",
+  "rootCause": "Schimbarea de resurse se aplica fara ca plata sa fie confirmata",
+  "fix": "Functia refuza orice comanda care nu este platita, lasa instanta neatinsa si scrie motivul in jurnal",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: refuz pentru comanda neplata, aplicare pentru cea platita"
+ },
+ "COMM-04": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/billing.ts (renew, reconcileInvoicesWithProvider)",
+  "rootCause": "renew() marca facturile platite cand Stripe nu era activ, adica in productie",
+  "fix": "Factura devine platita doar la confirmarea incasarii; fara furnizor ramane deschisa, perioada nu se prelungeste, abonamentul trece in PAST_DUE; o reconciliere cu furnizorul exista",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: nicio factura plata fara furnizor; o factura perioada la doua baleieri"
+ },
+ "COMM-05": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/webhooks.ts (markDeferred, claimEvent, retryFailedWebhookEvents)",
+  "rootCause": "Un invoice.paid sosit inainte de checkout era consumat ca procesat si nu mai era reluat",
+  "fix": "Evenimentul este amanat, numarul de incercari este numarat, reluarea are o limita si exista o cale de replay",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: eveniment amanat, apoi aplicat; un eveniment imposibil se opreste la limita"
+ },
+ "COMM-06": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/webhooks.ts (handleCancelledOrderPayment, releaseCancelledOrderPromotion)",
+  "rootCause": "O comanda anulata putea fi platita si onorata, iar slotul campaniei era consumat",
+  "fix": "Comanda anulata nu este onorata, banii sunt returnati sau marcati pentru operator, iar slotul campaniei este eliberat",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: niciun serviciu creat, slotul campaniei inapoiat"
+ },
+ "COMM-07": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/billing.ts (quote, subscriptions/:id/renew), api/src/services/billing.ts (createLocalRenewal)",
+  "rootCause": "YEARLY nu era folosit niciodata si nu exista reinnoire care functioneaza fara Stripe",
+  "fix": "Planul anual se coteste si se plateste, perioada este de 12 luni, iar reinnoirea locala produce o factura deschisa confirmata de operator",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: cotatie anuala 7000, reinnoire de 12 luni, fara prelungire dubla"
+ },
+ "COMM-08": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/billing.ts (withdraw, scheduleInstanceDeletion, buildInstanceExport)",
+  "rootCause": "La anulare serverul era sters imediat, fara termen si fara export",
+  "fix": "Serviciul este marcat pentru stergere dupa termenul din setare, datele clientului sunt exportate inainte de orice stergere, iar exportul ramane la dispozitie",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: termen de 7 zile, serverul nu se sterge inainte, exportul exista"
+ },
+ "BE-01": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/webhooks.ts, api/src/services/stripe.ts",
+  "rootCause": "Calea banului nu avea tranzactie: o comanda putea deveni PAID fara plata si fara abonament",
+  "fix": "Comanda platita consuma slotul campaniei si creeaza abonamentul in aceeasi cale; o comanda anulata nu este onorata",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: eveniment amanat si aplicat; comanda anulata refuzata"
+ },
+ "BE-03": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/webhooks.ts (claimEvent, markDeferred)",
+  "rootCause": "Ledgerul webhook nu proteja de livrarile concurente ale aceluiasi eveniment",
+  "fix": "Evenimentul este luat cu o constrangere unica si amanatele sunt numarate si reluate cu o limita",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/billing-lifecycle.test.ts",
+  "verification": "Test: evenimentul amanat este aplicat o singura data"
+ },
+ "PROMO-02": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/admin.ts (POST/PATCH /admin/promotions), web/src/admin/Promotions.tsx",
+  "rootCause": "maxPerUser nu putea fi setat, deci fiecare campanie era nelimitata per cont",
+  "fix": "Administratorul poate fixa, schimba si goli limita per cont, cu validare pe server si in formular",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/promotions.test.ts",
+  "verification": "Test: limita se poate seta, se schimba, se goleste si se respinge valoarea invalida"
+ },
+ "PROMO-03": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/pricing.ts (reservePromotion, effectiveRedemptions)",
+  "rootCause": "Contorul era citit si apoi scris, deci doua comenzi simultane puteau trece de limita",
+  "fix": "Rezervarea ruleaza intr-o tranzactie care blocheaza randul campaniei si numara in interiorul ei; contorul de rezervari este tabelul de redemptions, nu usedCount",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/promotions.test.ts",
+  "verification": "Test: doua rezervari simultane nu trec de plafon"
+ },
+ "PROMO-06": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/services/pricing.ts (promotionCap, applyPromotion), api/src/routes/admin.ts",
+  "rootCause": "O campanie FIXED fara plafon putea da comanda cu total 0",
+  "fix": "Campania FIXED trebuie sa aiba o suma, iar serverul garanteaza ca reducerea nu depaseste niciodata comanda",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/promotions.test.ts",
+  "verification": "Test: reducerea nu depaseste comanda; campania FIXED fara suma este respinsa"
+ },
+ "PROV-04": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": ".env pe VM 103 (PAYMENTS_ENABLED, STRIPE_SECRET_KEY)",
+  "rootCause": "Platile oprite prin configuratie: createCheckout arunca 503, deci nicio comanda nu poate fi platita",
+  "fix": "Calea de cod e pregatita si testata (comanda cu total 0 se confirma fara furnizor); ce lipseste este cheia Stripe live si PAYMENTS_ENABLED=true, decizie si credential de la operator",
+  "commit": "—",
+  "test": "api/tests/order-amounts.test.ts",
+  "verification": "Verificat in stiva izolata: comanda cu promoție 100% e confirmata si provisionata fara furnizor"
+ },
+ "OPS-05": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "api/src/routes/orders.ts, .env pe VM 103",
+  "rootCause": "Checkoutul 503, verificat live, pentru ca nu exista cheie Stripe",
+  "fix": "Codul e pregatit; activarea platilor cere cheia Stripe live si PAYMENTS_ENABLED=true",
+  "commit": "—",
+  "test": "api/tests/order-amounts.test.ts",
+  "verification": "Verificat: cu furnizorul pornit, checkoutul intoarce o sesiune"
+ },
+ "OPS-01": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "api/src/services/provisioning.ts, api/prisma/seed.ts",
+  "rootCause": "Produsul vandut nu contine aplicatia: radacina containerului are doar .npm/ si bm-test.txt, iar startup-ul e npm run start",
+  "fix": "Poarta e implementata: un produs fara mapping de egg nu poate fi comandat (disponibilitatea derivata). Ce lipseste este decizia de produs despre aplicatia care ruleaza si imaginea ei",
+  "commit": "210a677",
+  "test": "api/tests/catalog-availability.test.ts",
+  "verification": "Verificat: WordPress (fara egg) e TEMPORARILY_UNAVAILABLE si nu are CTA"
+ },
+ "OPS-03": {
+  "status": "BLOCKED: EXTERNAL DEPENDENCY",
+  "area": "api/src/services/notifications.ts, relay SMTP",
+  "rootCause": "Canalul de suport este inert: notifyStaff() scrie intr-un fisier pe mail:file si nimeni nu il citeste",
+  "fix": "Implementarea e gata; depinde de un relay SMTP real, care este o dependenta externa",
+  "commit": "—",
+  "test": "api/tests/email-delivery.test.ts",
+  "verification": "Verificat in stiva izolata: cu mail:file mesajul ajunge in fisier, cum e documentat"
+ },
+ "OPS-04": {
+  "status": "BLOCKED: EXTERNAL DEPENDENCY",
+  "area": "DOMAIN_BASE, CADDY_ADMIN_URL, CADDY_ADMIN_TOKEN, gateway.ts",
+  "rootCause": "Nu exista URL public, structural: valorile sunt goale si InstanceDomain are 0 randuri",
+  "fix": "Mecanismul din cod este la locul lui; publicarea subdomeniului cere Caddy-ul de pe VM 102 configurat cu un bloc admin si cu cele trei variabile",
+  "commit": "—",
+  "test": "api/tests/domains.test.ts",
+  "verification": "Verificat: domeniul se rezerva si se elibereaza corect; URL-ul public depinde de gateway"
+ },
+ "INF-01": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "VM 101, / (RAID 0)",
+  "rootCause": "RAID 0 pe volumul de root: pierderea unui disc pierde totul",
+  "fix": "Nu s-a atins: brieful interzice schimbarea RAID fara o procedura aprobata si un plan de rollback testat",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu s-a rulat nimic: schimbarea necesita downtime si backup (B-09) si aprobare"
+ },
+ "INF-02": {
+  "status": "BLOCKED: EXTERNAL DEPENDENCY",
+  "area": "scripts/backup.sh, scripts/backup-offsite.sh",
+  "rootCause": "Nu exista o copie a datelor in afara hostului",
+  "fix": "Scriptele exista; tinta de backup off-host (provider, volum, cost) e decizia D-2 a operatorului",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu s-a putut verifica: nu exista tinta"
+ },
+ "DR-02": {
+  "status": "BLOCKED: EXTERNAL DEPENDENCY",
+  "area": "scripts/restore.sh, scripts/restore-drill.sh",
+  "rootCause": "Procedura de restaurare nu a fost exersata pe o copie reala",
+  "fix": "Procedura exista in repo; drill-ul cere backupul real (B-09) si o masina goala",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu s-a putut verifica: nu exista backup off-host"
+ },
+ "SEC-01": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "VM 102 / VM 103, sshd",
+  "rootCause": "Parola de root si accesul prin parole",
+  "fix": "Nu s-a atins: rotatia parolei de root inainte de firewall e lockout, iar brieful cere o procedura aprobata",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu s-a rulat nimic pe infrastructura"
+ },
+ "INF-04": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "VM 102, VM 103, firewall",
+  "rootCause": "Porturile de administrare (8006, 111) sunt ascultate public",
+  "fix": "Nu s-a atins: brieful interzice schimbarea regulilor de firewall care ar putea produce lockout fara procedura aprobata",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu s-a rulat nimic pe infrastructura"
+ },
+ "PROV-11": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "POST /admin/infrastructure/sync, tabelele Node si Egg",
+  "rootCause": "Cache-urile Node si Egg sunt goale: sincronizarea nu a fost rulata niciodata",
+  "fix": "Ruta exista; rularea ei in productie scrie in baza de date, deci cere aprobare",
+  "commit": "—",
+  "test": "api/tests/panel-client-contracts.test.ts",
+  "verification": "Verificat: sincronizarea citeste panoul corect"
+ },
+ "PORT-01": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "cardul de pret din audit/05-commerce-and-billing.md",
+  "rootCause": "Pretul se recalculeaza pe baza floor-ului, nu pe baza pietii",
+  "fix": "Nu s-a atins: valoarea C_node si decizia asupra cardului de pret sunt D-1 a operatorului",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu s-a rulat nimic: pretul nu e o decizie de inginer"
+ },
+ "PORT-02": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "documente de conformitate",
+  "rootCause": "Comparatia cu piata si regimul fiscal",
+  "fix": "Nu s-a atins: e o decizie de operator si o confirmare profesionala",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu s-a putut verifica"
+ },
+ "PROMO-11": {
+  "status": "FIXED & VERIFIED",
+  "area": "web/src/home/Studio.tsx, Story.tsx, Configurator.tsx, Ticker.tsx",
+  "rootCause": "Simulatorul de marketing arata preturi care nu erau preturile configuratiilor",
+  "fix": "Toate paginile publice iau produsele si preturile de la server; lista hardcodata a fost eliminata",
+  "commit": "3948f7f / remediation/phase-1-payment-safety",
+  "test": "web/tests/catalog-truth.test.ts",
+  "verification": "Test: niciun pret fara server in codul clientului"
+ },
+ "PROMO-07": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/catalog.ts (POST /catalog/quote)",
+  "rootCause": "Cotatia publica nu verifica limita per cont, deci clientul vedea un cod valid si comanda era respinsa mai tarziu",
+  "fix": "Cotatia primeste utilizatorul semnat si verifica limita per cont inainte de a arata reducerea",
+  "commit": "remediation/phase-1-payment-safety",
+  "test": "api/tests/promotions.test.ts",
+  "verification": "Test: limita per cont se aplica la cotatie"
+ }
+}
