@@ -9,7 +9,14 @@ import {
   productIcon,
   useCatalogProducts,
 } from '../lib/pricing';
-import { deployPathFor, isOrderable, orderBlockers, startingConfiguration, startingPrice } from '../lib/pricing-contract';
+import {
+  availabilityLabel,
+  deployPathFor,
+  isOrderable,
+  orderBlockers,
+  startingConfiguration,
+  startingPrice,
+} from '../lib/pricing-contract';
 import { Link } from '../router';
 import { AppMark } from '../ui';
 import { EmptyState, ErrorState, LoadingBlock, Panel, ScrollRow, TextInput } from '../ui-app';
@@ -46,7 +53,9 @@ function availability(product: CatalogProduct): { deployable: boolean; label: st
   if (!isOrderable(product)) {
     return {
       deployable: false,
-      label: blockers.length && !product.deployable ? 'Coming soon' : 'Not available',
+      // The wording comes from the state of the product on the server, so the
+      // same product is called the same thing everywhere.
+      label: availabilityLabel(product),
       reason: blockers.length
         ? blockers.join(' ')
         : 'This product is not validated for deployment yet. You cannot order it today.',

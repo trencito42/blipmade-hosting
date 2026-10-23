@@ -140,10 +140,10 @@ export default function Domains() {
         ) : !instances.length ? (
           <EmptyState
             title="No instances yet"
-            description="Deploy an app or database first, then attach a domain to it."
+            description="A domain is attached to an instance, so deploy an app or a database first."
             action={
-              <Link to="/app" className={linkButton}>
-                Go to your dashboard
+              <Link to="/app/deploy" className={linkButton}>
+                See what you can deploy
               </Link>
             }
           />
@@ -294,7 +294,15 @@ export default function Domains() {
                   {domain.dnsRecords.length ? (
                     <>
                     <div className="hidden overflow-x-auto overscroll-x-contain bm-hide-scroll md:block">
-                      <table className="w-full border-collapse text-left">
+                      {/* A real table: the header and the rows share the same
+                          columns, so a header always stands on its column. */}
+                      <table className="w-full border-separate text-left" style={{ borderSpacing: '0 6px' }}>
+                        <colgroup>
+                          <col style={{ width: '28%' }} />
+                          <col style={{ width: '14%' }} />
+                          <col style={{ width: '42%' }} />
+                          <col style={{ width: '16%' }} />
+                        </colgroup>
                         <thead>
                           <tr>
                             <th scope="col" className="px-2 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">
@@ -311,13 +319,25 @@ export default function Domains() {
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="grid gap-1.5">
+                        <tbody>
                           {domain.dnsRecords.map((record) => (
-                            <tr key={`${record.name}-${record.type}`} className="rounded-2xl bg-s3">
-                              <td className="px-2.5 py-2.5 align-middle font-mono text-[12.5px] break-all text-ink2">{record.name}</td>
-                              <td className="px-2.5 py-2.5 align-middle font-mono text-[12.5px] text-ink2">{record.type}</td>
-                              <td className="px-2.5 py-2.5 align-middle font-mono text-[12.5px] break-all text-ink">{record.value}</td>
-                              <td className="px-2.5 py-2.5 align-middle text-right">
+                            <tr key={`${record.name}-${record.type}`}>
+                              <td
+                                className="max-w-0 truncate rounded-l-2xl bg-s3 px-2.5 py-2.5 align-middle font-mono text-[12.5px] text-ink2"
+                                title={record.name}
+                              >
+                                {record.name}
+                              </td>
+                              <td className="whitespace-nowrap bg-s3 px-2.5 py-2.5 align-middle font-mono text-[12.5px] text-ink2">
+                                {record.type}
+                              </td>
+                              <td
+                                className="max-w-0 truncate bg-s3 px-2.5 py-2.5 align-middle font-mono text-[12.5px] text-ink"
+                                title={record.value}
+                              >
+                                {record.value}
+                              </td>
+                              <td className="rounded-r-2xl bg-s3 px-2.5 py-2.5 align-middle text-right">
                                 <button
                                   type="button"
                                   onClick={() => void copy(record.value, `${record.type} value`)}

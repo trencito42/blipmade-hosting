@@ -48,7 +48,14 @@ interface AdminProduct {
   eggId: number | null;
   dockerImage: string | null;
   /** What the catalog and the ordering will answer for this product. */
-  availability: { enabled: boolean; installable: boolean; blockers: string[]; orderable: boolean };
+  availability: {
+    state: 'DEPLOYABLE' | 'COMING_SOON' | 'TEMPORARILY_UNAVAILABLE' | 'UNPUBLISHED';
+    enabled: boolean;
+    installable: boolean;
+    visible: boolean;
+    orderable: boolean;
+    blockers: string[];
+  };
   minRam: number;
   minCpu: number;
   minDisk: number;
@@ -78,7 +85,7 @@ export default function Products() {
   const products = state.data?.products ?? [];
   const mayWrite = can(staff, 'products.write');
 
-  const patchProduct = useAction(async (id: string, body: { visible?: boolean; deployable?: boolean }) => {
+  const patchProduct = useAction(async (id: string, body: { visible?: boolean; deployable?: boolean; eggId?: number | null }) => {
     return api<{ product: AdminProduct }>(`/admin/products/${id}`, { method: 'PATCH', body });
   });
 
@@ -210,13 +217,14 @@ export default function Products() {
                     nowrap: true,
                     render: (product: AdminProduct) => {
                       // The flag says that the operator allows the product to
-                      // be ordered. The availability says whether the panel can
-                      // build it. A product that is switched on but cannot be
-                      // built is shown as blocked, with the reason.
+                      // be ordered. The state says whether the panel can build
+                      // it. A product that is switched on but cannot be built
+                      // is shown as blocked, with the reason.
+                      const state = product.availability?.state;
                       const orderable = product.availability?.orderable ?? product.deployable;
-                      const blocked = product.deployable && !orderable;
-                      const title = product.availability?.blockers?.join(' ') ?? '';
-                      if (blocked) {
+                      const blockers = product.availability?.blockers ?? [];
+                      const title = blockers.join(' ');
+                      if (state && state !== 'DEPLOYABLE' && product.deployable) {
                         return (
                           <span className="inline-flex items-center gap-1.5" title={title}>
                             <StatusPill status="degraded" label="Blocked" />
@@ -293,7 +301,22 @@ export default function Products() {
                         <dt className="text-ink3">Deployable</dt>
                         <dd className="text-ink">{product.deployable ? 'Yes' : 'No'}</dd>
                       </div>
+                      <div className="col-span-2">
+                        <dt className="text-ink3">Panel egg</dt>
+                        <dd className="font-mono text-ink">
+                          {product.eggId ?? 'Not set — the product cannot be built yet'}
+                        </dd>
+                      </div>
                     </dl>
+                    {mayWrite && (
+                      <EggForm
+                        product={product}
+                        onSaved={(id, value) => {
+                          patchProduct.run(id, { eggId: value });
+                        }}
+                        busy={patchProduct.pending}
+                      />
+                    )}
                     {mayWrite && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
@@ -381,6 +404,51 @@ export default function Products() {
   );
 }
 
+/**
+ * The egg of the panel of a product.
+ *
+ * The product is opened for ordering only when the panel can build it, and
+ * that needs the egg. The field is here so the staff area can set it without
+ * the database.
+ */
+function EggForm({
+  product,
+  onSaved,
+  busy,
+}: {
+  product: AdminProduct;
+  onSaved: (id: string, eggId: number | null) => void;
+  busy: boolean;
+}) {
+  const [value, setValue] = useState(product.eggId ? String(product.eggId) : '');
+  const changed = value.trim() === '' ? product.eggId !== null : Number(value) !== product.eggId;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-end gap-2">
+      <label className="grid gap-1 text-[12.5px] text-ink3">
+        Egg of the panel
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          placeholder="the id of the egg"
+          className="h-10 w-32 rounded-xl bg-s3 px-3 font-mono text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc"
+        />
+      </label>
+      <button
+        type="button"
+        disabled={!changed || busy || Number.isNaN(Number(value))}
+        onClick={() => onSaved(product.id, value.trim() === '' ? null : Number(value))}
+        className="h-10 rounded-full bg-s2 px-4 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-s3 disabled:opacity-40"
+      >
+        Save the egg
+      </button>
+    </div>
+  );
+}
+
 function NewProductForm({ onDone }: { onDone: () => void }) {
   const toast = useToast();
   const [slug, setSlug] = useState('');
@@ -389,6 +457,7 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('box');
   const [dockerImage, setDockerImage] = useState('');
+  const [eggId, setEggId] = useState('');
   const [minRam, setMinRam] = useState('512');
   const [minCpu, setMinCpu] = useState('1');
   const [minDisk, setMinDisk] = useState('5');
@@ -408,6 +477,9 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
       description: description.trim(),
       icon: icon.trim() || 'box',
       dockerImage: dockerImage.trim() || null,
+      // The egg of the panel. Without it the product cannot be built, and it
+      // cannot be opened for ordering.
+      eggId: eggId.trim() === '' ? null : Number(eggId),
       minRam: Number(minRam),
       minCpu: Number(minCpu),
       minDisk: Number(minDisk),
@@ -509,6 +581,23 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
           value={dockerImage}
           onChange={(event) => setDockerImage(event.target.value)}
           placeholder="ghcr.io/example/app:latest"
+          className={denseInput}
+        />
+      </Field>
+
+      <Field
+        label="Egg of the panel"
+        htmlFor="product-egg"
+        hint="The id of the egg on the panel. Without it the product cannot be built, so it cannot be opened for ordering."
+      >
+        <input
+          id="product-egg"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          value={eggId}
+          onChange={(event) => setEggId(event.target.value)}
+          placeholder="the id of the egg"
           className={denseInput}
         />
       </Field>

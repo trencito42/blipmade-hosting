@@ -52,6 +52,16 @@ export function resolveCookieSecure(request: FastifyRequest): boolean {
   return request.protocol === 'https';
 }
 
+/**
+ * How many sessions an account may hold at the same time.
+ *
+ * Every sign-in opens a session, and the old ones are not closed by themselves
+ * until they expire. Without a limit the list of the sessions grows without
+ * end and the customer sees a wall of entries that look the same. The oldest
+ * sessions are closed when the limit is passed.
+ */
+const MAX_SESSIONS_PER_USER = 20;
+
 /** Creates a server-side session and sets the cookies. */
 export async function createSession(
   request: FastifyRequest,
@@ -70,6 +80,19 @@ export async function createSession(
       userAgent: (request.headers['user-agent'] ?? null) as string | null,
     },
   });
+
+  // The account keeps a bounded number of sessions: the oldest ones are
+  // closed, so the list of the sessions stays readable and the table cannot
+  // grow without end.
+  const stale = await prisma.session.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    skip: MAX_SESSIONS_PER_USER,
+    select: { id: true },
+  });
+  if (stale.length) {
+    await prisma.session.deleteMany({ where: { id: { in: stale.map((session) => session.id) } } });
+  }
 
   reply.setCookie(SESSION_COOKIE, token, {
     httpOnly: true,

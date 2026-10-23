@@ -870,6 +870,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const instance = await prisma.instance.findUnique({ where: { id } });
     if (!instance) throw notFound('Instance not found.');
 
+    // An instance that is online is not retried. The worker skips it anyway,
+    // and the status of a healthy instance must not be touched: a run that
+    // starts on a running instance would build a second server for it.
+    if (instance.status === 'ONLINE') {
+      throw badRequest('This instance is online. There is nothing to retry.');
+    }
+
     await prisma.instance.update({ where: { id }, data: { status: 'PROVISIONING', provisionError: null } });
     await enqueueProvisioning(id, { reason, requestedBy: actor.id });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'instance.retry_requested', targetType: 'instance', targetId: id, meta: { reason } });

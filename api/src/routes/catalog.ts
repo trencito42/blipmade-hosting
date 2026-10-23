@@ -53,6 +53,7 @@ function serializeProduct(product: {
     name: product.name,
     deployable: product.deployable,
     eggId: product.eggId,
+    visible: product.visible,
   });
   // The price book: what the minimum configuration costs (the starting price
   // of the catalog) and what the recommended one costs. Both are calculated

@@ -69,6 +69,24 @@ function fmtDate(value: string): string {
   return date.toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/**
+ * The date and the hour.
+ *
+ * The sessions of an account need it: two sessions of the same device, of the
+ * same address and of the same day look the same with the date alone.
+ */
+function fmtDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-IE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function messageOf(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     const field = error.fields ? Object.values(error.fields)[0] : undefined;
@@ -471,7 +489,7 @@ function SessionsPanel({
                   )}
                 </p>
                 <p className="mt-0.5 font-mono text-[12.5px] text-ink3">
-                  {session.ip ?? 'Unknown address'} · signed in on {fmtDate(session.createdAt)}
+                  {session.ip ?? 'Unknown address'} · signed in on {fmtDateTime(session.createdAt)}
                 </p>
               </div>
               <SoftButton

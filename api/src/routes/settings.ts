@@ -114,16 +114,22 @@ function serializeSession(session: {
   };
 }
 
-/** The short name of a browser, so the list of sessions can be read. */
+/**
+ * The short name of a browser, so the list of the sessions can be read.
+ *
+ * Every browser of an iPhone sends "Safari" in its user agent, because the
+ * system browser is the engine. The name of the browser comes before the
+ * name of the engine, so a Chrome on an iPhone is not called a Safari.
+ */
 function describeAgent(userAgent: string | null): string {
   if (!userAgent) return 'Unknown device';
-  const browser = /Edg\//.test(userAgent)
+  const browser = /Edg(?:iOS|A)?\//.test(userAgent)
     ? 'Edge'
-    : /OPR\//.test(userAgent)
+    : /OPR(?:iOS)?\//.test(userAgent)
       ? 'Opera'
-      : /Chrome\//.test(userAgent)
+      : /(?:CriOS|Chrome)\/|CriOS/.test(userAgent)
         ? 'Chrome'
-        : /Firefox\//.test(userAgent)
+        : /(?:FxiOS|Firefox)\/|FxiOS/.test(userAgent)
           ? 'Firefox'
           : /Safari\//.test(userAgent)
             ? 'Safari'

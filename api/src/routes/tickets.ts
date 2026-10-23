@@ -2,7 +2,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { AppError, badRequest, forbidden, notFound } from '../lib/errors.js';
-import { requireAuth, requireStaff } from '../plugins/auth.js';
+import { requireAuth, requireStaff, type AuthUser } from '../plugins/auth.js';
+import { hasPermission, type Permission } from '../lib/permissions.js';
 import { audit } from '../lib/audit.js';
 import { sendMail } from '../lib/mailer.js';
 import { fullName } from '../lib/people.js';
@@ -210,6 +211,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     if (!ticket) throw notFound('Ticket not found.');
 
     const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
+    requireTicketPermission(user, 'tickets.read');
     if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
 
     const messages = ticket.messages
@@ -247,6 +249,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
   app.post('/tickets/:id/replies', async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
+    requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
     const body = parse(
       z.object({
@@ -261,6 +264,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     if (!ticket) throw notFound('Ticket not found.');
 
     const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
+    requireTicketPermission(user, 'tickets.write');
     if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
     if (body.internal && !isStaff) throw forbidden('Only staff can add internal notes.');
 
@@ -313,11 +317,13 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
    */
   app.post('/tickets/:id/attachments', async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
+    requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
     const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
+    requireTicketPermission(user, 'tickets.write');
     if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
 
     if (!request.isMultipart()) {
@@ -385,6 +391,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
     const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
+    requireTicketPermission(user, 'tickets.read');
     if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
 
     const attachment = await prisma.attachment.findFirst({ where: { id: attachmentId, ticketId: id } });
@@ -400,6 +407,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
   app.post('/tickets/:id/status', async (request: FastifyRequest) => {
     const user = await requireStaff(request);
+    requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
     const { status } = parse(z.object({ status: enumField(STATUSES) }), request.body);
 
@@ -419,6 +427,20 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     });
     return { ticket: serializeTicket(updated!) };
   });
+}
+
+/**
+ * A staff member needs the permission to work in the support queue.
+ *
+ * The routes of the tickets are the routes of the customer, so the role alone
+ * is not enough: without the permission a staff member would read the
+ * tickets of every customer, answer in their name and close them.
+ */
+function requireTicketPermission(user: AuthUser, permission: Permission): void {
+  if (user.role !== 'STAFF' && user.role !== 'ADMIN') return;
+  if (!hasPermission(user.role, user.permissions, permission)) {
+    throw forbidden(`Your role does not allow "${permission}".`);
+  }
 }
 
 /** Notifies the staff team that a ticket was opened. */

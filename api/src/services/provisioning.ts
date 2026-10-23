@@ -442,6 +442,16 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       ? await ptero.getServer(instance.pterodactylServerId).catch(() => null)
       : null;
 
+    // The instance has a server, but the panel does not answer. A new server
+    // would leave the data of the customer on the old one, so the run stops
+    // here and the reason is written on the instance.
+    if (!server && instance.pterodactylServerId) {
+      throw new ProvisioningError(
+        'server_created',
+        'The server of this instance exists, but the panel does not answer. The instance was not touched.',
+      );
+    }
+
     let choice: NodeChoice | null = null;
 
     if (!server) {

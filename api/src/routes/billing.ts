@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { requireAuth } from '../plugins/auth.js';
-import { cancelSubscription, createBillingPortal, resumeSubscription } from '../services/stripe.js';
+import { cancelSubscription, createBillingPortal, paymentState, resumeSubscription } from '../services/stripe.js';
 import { notFound } from '../lib/errors.js';
 import {
   formatAmount,
@@ -103,6 +103,17 @@ export async function notifySubscriptionChange(input: {
 }
 
 export async function registerBillingRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Whether a payment can be taken at the moment, and why not.
+   *
+   * The interface asks before it offers a payment, so an action that cannot
+   * work is never shown as if it worked.
+   */
+  app.get('/billing/payment-state', async (request: FastifyRequest) => {
+    await requireAuth(request);
+    return { payments: paymentState() };
+  });
+
   app.get('/billing/summary', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const [instances, subscriptions, invoices, payments] = await Promise.all([

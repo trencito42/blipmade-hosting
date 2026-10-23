@@ -33,6 +33,7 @@ interface SeedInput {
   slug: string;
   deployable?: boolean;
   eggId?: number | null;
+  visible?: boolean;
   amount?: number;
   minRam?: number;
   defaultRam?: number;
@@ -57,7 +58,7 @@ async function seedProduct(input: SeedInput) {
       maxRam: 8192,
       maxCpu: 4,
       maxDisk: 100,
-      visible: true,
+      visible: input.visible ?? true,
       deployable: input.deployable ?? true,
       eggId: input.eggId === undefined ? 1 : input.eggId,
       prices: {
@@ -68,6 +69,32 @@ async function seedProduct(input: SeedInput) {
 }
 
 describe('the availability of a product', () => {
+  it('has one state, the same everywhere', async () => {
+    await seedProduct({ slug: 'discord-bot', deployable: true, eggId: 7 });
+    await seedProduct({ slug: 'wordpress', deployable: true, eggId: null });
+    await seedProduct({ slug: 'uptime-kuma', deployable: false, eggId: 7 });
+    await seedProduct({ slug: 'postgresql', deployable: false, eggId: null, visible: false });
+
+    const client = makeClient(app);
+    const response = await client.request('GET', '/api/catalog/products');
+    const bySlug = Object.fromEntries(
+      response.body.products.map((product: { slug: string }) => [product.slug, product.availability]),
+    );
+
+    // Published and deployable.
+    expect(bySlug['discord-bot'].state).toBe('DEPLOYABLE');
+    expect(bySlug['discord-bot'].orderable).toBe(true);
+    // Published and meant to be sold, but the panel cannot build it.
+    expect(bySlug['wordpress'].state).toBe('TEMPORARILY_UNAVAILABLE');
+    expect(bySlug['wordpress'].orderable).toBe(false);
+    // Published, but the operator has not validated it yet.
+    expect(bySlug['uptime-kuma'].state).toBe('COMING_SOON');
+    expect(bySlug['uptime-kuma'].orderable).toBe(false);
+    // Not listed at all.
+    expect(bySlug['postgresql'].state).toBe('UNPUBLISHED');
+    expect(bySlug['postgresql'].orderable).toBe(false);
+  });
+
   it('is orderable when the operator allows it and the panel can build it', async () => {
     await seedProduct({ slug: 'discord-bot', deployable: true, eggId: 7 });
 
@@ -77,8 +104,10 @@ describe('the availability of a product', () => {
     expect(response.status).toBe(200);
     const product = response.body.products[0];
     expect(product.availability.orderable).toBe(true);
+    expect(product.availability.state).toBe('DEPLOYABLE');
     expect(product.availability.enabled).toBe(true);
     expect(product.availability.installable).toBe(true);
+    expect(product.availability.visible).toBe(true);
     expect(product.availability.blockers).toEqual([]);
   });
 
@@ -93,6 +122,7 @@ describe('the availability of a product', () => {
     expect(response.status).toBe(200);
     const product = response.body.products[0];
     expect(product.availability.orderable).toBe(false);
+    expect(product.availability.state).toBe('TEMPORARILY_UNAVAILABLE');
     expect(product.availability.enabled).toBe(true);
     expect(product.availability.installable).toBe(false);
     expect(product.availability.blockers.join(' ')).toContain('not installed');
@@ -107,6 +137,7 @@ describe('the availability of a product', () => {
     expect(response.status).toBe(200);
     const product = response.body.products[0];
     expect(product.availability.orderable).toBe(false);
+    expect(product.availability.state).toBe('COMING_SOON');
     expect(product.availability.blockers.join(' ')).toContain('validated');
   });
 

@@ -13,7 +13,7 @@ import {
   productIcon,
   productPath,
 } from '../lib/pricing';
-import { isOrderable, orderBlockers, startingPrice } from '../lib/pricing-contract';
+import { availabilityLabel, isOrderable, orderBlockers, startingPrice } from '../lib/pricing-contract';
 import { AppMark, Button, Eyebrow, Headline, Reveal, Wrap } from '../ui';
 import { ScrollRow } from '../ui-app';
 import { Link } from '../router';
@@ -114,7 +114,7 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
                             className={cn('inline-flex h-11 items-center rounded-full px-5 text-[13.5px] font-bold', tone.muted)}
                             title={orderBlockers(product).join(' ')}
                           >
-                            Not available yet
+                            {availabilityLabel(product)}
                           </span>
                         )}
                       </div>
@@ -180,7 +180,9 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
                     {deployable ? (
                       <span className="grid size-10 place-items-center rounded-full bg-s3 text-ink transition-colors duration-[180ms] group-hover:bg-acc group-hover:text-on-acc"><Icon name="arrowUR" size={17} /></span>
                     ) : (
-                      <span className="rounded-full bg-s3 px-3 py-1.5 font-mono text-[11.5px] text-ink2">Not available yet</span>
+                      <span className="rounded-full bg-s3 px-3 py-1.5 font-mono text-[11.5px] text-ink2">
+                        {availabilityLabel(product)}
+                      </span>
                     )}
                   </div>
                   {!deployable && blockers.length > 0 && (

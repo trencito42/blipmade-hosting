@@ -194,3 +194,45 @@ export function orderBlockers(product: CatalogProduct): string[] {
   if (product.deployable) return ['This product has no price yet, so it cannot be ordered.'];
   return ['This product is not validated for deployment yet.'];
 }
+
+/**
+ * The state of a product, as the server sees it.
+ *
+ * The four states are the same on every screen: deployable, coming soon,
+ * temporarily unavailable and unpublished. The interface never decides on its
+ * own whether a product can be bought.
+ */
+export type AvailabilityState = 'DEPLOYABLE' | 'COMING_SOON' | 'TEMPORARILY_UNAVAILABLE' | 'UNPUBLISHED';
+
+export function availabilityState(product: CatalogProduct): AvailabilityState {
+  if (product.availability?.state) return product.availability.state;
+  // A server that does not send the state yet: the flag and the price decide.
+  if (!product.visible) return 'UNPUBLISHED';
+  if (isOrderable(product)) return 'DEPLOYABLE';
+  return product.deployable ? 'TEMPORARILY_UNAVAILABLE' : 'COMING_SOON';
+}
+
+/**
+ * The name of the state, in the words of the customer.
+ *
+ * One wording per state, used by the catalog, the product page, the
+ * configurator and the customer area.
+ */
+export function availabilityLabel(product: CatalogProduct): string {
+  switch (availabilityState(product)) {
+    case 'DEPLOYABLE':
+      return 'Ready to deploy';
+    case 'COMING_SOON':
+      return 'Coming soon';
+    case 'TEMPORARILY_UNAVAILABLE':
+      return 'Temporarily unavailable';
+    default:
+      return 'Not published';
+  }
+}
+
+/** True when the state is one the customer can do nothing about yet. */
+export function isUnavailable(product: CatalogProduct): boolean {
+  return availabilityState(product) !== 'DEPLOYABLE';
+}
+

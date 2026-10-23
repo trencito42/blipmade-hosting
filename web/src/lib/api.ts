@@ -186,14 +186,17 @@ export interface PricedConfiguration {
 /**
  * What the catalog and the ordering know about a product.
  *
- * `orderable` is the answer that counts: a product that is listed and priced
- * but that the panel cannot build is not orderable.
+ * `state` is the answer that counts: a product that is listed and priced but
+ * that the panel cannot build is not orderable.
  */
 export interface DeploymentAvailability {
+  /** The state of the product, seen from the outside. */
+  state: 'DEPLOYABLE' | 'COMING_SOON' | 'TEMPORARILY_UNAVAILABLE' | 'UNPUBLISHED';
   enabled: boolean;
   installable: boolean;
-  blockers: string[];
+  visible: boolean;
   orderable: boolean;
+  blockers: string[];
 }
 
 export interface CatalogProduct {

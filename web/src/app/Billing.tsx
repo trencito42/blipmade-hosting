@@ -212,10 +212,10 @@ export default function Billing() {
         ) : !subscriptions.length ? (
           <EmptyState
             title="No subscriptions yet"
-            description="Subscriptions appear here as soon as you deploy an instance."
+            description="A subscription starts with your first instance. Deploy an app or a database and the plan follows it."
             action={
-              <Link to="/app" className={linkButton}>
-                Go to your dashboard
+              <Link to="/app/deploy" className={linkButton}>
+                See what you can deploy
               </Link>
             }
           />

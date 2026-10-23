@@ -11,6 +11,7 @@ import {
   productIcon,
 } from '../lib/pricing';
 import {
+  availabilityLabel,
   deployPathFor,
   isOrderable,
   orderBlockers,
@@ -149,6 +150,7 @@ export default function ProductPage() {
   const deployHref = user || sessionLoading ? target : `/login?next=${encodeURIComponent(target)}`;
   const orderable = isOrderable(product);
   const blockers = orderBlockers(product);
+  const stateLabel = availabilityLabel(product);
   const startAmount = startingPrice(product);
   const recommendation = recommendedPreset(product);
   const recommendationAmount = recommendedPrice(product);
@@ -216,8 +218,8 @@ export default function ProductPage() {
               ) : (
                 <p className="rounded-2xl bg-s2 px-4 py-3.5 text-[14.5px] leading-relaxed text-ink2">
                   {blockers.length
-                    ? `This product cannot be ordered yet. ${blockers.join(' ')}`
-                    : 'This product cannot be ordered yet.'}
+                    ? `This product is ${stateLabel.toLowerCase()}. ${blockers.join(' ')}`
+                    : `This product is ${stateLabel.toLowerCase()}.`}
                 </p>
               )}
             </div>
