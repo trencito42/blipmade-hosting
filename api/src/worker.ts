@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import type { Job } from 'bullmq';
+import { UnrecoverableError, type Job } from 'bullmq';
 import { prisma } from './db.js';
 import { redis } from './redis.js';
 import { env } from './env.js';
@@ -9,11 +9,18 @@ import {
   closeQueue,
   enqueueProvisioning,
   getQueue,
+  isLastAttempt,
   type EmailJobData,
   type EmailJobResult,
+  type ProvisionJobData,
 } from './services/queue.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
-import { provisionInstance, reconcileInterruptedInstances } from './services/provisioning.js';
+import {
+  PaymentRequiredError,
+  provisionInstance,
+  reconcileInterruptedInstances,
+} from './services/provisioning.js';
+import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
@@ -26,7 +33,7 @@ import { audit } from './lib/audit.js';
  * twice at the same time, and every step is recorded on the instance so an
  * interrupted run can be reconciled.
  */
-const worker = createProvisionWorker(async (job: Job<{ instanceId: string; reason?: string }>) => {
+const worker = createProvisionWorker(async (job: Job<ProvisionJobData>) => {
   const { instanceId } = job.data;
   const instance = await prisma.instance.findUnique({ where: { id: instanceId } });
   if (!instance) {
@@ -38,7 +45,19 @@ const worker = createProvisionWorker(async (job: Job<{ instanceId: string; reaso
     return;
   }
 
-  await provisionInstance(instanceId);
+  try {
+    // The last attempt of a job is the end of the road: a run that fails
+    // there leaves nothing behind and gives the money of the order back.
+    await provisionInstance(instanceId, { final: isLastAttempt(job) });
+  } catch (error) {
+    if (error instanceof PaymentRequiredError) {
+      // The order of the instance is not paid. The run is not repeated: the
+      // reason is in the journal of the instance and the instance is picked
+      // up again as soon as the money of the order arrives.
+      throw new UnrecoverableError(error.message);
+    }
+    throw error;
+  }
 });
 
 worker.on('completed', (job) => {
@@ -80,7 +99,13 @@ async function reconcile(): Promise<void> {
   if (count) {
     console.info(`[worker] requeued ${count} interrupted instance(s)`);
     const stuck = await prisma.instance.findMany({
-      where: { status: { in: ['PROVISIONING', 'PENDING'] } },
+      where: {
+        status: { in: ['PROVISIONING', 'PENDING'] },
+        // An instance of an order that is not paid is not put on the queue:
+        // the run would refuse it, and it is picked up as soon as the money
+        // of the order arrives.
+        OR: [{ orderId: null }, { order: { status: { in: ['PAID', 'FULFILLED'] } } }],
+      },
       select: { id: true },
       take: 100,
     });
@@ -110,6 +135,13 @@ async function sweepBilling(): Promise<void> {
     );
   }
   await reconcileWithProvider().catch(() => undefined);
+  // The invoices are compared with the truth of the provider as well, so an
+  // invoice that was collected is never left open and an invoice that was
+  // never collected is never marked as paid.
+  const invoices = await reconcileInvoicesWithProvider().catch(() => null);
+  if (invoices && (invoices.paid || invoices.corrected)) {
+    console.info(`[worker] invoice reconciliation: ${invoices.paid} paid, ${invoices.corrected} corrected`);
+  }
   await releaseStalePromotionReservations().catch(() => undefined);
 }
 

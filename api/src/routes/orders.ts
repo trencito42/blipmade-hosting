@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
+import { nextOrderNumber } from '../services/order-numbers.js';
 import { createCheckout, markOrderPaid, stripeTestGateway } from '../services/stripe.js';
 import { fulfilOrder } from './webhooks.js';
 import { audit } from '../lib/audit.js';
@@ -56,10 +57,7 @@ function serializeOrder(order: {
   };
 }
 
-async function nextOrderNumber(): Promise<string> {
-  const count = await prisma.order.count();
-  return `BM-${String(count + 1).padStart(5, '0')}`;
-}
+
 
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   app.post('/orders', {
@@ -94,6 +92,9 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 cpu: item.cpu,
                 disk: item.disk,
                 optionCodes: item.optionCodes,
+                // The period of the price travels with the line, so the
+                // payment provider is asked for the right interval.
+                period: item.price.period,
               },
             })),
           },
@@ -105,12 +106,20 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       // used when the payment is confirmed, so unpaid orders cannot exhaust a
       // campaign. The reservation expires on its own if the order is abandoned.
       if (quote.promotionRecord) {
-        await reservePromotion({
-          promotionId: quote.promotionRecord.id,
-          userId: user.id,
-          orderId: order.id,
-          amount: quote.discount,
-        });
+        try {
+          await reservePromotion({
+            promotionId: quote.promotionRecord.id,
+            userId: user.id,
+            orderId: order.id,
+            amount: quote.discount,
+          });
+        } catch (error) {
+          // The order was created a moment ago and nothing points at it yet,
+          // so it is removed. An order that did not get a campaign slot must
+          // not keep the price of a campaign it never reserved.
+          await prisma.order.delete({ where: { id: order.id } }).catch(() => undefined);
+          throw error;
+        }
       }
 
       await audit({ actorId: user.id, actorEmail: user.email, action: 'order.created', targetType: 'order', targetId: order.id, meta: { total: order.total } });
@@ -201,3 +210,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(204).send();
   });
 }
+
+// The helper lives in a service, so every place that creates an order takes
+// its number from the same counter.
+export { nextOrderNumber };

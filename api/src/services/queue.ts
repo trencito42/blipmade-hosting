@@ -16,11 +16,32 @@ import {
 
 export const PROVISION_QUEUE = 'blipmade.provision';
 
+/**
+ * How many times a provisioning job is tried before it is given up.
+ *
+ * A run that fails is tried again, because a panel that does not answer for
+ * a moment is not a reason to give up a customer. The last attempt is the
+ * end of the road: the service is not delivered, so the platform gives the
+ * money of the order back.
+ */
+export const PROVISION_ATTEMPTS = 5;
+
 export interface ProvisionJobData {
   instanceId: string;
   /** Set when an administrator asks for a retry, so the reason is auditable. */
   reason?: string;
   requestedBy?: string;
+}
+
+/**
+ * True when the job has no attempt left after this one.
+ *
+ * The failure of the last attempt is the end of the run: nothing is left
+ * behind on the node and the money of the order goes back to the customer.
+ */
+export function isLastAttempt(job: Job<ProvisionJobData>): boolean {
+  const attempts = job.opts.attempts ?? PROVISION_ATTEMPTS;
+  return job.attemptsMade + 1 >= attempts;
 }
 
 /**
@@ -39,7 +60,7 @@ export function getQueue(): Queue<ProvisionJobData> {
     queue = new Queue<ProvisionJobData>(PROVISION_QUEUE, {
       connection: redis,
       defaultJobOptions: {
-        attempts: 5,
+        attempts: PROVISION_ATTEMPTS,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: { count: 500 },
         removeOnFail: { count: 500 },

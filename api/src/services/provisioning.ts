@@ -8,7 +8,10 @@ import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
 import { renewCustomerCredential, resolveCustomerCredential } from './panel/credentials.js';
+import { cancelSubscription, refundPayment } from './stripe.js';
+import { starterFiles } from './starter-apps.js';
 import type { Instance, Product } from '@prisma/client';
+import type { PteroNode, PteroServer } from './pterodactyl/types.js';
 
 /** Steps recorded on the instance so an interrupted job can be reconciled. */
 export const PROVISION_STEPS = [
@@ -27,6 +30,18 @@ export const PROVISION_STEPS = [
 export type ProvisionStep = (typeof PROVISION_STEPS)[number];
 
 /**
+ * The states of an order in which the money has arrived.
+ *
+ * An instance is only made for an order in one of these states. An order that
+ * is still waiting for its payment, that was cancelled or that failed does
+ * not buy a container, so it must never take capacity from a node.
+ */
+export const PAID_ORDER_STATUSES = ['PAID', 'FULFILLED'] as const;
+
+/** Megabytes in a gigabyte. The panel counts the disk of a node in megabytes. */
+const MB_PER_GB = 1024;
+
+/**
  * How long a provisioning run may hold an instance before another run is
  * allowed to take over. A run that dies without releasing the lock would
  * otherwise block the instance forever.
@@ -42,8 +57,71 @@ export class ProvisioningError extends Error {
   }
 }
 
+/**
+ * Thrown when the order of an instance is not paid.
+ *
+ * The run stops before it takes anything from a node, so an unpaid order
+ * never leaves a server and never leaves an address behind.
+ */
+export class PaymentRequiredError extends Error {
+  readonly orderNumber: string | null;
+  readonly orderStatus: string | null;
+  constructor(message: string, orderNumber: string | null = null, orderStatus: string | null = null) {
+    super(message);
+    this.name = 'PaymentRequiredError';
+    this.orderNumber = orderNumber;
+    this.orderStatus = orderStatus;
+  }
+}
+
+/**
+ * True when the order of an instance may be provisioned.
+ *
+ * An instance that belongs to no order at all is not conditioned on a
+ * payment: those are the servers a member of the staff imported by hand, and
+ * they are paid for outside the platform. An instance that belongs to an
+ * order is only provisioned when the money of that order arrived.
+ */
+export function orderIsPaid(order: { status: string } | null | undefined): boolean {
+  if (!order) return true;
+  return (PAID_ORDER_STATUSES as readonly string[]).includes(order.status);
+}
+
 async function recordEvent(instanceId: string, type: string, message: string): Promise<void> {
   await prisma.instanceEvent.create({ data: { instanceId, type, message } });
+}
+
+/**
+ * Records that the provisioning was refused because the order is not paid.
+ *
+ * The reason is written to the journal of the instance and to the audit
+ * journal. The same reason is only written once, so a run that is repeated
+ * every minute does not fill the journal with the same line.
+ */
+async function refuseUnpaidProvisioning(instanceId: string, message: string): Promise<void> {
+  const last = await prisma.instanceEvent.findFirst({
+    where: { instanceId, type: 'refused' },
+    orderBy: { createdAt: 'desc' },
+    select: { message: true },
+  });
+  if (last?.message === message) return;
+
+  await recordEvent(instanceId, 'refused', message);
+  await audit({
+    action: 'instance.provision_refused',
+    targetType: 'instance',
+    targetId: instanceId,
+    meta: { reason: message },
+  });
+
+  // The instance goes back to the state it had before the run, so a later
+  // run picks it up as soon as the order is paid.
+  await prisma.instance
+    .updateMany({
+      where: { id: instanceId, status: 'PROVISIONING' },
+      data: { status: 'PENDING' },
+    })
+    .catch(() => undefined);
 }
 
 /**
@@ -146,6 +224,34 @@ function isUnauthenticated(error: unknown): boolean {
  * second time, so a deployment does not fail over a key that is not valid any
  * more.
  */
+/**
+ * Puts the application of the product into a new container.
+ *
+ * The audit found a sold product whose container held nothing but `.npm/` and
+ * `bm-test.txt`, with a start-up command that had nothing to run. The files
+ * are written before the container starts, so the command of the egg finds an
+ * application to run, and the health check of the deployment has something to
+ * answer.
+ *
+ * The write is safe to repeat: the same files are written again.
+ */
+async function placeStarterApplication(instance: Instance, server: PteroServer, product: Product): Promise<void> {
+  const probe = probeFor(product);
+  const files = starterFiles({
+    slug: product.slug,
+    name: product.name,
+    healthPath: probe.kind === 'http' ? (probe.path ?? '/') : '/',
+  });
+
+  await withCustomerKey(instance.userId, async (token) => {
+    for (const file of files) {
+      await pteroClient.writeFile(token, server.uuid, file.path, file.content);
+    }
+  });
+
+  await recordEvent(instance.id, 'provisioning', `Placed the application of ${product.name} in the container.`);
+}
+
 async function withCustomerKey<T>(userId: string, run: (token: string) => Promise<T>): Promise<T> {
   const credential = await resolveCustomerCredential(userId);
   try {
@@ -189,6 +295,81 @@ interface NodeChoice {
 }
 
 /**
+ * The capacity a node has left, in megabytes.
+ *
+ * The panel counts the memory and the disk of a node in megabytes. The plan
+ * of an instance counts the memory in megabytes and the disk in gigabytes, so
+ * everything is brought to megabytes before the two are compared. Comparing
+ * the free disk of a node in megabytes with the disk of an instance in
+ * gigabytes was off by a factor of a thousand, so a node that was out of
+ * disk by less than a gigabyte was picked all the same.
+ */
+export interface NodeCapacity {
+  freeMemoryMb: number;
+  freeDiskMb: number;
+}
+
+/** The free capacity of a node, in megabytes. */
+export function nodeCapacity(node: PteroNode): NodeCapacity {
+  return {
+    freeMemoryMb: node.memory + node.memory_overallocate - node.allocated_resources.memory,
+    freeDiskMb: node.disk + node.disk_overallocate - node.allocated_resources.disk,
+  };
+}
+
+/**
+ * The resources an instance needs, in the units the panel uses.
+ *
+ * The memory of an instance is in megabytes, the same unit the panel counts
+ * it in. The disk of an instance is in gigabytes, so it is brought to
+ * megabytes before it is compared with the free disk of a node. The processor
+ * is a share of the processor of the node: the panel counts it in percent, so
+ * one vCPU is a hundred percent.
+ */
+export interface RequiredCapacity {
+  memoryMb: number;
+  diskMb: number;
+  diskGb: number;
+  cpuPercent: number;
+}
+
+/** The resources an instance needs, in the units the panel uses. */
+export function requiredCapacity(instance: { ram: number; disk: number; cpu: number }): RequiredCapacity {
+  return {
+    memoryMb: instance.ram,
+    diskMb: instance.disk * MB_PER_GB,
+    diskGb: instance.disk,
+    cpuPercent: instance.cpu * 100,
+  };
+}
+
+/**
+ * The reason a node cannot hold the instance.
+ *
+ * The message names the values and their unit, so the operator reads how
+ * much is missing instead of guessing.
+ */
+export function capacityRefusal(
+  node: { id: number; name: string },
+  capacity: NodeCapacity,
+  required: RequiredCapacity,
+): string {
+  const parts: string[] = [];
+  if (capacity.freeMemoryMb < required.memoryMb) {
+    parts.push(
+      `${capacity.freeMemoryMb} MB of free memory, but the instance needs ${required.memoryMb} MB of memory`,
+    );
+  }
+  if (capacity.freeDiskMb < required.diskMb) {
+    parts.push(
+      `${capacity.freeDiskMb} MB of free disk, but the instance needs ${required.diskMb} MB of disk (${required.diskGb} GB)`,
+    );
+  }
+  if (!parts.length) parts.push('the node has no free address left');
+  return `Node ${node.id} (${node.name}) cannot hold this instance: ${parts.join('; ')}.`;
+}
+
+/**
  * Chooses a node with free capacity and an unassigned allocation.
  *
  * The address that is reserved here is only a place to put the server. The
@@ -199,29 +380,52 @@ interface NodeChoice {
  * are reserved for other kinds of workload stay free. A node that only has
  * addresses left outside that range is still used when it is the only one
  * with room.
+ *
+ * A node is only picked when it really has the room for the instance. The
+ * panel does not publish the processor of a node, so the processor of the
+ * instance is checked against the limit of the product; the memory and the
+ * disk of the node are the two that are compared with the plan.
  */
-async function chooseNode(ram: number, disk: number): Promise<NodeChoice> {
+async function chooseNode(instance: { ram: number; disk: number; cpu: number }, product: Product): Promise<NodeChoice> {
+  const required = requiredCapacity(instance);
+
+  if (instance.cpu < 1 || instance.cpu > product.maxCpu) {
+    throw new ProvisioningError(
+      'node_selected',
+      `This configuration asks for ${instance.cpu} vCPU (${required.cpuPercent}%), but ${product.name} allows at most ${product.maxCpu} vCPU.`,
+    );
+  }
+
   const nodes = await ptero.listNodes();
   const usable = nodes.filter((node) => !node.maintenance_mode);
   if (!usable.length) throw new ProvisioningError('node_selected', 'No node is available for new instances.');
 
+  const refusals: string[] = [];
   let spare: NodeChoice | null = null;
 
-
   for (const node of usable) {
-    const freeMemory = node.memory + node.memory_overallocate - node.allocated_resources.memory;
-    const freeDisk = node.disk + node.disk_overallocate - node.allocated_resources.disk;
-    if (freeMemory < ram || freeDisk < disk) continue;
+    const capacity = nodeCapacity(node);
+    if (capacity.freeMemoryMb < required.memoryMb || capacity.freeDiskMb < required.diskMb) {
+      refusals.push(capacityRefusal(node, capacity, required));
+      continue;
+    }
 
     const allocations = await ptero.listAllocations(node.id);
     const free = allocations.filter((allocation) => !allocation.assigned);
+    if (!free.length) {
+      refusals.push(capacityRefusal(node, capacity, required));
+      continue;
+    }
     const preferred = free.find((allocation) => allocation.port >= 30000);
     if (preferred) return { nodeId: node.id, allocationId: preferred.id };
-    if (free.length && !spare) spare = { nodeId: node.id, allocationId: free[0]!.id };
+    if (!spare) spare = { nodeId: node.id, allocationId: free[0]!.id };
   }
 
   if (spare) return spare;
-  throw new ProvisioningError('node_selected', 'No node has enough free capacity for this configuration.');
+  throw new ProvisioningError(
+    'node_selected',
+    `No node has enough free capacity for this configuration. The instance needs ${required.memoryMb} MB of memory and ${required.diskMb} MB of disk (${required.diskGb} GB). ${refusals.join(' ')}`.trim(),
+  );
 }
 
 /**
@@ -250,6 +454,138 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
     }
   }
   throw new ProvisioningError('server_created', 'The mapped egg is not available on the panel.');
+}
+
+/**
+ * What an attempt of a provisioning run remembers about the server it made.
+ *
+ * The attempt is written before the identifiers of the server reach the
+ * instance, so a run that is repeated finds the server of the earlier
+ * attempt instead of making a second container for the same instance.
+ */
+interface ServerAttempt {
+  serverId: number;
+  uuid: string;
+  node: number | null;
+  allocation: number | null;
+  panelUserId: number | null;
+}
+
+/** The attempt of an instance that made a server, if there is one. */
+async function findServerAttempt(instanceId: string): Promise<ServerAttempt | null> {
+  const jobs = await prisma.provisioningJob.findMany({
+    where: { instanceId, step: 'server_created' },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: { payload: true },
+  });
+  for (const job of jobs) {
+    const payload = job.payload as ServerAttempt | null;
+    if (payload && typeof payload.serverId === 'number') return payload;
+  }
+  return null;
+}
+
+/**
+ * Writes the server of an attempt on the attempt itself.
+ *
+ * The row of the attempt is the place where the identifier of the container
+ * lives until the instance carries it. A write that fails here means the
+ * identifier would be lost, so the container is deleted instead of being
+ * left on the node.
+ */
+async function recordServerAttempt(instanceId: string, attempt: ServerAttempt): Promise<void> {
+  await prisma.provisioningJob.updateMany({
+    where: { instanceId, step: 'server_created', status: 'running' },
+    data: { payload: attempt as never },
+  });
+}
+
+/**
+ * True when the panel says that the server does not exist any more.
+ *
+ * A panel that cannot be reached is not a server that is gone: the run stops
+ * in that case, so a second container is never made for the same instance.
+ */
+function serverIsGone(error: unknown): boolean {
+  const status = (error as { status?: unknown } | null)?.status;
+  if (status === 404 || status === '404') return true;
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  return message.includes('not found') || message.includes('404');
+}
+
+/**
+ * Deletes a container that must not stay on the node.
+ *
+ * The deletion is written to the journal, also when it fails: a container
+ * that stays on the node has to be found by an operator.
+ */
+async function discardServer(
+  instanceId: string,
+  server: { id: number; uuid: string },
+  reason: string,
+): Promise<boolean> {
+  try {
+    await ptero.deleteServer(server.id);
+    await recordEvent(instanceId, 'server_deleted', `Deleted the server ${server.id}: ${reason}.`);
+    await audit({
+      action: 'instance.server_deleted',
+      targetType: 'instance',
+      targetId: instanceId,
+      meta: { serverId: server.id, reason },
+    });
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordEvent(
+      instanceId,
+      'server_delete_failed',
+      `The server ${server.id} could not be deleted (${reason}): ${message}`,
+    );
+    await audit({
+      action: 'instance.server_delete_failed',
+      targetType: 'instance',
+      targetId: instanceId,
+      meta: { serverId: server.id, reason, error: message },
+    });
+    return false;
+  }
+}
+
+/**
+ * Writes the identifiers of the server on the instance.
+ *
+ * The state of the payment of the order is read again in the same transaction
+ * that writes the identifiers, so an order that was cancelled while the run
+ * was working cannot leave a container behind.
+ */
+async function storeServerIdentifiers(instance: Instance, created: PteroServer): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    if (instance.orderId) {
+      const order = await tx.order.findUnique({
+        where: { id: instance.orderId },
+        select: { id: true, number: true, status: true },
+      });
+      if (!orderIsPaid(order)) {
+        throw new PaymentRequiredError(
+          `The order ${order?.number ?? instance.orderId} is ${(order?.status ?? 'missing').toLowerCase()}, so no server was made for it.`,
+          order?.number ?? null,
+          order?.status ?? null,
+        );
+      }
+    }
+    await tx.instance.update({
+      where: { id: instance.id },
+      data: {
+        pterodactylServerId: created.id,
+        pterodactylUuid: created.uuid,
+        // The allocation and the node are the ones the panel really assigned,
+        // never the ones that were asked for.
+        pterodactylAllocation: created.allocation ?? null,
+        pterodactylNodeId: created.node ?? null,
+      },
+    });
+  });
 }
 
 /**
@@ -405,8 +741,325 @@ export async function verifyContainerDeployment(
   return { ok: false, status: null, reason: lastReason };
 }
 
+/**
+ * What the compensation of a failed provisioning did.
+ *
+ * The customer must not pay for a service that does not exist, so a run that
+ * failed for good leaves nothing behind: no container on the node, no address
+ * taken and the money of the order back with the customer.
+ */
+export interface CompensationResult {
+  /** True when the container of the instance was deleted on the panel. */
+  serverDeleted: boolean;
+  /** True when the instance holds no address on a node any more. */
+  allocationReleased: boolean;
+  /** True when the money of the order was returned by the provider. */
+  refunded: boolean;
+  /** True when the money could not be returned and is due. */
+  refundDue: boolean;
+  /** The order that was compensated, if the instance belongs to one. */
+  orderId: string | null;
+}
+
+/**
+ * Deletes the container of an instance.
+ *
+ * Only a container that belongs to this instance is deleted: the identifier
+ * comes from the instance itself or from the attempt of this instance, and
+ * the panel account of the customer is checked as well.
+ */
+async function removeServerOfInstance(
+  instance: Instance & { user: { pterodactylUserId: string | null } },
+): Promise<boolean> {
+  const attempt = await findServerAttempt(instance.id);
+  const serverId = instance.pterodactylServerId ?? attempt?.serverId ?? null;
+  if (serverId === null) {
+    await recordEvent(instance.id, 'compensation', 'There was no container to delete.');
+    return true;
+  }
+
+  let server: PteroServer | null = null;
+  try {
+    server = await ptero.getServer(serverId);
+  } catch (error) {
+    if (!serverIsGone(error)) {
+      const message = error instanceof Error ? error.message : String(error);
+      await recordEvent(
+        instance.id,
+        'compensation_failed',
+        `The panel could not be asked about the server ${serverId}, so nothing was deleted: ${message}`,
+      );
+      await audit({
+        action: 'instance.compensation_failed',
+        targetType: 'instance',
+        targetId: instance.id,
+        meta: { serverId, error: message },
+      });
+      return false;
+    }
+  }
+
+  if (!server) {
+    // The container is gone already, so the address is free on the node.
+    await recordEvent(instance.id, 'compensation', `The server ${serverId} was gone already.`);
+    return true;
+  }
+
+  const owner = instance.user.pterodactylUserId;
+  if (owner !== null && server.user !== Number(owner)) {
+    // The container belongs to another panel account: it is never deleted
+    // here, because it is not the container of this instance.
+    await recordEvent(
+      instance.id,
+      'compensation_failed',
+      `The server ${serverId} belongs to another panel account, so it was not deleted.`,
+    );
+    await audit({
+      action: 'instance.compensation_skipped',
+      targetType: 'instance',
+      targetId: instance.id,
+      meta: { serverId, panelUserId: server.user, owner },
+    });
+    return false;
+  }
+
+  return discardServer(instance.id, { id: server.id, uuid: server.uuid }, 'the provisioning failed');
+}
+
+/**
+ * Gives the address of the instance back to the node.
+ *
+ * The instance holds no address and no server any more, so the accounting of
+ * the node does not count it.
+ */
+async function releaseAllocation(instance: Instance): Promise<boolean> {
+  if (
+    instance.pterodactylServerId === null &&
+    instance.pterodactylAllocation === null &&
+    instance.pterodactylNodeId === null
+  ) {
+    return true;
+  }
+  await prisma.instance.update({
+    where: { id: instance.id },
+    data: {
+      pterodactylServerId: null,
+      pterodactylUuid: null,
+      pterodactylAllocation: null,
+      pterodactylNodeId: null,
+    },
+  });
+  await recordEvent(instance.id, 'compensation', 'The address on the node was given back.');
+  return true;
+}
+
+/**
+ * Stops the subscription of an instance.
+ *
+ * The service does not exist, so the customer must not be billed for it
+ * again.
+ */
+async function stopSubscriptionOfInstance(
+  instance: Instance & { orderItemId: string | null },
+): Promise<void> {
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      OR: [
+        { instanceId: instance.id },
+        ...(instance.orderItemId ? [{ orderItemId: instance.orderItemId }] : []),
+      ],
+    },
+  });
+  if (!subscription) return;
+  try {
+    await cancelSubscription(subscription);
+    await recordEvent(instance.id, 'compensation', 'The subscription of the instance was cancelled.');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordEvent(
+      instance.id,
+      'compensation_failed',
+      `The subscription of the instance could not be cancelled: ${message}`,
+    );
+    await audit({
+      action: 'instance.compensation_failed',
+      targetType: 'instance',
+      targetId: instance.id,
+      meta: { subscriptionId: subscription.id, error: message },
+    });
+  }
+}
+
+/**
+ * Gives the money of the order of a failed instance back to the customer.
+ *
+ * The order is claimed before the provider is called, the way the
+ * administrative refund does it: a job that is delivered a second time finds
+ * the order refunded and stops, so the customer is never refunded twice.
+ *
+ * When the provider cannot be reached the order goes back to what it was and
+ * the refund is flagged, so an operator returns the money by hand instead of
+ * the platform keeping a payment for a service that does not exist.
+ */
+async function refundOrderOfInstance(
+  instance: Instance & { order: { id: string; number: string; status: string; total: number; currency: string; stripePaymentIntentId: string | null } | null; orderItemId: string | null },
+  reason: string,
+): Promise<{ refunded: boolean; due: boolean }> {
+  const order = instance.order;
+  if (!order) {
+    await recordEvent(instance.id, 'compensation', 'The instance belongs to no order, so there is nothing to give back.');
+    return { refunded: false, due: false };
+  }
+  if (!orderIsPaid(order)) {
+    await recordEvent(
+      instance.id,
+      'compensation',
+      `The order ${order.number} was not paid, so there is nothing to give back.`,
+    );
+    return { refunded: false, due: false };
+  }
+
+  const claimed = await prisma.order.updateMany({
+    where: { id: order.id, status: { in: ['PAID', 'FULFILLED'] } },
+    data: { status: 'REFUNDED', fulfillmentStatus: 'FAILED' },
+  });
+  if (claimed.count !== 1) {
+    await recordEvent(instance.id, 'compensation', `The order ${order.number} was refunded already.`);
+    return { refunded: true, due: false };
+  }
+
+  const payment =
+    order.stripePaymentIntentId
+      ? { stripePaymentIntentId: order.stripePaymentIntentId }
+      : await prisma.payment.findFirst({
+          where: { orderId: order.id, stripePaymentIntentId: { not: null } },
+          orderBy: { createdAt: 'desc' },
+          select: { stripePaymentIntentId: true },
+        });
+
+  const refunded = await refundPayment({
+    orderId: order.id,
+    stripePaymentIntentId: payment?.stripePaymentIntentId ?? null,
+    amount: order.total,
+    reason: `the provisioning failed: ${reason}`,
+  });
+
+  if (!refunded) {
+    // The provider could not return the money. The order goes back to what it
+    // was, so the money can still be returned by hand, and the refund is
+    // flagged in the journal.
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { status: order.status as 'PAID' | 'FULFILLED', fulfillmentStatus: 'FAILED' },
+    });
+    await recordEvent(
+      instance.id,
+      'refund_due',
+      `The refund of ${order.total} ${order.currency} for the order ${order.number} is due: ${reason}`,
+    );
+    await audit({
+      action: 'order.refund_pending',
+      targetType: 'order',
+      targetId: order.id,
+      meta: { reason, amount: order.total, currency: order.currency, instanceId: instance.id },
+    });
+    await stopSubscriptionOfInstance(instance);
+    return { refunded: false, due: true };
+  }
+
+  await recordEvent(instance.id, 'refunded', `The order ${order.number} was refunded.`);
+  await audit({
+    action: 'order.refunded',
+    targetType: 'order',
+    targetId: order.id,
+    meta: { reason, amount: order.total, currency: order.currency, instanceId: instance.id },
+  });
+  await stopSubscriptionOfInstance(instance);
+  return { refunded: true, due: false };
+}
+
+/**
+ * Undoes a provisioning that failed for good.
+ *
+ * Nothing of the failed run may stay behind: the container is deleted from
+ * the panel, the address on the node is given back and the money of the order
+ * goes back to the customer.
+ *
+ * The compensation can run twice: a job that is delivered a second time finds
+ * the order refunded already and stops, so the customer is never refunded
+ * twice. A container that belongs to another instance is never deleted.
+ */
+export async function compensateFailedProvisioning(instanceId: string, reason: string): Promise<CompensationResult> {
+  const instance = await prisma.instance.findUnique({
+    where: { id: instanceId },
+    include: { user: true, order: true },
+  });
+  if (!instance) {
+    return { serverDeleted: false, allocationReleased: false, refunded: false, refundDue: false, orderId: null };
+  }
+
+  if (instance.provisionStep === 'activated') {
+    // The service was delivered and is running. A run that fails after that
+    // does not take the service away from the customer.
+    await recordEvent(
+      instanceId,
+      'compensation_skipped',
+      `The instance was already delivered, so nothing was undone: ${reason}`,
+    );
+    await audit({
+      action: 'instance.compensation_skipped',
+      targetType: 'instance',
+      targetId: instanceId,
+      meta: { reason, provisionStep: instance.provisionStep },
+    });
+    return {
+      serverDeleted: false,
+      allocationReleased: false,
+      refunded: false,
+      refundDue: false,
+      orderId: instance.orderId,
+    };
+  }
+
+  await audit({
+    action: 'instance.provision_compensated',
+    targetType: 'instance',
+    targetId: instanceId,
+    meta: { reason },
+  });
+
+  const serverDeleted = await removeServerOfInstance(instance);
+  const allocationReleased = await releaseAllocation(instance);
+  const refund = await refundOrderOfInstance(instance, reason);
+
+  await recordEvent(
+    instanceId,
+    'compensated',
+    `The provisioning was undone: ${reason}. Container: ${serverDeleted ? 'deleted' : 'not deleted'}. Address: ${
+      allocationReleased ? 'given back' : 'still taken'
+    }. Money: ${refund.refunded ? 'refunded' : refund.due ? 'refund due' : 'nothing to give back'}.`,
+  );
+
+  return {
+    serverDeleted,
+    allocationReleased,
+    refunded: refund.refunded,
+    refundDue: refund.due,
+    orderId: instance.orderId,
+  };
+}
+
 export interface ProvisionOptions {
   domain?: string | null;
+  /**
+   * True when this run is the last one of the job.
+   *
+   * A failure on the last attempt is the end of the run: the container is
+   * deleted, the address on the node is given back and the money of the order
+   * goes back to the customer, so nobody pays for a service that does not
+   * exist.
+   */
+  final?: boolean;
 }
 
 /**
@@ -432,6 +1085,16 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     const product = instance.product;
     const done = (step: ProvisionStep) => isDone(instance.provisionStep, step);
 
+    // The money of the order has to have arrived before anything is made.
+    // The check is here, in the service every path goes through, and not only
+    // in the route that puts the job on the queue: an order that is still
+    // waiting for its payment must not leave a server behind.
+    if (!orderIsPaid(instance.order)) {
+      const message = `The order ${instance.order?.number ?? instance.orderId} is ${(instance.order?.status ?? 'missing').toLowerCase()}, so no server was made for it.`;
+      await refuseUnpaidProvisioning(instance.id, message);
+      throw new PaymentRequiredError(message, instance.order?.number ?? null, instance.order?.status ?? null);
+    }
+
     await beginProvisioning(instance, 'pterodactyl_user');
     const pterodactylUserId = await ensurePterodactylUser(instance);
     await recordEvent(instance.id, 'provisioning', 'Pterodactyl account ready.');
@@ -452,11 +1115,30 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       );
     }
 
-    let choice: NodeChoice | null = null;
+    if (!server) {
+      // An earlier attempt of this instance may have made a container already.
+      // The attempt is reused, so the same order line and the same unit
+      // always end up with the same server and never with two.
+      const attempt = await findServerAttempt(instance.id);
+      if (attempt) {
+        let existing: PteroServer | null = null;
+        try {
+          existing = await ptero.getServer(attempt.serverId);
+        } catch (error) {
+          if (!serverIsGone(error)) throw error;
+        }
+        if (existing) {
+          server = existing;
+          await recordEvent(instance.id, 'provisioning', `Reused the server ${existing.id} of an earlier attempt.`);
+          await storeServerIdentifiers(instance, existing);
+          await completeStep(instance.id, 'server_created');
+        }
+      }
+    }
 
     if (!server) {
       await beginProvisioning(instance, 'node_selected');
-      choice = await chooseNode(instance.ram, instance.disk);
+      const choice = await chooseNode(instance, product);
       await recordEvent(instance.id, 'provisioning', `Reserved an address on node ${choice.nodeId}.`);
       await completeStep(instance.id, 'node_selected');
 
@@ -476,7 +1158,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
         limits: {
           memory: instance.ram,
           swap: 0,
-          disk: instance.disk * 1024,
+          disk: instance.disk * MB_PER_GB,
           io: 500,
           // Pterodactyl expresses CPU as a percentage; one vCPU is 100%.
           cpu: instance.cpu * 100,
@@ -484,7 +1166,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
         resource_limits: {
           memory: instance.ram,
           swap: 0,
-          disk: instance.disk * 1024,
+          disk: instance.disk * MB_PER_GB,
           io: 500,
           cpu: instance.cpu * 100,
         },
@@ -494,17 +1176,34 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
         allocation: { default: choice.allocationId, allocations: [choice.allocationId] },
       });
 
-      await prisma.instance.update({
-        where: { id: instance.id },
-        data: {
-          pterodactylServerId: created.id,
-          pterodactylUuid: created.uuid,
-          // The allocation and the node are the ones the panel really assigned,
-          // never the ones that were asked for.
-          pterodactylAllocation: created.allocation ?? null,
-          pterodactylNodeId: created.node ?? null,
-        },
-      });
+      // The attempt is written before the identifiers reach the instance: a
+      // run that is repeated finds this container instead of making a second
+      // one for the same instance.
+      try {
+        await recordServerAttempt(instance.id, {
+          serverId: created.id,
+          uuid: created.uuid,
+          node: created.node ?? null,
+          allocation: created.allocation ?? null,
+          panelUserId: created.user ?? null,
+        });
+      } catch (error) {
+        // The identifier of the container cannot be stored, so the container
+        // is deleted instead of being left on the node.
+        await discardServer(instance.id, { id: created.id, uuid: created.uuid }, 'the attempt could not be stored');
+        throw error;
+      }
+
+      try {
+        await storeServerIdentifiers(instance, created);
+      } catch (error) {
+        // An order that is not paid must not keep a container.
+        if (error instanceof PaymentRequiredError) {
+          await discardServer(instance.id, { id: created.id, uuid: created.uuid }, 'the order is not paid');
+        }
+        throw error;
+      }
+
       server = created;
       await recordEvent(instance.id, 'provisioning', `Created server ${created.id}.`);
       await completeStep(instance.id, 'server_created');
@@ -562,6 +1261,11 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       if (!installed) throw new ProvisioningError('installed', 'The installation did not finish in time.');
       await completeStep(instance.id, 'installed');
     }
+
+    // A container that holds no application is not a product. The files of
+    // the application are written once the container is installed and before
+    // it starts, so the start-up command of the egg finds something to run.
+    await placeStarterApplication(instance, server, product);
 
     if (!done('started')) {
       await beginProvisioning(instance, 'started');
@@ -685,9 +1389,31 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       });
     }
   } catch (error) {
-    const step = error instanceof ProvisioningError ? error.step : 'server_created';
     const message = error instanceof Error ? error.message : String(error);
+
+    if (error instanceof PaymentRequiredError) {
+      // The order is not paid: the run stops without touching the node and
+      // the reason is written to the journal.
+      await refuseUnpaidProvisioning(instanceId, message);
+      throw error;
+    }
+
+    const step = error instanceof ProvisioningError ? error.step : 'server_created';
     await failProvisioning(instanceId, step, message);
+
+    if (options.final) {
+      // This was the last attempt of the job, so the service will never
+      // exist: the container is deleted, the address on the node is given
+      // back and the money of the order goes back to the customer.
+      await compensateFailedProvisioning(instanceId, `${step}: ${message}`).catch((compensationError) => {
+        console.error(
+          '[provisioning] the compensation of the failed instance failed',
+          instanceId,
+          (compensationError as Error).message,
+        );
+      });
+    }
+
     throw error;
   } finally {
     await releaseLock(instanceId);
@@ -697,6 +1423,10 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
 /**
  * Finds instances that were left in a non-terminal state by an interrupted
  * worker and puts them back in the queue.
+ *
+ * An instance of an order that is not paid is left alone: the run would
+ * refuse it anyway, and it is picked up as soon as the money of the order
+ * arrives.
  */
 export async function reconcileInterruptedInstances(): Promise<number> {
   const stale = new Date(Date.now() - PROVISION_LOCK_TTL_MS);
@@ -704,6 +1434,14 @@ export async function reconcileInterruptedInstances(): Promise<number> {
     where: {
       status: { in: ['PROVISIONING', 'PENDING'] },
       OR: [{ provisionLockAt: null }, { provisionLockAt: { lt: stale } }],
+      AND: [
+        {
+          OR: [
+            { orderId: null },
+            { order: { status: { in: [...PAID_ORDER_STATUSES] } } },
+          ],
+        },
+      ],
     },
     select: { id: true },
     take: 100,
