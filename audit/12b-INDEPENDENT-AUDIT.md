@@ -419,9 +419,9 @@ Vezi §4.4.
 
 ### 7.6 [REPARAT] Credential live într-un livrabil
 
-`CODE-INSPECTED`. `00-BRIEFING.md:170` avea `BM_PASSWORD="QaHeadless!2026"`. Acum e `BM_PASSWORD="<parola contului de test — vezi secret-store-ul operatorului>"`. **Recomandare rămăasă:** rootați parola contului de test pe producție, pentru că a fost tipărită în briefing.
+`CODE-INSPECTED`. `00-BRIEFING.md:170` avea `BM_PASSWORD="QaHeadless!«redactat»"`. Acum e `BM_PASSWORD="<parola contului de test — vezi secret-store-ul operatorului>"`. **Recomandare rămăasă:** rootați parola contului de test pe producție, pentru că a fost tipărită în briefing.
 
-Nu am găsit: chei Stripe live, `whsec_`, tokenuri Bearer, JWT-uri, stringuri de conexiune `postgres://user:pass@`, parole de clienți reali, sau date personale de clienți. `04-product-certification.md:171` scrie `STRIPE_SECRET_KEY=sk_…` — trunchiat, fără valoare. **Bilanț pozitiv pe acest capitol.**
+Nu am găsit: chei Stripe live, `whsec_`, tokenuri Bearer, JWT-uri, stringuri de conexiune `postgres://«user»:<redactat>@`, parole de clienți reali, sau date personale de clienți. `04-product-certification.md:171` scrie `STRIPE_SECRET_KEY=sk_…` — trunchiat, fără valoare. **Bilanț pozitiv pe acest capitol.**
 
 ---
 

@@ -49,12 +49,10 @@ Constatările din rapoartele `03-*` nu au ID-uri numerotate în sursă; aici pri
 
 Contoarele de mai jos sunt **calculate din tabelele acestui document** (scriptul `_tools/count-register.cjs`), nu numărate cu mâna. Banda **P0 este exclusivă**: un rând e P0 dacă severitatea lui spune P0 **sau** dacă e marcat ca blocant de lansare în coloana „P0". De aceea benzile adună exact la numărul de constatări.
 
-| Domeniu | Constatări | P0 | Critical | High | Medium | Low/Info |
-|---|---:|---:|---:|---:|---:|---:|
 | Securitate (`SEC-*`) | 29 | 2 | 0 | 3 | 10 | 14 |
 | Provisionare și produs (`PROV-*`) | 14 | 3 | 0 | 5 | 5 | 1 |
-| Comerț și facturare (`COMM-*`) | 12 | 3 | 2 | 3 | 4 | 0 |
-| Promoții (`PROMO-*`) | 12 | 2 | 0 | 3 | 6 | 1 |
+| Comerț și facturare (`COMM-*`) | 12 | 4 | 2 | 3 | 3 | 0 |
+| Promoții (`PROMO-*`) | 12 | 1 | 1 | 3 | 6 | 1 |
 | Documentație (`DOC-*`) | 13 | 0 | 2 | 5 | 5 | 1 |
 | Infrastructură (`INF-*`) | 8 | 3 | 0 | 2 | 2 | 1 |
 | Rețea și IP (`NET-*`) | 4 | 0 | 0 | 2 | 2 | 0 |
@@ -65,9 +63,9 @@ Contoarele de mai jos sunt **calculate din tabelele acestui document** (scriptul
 | Portofoliu și competitivitate (`PORT-*`) | 9 | 5 | 0 | 3 | 1 | 0 |
 | Creștere și marketing (`MKT-*`) | 12 | 0 | 2 | 4 | 4 | 2 |
 | UX și design (`UX-*`) | 28 | 0 | 4 | 6 | 7 | 11 |
-| **Total** | **167** | **28** | **10** | **42** | **54** | **33** |
+| **Total** | **167** | **28** | **11** | **42** | **53** | **33** |
 
-> **De ce registrul are 28 de P0, iar backlog-ul are 23.** Backlog-ul grupează constatările în **acțiuni de reparare**: aceleași două constatări se repară împreună. De exemplu `COMM-01` (reducerea nu ajunge la Stripe) și `PROMO-01` (aceeași problemă, văzută din pagina de promoții) sunt **două constatări, un singur rând de backlog** (`B-03`). Cele 28 se reduc la 23 rânduri de acțiune. **Nicio constatare nu se pierde între cele două documente** — fiecare P0 din registru e acoperit de cel puțin un rând din `13-PRIORITIZED-BACKLOG.md`.
+> **De ce registrul are 28 de P0, iar backlog-ul are 26.** Backlog-ul grupează constatările în **acțiuni de reparare**: aceleași două constatări se repară împreună. De exemplu `COMM-01` (reducerea nu ajunge la Stripe) și `PROMO-01` (aceeași problemă, văzută din pagina de promoții) sunt **două constatări, un singur rând de backlog** (`B-03`). Cele 28 se reduc la 23 rânduri de acțiune. **Nicio constatare nu se pierde între cele două documente** — fiecare P0 din registru e acoperit de cel puțin un rând din `13-PRIORITIZED-BACKLOG.md`.
 
 ---
 
@@ -165,7 +163,7 @@ Sursă: `05-promotions.md` (ID-urile `PR1`–`PR12`).
 
 | ID | Sev. | Clasă | Constatare | P0 | Evidență |
 |---|---|---|---|---|---|
-| PROMO-01 | **P0** | `CODE-INSPECTED` | **Același defect ca `COMM-01`**, văzut din pagina de promoții: reducerea nu ajunge la Stripe ⇒ comanda eșuează la `verifyAmount`, iar clientul ar fi taxat cu prețul neredus. **Nu e o constatare distinctă — se numără o singură dată** | Nu (este `COMM-01`) | vezi `COMM-01`; `api/src/services/stripe.ts:175` vs `api/src/routes/orders.ts:79` vs `api/src/routes/webhooks.ts:192` |
+| PROMO-01 | Critical (= `COMM-01`) | `CODE-INSPECTED` | **Același defect ca `COMM-01`**, văzut din pagina de promoții: reducerea nu ajunge la Stripe ⇒ comanda eșuează la `verifyAmount`, iar clientul ar fi taxat cu prețul neredus. **Nu e o constatare distinctă — se numără o singură dată** | Nu (este `COMM-01`) | vezi `COMM-01`; `api/src/services/stripe.ts:175` vs `api/src/routes/orders.ts:79` vs `api/src/routes/webhooks.ts:192` |
 | PROMO-02 | **P0** | `CODE-INSPECTED` | `maxPerUser` nu poate fi setat ⇒ campania nu e limitată per cont, în ciuda promise-ului public | **Da** | `api/src/routes/admin.ts:630-639`; `web/src/admin/Promotions.tsx:149-179` |
 | PROMO-03 | High | `CODE-INSPECTED` + `INFERRED` | Plafonul nu e aplicat atomic ⇒ curse la limită | Nu | `api/src/services/pricing.ts:208-253` |
 | PROMO-04 | High | `CODE-INSPECTED` | Nu există editare/dezactivare/ștergere a unei promoții ⇒ **o campanie greșită nu poate fi oprită din interfață** | Nu | `api/src/routes/admin.ts:610-660` |
@@ -323,7 +321,7 @@ Două rapoarte folosesc două modele de cost diferite și **ajung la concluzii d
 
 **Pragul care leagă e cel mai mare dintre ele.** Pentru `discord-bot` la 1 vCPU: `max(€3.40, €5.67) = **€5.67**`. La 2 vCPU: `max(€6.81, €5.67) = **€6.81**`. Prețul recomandat de **€9.99** trece ambele praguri, plus pragurile de payback (€7.82 la 12 luni, €9.97 la 6 luni) și pragul de absorbție a costului fix la 16 clienți (€9.60).
 
-**De ce contează:** `discord-bot` la **€1.72** e sub ambele praguri și sub prețul de piață (€0), deci e imposibil de vândut pe acest hardware. `08-product-launch-order.md` propune în schimb `minecraft-paper` la €4.09–€5.99, care trece pragul la 1 vCPU. **Cele două recomandări sunt compatibile**: `discord-bot` rămâne produsul de test și de învățare (e singurul deployable), iar primul produs **vândut** e cel care trece pragurile.
+**De ce contează:** `discord-bot` la **€1.72** e sub ambele praguri, deci e imposibil de vândut ca produs principal pe acest hardware. **Atenție la ordine:** pragul de cost e *peste* prețul de intrare al pieței de bot hosting (€0/lună la primul server Lunafy, €1/lună per server suplimentar) — deci **prețul lui nu e sub prețul pieței**, ci **pragul e peste prețul pieței**, ceea ce înseamnă că nu poți concura pe preț cu un concurent cu tier gratuit. `08-product-launch-order.md` propune în schimb `minecraft-paper` la €4.09–€5.99, care trece pragul la 1 vCPU. **Cele două recomandări sunt compatibile**: `discord-bot` rămâne produsul de test și de învățare (e singurul deployable), iar primul produs **vândut** e cel care trece pragurile.
 
 **Notă de prudență:** `C_node ≈ €54.44` e o ancoră `INFERRED` (Contabo VPS 60, 18 vCPU / 96 GB la €49.00/lună, citită 2026-10-23). **Operatorul trebuie să o înlocuiască cu valoarea reală a facturii**, pentru că fiecare prag se deplasează liniar cu ea.
 

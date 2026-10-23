@@ -15,7 +15,7 @@
 
 ---
 
-## 1. P0 — Blocant de lansare (23 rânduri)
+## 1. P0 — Blocant de lansare (26 rânduri)
 
 Acestea sunt singurele 23 care contează pentru întrebarea „când poate lua bani?". Restul backlog-ului e important, dar nu e prioritar față de ele. **6 dintre ele au fost descoperite pe sistemul viu** și sunt în §1.6.
 
@@ -285,7 +285,7 @@ Aceste patru au nevoie de o **decizie a operatorului**, nu de o schimbare de cod
 
 Backlog-ul e închis când:
 
-1. Toate cele **23 de rânduri P0** din §1 sunt închise și verificate prin criteriul din coloana „Cum se verifică" (acestea acoperă cele 28 de constatări P0 din registru).
+1. Toate cele **26 de rânduri P0** din §1 sunt închise și verificate prin criteriul din coloana „Cum se verifică" (acestea acoperă cele 28 de constatări P0 din registru).
 2. Cele **19 condiții** din `16-GO-NO-GO-DECISION.md` §4 sunt îndeplinite și dovedite.
 3. **Cele 20 de rulări consecutive** reușesc, cu 0 servere orfane.
 4. **Un drill de restaurare** din copia off-host reușește, cu data și rezultatul scrise.

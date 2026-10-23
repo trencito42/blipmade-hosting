@@ -1,6 +1,6 @@
 # 15 — Checklist de lansare în producție
 
-**Data:** 2026-10-23 · **Baza:** `16-GO-NO-GO-DECISION.md` (19 condiții), `13-PRIORITIZED-BACKLOG.md` (23 P0), `07-release-gates.md` (13 porți).
+**Data:** 2026-10-23 · **Baza:** `16-GO-NO-GO-DECISION.md` (19 condiții), `13-PRIORITIZED-BACKLOG.md` (26 P0), `07-release-gates.md` (13 porți).
 
 **Cum se folosește:** bifează fiecare rând **doar după ce ai văzut dovezile**, nu după ce ai modificat codul. Fiecare rând spune **ce dovedire se cere**. Când ai nevoie de o dovadă, comanda e dată în paranteză.
 

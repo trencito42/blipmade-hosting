@@ -486,7 +486,7 @@ SELECT count(*) FROM "Egg";        →  0
   - `cmvkn67g90003psd841h9qc3g` („Browser instance”, server 15): creată **direct în baza de date** de `scripts/ops/seed-browser-account.mjs` (`prisma.instance.create` cu `status: 'PENDING'`, fără `orderId`, fără `provisioningKey`) — scriptul de fixture pentru testele de browser. `VERIFIED` (scriptul de pe VM 103, linia `prisma.instance.create`).
   - `cmvkbgm9h0001r18096ep5jzl` și `cmvkbichh0003r180pj33xwom`: au `provisioningKey` de forma `order:{orderId}:item:{itemId}:unit:0`, dar comenzile lor (BM-00002, BM-00003) **nu au fost niciodată plătite** (`status` AWAITING_PAYMENT/PENDING, `fulfillmentStatus=NOT_STARTED`, `paidAt` null) și **nu există niciun eveniment în `WebhookEvent`** pentru ele. Cum `fulfilOrder()` este singurul loc din cod care scrie acel tip de cheie (`webhooks.ts:147`), iar `claimEvent()` ar fi creat un rând în jurnalul evenimentelor, aceste două instanțe au fost **inserate direct în baza de date de operator**, în afara căii de aplicare. `VERIFIED` + `INFERRED` (urmărirea elimină fiecare explicație din cod).
 - **Joburile de provisionare nu poartă `payload`**, deși `enqueueProvisioning()` scrie `{reason: 'order paid'}` (`webhooks.ts:174`), `{reason: 'reconciliation'}` (`worker.ts:88`) sau `{reason, requestedBy}` (`admin.ts:854`). Payload gol ⇒ niciun job nu a fost pornit prin coadă pentru aceste instanțe. `VERIFIED`.
-- **Cele 2 servere orfane** (8 și 14) confirmă, la nivel de panou, că provisionarea produce servere care nu rămân legate de o instanță. `VERIFIED`.
+- **Cele 2 servere orfane** (cu ID-urile de server 8 și 14) confirmă, la nivel de panou, că provisionarea produce servere care nu rămân legate de o instanță. `VERIFIED`.
 
 ### 8.4 Istoricul de provisionare
 

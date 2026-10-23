@@ -11,7 +11,7 @@ Acesta e promptul de pornire pentru agentul care va executa prima undă de remed
 > 1. `audit/00-BRIEFING.md` — contextul comun, regulile, clasele de verificare
 > 2. `audit/00-EXECUTIVE-SUMMARY.md` — verdictul și răspunsurile la cele 25 de întrebări
 > 3. `audit/16-GO-NO-GO-DECISION.md` — cele 13 condiții care inversează verdictul
-> 4. `audit/13-PRIORITIZED-BACKLOG.md` — cele 23 de P0, cu efort, dependențe și criteriu de verificare
+> 4. `audit/13-PRIORITIZED-BACKLOG.md` — cele 26 de P0, cu efort, dependențe și criteriu de verificare
 > 5. `audit/12-FULL-FINDINGS-REGISTER.md` — registrul complet, cu dovezile
 >
 > **Misiunea ta: execută Unda 0 și Unda 1 din roadmap** (`audit/14-30-60-90-DAY-ROADMAP.md` §5) — deblocările și siguranța plății. Concret:

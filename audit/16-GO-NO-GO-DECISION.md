@@ -9,7 +9,7 @@
 
 > ## ❌ **NO-GO** pentru o lansare comercială cu clienți plătitori.
 >
-> ## ⚠️ **GO condiționat** pentru un **beta privat, cu plată manuală și un număr limitat de clienți**, cu **19 condiții obligatorii**, care închid toate cele 28 de constatări P0 din registru.
+> ## ⚠️ **GO condiționat** pentru un **beta privat, cu plată manuală și un număr limitat de clienți**, cu **19 condiții obligatorii**, care închid **24 dintre cele 28** de constatări P0 din registru — cele 4 rămase sunt numite explicit în §4.
 >
 > ## ✅ **GO** pentru un **waitlist și o comunitate** — activitate care nu produce încasare și nu angajează clienți plătitori.
 
@@ -25,7 +25,9 @@ Platforma **nu poate lua nicio plată azi** (`STRIPE_SECRET_KEY` gol, `PAYMENTS_
 
 ---
 
-## 3. Cele 5 porți RED și ce le declanșează
+## 3. Porțile în culoare și ce le declanșează
+
+**5 porți RED** (5, 7, 9, 12, 13) · **7 porți AMBER** (2, 3, 4, 6, 8, 10, 11) · **1 poartă GREEN** (1).
 
 | Poartă | Constatările care o susțin | De ce e RED |
 |---:|---|---|
@@ -76,7 +78,7 @@ Toate, nu un subset. Fără una, verdictul rămâne NO-GO.
 >
 > **Condițiile 14–19 au fost adăugate după auditul independent** (`12b-INDEPENDENT-AUDIT.md` §4.2), care a arătat că **cele 13 condiții inițiale lăsau deschise exact cele mai scumpe trei P0 de plată** — `COMM-01`/`PROMO-01` (clientul taxat cu prețul neredus), `COMM-02` (prețul stocat ≠ prețul configurației) și `COMM-03` (upgrade fără plată). **Fără condițiile 14–16, verdictul ar fi inversat spre GO de o platformă care ar putea taxa un client mai mult decât a cerut și ar putea acorda un upgrade neplătit.** Condițiile 17–19 închid riscul de pierdere de date pe disc și riscul de preț sub prag.
 >
-> **Acoperirea verificată:** cele 19 condiții închid **toate cele 28 de constatări P0** din `12-FULL-FINDINGS-REGISTER.md`, cu excepția celor care sunt **închise prin scenariu** (vezi Scenariul B) sau care privesc **portofoliul**, nu platforma (`PORT-03` — lipsa DDoS, `PORT-06` — 8 servere la 2 vCPU, `PORT-07` — plățile oprite, închis de condiția 1).
+> **Acoperirea verificată, condiție cu condiție:** cele 19 condiții închid **24 dintre cele 28 de constatări P0** din `12-FULL-FINDINGS-REGISTER.md`. **Cele 4 neînchise sunt numite aici, ca să nu fie presupuse:** `PROMO-02` (`maxPerUser` nu poate fi setat — **blocant doar pentru campaniile de tip „primii 50 eligibili"; în scenariul B nu există reduceri, deci nu se atinge**); `PORT-03` — jumătatea DDoS a constatării, backup-ul ei e acoperit de condiția 3, dar **protecția DDoS nu e o condiție de lansare, e o decizie de produs și de cost**; `PORT-06` — incapacitatea economică la 2 vCPU, care e **portofoliu**, nu platformă; `PORT-07` — plățile oprite, închise de condiția 1. **Niciuna dintre cele 4 nu e o cale prin care un client pierde banii sau datele.**
 
 ---
 
@@ -141,6 +143,8 @@ Pe scurt, în ordinea forței:
 3. **Backup programat + o copie în afara hostului + un drill de restaurare.** Fără asta, orice lansare e o tragere de zaruri cu datele tuturor clienților.
 4. **Firewall pe hipervisor, VM 102 și VM 103**, cu rotația parolei de `root`. 17 436 de tentative eșuate în 24 de ore, pe o interfață de administrare deschisă public, e o poartă deschisă către tot hardware-ul.
 5. **Cardul de preț la €9.99** pentru produsul vândut. Fără aceasta, scenariul B e LOSS-MAKING prin construcție, chiar dacă tehnic funcționează.
+
+> **Două produse, două roluri — nu se confundă.** `discord-bot` e **singurul produs deployable** (egg #15), deci e **singurul care poate fi folosit pentru beta și pentru învățare**, la un preț de fundare negociat manual. Produsul de **vânzare** în masă este propus de `08-product-launch-order.md`: `minecraft-paper` la €4.09 / €4.49 / €5.99. **Prețul de €9.99 e pragul de cost-cover recomandat pentru produsul vândut**, indiferent de care e — și **la €9.99, `discord-bot` (configurația implicită 512 MB / 1 vCPU / 5 GB) trece pragurile, în timp ce `minecraft-paper` la €4.09 trece doar pragul de nod, nu și pragul de contribuție de €5.67**. Deci recomandarea e: **`discord-bot` la €9.99 pentru beta și învățare; `minecraft-paper` la €4.09–€5.99 numai după ce costul de suport e măsurat și prețul e recalculat pe date reale.**
 
 ---
 
