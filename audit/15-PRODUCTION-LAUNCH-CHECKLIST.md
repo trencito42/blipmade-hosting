@@ -1,10 +1,10 @@
 # 15 — Checklist de lansare în producție
 
-**Data:** 2026-10-23 · **Baza:** `16-GO-NO-GO-DECISION.md` (13 condiții), `13-PRIORITIZED-BACKLOG.md` (23 P0), `07-release-gates.md` (13 porți).
+**Data:** 2026-10-23 · **Baza:** `16-GO-NO-GO-DECISION.md` (19 condiții), `13-PRIORITIZED-BACKLOG.md` (23 P0), `07-release-gates.md` (13 porți).
 
 **Cum se folosește:** bifează fiecare rând **doar după ce ai văzut dovezile**, nu după ce ai modificat codul. Fiecare rând spune **ce dovedire se cere**. Când ai nevoie de o dovadă, comanda e dată în paranteză.
 
-**Regulă:** un rând nebifat e un rând neîndeplinit. Un rând bifat pe baza unei presupuneri e un rând invalid. **13 condiții de la decizia go/no-go + 13 porți de release = 26 de bife care trebuie să fie toate bifate** înainte de lansare.
+**Regulă:** un rând nebifat e un rând neîndeplinit. Un rând bifat pe baza unei presupuneri e un rând invalid. **19 condiții de la decizia go/no-go + 13 porți de release = 26 de bife care trebuie să fie toate bifate** înainte de lansare.
 
 ---
 
@@ -169,6 +169,6 @@
 |---|---|---|---|
 | Operator | | | |
 | Responsabil tehnic | | | |
-| Confirmare a celor 13 condiții de la `16-GO-NO-GO-DECISION.md` §4 | | | |
+| Confirmare a celor 19 condiții de la `16-GO-NO-GO-DECISION.md` §4 | | | |
 
 **Regula finală:** dacă un singur rând din H e necompletat, lansarea nu se face. Dacă un singur rând din A–G e necompletat, **se poate lansa doar în scenariul C** (waitlist, fără încasare, fără clienți plătitori).

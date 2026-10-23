@@ -1,181 +1,120 @@
 # 12b — Audit independent al sintezei
 
-**Autor:** A12, auditor independent. **Data:** 2026-10-23.
+**Autor:** A12, auditor independent. **Data:** 2026-10-23, 14:10–14:35.
 **Obiect:** atacul sintezei scrise de ceilalți agenți (`12-FULL-FINDINGS-REGISTER.md`, `13-PRIORITIZED-BACKLOG.md`, `14-30-60-90-DAY-ROADMAP.md`, `16-GO-NO-GO-DECISION.md`) împreună cu rapoartele-sursă, împotriva contractului din brief.
 **Natura:** read-only. Singura scriere e acest fișier. Zero modificări în producție, zero modificări în celelalte fișiere din `audit/`.
-**Mirror verificat:** cele 7 fișiere `api/src/**` citite au același MD5 în `/root/blipmade-work` și pe VM 103 (`md5sum` × 7, toate MATCH) — citirile de cod de mai jos reflectă producția.
+**Mirror verificat:** cele 7 fișiere `api/src/**` citite au același MD5 în `/root/blipmade-work` și pe VM 103 (`md5sum` × 7, toate MATCH) — citirile de cod reflectă producția.
 
-## 0. Convenția de clase folosită în acest raport
+## 0. Convenția de clase și avertismentul de corpus mobil
 
-`VERIFIED` (măsurat de mine pe sistemul viu) · `CODE-INSPECTED` (citit în cod) · `DOCUMENTED-ONLY` (afirmație de raport, nevăzută de mine) · `INFERRED` · `UNVERIFIED` (nu am putut verifica) · `BLOCKED` · `NOT-IMPLEMENTED`.
+`VERIFIED` (măsurat de mine pe sistemul viu) · `CODE-INSPECTED` (citit în cod) · `DOCUMENTED-ONLY` (afirmație de raport, nevăzută de mine) · `INFERRED` · `UNVERIFIED` · `BLOCKED` · `NOT-IMPLEMENTED`.
+
+### 0.1 Corpusul s-a modificat sub picioarele mele — asta e o constatare, nu o scuză
+
+`VERIFIED`. Între 14:10 (începutul meu) și 14:35 (finalul), **43 de fișiere din `audit/` au fost rescrise**, inclusiv registrul însuși (de la 127 la **167** de rânduri), `16-GO-NO-GO-DECISION.md`, `07-release-gates.md` și `09-unit-economics.md`. **Orchestratorul a aplicat, în timpul auditului meu, o parte din constatările pe care le-am livrat.** Le raportez pe toate, marcând explicit **REPARAT** sau **ÎN PĂRARE**, ca să nu se aplice o corecție care ar strica acum un fișier corect.
+
+**MD5-uri pentru reproducere (starea de la 14:34:05):**
+
+```
+afd99bd99e93a781416f9eeb4079a321  12-FULL-FINDINGS-REGISTER.md
+e75e64de6d8b63ec830fdfeacbf539b4  13-PRIORITIZED-BACKLOG.md
+01f5d09d47dd8232ecb41f20d802bacf  16-GO-NO-GO-DECISION.md
+2108d09004bae5a2822823f2bc832473  07-release-gates.md
+56a38b686f1c70618b03e723f0c87599  09-unit-economics.md
+1cafefa1f9b3949997b5ff8c5203c6c9  09-break-even-model.csv
+4a002f2d667cf9007cc5d2ca5c110281  00-EXECUTIVE-SUMMARY.md
+671369480f415bc1fd994587689d656f  09-pricing-recommendations.md
+```
+
+**Metodă de verificare a stării finale:** pentru fiecare constatare am re-rulat verificarea pe starea de la 14:32:04, nu pe cea de la 14:15. Un script de counting (`node _tools/count-register.cjs`) și numărarea mea independentă, rând cu rând, au dat același rezultat.
 
 ---
 
 ## 1. Verdictul pe sinteză
 
-**Verdict: NO-GO-ul este SUNET ca direcție, dar sinteza, așa cum e scrisă, are defecte care trebuie reparate înainte de a fi folosită ca bază de decizie.**
+**Verdict: NO-GO-ul este SUNET ca direcție. După corecțiile aplicate în timpul auditului, sinteza e substanțialmente mai bună decât la 14:15, dar are încă 4 defecte care trebuie reparate înainte de a fi trimisă unui decident.**
 
-Substratul tehnic e bun și verificabil: am confirmat prin cod și prin baza de date vie cele trei constatări pe care NO-GO-ul le pune în capul listei (`PROV-01`, `OPS-01`, `OPS-02`) și am refăcut din zero modelul economic. Problema nu e substanța, ci **hârtia**: contoarele din antetul registrului, numărul de condiții de inversare, mapa constatărilor pe porți și prețul recomandat se contrazic între ele și, în două cazuri, contrazic sursele pe care le citesc.
+Am confirmat prin cod și prin baza de date vie cele trei constatări pe care NO-GO-ul le pune în capul listei (`PROV-01`, `OPS-01`, `OPS-02`) și am refăcut din zero modelul economic — care s-a dovedit **reproductibil**. Substratul e bun; problema era în „hârtie", iar cea mai mare parte din „hârtie" a fost reparată în timpul meu.
 
-Cinci lucruri le consider **defecte reale, nu divergențe de stil**, în ordinea severității:
+**Cele 4 defecte care rămân:**
 
-1. Contoarele antetului registrului (`115` / `17 P0`) sunt greșite față de corpul aceluiași fișier (`127` / `28 P0`), iar `16-GO-NO-GO-DECISION.md:4` repetă eroarea. `VERIFIED` — numărare programatică, vezi §2.1.
-2. Condițiile de inversare **nu închid** `COMM-01`/`PROMO-01` — adică exact defectul pentru care clientul ar fi taxat mai mult decât i s-a cerut — și nici `COMM-02`, `COMM-03`, `PRICE-03`, `INF-01`, `INF-03`, `DR-01`, `DR-03`. Așadar „13 condiții ⇒ GO" nu e suficient. `VERIFIED` (cross-check registru ↔ tabel §4), vezi §4.2.
-3. Prețul recomandat în headline (`€9.99` pentru `discord-bot`, `16-GO-NO-GO-DECISION.md:77`) contrazice același document, 8 rânduri mai jos (`:85`: „`discord-bot` … **nu se vinde pe acest hardware**") și contrazice cele două rapoarte scrise după `09-pricing-recommendations.md` (`08-product-portfolio.md`, `08-product-launch-order.md`). `VERIFIED` (documente) + `CODE-INSPECTED` (raportul de preț).
-4. Două erori aritmetice în `09-unit-economics.md`, care **nu se regăsesc** în `09-break-even-model.csv`: rândul `4.50` e o copie a rândului `4.56`, iar LTV-ul la churn 2% e pe jumătate. `VERIFIED` (script + recalcul), vezi §3.2 și §3.3.
-5. Tabelul porții 12 din `16-GO-NO-GO-DECISION.md:35` atribuie porții 12 patru constatări care aparțin porții 11/3 și **omite** `PROV-06`, care e prima dovadă a porții 12 în raportul-sursă. `VERIFIED` (comparare cu `07-release-gates.md:290`).
+1. **Supraprapunerea de acoperire a P0-urilor e prea optimistă.** `16-GO-NO-GO-DECISION.md:12` și `:77` afirmă că cele 19 condiții „închid **toate cele 28** de constatări P0". Am reverificat condiția cu condiție: **24 din 28** sunt închise prin atribuire explicită, **3** sunt dezvăluite ca excepții (`PORT-03`, `PORT-06`, `PORT-07`), iar **`PROMO-02` nu e menționat deloc** — o excepție nedezvăluită. `VERIFIED`.
+2. **O afirmație aritmetic falsă a rămas în trei locuri** (`12:281`, `12:326`, `16:98`): „€1.72 e sub prețul de piață (€0)". €1.72 > €0. `VERIFIED`.
+3. **Prețul recomandat (`€9.99`) se contrazice cu datele de piață ale propriului corpus, în același document**: `00-EXECUTIVE-SUMMARY.md:206` recomandă €9.99, iar `:217` spune că „€9.99 e peste ce acceptă piața" și ancorează piața la €4.49. `VERIFIED`.
+4. **`01-backend-audit.md` lipsește** — e cerut explicit de brief (`:1952`) și nu e substituit de nimic. `VERIFIED`.
 
-Am găsit **31 de erori** în total (numărătoare în §8). Nu am găsit **nicio** cifră de concurență fabricată: am verificat independent prețul Zentaris (€4.49 / 4 GB / 2 vCPU / 25 GB) pe pagina publică și corespunde exact cu ce scrie `08-competitive-analysis.md:44` — `VERIFIED`.
+Am găsit **31 de erori** în total (numărătoare în §8); **25 au fost reparate de orchestrator în timpul auditului**, **6 rămân în părare** (§8.2, R1–R6, R10). Nu am găsit **nicio** cifră de concurență fabricată: am verificat independent prețul Zentaris (€4.49 / 4 GB / 2 vCPU / 25 GB) pe pagina publică și corespunde exact cu ce scrie `08-competitive-analysis.md:44` — `VERIFIED`.
 
 ---
 
 ## 2. Erori găsite în constatările P0/P1
 
-### 2.1 [CRITIC] Contoarele din `12-FULL-FINDINGS-REGISTER.md` §0.4 nu corespund corpului aceluiași fișier
+> **Notă de stare:** secțiunile §2–§7 descriu constatările așa cum le-am formulate la 14:15–14:30; **starea finală a fiecăreia e în tabelul din §8.1** (REPARAT / ÎN PĂRARE), iar textul exact de înlocuit e în §8.2.
 
-`CODE-INSPECTED` + `VERIFIED` (numărare programatică).
+### 2.1 [REPARAT] Numerele de P0 — corectate în registrul, corectate și în documente
 
-Contoarele afirmate (`12-FULL-FINDINGS-REGISTER.md:52-61`):
+`VERIFIED`. La 14:15 registrul avea un tabel de contoare fals (115/17, cu domenii `UX-*` și `MKT-*` care nu existau în corp) și 127 de rânduri. **Orchestratorul a refăcut tabelul prin script** (`_tools/count-register.cjs`), iar acum:
 
 ```
-| Securitate (`SEC-*`) | 29 | 2 | ...
-| Comerț și facturare (`COMM-*`) | 12 | 6 | ...
-| Infrastructură / rețea / capacitate / DR | 14 | 3 | ...
-| UX și design (`UX-*`) | 12 | 0 | ...
-| Creștere și marketing (`MKT-*`) | 8 | 0 | ...
-| **Total** | **115** | **17** | **10** | **21** | **39** | **28** |
+12-FULL-FINDINGS-REGISTER.md:68   | **Total** | **167** | **28** | **10** | **42** | **54** | **33** |
 ```
 
-Realitatea din corpul registrului (parsing al tabelelor §1–§7c):
+Am rulat scriptul și am numărat independent: **rows parsed: 167 | P0 total: 28** — identic, rând cu rând, pe toate cele 14 grupe. Registrul e acum intern consistent, iar `:70` adaugă o notă corectă despre de ce 28 de constatări se reduc la 23 de rânduri de acțiune.
 
-| Metrică | Afirmat | Real | Diferență |
-|---|---:|---:|---:|
-| Rânduri de constatare | 115 | **127** | +12 |
-| Rânduri cu P0 = „Da" | 17 | **28** | **+11 (+65%)** |
-| Domenii `UX-*` | 12 | **0** | −12 (nu există) |
-| Domenii `MKT-*` | 8 | **0** | −8 (nu există) |
-| Domenii `PRICE-*` | necuprins | **6** | +6 |
-| Domenii `PORT-*` | necuprins | **9** | +9 |
+`16-GO-NO-GO-DECISION.md:4` a fost reparat la „(167 constatări, 28 P0)".
 
-Comanda de reproducere:
+### 2.2 [REPARAT] `COMM-01` / `PROMO-01` — același defect, numărat de două ori
 
-```bash
-cd /root/blipmade-work/audit && python3 - <<'PY'
-import re
-lines=open('12-FULL-FINDINGS-REGISTER.md').read().split('\n')
-hdrs=[(i,l) for i,l in enumerate(lines,1) if l.startswith('| ID') and 'Sev.' in l]
-p0=0
-for i,l in enumerate(lines,1):
-    m=re.match(r'^\|\s*\*{0,2}([A-Z]+-\d+)\*{0,2}\s*\|',l)
-    if not m: continue
-    cand=[hl for hi,hl in hdrs if hi<i]
-    hcols=[c.strip() for c in cand[-1].strip('|').split('|')]
-    cols=[c.strip().replace('**','') for c in l.strip('|').split('|')]
-    if 'P0' in hcols and len(cols)>hcols.index('P0') and cols[hcols.index('P0')].startswith('Da'): p0+=1
-print('P0 = Da:', p0)
-PY
-```
+`CODE-INSPECTED` — defect urmărit end-to-end (rămâne valabil, îl redau pentru reproductibilitate):
 
-Prefixele efectiv existente: `SEC` 29, `PROV` 14, `COMM` 12, `PROMO` 12, `DOC` 13, `INF` 8, `NET` 4, `CAP` 4, `DR` 5, `PRICE` 6, `OPS` 11, `PORT` 9 = **127**. `UX-*` și `MKT-*` **nu apar nicăieri în corpul registrului** (grep pe tot corpusul: `UX-*` există doar în `06-design-improvement-backlog.md` și `06-ux-ui-complete.md`, ca prefix de altă familie; `MKT-*` nu apare deloc ca ID de constatare).
-
-**Impact:** numărul „17 P0" e citat în `16-GO-NO-GO-DECISION.md:4` („115 constatări, 17 P0") și în `13-PRIORITIZED-BACKLOG.md:261` („Toate cele **17 rânduri P0** sunt închise"). Un cititor de execuție care primește „17 P0" va subestima cu 11 blocaje reale, dintre care cele mai scumpe (`COMM-03`, `PRICE-03`, `INF-01`, `INF-03`, `DR-01`, `DR-03`, `PORT-01..03`, `PORT-06`, `PORT-07`) **nu apar în nicio condiție de inversare** (§4.2).
-
-### 2.2 [MAJOR] `COMM-01` și `PROMO-01` sunt același defect, numărate ca două P0
-
-`CODE-INSPECTED` — am urmărit defectul end-to-end în cod:
-
-- `api/src/routes/orders.ts:79` → `total: quote.total`; `quote.total = Math.max(0, subtotal - discount)` (`api/src/services/pricing.ts:325`), deci **discountuit**; articolele se salvează cu `unitAmount: item.unitAmount` din `quote.items` = `priced`, **nediscountuit** (`api/src/services/pricing.ts:305`).
+- `api/src/routes/orders.ts:79` → `total: quote.total`; `quote.total = Math.max(0, subtotal - discount)` (`api/src/services/pricing.ts:325`) ⇒ **discountuit**; articolele se salvează cu `unitAmount: item.unitAmount` din `quote.items` = `priced`, **nediscountuit** (`pricing.ts:305`).
 - `api/src/services/stripe.ts:175` → `unit_amount: item.unitAmount` ⇒ Stripe încasează **suma neredusă**.
-- `api/src/routes/webhooks.ts:192` → `if (amountTotal !== order.total) return ...` ⇒ mismatch ⇒ comanda **nu e onorată**, iar clientul e taxat cu prețul plătit.
+- `api/src/routes/webhooks.ts:192` → `if (amountTotal !== order.total) return …` ⇒ mismatch ⇒ comanda **nu e onorată**, iar clientul e taxat cu prețul plătit.
 
-Registry rows: `12-FULL-FINDINGS-REGISTER.md:140` (`COMM-01`) și `:161` (`PROMO-01`) descriu **același mecanism, cu aceleași trei citări de fișier** (`stripe.ts:175` vs `orders.ts:79` vs `webhooks.ts:188-196` / `:192`). Sursa e aceeași: `05-commerce-and-billing.md:678` (B1). `PROMO-01` e doar reetichetarea aceluiași B1.
+`12-FULL-FINDINGS-REGISTER.md:168` a fost reparat: „**Același defect ca `COMM-01`**, văzut din pagina de promoțiilor…". Textul e acum corect și onest.
 
-**Impact:** P0-urile sunt inflate cu 1, iar în `16-GO-NO-GO-DECISION.md:35` rândul porții 12 și în `:120` defectul e citat de două ori ca fiind două constatări distincte.
+### 2.3 [REPARAT] `PRICE-03` / `COMM-09` — severități contradictorii
 
-### 2.3 [MAJOR] `PRICE-03` și `COMM-09` sunt același defect, cu severități contradictorii
+`CODE-INSPECTED` + `VERIFIED` (DB). `12-FULL-FINDINGS-REGISTER.md:155` a devenit „**P0** (același defect ca `PRICE-03`)". Cele două rânduri sunt acum coerente.
 
-`CODE-INSPECTED` + `VERIFIED` (DB).
+### 2.4 [REPARAT] Condiția 9 vs `SEC-11` / `SEC-29`
 
-- `12-FULL-FINDINGS-REGISTER.md:240` → `| PRICE-03 | **P0** | \`VERIFIED\` | **Prețul afișat public nu spune unitatea** (\`price.amount = 149\` = €1.49) — convenția apare o singură dată în tot contractul | **Da** | \`api/src/routes/catalog.ts:59\`; \`docs/API_CONTRACT.md\` |`
-- `12-FULL-FINDINGS-REGISTER.md:148` → `| COMM-09 | Medium | \`CODE-INSPECTED\` | Câmpul \`price.amount\` nu spune că e în unități minori; convenția apare o singură dată în tot contractul | Nu | \`api/src/routes/catalog.ts:59\`; \`docs/API_CONTRACT.md:5,57,60,89\` |`
+`VERIFIED`. `16-GO-NO-GO-DECISION.md:58` are acum doar `SEC-18`, iar `:59` adaugă **condiția 9b** nouă: „Cheia API a agentului operatorului e scoasă din argumentele procesului, iar secretele sunt separate pe fișiere — cheie de panou per client, fără cheie globală în proces". Exact ce trebuia.
 
-Aceleași constatare, aceeași citare de cod, **două severități diferite** (`P0` + P0=Da vs `Medium` + P0=Nu). `api/src/routes/catalog.ts:59` confirmă `price: price ? { amount: price.baseAmount, currency: price.currency, period: price.period } : null` — `amount` e în unități minori, fără unitate în payload. `VERIFIED`.
+### 2.5 [REPARAT] Porțile 4 și 10 erau GREEN peste P0-uri
 
-**Impact:** P0-urile sunt inflate cu încă 1 (și invers, cine citește doar `COMM-09` pierde un P0). În plus, `PRICE-03` e P0 dar **nu e în nicio condiție de inversare** (§4.2).
+`VERIFIED`. `07-release-gates.md:17` și `:23` sunt acum 🟠 **AMBER**, la fel `12-FULL-FINDINGS-REGISTER.md:386` și `:392`, iar `16-GO-NO-GO-DECISION.md:33` a primit rândul **„10 — Checkoutul afișează prețuri material greșite 🟠 AMBER"** cu constatările `COMM-01` (= `PROMO-01`), `PRICE-03`. Rândul porții 12 (`:36`) a fost reparat: `PROV-04`, `PROV-06`, `OPS-01`, `OPS-03`, `OPS-06`, iar `COMM-04/05/07/08` au fost mutate într-un rând nou pentru **poarta 11 🟠 AMBER** (`:37`).
 
-### 2.4 [MAJOR] `PORT-02` afirmă un lucru aritmetic fals: „€1.72 e sub prețul de piață (€0)"
+### 2.6 [REPARAT] `COMM-03` nu avea rând de backlog
+
+`VERIFIED`. `13-PRIORITIZED-BACKLOG.md:114` are acum rândul **B-24** — „`applyUpgradeOrder()` verifică plata înainte de a aplica upgrade-ul | 0,5 z".
+
+### 2.7 [ÎN PĂRARE — CRITIC] `PORT-02` afirmă un lucru aritmetic fals, în trei locuri
 
 `CODE-INSPECTED` (surse) + `VERIFIED` (matematică).
 
-`12-FULL-FINDINGS-REGISTER.md:274`:
+`12-FULL-FINDINGS-REGISTER.md:281`:
 
 > `| PORT-02 | **Critical** | \`VERIFIED\` | **Prețul actual al lui \`discord-bot\` (€1.72) e sub floor și sub prețul de piață (€0)** ⇒ nu se vinde pe acest hardware, la acest cost, cu acest nivel de suport | **Da** | \`08-product-launch-order.md\` §7 |`
 
-€1.72 **este peste** €0, nu sub €0. Ceea ce spune sursa (`08-competitive-analysis.md:88-90`) e că **primul** server Lunafy costă €0/lună la 512 MB / 0.5 vCPU, iar **serverul suplimentar** costă €1/lună. Deci €1.72 e peste ambele praguri Lunafy. Fraza corectă din `08-product-launch-order.md:202` e „**Phragul (€3.40) e peste** prețul de listă (€1.72) **și** peste prețul de intrare al pieței (€0 la Lunafy)" — adică pragul de cost e peste prețul de intrare al pieței, nu prețul e sub prețul pieței. Registrul a inversat subordinea și a scris un fals aritmetic.
+€1.72 **este peste** €0, nu sub €0. Sursa (`08-competitive-analysis.md:88-90`) spune că **primul** server Lunafy costă €0/lună la 512 MB / 0.5 vCPU, iar **serverul suplimentar** costă €1/lună. Fraza corectă din `08-product-launch-order.md:202` e „**Phragul (€3.40) e peste** prețul de listă (€1.72) **și** peste prețul de intrare al pieței (€0 la Lunafy)" — adică pragul de cost e peste prețul de intrare, nu prețul e sub prețul pieței.
 
-Aceeași formulare greșită e propagată în:
-- `16-GO-NO-GO-DECISION.md:85` → „**Sub floor și sub prețul de piață (€0)** — nu se vinde pe acest hardware"
-- `13-PRIORITIZED-BACKLOG.md:79` (B-79) → „`discord-bot` la €1.72 e sub floor **și** sub prețul de piață (€0)"
+În plus, clasa `VERIFIED` e greșită: faptul brut („Lunafy are tier gratuit la 512 MB") e singurul verificabil; concluzia („nu se vinde") e `INFERRED` dintr-o comparație cu un singur concurent. `PORT-01` (`:274`) e corect marcat `INFERRED` — deci există și **inconsistență de clasă între două rânduri care se sprijină unul pe celălalt**.
 
-În plus, clasa `VERIFIED` e greșită: concluzia („nu se vinde") e `INFERRED` dintr-o comparație cu un singur concurent cu tier gratuit; faptul brut („Lunafy are un tier gratuit la 512 MB") e singurul `DOCUMENTED-ONLY`/`VERIFIED`. `PORT-01` (aceeași logică) e corect marcat `INFERRED` (`12-FULL-FINDINGS-REGISTER.md:273`) — deci există și **inconsistență de clasă între două rânduri care se sprijină unul pe celălalt**.
+**Trei locuri de reparat** — `12:281` și `16:98` au fost reparate între timp (14:33–14:34); **a rămas `12:326` (§7e)**:
+- `12-FULL-FINDINGS-REGISTER.md:326` → „**De ce contează:** `discord-bot` la **€1.72** e sub ambele praguri și sub prețul de piață (€0), deci e imposibil de vândut pe acest hardware." (corecția exactă în §8.2, R3).
 
-### 2.5 [MAJOR] Poarta 10 e 🟢 GREEN, dar două constatări P0 descriu exact poarta 10
+### 2.8 [REPARAT] Taxonomia de severitate — parțial
 
-`VERIFIED` (documente).
+`VERIFIED` (numărare). La 14:15 erau 11 rânduri cu severitatea „P0" și 18 cu „Critical", pentru aceeași clasă de blocaj. Acum: 11 „P0" și 27 „Critical" — deci banda s-a lărgit, dar **două etichete pentru aceeași clasă de blocaj rămân**. Cauza e în surse: `02-security-audit.md:37-38` are coloană de severitate și spune `Critical`; `05-commerce-and-billing.md:678-685` **nu are** coloană de severitate — deci severitatea lui `COMM-*` e atribuită de orchestrator, nu preluată. **Se acceptă**, dar merită o notă în §0.2, pentru că un cititor va citi „P0" și „Critical" ca două niveluri.
 
-`07-release-gates.md:23` și `12-FULL-FINDINGS-REGISTER.md:300` → poarta 10 „Checkoutul afișează prețuri material greșite" = **GREEN**.
+### 2.9 [REPARAT] `PROV-01` — impact formulat peste clasa de verificare
 
-Dar:
-- `COMM-01`/`PROMO-01` (P0=Da, §2.2) = clientul vede totalul discountuit și e taxat totalul neredus ⇒ **preț material greșit la checkout**.
-- `PRICE-03` (P0=Da, §2.3) = prețul afișat public nu spune unitatea ⇒ **preț material greșit în catalog**.
+`CODE-INSPECTED`. `12-FULL-FINDINGS-REGISTER.md:124` a fost reformat: „…eroare de 1024×: poarta de capacitate [nu leagă niciodată]". Mecanismul, verificat de mine: `api/src/services/provisioning.ts:213-214` compară `node.disk + node.disk_overallocate - node.allocated_resources.disk` (din `GET /api/application/nodes`, unde `disk` e în **MB** — `api/src/services/pterodactyl/application.ts:242-245`, `api/src/services/pterodactyl/types.ts:54-58`) cu `disk` în **GB** (doar `provisioning.ts:469,477` face `instance.disk * 1024` pentru panou). Deci poarta de disc **nu leagă niciodată**. Sursa o spune mai atent: `04-pterodactyl-and-provisioning.md:539` („**nu poate fi exercitat de un client azi**, pentru că plățile sunt oprite prin configurare (D4)").
 
-Secțiunea porții 10 (`07-release-gates.md:190-205`) argumentează *mecanismul de calcul* („Prețul e **server-side**"), nu *afișajul*. Verdictul GREEN e justificat pentru „calculul e corect" și invalid pentru „afișează prețuri material greșite". O poartă care ascunde două P0 nu poate fi GREEN.
+### 2.10 [INFO — BILĂ CURATĂ] Citările și clasările de cod ale constatărilor sunt corecte
 
-### 2.6 [MAJOR] Poarta 4 e 🟢 GREEN, deși `COMM-03` e P0
-
-`VERIFIED` (documente) + `CODE-INSPECTED`.
-
-`07-release-gates.md:17` → poarta 4 „Upgrade-urile de resurse se fac fără plată corespunzătoare" = **GREEN**. Motivul (`:89-97`): „`applyUpgradeOrder` e apelat direct **numai** în ramura fără plată (`:278-282`), adică pentru o schimbare care costă mai puțin".
-
-`12-FULL-FINDINGS-REGISTER.md:142` → `COMM-03` = **P0** = „`applyUpgradeOrder()` nu verifică plata" — cu nota „latent azi (singurul apelant neplătit are `total=0`), dar bombă cu ceas la orice apel nou".
-
-Două constatări P0 se sprijină pe **aceeași apărare**: „e latent". Consecința e inconsistentă: `COMM-01` e P0 pentru un defect la fel de latent (nicio promoție există în DB: `Promotion` = 0 rânduri — `VERIFIED` pe DB), dar `COMM-03` e P0 **și** poarta lui e GREEN. O poartă al cărei subiect e P0 nu poate fi GREEN.
-
-În plus, **`COMM-03` nu are niciun rând în backlog** (verificat: `13-PRIORITIZED-BACKLOG.md` §1.1–§1.6 nu-l menționează). Un P0 fără rând de backlog e un P0 care nu se repară.
-
-### 2.7 [MAJOR] Condiția 9 pretinde că închide `SEC-11` și `SEC-29`, dar nu le atinge
-
-`VERIFIED` (comparare text ↔ text).
-
-`16-GO-NO-GO-DECISION.md:54`:
-
-> `| 9 | Rotirea parolei de panou a clientului, cu o cale de resetare, înainte de orice rotire a \`SESSION_SECRET\`; reducerea conturilor \`root_admin\`; retenție pe transportul de e-mail în fișier | 8 | \`SEC-11\`, \`SEC-18\`, \`SEC-29\` | 2 z |`
-
-- `SEC-18` = „Mesajele de e-mail scrise pe disc, lizibile de oricine (0644)" (`12-FULL-FINDINGS-REGISTER.md:90`) ⇒ **acoperit** de „retenție pe transportul de e-mail în fișier". Corect.
-- `SEC-11` = „Toate secretele într-un singur fișier, inclusiv tokenul de admin Caddy" (`:83`) ⇒ **nu** e acoperit. Rotirea unei parole nu separă secretele în `.env`.
-- `SEC-29` = „Cheia API a agentului operatorului, vizibilă în argumentele procesului" (`:102`) ⇒ **nu** e acoperit. Rotirea parolei de panou a clientului nu scoate cheia din `ps auxww`.
-
-### 2.8 [MINOR] Taxonomie de severitate incoerentă în coloana „Sev."
-
-`VERIFIED` (numărare).
-
-Coloana „Sev." din registrul folosește **două etichete pentru aceeași clasă de blocaj**: `P0` (11 rânduri: `PROV-04`, `COMM-01..03`, `PROMO-01..02`, `DR-02`, `DR-04`, `PRICE-01..03`) și `Critical` (18 rânduri, dintre care `SEC-01`, `SEC-02`, `PROV-01..02`, `INF-01..03`, `DR-01`, `DR-03`, `OPS-01..03`, `PORT-01..03`, `PORT-06..07`) — toate cu P0 = „Da". Peste tot, 28 de rânduri cu P0=Da, 18 Critical + 10 „P0" + … exact 28, deci toate rândurile P0=Da au fie `Critical`, fie `P0` ca severitate.
-
-Cauza e vizibilă în surse: `02-security-audit.md:37-38` are coloană de severitate și spune `Critical` pentru `SEC-01`/`SEC-02`; `05-commerce-and-billing.md:678-685` **nu are** coloană de severitate (doar ID, constatare, evidență, clasă, impact). Deci severitatea lui `COMM-*` e atribuită de orchestrator, nu preluată, și e exprimată într-o etichetă diferită de cea a lui `SEC-*`. Registrul §0.2 definește `P0 — Blocant` ca severitate, dar coloana „P0" de alături e un *indicator de blocaj de lansare*, cu trei valori („Da", „Nu", „Nu (blocaj de lansare)"). Rezultatul: aceeași informație spusă de două ori, în două taxonomii, care se contrazic.
-
-### 2.9 [MINOR] `PROV-01` — formularea impactului depășește clasa de verificare
-
-`CODE-INSPECTED`.
-
-`12-FULL-FINDINGS-REGISTER.md:117` → „`api/src/services/provisioning.ts:214` — eroare de 1024×; un container care nu-și încape pe disc afectează **tot nodul**". Am confirmat mecanismul: `api/src/services/provisioning.ts:213-214` compară `node.disk + node.disk_overallocate - node.allocated_resources.disk` (din `GET /api/application/nodes`, unde `disk` e în **MB** — `api/src/services/pterodactyl/application.ts:242-245`, `api/src/services/pterodactyl/types.ts:54-58`) cu `disk` în **GB** (doar `provisioning.ts:469,477` face `instance.disk * 1024` pentru panou). Deci poarta de disc **nu leagă niciodată**. Concluzia „afectează tot nodul" e `INFERRED` (un disc plin afectează și celelalte containere), nu `VERIFIED` — și chiar sursa o spune mai atent: `04-pterodactyl-and-provisioning.md:539` („**nu poate fi exercitat de un client azi**, pentru că plățile sunt oprite prin configurare (D4)"). Nu e o greșeală de fond; e o clasă prea puternică pe un rând care se sprijină pe o inferență.
-
-### 2.10 [INFO — BILĂ CURATĂ] Contoarele porților, probele porților și clasările `CODE-INSPECTED` ale constatărilor de cod sunt corecte
-
-`VERIFIED`.
-
-- `07-release-gates.md:27` „**5 RED · 5 AMBER · 3 GREEN**" — recalculat din rândurile 14-26: RED {5,7,9,12,13}, AMBER {2,3,6,8,11}, GREEN {1,4,10}. **Corect.**
-- Citările `file:line` ale celor 28 de P0 le-am extras programatic și le-am deschis: **toate** trimit la cod real, cu conținutul descris. Audit automat al tuturor celor **949** de citări `file:line` din `audit/*.md`: **0** citări cu linie în afara fișierului, **1** citare cu fișier inexistent (§7.6).
-- Clasa `CODE-INSPECTED` e corect folosită acolo unde comportamentul n-a fost executat; clasările `VERIFIED` ale constatărilor măsurate (14 bilete, 93/30 joburi, 80/5 evenimente, 6 utilizatori, 3 instanțe) **se reproduc** pe sistemul viu — am rulat interogările read-only: `ProvisioningJob` = 93 `completed` + 30 `failed`; `AuditLog` = 80 `instance.provision_failed` + 5 `instance.provisioned`; `Ticket` = 14, toate `OPEN`, toate `lastReplyAt IS NULL`, 0 `assignedToId`; `Subscription`/`Invoice`/`Payment` = 0/0/0; `Promotion` = 0. **Corect, cu o singură excepție** (vezi §5, rândul despre „2 servere orfane din 5" vs „5 servere pe panou vs 3 instanțe").
+`VERIFIED`. Audit automat al tuturor celor **949** de citări `file:line` din `audit/*.md`: **0** citări cu linie în afara fișierului. Citările celor 28 de P0 le-am deschis individual: toate trimit la cod real, cu conținutul descris.
 
 ---
 
@@ -183,38 +122,29 @@ Cauza e vizibilă în surse: `02-security-audit.md:37-38` are coloană de severi
 
 ### 3.1 [BILĂ CURATĂ — metodă] Formula contribuției, pragurile și break-even-ul reproduc corect
 
-`VERIFIED` (recalcul din ipoteze, nu din tabele).
-
-Cu ipotezele din `09-financial-assumptions.md` (`SERVER_COST_EUR_PER_MONTH` = 60.00, `PAYMENT_FEE_PCT` = 0.03, `SUPPORT_HOURLY_COST` = 20.00, `SUPPORT_MINUTES_PER_CUSTOMER` = 15, `CAC_EUR` = 25.00):
+`VERIFIED` (recalcul din ipoteze, nu din tabele). Cu ipotezele din `09-financial-assumptions.md` (`SERVER_COST` = 60.00, `PAYMENT_FEE_PCT` = 0.03, `SUPPORT_HOURLY_COST` = 20.00, `SUPPORT_MINUTES_PER_CUSTOMER` = 15, `CAC_EUR` = 25.00):
 
 - `VC(P) = 0.03·P + 0.25 + (15/60)·20.00 + 0.25 = 0.03·P + 5.50` — **corect**.
-- La `P = 9.99`: contribuție = 0.97·9.99 − 5.50 = **4.1903** — **corect**.
-- `n_be = FIXED / contribuție = 61.00 / 4.1903 = 14.557` ⇒ **15 clienți** — **corect**.
-- `PRICE_FLOOR_FULL_ABSORPTION_16 = (61/16 + 5.50)/0.97 = 9.3125/0.97 = **9.6005**` — **corect**.
-- La 16 clienți: venit 23.84, VC 88.72, rezultat −125.88 — **corect**.
-- La 5.90: `n_be = 61/0.223 = 273.5` ⇒ **274** — **corect**.
-- Tabelul de sensibilitate `09-financial-assumptions.md` §3.1: toate cele 16 rânduri (4 prețuri × 4 valori `V3`) recalculate — **toate corecte**.
-- `09-break-even-model.csv`: **57 de rânduri**, fiecare recalculat din formula declarată în coloana `variable_cost_formula`. Venit, VC total, VC per client, contribuție, contribuție lunară, rezultat operațional, `customers_needed_for_break_even` — **0 rânduri inconsistente**.
-- `payback = 25/4.1903 = 5.966` ⇒ **5.97 luni**; `LTV @5% = 4.1903/0.05 = 83.81`; `LTV/CAC = 3.35`; `CAC maxim @H=12 = 12·4.1903·conv − 5.25`; `conversie_minimă(H) = 30.25/(4.1903·H)`; bugetul de promoție `15·(4.1903·12 − 25) = 379.25` — **toate corecte**.
+- `P = 9.99` ⇒ contribuție `0.97·9.99 − 5.50 = 4.1903` — **corect**.
+- `n_be = 61.00 / 4.1903 = 14.557` ⇒ **15 clienți** — **corect**.
+- `PRICE_FLOOR_FULL_ABSORPTION_16 = (61/16 + 5.50)/0.97 = 9.6005` — **corect**.
+- La 16 clienți: venit 23.84, VC 88.72, rezultat −125.88 — **corect**. La 5.90: `n_be = 61/0.223 = 273.5` ⇒ **274** — **corect**.
+- `09-financial-assumptions.md` §3.1: toate cele 16 rânduri de sensibilitate recalculate — **toate corecte**.
+- `09-break-even-model.csv`: **57 de rânduri**, fiecare recalculat din formula declarată în coloana `variable_cost_formula` (venit, VC total, VC per client, contribuție, contribuție lunară, rezultat operațional, `customers_needed_for_break_even`) — **0 rânduri inconsistente**.
+- `payback = 25/4.1903 = 5.97 luni`; `LTV @5% = 83.81`; `LTV/CAC = 3.35`; `CAC maxim @H=12 = 12·4.1903·conv − 5.25`; `conversie_minimă(H) = 30.25/(4.1903·H)`; buget promoție `15·(4.1903·12 − 25) = 379.25` — **toate corecte**.
 
-Modelul e bine construit și **reproductibil**. Erorile de mai jos sunt izolate, nu structurale.
+Modelul e bine construit și reproductibil. Erorile de mai jos au fost izolate și reparate.
 
-### 3.2 [MAJOR] `09-unit-economics.md:93` — rândul `4.50` e o copie a rândului `4.56`
+### 3.2 [REPARAT] `09-unit-economics.md:95` — rândul `4.50` era o copie a rândului `4.56`
 
-`VERIFIED` (script + recalcul + CSV).
-
-`09-unit-economics.md:93`:
+`VERIFIED` (script + recalcul + CSV). Era:
 
 ```
 | 4.50 | 5.6368 | −1.0768 | −23.9% | 9.6005 |
 | 4.56 | 5.6368 | −1.0768 | −23.6% | 9.6005 |
 ```
 
-La `P = 4.50`: `VC = 0.03·4.50 + 5.50 = **5.6350**`, contribuție = 4.50 − 5.6350 = **−1.1350**, marjă = **−25.2%**. Valorile 5.6368 / −1.0768 sunt ale lui `P = 4.56`. Marja a fost recalculată (−23.9% = −1.0768/4.50), deci rândul e o **copie parțial editată** a rândului următor.
-
-`09-break-even-model.csv` are rândul corect: `current-card|price-4.5000|occ-25.00pct|n-4` → `variable_cost_eur_per_customer_per_month = 5.6350`. **Deci markdown-ul și CSV-ul se contrazic direct pe aceeași linie de model.**
-
-Comanda de reproducere:
+La `P = 4.50`: `VC = 0.03·4.50 + 5.50 = 5.6350`, contribuție = **−1.1350**, marjă = **−25.2%**. Acum rândul e corect, și **identic cu CSV-ul** (`current-card|price-4.5000|…` → `5.6350`). Comanda de reproducere:
 
 ```bash
 cd /root/blipmade-work/audit && python3 -c "
@@ -226,88 +156,43 @@ for r in csv.DictReader(open('09-break-even-model.csv')):
 # 4.5600 5.6368 -1.0768
 ```
 
-**Impact:** mic în valoare absolută (1 cent/lună), dar într-un document care își revendică „255/255 cote corecte" și „0 inconsistențe între cele 6 surse de preț" (`16-GO-NO-GO-DECISION.md:70`), o eroare de 0.0038 într-o celulă e o mică fisură în credibilitatea tabelului. Se repară trivial.
+### 3.3 [REPARAT] `09-unit-economics.md:172` — LTV-ul la churn 2% era pe jumătate
 
-### 3.3 [MAJOR] `09-unit-economics.md:170` — LTV-ul la churn 2% e pe jumătate față de §7
+`VERIFIED` (recalcul + comparație internă). Era `104.76` / LTV-CAC `4.19`; acum `209.52` / `8.38`, în acord cu tabelul de sensibilitate. `LTV(9.99, 2%) = 4.1903/0.02 = 209.515` ⇒ **209.52**. Era o eroare de transcriere, nu de model: în aceeași linie, coloanele €1.49 / €1.72 / €5.90 dădeau corect (÷0.02).
 
-`VERIFIED` (recalcul + comparație internă).
+### 3.4 [REPARAT] `09-unit-economics.md:82` — rândul „16" aloca `SERVER_COST` (60) în loc de `FIXED` (61)
 
-`09-unit-economics.md:170`:
+`VERIFIED` (recalcul + coerență internă). Acum `| 16 | 100% | 3.8125 | 9.6122 |`, iar formula de la `:71-72` e `= FIXED_COST_EUR_PER_MONTH / SAFE_INSTANCES_PER_NODE = 61.00 / 16 = 3.8125` — în acord cu `PRICE_FLOOR` = 9.6005. Eram: `| 16 | 100% | 3.7500 | 9.5497 |` cu formula `60.00/16`, în contradicție cu același document.
 
-```
-| **conservator** | 2% | −202.73 | −191.58 | 11.15 | **104.76** | 4.19 |
-```
-
-`09-unit-economics.md:193` (tabelul de sensibilitate al aceluiași fișier):
-
-```
-| 2% | 209.52 | 8.38 | 69.84 |
-```
-
-`LTV(9.99, churn=2%) = 4.1903 / 0.02 = 209.515` ⇒ **209.52**, nu 104.76. 104.76 corespunde unui churn de **4%**, deci e o eroare de factor 2.
-
-Dovada că e o eroare de transcriere, nu de model: **în aceeași linie**, coloana €1.49 dă −202.73 = 4.0547/0.02 ✓, coloana €1.72 dă −191.58 = 3.8316/0.02 ✓, coloana €5.90 dă 11.15 = 0.223/0.02 ✓. Doar coloana €9.99 e greșită. Consecința: `LTV/CAC` e raportat ca 4.19 în §6 și ca **8.38** în §7.
-
-### 3.4 [MAJOR] `09-unit-economics.md:82` — rândul „16" din tabelul de absorbție alocă `SERVER_COST` (60) în loc de `FIXED` (61)
-
-`VERIFIED` (recalcul + coerență internă).
-
-`09-unit-economics.md:70-82`:
-
-```
-ALLOCATED_SERVER_COST_PER_INSTANCE = SERVER_COST_EUR_PER_MONTH / SAFE_INSTANCES_PER_NODE
-                                    = 60.00 / 16 = 3.75 EUR/client/lună   (la ocupare 100%)
-...
-| 4  | 25% | 15.2500 | 21.0497 |
-| 8  | 50% |  7.6250 | 13.4247 |
-| 12 | 75% |  5.0833 | 10.8830 |
-| 16 | 100% |  3.7500 |  9.5497 |
-```
-
-Coloana „cost fix pe client" e `FIXED/N` pentru N = 4, 8, 12 (61/4 = 15.25, 61/8 = 7.625, 61/12 = 5.0833) — dar pentru N = 16 e `SERVER_COST/16` = 60/16 = **3.7500**. Coherent ar fi **61/16 = 3.8125**, cu `VC` total de absorbție **9.6122**, nu 9.5497.
-
-Consecința nu e cosmetică: **`PRICE_FLOOR` = 9.6005 din același fișier (`:90-96`) e calculat cu 61/16 = 3.8125**. Deci tabelul de absorbție și pragul de preț din același document folosesc două alocări diferite ale aceluiași cost fix, iar rândul de la 16 clienți e cel care nu se potrivește cu formula declarată chiar deasupra lui.
-
-### 3.5 [MAJOR] Două costuri de nod incompatibile în corpus ⇒ două praguri de preț incompatibile
+### 3.5 [ÎN PĂRARE — CRITIC] Prețul recomandat de €9.99 contrazice datele de piață ale propriului corpus
 
 `VERIFIED` (documente).
 
-| Constantă | Valoare | Unde | Clasa | Ce spune despre ea |
-|---|---:|---|---|---|
-| `SERVER_COST_EUR_PER_MONTH` | **60.00** | `09-financial-assumptions.md:86` | `OPERATOR-INPUT` | „Valoarea este un **placeholder de calcul** și nimic mai mult." |
-| `C_node` | **54.44** | `08-product-launch-order.md:181` | `INFERRED` | „Acesta e un `INFERRED` (ipoteza „cost proporțional cu vCPU"), cu o singură sursă externă, nu o factură." |
+`00-EXECUTIVE-SUMMARY.md:206` (Q13):
 
-Ambele sunt onest marcate. Problema e că **ambele ajung în concluzii de headline, cu praguri diferite**:
-- Modelul economic ⇒ prag de full-absorption **€9.60** la 16 clienți (`09-financial-assumptions.md:96`), preț recomandat **€9.99**.
-- Modelul de portofoliu ⇒ prag **€3.40** la 1 vCPU, **€6.81** la 2 vCPU (`08-product-launch-order.md:188-190`).
+> „**€9.99/lună pentru `discord-bot` la 512 MB / 1 vCPU / 5 GB** — `baseAmount` de la 149 la **976**."
 
-Cele două praguri diferă cu 2.8× și nu sunt reconciliate nicăieri. `16-GO-NO-GO-DECISION.md` le pune **pe amândouă în aceeași secțiune** (`:77` cu €9.99, `:85` cu €3.40) fără să spună că sunt modele diferite pentru scopuri diferite. Cititorul reține „prețul de floor e €9.60" și „floor-ul e €3.40" ca pe două adevăruri compatibile.
+Și, 15 rânduri mai jos, `:217`:
 
-### 3.6 [MAJOR] Prețul recomandat de €9.99 pentru `discord-bot` e depășit de două rapoarte scrise după el
+> „**De ce nu un preț mai mare:** e peste ce acceptă piața pentru o ofertă fără DDoS și fără backup. **€4.49 e nivelul de intrare al Zentaris**, cu €0.50 peste OVI și €0.25 sub Torchbyte"
 
-`VERIFIED` (documente).
+Așadar, documentul spune textual că 9.99 e **peste ce acceptă piața**, ancorează piața la €4.49, și totuși recomandă 9.99 — pentru un produs cu specificație **mai mică** decât a concurenților ancorează (512 MB / 1 vCPU / 5 GB, față de 4 GB / 2 vCPU la OVI/Zentaris/Torchbyte). La €1.72, corpusul însuși listează drept concurent un VPS Contabo de **8 GB cu trafic nelimitat la €5.50** (`08-product-portfolio.md:71`, `:72`) — un managed bot la €9.99 e cu **81%** peste un VPS care îl înlocuiește. Niciun rând din sinteză nu folosește această comparație contra prețului recomandat.
 
-Cronologie (mtime în `audit/`): `09-pricing-recommendations.md` 13:39 · `08-competitive-analysis.md` 14:03 · `08-product-launch-order.md` 14:04 · `08-product-portfolio.md` 14:05 · `16-GO-NO-GO-DECISION.md` 14:13.
+**Alte trei locuri care propagă prețul fără rezerva:**
 
-`09-pricing-recommendations.md` (13:39) scrie la `:15-17`:
+| Locație | Text |
+|---|---|
+| `16-GO-NO-GO-DECISION.md:90` | „\| Preț recomandat **€9.99/lună** pentru `discord-bot` la 512 MB/1 vCPU/5 GB \| Break-even la **15 clienți** …" |
+| `16-GO-NO-GO-DECISION.md:137` | „5. **Cardul de preț la €9.99** pentru produsul vândut. Fără aceasta, scenariul B e LOSS-MAKING prin construcție, chiar dacă tehnic funcționează." |
+| `16-GO-NO-GO-DECISION.md:116` | „2. **Prețul de fundare e fix și negociat manual**, în jurul lui €9.99, și **se aplică manual**, nu prin codul de promoții…" |
 
-```
-| `audit/08-competitive-analysis.md` | **NU EXISTĂ** | ...
-| `audit/08-product-portfolio.md` | **NU EXISTĂ** | ...
-| `audit/08-product-launch-order.md` | **NU EXISTĂ** | ...
-```
+Și o contradicție de **produs**: `16:137` spune „€9.99 **pentru produsul vândut**", iar `12-FULL-FINDINGS-REGISTER.md:326` (§7e) spune „`discord-bot` rămâne produsul de **test** și de învățare (e singurul deployable), iar primul produs **vândut** e cel care trece pragurile" — adică `minecraft-paper` la €4.09 (`08-product-launch-order.md:14`).
 
-și la `:119`: „`audit/08-competitive-analysis.md` **nu există**, ... **Nu inventez prețuri de piață.**"
+**Corectură propusă pentru `00-EXECUTIVE-SUMMARY.md:206`:**
 
-Toate trei există acum. Consecința e o **recomandare de preț depășită, preluată ca atare în decizie**:
-- `08-product-portfolio.md:71` → `discord-bot`: „**€1.49 → €1.72 → €5.92** (`149` / `149+15+0+8=172` / `149+225+120+98=592`)", verdict `LAUNCH-AFTER-FIX`.
-- `08-product-launch-order.md:114` → re-spec: „**€1.72** (512/1/5) → €2.12 (1024/1/10) → €5.92 (4096/4/50) | `baseAmount` 149→172".
-- `08-product-launch-order.md:14` → produsul de fază 1 = `minecraft-paper` la **€4.09 / €4.49 / €5.99**, nu botul.
-- `16-GO-NO-GO-DECISION.md:77` → „Preț recomandat **€9.99/lună** pentru `discord-bot` la 512 MB/1 vCPU/5 GB", cu `baseAmount = 976` (`09-pricing-recommendations.md:2.3`).
+> „**€9.99/lună e pragul de cost al modelului** (contribuție + amortizare CAC + absorbție a costului fix) pentru configurația implicită 512 MB / 1 vCPU / 5 GB — `baseAmount` 976 — **dar nu e un preț de piață**: piața documentată în același corpus are intrarea la €3.99–€4.74 **la 4 GB / 2 vCPU**, iar un VPS Contabo cu 8 GB și trafic nelimitat costă €5.50. **Prețul de vânzare trebuie ales explicit între `€9.99` (cost-cover) și `€3.49–€4.49` (piață), cu riscul de vânzare pe fiecare variantă enunțat.**"
 
-**€9.99 pentru `discord-bot` contrazice direct `baseAmount = 172` și scăderile de €5.92 ale aceluiași produs.** La €9.99, botul ar fi cu **€4.07 peste** maximul de €5.92 propus pentru configurația cea mai mare (4096/4/50) și cu **€5.90 peste** prețul de intrare propus pentru Minecraft. Piața documentată în același corpus (OVI €3.99, Zentaris €4.49, Torchbyte €4.74 la 4 GB/2 vCPU) ar plasa €9.99 deasupra întregului segment plătitor.
-
-### 3.7 [MAJOR] Două răspunsuri diferite la întrebarea „care e break-even-ul lunar realist?" (Q14)
+### 3.6 [ÎN PĂRARE — MINOR] Două răspunsuri diferite la întrebarea „care e break-even-ul lunar realist?" (Q14)
 
 `VERIFIED` (documente).
 
@@ -316,96 +201,63 @@ Toate trei există acum. Consecința e o **recomandare de preț depășită, pre
 | `09-unit-economics.md:365` | €9.99 (`discord-bot`) | **15** clienți | `61 / 4.1903` |
 | `08-product-launch-order.md:188` | €4.09 (`minecraft-paper`) | **14** clienți | `54.44 / 4.09` |
 
-Ambele sunt corect aritmetic în interiorul modelelor lor, dar corespund la **produse, prețuri și costuri de nod diferite**, iar `16-GO-NO-GO-DECISION.md:77` prezintă doar primul ca „break-even", într-un document citit de un decident ca pe un singur număr. Pentru Q14 din brief, corpusul nu are un răspuns unic.
+Ambele sunt corecte în modelele lor, dar corespund la **produse, prețuri și costuri de nod diferite**, iar `00-EXECUTIVE-SUMMARY.md:229` (Q14) prezintă doar primul ca „break-even". Pentru Q14, corpusul nu are un răspuns unic.
 
-### 3.8 [MINOR] `09-pricing-recommendations.md` declară „NU EXISTĂ" fișiere care există
+**Notă de echilibru:** registrul are acum §7e (`:313-331`), care reconciliază explicit pragul `P_floor` (€3.40/€6.81) cu pragul de contribuție (€5.67), explicând că măsoară lucruri diferite și că pragul care leagă e `max(€3.40, €5.67) = €5.67`. **Aceasta e o reconciliere corectă și bine făcută** — o apreciez. Dar: (a) §7e nu reconciliază cu `08-product-portfolio.md` (€1.72) sau cu faza 1 `minecraft-paper` (€4.09); (b) §7e repetă afirmația falsă de la §2.7 (`:326`).
 
-`VERIFIED` (documente) — vezi §3.6. Nu e o cifră falsă, dar e un enunț fals într-un livrabil: un cititor care s-ar ghideze după „Nu inventez prețuri de piață" pierde de vederea că analiza competitivă **există** și conține prețuri reale, citite și citabile.
+### 3.7 [ÎN PĂRARE — MINOR] `09-pricing-recommendations.md:15-17` declară „NU EXISTĂ" fișiere care există
+
+`VERIFIED` (documente). Cele trei rânduri (`:15`, `:16`, `:17`) spun „**NU EXISTĂ**" pentru `08-competitive-analysis.md`, `08-product-portfolio.md` și `08-product-launch-order.md` — care există (mtime 14:03/14:05/14:04) — și `:119` spune „**Nu inventez prețuri de piață.**" Nu e o cifră falsă, dar e un enunț fals într-un livrabil: un cititor care se ghidează după el pierde de vederea că analiza competitivă există și conține prețuri reale, citate și citabile.
 
 ---
 
 ## 4. Erori în logica de pregătire a lansării
 
-### 4.1 [CRITIC] Numărul condițiilor de inversare: 9, 13 sau 4?
+### 4.1 [REPARAT] Numărul condițiilor: 9 → 19, dar încă un loc spune „9"
 
-`VERIFIED` (documente).
+`VERIFIED`. La 14:15, `16:110` și `13:279` spuneau „cele 9 condiții" contra „Cele 13 condiții" din `16:42`. Acum `16:44` e „## 4. Cele **19** condiții", `16:113` și `:123` spun „19 condiții", `13:279` spune „19 condiții", `16:160` spune „celor 19 condiții", iar `15-PRODUCTION-LAUNCH-CHECKLIST.md:3` și `:7` spun la fel. **Reparat.**
 
-| Locație | Text | Număr |
-|---|---|---:|
-| `16-GO-NO-GO-DECISION.md:12` | „cu **13 condiții obligatorii**, după remedierea a **9 defecte P0** și a **4 condiții de infrastructură**" | 13 / 9 / 4 |
-| `16-GO-NO-GO-DECISION.md:42` | „## 4. **Cele 13 condiții** care inversează verdictul" | 13 |
-| `16-GO-NO-GO-DECISION.md:110` | „Nu e nevoie de niciuna dintre **cele 9 condiții**" | **9** |
-| `13-PRIORITIZED-BACKLOG.md:262` | „Cele **9 condiții** din `16-GO-NO-GO-DECISION.md` §4 sunt îndeplinite" | **9** |
-| `13-PRIORITIZED-BACKLOG.md:18` | „## 1. P0 — Blocant de lansare (**23 rânduri**)" | 23 P0 |
-| `13-PRIORITIZED-BACKLOG.md:261` | „Toate cele **17 rânduri P0** sunt închise" | **17 P0** |
+### 4.2 [REPARAT — CU O EXCEPȚIE NEDEZVĂLUITĂ] Condițiile nu erau suficiente
 
-§4 are **13** rânduri (2+1+4+3+1+5+3+3+2+3–5+1+0.5+3–4 zile, sumă 31.5–34.5 ⇒ „~35 zile" de la `:62` e corectă — **bilanț curat pe acest punct**). Două locuri spun „9 condiții" și unul spune „17 rânduri P0" contra propriului „23 rânduri" din același fișier. Cele trei numere circulă în trei fișiere ca unul singur.
-
-### 4.2 [CRITIC] Condițiile nu sunt suficiente: 9 P0-uri rămân deschise după îndeplinirea tuturor celor 13 condiții
-
-`VERIFIED` (cross-check registru ↔ tabelul §4).
-
-Am citit coloana „Constatări închise" pentru toate cele 13 condiții și am intersectat cu cele 28 de rânduri P0=Da:
+`VERIFIED` (cross-check registru ↔ tabelul §4). La 14:15, 9 P0-uri rămăneau deschise. Orchestratorul a adăugat **condițiile 14–19** (`16:64-69`), citând explicit raportul meu, plus **condiția 9b** (`:59`):
 
 | P0 | Închis de o condiție? |
 |---|---|
 | `SEC-01`, `SEC-02` | ✅ c.8 |
 | `PROV-01`, `PROV-02` | ✅ c.6 |
 | `PROV-04` | ✅ c.1 |
-| `COMM-01`, `PROMO-01` | ❌ **nicio** |
-| `COMM-02` | ❌ **nicio** |
-| `COMM-03` | ❌ **nicio** |
-| `PROMO-02` | ❌ **nicio** |
-| `INF-01`, `INF-03` | ❌ **nicio** |
+| `COMM-01`, `PROMO-01` | ✅ c.14 |
+| `COMM-02` | ✅ c.15 |
+| `COMM-03` | ✅ c.16 |
+| `INF-01`, `INF-03` | ✅ c.17 |
 | `INF-02` | ✅ c.3 |
-| `DR-01`, `DR-03` | ❌ **nicio** |
+| `DR-01`, `DR-03` | ✅ c.18 |
 | `DR-02`, `DR-04` | ✅ c.3 |
 | `PRICE-01`, `PRICE-02` | ✅ c.5 |
-| `PRICE-03` | ❌ **nicio** |
+| `PRICE-03`, `PORT-01`, `PORT-02` | ✅ c.19 |
 | `OPS-01` | ✅ c.10 |
 | `OPS-02` | ✅ c.11 |
 | `OPS-03` | ✅ c.12 |
-| `PORT-01`, `PORT-02`, `PORT-03`, `PORT-06` | ❌ **nicio** |
-| `PORT-07` | ✅ implicit c.1 |
+| **`PROMO-02`** | ❌ **nicio** |
+| `PORT-03` | ⚠️ parțial — c.3 acoperă backup-ul, **nu DDoS-ul pe traficul de joc** |
+| `PORT-06` | ⚠️ acoperit „prin scenariu", nu prin condiție |
+| `PORT-07` | ⚠️ acoperit implicit de c.1 |
 
-**9 P0-uri rămân deschise.** Cele mai grave:
+**Rezultatul verificării: 24 din 28 P0-uri sunt închise prin atribuire explicită.** Dar `16:12` afirmă „cu **19 condiții obligatorii**, care închid **toate cele 28** de constatări P0 din registru", iar nota `:77` dezvăluie doar trei excepții (`PORT-03`, `PORT-06`, `PORT-07`). **`PROMO-02` — „`maxPerUser` nu poate fi setat" (`12:169`) — e P0 și nu e închis de nicio condiție și nu e menționat ca excepție.** De asemenea, jumătatea DDoS a lui `PORT-03` („Nu există DDoS pe traficul de joc") nu e acoperită de nicio condiție: c.3 spune „backup-uri Pterodactyl activate per server", nu protecție DDoS.
 
-1. **`COMM-01`/`PROMO-01`** — clientul taxat cu prețul neredus. Singura referire la ele în tot documentul e în §7 (`:120`, „Repararea celor 4 P0 de produs"), **în afara tabelului de condiții**, și în Scenariul B (`:103`) ca **workaround** („se aplică manual, nu prin codul de promoții"), nu ca reparație. Adică: scenariul B evită defectul, nu îl închide, și scenariul A rămâne vulnerabil.
-2. **`COMM-02`** — prețul stocat al instanței e `baseAmount`, nu prețul configurației (`:141`; `api/src/routes/admin.ts:912` = `price: price?.baseAmount ?? 0`). **Am verificat live**: 3 instanțe cu aceeași configurație (512/1/5) la prețuri 172 / **149** / 172 (`VERIFIED`, DB). Cât timp e viu, estimarea lunară a clientului e greșită, deci și orice calcul de venit bazat pe DB e greșit.
-3. **`PRICE-03`** — prețul public nu spune unitatea, iar poarta 10 e GREEN (§2.5).
-4. **`COMM-03`** — `applyUpgradeOrder()` nu verifică plata (§2.6).
-5. **`INF-01`** (RAID 0 pe root) — condiția 3 (backup off-host) **mitighează**, nu închide; rămâne în §3 ca suport al porții 9 RED, dar nicio condiție nu-l închide.
-6. **`PORT-01`/`PORT-02`/`PORT-06`** — pragul de preț nu e nici el în condiții, deși e un rând de backlog (B-79).
+### 4.3 [REPARAT] Rândul porții 12 atribuia greșit 4 constatări și omitea `PROV-06`
 
-Testul cerut de sarcină („dacă presupunem că cele 9 condiții sunt îndeplinite, platforma devine lansabilă?") — **răspunsul e nu**: rămân neînchise exact defectele care privesc **corectitudinea banului** (`COMM-01`, `COMM-02`) și **corectitudinea prețului afișat** (`PRICE-03`).
+`VERIFIED`. `16:36` e acum „`PROV-04`, `PROV-06`, `OPS-01`, `OPS-03`, `OPS-06`", iar `COMM-04/05/07/08` au fost mutate într-un rând nou pentru **poarta 11 🟠 AMBER** (`:37`).
 
-### 4.3 [MAJOR] Condiția 13 nu are „constatări închise", iar rândul 9 închide constatări pe care nu le închide
+### 4.4 [ÎN PĂRARE — MAJOR] „Nu e o problemă de UX" contrazice rapoartele UX
 
 `VERIFIED` (documente).
 
-`16-GO-NO-GO-DECISION.md:60` → condiția 13 închide `OPS-04` — corect, `OPS-04` e „Nu (blocaj de produs)" în registru, nu P0. Dar totuși e trecut într-un tabel al cărui criteriu e „Constatări închise" dintre P0-uri, fără nicio notație că nu e P0. Mai grav: **condiția 9** (§2.7) și **condiția 5** închid `PRICE-01`/`PRICE-02` — corect — dar **nu închid `PRICE-03`**, care e tot în familia `PRICE-*` și tot P0.
-
-### 4.4 [MAJOR] Rândul porții 12 din `16-GO-NO-GO-DECISION.md:35` atribuie greșit 4 constatări și omite 1
-
-`VERIFIED` (comparare cu sursa).
-
-`16-GO-NO-GO-DECISION.md:35`:
-
-> `| **12** — Funcțiile de bază ale clientului indisponibile | \`PROV-04\`, \`COMM-04\`, \`COMM-05\`, \`COMM-07\`, \`COMM-08\`, \`PROV-12\`, \`OPS-03\`, \`OPS-06\` | Checkout 503; e-mail neconfigurat (\`mail: file\`); **canalul de suport inert** — toate cele 14 bilete au „No replies yet"; nu există plan anual; nu există retenție la anulare |`
-
-Verificare în raportul-sursă `07-release-gates.md:223-240` („ce nu funcționează" pentru poarta 12): cele 5 puncte sunt (1) `feature_limits` goale ⇒ `PROV-06`; (2) containerul nu rulează ⇒ `OPS-01`; (3) checkout 503 ⇒ `PROV-04`; (4) resetarea parolei ⇒ e-mail în fișier; (5) consola neverificată. **Nici `COMM-04`, `COMM-05`, `COMM-07`, `COMM-08` nu apar în lista porții 12** — ele sunt, în raportul-sursă, materia porții 11 („Anularea sau reînnoirea e material incorectă", `07-release-gates.md:206-222`, AMBER) și porții 3 („O plată reușită poate fi pierdută sau reconciliată greșit", AMBER).
-
-În plus, **`PROV-06` — prima dovadă a porții 12, cea mai concretă — e omisă** din rândul deciziei, deși `07-release-gates.md:290` o mapează explicit la porțile „7, 12".
-
-### 4.5 [MAJOR] „Nu e o problemă de UX" contrazice rapoartele UX
-
-`VERIFIED` (documente).
-
-`16-GO-NO-GO-DECISION.md:132`:
+`16-GO-NO-GO-DECISION.md:145`:
 
 > „- **Nu e o problemă de UX.** Interfața e într-o stare bună: 553 de verificări de browser verzi, structură semantică, navigare cu tastatura, contrast și focus vizibil."
 
-`06-design-improvement-backlog.md:17-21` ratedază **cinci** elemente ca **S1** (severitatea maximă a scalei):
+`06-design-improvement-backlog.md:17-21` ratingă **cinci** elemente ca **S1** (severitatea maximă a scalei):
 
 | Linii | ID | Sev | Problemă |
 |---|---|---|---|
@@ -417,125 +269,121 @@ Verificare în raportul-sursă `07-release-gates.md:223-240` („ce nu funcțion
 
 `06-ux-ui-complete.md:39` (§1) îl numește „**Defectul cel mai grav**: `DataTable` rupe modelul de tabel".
 
-Deci „Nu e o problemă de UX" e o **concluzie de sinteză mai optimistă decât sursa ei**, iar argumentul adus („553 de verificări verzi") e un argument de **absență a regresiilor**, nu de absență a defectelor — cele două măsurări diferite. Sunt 2 elemente S1 în `06-ux-ui-complete.md` și 5 S1 în backlog.
+„553 de verificări verzi" dovedesc **absența regresiilor**, nu absența defectelor — sunt două măsurări diferite, folosite ca una.
 
-### 4.6 [MINOR] „Nu e o problemă de scalare" contrazice `PORT-06` (P0)
+### 4.5 [ÎN PĂRARE — MINOR] „Nu e o problemă de scalare" contrazice `PORT-06` (P0)
 
-`VERIFIED` (documente).
+`VERIFIED` (documente). `16-GO-NO-GO-DECISION.md:148`: „**Nu e o problemă de scalare.** Capacitatea sigură de 16 instanțe e suficientă pentru un start real". `12-FULL-FINDINGS-REGISTER.md:285` (`PORT-06`, P0=Da): „La specificația de piață (2 vCPU/server), nodul de 20 vCPU ține doar 8 servere plătitori (€35.92/lună) — insuficient". Capacitatea **fizică** e suficientă; **economică**, la specificația de piață, nu.
 
-`16-GO-NO-GO-DECISION.md:135`: „**Nu e o problemă de scalare.** Capacitatea sigură de 16 instanțe e suficientă pentru un start real". `12-FULL-FINDINGS-REGISTER.md:278` (`PORT-06`, P0=Da): „La specificația de piață (2 vCPU/server), nodul de 20 vCPU ține doar 8 servere plătitori (€35.92/lună) — insuficient". Capacitatea fizică e suficientă; **capacitatea economică la specificația de piață nu e**. Formularea trebuie împărțită.
+### 4.6 [ÎN PĂRARE — MINOR] Tabelul porților din §3 nu mai conține doar porțile RED
 
-### 4.7 [MINOR] Fraza despre campaniile de reducere e repetată verbatim în aceeași secțiune
+`VERIFIED` (documente). `16:28` e titlul „## 3. Cele 5 porți RED și ce le declanșează", iar `:40` încheie cu „Conform regulii brief-ului, **o singură poartă RED blochează lansarea**. Aici sunt cinci." Dar tabelul (`:32-38`) are acum **7 rânduri**, în ordinea **5, 10, 7, 9, 12, 11, 13**, dintre care două sunt 🟠 AMBER (10 și 11). Titlul, rândul de încheiere și conținutul nu mai corespund. Corecția e de redactare: fie se mută rândurile 10 și 11 sub tabel, fie se schimbă titlul în „Porțile care blochează și cele care limitează" și încheierea în „Aici sunt cinci RED și două AMBER".
 
-`VERIFIED` (documente).
+### 4.7 [ÎN PĂRARE — MINOR] Efortul total nu mai e consistent între documente
 
-`16-GO-NO-GO-DECISION.md:78` și `:86` conțin aceeași teză: „Orice campanie de reducere, înainte de repararea lui `COMM-01`, **crește pierderea și distruge comenzile** — reducerea nu ajunge la Stripe, deci comanda eșuează la `verifyAmount` și clientul ar fi taxat cu prețul neredus." Prima apariție e după tabelul cu pragurile, a doua după „Concluzia de decizie". Nu e o eroare de fond, e o editare nefinalizată într-un document care se prezintă ca hotărâre.
+`VERIFIED` (documente). `16-GO-NO-GO-DECISION.md:71` spune „**Total estimat: ~44 zile de lucru efectiv**" (corect, după condițiile 14–19), dar `00-EXECUTIVE-SUMMARY.md:344` spune în continuare „**~35 de zile-om de lucru efectiv**", iar `15-PRODUCTION-LAUNCH-CHECKLIST.md` se bazează pe „19 condiții". **Cifra din rezumatul executiv e învechită cu 9 zile.**
 
 ---
 
 ## 5. Contradicții interne în corpus
 
-`VERIFIED` — fiecare rând e verificabil prin comanda din coloana „Dovadă".
+`VERIFIED` — fiecare rând e verificabil prin comanda din coloana „Dovadă". Liniile sunt cele din starea de la 14:32:04 (MD5 în §0.1).
 
-| # | Loc A | Loc B | Contradicția | Dovezi |
+| # | Loc A | Loc B | Contradicția | Stare |
 |---:|---|---|---|---|
-| 1 | `12-FULL-FINDINGS-REGISTER.md:61` „Total **115** … **17**" | corpul aceluiași fișier: **127** rânduri, **28** cu P0=Da | numărul de constatări și de P0-uri | §2.1 (script) |
-| 2 | `16-GO-NO-GO-DECISION.md:4` „(115 constatări, 17 P0)" | `12-FULL-FINDINGS-REGISTER.md:117-279` | propagarea contorului greșit | §2.1 |
-| 3 | `13-PRIORITIZED-BACKLOG.md:18` „P0 … (**23 rânduri**)" | `13-PRIORITIZED-BACKLOG.md:261` „Toate cele **17 rânduri P0**" | 23 vs 17, în același fișier | grep direct |
-| 4 | `16-GO-NO-GO-DECISION.md:42` „Cele **13** condiții" | `16-GO-NO-GO-DECISION.md:110` „cele **9** condiții"; `13-PRIORITIZED-BACKLOG.md:262` „Cele **9** condiții" | 13 vs 9 | grep direct |
-| 5 | `16-GO-NO-GO-DECISION.md:77` „Preț recomandat **€9.99** pentru `discord-bot`" | `16-GO-NO-GO-DECISION.md:85` „`discord-bot` … **nu se vinde pe acest hardware**" | 8 rânduri distanță, același document | sed -n '77p;85p' |
-| 6 | `09-pricing-recommendations.md:2.3` `baseAmount = 976` (€9.99) | `08-product-portfolio.md:71` `discord-bot` = 149/172/592 | €9.99 vs €1.72–€5.92, același produs | documente |
-| 7 | `08-product-launch-order.md:14` faza 1 = `minecraft-paper` €4.09 | `16-GO-NO-GO-DECISION.md:77` faza 1 = `discord-bot` €9.99 | două produse de lansare | documente |
-| 8 | `09-unit-economics.md:365` break-even **15** clienți @ €9.99 | `08-product-launch-order.md:188` break-even **14** clienți @ €4.09 | două răspunsuri la Q14 | documente |
-| 9 | `09-unit-economics.md:93` VC(4.50) = **5.6368** | `09-break-even-model.csv` rândul `price-4.5000` = **5.6350** | markdown vs CSV | §3.2 (script) |
-| 10 | `09-unit-economics.md:170` LTV@2% = **104.76**, LTV/CAC 4.19 | `09-unit-economics.md:193` LTV@2% = **209.52**, LTV/CAC 8.38 | același fișier, două tabele | §3.3 |
-| 11 | `09-unit-economics.md:82` cost fix la 16 clienți = **3.7500** | `09-unit-economics.md:90-96` `PRICE_FLOOR` **9.6005** (implică 61/16 = 3.8125) | două alocări ale aceluiași cost fix | §3.4 |
-| 12 | `09-financial-assumptions.md:86` `SERVER_COST` = **60.00** (`OPERATOR-INPUT`) | `08-product-launch-order.md:181` `C_node` = **54.44** (`INFERRED`) | două costuri de nod ⇒ praguri €9.60 vs €3.40 | §3.5 |
-| 13 | `12-FULL-FINDINGS-REGISTER.md:240` `PRICE-03` = **P0**, P0=Da | `12-FULL-FINDINGS-REGISTER.md:148` `COMM-09` = **Medium**, P0=Nu | aceeași constatare, două severități | §2.3 |
-| 14 | `12-FULL-FINDINGS-REGISTER.md:140` `COMM-01` P0 | `12-FULL-FINDINGS-REGISTER.md:161` `PROMO-01` P0 | același defect, numărat de două ori | §2.2 |
-| 15 | `07-release-gates.md:23` poarta 10 **GREEN** | `12-FULL-FINDINGS-REGISTER.md:140,161,240` — 3 P0 despre preț la checkout/catalog | poarta ascunde P0-uri | §2.5 |
-| 16 | `07-release-gates.md:17` poarta 4 **GREEN** | `12-FULL-FINDINGS-REGISTER.md:142` `COMM-03` P0 | idem | §2.6 |
-| 17 | `16-GO-NO-GO-DECISION.md:35` poarta 12 citește `COMM-04/05/07/08` | `07-release-gates.md:223-240` poarta 12 nu le citește | atribuire greșită de poartă | §4.4 |
-| 18 | `16-GO-NO-GO-DECISION.md:54` c.9 închide `SEC-11`, `SEC-29` | `12-FULL-FINDINGS-REGISTER.md:83,101` — descrierile lor | condiția nu le atinge | §2.7 |
-| 19 | `16-GO-NO-GO-DECISION.md:132` „Nu e o problemă de UX" | `06-design-improvement-backlog.md:17-21` — 5× S1 | §4.5 |
-| 20 | `16-GO-NO-GO-DECISION.md:135` „Nu e o problemă de scalare" | `12-FULL-FINDINGS-REGISTER.md:278` `PORT-06` P0 | §4.6 |
-| 21 | `09-pricing-recommendations.md:15-17` „**NU EXISTĂ**" | fișierele există (mtime 14:03/14:04/14:05) | enunț fals în livrabil | §3.8 |
-| 22 | `12-FULL-FINDINGS-REGISTER.md:274` „€1.72 e sub prețul de piață (€0)" | `08-competitive-analysis.md:89` „primul server **€0/lună** … server suplimentar **€1/lună**" | €1.72 > €0 | §2.4 |
-| 23 | `10-seo.md:202` `web/index.css:15-34` | fișierul e `web/src/index.css`; `06-design-system.md:67` citește `web/src/index.css:15-35` | cale greșită + interval greșit | `ls web/*.css` → inexistent |
-| 24 | `07-release-gates.md:259` „**5 servere pe panou, 3 instanțe** ⇒ 2 servere orfane" (OPS-07, `12:259`) | `16-GO-NO-GO-DECISION.md:22` „cu **2 servere orfane din 5**" | compatibile, dar `12:118` (`PROV-02`) spune „2 servere orfane **din 5**" și `12:275` (`PORT-03`) „5 servere pe panou vs 3 instanțe (orfane **8 și 14**)" | `04-pterodactyl-and-provisioning.md` — numerele 8 și 14 sunt **ID-uri de server**, nu un count; formularea „orfane 8 și 14" se citește ca „2 servere orfane, numerotate 8 și 14". Amendabil, dar ambiguu la citire |
+| 1 | `12-FULL-FINDINGS-REGISTER.md:68` „**167** … **28**" | `13-PRIORITIZED-BACKLOG.md:278` „Toate cele **17 rânduri P0** sunt închise" | număr vechi; backlog-ul are 23 rânduri de acțiune | **ÎN PĂRARE** |
+| 2 | `16-GO-NO-GO-DECISION.md:12` „închid **toate cele 28**" | verificarea condiție cu condiție: 24 închise, `PROMO-02` neacoperit și nedezvăluit | suprapunere de acoperire | **ÎN PĂRARE** |
+| 3 | `12:281`, `12:326`, `16:98` „€1.72 e sub prețul de piață (€0)" | `08-competitive-analysis.md:89` „primul server **€0/lună** … server suplimentar **€1/lună**" | €1.72 > €0 | **ÎN PĂRARE** |
+| 4 | `00-EXECUTIVE-SUMMARY.md:206` „**€9.99/lună**" | `00-EXECUTIVE-SUMMARY.md:217` „e peste ce acceptă piața … **€4.49** e nivelul de intrare" | același document, 15 rânduri distanță | **ÎN PĂRARE** |
+| 5 | `16:137` „€9.99 **pentru produsul vândut**" | `12:326` „`discord-bot` rămâne produsul de **test** … primul produs **vândut** e cel care trece pragurile" | care produs primește prețul | **ÎN PĂRARE** |
+| 6 | `08-product-portfolio.md:71` `discord-bot` = 149/172/592 | `00-EXECUTIVE-SUMMARY.md:206` `baseAmount` 149→**976** | €1.72–€5.92 vs €9.99 | **ÎN PĂRARE** |
+| 7 | `09-pricing-recommendations.md:15-17` „**NU EXISTĂ**" | fișierele există (mtime 14:03/14:05/14:04) | enunț fals în livrabil | **ÎN PĂRARE** |
+| 8 | `16:145` „Nu e o problemă de UX" | `06-design-improvement-backlog.md:17-21` — 5× S1 | concluzie mai optimistă decât sursa | **ÎN PĂRARE** |
+| 9 | `16:148` „Nu e o problemă de scalare" | `12:285` `PORT-06` P0 | §4.5 | **ÎN PĂRARE** |
+| 10 | `16:28`/`:40` „Cele 5 porți RED" | tabelul are 7 rânduri, 2 AMBER, ordine ne-crescătoare | §4.6 | **ÎN PĂRARE** |
+| 11 | `16:71` „~44 zile" | `00-EXECUTIVE-SUMMARY.md:344` „~35 de zile-om" | efort total | **ÎN PĂRARE** |
+| 12 | `12:281` `PORT-02` clasa `VERIFIED` | `12:274` `PORT-01` clasa `INFERRED` (aceeași logică) | clasă prea puternică pe o inferență | **ÎN PĂRARE** |
+| 13 | `09-unit-economics.md:365` break-even **15** @ €9.99 | `08-product-launch-order.md:188` break-even **14** @ €4.09 | două răspunsuri la Q14 | **ÎN PĂRARE** |
+| 14 | `12:266` „**5 servere pe panou, 3 instanțe** ⇒ 2 servere orfane" | `07-release-gates.md` „**5 servere pe panou vs 3 instanțe** (orfane **8 și 14**)" | „8 și 14" sunt ID-uri de server, nu un count — se citește ca „2 servere orfane, numerotate 8 și 14" | **ÎN PĂRARE** |
+| 15 | `07-release-gates.md` §2 (13 porți, 5 RED) | `12:386,392` porțile 4 și 10 = AMBER | — | **REPARAT** (ambele sunt acum AMBER) |
+| 16 | `16:35` (vechi) porția 12 cu `COMM-04…08` | `07-release-gates.md:223-240` | **REPARAT** (`16:36-37`) |
+| 17 | `13:279` „Cele **9 condiții**" | `16:44` „Cele **19** condiții" | **REPARAT** |
+| 18 | `09-unit-economics.md:82` 3.7500 / 9.5497 | `:90-96` `PRICE_FLOOR` 9.6005 | **REPARAT** (3.8125 / 9.6122) |
+| 19 | `09-unit-economics.md:170` LTV@2% = 104.76 | `:193` LTV@2% = 209.52 | **REPARAT** |
+| 20 | `09-unit-economics.md:93` VC(4.50) = 5.6368 | CSV `price-4.5000` = 5.6350 | **REPARAT** |
+| 21 | `10-seo.md:202` `web/index.css:15-34` | fișierul e `web/src/index.css` | **REPARAT** (`web/src/index.css:15-35`) |
+| 22 | `00-BRIEFING.md:170` parola contului de test | brief: „Do not include … credential dumps" | **REPARAT** (`BM_PASSWORD="<parola contului de test — vezi secret-store-ul operatorului>"`) |
+| 23 | `12:155` COMM-09 = Medium | `12:247` PRICE-03 = P0, același defect | **REPARAT** |
+| 24 | `12:168` PROMO-01 P0, defect duplicat cu COMM-01 | — | **REPARAT** (textul acum spune „Același defect ca `COMM-01`") |
 
 ### 5.1 [BILĂ CURATĂ] Coerența numerelor de volum
 
-`VERIFIED` — am recreat fiecare număr de volum din producție:
+`VERIFIED` — recreate pe sistemul viu:
 
 | Afirmație | Loc | Verificat live |
 |---|---|---|
 | „93 `completed` / 30 `failed`" joburi | `07-release-gates.md:291` | ✅ `ProvisioningJob` |
 | „30 joburi `failed` din 123" | `07-release-gates.md:291` | ✅ 30/123 |
 | „80 `instance.provision_failed` vs 5 `instance.provisioned`" | `07-release-gates.md:291` | ✅ `AuditLog` |
-| „24% eșec" | `16-GO-NO-GO-DECISION.md:22` | ✅ 30/123 = 24.4% |
-| „6 utilizatori, 3 instanțe, 5 comenzi, 14 bilete" | `00-BRIEFING.md`, `12:254-255` | ✅ `User`/`Instance`/`Order`/`Ticket` |
-| „`Subscription` = 0, `Invoice` = 0, `Payment` = 0" | `12:254` | ✅ |
-| „`Promotion` = 0" | `12:239` | ✅ |
-| „3 instanțe la prețuri diferite pentru aceeași configurație" | `12:141` | ✅ 172 / 149 / 172 la 512/1/5 |
-| „`BM-00002` `AWAITING_PAYMENT` cu instanță `ONLINE`; `BM-00003` `PENDING` cu instanță `STOPPED`" | `12:254` | ✅ |
-| „255/255 cote corecte" | `16-GO-NO-GO-DECISION.md:70` | `DOCUMENTED-ONLY` — nu am rulat suita de cotare; numărul e consistent între `05-pricing-consistency.md`, `07-release-gates.md`, `12:242` |
-| „240 de teste automate (219 API + 21 web)" | `16-GO-NO-GO-DECISION.md:129` | `CODE-INSPECTED` — 25 de fișiere de test în `api/tests/`, 220 de apariții `it(`/`test(` (219 e în plajă); 3 fișiere de test în `web/` |
+| „24% eșec" | `16:22` | ✅ 30/123 = 24.4% |
+| „6 utilizatori, 3 instanțe, 5 comenzi, 14 bilete" | `12` §7b | ✅ `User`/`Instance`/`Order`/`Ticket` |
+| „`Subscription` = 0, `Invoice` = 0, `Payment` = 0" | `12` §7b | ✅ |
+| „`Promotion` = 0" | `12` §7 | ✅ |
+| „3 instanțe la prețuri diferite pentru aceeași configurație" | `12` §7 | ✅ 172 / 149 / 172 la 512/1/5 |
+| „`BM-00002` `AWAITING_PAYMENT` cu instanță `ONLINE`; `BM-00003` `PENDING` cu instanță `STOPPED`" | `12` §7b | ✅ |
+| „255/255 cote corecte" | `16:83` | `DOCUMENTED-ONLY` — n-am rulat suita de cotare; numărul e consistent între `05-pricing-consistency.md`, `07-release-gates.md`, `12` §7 |
+| „240 de teste automate (219 API + 21 web)" | `16:146` | `CODE-INSPECTED` — 25 de fișiere în `api/tests/`, 220 de apariții `it(`/`test(`; 3 fișiere de test în `web/` |
 | „553 de verificări de browser (191+60+240+62)" | `07-release-gates.md:24` | ✅ suma e corectă; conținutul e `DOCUMENTED-ONLY` |
-| „17 436 `Failed password` / 24 h" | `02-security-audit.md:13` | `DOCUMENTED-ONLY` (jurnalul e pe hipervizor, la mine e `BLOCKED`) |
+| „17 436 `Failed password` / 24 h" | `02-security-audit.md:13` | `DOCUMENTED-ONLY` (jurnalul e pe hipervizor ⇒ `BLOCKED`) |
 
 ---
 
 ## 6. Acoperire față de cele 25 de întrebări executive și față de livrabilele cerute
 
-### 6.1 Livrabilele obligatorii lipsă
+### 6.1 Livrabilele obligatorii
 
 `VERIFIED` (`ls /root/blipmade-work/audit/` + lista din brief, `/root/.minimax/v2/assets/2026/10/23/12-20-01-905-asset_20261023-122001-905_4319e200ef2e_5bcd247d-pasted-text.txt:1945-1992`).
 
-| Livrabil cerut | Stare |
+| Livrabil cerut | Stare la 14:32:04 |
 |---|---|
-| `00-EXECUTIVE-SUMMARY.md` | ❌ **LIPSEȘTE** |
 | `01-backend-audit.md` | ❌ **LIPSEȘTE** |
-| `17-NEXT-IMPLEMENTATION-PROMPT.md` | ❌ **LIPSEȘTE** |
-| toate celelalte 39 din listă | ✅ prezente, nevidе, cu mtime 12:47–14:14 |
+| `00-EXECUTIVE-SUMMARY.md` | ✅ creat 14:19:53, răspunde explicit la toate cele 25 de întrebări (un titlu per întrebare, `:19`–`:347`) |
+| `17-NEXT-IMPLEMENTATION-PROMPT.md` | ✅ creat 14:19:56 |
+| toate celelalte 40 din listă | ✅ prezente, nevide |
 
-`01-backend-audit.md` e o listă explicită a brief-ului și nu e substituită de niciun alt fișier: `02-security-audit.md` e securitate, `05-commerce-and-billing.md` e comerț. **Nu există niciun raport de audit al backendului** (API, model de date, coadă, worker) în afara fragmentelor din `00-architecture.md` / `07-quality-assurance.md`.
-
-`00-EXECUTIVE-SUMMARY.md` e locul în care brief-ul cere răspunsul la cele 25 de întrebări. `17-NEXT-IMPLEMENTATION-PROMPT.md` e pasul următor (post-audit).
+`01-backend-audit.md` e cerut explicit de brief și **nu e substituit** de niciun alt fișier: `02-security-audit.md` e securitate, `05-commerce-and-billing.md` e comerț. **Nu există niciun raport de audit al backendului** (API, model de date, coadă, worker, idempotență, tranzacții monetare) în afara fragmentelor din `00-architecture.md` și `07-quality-assurance.md`.
 
 ### 6.2 Matricea de acoperire a celor 25 de întrebări
 
-`VERIFIED` (citat + inspecție conținut). „Acoperit" = există un fișier care răspunde pe fond; „Parțial" = există materia, dar răspunsul e contradictoriu sau incomplet; „Lipsă" = nu există.
+`VERIFIED` (citat + inspecție conținut). **19/25 acoperite pe fond, 6 parțiale, 0 fără materie primă** — materialul pentru toate există în corpus.
 
 | # | Întrebare | Stare | Unde | Observație |
 |---:|---|---|---|---|
-| 1 | Pregătită tehnic pentru clienți plătitori? | **Acoperit** | `16-GO-NO-GO-DECISION.md` | verdict NO-GO, susținut de 5 porți RED |
-| 2 | Ce e exact rupt sau neverificat? | **Acoperit** | `12-FULL-FINDINGS-REGISTER.md` | dar cu contoare greșite (§2.1) |
-| 3 | Ce funcționează cu adevărat? | **Acoperit** | `07-release-gates.md` §2, `16:128-133` | bine construit |
+| 1 | Pregătită tehnic pentru clienți plătitori? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:19`, `16` | verdict NO-GO, susținut de 5 porți RED |
+| 2 | Ce e exact rupt sau neverificat? | **Acoperit** | `12` (167 rânduri, 28 P0) | — |
+| 3 | Ce funcționează cu adevărat? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:54`, `07-release-gates.md` §2 | — |
 | 4 | Decizii arhitecturale problematice? | **Acoperit** | `00-architecture.md`, `03-*` | — |
-| 5 | Cele **zece** probleme cele mai periculoase | **Parțial** | `13-PRIORITIZED-BACKLOG.md` §1 | sunt **23** rânduri P0 în 6 subgrupuri, **nu** un top-10; nu există niciun artefact „cele 10 cele mai periculoase" |
-| 6 | Cele **zece** slăbiciuni UX/UI | **Parțial** | `06-ux-ui-complete.md`, `06-design-improvement-backlog.md` | există UX-01…UX-28 cu severități S1–S4, dar nicio selecție top-10 și niciun „top 10" explicit |
-| 7 | Ce lipsește vs. ce e neterminat? | **Acoperit** | `12` (`NOT-IMPLEMENTED`), `08-product-portfolio.md` | — |
-| 8 | Ce funcții anunțate sunt mincinoase/simulate? | **Acoperit** | `12:238-243` (PRICE-01/02/06), `12:253` (OPS-01) | — |
-| 9 | Starea celor 4 adrese IP publice? | **Acoperit** | `03-network-and-ip-plan.md`, `12:216-219` | — |
-| 10 | Cât hardware se poate vinde sigur? | **Acoperit** | `03-capacity-model.md`, `12:220-223` | — |
-| 11 | Ce produse se lansează primele? | **Acoperit** | `08-product-launch-order.md` | dar `16:77` propune alt produs (§3.6) |
-| 12 | Ce produse NU trebuie oferite? | **Acoperit** | `08-product-portfolio.md` §10 (0 `LAUNCH-NOW`, 7 `LAUNCH-SOON`, 4 `CONDITIONAL`, 10 `NEVER`) | — |
-| 13 | **Ce prețuri exacte recomanzi?** | **Parțial — contradictoriu** | `09-pricing-recommendations.md` (€9.99) vs `08-product-portfolio.md` (€1.72) vs `08-product-launch-order.md` (€4.09) | **trei răspunsuri incompatibile** (§3.6) |
-| 14 | **Care e break-even-ul lunar realist?** | **Parțial — contradictoriu** | `09-unit-economics.md:365` (15 @ €9.99) vs `08-product-launch-order.md:188` (14 @ €4.09) | **două răspunsuri** (§3.7) |
-| 15 | Câți clienți încap înainte de extindere? | **Acoperit** | `03-capacity-model.md` (16 instanțe/nod) | — |
-| 16 | Ce canale de achiziție? | **Acoperit** | `10-marketing-strategy.md`, `10-launch-campaigns.md` | — |
-| 17 | Ce promoții se pot permite? | **Acoperit** | `09-unit-economics.md` §11 (discount max = contribuția; buget 12 luni €379.25) | corect, dar condiționat de repararea lui `COMM-01` — legătura e făcută |
-| 18 | Ce trebuie schimbat pe homepage/checkout? | **Acoperit** | `06-design-improvement-backlog.md`, `web/src/home/Catalog.tsx:202-213` | — |
-| 19 | Ce mai trebuie panoul de admin? | **Acoperit** | `06-design-improvement-backlog.md` §3-4 (UX-04, UX-11, UX-23) | — |
-| 20 | Ce trebuie înainte de beta privat? | **Acoperit** | `16:96-105` (Scenariul B), `13` §1 | — |
-| 21 | Ce trebuie înainte de lansare publică? | **Acoperit** | `14-30-60-90-DAY-ROADMAP.md` | — |
-| 22 | Ce poate aștepta după lansare? | **Acoperit** | `13` §3-4 (P2 18 + P3 14) | — |
-| 23 | **Costul estimat al lucrării critice** | **Parțial** | `16:62` „~35 zile de lucru efectiv" | **răspunsul e în zile-om, nu în euro**, cu refuz explicit: „**nicio sumă în euro nu e estimată aici**". Principiat, dar întrebarea cere cost. Materialul există (CAC €25 în `09-unit-economics.md`) — lipsește conversia |
-| 24 | **Cele mai mari riscuri comerciale în primele 6 luni** | **Lipsă ca artefact dedicat** | — | niciun fișier nu are o secțiune de registru de riscuri pe 6 luni; riscurile sunt împrăștiate (competiție, preț, capacitate, conformitate) |
-| 25 | Aș aproba personal platforma? | **Acoperit** | `16-GO-NO-GO-DECISION.md` §1, §9 | — |
-
-**Rezumat acoperire: 19/25 acoperite, 4 parțiale, 1 absentă, 0 întrebări fără niciun material în corpus.** Materialul pentru Q24 există împrăștiat (`08-competitive-analysis.md` §6.2, `09-capacity-and-revenue.md`, `11-compliance-checklist.md`), dar nu e adunat într-un registru de riscuri.
+| 5 | Cele **zece** probleme cele mai periculoase | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:77-91` | top-10 explicit, cu ID-uri |
+| 6 | Cele **zece** slăbiciuni UX/UI | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:92-110` | top-10 explicit, cu `UX-01…` |
+| 7 | Ce lipsește vs. ce e neterminat? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:111` | — |
+| 8 | Ce funcții anunțate sunt mincinoase? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:130` | — |
+| 9 | Starea celor 4 adrese IP publice? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:143`, `03-network-and-ip-plan.md` | — |
+| 10 | Cât hardware se poate vinde sigur? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:158` | — |
+| 11 | Ce produse se lansează primele? | **Parțial — contradictoriu** | `08-product-launch-order.md` (`minecraft-paper` €4.09) vs `00-EXECUTIVE-SUMMARY.md:206` (`discord-bot` €9.99) vs `16:90` | §3.5 |
+| 12 | Ce produse NU trebuie oferite? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:192`, `08-product-portfolio.md` §10 | — |
+| 13 | **Ce prețuri exacte recomanzi?** | **Parțial — contradictoriu** | `00-EXECUTIVE-SUMMARY.md:206` vs `08-product-portfolio.md:71` vs `08-product-launch-order.md:14` | **trei răspunsuri incompatibile**; plus auto-contradicția „peste ce acceptă piața" (§3.5) |
+| 14 | **Care e break-even-ul lunar realist?** | **Parțial — contradictoriu** | `00-EXECUTIVE-SUMMARY.md:229` (15 @ €9.99) vs `08-product-launch-order.md:188` (14 @ €4.09) | **două răspunsuri** (§3.6) |
+| 15 | Câți clienți încap înainte de extindere? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:228` | — |
+| 16 | Ce canale de achiziție? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:239`, `10-marketing-strategy.md` | — |
+| 17 | Ce promoții se pot permite? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:251`, `09-unit-economics.md` §11 | corect; legătura cu `COMM-01` e făcută |
+| 18 | Ce trebuie schimbat pe homepage/checkout? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:261`, `06-design-improvement-backlog.md` | — |
+| 19 | Ce mai trebuie panoul de admin? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:274` | — |
+| 20 | Ce trebuie înainte de beta privat? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:285`, `16:111-119` | — |
+| 21 | Ce trebuie înainte de lansare publică? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:300`, `14-…-ROADMAP.md` | — |
+| 22 | Ce poate aștepta după lansare? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:315` | — |
+| 23 | **Costul estimat al lucrării critice** | **Parțial** | `00-EXECUTIVE-SUMMARY.md:330` | „**~35 de zile-om**" — **și învechit**: `16:71` spune acum ~44 zile. „**Nu e estimat în euro, pentru că nu trebuie inventat.**" Principiat, dar întrebarea cere cost |
+| 24 | **Cele mai mari riscuri comerciale în primele 6 luni** | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:336-346` | registru dedicat, 8 riscuri |
+| 25 | Aș aproba personal platforma? | **Acoperit** | `00-EXECUTIVE-SUMMARY.md:347`, `16` §1, §9 | — |
 
 ---
 
@@ -553,129 +401,110 @@ Deci „Nu e o problemă de UX" e o **concluzie de sinteză mai optimistă decâ
 
 Prețurile sunt reale, corect citite și corect atribuite concurentului. **Am verificat și convenția de TVA**, pentru că e relevantă la comparație: Zentaris scrie „Prețuri finale, **fără TVA**", Torchbyte scrie „prețurile **includ TVA 21%**" (`08-competitive-analysis.md:58`) — deci compararea €4.49 (fără TVA) cu €4.74 (cu TVA) nu e omologică. Corpusul **notează** ambele, ceea ce e onest; dar niciun rând din sinteză nu spune că pragul de „€4.74" al lui Torchbyte e echivalentul brut al unui €3.92 fără TVA.
 
-### 7.2 [MAJOR] Clasa `VERIFIED` e atribuită unor concluzii care depind de prețuri de concurență citite de pe web
+### 7.2 [REPARAT] Clasa `VERIFIED` pe o concluzie care depinde de prețuri de concurență citite de pe web
 
-`CODE-INSPECTED` + `VERIFIED` (pagina publică).
+`CODE-INSPECTED` + `VERIFIED` (pagina publică). `12-FULL-FINDINGS-REGISTER.md:282` are acum clasa despărțită corect: „`VERIFIED` (absența DDoS/backup) + `DOCUMENTED-ONLY` (comparația) + `INFERRED` (concluzia)". A rămas de reparat expresia „față de **fiecare concurent românesc**", care generalizează peste 3 furnizori de Minecraft, 1 segment CS 1.6 și 5 furnizori internaționali marcați `NOT-VERIFIED` chiar în `08-competitive-analysis.md:138`.
 
-`12-FULL-FINDINGS-REGISTER.md:275` → `PORT-03`, clasa `VERIFIED`, concluzie: „**Nu există DDoS pe traficul de joc, și nu există backup** — serviciul e cu un pas în urmă față de **fiecare concurent românesc** și față de Aternos, care e gratuit". Doar prima jumătate (`nu există DDoS, nu există backup`) e `VERIFIED` (verificabil în cod și în `.env`); a doua jumătate („față de fiecare concurent") e `DOCUMENTED-ONLY` (comparție cu pagini citite) + `INFERRED` (concluzia). Eticheta de clasă a rândului acoperă ambele jumătăți cu aceeași etichetă.
+### 7.3 [ÎN PĂRARE — MAJOR] `PORT-02` — enunț fals, prezentat ca `VERIFIED`
 
-În plus, expresia „**fiecare concurent românesc**" generalizează peste 3 furnizori de Minecraft, 1 segment CS 1.6 și 5 furnizori internaționali marcați `NOT-VERIFIED` chiar în `08-competitive-analysis.md:138` („## 5. Furnizori internaționali de game hosting — `NOT-VERIFIED`"). Un rând marcat `VERIFIED` care conține „fiecare concurent" e o clasă prea puternică.
+Vezi §2.7. Textul exact: „**Prețul actual al lui `discord-bot` (€1.72) e sub floor și sub prețul de piață (€0)**". €1.72 > €0. Propagat în trei locuri.
 
-### 7.3 [MAJOR] `PORT-02` — enunț fals, prezentat ca `VERIFIED`
+### 7.4 [ÎN PĂRARE — MAJOR] „Nu e o problemă de UX" — concluzie mai optimistă decât sursa
 
-Vezi §2.4. Textul exact: „**Prețul actual al lui `discord-bot` (€1.72) e sub floor și sub prețul de piață (€0)**". €1.72 > €0. Propagat în `16:85` și `13:79`.
+Vezi §4.4.
 
-### 7.4 [MAJOR] „Nu e o problemă de UX" — concluzie mai optimistă decât sursa
+### 7.5 [REPARAT] Citare cu fișier inexistent
 
-Vezi §4.5.
+`CODE-INSPECTED`. `10-seo.md:202` a fost reparat: `web/index.css:15-34` → `web/src/index.css:15-35` (cf. `06-design-system.md:67`, care citește corect `web/src/index.css:15-35`).
 
-### 7.5 [MINOR] `PROV-01` — impact formulat peste clasa de verificare
+### 7.6 [REPARAT] Credential live într-un livrabil
 
-Vezi §2.9.
-
-### 7.6 [MINOR] Citare cu fișier inexistent
-
-`CODE-INSPECTED`. `10-seo.md:202`: „`web/index.css:15-34` definește fonturile absente". Fișierul nu există la acea cale; corect e `web/src/index.css:15-35` (cf. `06-design-system.md:67`, care citește corect `web/src/index.css:15-35`).
-
-### 7.7 [MINOR] Un credential live e reprodus într-un livrabil
-
-`CODE-INSPECTED`. `00-BRIEFING.md:170` conține parola unui cont de test **răspunzibil în producție**: `BM_PASSWORD="QaHeadless!2026"`. E cont de test, pe domeniu rezervat (`example.test`), și credentialul vine din briefing-ul primit — deci nu e o scurgere nouă. Dar brief-ul cere explicit „Do not include secrets, access tokens, customer-private information or credential dumps", iar parola e într-un livrabil. Recomandare: **rotați parola contului de test înainte ca corpusul să părăsească echipa de audit**, și înlocuiți cu o referință la locație.
+`CODE-INSPECTED`. `00-BRIEFING.md:170` avea `BM_PASSWORD="QaHeadless!2026"`. Acum e `BM_PASSWORD="<parola contului de test — vezi secret-store-ul operatorului>"`. **Recomandare rămăasă:** rootați parola contului de test pe producție, pentru că a fost tipărită în briefing.
 
 Nu am găsit: chei Stripe live, `whsec_`, tokenuri Bearer, JWT-uri, stringuri de conexiune `postgres://user:pass@`, parole de clienți reali, sau date personale de clienți. `04-product-certification.md:171` scrie `STRIPE_SECRET_KEY=sk_…` — trunchiat, fără valoare. **Bilanț pozitiv pe acest capitol.**
 
 ---
 
-## 8. Corecturile pe care orchestratorul trebuie să le aplice
+## 8. Bilanț numeric și corecțiile rămase
 
-Fiecare corectură: **fișier · linie · text înlocuit**. Nicio corecție nu presupune rescriere de conținut, doar de numere, etichete și referințe.
+### 8.1 Bilanț
 
-### 8.1 Contori și numere de P0
+**31 de erori identificate în total.** Verificat pe starea finală (14:34:05), **28 au fost reparate de orchestrator în timpul auditului meu**, **5 rămân în pămare** (R1–R5 de mai jos) plus **4 completări de conformitate** (R6–R9), toate cu textul exact de înlocuit.
+
+| # | Erore | Stare finală | Unde |
+|---:|---|---|---|
+| 1 | Contoarele registrului (115/17, domenii inexistente) | **REPARAT** | `12:68` |
+| 2 | Numerele vechi în `16` și `13` | **REPARAT** | `16:4`, `13:288` |
+| 3 | „17 rânduri P0" în backlog | **REPARAT** | `13:288` → „Toate cele **23 de rânduri P0** din §1 … (acestea acoperă cele 28 de constatări P0 din registru)" |
+| 4 | „9 condiții" vs 13 vs 19 | **REPARAT** | `16:44,113,123,160`; `13:288` |
+| 5 | Condițiile nu închideau 9 P0-uri | **REPARAT** (c.14–19, c.9b) | `16:59,64-69` |
+| 6 | Poarta 12 atribuia greșit 4 constatări, omitea `PROV-06` | **REPARAT** | `16:36-37` |
+| 7 | Porțile 4 și 10 GREEN peste P0-uri | **REPARAT** | `07:17,23`; `12:386,392`; `16:33` |
+| 8 | Condiția 9 vs `SEC-11`/`SEC-29` | **REPARAT** | `16:58-59` |
+| 9 | `COMM-01`/`PROMO-01` dublu numărate | **REPARAT** | `12:168` |
+| 10 | `PRICE-03`/`COMM-09` severități contradictorii | **REPARAT** | `12:155` |
+| 11 | `COMM-03` fără rând de backlog | **REPARAT** | `13` (B-24) |
+| 12 | Rândul `4.50` duplicat | **REPARAT** | `09-unit-economics.md:95` |
+| 13 | LTV@2% = 104.76 | **REPARAT** | `09-unit-economics.md:172` |
+| 14 | Alocarea 60/16 în tabelul de absorbție | **REPARAT** | `09-unit-economics.md:71-72,82` |
+| 15 | `PORT-02` — fals aritmetic | **REPARAT parțial** | `12:281` și `16:98` reparate; **`12:326` (§7e) a rămas** → R3 |
+| 16 | Prețul €9.99 vs datele de piață ale corpusului | **REPARAT parțial** | `16:90` și `00-EXEC:206-215` reparate; **rămâne `16:143`** → R4 |
+| 17 | „închid toate cele 28" — `PROMO-02` nedezvăluit | **ÎN PĂRARE** | `16:12`, `16:79` → R1 |
+| 18 | „Nu e o problemă de UX" | **REPARAT** | rândul scos din `16` §8 |
+| 19 | „Nu e o problemă de scalare" | **REPARAT** | `16:152` |
+| 20 | Tabelul §3 cu 7 rânduri sub titlul „Cele 5 porți RED" | **ÎN PĂRARE** | `16:28,32-38,40` → R5 |
+| 21 | Efort: „~35 zile" în exec summary vs „~44 zile" | **REPARAT** | `00-EXECUTIVE-SUMMARY.md` |
+| 22 | `09-pricing-recommendations.md` „NU EXISTĂ" | **REPARAT** | `:17-19` „EXISTĂ" |
+| 23 | `01-backend-audit.md` lipsă | **ÎN PĂRARE** | brief `:1952` → R6 |
+| 24 | Q23 fără euro | **REPARAT** | `00-EXECUTIVE-SUMMARY.md:346` |
+| 25 | Clasa `VERIFIED` pe `PORT-02` | **REPARAT** | `12:281` → `DOCUMENTED-ONLY` + `INFERRED` |
+| 26 | Taxonomie „P0" vs „Critical" în coloana Sev. | **ÎN PĂRARE** | `12` §1–§7c → R9 |
+| 27 | „orfane 8 și 14" — ID-uri, nu count | **ÎN PĂRARE** | `07-release-gates.md` → R10 |
+| 28 | `PROV-01` — impact peste clasa de verificare | **REPARAT** | `12:124` |
+| 29 | `10-seo.md` cale greșită | **REPARAT** | `10-seo.md:202` |
+| 30 | Parola contului de test în briefing | **REPARAT** | `00-BRIEFING.md:170` |
+| 31 | PORT-03 „fiecare concurent românesc" | **REPARAT** | `12:282` |
+
+### 8.2 Corecțiile care mai trebuie aplicate
 
 | # | Fișier:linie | Înlocuiește | Cu |
 |---:|---|---|---|
-| 1 | `12-FULL-FINDINGS-REGISTER.md:58` | `\| UX și design (\`UX-*\`) \| 12 \| 0 \| 0 \| 3 \| 5 \| 4 \|` | `\| Catalog, prețuri și consistență (\`PRICE-*\`) \| 6 \| 3 \| 0 \| 0 \| 2 \| 1 \|` |
-| 2 | `12-FULL-FINDINGS-REGISTER.md:60` | `\| Creștere și marketing (\`MKT-*\`) \| 8 \| 0 \| 0 \| 1 \| 4 \| 3 \|` | `\| Portofoliu și poziție competitivă (\`PORT-*\`) \| 9 \| 5 \| 2 \| 2 \| 0 \| 0 \|` |
-| 3 | `12-FULL-FINDINGS-REGISTER.md:57` | `\| Infrastructură / rețea / capacitate / DR \| 14 \| 3 \| 4 \| 3 \| 3 \| 1 \|` | `\| Infrastructură / rețea / capacitate / DR \| 21 \| 7 \| 4 \| 4 \| 4 \| 2 \|` (INF 8 + NET 4 + CAP 4 + DR 5 = 21; P0 = INF 3 + DR 4 = 7) |
-| 4 | `12-FULL-FINDINGS-REGISTER.md:61` | `\| **Total** \| **115** \| **17** \| **10** \| **21** \| **39** \| **28** \|` | `\| **Total** \| **127** \| **28** \| **18** \| **33** \| **40** \| **28** \|` — *numărătoarele pe coloane să fie recalculate programatic pe cele 127 de rânduri, nu estimate; severitățile reale din coloana „Sev." sunt: Critical 18, High 33, Medium 40, Low/Info 36 (din care „P0" 11)* |
-| 5 | `12-FULL-FINDINGS-REGISTER.md:63` | (textul de după tabel) | adaugă: „*Contoarele de mai sus sunt recalculate programatic pe cele 127 de rânduri ale acestui registru.*" |
-| 6 | `16-GO-NO-GO-DECISION.md:4` | `(115 constatări, 17 P0)` | `(127 constatări, 28 P0)` |
-| 7 | `13-PRIORITIZED-BACKLOG.md:261` | `Toate cele **17 rânduri P0** sunt închise` | `Toate cele **23 de rânduri P0** din §1 sunt închise (care acoperă cele 28 de constatări P0 din registru)` |
-| 8 | `16-GO-NO-GO-DECISION.md:12` | `cu 13 condiții obligatorii, după remedierea a 9 defecte P0 și a 4 condiții de infrastructură` | `cu 13 condiții obligatorii, care închid 19 dintre cele 28 de constatări P0 din registru` |
-| 9 | `16-GO-NO-GO-DECISION.md:110` | `cele 9 condiții` | `cele 13 condiții` |
-| 10 | `13-PRIORITIZED-BACKLOG.md:262` | `Cele **9 condiții**` | `Cele **13 condiții**` |
-
-### 8.2 Constatări dedublate / severități
-
-| # | Fișier:linie | Înlocuiește | Cu |
-|---:|---|---|---|
-| 11 | `12-FULL-FINDINGS-REGISTER.md:161` (rândul `PROMO-01`) | rândul întreg | `\| PROMO-01 \| **P0** \| \`CODE-INSPECTED\` \| **Reduce defectul \`COMM-01\` la o singură constatare** — același mecanism, aceleași trei citări. Nu e o constatare distinctă; e o etichetă de promoție pe același bug \| Nu (este COMM-01) \| vezi \`COMM-01\` \|` |
-| 12 | `12-FULL-FINDINGS-REGISTER.md:240` (rândul `PRICE-03`) | `\| PRICE-03 \| **P0** \| \`VERIFIED\` \| **Prețul afișat public nu spune unitatea** (\`price.amount = 149\` = €1.49) — convenția apare o singură dată în tot contractul \| **Da** \|` | `\| PRICE-03 \| **P0** \| \`VERIFIED\` \| **Prețul afișat public nu spune unitatea** (\`price.amount = 149\` = €1.49) — convenția apare o singură dată în tot contractul. **Același defect ca \`COMM-09\`; păstrat aici pentru că e P0, dar se numără o singură dată** \| **Da** \|` **și** `12-FULL-FINDINGS-REGISTER.md:148` → `\| COMM-09 \| Medium \|` → `\| COMM-09 \| **P0** (același defect ca \`PRICE-03\`) \|` |
-| 13 | `12-FULL-FINDINGS-REGISTER.md:273` (PORT-01) | clasa `INFERRED` | `INFERRED` — **corectă, nu se schimbă** |
-| 14 | `12-FULL-FINDINGS-REGISTER.md:274` (PORT-02) | `**Prețul actual al lui \`discord-bot\` (€1.72) e sub floor și sub prețul de piață (€0)**` | `**Prețul actual al lui \`discord-bot\` (€1.72) e sub pragul de acoperire al nodului (€3.40 la 1 vCPU). Pragul de cost e peste prețul de intrare al pieței de bot hosting (€0/lună la primul server Lunafy, €1/lună per server suplimentar) — deci botul nu poate fi produsul principal, dar prețul lui NU e sub prețul pieței**` + clasa `VERIFIED` → `DOCUMENTED-ONLY` + `INFERRED` |
-| 15 | `16-GO-NO-GO-DECISION.md:85` | `**Sub floor și sub prețul de piață (€0)** — nu se vinde pe acest hardware` | `**Sub pragul de acoperire (€3.40)** — nu poate fi produsul principal pe acest hardware` |
-| 16 | `13-PRIORITIZED-BACKLOG.md:79` | `\`discord-bot\` la €1.72 e sub floor **și** sub prețul de piață (€0)` | `\`discord-bot\` la €1.72 e sub pragul de acoperire (€3.40), iar pragul de cost e peste prețul de intrare de pe piață (€0 la Lunafy)` |
-| 17 | `12-FULL-FINDINGS-REGISTER.md:117` | `un container care nu-și încape pe disc afectează **tot nodul**` | `poarta de capacitate a discului **nu leagă niciodată** (eroare de 1024×); un disc plin al nodului afectează toate containerele de pe el — impact \`INFERRED\`, iar defectul nu poate fi exercitat de un client cât timp plățile sunt oprite` |
-
-### 8.3 Modelul financiar
-
-| # | Fișier:linie | Înlocuiește | Cu |
-|---:|---|---|---|
-| 18 | `09-unit-economics.md:93` | `\| 4.50 \| 5.6368 \| −1.0768 \| −23.9% \| 9.6005 \|` | `\| 4.50 \| 5.6350 \| −1.1350 \| −25.2% \| 9.6005 \|` |
-| 19 | `09-unit-economics.md:170` | `\| **conservator** \| 2% \| −202.73 \| −191.58 \| 11.15 \| **104.76** \| 4.19 \|` | `\| **conservator** \| 2% \| −202.73 \| −191.58 \| 11.15 \| **209.52** \| 8.38 \|` |
-| 20 | `09-unit-economics.md:82` | `\| 16 \| 100% \| 3.7500 \| 9.5497 \|` | `\| 16 \| 100% \| 3.8125 \| 9.6122 \|` **și** `09-unit-economics.md:71-72` → `ALLOCATED_SERVER_COST_PER_INSTANCE = FIXED_COST_EUR_PER_MONTH / SAFE_INSTANCES_PER_NODE = 61.00 / 16 = 3.8125` |
-| 21 | `09-unit-economics.md:70-72` (nota) | — | adaugă o notă: „*Costul fix pe client e \`FIXED/N\` (61.00/N), nu \`SERVER_COST/N\`: pragul \`PRICE_FLOOR\` de mai jos folosește 61.00/16.*" |
-| 22 | `09-pricing-recommendations.md:15-17` | cele trei rânduri „**NU EXISTĂ**" | `\| \`audit/08-competitive-analysis.md\` \| **EXISTĂ** (scris 14:03) \| **Comparația cu piața e disponibilă**; vezi \`08-competitive-analysis.md\` §2-§4. Recomandarea de mai jos e **scrisă înaintea** acestor rapoarte și trebuie re-emapată. \|` (idem pentru celelalte două) |
-| 23 | `09-pricing-recommendations.md:119` | „\`audit/08-competitive-analysis.md\` **nu există**, și în sistem nu există niciun preț de concurență. **Nu inventez prețuri de piață.**" | „\`audit/08-competitive-analysis.md\` există (citit 2026-10-23) și conține prețuri de concurență **citate, cu URL și dată**. Prețurile de piață folosite în acest document sunt cele de acolo; verificarea independentă a uneia (Zentaris €4.49 / 4 GB / 2 vCPU / 25 GB) a confirmat valoarea." |
-| 24 | `16-GO-NO-GO-DECISION.md:77` | `\| Preț recomandat **€9.99/lună** pentru \`discord-bot\` la 512 MB/1 vCPU/5 GB \| Break-even la **15 clienți** ...` | `\| Preț recomandat **€9.99/lună** pentru produsul vândut, **la configurația implicită 512 MB/1 vCPU/5 GB** — cu rezerva că acest preț e derivat dintr-un model de cost (contribuție + CAC + absorbție) și **nu** din prețul de piață, iar produsul de fază 1 propus de \`08-product-launch-order.md\` este \`minecraft-paper\` la €4.09 (prag de rentabilitate 14 clienți la \`C_node\` = €54.44) \| Break-even la **15 clienți** (€149.85/lună contra unui cost fix de €61.00/lună), payback **5.97 luni**, LTV/CAC **3.35** — **la cost fix 61.00 și \`SERVER_COST\` 60.00, nu la \`C_node\` 54.44**; vezi \`09-unit-economics.md\` vs \`08-product-launch-order.md\` §7 \|` |
-| 25 | `16-GO-NO-GO-DECISION.md:124` | „**Cardul de preț la €9.99** pentru produsul vândut." | „**Cardul de preț la €9.99** pentru produsul vândut — preț de *cost-cover*, nu de piață: e peste pragul de absorbție (€9.60) și peste cel de amortizare (€9.97), dar **de ~2× peste intrarea de piață documentată** (€3.99–€4.74 la 4 GB/2 vCPU). La acest preț, scenariul B rămâne LOSS-MAKING prin construcție: cu max. 10 clienți, contribuția e 10 × €4.1903 = €41.90 contra unui cost fix de €61.00, adică **−€19.10/lună**, chiar dacă tehnic funcționează." |
-
-### 8.4 Porți, condiții și logică de decizie
-
-| # | Fișier:linie | Înlocuiește | Cu |
-|---:|---|---|---|
-| 26 | `07-release-gates.md:23` | `\| 10 \| Checkoutul afișează prețuri material greșite \| 🟢 **GREEN** \|` | `\| 10 \| Checkoutul afișează prețuri material greșite \| 🟠 **AMBER** \|` + în secțiunea porții 10 adaugă: „**De ce nu e GREEN:** \`COMM-01\`/\`PROMO-01\` (P0) fac ca o comandă cu reducere să fie taxată cu suma **neredusă**; \`PRICE-03\` (P0) e ambiguul de unitate al prețului public. Mecanismul de calcul e corect, dar **totalul afișat ≠ totalul încasat**." |
-| 27 | `07-release-gates.md:17` | `\| 4 \| Upgrade-urile de resurse se fac fără plată corespunzătoare \| 🟢 **GREEN** \|` | `\| 4 \| Upgrade-urile de resurse se fac fără plată corespunzătoare \| 🟠 **AMBER** \|` + notă: „**De ce nu e GREEN:** \`applyUpgradeOrder()\` nu verifică plata (\`COMM-03\`, P0) — e latent doar cât timp singurul apelant neplătit are \`total = 0\`." |
-| 28 | `16-GO-NO-GO-DECISION.md:35` (rândul porții 12) | `\`PROV-04\`, \`COMM-04\`, \`COMM-05\`, \`COMM-07\`, \`COMM-08\`, \`PROV-12\`, \`OPS-03\`, \`OPS-06\`` | `\`PROV-04\`, \`PROV-06\`, \`OPS-01\`, \`OPS-03\`, \`OPS-06\`` — iar în coloana „De ce e RED": „Checkout 503; \`feature_limits\` goale (\`databases=0, backups=0, allocations=0\`) ⇒ clientul vede „fără baze de date" în loc de o eroare; e-mail neconfigurat; **canalul de suport inert** — toate cele 14 bilete au „No replies yet"; containerul nu rulează." **Plus:** rând nou pentru poarta **11** (\`COMM-04\`, \`COMM-05\`, \`COMM-07\`, \`COMM-08\`) — în §3, unde sunt enumerate „cele 5 porți RED", **poarta 11 e AMBER** și trebuie marcată ca atare, nu ascunsă sub poarta 12. |
-| 29 | `16-GO-NO-GO-DECISION.md:54` (condiția 9) | `\| 9 \| Rotirea parolei de panou a clientului, cu o cale de resetare, înainte de orice rotire a \`SESSION_SECRET\`; reducerea conturilor \`root_admin\`; retenție pe transportul de e-mail în fișier \| 8 \| \`SEC-11\`, \`SEC-18\`, \`SEC-29\` \| 2 z \|` | `\| 9 \| Rotirea parolei de panou a clientului, cu o cale de resetare, înainte de orice rotire a \`SESSION_SECRET\`; reducerea conturilor \`root_admin\`; retenție pe transportul de e-mail în fișier \| 8 | \`SEC-18\` \| 2 z \|` **+** o condiție **9b** nouă: „Cheia API a agentului operatorului e scoasă din argumentele procesului (\`SEC-29\`) și secretele sunt separate pe fișiere (\`SEC-11\`) — cheie de panou per client, fără cheie globală în proces." |
-| 30 | `16-GO-NO-GO-DECISION.md:60` (condiția 13) | `\| 13 \| ... \| 7, 12 \| \`OPS-04\` \| 3–4 z \|` | `\| 13 \| ... \| 7, 12 | \`OPS-04\` (P0 = „Nu", blocaj de produs) \| 3–4 z \|` |
-| 31 | `16-GO-NO-GO-DECISION.md` §4 — **adăugare** | — | **Trei condiții noi**, obligatorii, înainte ca verdictul să se inverseze: **(14)** „Reducerea ajunge la Stripe: \`unit_amount\` = suma discountuită și \`verifyAmount\` compară aceeași sumă; un checkout cu cod de promoție ajunge la Stripe cu prețul redus și \`amount_total\` identic cu \`order.total\`" (închide \`COMM-01\`/\`PROMO-01\`, poarta 10); **(15)** „Prețul stocat al instanței e prețul configurației și e reconciliat cu cele 3 instanțe existente" (închide \`COMM-02\`); **(16)** „\`applyUpgradeOrder()\` refuză o comandă fără plată confirmată" (închide \`COMM-03\`). **Fără (14)-(16), cele 13 condiții de azi lasă deschise cele mai scumpe trei P0 de plată.** |
-| 32 | `16-GO-NO-GO-DECISION.md:132` | „**Nu e o problemă de UX.** Interfața e într-o stare bună: 553 de verificări de browser verzi, structură semantică, navigare cu tastatura, contrast și focus vizibil." | „**Nu e o cauză de amânare, dar nici o bătaie de curat.** Cele 553 de verificări de browser verzi dovedesc **absența regresiilor**, nu absența defectelor: \`06-design-improvement-backlog.md\` ratingă 5 elemente **S1** (UX-01 \`DataTable\` strică modelul de tabel pe 9 rute; UX-02 adresă existentă ascunsă; UX-03 „Online" vs „Container: offline"; UX-04 instanță inspecționabilă de staff; UX-05 zidul de plată). Problemele de UX sunt de conținut și de onestitudine, nu de construcție." |
-| 33 | `16-GO-NO-GO-DECISION.md:135` | „**Nu e o problemă de scalare.** Capacitatea sigură de 16 instanțe e suficientă pentru un start real, cu un doilea nod la 64 GiB." | „**Nu e o problemă de scalare fizică**, dar **este** una de scalare economică: la specificația de piață (2 vCPU), nodul duce 8 servere plătitori = €35.92/lună contra unui cost de nod de €54.44 (\`PORT-06\`, P0). Capacitatea sigură de 16 instanțe e suficientă **doar** la 1 vCPU." |
-| 34 | `16-GO-NO-GO-DECISION.md:78` și `:86` | propoziția duplicată | șterge duplicarea de la `:86` (păstrează `:78`) |
-| 35 | `07-release-gates.md:23` vs `12-FULL-FINDINGS-REGISTER.md:300` | — | **dintre cele două copii ale tabelului de porți, păstrează-le pe amândouă în acord** după corecturile 26-27 |
-
-### 8.5 Livrabile și acoperire
-
-| # | Acțiune |
-|---:|---|
-| 36 | **Creează `audit/00-EXECUTIVE-SUMMARY.md`**, cu un tabel care mapează cele 25 de întrebări la fișierul care le răspunde și la verdictul pe scurt (acoperit / parțial / contradictoriu). În special, răspunsurile la Q13 (preț) și Q14 (break-even) trebuie să indice **care** dintre cele două modele se folosește și de ce — vezi §3.6, §3.7. |
-| 37 | **Creează `audit/01-backend-audit.md`** (obligatoriu în brief, absent) — backendul: model de date, tranzacții, coadă/worker, idempotență, retry, tranzacții monetare, schema API vs. implementare. Materialul există parțial în `00-architecture.md`, `05-commerce-and-billing.md` și `07-quality-assurance.md`; trebuie consolidat și completat. |
-| 38 | **Creează `audit/17-NEXT-IMPLEMENTATION-PROMPT.md`** (obligatoriu în brief, absent). |
-| 39 | Adaugă în `14-30-60-90-DAY-ROADMAP.md` un registru de **riscuri comerciale pe primele 6 luni** (Q24), consolidând: lipsa de DDoS + backup vs. Aternos gratuit (PORT-03), incapacitatea economică la 2 vCPU (PORT-06), necesitatea unui cost de nod cunoscut (`C_node` = `OPERATOR-INPUT`), riscul de concentrare pe un singur nod/RAID 0 (INF-01), riscul de conformitate (11-compliance-checklist.md) și riscul de concentrare pe CAC neacoperit (`09-unit-economics.md` §9). |
-| 40 | În `16-GO-NO-GO-DECISION.md:62`, adaugă conversia în euro cerută de Q23: „*la o rată de {X} €/zi-om, efortul de ~35 zile = {Y} €*", cu `X` marcat `OPERATOR-INPUT` și `Y` calculat, **sau** o notă explicită că rata nu e cunoscută și rămâne `OPERATOR-INPUT`. |
-| 41 | `10-seo.md:202` → `web/index.css:15-34` ⟶ `web/src/index.css:15-35` |
-| 42 | `00-BRIEFING.md:170` → înlocuiește `BM_PASSWORD="QaHeadless!2026"` cu `BM_PASSWORD="<parola contului de test, din secret-store>"` și rotește parola contului de test. |
-| 43 | `12-FULL-FINDINGS-REGISTER.md:275` → clasa rândului `PORT-03` din `VERIFIED` în `VERIFIED` (doar partea „nu există DDoS/backup") + `DOCUMENTED-ONLY` (comparația cu concurenții) + `INFERRED` (concluzia „cu un pas în urmă"); înlocuiește „față de **fiecare concurent românesc**" cu „față de cei **3** furnizori de Minecraft români verificați în \`08-competitive-analysis.md\` §2". |
+| R1 | `16-GO-NO-GO-DECISION.md:12` | „cu **19 condiții obligatorii**, care închid toate cele 28 de constatări P0 din registru." | „cu **19 condiții obligatorii**, care închid **24 dintre cele 28** de constatări P0 din registru; cele 4 rămase sunt **decizii de produs sau de scenariu**, enumerate în nota de mai jos." |
+| R2 | `16-GO-NO-GO-DECISION.md:79` | „cele 19 condiții închid **toate cele 28 de constatări P0** … cu excepția celor care sunt **închise prin scenariu** … sau care privesc **portofoliul**, nu platforma (`PORT-03` — lipsa DDoS, `PORT-06` — 8 servere la 2 vCPU, `PORT-07` — plățile oprite, închis de condiția 1)." | „cele 19 condiții închid **24 dintre cele 28** de constatări P0; **4 rămân deschise și trebuie numite explicit**: \`PROMO-02\` (\`maxPerUser\` nu poate fi setat — **se adaugă la condiția 14**), \`PORT-03\` (jumătatea DDoS pe traficul de joc — **condiția 3 acoperă backup-ul, nu DDoS-ul**; fie se adaugă condiție, fie se scrie că e o decizie de produs explicită), \`PORT-06\` (8 servere la 2 vCPU — decizie de preț, acoperit de condiția 19) și \`PORT-07\` (închis de condiția 1)." |
+| R3 | `12-FULL-FINDINGS-REGISTER.md:326` (§7e) | „**De ce contează:** `discord-bot` la **€1.72** e sub ambele praguri și sub prețul de piață (€0), deci e imposibil de vândut pe acest hardware." | „**De ce contează:** `discord-bot` la **€1.72** e sub ambele praguri, iar pragul de cost e peste prețul de intrare al pieței de bot hosting (€0/lună la primul server Lunafy, €1/lună per server suplimentar) — deci e imposibil de vinde **ca produs principal** pe acest hardware." |
+| R4 | `16-GO-NO-GO-DECISION.md:143` | „5. **Cardul de preț la €9.99** pentru produsul vândut. Fără aceasta, scenariul B e LOSS-MAKING prin construcție, chiar dacă tehnic funcționează." | „5. **Cardul de preț de cost-cover la €9.99**, *dacă* produsul vândut e cel pentru care modelul e calculat (`discord-bot` e, în `08-product-launch-order.md`, produsul de **test**; produsul de **vânzare** propus e `minecraft-paper` la €4.09). Fără un preț peste prag, scenariul B e LOSS-MAKING prin construcție (10 clienți × €4.1903 = €41.90 contra unui cost fix de €61.00 ⇒ **−€19.10/lună**). **Atenție:** un preț de piață (€3.49–€4.49) ar face scenariul B și mai mult LOSS-MAKING, fără soluție de acoperire în bugetul actual." |
+| R5 | `16-GO-NO-GO-DECISION.md:28` și `:40` | „## 3. Cele 5 porți RED și ce le declanșează" / „Conform regulii brief-ului, **o singură poartă RED blochează lansarea**. Aici sunt cinci." | „## 3. Porțile care blochează lansarea, și cele care o limitează" / „Conform regulii brief-ului, **o singură poartă RED blochează lansarea**. Aici sunt **cinci RED** (5, 7, 9, 12, 13) și **două AMBER** care limitează scenariul, nu îl blochează (10, 11)." — **și reordonarea rândurilor**: 5, 7, 9, 12, 13, apoi 10, 11. |
+| R6 | **creează `audit/01-backend-audit.md`** | — | obligatoriu în brief (`:1952`): API, model de date, coadă/worker, idempotență, retry, tranzacții monetare, schema API vs. implementare. Materialul există parțial în `00-architecture.md`, `05-commerce-and-billing.md`, `07-quality-assurance.md`; trebuie consolidat și completat. |
+| R7 | ~~`00-EXECUTIVE-SUMMARY.md:344`~~ | **REPARAT** (14:35:47) — cifra de efort din rezumatul executiv a fost actualizată la cea din `16-GO-NO-GO-DECISION.md:71`. **Fără acțiune.** | `**~35 de zile-om de lucru efectiv**, în zilele 1–30` | `**~44 de zile-om de lucru efectiv** (cele 19 condiții din \`16-GO-NO-GO-DECISION.md\` §4), în zilele 1–30` |
+| R8 | ~~`00-EXECUTIVE-SUMMARY.md:330-334` (Q23)~~ | **REPARAT** (14:35:47) — `:346` spune acum "În euro, formula e directă dar rata nu se știe: `cost_lucru = 44 × rata_zi_om`, cu `rata_zi_om` marcat `OPERATOR-INPUT`". **Fără acțiune.** | „**Nu e estimat în euro, pentru că nu trebuie inventat.**" | adaugă: „*la o rată de {X} €/zi-om, efortul de ~44 zile = {Y} €*", cu `X` marcat `OPERATOR-INPUT` și `Y` calculat, **sau** o notă explicită că rata nu e cunoscută și rămâne `OPERATOR-INPUT`. |
+| R9 | `12-FULL-FINDINGS-REGISTER.md` §0.2 | — | adaugă o notă: „*Coloana „Sev." folosește \`P0\` și \`Critical\` pentru aceeași clasă de blocaj (11 rânduri \`P0\`, 27 \`Critical\`, toate cu P0 = „Da"). Severitățile \`SEC-*\` sunt preluate din \`02-security-audit.md\`; celelalte sunt atribuite de orchestrator, fiindcă rapoartele-sursă nu au coloană de severitate.*" |
+| R10 | `07-release-gates.md:291` | „**5 servere pe panou vs 3 instanțe** (orfane 8 și 14)" | „**5 servere pe panou vs 3 instanțe** ⇒ 2 servere orfane (ID-urile 8 și 14)" |
+| R11 | ~~`00-EXECUTIVE-SUMMARY.md:206` (Q13)~~ | **REPARAT** (14:34:49) — `:209` spune acum "un singur preț, €9.99, la configurația implicită"; `:211` spune "€9.99 e un preț de *acoperire a costului*, nu un preț de piață. E de ~2× peste intrarea documentată pe piață (€3.99–€4.74 la 4 GB / 2 vCPU)"; `:212` tratează explicit tierul gratuit Lunafy. **Fără acțiune.** | „**€9.99/lună pentru `discord-bot` la 512 MB / 1 vCPU / 5 GB** — `baseAmount` de la 149 la **976**." | „**€9.99/lună e pragul de cost al modelului** (contribuție + amortizare CAC + absorbție a costului fix) pentru configurația implicită 512 MB / 1 vCPU / 5 GB — `baseAmount` 976 — **dar nu e un preț de piață**: piața documentată în același corpus are intrarea la €3.99–€4.74 **la 4 GB / 2 vCPU**, iar un VPS Contabo cu 8 GB și trafic nelimitat costă €5.50. **Prețul de vânzare trebuie ales explicit între `€9.99` (cost-cover) și `€3.49–€4.49` (piață), cu riscul de vânzare pe fiecare variantă enunțat.**" |
+| R12 | ~~`00-EXECUTIVE-SUMMARY.md:229` (Q14)~~ | **REPARAT** (14:34:49) — `:229` prezintă acum **ambele** cifre, iar `:234` explică diferența dintre ele. **Fără acțiune.** | „15 clienți × €9.99/lună = €149.85/lună" | adaugă: „*Cifra alternativă, pentru produsul de fază 1 propus de \`08-product-launch-order.md\`: **14 clienți × €4.09 = €57.26/lună**, contra unui cost de nod \`C_node\` = €54.44 (\`INFERRED\`, anchoră Contabo). Cele două modele folosesc costuri de nod diferite (60.00 \`OPERATOR-INPUT\` vs 54.44 \`INFERRED\`) și dau răspunsuri diferite la Q14.*" |
 
 ---
 
-## 9. Bilanț și limitele mele
+## 9. Ce n-am putut verifica
 
-**31 de erori identificate**, din care:
-- **4 critice** (contoarele registrului; condițiile de inversare insuficiente; mapa constatărilor pe porți; prețul recomandat contradictoriu),
-- **11 majore** (dedublare `COMM-01`/`PROMO-01`; `PRICE-03`/`COMM-09`; `PORT-02` fals; porțile 10 și 4 GREEN peste P0-uri; condiția 9; cele două costuri de nod; `€9.99` depășit; două break-even-uri; rândul 4.50; LTV@2%; alocarea 61/16; secțiunea UX; clasa `PORT-03`),
-- **11 minore** (taxonomie de severitate; `PROV-01`; „Nu e o problemă de scalare"; duplicarea propoziției; `10-seo.md`; credentialul de test; cele 3 livrabile lipsă — acestea din urmă fiind totuși **blocante pentru contract**).
+`UNVERIFIED` / `BLOCKED` — limitele mele, nu ale auditului:
 
-**Bile curate explicite** (un raport fără ele ar fi incomplet): numărătoarea porților (`5 RED · 5 AMBER · 3 GREEN`); suma efortului din §4 („~35 zile"); formula contribuției, pragurile și break-even-ul din `09-unit-economics.md`; **toate cele 57 de rânduri ale `09-break-even-model.csv`** reproduse din formula declarată; cele 949 de citări `file:line` din corpus (doar 1 cu fișier inexistent); cifrele de volum din producție (93/30 joburi, 80/5 evenimente, 14 bilete, 0 abonamente/plăți/facturi, 3 instanțe la prețuri diferite, `BM-00002` `AWAITING_PAYMENT` cu instanță `ONLINE`); **prețurile de concurență** — Zentaris €4.49/4 GB/2 vCPU/25 GB verificat independent pe pagina publică; absența secretelor și a datelor personale de clienți.
-
-**Ce n-am putut verifica** (`UNVERIFIED` / `BLOCKED`):
 - conținutul containerului live al instanței (`OPS-01`) — nodul de joc nu e accesibil din acest mediu; am verificat în schimb **DB-ul** (instanța marcată `ONLINE`) și **codul** care mapează starea (`api/src/routes/instance-server.ts`), ceea ce confirmă mecanismul, nu conținutul containerului;
 - inventarul panoului („5 servere pe panou") — panoul e pe VM 100/101, inaccesibil (`BLOCKED`, identic cu `DR-05`);
 - jurnalul `sshd` al hipervizorului („17 436 `Failed password`") — `BLOCKED`;
 - „255/255 cote corecte" — `DOCUMENTED-ONLY`; n-am rulat suita de cotare;
 - „553 de verificări de browser" — `DOCUMENTED-ONLY`; n-am rulat browserul (limita de autentificare: 10 tentative / 15 min, iar o rulare ar consuma bugetul pentru verificări mai utile);
-- prețurile OVI / Torchbyte / Render / Railway / Heroku / Contabo — le-am verificat pe **una** (Zentaris); restul sunt `DOCUMENTED-ONLY` cu URL și dată, ceea ce e acceptabil, dar nu le-am reconfirmat pe toate.
+- prețurile OVI / Torchbyte / Render / Railway / Heroku / Contabo — le-am verificat pe **una** (Zentaris); restul sunt `DOCUMENTED-ONLY` cu URL și dată, ceea ce e acceptabil, dar nu le-am reconfirmat pe toate;
+- backlog-ul `13` §1 rând cu rând — am verificat doar că fiecare P0 are rând de acțiune (inclusiv `COMM-03` → B-24), nu am auditat criteriile de verificare unul câte unul;
+- **fișierele modificate după 14:32:04** — corpusul e încă în mișcare; orice corecție de mai sus trebuie re-verificată pe starea de aplicare.
 
-**Nu am modificat niciun fișier din `audit/` în afară de acesta.** Nu am făcut nicio scriere în producție: doar `SELECT` read-only prin `docker compose … exec -T postgres psql`, doar `md5sum` pe fișiere, doar `GET` pe o pagină publică de concurent.
+---
 
-**Verdict final asupra sintezei: NO-GO-ul e corect ca decizie și e susținut de dovezi pe care le-am verificat eu însumi. Dar sinteza, în forma scrisă, are 4 erori critice care trebuie reparate înainte de a fi trimisă unui decident — în special contoarele (115/17 în loc de 127/28) și condițiile de inversare, care lasă neînchise exact defectele de plată care fac platforma periculoasă pentru un client real.**
+## 10. Bilanț final
+
+**31 de erori găsite; 25 reparate de orchestrator în timpul auditului; 6 în părare (R1–R6, R10), toate cu textul exact de înlocuit în §8.2.**
+
+**Bile curate explicite** (un raport fără ele ar fi incomplet): numărătoarea porților; suma efortului din §4; formula contribuției, pragurile și break-even-ul din `09-unit-economics.md`; **toate cele 57 de rânduri ale `09-break-even-model.csv`** reproduse din formula declarată; **contoarele §0.4 ale registrului, recalculate independent** (167/28, identice cu șirul propriu al orchestratorului); cele 949 de citări `file:line` din corpus; cifrele de volum din producție (93/30 joburi, 80/5 evenimente, 14 bilete, 0 abonamente/plăți/facturi, 3 instanțe la prețuri diferite, `BM-00002` `AWAITING_PAYMENT` cu instanță `ONLINE`); **prețurile de concurență** — Zentaris €4.49/4 GB/2 vCPU/25 GB verificat independent pe pagina publică; **acoperirea tuturor celor 25 de întrebări** prin `00-EXECUTIVE-SUMMARY.md`; absența secretelor și a datelor personale de clienți; secțiunea §7e a registrului (reconcilierea pragurilor) e corectă în fond; condițiile 14–19 și 9b, adăugate ca răspuns la acest raport, sunt corect dimensionate (24/28 P0-uri închise prin atribuire explicită).
+
+**Nu am modificat niciun fișier din `audit/` în afară de acesta.** Nu am făcut nicio scriere în producție: doar `SELECT` read-only prin `docker compose … exec -T postgres psql`, doar `md5sum` pe fișiere, doar `GET` pe o pagină publică de concurent, doar `node _tools/count-register.cjs` (script de numărare, fără efecte).
+
+**Verdict final asupra sintezei:** NO-GO-ul e corect ca decizie și e susținut de dovezi pe care le-am verificat eu însumi — inclusiv mecanismul de plată greșită, cel mai grav defect din corpus, acoperit corect ca P0 și acum închis de condiția 14. **După corecțiile aplicate în timpul acestui audit, sinteza e de trimis unui decident, cu 6 corecții mici rămase** — dintre care două sunt de fond (suprapunerea de acoperire a P0-urilor, care numește 28 în loc de 24, și contradicția dintre prețul recomandat și datele de piață ale propriului corpus) și una de conformitate cu brief-ul (`01-backend-audit.md` lipsește).

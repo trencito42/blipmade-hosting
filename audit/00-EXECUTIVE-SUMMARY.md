@@ -9,7 +9,7 @@
 ## Verdictul, înainte de orice detaliu
 
 > ### ❌ **NO-GO** pentru o lansare comercială cu clienți plătitori.
-> ### ⚠️ **GO condiționat** pentru un beta privat, cu plată manuală, maximum 10 clienți — după 13 condiții.
+> ### ⚠️ **GO condiționat** pentru un beta privat, cu plată manuală, maximum 10 clienți — după 19 condiții.
 > ### ✅ **GO** pentru un waitlist și o comunitate: activitate fără încasare.
 
 Platforma **nu poate lua nicio plată** azi (`STRIPE_SECRET_KEY` gol, `PAYMENTS_ENABLED=false`). Dar nici deschiderea plăților nu ar fi suficientă, pentru că **produsul vândut nu conține aplicația**: rădăcina containerului are doar `.npm/` și două fișiere de test, iar startup-ul e `npm run start`. Adăugarea cheii Stripe ar transforma o platformă care nu poate lua plată într-una care ia plată pentru un serviciu care nu rulează.
@@ -199,18 +199,22 @@ Motivul tehnic: produsele cu **stare** (baze de date, CMS, monitoring) au nevoie
 
 ## 13. What exact starting prices do you recommend and why?
 
-**€9.99/lună pentru `discord-bot` la 512 MB / 1 vCPU / 5 GB** — `baseAmount` de la 149 la **976**.
+**Există două răspunsuri corecte în corpus, pentru două modele de cost diferite, și trebuie spus care e care.**
 
-| Prag | Valoare | €9.99 trece? |
-|---|---|---|
-| Contribuție ≥ 0 (suport 15 min/client/lună) | €5.67 | ✅ |
-| Payback 12 luni | €7.82 | ✅ |
-| Absorbția costului fix la 16 clienți | €9.60 | ✅ |
-| Payback 6 luni | €9.97 | ✅ |
+| | Produs | Preț | Model | Prag |
+|---|---|---|---|---|
+| **A** | produsul vândut, la configurația implicită 512 MB / 1 vCPU / 5 GB | **€9.99/lună** | **model de cost**: contribuție + CAC + absorbție (`09-unit-economics.md`) | peste pragul de contribuție (€5.67), de amortizare CAC (€7.82) și de absorbție (€9.60) |
+| **B** | `minecraft-paper`, primul produs propus de `08-product-launch-order.md` | **€4.09** (4 GB / 1 vCPU / 25 GB) | **model de nod**: `P_floor = C_node / N_safe` (`08-product-launch-order.md` §7) | peste pragul de acoperire la 1 vCPU (€3.40), dar **sub** pragul de contribuție (€5.67) |
+
+**Răspunsul meu, după reconcilierea celor două modele** (reconcilierea e în `12-FULL-FINDINGS-REGISTER.md` §7e): **un singur preț, €9.99, la configurația implicită**, pentru că e singurul care trece **toate** pragurile. Dar cu trei rezerve, obligatorii:
+
+1. **€9.99 e un preț de *acoperire a costului*, nu un preț de piață.** E de ~2× peste intrarea documentată pe piață (€3.99–€4.74 la 4 GB / 2 vCPU). La acest preț, beta-ul e **pe minus prin construcție**: cu 10 clienți, contribuția e €41.90 contra unui cost fix de €61.00, adică **−€19.10/lună**.
+2. **Piața are un concurent cu tier gratuit** (Lunafy: primul server la €0/lună, server suplimentar la €1). La €9.99, prețul e peste pragul de cost **și** peste prețul de intrare — deci **nu** îl vindem concurenței gratuite, ci îl vindem unui segment care plătește pentru backup și protecție.
+3. **`C_node` e o ancoră de piață (€54.44), nu o factură.** **Operatorul trebuie să o înlocuiască**; fiecare prag se deplasează liniar cu ea.
+
+**Pragurile, la prețul de €9.99:** contribuție ≥ 0 la **€5.67** · payback 12 luni la **€7.82** · absorbția costului fix la 16 clienți la **€9.60** · payback 6 luni la **€9.97**. **€9.99 trece toate patru.**
 
 **CAC maxim acceptabil: €50.28** la payback 12 luni, **€25.14** la 6 luni; efectiv **~€25–27** cu regula LTV/CAC ≥ 3. LTV @5% churn = **€83.81**, LTV/CAC **3.35**. Payback **5.97 luni**.
-
-**Alternativa de card „de podea"** (`baseAmount = 599`): pentru clienți cu volum mare și suport redus.
 
 **De ce nu un preț mai mic:** cardul actual (€1.49–€5.90) e sub pragul de €5.67 — **la €1.49 contribuția e −€4.05 EUR/client/lună**, la 16 clienți rezultatul e **−€125.88/lună**, iar CAC maxim e **0.00**. **Fiecare client adăugat mărește pierderea.**
 
@@ -218,8 +222,16 @@ Motivul tehnic: produsele cu **stare** (baze de date, CMS, monitoring) au nevoie
 
 ## 14. What is the realistic monthly break-even?
 
-**15 clienți × €9.99/lună = €149.85/lună**, contra unui cost fix de **€61.00/lună**.
+**Două răspunsuri, pentru două modele de cost diferite:**
+
+| Model | Break-even | La ce preț | Sursă |
+|---|---|---|---|
+| **Contribuție** (recomandat) | **15 clienți** × €9.99 = **€149.85/lună** contra unui cost fix de **€61.00/lună** | €9.99 | `09-unit-economics.md` |
+| **Acoperire de nod** | **14 instanțe** | €4.09 | `08-product-launch-order.md` §7 |
+
 `contribution = 0.97 × 9.99 − 5.50 = 4.1903` · `n_be = ceil(61.00 / 4.1903) = 15` · la 16 clienți: **+€6.04/lună**.
+
+**Răspunsul pentru o decizie: 15 clienți la €9.99.** Al doilea răspuns (14) folosește un model care nu include costul de suport per client, deci e mai optimist.
 
 **La cardul actual: nu există break-even.** La €1.49, pierdere de **€125.88/lună** la 16 clienți.
 
@@ -284,7 +296,7 @@ După reparare, **`09-pricing-recommendations.md` §5** arată ce costă o reduc
 
 ## 20. What must be completed before private beta?
 
-**Cele 13 condiții din `16-GO-NO-GO-DECISION.md` §4.** Cele care decid:
+**Cele 19 condiții din `16-GO-NO-GO-DECISION.md` §4.** Cele care decid:
 
 - [ ] **Produsul vândut conține o aplicație care rulează** (`OPS-01`) — containerul pornește, resursele raportate sunt reale
 - [ ] **Nicio instanță fără plată** (`OPS-02`)
@@ -329,36 +341,46 @@ Tot ce e la punctul 20, plus:
 
 ## 23. What is the estimated cost of completing the critical work?
 
-**~35 de zile-om de lucru efectiv**, în zilele 1–30 (Unda 0 → Unda 5 din `14-30-60-90-DAY-ROADMAP.md`).
+**~44 de zile-om de lucru efectiv**, în zilele 1–30 (Unda 0 → Unda 5 din `14-30-60-90-DAY-ROADMAP.md`): ~24 de zile de remediere de cod, ~20 de zile de infrastructură și operațiuni.
 
-**Nu e estimat în euro, pentru că nu trebuie inventat.** Prețurile furnizorilor nu sunt cunoscute, iar singurele sume reale din audit sunt cele ale platformei (€1.49, €1.72, €9.99) și ale concurenților citite pe 2026-10-23. Costurile externe care **trebuie** stabilite de operator: cheile Stripe (taxe de tranzacție, deja parametrizate ca 3% + 0.25 în model), relay SMTP, ținta de backup, `C_node` (noua valoare reală, în locul ancorei de piață de €54.44).
+**În euro, formula e directă dar rata nu se știe:** `cost_lucru = 44 × rata_zi_om`, cu `rata_zi_om` marcat **`OPERATOR-INPUT`**. **Nicio rată nu e presupusă aici** — pentru că prețurile furnizorilor nu sunt cunoscute și nu trebuie inventate. Ce se poate afirma azi, fără ipoteze: **cea mai mare parte din efort e în zile-om de inginerie, nu în costuri cu furnizori**.
+
+Costurile externe care **trebuie** stabilite de operator, și care nu apar în cele 44 de zile: cheile Stripe (taxa de tranzacție e deja parametrizată ca 3% + 0.25 în model), relay SMTP, ținta de backup, și `C_node` — noua valoare reală a facturii de server, în locul ancorei de piață de €54.44.
 
 ## 24. What are the biggest commercial risks in the first six months?
 
+**Registrul complet, cu 15 riscuri, declanșator observabil și reacție definită pentru fiecare, e în `14-30-60-90-DAY-ROADMAP.md` §4b.** Topul:
+
 1. **Se iau bani pentru un serviciu care nu rulează.** Cel mai mare risc, și e deja real — nu ipotetic.
 2. **Pierderea datelor unui client, fără nicio copie.** RAID 0, zero backup. Un singur incident distruge reputația și, probabil, relația comercială.
-3. **Prețul sub cost.** Fiecare client adăugat mărește pierderea. Cel mai probabil e „câștig" prin reducere, ca răspuns la o concurență mai ieftină.
-4. **Canalul de suport inert + preț de sub prag** = cost de suport pe client mai mare decât venitul. Se pierde fiecare client.
-5. **Dependența de Discord** ca canal unic de captare înainte de poartă.
-6. **Zero încasare, zero metrici.** `AuditLog` are evenimentele, dar cele 8 `order.paid` sunt sintetice, iar conversia reală e 0. Fără tracking de conversie și fără cost per client, nu se poate știi dacă o campanie funcționează.
-7. **Dependența de o singură mașină fizică** — și de un singur operator.
-8. **Risc de conformitate**: 29 de elemente neconfirmate, inclusiv TVA, drept de retragere și baza legală pentru e-mail.
+3. **Clientul e taxat cu prețul neredus** — `COMM-01`. Reducerea nu ajunge la Stripe.
+4. **Prețul sub cost.** Fiecare client adăugat mărește pierderea. Cel mai probabil e „câștig" prin reducere, ca răspuns la o concurență mai ieftină.
+5. **Canalul de suport inert + preț de sub prag** = cost de suport pe client mai mare decât venitul. Se pierde fiecare client.
+6. **Beta-ul e pe minus prin construcție** (−€19.10/lună la 10 clienți). Nu e o catastrofă, dar trebuie bugetat ca un cost, nu prezentat ca o venit.
+7. **Dependența de Discord** ca canal unic de captare înainte de poartă.
+8. **Zero încasare, zero metrici.** `AuditLog` are evenimentele, dar cele 8 `order.paid` sunt sintetice, iar conversia reală e 0. Fără tracking de conversie și fără cost per client, nu se poate știi dacă o campanie funcționează.
+9. **Dependența de o singură mașină fizică** — și de un singur operator.
+10. **Risc de conformitate**: 29 de elemente neconfirmate, inclusiv TVA, drept de retragere și baza legală pentru e-mail.
 
 ## 25. Would you personally approve this platform for a controlled commercial launch based on the available evidence?
 
 **Nu, nu astăzi. Și nu prin adăugarea cheilor.**
 
-Aș semna un **beta privat, cu plată manuală, maximum 10 clienți**, în două condiții:
+Aș semna un **beta privat, cu plată manuală, maximum 10 clienți**, în trei condiții:
 
-**Condiția 1 — cele 13 de la `16-GO-NO-GO-DECISION.md` §4, toate îndeplinite și dovedite.** Cele trei care contează cel mai mult: produsul conține o aplicație care rulează, provisionarea e condiționată de plată, și backup-ul e dovedit printr-un drill de restaurare.
+**Condiția 1 — cele 19 de la `16-GO-NO-GO-DECISION.md` §4, toate îndeplinite și dovedite.** Cele trei care contează cel mai mult: produsul conține o aplicație care rulează, provisionarea e condiționată de plată, și backup-ul e dovedit printr-un drill de restaurare.
 
 **Condiția 2 — prețul.** Niciun client nu intră la €1.49. Prețul de fundare e negociat manual, în jurul lui **€9.99**, și se aplică **manual**, nu prin codul de promoții.
 
+**Condiția 3 — beta-ul e declarat ca un cost, nu ca un business.** La 10 clienți și €9.99, rezultatul e **−€19.10/lună** (contribuție €41.90 contra unui cost fix de €61.00). **Beta-ul nu se amortizează, el demonstrează** — și trebuie bugetat ca atare, cu un plafon explicit. Prezentat ca „business care merge", ar fi o minciună; prezentat ca un experiment cu un scop, e corect.
+
 **Ce aș semna fără ezitare, azi:** waitlistul și comunitatea. Nu costă nimic, nu angajează clienți și nu pune date în producție.
 
-**Ce nu aș semna în niciun caz:** deschiderea plăților cu `STRIPE_SECRET_KEY` reală înainte de condiția 1. Ar transforma o platformă(onestă) care nu ia bani într-una care ia bani pentru un container gol.
+**Ce nu aș semna în niciun caz:** deschiderea plăților cu `STRIPE_SECRET_KEY` reală înainte de condiția 1. Ar transforma o platformă (onestă) care nu ia bani într-una care ia bani pentru un container gol.
 
 **Observația finală care contează cel mai mult:** toate cele trei defecte P0 de produs — containerul fără aplicație, instanța fără plată, canalul de suport inert — **sunt ascunse de un panou de administrare care arată totul în verde**. `Instance.status = 'ONLINE'`, `Order.status = 'AWAITING_PAYMENT'`, `lastReplyAt = NULL`. **Platforma nu e bolnavă; panoul de administrare e cel care ascunde boala.** Repararea acestui lucru — un health-check real, o stare reală, o alarmă reală — e cea mai bună investiție posibilă înainte de orice altă.
+
+**O ultimă notă de metodă, pentru că afectează încrederea în cifre:** acest rezumat a fost atacat de un auditor independent (`12b-INDEPENDENT-AUDIT.md`), care a găsit **31 de erori în sinteză**, inclusiv patru critice — contoare greșite, condiții de inversare care lăsau deschise exact cele mai scumpe trei P0 de plată, o eroare aritmetică în prețul recomandat și un rând de porți greșit atribuit. **Toate cele 31 sunt corectate în versiunea de mai sus**, iar condițiile de inversare au crescut de la 13 la 19 tocmai pentru că auditorul a arătat că cele 13 nu erau suficiente.
 
 ---
 

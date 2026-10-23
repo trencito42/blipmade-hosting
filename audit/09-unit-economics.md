@@ -68,8 +68,8 @@ Sursele: `api/src/services/pricing.ts:39-53` (`VERIFIED`, 255/255 cote live), `0
 ### 3.3 Tratamentul B — plus cota din costul serverului
 
 ```text
-ALLOCATED_SERVER_COST_PER_INSTANCE = SERVER_COST_EUR_PER_MONTH / SAFE_INSTANCES_PER_NODE
-                                    = 60.00 / 16 = 3.75 EUR/client/lună   (la ocupare 100%)
+ALLOCATED_SERVER_COST_PER_INSTANCE = FIXED_COST_EUR_PER_MONTH / SAFE_INSTANCES_PER_NODE
+                                    = 61.00 / 16 = 3.8125 EUR/client/lună   (la ocupare 100%)
 ```
 
 La ocupare parțială, costul fix se împarte între mai puțini clienți:
@@ -79,7 +79,9 @@ La ocupare parțială, costul fix se împarte între mai puțini clienți:
 | 4 | 25% | 15.2500 | 21.0497 |
 | 8 | 50% | 7.6250 | 13.4247 |
 | 12 | 75% | 5.0833 | 10.8830 |
-| 16 | 100% | 3.7500 | 9.5497 |
+| 16 | 100% | 3.8125 | 9.6122 |
+
+> **Notă:** costul fix pe client e `FIXED/N` (61.00/N), nu `SERVER_COST/N`: pragul `PRICE_FLOOR` de mai jos folosește 61.00/16.
 
 > **Observație:** costul marginal al platformei în sine (VM 103) este ≈ 0 per client: 752 MiB folosiți din 8 GiB, 2.86% din 4 vCPU (`03-capacity-model.md` §3.1). Restricția este **exclusiv** în nodul de jocuri, prin vCPU.
 
@@ -90,7 +92,7 @@ La ocupare parțială, costul fix se împarte între mai puțini clienți:
 | **1.49** | 5.5447 | **−4.0547** | **−272.1%** | 9.6005 |
 | **1.72** | 5.5516 | **−3.8316** | **−222.8%** | 9.6005 |
 | 3.12 | 5.5936 | −2.4736 | −79.3% | 9.6005 |
-| 4.50 | 5.6368 | −1.0768 | −23.9% | 9.6005 |
+| 4.50 | 5.6350 | −1.1350 | −25.2% | 9.6005 |
 | 4.56 | 5.6368 | −1.0768 | −23.6% | 9.6005 |
 | 5.90 | 5.6770 | +0.2230 | +3.8% | 9.6005 |
 | **9.99** | 5.7997 | **+4.1903** | **+41.9%** | 9.6005 |
@@ -167,7 +169,7 @@ LTV = ARPU × contribution_margin / churn
 
 | scenariu churn | churn | LTV la P = €1.49 | LTV la P = €1.72 | LTV la P = €5.90 | **LTV la P = €9.99** | LTV/CAC la €9.99 |
 |---|---:|---:|---:|---:|---:|---:|
-| **conservator** | 2% | −202.73 | −191.58 | 11.15 | **104.76** | 4.19 |
+| **conservator** | 2% | −202.73 | −191.58 | 11.15 | **209.52** | 8.38 |
 | **bază** | 5% | −81.09 | −76.63 | 4.46 | **83.81** | 3.35 |
 | **pesimist** | 10% | −40.55 | −38.32 | 2.23 | **41.90** | 1.68 |
 

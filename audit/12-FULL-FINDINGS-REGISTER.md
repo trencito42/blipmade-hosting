@@ -121,7 +121,7 @@ Sursă: `04-pterodactyl-and-provisioning.md` (ID-urile `D1`–`D14`).
 
 | ID | Sev. | Clasă | Constatare | P0 | Evidență |
 |---|---|---|---|---|---|
-| PROV-01 | **Critical** | `VERIFIED` + `CODE-INSPECTED` | **Unități greșite în poarta de capacitate**: `freeDisk` (MB de la panou) comparat cu `instance.disk` (GB) | **Da** | `api/src/services/provisioning.ts:214` — eroare de 1024×; un container care nu-și încape pe disc afectează **tot nodul** |
+| PROV-01 | **Critical** | `VERIFIED` + `CODE-INSPECTED` | **Unități greșite în poarta de capacitate**: `freeDisk` (MB de la panou) comparat cu `instance.disk` (GB) | **Da** | `api/src/services/provisioning.ts:214` — eroare de 1024×: poarta de capacitate a discului **nu leagă niciodată**. Un disc plin al nodului afectează toate containerele de pe el — impact `INFERRED`; defectul nu poate fi exercitat de un client cât timp plățile sunt oprite. Memoria e verificată corect. |
 | PROV-02 | **Critical** | `VERIFIED` | **Nicio compensație după o provisionare eșuată**: serverul rămâne, alocarea rămâne ocupată, comanda rămâne plătită, **nu există refund** | **Da** | `api/src/services/provisioning.ts:104-115`; `refundPayment` apelat doar din `upgrades.ts:147`; 80 eșecuri, 2 servere orfane din 5 |
 | PROV-03 | Medium | `CODE-INSPECTED` | Nicio coadă de morți: joburile `failed` sunt curățate de `pruneQueue()` | Nu | `api/src/worker.ts:95-99` |
 | PROV-04 | **P0** | `VERIFIED` | **Plățile oprite prin configurație**: `createCheckout` aruncă 503, deci nicio comandă nu poate fi plătită și nicio instanță nu poate fi creată prin calea de cumpărare | **Da** | `api/src/env.ts:136`; `api/src/services/stripe.ts:150-153`; `.env` pe VM 103: `PAYMENTS_ENABLED=false`, `STRIPE_SECRET_KEY` gol |
@@ -152,7 +152,7 @@ Sursă: `05-commerce-and-billing.md` (ID-urile `B1`–`B12`).
 | COMM-06 | High | `CODE-INSPECTED` | O comandă anulată poate fi plătită și onorată ulterior; o comandă anulată consumă promoția | Nu | `api/src/routes/orders.ts:150,165-178`; `api/src/services/stripe.ts:263-268` |
 | COMM-07 | High | `NOT-IMPLEMENTED` | **Nu există mecanism real de reînnoire local și nu există plan anual** (`YEARLY` nu e folosit nicăieri) | Nu (blocaj de lansare) | `api/src/services/stripe.ts:176`; `api/prisma/schema.prisma:209-212` |
 | COMM-08 | High | `VERIFIED` | **Nu există retenție a datelor la anulare**: serverul Pterodactyl rămâne pe nod, fără termen, fără export | Nu (blocaj de lansare) | `api/src/services/billing.ts`; `Setting` = 0 rânduri (lipsa lui `auto_delete_cancelled_instances`) |
-| COMM-09 | Medium | `CODE-INSPECTED` | Câmpul `price.amount` nu spune că e în unități minori; convenția apare o singură dată în tot contractul | Nu | `api/src/routes/catalog.ts:59`; `docs/API_CONTRACT.md:5,57,60,89` |
+| COMM-09 | **P0** (același defect ca `PRICE-03`) | `CODE-INSPECTED` | Câmpul `price.amount` nu spune că e în unități minori; convenția apare o singură dată în tot contractul. **Același defect ca `PRICE-03`; se numără o singură dată** | **Da** | `api/src/routes/catalog.ts:59`; `docs/API_CONTRACT.md:5,57,60,89` |
 | COMM-10 | Medium | `CODE-INSPECTED` | Un produs nou creat prin admin pornește cu `baseAmount = 0` ⇒ **gratuit**, până când operatorul intră în ecranul de prețuri | Nu | `api/src/routes/admin.ts:428,460`; `api/prisma/schema.prisma:259-273` |
 | COMM-11 | Medium | `CODE-INSPECTED` | **Nu se poate edita sau dezactiva o promoție**: există doar `GET` și `POST /admin/promotions`; niciun `PATCH`, niciun `DELETE` | Nu | `api/src/routes/admin.ts:610-660`; `web/src/admin/Promotions.tsx` |
 | COMM-12 | Medium | `CODE-INSPECTED` | **Counterul afișat de operator nu e counterul aplicat**: ecranul arată `promotion.usedCount` (doar plăți), plafonul se aplică pe `countEffectiveRedemptions` (rezervări + plăți) | Nu | `web/src/admin/Promotions.tsx:260,302`; `api/src/services/pricing.ts:148-163` |
@@ -165,7 +165,7 @@ Sursă: `05-promotions.md` (ID-urile `PR1`–`PR12`).
 
 | ID | Sev. | Clasă | Constatare | P0 | Evidență |
 |---|---|---|---|---|---|
-| PROMO-01 | **P0** | `CODE-INSPECTED` | Reducerea nu ajunge la Stripe ⇒ comanda eșuează la `verifyAmount`, iar clientul ar fi taxat cu prețul neredus | **Da** | `api/src/services/stripe.ts:175` vs `api/src/routes/orders.ts:79` vs `api/src/routes/webhooks.ts:192` |
+| PROMO-01 | **P0** | `CODE-INSPECTED` | **Același defect ca `COMM-01`**, văzut din pagina de promoții: reducerea nu ajunge la Stripe ⇒ comanda eșuează la `verifyAmount`, iar clientul ar fi taxat cu prețul neredus. **Nu e o constatare distinctă — se numără o singură dată** | Nu (este `COMM-01`) | vezi `COMM-01`; `api/src/services/stripe.ts:175` vs `api/src/routes/orders.ts:79` vs `api/src/routes/webhooks.ts:192` |
 | PROMO-02 | **P0** | `CODE-INSPECTED` | `maxPerUser` nu poate fi setat ⇒ campania nu e limitată per cont, în ciuda promise-ului public | **Da** | `api/src/routes/admin.ts:630-639`; `web/src/admin/Promotions.tsx:149-179` |
 | PROMO-03 | High | `CODE-INSPECTED` + `INFERRED` | Plafonul nu e aplicat atomic ⇒ curse la limită | Nu | `api/src/services/pricing.ts:208-253` |
 | PROMO-04 | High | `CODE-INSPECTED` | Nu există editare/dezactivare/ștergere a unei promoții ⇒ **o campanie greșită nu poate fi oprită din interfață** | Nu | `api/src/routes/admin.ts:610-660` |
@@ -244,7 +244,7 @@ Sursă: `05-pricing-consistency.md`, `04-product-certification.md`.
 |---|---|---|---|---|---|
 | PRICE-01 | **P0** | `VERIFIED` | **Doar 1 din 5 produse e deployable** (`discord-bot`, egg #15). Celelalte 4 au `deployable=false`, `eggId` NULL, `dockerImage` gol, `startup` `{}` | **Da** | `GET /api/catalog/products`; DB `Product` |
 | PRICE-02 | **P0** | `VERIFIED` | **Celelalte 4 produse au totuși preț activ și sunt vizibile public** ⇒ clientul vede un preț pentru un serviciu care nu poate fi cumpărat | **Da** | `04-product-certification.md` §1, §3.2–3.5 |
-| PRICE-03 | **P0** | `VERIFIED` | **Prețul afișat public nu spune unitatea** (`price.amount = 149` = €1.49) — convenția apare o singură dată în tot contractul | **Da** | `api/src/routes/catalog.ts:59`; `docs/API_CONTRACT.md` |
+| PRICE-03 | **P0** | `VERIFIED` | **Prețul afișat public nu spune unitatea** (`price.amount = 149` = €1.49) — convenția apare o singură dată în tot contractul. **Același defect ca `COMM-09`; se numără o singură dată** | **Da** | `api/src/routes/catalog.ts:59`; `docs/API_CONTRACT.md` |
 | PRICE-04 | Medium | `VERIFIED` | **0 produse certificabile end-to-end**; 1 provisionabil; 4 `NOT-IMPLEMENTED` | Nu | `04-product-certification.md` |
 | PRICE-05 | Low | `VERIFIED` | **255/255 cotații live au corespuns formulei** ⇒ 0 inconsistențe între cele 6 surse de preț | Nu (pozitiv) | `05-pricing-consistency.md` |
 | PRICE-06 | Medium | `VERIFIED` | Copy-ul public de pe pagina de catalog promite o reducere de 50% la prima lună, nerealizabilă azi (relatare `PROMO-10`) | Nu | `web/src/home/Catalog.tsx:202-213` |
@@ -278,8 +278,8 @@ Sursă: `08-product-portfolio.md`, `08-competitive-analysis.md`, `08-product-lau
 | ID | Sev. | Clasă | Constatare | P0 | Evidență |
 |---|---|---|---|---|---|
 | PORT-01 | **Critical** | `INFERRED` | **Plafonul de preț al nodului e sub costul lui.** `P_floor = C_node / N_safe(config)`, cu `N_safe` = 16 la 1 vCPU, 8 la 2 vCPU, 5 la 4 vCPU. Ancorarea externă folosită: Contabo VPS 60 (18 vCPU / 96 GB = €49.00/lună, citit 2026-10-23) ⇒ `C_node ≈ €54.44` ⇒ floor **€3.40** la 1 vCPU, **€6.81** la 2 vCPU | **Da** | `08-product-launch-order.md` §7; `C_node` e **input al operatorului**, nu o valoare auditată |
-| PORT-02 | **Critical** | `VERIFIED` | **Prețul actual al lui `discord-bot` (€1.72) e sub floor și sub prețul de piață (€0)** ⇒ nu se vinde pe acest hardware, la acest cost, cu acest nivel de suport | **Da** | `08-product-launch-order.md` §7 |
-| PORT-03 | **Critical** | `VERIFIED` | **Nu există DDoS pe traficul de joc, și nu există backup** — serviciul e cu un pas în urmă față de fiecare concurent românesc și față de Aternos, care e gratuit | **Da** | `08-competitive-analysis.md` — 10 pagini de prețuri citite 2026-10-23 |
+| PORT-02 | **Critical** | `DOCUMENTED-ONLY` + `INFERRED` | **Prețul actual al lui `discord-bot` (€1.72) e sub pragul de acoperire al nodului (€3.40 la 1 vCPU)**. **Atenție la ordine:** pragul de cost e *peste* prețul de intrare al pieței de bot hosting (€0/lună la primul server Lunafy, €1/lună per server suplimentar) — deci **prețul lui NU e sub prețul pieței**, ci **pragul e peste prețul pieței**. Concluzia: botul nu poate fi produsul principal pe acest hardware | **Da** | `08-product-launch-order.md` §7; `08-competitive-analysis.md` §4 |
+| PORT-03 | **Critical** | `VERIFIED` (absența DDoS/backup) + `DOCUMENTED-ONLY` (comparația) + `INFERRED` (concluzia) | **Nu există DDoS pe traficul de joc, și nu există backup** — serviciul e cu un pas în urmă față de **cei 3 furnizori de Minecraft români verificați** în `08-competitive-analysis.md` §2 și față de Aternos, care e gratuit. Nu se generalizează peste furnizorii internaționali, marcați `NOT-VERIFIED` chiar în sursă | **Da** | `08-competitive-analysis.md` — 10 pagini de prețuri citite 2026-10-23 |
 | PORT-04 | High | `VERIFIED` | **Prețul e corect calibrat pe piața românească**: €4.49 = nivelul de intrare al Zentaris, cu €0.50 peste OVI și €0.25 sub Torchbyte la aceeași specificație | Nu (pozitiv) | `08-competitive-analysis.md` |
 | PORT-05 | High | `VERIFIED` | **Peste 6 GB RAM, cardul de preț pierde direct față de un VPS de €5.50** ⇒ portofoliul trebuie să fie „server de joc 2–6 GB cu protecție și backup" | Nu | `08-competitive-analysis.md` |
 | PORT-06 | **Critical** | `VERIFIED` | **La specificația de piață (2 vCPU/server), nodul de 20 vCPU ține doar 8 servere plătitori (€35.92/lună)** — insuficient pentru o mașină de clasa asta. **Oferta e necompetitivă la specificația pieței, cu excepția vânzării la 1 vCPU** | **Da** | `08-product-launch-order.md`; corectat de însuși agentul după o eroare de aritmetică proprie (32 vCPU pe un nod de 20) |
@@ -383,13 +383,13 @@ Sursă: `07-release-gates.md`. Fiecare poartă e o întrebare de release, cu ver
 | 1 | Clienții pot accesa resursele altora | 🟢 GREEN |
 | 2 | Autentificarea plăților în producție e sigură | 🟠 AMBER |
 | 3 | O plată reușită poate fi pierdută sau reconciliată greșit | 🟠 AMBER |
-| 4 | Upgrade-urile de resurse se fac fără plată corespunzătoare | 🟢 GREEN |
+| 4 | Upgrade-urile de resurse se fac fără plată corespunzătoare | 🟠 AMBER |
 | 5 | Provisionarea nu e fiabilă pentru un produs vândut | 🔴 RED |
 | 6 | O reîncercare obișnuită poate distruge date de client | 🟠 AMBER |
 | 7 | Se vinde un produs fără un runtime verificat funcțional | 🔴 RED |
 | 8 | Secretele critice sunt expuse | 🟠 AMBER |
 | 9 | Nu există strategie de recuperare în afara hostului | 🔴 RED |
-| 10 | Checkoutul afișează prețuri material greșite | 🟢 GREEN |
+| 10 | Checkoutul afișează prețuri material greșite | 🟠 AMBER |
 | 11 | Anularea sau reînnoirea e material incorectă | 🟠 AMBER |
 | 12 | Funcțiile de bază ale clientului sunt indisponibile | 🔴 RED |
 | 13 | Securitatea infrastructurii critice nu a fost verificată | 🔴 RED |

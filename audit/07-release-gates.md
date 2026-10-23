@@ -14,18 +14,20 @@
 | 1 | Clienții pot accesa resursele altora | 🟢 **GREEN** |
 | 2 | Autentificarea plăților în producție este nesigură | 🟠 **AMBER** |
 | 3 | O plată reușită poate fi pierdută sau reconciliată greșit | 🟠 **AMBER** |
-| 4 | Upgrade-urile de resurse se fac fără plată corespunzătoare | 🟢 **GREEN** |
+| 4 | Upgrade-urile de resurse se fac fără plată corespunzătoare | 🟠 **AMBER** |
 | 5 | Provisionarea nu este fiabilă pentru un produs vândut | 🔴 **RED** |
 | 6 | O reîncercare obișnuită poate distruge date de client | 🟠 **AMBER** |
 | 7 | Se vinde un produs fără un runtime verificat funcțional | 🔴 **RED** |
 | 8 | Secretele critice sunt expuse | 🟠 **AMBER** |
 | 9 | Nu există strategie de recuperare în afara hostului | 🔴 **RED** |
-| 10 | Checkoutul afișează prețuri material greșite | 🟢 **GREEN** |
+| 10 | Checkoutul afișează prețuri material greșite | 🟠 **AMBER** |
 | 11 | Anularea sau reînnoirea este material incorectă | 🟠 **AMBER** |
 | 12 | Funcțiile de bază ale clientului sunt indisponibile | 🔴 **RED** |
 | 13 | Securitatea infrastructurii critice nu a fost verificată | 🔴 **RED** |
 
-**5 RED · 5 AMBER · 3 GREEN.**
+**5 RED · 7 AMBER · 1 GREEN.**
+
+> **Corectură aplicată după auditul independent** (`12b-INDEPENDENT-AUDIT.md` §8.4, corecturile 26–27). Porțile 4 și 10 erau marcate GREEN, dar fiecare ascundea o constatare P0: `applyUpgradeOrder()` nu verifică plata (`COMM-03`), iar prețul public nu spune unitatea (`PRICE-03`) și totalul afișat nu ajunge la Stripe (`COMM-01`). Verdictul final rămâne **NO-GO** — dar pe baza unei porți verzi mai puține, nu mai multe.
 
 ---
 
@@ -86,14 +88,16 @@
 
 ---
 
-### Poarta 4 — Upgrade-urile de resurse se fac fără plată corespunzătoare → 🟢 GREEN
+### Poarta 4 — Upgrade-urile de resurse se fac fără plată corespunzătoare → 🟠 AMBER
 
 **Dovezi**
 - Cod: `api/src/routes/instances.ts:268-301` — o schimbare cu `priceDelta > 0` creează o comandă `AWAITING_PAYMENT` și **nu atinge instanța** (`createCheckout` la `:297`); `applyUpgradeOrder` e apelat direct **numai** în ramura fără plată (`:278-282`), adică pentru o schimbare care costă mai puțin.
 - Cod: `api/src/routes/webhooks.ts:137` — `applyUpgradeOrder` e apelat din handlerul de plată confirmată.
 - Teste: `api/tests/upgrades.test.ts` — „quotes a change without touching the instance”, „does not change the instance before the payment”, „applies the change once the payment is confirmed”, „leaves the instance alone when the panel refuses the new limits”, „applies a change that costs less right away”, „refuses a change outside the limits of the product”.
 
-**Rezervă declarată:** jumătatea „plată” e dovedită **doar** prin poarta de test local (`api/src/services/stripe.ts:32-42`), inactivă în producție. Porția e corectă și ordinea e impusă de cod; nu e însă probată contra unei plăți reale.
+**De ce nu e GREEN:** `applyUpgradeOrder()` (`api/src/services/upgrades.ts:106-119`) **nu verifică plata** (`COMM-03`, P0). E latent doar cât timp singurul apelant neplătit are `total = 0`, dar funcția e o bombă cu ceas pentru orice apel nou. `VERIFIED` pe cod; `INFERRED` pe impact.
+
+**Rezervă declarată:** jumătatea „plată" e dovedită **doar** prin poarta de test local (`api/src/services/stripe.ts:32-42`), inactivă în producție. Porția e corectă și ordinea e impusă de cod; nu e însă probată contra unei plăți reale.
 
 **Ce l-ar întări:** o încercare de upgrade cu Stripe live, care să arate că instanța nu se schimbă până la confirmarea plății.
 
@@ -187,7 +191,7 @@
 
 ---
 
-### Poarta 10 — Checkoutul afișează prețuri material greșite → 🟢 GREEN
+### Poarta 10 — Checkoutul afișează prețuri material greșite → 🟠 AMBER
 
 **Dovezi**
 - Prețul e **server-side**: `api/src/services/pricing.ts:39-53` calculează `base + RAM_GB×60 + CPU×40 + disc_GB×2`, din `ProductPrice` activ (`pricing.ts:69-77`). Clientul nu trimite prețul.
@@ -196,6 +200,8 @@
 - Linia de comandă a checkoutului preia **prețul server-side al comenzii**, nu unul din browser: `api/tests/stripe-origin.test.ts` — „keeps the line items and the metadata of the order”, „creates an order with a server-side price” (`api/tests/webhooks.test.ts`).
 - **Live:** `GET /api/catalog/products` → 149 / 299 / 149 / 149 / 449 unități minori (€1.49 / €2.99 / €1.49 / €1.49 / €4.49), `EUR/MONTHLY`, identice cu `ProductPrice` din bază de date. `api/tests/pricing.test.ts` confirmă că suma e rotunjită la sutimi.
 - Live: promoțiile **nu sunt consumate înainte de plată** (`webhooks.test.ts` — „does not consume a promotion before the payment”).
+
+**De ce nu e GREEN:** mecanismul de **calcul** e corect (255/255 cote cu corespuns formulei), dar **totalul afișat ≠ totalul încasat**. `COMM-01` (= `PROMO-01`, P0) face ca o comandă cu reducere să fie taxată cu suma **neredusă** — `stripe.ts:175` trimite `item.unitAmount` nerediscountuit, `order.total` e discountuit, iar `verifyAmount` (`webhooks.ts:192`) respinge comanda. `PRICE-03` (P0): prețul public nu spune unitatea (`price.amount = 149` = €1.49).
 
 **Rezervă declarată:** ecranul de checkout nu a fost randat niciodată cu o sumă, pentru că `POST /api/orders/:id/checkout` răspunde `503`. Verificarea e despre **calculul** prețului, nu despre afișaj. **Observație conexă, tratată la poarta 7:** prețul afișat pentru 4 produse fără runtime nu e greșit ca sumă, dar promite un lucru care nu poate fi livrat.
 

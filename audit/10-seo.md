@@ -199,7 +199,7 @@ Măsurătoare de laborator: Chromium pe VM 103, viewport 1280×900, `waitUntil: 
 
 | item | rezultat | clasă |
 |---|---|---|
-| Erori de consolă recurente | **3 cereri 404** pentru fonturile `proxima-nova-400/600/700.woff2` pe `/`; **2** pe celelalte rute (`net::ERR_ABORTED`) | `VERIFIED` (sondă) + `CODE-INSPECTED` (`web/index.css:15-34` definește fonturile absente; `web/server.mjs` le servește din `dist/fonts/`, unde nu există — consistent cu `00-BRIEFING.md` §5.3) |
+| Erori de consolă recurente | **3 cereri 404** pentru fonturile `proxima-nova-400/600/700.woff2` pe `/`; **2** pe celelalte rute (`net::ERR_ABORTED`) | `VERIFIED` (sondă) + `CODE-INSPECTED` (`web/src/index.css:15-35` definește fonturile absente; `web/server.mjs` le servește din `dist/fonts/`, unde nu există — consistent cu `00-BRIEFING.md` §5.3) |
 | HSTS | absent | `VERIFIED` (`curl -sI`) |
 | `Content-Security-Policy` | absent | `VERIFIED` |
 | `Referrer-Policy` | absent | `VERIFIED` |

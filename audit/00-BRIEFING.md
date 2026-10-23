@@ -167,8 +167,10 @@ ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd /opt/blipmade && docker c
 ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd /opt/blipmade && bash scripts/run-tests.sh'
 
 # the browser, on VM 103 only
-ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd /opt/blipmade && export BM_BASE=https://blipmade.com BM_EMAIL=qa.headless.one@example.test BM_PASSWORD="QaHeadless!2026" && xvfb-run -a node scripts/ops/browser-mobile-real.mjs'
+ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd /opt/blipmade && export BM_BASE=https://blipmade.com BM_EMAIL=qa.headless.one@example.test BM_PASSWORD="<parola contului de test — vezi secret-store-ul operatorului>" && xvfb-run -a node scripts/ops/browser-mobile-real.mjs'
 ```
+
+> **Nota despre credential:** parola de mai sus nu e reprodusă în corpus. Este parola unui **cont de test generat de seed** (`scripts/ops/seed-browser-account.mjs`), pe un **domeniu rezervat** (`example.test`), fără date personale reale. **Credentialul trebuie rotit înainte ca acest corpus să părăsească echipa de audit** — rotirea nu a fost făcută în cadrul acestui audit (regulă: auditul e READ-ONLY).
 
 **The login endpoint allows 10 attempts per 15 minutes per address.** A verification run that signs in repeatedly will hit that limit and look like a broken page. Sign in once and reuse the session (the scripts under `scripts/ops/` do this).
 

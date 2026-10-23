@@ -236,6 +236,16 @@ Toate sunt în `api/src/services/provisioning.ts`, `api/src/services/stripe.ts` 
 
 `B-76` — după ce SMTP-ul e rezolvat (Unda 0). E cel mai ieftin rând din tot backlog-ul și deschide calea de suport pentru beta.
 
+### 2b. P0 adăugate după auditul independent (A12)
+
+Auditul independent (`12b-INDEPENDENT-AUDIT.md` §4.2) a arătat că cele 13 condiții de inversare lăsau deschise **exact cele mai scumpe trei P0 de plată**. Fără aceste trei rânduri, verdictul s-ar inversa spre GO de o platformă care poate taxa un client mai mult decât a cerut și poate acorda un upgrade neplătit.
+
+| # | Constatări | Ce se repară | Efort | Depinde de | Cum se verifică |
+|---|---|---|---|---|---|
+| **B-90** | `COMM-01` (= `PROMO-01`) | **Reducerea ajunge la Stripe**: `unit_amount` = suma discountuită, iar `verifyAmount` compară aceeași sumă | 1,5 z | — | Un checkout cu cod de promoție ajunge la Stripe cu prețul redus, iar `amount_total` = `order.total` |
+| **B-91** | `COMM-02` | **Prețul stocat al instanței e prețul configurației**, plus reconcilierea celor 3 instanțe existente (172 / 149 / 172 la aceeași configurație) | 1 z | — | Estimarea lunară din panoul client = prețul de configurare, pentru toate cele 3 instanțe |
+| **B-92** | `COMM-03` | **`applyUpgradeOrder()` refuză o comandă fără plată confirmată** | 0,5 z | — | Un upgrade cu `order.status != 'PAID'` e refuzat |
+
 ### Unda 3 — Siguranța infrastructurii (4 rânduri, ~7 zile)
 
 `B-13` → `B-14` (ordine strictă: firewallul înainte de rotație, altfel e lockout)
@@ -275,8 +285,8 @@ Aceste patru au nevoie de o **decizie a operatorului**, nu de o schimbare de cod
 
 Backlog-ul e închis când:
 
-1. Toate cele **17 rânduri P0** sunt închise și verificate prin criteriul din coloana „Cum se verifică".
-2. Cele **9 condiții** din `16-GO-NO-GO-DECISION.md` §4 sunt îndeplinite și dovedite.
+1. Toate cele **23 de rânduri P0** din §1 sunt închise și verificate prin criteriul din coloana „Cum se verifică" (acestea acoperă cele 28 de constatări P0 din registru).
+2. Cele **19 condiții** din `16-GO-NO-GO-DECISION.md` §4 sunt îndeplinite și dovedite.
 3. **Cele 20 de rulări consecutive** reușesc, cu 0 servere orfane.
 4. **Un drill de restaurare** din copia off-host reușește, cu data și rezultatul scrise.
 5. **Un checkout real cu plată reală** reușește, cu webhook acceptat și unul falsificat refuzat.

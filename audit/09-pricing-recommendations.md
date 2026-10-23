@@ -8,15 +8,17 @@
 
 ---
 
-## 0. Ce intrări lipsesc
+## 0. Intrările documentare — starea lor la data citirii
 
-| document | status | ce se întâmplă fără el |
+**Acest document a fost scris la 13:39**, înaintea celor trei rapoarte de mai jos (14:03–14:05). Recomandarea din §1–§2 este deci **scrisă înaintea** lor și **trebuie re-emapată** pe conținutul lor.
+
+| document | status | conținut relevant și efect asupra recomandării de mai jos |
 |---|---|---|
-| `audit/08-competitive-analysis.md` | **NU EXISTĂ** | **Comparația cu piața este în așteptare.** Recomandarea de mai jos este ancorată **doar pe cost** și spune explicit ce trebuie verificat (§3). |
-| `audit/08-product-portfolio.md` | **NU EXISTĂ** | Produsul recomandat este **presupus** de mine: `discord-bot`, singurul produs cu `deployable = true` (`00-BRIEFING.md` §12.3, `03-capacity-model.md` §2.2.1). Marcat `OPERATOR-INPUT` în fișierul de ipoteze. |
-| `audit/08-product-launch-order.md` | **NU EXISTĂ** | Nu influențează prețul. |
+| `audit/08-competitive-analysis.md` | **EXISTĂ** (scris 14:03) | **Comparația cu piața e disponibilă**; vezi `08-competitive-analysis.md` §2–§6 (prețuri citate, cu URL și dată). Recomandarea de mai jos este **scrisă înaintea** acestui raport și **trebuie re-emapată**: ea e derivată **doar din cost**, iar raportul arată că €9.99 e de ~2× peste intrarea de piață documentată (€3.99–€4.74 la 4 GB/2 vCPU). |
+| `audit/08-product-portfolio.md` | **EXISTĂ** (scris 14:04) | Produsul recomandat aici e **presupus de mine**: `discord-bot`, singurul produs cu `deployable = true` (`00-BRIEFING.md` §12.3, `03-capacity-model.md` §2.2.1). Marcat `OPERATOR-INPUT` în fișierul de ipoteze. Raportul confirmă produsul, dar îl re-specifică (`baseAmount` 149→**172**) și îi dă verdictul **`LAUNCH-AFTER-FIX`**. Recomandarea de mai jos e **scrisă înaintea** acestui raport și **trebuie re-emapată**. |
+| `audit/08-product-launch-order.md` | **EXISTĂ** (scris 14:05) | Propune **`minecraft-paper`** (€4.09 / €4.49 / €5.99 la `base 409`) ca **produs de fază 1**, cu `discord-bot` re-specificat în faza 2 — deci **produsul recomandat în acest document nu mai e produsul de fază 1**. Recomandarea de mai jos e **scrisă înaintea** acestui raport și **trebuie re-emapată**. |
 
-> **Dacă `08-product-portfolio.md` apare și recomandă alt produs, formula rămâne valabilă, dar prețul trebuie re-emapat** pe configurația acelui produs: `preț = 149 + 105 + 40 + 18 = 312` (€3.12) pentru un produs cu minime 2048/2/10, de exemplu.
+> **Condiția s-a materializat.** `08-product-launch-order.md` recomandă alt produs (`minecraft-paper`, `base 409`, minime 4096/1/25) decât cel presupus aici (`discord-bot`, `base 149`, minime 256/1/1). Formula rămâne valabilă, dar **prețul trebuie re-emapat** pe configurația acelui produs: `preț = 409 + 0 + 40 + 0 = 449` (€4.49) la 4 GB/2 vCPU/25 GB și `409 + 240 + 40 + 50 = 739` (€7.39) la 8 GB/2 vCPU/50 GB — pragul de cost al acestui produs e mult sub €9.99.
 
 ---
 
@@ -103,9 +105,9 @@ Dacă operatorul preferă un card cu pragul de intrare cât mai mic (cel mai apr
 
 ---
 
-## 3. Prețul față de piață — comparația este **în așteptare**, regula de decizie este stabilită
+## 3. Prețul față de piață — comparația **există acum**, regula de decizie e cea stabilită mai jos
 
-`audit/08-competitive-analysis.md` **nu există**, iar în sistem nu există niciun preț de concurență. **Nu inventez prețuri de piață.** Ce pot face este să formulez **regula de decizie**, astfel încât recomandarea să fie rezolvată imediat ce documentul apare:
+`audit/08-competitive-analysis.md` **există** (citit 2026-10-23) și conține prețuri de concurență **citate, cu URL și dată**. Prețurile de piață folosite în acest document sunt cele de acolo; verificarea independentă a uneia (Zentaris **€4.49 / 4 GB / 2 vCPU / 25 GB**, plan „entry", `https://zentaris-host.ro/hosting-jocuri/minecraft/`, citit 2026-10-23) a confirmat valoarea. **Regula de decizie de mai jos a fost scrisă înaintea** acelui raport și se aplică acum prețurilor de acolo — dar **§2 rămâne o recomandare de cost**, nu de piață: ea e cu ~2× peste intrarea de piață documentată (€3.99–€4.74 la 4 GB/2 vCPU).
 
 ```text
 Piață ≥ 9.60  →  acceptă prețul recomandat (€9.99); plafonul de cost este acoperit
@@ -318,7 +320,7 @@ Niciuna dintre recomandările de mai sus este executabilă în codul de azi. Ord
 | Pragul de amortizare CAC 12 luni | **€7.82** |
 | Pragul de acoperire a costului fix la 16 clienți | **€9.60** |
 | **Preț minim viabil** | **€5.67** — sub acest prag, chiar și un client cu cost de achizițare zero distruge valoare |
-| Compararea cu piața | **în așteptare** (`08-competitive-analysis.md` nu există); regula de decizie e în §3 |
+| Compararea cu piața | **disponibilă** (`08-competitive-analysis.md`, citit 2026-10-23, prețuri citate cu URL și dată); regula de decizie e în §3. **Re-emapare necesară:** prețul de €9.99 e de cost, nu de piață |
 | Plata anticipată anuală | **propunere**: cash +24.6 luni runway, n_be 15 → **24**, cost economic 12.54 EUR/client |
 | Reducere prima lună la volumele curente | **0.00 EUR** cost, **0** beneficiu măsurabil, și **nu e livrabilă** (defect B2) |
 | Reducere maximă neutră la €9.99 | **€4.19** (41.9%); un „50% off" pierde **0.80 EUR** în prima lună |

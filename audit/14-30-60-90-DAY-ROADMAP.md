@@ -73,7 +73,7 @@ Toate în `api/src/services/provisioning.ts`, `api/src/services/stripe.ts`, `api
 
 ### Criteriul de ieșire din zilele 1–30
 
-Toate cele **9 condiții** din `16-GO-NO-GO-DECISION.md` §4 îndeplinite și dovedite, plus:
+Toate cele **19 condiții** din `16-GO-NO-GO-DECISION.md` §4 îndeplinite și dovedite, plus:
 
 - [ ] **20 de rulări consecutive** comandă → plată → provisionare → activare, toate reușite
 - [ ] 0 servere orfane
@@ -108,7 +108,7 @@ Beta-ul nu e o etapă de agreare. E etapa în care se **măsoară** ce n-a putut
 
 ### Zilele 45–60 — Lansare publică limitată
 
-**Condiție:** toate P0 închise, cele 9 condiții dovedite, plus **un preț efectiv aplicat** (D-1) și **o procedură de backup funcțională**.
+**Condiție:** toate P0 închise, cele 19 condiții dovedite, plus **un preț efectiv aplicat** (D-1) și **o procedură de backup funcțională**.
 
 La lansarea publică:
 - Un singur produs, un singur preț, un singur prezentat.
@@ -175,6 +175,32 @@ Condiție:
 | **Cifra care definește faza** | 20 de rulări consecutive reușite | Costul de suport măsurat, în cadrul modelului | Două drill-uri de restaurare + nodul al doilea |
 | **Ce NU se face** | Nicio funcție nouă. Nicio reducere. Niciun produs nou. | Niciun produs nou fără 20 de rulări. | Nicio extindere a canalelor înainte de măsurarea costului de suport |
 | **Riscul principal al fazei** | Se lansează cu cheile puse, dar cu produsul stricat | Se extinde pe baza cifrelor de model, nu ale celor reale | Se consideră „gata" un backup care nu a fost niciodată restaurat |
+
+---
+
+## 4b. Registrul de riscuri comerciale — primele 6 luni
+
+Acesta răspunde la întrebarea 24 a brief-ului. Fiecare risc are **o constatare din registru** drept sursă, **un declanșator observabil** și **o reacție definită**. Un risc fără declanșator nu e un risc — e o îngrijorare.
+
+| # | Riscul | Sursă | Declanșator observabil | Reacția definită | Sev. |
+|---|---|---|---|---|---|
+| R1 | **Se iau bani pentru un serviciu care nu rulează** — produsul vândut nu conține aplicația | `OPS-01` | Orice instanță provisionată raportează `state: offline`, `uptime: 0`, memorie 0 | **Nu se deschid plățile.** Condiția 10 e blocantă; până la ea, rămâne doar scenariul C | **Critic** |
+| R2 | **Pierderea datelor unui client, fără nicio copie** — RAID 0, backup neprogramat, backup Pterodactyl dezactivat | `INF-01`, `INF-02`, `DR-02`, `DR-04` | Lipsa unei copii off-host verificate; lipsa unui drill de restaurare | **Nu se iau date de client înainte de drill.** Condițiile 3 și 17 | **Critic** |
+| R3 | **Clientul e taxat cu prețul neredus** — reducerea nu ajunge la Stripe | `COMM-01` = `PROMO-01` | Orice comandă cu cod de promoție ajunge la `FAILED` la `verifyAmount` | **Nicio campanie cu reducere** înainte de condiția 14 | **Critic** |
+| R4 | **Upgrade fără plată, sau preț stocat greșit** | `COMM-02`, `COMM-03` | Estimarea lunară din panoul client ≠ prețul de configurare | Condițiile 15 și 16 | **Critic** |
+| R5 | **Prețul e sub cost** — fiecare client adăugat mărește pierderea | `09-unit-economics.md`, `PORT-01` | Contribuția per client < 0 la prețul practicat | **Prețul se stabilește înainte de lansare** (D-1); dacă rămâne sub prag, nu se vinde | **Critic** |
+| R6 | **Costul de suport depășește venitul** — ipoteza de 15 min/client/lună e cea mai influentă și e nevalidată | `09-unit-economics.md` §3, `11-support-and-operations.md` | Măsurarea reală a timpului de suport per client depășește 25 min/lună | **Se oprește extinderea**, se reduce portofoliul sau se crește prețul. Decizia e de ziua 60 | **High** |
+| R7 | **Beta-ul e pe minus prin construcție** — cu 10 clienți la €9.99, contribuția e €41.90 contra unui cost fix de €61.00 | `09-unit-economics.md`, `12b-INDEPENDENT-AUDIT.md` §8.3 | Rezultatul lunar măsurat rămâne negativ după 60 de zile | Beta-ul e declarat **cost de învățare**, cu plafon explicit. Nu e prezentat ca business care merge | **High** |
+| R8 | **Fără DDoS și fără backup, față de concurenți care le au** și față de Aternos, care e gratuit | `PORT-03` | Un concurent pierde un client pe „fără protecție" | Fie se adaugă protecție, fie se schimbă segmentul de piață către cei care nu o cer. **Decizie de produs, nu de inginerie** | **High** |
+| R9 | **Incapacitate economică la specificația de piață** — la 2 vCPU, nodul duce 8 servere = €35.92/lună contra unui cost de nod de €54.44 | `PORT-06` | Se vinde la 2 vCPU cu preț de piață | Se vinde **la 1 vCPU** sau se schimbă cardul de preț. Decizia e de ziua 60 | **High** |
+| R10 | **Conversia reală e 0 și nu se poate măsura** — cele 8 intrări `order.paid` din `AuditLog` sunt sintetice; nu există tracking de conversie pe evenimente | `MKT-05`, `MKT-06`, `MKT-07` | Nicio campanie nu poate fi evaluată după lansare | **Instrumentarea (`B-43`) e înaintea oricărei campanii cu buget** | **High** |
+| R11 | **Concentrare totală pe un singur nod și pe RAID 0** — o singură mașină fizică, o singură gazdă, un singur operator | `INF-01`, `INF-03` | Orice incident hardware afectează 100% din clienți | Al doilea nod la 64 GiB și RAID 1 în zilele 61–90; între timp, plafon de clienți | **High** |
+| R12 | **Câștig prin reducere** — răspunsul reflex la o concurență mai ieftină distruge comenzile și crește pierderea | `COMM-01`, `PROMO-10` | Orice reducere programată înainte de condiția 14 | **Nicio reducere** până la reparare; prețul de fondare se aplică **manual** | **High** |
+| R13 | **Neconformitate legală și fiscală** — 29 de elemente neconfirmate, inclusiv TVA, drept de retragere, baza legală pentru e-mail | `OPS-10` | Orice prim client cu drept de retragere exercitat | Verificare cu profesionist înainte de acceptarea primei plăți | **High** |
+| R14 | **Dependență de Discord** ca canal unic de captare înainte de poartă | `MKT-03`, `MKT-11` | Pierderea sau decizia de moderare a canalului | Canalul de Discord e unul, nu singurul: se construiește și lista de e-mail (după ce SMTP-ul e rezolvat) | **Medium** |
+| R15 | **`C_node` necunoscut** — modelul economic folosește o ancoră de piață (€54.44), nu o factură | `PORT-01`, `09-financial-assumptions.md` | Factura reală diferă de ipoteză | **Fiecare prag se deplasează liniar.** Se recalculează tot modelul înainte de decizia D-1 | **Medium** |
+
+**Regula de aplicare:** fiecare risk din coloana „Declanșator" e verificat **la ziua 30, 60 și 90**. Un risk fără declanșator produs e un risk închis; un risk cu declanșator produs oprește faza, indiferent de cât de bine arată restul.
 
 ---
 
