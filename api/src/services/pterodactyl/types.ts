@@ -186,10 +186,14 @@ export interface PteroClientServerAttributes {
   identifier: string;
   name?: string;
   server_name?: string;
+  /** The panel names the state of a server "status" on the client api. */
+  status?: string;
   state?: string;
   current_state?: string;
   is_suspended?: boolean;
   limits?: { memory: number; swap: number; disk: number; io: number; cpu: number };
+  /** The panel names the features of a server "egg_features" on the client api. */
+  egg_features?: string[];
   features?: string[];
   created_at?: string;
 }

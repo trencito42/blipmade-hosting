@@ -5,7 +5,7 @@ import { audit } from '../lib/audit.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
-import { resolveCustomerCredential } from './panel/credentials.js';
+import { renewCustomerCredential, resolveCustomerCredential } from './panel/credentials.js';
 import type { Instance, Product } from '@prisma/client';
 
 /** Steps recorded on the instance so an interrupted job can be reconciled. */
@@ -130,6 +130,39 @@ export async function completeProvisioning(instanceId: string): Promise<void> {
  * The account carries the two parts of the name of the customer and a reserved
  * address that cannot receive mail. The customer never signs in to the panel.
  */
+/** True when the panel refused the key of the customer. */
+function isUnauthenticated(error: unknown): boolean {
+  return error instanceof pteroClient.ClientApiError && error.status === 401;
+}
+
+/**
+ * Runs an operation on the panel with the key of the customer.
+ *
+ * A key that the panel does not know any more answers 401. That happens when
+ * the key was revoked on the panel, for instance because another one was
+ * issued for the same account. A new key is asked for and the operation runs a
+ * second time, so a deployment does not fail over a key that is not valid any
+ * more.
+ */
+async function withCustomerKey<T>(userId: string, run: (token: string) => Promise<T>): Promise<T> {
+  const credential = await resolveCustomerCredential(userId);
+  try {
+    return await run(pteroClient.clientToken(credential.token));
+  } catch (error) {
+    if (!isUnauthenticated(error)) throw error;
+
+    const fresh = await renewCustomerCredential(userId);
+    try {
+      return await run(pteroClient.clientToken(fresh));
+    } catch (retryError) {
+      if (isUnauthenticated(retryError)) {
+        throw new Error('The panel refused the key of the customer.');
+      }
+      throw retryError;
+    }
+  }
+}
+
 async function ensurePterodactylUser(
   instance: Instance & {
     user: {
@@ -226,7 +259,7 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
  * a database.
  */
 export interface DeploymentProbe {
-  kind: 'http' | 'tcp';
+  kind: 'http' | 'tcp' | 'container';
   path?: string;
   expectStatus?: number[];
   expectBody?: string;
@@ -237,6 +270,8 @@ export interface DeploymentProbeResult {
   ok: boolean;
   status: number | null;
   reason: string | null;
+  /** A line that says what was found, for the log of the instance. */
+  message?: string;
 }
 
 /** The probe of a product, with the strict defaults. */
@@ -244,6 +279,12 @@ export function probeFor(product: Pick<Product, 'healthProbe'>): DeploymentProbe
   const configured = (product.healthProbe ?? null) as Partial<DeploymentProbe> | null;
   if (configured && configured.kind === 'tcp') {
     return { kind: 'tcp', timeoutMs: configured.timeoutMs ?? 8000 };
+  }
+  if (configured && configured.kind === 'container') {
+    // A product that does not expose a port, like a bot that only talks to
+    // another service. There is nothing to answer on the network, so the
+    // deployment itself is checked.
+    return { kind: 'container', timeoutMs: configured.timeoutMs ?? 8000 };
   }
   return {
     kind: 'http',
@@ -316,6 +357,44 @@ export async function verifyDeployment(
       } catch {
         lastReason = `No HTTP response from ${url}.`;
       }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  return { ok: false, status: null, reason: lastReason };
+}
+
+/**
+ * Verifies the deployment of a product that does not expose a port.
+ *
+ * A bot that only talks to another service has nothing to answer on the
+ * network, so the check is not "does the app answer" but "is the server really
+ * on the node and does the panel manage it". The panel answers with the state
+ * of the server, so an answer means the deployment reached the node.
+ */
+export async function verifyContainerDeployment(
+  token: string,
+  uuid: string,
+  probe: DeploymentProbe = { kind: 'container' },
+  options: { attempts?: number; delayMs?: number } = {},
+): Promise<DeploymentProbeResult> {
+  const attempts = options.attempts ?? 20;
+  const delayMs = options.delayMs ?? 3000;
+
+  let lastReason = 'The panel did not answer about the server.';
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      const resources = await pteroClient.getResources(token, uuid);
+      return {
+        ok: true,
+        status: null,
+        reason: null,
+        message: `The server is on the node and the panel manages it (state: ${resources.state}).`,
+      };
+    } catch (error) {
+      lastReason = error instanceof Error ? error.message : 'The panel did not answer about the server.';
     }
 
     await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -481,10 +560,8 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       // of the customer that owns the instance. That key is scoped to the
       // panel account of the customer, so it can only ever start this
       // customer's own server.
-      let customerToken: string;
       try {
-        const credential = await resolveCustomerCredential(instance.userId);
-        customerToken = pteroClient.clientToken(credential.token);
+        await withCustomerKey(instance.userId, (token) => pteroClient.sendPower(token, server.uuid, 'start'));
       } catch (error) {
         throw new ProvisioningError(
           'started',
@@ -493,14 +570,32 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
           }`,
         );
       }
-      await pteroClient.sendPower(customerToken, server.uuid, 'start');
       await completeStep(instance.id, 'started');
       await recordEvent(instance.id, 'provisioning', 'Container started.');
     }
 
     if (!done('health_verified')) {
       await beginProvisioning(instance, 'health_verified');
-      const health = await verifyDeployment(ip, port, probeFor(product));
+      const probe = probeFor(product);
+      let health: DeploymentProbeResult;
+      if (probe.kind === 'container') {
+        // The check asks the panel about the server, so the key of the customer
+        // is needed here as well.
+        try {
+          health = await withCustomerKey(instance.userId, (token) =>
+            verifyContainerDeployment(token, server.uuid, probe),
+          );
+        } catch (error) {
+          throw new ProvisioningError(
+            'health_verified',
+            `The server cannot be checked: ${
+              error instanceof Error ? error.message : 'the client key of the customer is not available.'
+            }`,
+          );
+        }
+      } else {
+        health = await verifyDeployment(ip, port, probe);
+      }
       if (!health.ok) {
         throw new ProvisioningError('health_verified', health.reason ?? 'The application did not answer as expected.');
       }
@@ -508,7 +603,8 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       await recordEvent(
         instance.id,
         'provisioning',
-        health.status === null ? 'The service accepted a connection.' : `Application answered with HTTP ${health.status}.`,
+        health.message ??
+          (health.status === null ? 'The service accepted a connection.' : `Application answered with HTTP ${health.status}.`),
       );
     }
 

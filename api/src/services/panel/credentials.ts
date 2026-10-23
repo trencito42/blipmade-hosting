@@ -196,6 +196,19 @@ export async function forgetCustomerCredential(userId: string): Promise<void> {
 }
 
 /**
+ * Asks for a new key for a customer.
+ *
+ * A key can stop working while the customer is using it, for instance when it
+ * was revoked on the panel. A new key is asked for in that case, so a customer
+ * never has to wait for an operator before the next operation works.
+ */
+export async function renewCustomerCredential(userId: string): Promise<string> {
+  await forgetCustomerCredential(userId);
+  const credential = await resolveCustomerCredential(userId);
+  return credential.token;
+}
+
+/**
  * True when a customer already has a key on the panel.
  *
  * This does not mint a key: it only looks at what is stored, so a page that is

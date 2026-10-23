@@ -13,7 +13,7 @@ import {
   StatTile,
   StatusPill,
 } from '../ui-app';
-import { deployPath, useDeployableProducts } from '../lib/pricing';
+import { catalogPath, deployPath, productPath, useDeployableProducts } from '../lib/pricing';
 
 /**
  * Customer overview. Reads the real instance list only: every number on this
@@ -208,7 +208,7 @@ export default function Overview() {
                 No app is ready to order yet
               </span>
             )}
-            <Link to="/" className={softLink}>
+            <Link to={catalogPath()} className={softLink}>
               Browse the catalog
             </Link>
           </div>
@@ -220,7 +220,7 @@ export default function Overview() {
               {deployable.slice(0, 4).map((product) => (
                 <Link
                   key={product.id}
-                  to={deployPath(product.slug)}
+                  to={productPath(product.slug)}
                   className="flex items-center gap-3 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                 >
                   <ProductIcon icon={product.icon} size={36} />

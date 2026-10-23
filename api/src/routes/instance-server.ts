@@ -32,7 +32,6 @@ const idParam = z.object({ id: z.string() });
 const filePath = z.string().min(1).max(1024);
 
 /** The format of an archive. */
-const archiveFormat = z.enum(['tar', 'zip']);
 
 /**
  * Runs a panel operation for the instance of the customer that asks for it.
@@ -337,31 +336,40 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  /** Compresses files into an archive. */
+  /**
+   * Compresses files into an archive.
+   *
+   * The node decides the format and the name of the archive, so the answer
+   * carries the name of the archive that was made.
+   */
   const compress = async (request: FastifyRequest) => {
-    const body = z
-      .object({ paths: z.array(filePath).min(1).max(50), format: archiveFormat })
-      .parse(request.body);
+    const body = z.object({ paths: z.array(filePath).min(1).max(50) }).parse(request.body);
     return withInstance(request, async (token, instance) => {
+      let archive: string;
       try {
-        await operations.compressFiles(token, instance, body.paths, body.format);
+        archive = await operations.compressFiles(token, instance, body.paths);
       } catch (error) {
         return translatePanelError(error);
       }
-      await note(instance.id, 'files', `Created a ${body.format} archive of ${body.paths.length} item(s).`);
-      return { compressed: true };
+      await note(instance.id, 'files', `Created an archive of ${body.paths.length} item(s).`);
+      return { compressed: true, archive };
     });
   };
 
   app.post('/instances/:id/files/compress', compress);
   app.post('/instances/:id/files/archive', compress);
 
-  /** Unpacks an archive. */
+  /**
+   * Unpacks an archive.
+   *
+   * The node reads the format out of the archive itself, so the request does
+   * not name one.
+   */
   const decompress = async (request: FastifyRequest) => {
-    const body = z.object({ path: filePath, format: archiveFormat }).parse(request.body);
+    const body = z.object({ path: filePath }).parse(request.body);
     return withInstance(request, async (token, instance) => {
       try {
-        await operations.decompressArchive(token, instance, body.path, body.format);
+        await operations.decompressArchive(token, instance, body.path);
       } catch (error) {
         return translatePanelError(error);
       }
@@ -400,7 +408,8 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
             username: database.username,
             host: database.host,
             port: database.port,
-            database: database.database,
+            database: database.name,
+            remote: database.remote,
             password: database.password,
           })),
         };
@@ -440,24 +449,32 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return reply.code(201).send({ created: true });
   });
 
+  /**
+   * Changes the password of a database.
+   *
+   * The panel offers one change for a database: a new password. A request for
+   * anything else is refused with the reason, so the customer is never told
+   * that something was changed when it was not.
+   */
   app.patch('/instances/:id/databases/:databaseId', async (request: FastifyRequest) => {
-    const params = z.object({ id: z.string(), databaseId: z.coerce.number().int().positive() }).parse(request.params);
-    const body = z
-      .object({ password: z.string().min(1).max(128).optional(), remote: z.string().trim().min(1).max(128).optional() })
-      .parse(request.body ?? {});
+    const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
+    const body = z.object({ password: z.string().min(1).max(128).optional() }).parse(request.body ?? {});
+    if (!body.password) {
+      throw badRequest('A database can only be changed by giving it a new password.');
+    }
     return withInstance(request, async (token, instance) => {
       try {
         await operations.updateDatabase(token, instance, params.databaseId, body);
       } catch (error) {
         return translatePanelError(error);
       }
-      await note(instance.id, 'databases', `Updated the database ${params.databaseId}.`);
+      await note(instance.id, 'databases', `Changed the password of the database ${params.databaseId}.`);
       return { updated: true };
     });
   });
 
   app.delete('/instances/:id/databases/:databaseId', async (request: FastifyRequest, reply) => {
-    const params = z.object({ id: z.string(), databaseId: z.coerce.number().int().positive() }).parse(request.params);
+    const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id);
@@ -484,13 +501,13 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    * is written to the audit log.
    */
   app.get('/instances/:id/databases/:databaseId/credentials', async (request: FastifyRequest) => {
-    const params = z.object({ id: z.string(), databaseId: z.coerce.number().int().positive() }).parse(request.params);
+    const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id);
     const token = await operations.customerToken(instance);
     try {
-      const credentials = await operations.databaseCredentials(token, instance, params.databaseId);
+      const database = await operations.databaseCredentials(token, instance, params.databaseId);
       await audit({
         actorId: user.id,
         actorEmail: user.email,
@@ -499,14 +516,13 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
         targetId: instance.id,
         meta: { databaseId: params.databaseId },
       });
-      const attributes = (credentials as { attributes?: Record<string, unknown> })?.attributes ?? {};
       return {
         credentials: {
-          username: String(attributes.username ?? ''),
-          password: String(attributes.password ?? ''),
-          host: String(attributes.host ?? ''),
-          port: Number(attributes.port ?? 0),
-          database: String(attributes.database ?? ''),
+          username: database.username,
+          password: database.password ?? '',
+          host: database.host,
+          port: database.port,
+          database: database.name,
         },
       };
     } catch (error) {
@@ -646,31 +662,29 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
+  /**
+   * Adds an address to the server.
+   *
+   * The panel picks the address itself out of the free ones of the node, so
+   * the customer does not choose an address and a port.
+   */
   app.post('/instances/:id/allocations', async (request: FastifyRequest, reply) => {
-    const body = z
-      .object({
-        ip: z.string().trim().min(1).max(64),
-        port: z.number().int().min(1).max(65535),
-        alias: z.string().trim().max(64).optional(),
-      })
-      .parse(request.body);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id);
     const token = await operations.customerToken(instance);
     try {
-      await operations.createAllocation(token, instance, body);
+      await operations.createAllocation(token, instance);
     } catch (error) {
       return translatePanelError(error);
     }
-    await note(instance.id, 'network', `Added the address ${body.ip}:${body.port}.`);
+    await note(instance.id, 'network', 'Added an address to the server.');
     await audit({
       actorId: user.id,
       actorEmail: user.email,
       action: 'instance.allocation_created',
       targetType: 'instance',
       targetId: instance.id,
-      meta: { ip: body.ip, port: body.port },
     });
     return reply.code(201).send({ created: true });
   });
@@ -698,10 +712,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       try {
         if (body.isDefault) {
           await operations.setPrimaryAllocation(token, instance, params.allocationId);
+        } else if (body.alias !== undefined) {
+          await operations.updateAllocation(token, instance, params.allocationId, body.alias ?? '');
         } else {
-          await client.updateAllocation(token, instance.pterodactylUuid!, params.allocationId, {
-            alias: body.alias,
-          });
+          throw badRequest('An address can only be renamed or made the primary one.');
         }
       } catch (error) {
         return translatePanelError(error);

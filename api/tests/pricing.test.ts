@@ -157,6 +157,20 @@ describe('server-side pricing', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.promotion.valid).toBe(false);
+    expect(response.body.promotion.reason).toBeTruthy();
+    expect(response.body.discount).toBe(0);
+  });
+
+  it('has no promotion at all when no code was typed', async () => {
+    await seedProduct();
+    const client = makeClient(app);
+    const response = await client.request('POST', '/api/catalog/quote', {
+      items: [{ productSlug: 'wordpress', ram: 512, cpu: 1, disk: 5 }],
+    });
+
+    expect(response.status).toBe(200);
+    // A field that was left empty must not look like a code that was refused.
+    expect(response.body.promotion).toBeNull();
     expect(response.body.discount).toBe(0);
   });
 });

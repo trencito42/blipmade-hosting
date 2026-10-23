@@ -268,7 +268,14 @@ server.on('upgrade', (req, socket, head) => {
   });
 
   proxy.on('upgrade', (upstream, upstreamSocket, upstreamHead) => {
-    socket.write(`HTTP/1.1 101 Switching Protocols\r\n${upstreamSocket.readableHead}\r\n`);
+    // The answer of the API carries the headers of the handshake. They are
+    // written out one by one, because the socket of the upstream does not
+    // carry them itself.
+    const lines = [];
+    for (let index = 0; index < upstream.rawHeaders.length; index += 2) {
+      lines.push(`${upstream.rawHeaders[index]}: ${upstream.rawHeaders[index + 1]}`);
+    }
+    socket.write(`HTTP/1.1 101 Switching Protocols\r\n${lines.join('\r\n')}\r\n\r\n`);
     if (upstreamHead && upstreamHead.length) upstreamSocket.unshift(upstreamHead);
     upstreamSocket.pipe(socket).pipe(upstreamSocket);
   });

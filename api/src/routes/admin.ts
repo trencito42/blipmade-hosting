@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { requireStaff, requirePermission } from '../plugins/auth.js';
@@ -16,6 +17,31 @@ import { externalIdFor } from '../services/panel/identity.js';
 import { env } from '../env.js';
 
 const money = (amount: number) => amount / 100;
+
+/**
+ * The check that says whether a deployment really works.
+ *
+ * "http" and "tcp" ask the application itself, "container" asks the panel
+ * about the server. The last one is for a product that does not expose a
+ * port, like a bot that only talks to another service.
+ */
+const healthProbeSchema = z.union([
+  z.object({
+    kind: z.literal('http'),
+    path: z.string().trim().max(200).optional(),
+    expectStatus: z.array(z.number().int().min(100).max(599)).max(20).optional(),
+    expectBody: z.string().max(200).optional(),
+    timeoutMs: z.number().int().min(500).max(60_000).optional(),
+  }),
+  z.object({
+    kind: z.literal('tcp'),
+    timeoutMs: z.number().int().min(500).max(60_000).optional(),
+  }),
+  z.object({
+    kind: z.literal('container'),
+    timeoutMs: z.number().int().min(500).max(60_000).optional(),
+  }),
+]);
 
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.get('/admin/overview', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
@@ -400,6 +426,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         deployable: z.boolean().default(false),
         docsUrl: z.string().trim().max(300).nullable().optional(),
         baseAmount: z.number().int().min(0).default(0),
+        healthProbe: healthProbeSchema.nullable().optional(),
       })
       .parse(request.body);
 
@@ -429,6 +456,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         visible: body.visible,
         deployable: body.deployable,
         docsUrl: body.docsUrl ?? null,
+        healthProbe: (body.healthProbe ?? undefined) as never,
         prices: { create: { period: 'MONTHLY', baseAmount: body.baseAmount, currency: 'EUR' } },
       },
       include: { prices: true, options: true },
@@ -457,13 +485,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         maxCpu: z.number().int().positive().optional(),
         maxDisk: z.number().int().positive().optional(),
         docsUrl: z.string().trim().max(300).nullable().optional(),
+        healthProbe: healthProbeSchema.nullable().optional(),
       })
       .parse(request.body);
 
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) throw notFound('Product not found.');
 
-    await prisma.product.update({ where: { id }, data: body });
+    const data = { ...body } as Record<string, unknown>;
+    if (body.healthProbe === null) data.healthProbe = Prisma.JsonNull;
+    await prisma.product.update({ where: { id }, data: data as never });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.updated', targetType: 'product', targetId: id, meta: body });
 
     const updated = await prisma.product.findUnique({ where: { id }, include: { prices: true, options: true } });

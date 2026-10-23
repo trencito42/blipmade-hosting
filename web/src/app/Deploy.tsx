@@ -4,6 +4,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
 import { Icon } from '../icons';
 import { Link, useParams, useRouter } from '../router';
+import { catalogPath, productPath } from '../lib/pricing';
 import {
   EmptyState,
   ErrorState,
@@ -190,6 +191,12 @@ export default function Deploy() {
 
   const quote = quoteState.data ?? null;
 
+  // The server sends no promotion when the field is empty. A code is only a
+  // mistake when the customer actually typed one, so an empty field is never
+  // an error.
+  const promotion = quote?.promotion ?? null;
+  const promotionTyped = promotion?.code.trim() ?? '';
+
   // --- order and provisioning --------------------------------------------
 
   const orderState = useAsync<{ order: Order } | null>(
@@ -307,7 +314,7 @@ export default function Deploy() {
                 <Link to="/app" className={linkButton}>
                   Back to your dashboard
                 </Link>
-                <Link to="/#apps" className={cn(linkButton, 'bg-s3 text-ink hover:bg-line')}>
+                <Link to={catalogPath()} className={cn(linkButton, 'bg-s3 text-ink hover:bg-line')}>
                   Browse the catalog
                 </Link>
               </div>
@@ -518,7 +525,14 @@ export default function Deploy() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
           <Panel title="Review">
             <dl className="grid gap-2">
-              <Row label="Product">{product.name}</Row>
+              <Row label="Product">
+                <Link
+                  to={productPath(product.slug)}
+                  className="text-acc transition-colors duration-[180ms] hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                >
+                  {product.name}
+                </Link>
+              </Row>
               <Row label="Name">{name || product.slug}</Row>
               <Row label="Memory">{formatGb(ram, scale)} GB</Row>
               <Row label="vCPU">{cpu}</Row>
@@ -543,18 +557,16 @@ export default function Deploy() {
                 spellCheck={false}
               />
               <div aria-live="polite" className="mt-3">
-                {quote?.promotion ? (
-                  quote.promotion.valid ? (
-                    <p className="rounded-2xl bg-acc-bg px-3.5 py-3 text-[13.5px] font-bold text-acc">
-                      {quote.promotion.code} applied.
-                    </p>
-                  ) : (
-                    <p role="alert" className="rounded-2xl bg-bad/12 px-3.5 py-3 text-[13.5px] font-bold text-bad">
-                      {quote.promotion.reason ?? `${quote.promotion.code} is not valid.`}
-                    </p>
-                  )
-                ) : (
+                {!promotion || !promotionTyped ? (
                   <p className="text-[12.5px] text-ink3">No promotion code applied.</p>
+                ) : promotion.valid ? (
+                  <p className="rounded-2xl bg-acc-bg px-3.5 py-3 text-[13.5px] font-bold text-acc">
+                    {promotion.code} applied.
+                  </p>
+                ) : (
+                  <p role="alert" className="rounded-2xl bg-bad/12 px-3.5 py-3 text-[13.5px] font-bold text-bad">
+                    {promotion.reason || `${promotion.code} is not valid.`}
+                  </p>
                 )}
               </div>
             </Panel>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { get, type CatalogProduct } from './api';
+import type { IconName } from '../icons';
 
 /**
  * The prices that are shown on the public pages come from the catalog of the
@@ -139,6 +140,9 @@ export function useDeployableProducts(): { products: CatalogProduct[]; loading: 
  * A product that is only listed cannot be ordered, so a button must never
  * point at one. When nothing is deployable yet there is no target and the
  * button has to say so instead of leading to a dead end.
+ *
+ * This picks one product for the customer. A button that lets the customer
+ * choose must not use it: it has to lead to the catalog instead.
  */
 export function useDeployEntry(): { slug: string | null; loading: boolean } {
   const { products, loading } = useDeployableProducts();
@@ -148,4 +152,75 @@ export function useDeployEntry(): { slug: string | null; loading: boolean } {
 /** The path of the deploy page of a product. */
 export function deployPath(slug: string): string {
   return `/app/deploy/${encodeURIComponent(slug)}`;
+}
+
+/** The path of the page of a product. It is public. */
+export function productPath(slug: string): string {
+  return `/apps/${encodeURIComponent(slug)}`;
+}
+
+/** The path of the catalog, where the customer picks a product. */
+export function catalogPath(): string {
+  return '/apps';
+}
+
+// --- how the catalog is shown ----------------------------------------------
+
+/** The API stores categories as codes, the site shows friendly labels. */
+const CATEGORY_CODE: Record<string, string> = {
+  'Web & CMS': 'WEB_CMS',
+  'Developer Tools': 'DEVELOPER_TOOLS',
+  Monitoring: 'MONITORING',
+  Automation: 'AUTOMATION',
+  Bots: 'BOTS',
+  Databases: 'DATABASES',
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  WEB_CMS: 'Web & CMS',
+  DEVELOPER_TOOLS: 'Developer Tools',
+  MONITORING: 'Monitoring',
+  AUTOMATION: 'Automation',
+  BOTS: 'Bots',
+  DATABASES: 'Databases',
+};
+
+/** The code of a category of the interface. */
+export function categoryCode(label: string): string | undefined {
+  return CATEGORY_CODE[label];
+}
+
+/** The label of a category of the API. An unknown code is shown as it is. */
+export function categoryLabel(code: string): string {
+  return CATEGORY_LABEL[code] ?? code;
+}
+
+/** Memory in the unit the customer reads it in. */
+export function memLabel(mb: number): string {
+  return mb < 1024 ? `${mb} MB` : `${Math.round((mb / 1024) * 10) / 10} GB`;
+}
+
+/** The short form of a period, used right after an amount. */
+export function periodSuffix(period: string): string {
+  if (period === 'MONTHLY') return '/mo';
+  if (period === 'YEARLY') return '/yr';
+  return '';
+}
+
+/** The period of a price in words. */
+export function periodLabel(period: string): string {
+  if (period === 'MONTHLY') return 'per month';
+  if (period === 'YEARLY') return 'per year';
+  return period.toLowerCase();
+}
+
+const ICONS: readonly IconName[] = [
+  'globe', 'db', 'folder', 'term', 'chart', 'card',
+  'rocket', 'shield', 'restart', 'box', 'bolt', 'bot',
+  'mon', 'flow', 'code', 'doc',
+];
+
+/** A product may carry an icon the interface does not know. It still gets one. */
+export function productIcon(name: string): IconName {
+  return ICONS.includes(name as IconName) ? (name as IconName) : 'box';
 }

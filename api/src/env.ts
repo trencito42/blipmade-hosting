@@ -37,6 +37,22 @@ const schema = z.object({
   /** The secret of the bridge. Both sides sign with it. */
   PANEL_KEYMINT_SECRET: z.string().default(''),
 
+  /**
+   * The addresses of the nodes that can be reached from here.
+   *
+   * The panel answers with the address of a node as it is known on the
+   * internet. That address is not always the one that can be reached from
+   * this server, and the console of a server is opened on that address. The
+   * value is a list of pairs, separated by commas, where the first one is the
+   * address the panel uses and the second one the address that works here:
+   *
+   *     PANEL_NODE_ADDRESSES=node1.example.com:8080=10.0.0.11:8080
+   *
+   * The name of the node is kept for the certificate of the connection, so the
+   * certificate of the node stays the one that is checked.
+   */
+  PANEL_NODE_ADDRESSES: z.string().default(''),
+
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_PUBLISHABLE_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),

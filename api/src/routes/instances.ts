@@ -8,6 +8,7 @@ import { requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import { hasCustomerCredential, resolveCustomerCredential } from '../services/panel/credentials.js';
+import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange } from '../services/upgrades.js';
 import { createCheckout } from '../services/stripe.js';
@@ -411,8 +412,25 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
   }
 
   const separator = credentials.socket.includes('?') ? '&' : '?';
+  // The panel answers with the address of the node as it is known on the
+  // internet. That address is not always the one that can be reached from
+  // here, so the operator can name the address that works. The name of the
+  // node is kept for the certificate, so the certificate of the node is still
+  // the one that is checked.
+  const address = nodeAddressFor(credentials.socket);
+  const targetUrl = new URL(credentials.socket);
+  targetUrl.host = address.host;
   const target = new WebSocket(
-    `${credentials.socket}${separator}token=${encodeURIComponent(credentials.token)}`,
+    `${targetUrl.toString()}${separator}token=${encodeURIComponent(credentials.token)}`,
+    {
+      // The library reads the name of the node for the certificate of the
+      // connection, even when the connection is opened to another address. The
+      // types of the library do not name the option.
+      servername: address.servername,
+      // The node only takes a connection that says it comes from the panel, so
+      // the address of the panel travels with it.
+      headers: { Origin: env.PTERODACTYL_URL },
+    } as unknown as WebSocket.ClientOptions,
   );
 
   target.on('open', () => {

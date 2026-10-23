@@ -24,7 +24,6 @@ import {
   unarchiveFile,
   uploadFile,
   writeFile,
-  type ArchiveFormat,
   type InstanceFile,
 } from '../../lib/instance-api';
 import { useAction, useAsync } from '../../lib/useAsync';
@@ -295,7 +294,6 @@ function FilePanel({
   const [content, setContent] = useState('');
   const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [format, setFormat] = useState<ArchiveFormat>(archiveFormatOf(entry.name) ?? 'tar');
 
   const file = useAsync((signal) => readFile(instanceId, path, signal), [instanceId, path]);
   const decoded = useMemo(() => {
@@ -311,7 +309,6 @@ function FilePanel({
   useEffect(() => {
     setMode('none');
     setValue('');
-    setFormat(archiveFormatOf(entry.name) ?? 'tar');
   }, [entry.name]);
 
   const save = useAction(async (next: string) => {
@@ -339,13 +336,13 @@ function FilePanel({
     return true;
   });
 
-  const compress = useAction(async (next: ArchiveFormat) => {
-    await archiveFiles(instanceId, [path], next);
+  const compress = useAction(async () => {
+    await archiveFiles(instanceId, [path]);
     return true;
   });
 
-  const decompress = useAction(async (next: ArchiveFormat) => {
-    await unarchiveFile(instanceId, path, next);
+  const decompress = useAction(async () => {
+    await unarchiveFile(instanceId, path);
     return true;
   });
 
@@ -425,7 +422,7 @@ function FilePanel({
   };
 
   const onCompress = async () => {
-    const done = await compress.run(format);
+    const done = await compress.run();
     if (done) {
       push('Archive created.', 'ok');
       onChanged();
@@ -433,7 +430,7 @@ function FilePanel({
   };
 
   const onDecompress = async () => {
-    const done = await decompress.run(format);
+    const done = await decompress.run();
     if (done) {
       push('Archive extracted.', 'ok');
       onChanged();
@@ -634,15 +631,6 @@ function FilePanel({
           )}
 
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={format}
-              onChange={(event) => setFormat(event.target.value === 'zip' ? 'zip' : 'tar')}
-              aria-label="Archive format"
-              className="h-11 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink outline-none transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-            >
-              <option value="tar">tar</option>
-              <option value="zip">zip</option>
-            </select>
             <SoftButton onClick={() => void onCompress()} disabled={compress.pending}>
               {compress.pending ? 'Compressing…' : 'Compress'}
             </SoftButton>

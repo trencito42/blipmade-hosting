@@ -2,11 +2,19 @@ import { useMemo, useState } from 'react';
 import { CATEGORIES, type Category } from '../data';
 import { get, type CatalogProduct } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
-import { Icon, type IconName } from '../icons';
+import { Icon } from '../icons';
 import { cn } from '../lib';
+import {
+  categoryCode,
+  categoryLabel,
+  formatPrice,
+  memLabel,
+  periodSuffix,
+  productIcon,
+  productPath,
+} from '../lib/pricing';
 import { AppMark, Button, Eyebrow, Headline, Reveal, Wrap } from '../ui';
 import { Link } from '../router';
-import { useSession } from '../session';
 
 /**
  * The catalog on the homepage is the catalog the platform actually sells.
@@ -14,52 +22,6 @@ import { useSession } from '../session';
  * GET /api/catalog/products. Nothing here is hardcoded, so the page can never
  * advertise a product or an amount the server does not know about.
  */
-
-/** The API stores categories as codes, the homepage shows friendly labels. */
-const CATEGORY_CODE: Record<string, string> = {
-  'Web & CMS': 'WEB_CMS',
-  'Developer Tools': 'DEVELOPER_TOOLS',
-  Monitoring: 'MONITORING',
-  Automation: 'AUTOMATION',
-  Bots: 'BOTS',
-  Databases: 'DATABASES',
-};
-
-const CATEGORY_LABEL: Record<string, string> = {
-  WEB_CMS: 'Web & CMS',
-  DEVELOPER_TOOLS: 'Developer Tools',
-  MONITORING: 'Monitoring',
-  AUTOMATION: 'Automation',
-  BOTS: 'Bots',
-  DATABASES: 'Databases',
-};
-
-const ICONS: readonly IconName[] = [
-  'globe', 'db', 'folder', 'term', 'chart', 'card',
-  'rocket', 'shield', 'restart', 'box', 'bolt', 'bot',
-  'mon', 'flow', 'code', 'doc',
-];
-
-/** A product may carry an icon the interface does not know. It still gets one. */
-const iconOf = (name: string): IconName => (ICONS.includes(name as IconName) ? (name as IconName) : 'box');
-
-/**
- * Money is an integer number of cents. It is formatted with integer maths, so
- * the amount on the screen is exactly the amount the server charges.
- */
-function money(amount: number, currency: string): string {
-  const units = Math.trunc(amount / 100);
-  const cents = Math.abs(amount % 100).toString().padStart(2, '0');
-  const value = `${units}.${cents}`;
-  return currency === 'EUR' ? `€${value}` : `${value} ${currency}`;
-}
-
-const periodSuffix = (period: string) => (period === 'MONTHLY' ? '/mo' : period === 'YEARLY' ? '/yr' : '');
-
-const memLabel = (mb: number) => (mb < 1024 ? `${mb} MB` : `${Math.round((mb / 1024) * 10) / 10} GB`);
-
-/** The deploy page that exists is /app/deploy/:slug. */
-const deployPath = (slug: string) => `/app/deploy/${encodeURIComponent(slug)}`;
 
 /** Flat tiles for the three products the section puts on top. */
 const POP = [
@@ -77,14 +39,13 @@ function Amount({ product, className, suffixClass = 'opacity-70' }: { product: C
   if (!product.price) return <span className={cn('font-mono text-ink3', className)}>Not priced</span>;
   return (
     <span className={className}>
-      {money(product.price.amount, product.price.currency)}
+      {formatPrice(product.price.amount, product.price.currency)}
       <span className={suffixClass}>{periodSuffix(product.price.period)}</span>
     </span>
   );
 }
 
 export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) => void }) {
-  const { user } = useSession();
   const [q, setQ] = useState('');
   const state = useAsync<{ products: CatalogProduct[] }>((signal) =>
     get<{ products: CatalogProduct[] }>('/catalog/products', undefined, signal),
@@ -96,9 +57,9 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
   const list = useMemo(
     () =>
       products.filter((product) => {
-        if (cat !== 'All' && product.category !== CATEGORY_CODE[cat]) return false;
+        if (cat !== 'All' && product.category !== categoryCode(cat)) return false;
         if (!needle) return true;
-        const label = CATEGORY_LABEL[product.category] ?? product.category;
+        const label = categoryLabel(product.category);
         return `${product.name} ${label} ${product.description}`.toLowerCase().includes(needle);
       }),
     [products, cat, needle],
@@ -110,9 +71,6 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
     () => [...products].sort((a, b) => Number(b.deployable) - Number(a.deployable)).slice(0, 3),
     [products],
   );
-
-  /** A visitor without a session is sent to the login with the same path. */
-  const href = (slug: string) => (user ? deployPath(slug) : `/login?next=${encodeURIComponent(deployPath(slug))}`);
 
   const loading = state.loading && !state.error;
   const failed = Boolean(state.error);
@@ -140,14 +98,14 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
                 const deployable = product.deployable && Boolean(product.price);
                 return (
                   <Reveal key={product.slug} delay={i * 60} className={cn('group grid min-h-[250px] w-[82vw] max-w-[360px] shrink-0 snap-start content-between gap-8 rounded-[28px] p-6 sm:w-auto sm:max-w-none sm:min-h-[270px]', tone.card)}>
-                    <div className="flex items-start justify-between"><AppMark icon={iconOf(product.icon)} size={52} tone={tone.mark} /><span className="font-mono text-[12px] uppercase tracking-[0.1em] opacity-60">Popular</span></div>
+                    <div className="flex items-start justify-between"><AppMark icon={productIcon(product.icon)} size={52} tone={tone.mark} /><span className="font-mono text-[12px] uppercase tracking-[0.1em] opacity-60">Popular</span></div>
                     <div>
                       <p className="text-[clamp(34px,3.4vw,46px)] font-extrabold leading-none tracking-[-0.06em]">{product.name}</p>
                       <p className="mt-2 max-w-[22em] opacity-70">{product.description}</p>
                       <div className="mt-5 flex items-center justify-between gap-3">
                         <Amount product={product} className="font-mono text-[15px]" />
                         {deployable ? (
-                          <Link to={href(product.slug)} className={cn('inline-flex h-11 items-center gap-1.5 rounded-full px-5 text-[14.5px] font-bold transition-transform duration-[180ms] group-hover:translate-x-0.5', tone.cta)}>Deploy<Icon name="arrowUR" size={15} /></Link>
+                          <Link to={productPath(product.slug)} className={cn('inline-flex h-11 items-center gap-1.5 rounded-full px-5 text-[14.5px] font-bold transition-transform duration-[180ms] group-hover:translate-x-0.5', tone.cta)}>Deploy<Icon name="arrowUR" size={15} /></Link>
                         ) : (
                           <span className={cn('inline-flex h-11 items-center rounded-full px-5 text-[13.5px] font-bold', tone.muted)}>Not available yet</span>
                         )}
@@ -194,8 +152,8 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
               const body = (
                 <>
                   <div className="flex items-center gap-3">
-                    <AppMark icon={iconOf(product.icon)} size={46} />
-                    <div className="min-w-0"><h3 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.035em]">{product.name}</h3><span className="font-mono text-[12px] text-ink3">{CATEGORY_LABEL[product.category] ?? product.category}</span></div>
+                    <AppMark icon={productIcon(product.icon)} size={46} />
+                    <div className="min-w-0"><h3 className="truncate text-[18px] font-extrabold leading-tight tracking-[-0.035em]">{product.name}</h3><span className="font-mono text-[12px] text-ink3">{categoryLabel(product.category)}</span></div>
                   </div>
                   <p className="text-[14.5px] text-ink2">{product.description}</p>
                   <div className="flex items-end justify-between gap-3">
@@ -221,7 +179,7 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
               }
 
               return (
-                <Link key={product.slug} to={href(product.slug)} className="group grid content-between gap-5 rounded-[24px] bg-s1 p-5 outline-none transition-colors duration-[180ms] hover:bg-s2 focus-visible:ring-2 focus-visible:ring-acc active:scale-[0.99]">
+                <Link key={product.slug} to={productPath(product.slug)} className="group grid content-between gap-5 rounded-[24px] bg-s1 p-5 outline-none transition-colors duration-[180ms] hover:bg-s2 focus-visible:ring-2 focus-visible:ring-acc active:scale-[0.99]">
                   {body}
                 </Link>
               );

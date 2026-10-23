@@ -28,6 +28,11 @@ const AppTickets = lazy(() => import('./app/Tickets'));
 const AppTicketDetail = lazy(() => import('./app/TicketDetail'));
 const AppSettings = lazy(() => import('./app/Settings'));
 
+// The page of a product and the catalog are public: a visitor reads them
+// without an account and only the deploy action asks for one.
+const ProductPage = lazy(() => import('./app/ProductPage'));
+const CatalogIndex = lazy(() => import('./app/ProductPage').then((m) => ({ default: m.CatalogIndex })));
+
 const AdminOverview = lazy(() => import('./admin/Overview'));
 const AdminCustomers = lazy(() => import('./admin/Customers'));
 const AdminCustomerDetail = lazy(() => import('./admin/CustomerDetail'));
@@ -80,6 +85,8 @@ const ROUTES: RouteDef[] = [
   { pattern: '/verify-email', component: VerifyEmail, title: 'Verify email' },
   { pattern: '/docs', component: Docs, title: 'Documentation' },
   { pattern: '/status', component: Status, title: 'Service status' },
+  { pattern: '/apps', component: CatalogIndex, title: 'Catalog' },
+  { pattern: '/apps/:slug', component: ProductPage, title: 'Product' },
   { pattern: '/deploy/:slug', component: DeployRedirect, title: 'Deploy' },
 
   { pattern: '/app', component: AppOverview, title: 'Overview', area: 'customer', exact: true },

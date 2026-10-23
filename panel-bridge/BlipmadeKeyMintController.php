@@ -104,8 +104,9 @@ class BlipmadeKeyMintController extends Controller
         }
 
         $hasMemo = Schema::hasColumn('api_keys', 'memo');
-        $this->revokePreviousKey($user, $hasMemo);
 
+        // The new key is made first and the old one is dropped afterwards. A failure while the
+        // key is made would then leave the account with the key it had, instead of without any.
         $token = $user->createToken(self::MEMO, $ips);
 
         if ($hasMemo) {
@@ -113,6 +114,8 @@ class BlipmadeKeyMintController extends Controller
             // It is written here as well, so the next mint finds this key by its description.
             $token->accessToken->forceFill(['memo' => self::MEMO])->save();
         }
+
+        $this->revokePreviousKey($user, $hasMemo, (int) $token->accessToken->id);
 
         // plainTextToken is only the secret part of the key; the usable bearer key is the
         // identifier plus the secret. The identifier starts with "ptlc_", which is what
@@ -134,16 +137,19 @@ class BlipmadeKeyMintController extends Controller
     }
 
     /**
-     * Revokes the previous key of this account, so one account never keeps more than one live key.
+     * Revokes the previous keys of this account, so one account never keeps more than one live key.
      *
      * The description of a key lives in the "memo" column on the panels that keep it, and only
      * the key with the same description is dropped. A panel without that column keeps no
      * description at all, so every key of the account is dropped instead: the bridge is the
      * only issuer of keys for these accounts.
+     *
+     * The key that was just made is never one of the keys that are dropped.
      */
-    private function revokePreviousKey(User $user, bool $hasMemo): void
+    private function revokePreviousKey(User $user, bool $hasMemo, int $keepId): void
     {
-        $tokens = $user->tokens();
+        $tokens = $user->tokens()->where('id', '!=', $keepId);
+
         if ($hasMemo) {
             $tokens->where('memo', self::MEMO)->delete();
 

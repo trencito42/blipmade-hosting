@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../icons';
-import { get, type Instance } from '../lib/api';
+import { get, type CatalogProduct, type Instance } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, StatusPill, TextInput } from '../ui-app';
-import { deployPath, useDeployEntry } from '../lib/pricing';
+import { catalogPath, formatPrice, periodLabel, productIcon, productPath } from '../lib/pricing';
 
 /**
  * Instance list. Filters are applied to the real list returned by
@@ -27,14 +27,80 @@ function limitsOf(instance: Instance): string {
   return `${fmtRam(instance.ram)} · ${instance.cpu} vCPU · ${instance.disk} GB disk`;
 }
 
+/**
+ * The state of a customer without instances. It is not a dead end: it shows
+ * what can be deployed right now, so the customer picks a product instead of
+ * being sent to one by surprise.
+ */
+function NoInstances() {
+  const catalog = useAsync<{ products: CatalogProduct[] }>(
+    (signal) => get<{ products: CatalogProduct[] }>('/catalog/products', undefined, signal),
+    [],
+  );
+
+  // Only the products the platform can really deliver are worth offering.
+  const deployable = useMemo(
+    () => (catalog.data?.products ?? []).filter((product) => product.deployable && product.visible),
+    [catalog.data],
+  );
+
+  return (
+    <div className="grid gap-4">
+      <EmptyState
+        title="You have no apps or databases yet."
+        description="Pick one of the products below. You choose the resources on the next screen and the server sets the price."
+      />
+
+      {catalog.loading ? (
+        <LoadingBlock rows={2} label="Loading the catalog" />
+      ) : catalog.error ? (
+        <ErrorState
+          title="The catalog could not be loaded"
+          message={catalog.error.message}
+          onRetry={catalog.reload}
+        />
+      ) : deployable.length === 0 ? (
+        <EmptyState
+          title="Nothing can be deployed right now."
+          description="The catalog is empty at the moment. Please check back later."
+        />
+      ) : (
+        <ul className="grid gap-2.5">
+          {deployable.map((product) => (
+            <li
+              key={product.slug}
+              className="grid gap-3 rounded-2xl bg-s2 p-4 sm:flex sm:items-center sm:gap-4"
+            >
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <span className="grid size-11 shrink-0 place-items-center rounded-[28%] bg-s3 text-acc">
+                  <Icon name={productIcon(product.icon)} size={20} />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{product.name}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-ink2">{product.description}</p>
+                  <p className="mt-1 font-mono text-[13px] text-ink3">
+                    {product.price
+                      ? `From ${formatPrice(product.price.amount, product.price.currency)} ${periodLabel(product.price.period)}`
+                      : 'Not priced yet'}
+                  </p>
+                </div>
+              </div>
+              <Link to={productPath(product.slug)} className={`${primaryLink} w-full shrink-0 sm:w-auto`}>
+                Deploy
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function Instances() {
   const { data, loading, error, reload } = useAsync(
     (signal) => get<{ instances: Instance[] }>('/instances', undefined, signal),
     [],
   );
-
-  // The deploy button only points at a product the platform can really order.
-  const { slug: deploySlug, loading: deployLoading } = useDeployEntry();
 
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
@@ -66,20 +132,12 @@ export default function Instances() {
           <h2 className="text-[19px] font-extrabold tracking-[-0.035em] text-ink">Instances</h2>
           <p className="text-[13.5px] text-ink3">Your apps and databases, with the limits you bought.</p>
         </div>
-        {deploySlug ? (
-          <Link to={deployPath(deploySlug)} className={primaryLink}>
-            <Icon name="rocket" size={16} />
-            Deploy new
-          </Link>
-        ) : (
-          <span
-            aria-disabled="true"
-            className="inline-flex h-11 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink3"
-          >
-            <Icon name="rocket" size={16} />
-            {deployLoading ? 'Checking the catalog…' : 'No app is ready to order yet'}
-          </span>
-        )}
+        {/* The catalog, not a product picked for the customer: the choice
+            belongs to the customer. */}
+        <Link to={catalogPath()} className={primaryLink}>
+          <Icon name="rocket" size={16} />
+          Deploy new
+        </Link>
       </div>
 
       <div className="grid gap-3">
@@ -124,21 +182,7 @@ export default function Instances() {
       ) : error ? (
         <ErrorState title="We could not load your instances" message={error.message} onRetry={reload} />
       ) : instances.length === 0 ? (
-        <EmptyState
-          title="No instances yet. Pick an app."
-          description="Deploy an app or database and it runs on the resources you choose."
-          action={
-            deploySlug ? (
-              <Link to={deployPath(deploySlug)} className={primaryLink}>
-                Deploy an app
-              </Link>
-            ) : (
-              <Link to="/#apps" className={primaryLink}>
-                Browse the catalog
-              </Link>
-            )
-          }
-        />
+        <NoInstances />
       ) : filtered.length === 0 ? (
         <EmptyState
           title="No instances match your filters."

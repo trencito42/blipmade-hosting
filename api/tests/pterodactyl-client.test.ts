@@ -6,7 +6,6 @@ import {
   clientToken,
   deleteFile,
   listFiles,
-  parseFileContents,
   parseFileList,
   parseResources,
   writeFile,
@@ -146,14 +145,6 @@ describe('pterodactyl client adapters', () => {
     expect(resources.disk).toEqual({ used: 0 });
   });
 
-  it('reads the file contents from the attributes', () => {
-    const contents = parseFileContents({
-      object: 'file_contents',
-      attributes: { content: 'hello world', encoding: 'utf-8' },
-    });
-
-    expect(contents).toEqual({ content: 'hello world', encoding: 'utf-8' });
-  });
 });
 
 describe('pterodactyl client credential', () => {

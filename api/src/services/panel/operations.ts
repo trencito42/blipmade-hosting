@@ -1,7 +1,7 @@
 import { prisma } from '../../db.js';
 import { notFound, unavailable } from '../../lib/errors.js';
 import * as client from '../pterodactyl/client.js';
-import { resolveCustomerCredential } from './credentials.js';
+import { renewCustomerCredential, resolveCustomerCredential } from './credentials.js';
 
 /**
  * The operations a customer can run on their own server.
@@ -62,6 +62,37 @@ export async function customerToken(instance: OwnedInstance): Promise<string> {
   return client.clientToken(credential.token);
 }
 
+/** True when the panel refused the key of the customer. */
+function isUnauthenticated(error: unknown): boolean {
+  return error instanceof client.ClientApiError && error.status === 401;
+}
+
+/**
+ * Runs an operation on the panel with the key of the customer.
+ *
+ * A key that the panel does not know any more answers 401. That happens when
+ * the key was revoked on the panel, for instance because another one was
+ * issued for the same account. A new key is asked for and the operation runs a
+ * second time, so a customer is never stuck because a key was revoked.
+ */
+async function call<T>(instance: OwnedInstance, token: string, run: (token: string) => Promise<T>): Promise<T> {
+  try {
+    return await run(token);
+  } catch (error) {
+    if (!isUnauthenticated(error)) throw error;
+
+    const fresh = await renewCustomerCredential(instance.userId);
+    try {
+      return await run(fresh);
+    } catch (retryError) {
+      if (isUnauthenticated(retryError)) {
+        throw unavailable('The panel refused this operation for this server.');
+      }
+      throw retryError;
+    }
+  }
+}
+
 /** The identifier of the server on the panel. */
 function serverUuid(instance: OwnedInstance): string {
   if (!instance.pterodactylUuid) throw unavailable('This instance is not deployed yet.');
@@ -71,59 +102,59 @@ function serverUuid(instance: OwnedInstance): string {
 // --- state and metrics ----------------------------------------------------
 
 export async function serverInfo(token: string, instance: OwnedInstance) {
-  return client.getServer(token, serverUuid(instance));
+  return call(instance, token, (t) => client.getServer(t, serverUuid(instance)));
 }
 
 export async function resources(token: string, instance: OwnedInstance) {
-  return client.getResources(token, serverUuid(instance));
+  return call(instance, token, (t) => client.getResources(t, serverUuid(instance)));
 }
 
 export async function activity(token: string, instance: OwnedInstance) {
-  return client.listActivity(token, serverUuid(instance));
+  return call(instance, token, (t) => client.listActivity(t, serverUuid(instance)));
 }
 
 // --- power and console ----------------------------------------------------
 
 export async function power(token: string, instance: OwnedInstance, signal: 'start' | 'stop' | 'restart' | 'kill') {
-  return client.sendPower(token, serverUuid(instance), signal);
+  return call(instance, token, (t) => client.sendPower(t, serverUuid(instance), signal));
 }
 
 export async function command(token: string, instance: OwnedInstance, value: string) {
-  return client.sendCommand(token, serverUuid(instance), value);
+  return call(instance, token, (t) => client.sendCommand(t, serverUuid(instance), value));
 }
 
 export async function consoleCredentials(token: string, instance: OwnedInstance) {
-  return client.consoleWebsocket(token, serverUuid(instance));
+  return call(instance, token, (t) => client.consoleWebsocket(t, serverUuid(instance)));
 }
 
 // --- files ----------------------------------------------------------------
 
 export async function listFiles(token: string, instance: OwnedInstance, path: string) {
-  return client.listFiles(token, serverUuid(instance), path);
+  return call(instance, token, (t) => client.listFiles(t, serverUuid(instance), path));
 }
 
 export async function readFile(token: string, instance: OwnedInstance, path: string) {
-  return client.readFile(token, serverUuid(instance), path);
+  return call(instance, token, (t) => client.readFile(t, serverUuid(instance), path));
 }
 
 export async function writeFile(token: string, instance: OwnedInstance, path: string, content: string) {
-  return client.writeFile(token, serverUuid(instance), path, content);
+  return call(instance, token, (t) => client.writeFile(t, serverUuid(instance), path, content));
 }
 
 export async function deleteFile(token: string, instance: OwnedInstance, path: string) {
-  return client.deleteFile(token, serverUuid(instance), path);
+  return call(instance, token, (t) => client.deleteFile(t, serverUuid(instance), path));
 }
 
 export async function renameFile(token: string, instance: OwnedInstance, path: string, to: string) {
-  return client.renameFile(token, serverUuid(instance), path, to);
+  return call(instance, token, (t) => client.renameFile(t, serverUuid(instance), path, to));
 }
 
 export async function moveFile(token: string, instance: OwnedInstance, path: string, to: string) {
-  return client.moveFile(token, serverUuid(instance), path, to);
+  return call(instance, token, (t) => client.moveFile(t, serverUuid(instance), path, to));
 }
 
 export async function copyFile(token: string, instance: OwnedInstance, path: string, to: string) {
-  return client.copyFile(token, serverUuid(instance), path, to);
+  return call(instance, token, (t) => client.copyFile(t, serverUuid(instance), path, to));
 }
 
 export async function uploadFile(
@@ -133,29 +164,29 @@ export async function uploadFile(
   filename: string,
   content: Buffer,
 ) {
-  return client.uploadFile(token, serverUuid(instance), directory, filename, content);
+  return call(instance, token, (t) => client.uploadFile(t, serverUuid(instance), directory, filename, content));
 }
 
 export async function downloadFile(token: string, instance: OwnedInstance, path: string) {
-  return client.downloadFile(token, serverUuid(instance), path);
+  return call(instance, token, (t) => client.downloadFile(t, serverUuid(instance), path));
 }
 
-export async function compressFiles(token: string, instance: OwnedInstance, paths: string[], format: 'tar' | 'zip') {
-  return client.compressFiles(token, serverUuid(instance), paths, format);
+export async function compressFiles(token: string, instance: OwnedInstance, paths: string[]) {
+  return call(instance, token, (t) => client.compressFiles(t, serverUuid(instance), paths));
 }
 
-export async function decompressArchive(token: string, instance: OwnedInstance, path: string, format: 'tar' | 'zip') {
-  return client.decompressArchive(token, serverUuid(instance), path, format);
+export async function decompressArchive(token: string, instance: OwnedInstance, path: string) {
+  return call(instance, token, (t) => client.decompressArchive(t, serverUuid(instance), path));
 }
 
 export async function chmodFile(token: string, instance: OwnedInstance, path: string, mode: number) {
-  return client.chmodFile(token, serverUuid(instance), path, mode);
+  return call(instance, token, (t) => client.chmodFile(t, serverUuid(instance), path, mode));
 }
 
 // --- databases ------------------------------------------------------------
 
 export async function databases(token: string, instance: OwnedInstance) {
-  return client.listDatabases(token, serverUuid(instance));
+  return call(instance, token, (t) => client.listDatabases(t, serverUuid(instance)));
 }
 
 export async function createDatabase(
@@ -163,103 +194,119 @@ export async function createDatabase(
   instance: OwnedInstance,
   payload: { database: string; username: string; password: string; remote: string },
 ) {
-  return client.createDatabase(token, serverUuid(instance), payload);
+  return call(instance, token, (t) => client.createDatabase(t, serverUuid(instance), payload));
 }
 
+/**
+ * Changes the password of a database.
+ *
+ * The panel offers one change for a database: a new password. The name and
+ * the list of hosts that may connect are kept by the panel and cannot be
+ * changed by the customer.
+ */
 export async function updateDatabase(
   token: string,
   instance: OwnedInstance,
-  id: number,
-  payload: { password?: string; remote?: string },
+  id: string,
+  payload: { password?: string },
 ) {
-  return client.updateDatabase(token, serverUuid(instance), id, payload);
+  return call(instance, token, (t) => client.rotateDatabasePassword(t, serverUuid(instance), id));
 }
 
-export async function deleteDatabase(token: string, instance: OwnedInstance, id: number) {
-  return client.deleteDatabase(token, serverUuid(instance), id);
+export async function deleteDatabase(token: string, instance: OwnedInstance, id: string) {
+  return call(instance, token, (t) => client.deleteDatabase(t, serverUuid(instance), id));
 }
 
-export async function databaseCredentials(token: string, instance: OwnedInstance, id: number) {
-  return client.databaseCredentials(token, serverUuid(instance), id);
+export async function databaseCredentials(token: string, instance: OwnedInstance, id: string) {
+  return call(instance, token, (t) => client.databaseCredentials(t, serverUuid(instance), id));
 }
 
 // --- backups --------------------------------------------------------------
 
 export async function backups(token: string, instance: OwnedInstance) {
-  return client.listBackups(token, serverUuid(instance));
+  return call(instance, token, (t) => client.listBackups(t, serverUuid(instance)));
 }
 
 export async function createBackup(token: string, instance: OwnedInstance, payload: { name: string; locked: boolean }) {
-  return client.createBackup(token, serverUuid(instance), payload);
+  return call(instance, token, (t) => client.createBackup(t, serverUuid(instance), payload));
 }
 
 export async function downloadBackup(token: string, instance: OwnedInstance, id: string) {
-  return client.downloadBackup(token, serverUuid(instance), id);
+  return call(instance, token, (t) => client.downloadBackup(t, serverUuid(instance), id));
 }
 
 export async function restoreBackup(token: string, instance: OwnedInstance, id: string) {
-  return client.restoreBackup(token, serverUuid(instance), id);
+  return call(instance, token, (t) => client.restoreBackup(t, serverUuid(instance), id));
 }
 
 export async function deleteBackup(token: string, instance: OwnedInstance, id: string) {
-  return client.deleteBackup(token, serverUuid(instance), id);
+  return call(instance, token, (t) => client.deleteBackup(t, serverUuid(instance), id));
 }
 
 // --- network --------------------------------------------------------------
 
 export async function allocations(token: string, instance: OwnedInstance) {
-  return client.listAllocations(token, serverUuid(instance));
+  return call(instance, token, (t) => client.listAllocations(t, serverUuid(instance)));
 }
 
 export async function setPrimaryAllocation(token: string, instance: OwnedInstance, id: number) {
-  return client.updateAllocation(token, serverUuid(instance), id, { is_default: true });
+  return call(instance, token, (t) => client.setPrimaryAllocation(t, serverUuid(instance), id));
 }
 
-export async function createAllocation(
-  token: string,
-  instance: OwnedInstance,
-  payload: { ip: string; port: number; alias?: string },
-) {
-  return client.createAllocation(token, serverUuid(instance), payload);
+/**
+ * Adds an address to the server. The panel picks the address itself, so the
+ * customer does not choose an address and a port.
+ */
+export async function createAllocation(token: string, instance: OwnedInstance) {
+  return call(instance, token, (t) => client.createAllocation(t, serverUuid(instance)));
+}
+
+/** Changes the label of an address. */
+export async function updateAllocation(token: string, instance: OwnedInstance, id: number, notes: string) {
+  return call(instance, token, (t) => client.updateAllocation(t, serverUuid(instance), id, { notes }));
 }
 
 export async function deleteAllocation(token: string, instance: OwnedInstance, id: number) {
-  return client.deleteAllocation(token, serverUuid(instance), id);
+  return call(instance, token, (t) => client.deleteAllocation(t, serverUuid(instance), id));
 }
 
 // --- settings -------------------------------------------------------------
 
 export async function renameServer(token: string, instance: OwnedInstance, payload: { name: string; description?: string }) {
-  return client.renameServer(token, serverUuid(instance), payload);
+  return call(instance, token, (t) => client.renameServer(t, serverUuid(instance), payload));
 }
 
 export async function reinstallServer(token: string, instance: OwnedInstance) {
-  return client.reinstallServer(token, serverUuid(instance));
+  return call(instance, token, (t) => client.reinstallServer(t, serverUuid(instance)));
 }
 
 // --- schedules ------------------------------------------------------------
 
 export async function schedules(token: string, instance: OwnedInstance) {
-  return client.listSchedules(token, serverUuid(instance));
+  return call(instance, token, (t) => client.listSchedules(t, serverUuid(instance)));
 }
 
-export async function createSchedule(token: string, instance: OwnedInstance, payload: Record<string, unknown>) {
-  return client.createSchedule(token, serverUuid(instance), payload);
+export async function createSchedule(
+  token: string,
+  instance: OwnedInstance,
+  payload: { name: string; cron: string; action: string; active: boolean; payload: Record<string, unknown> },
+) {
+  return call(instance, token, (t) => client.createSchedule(t, serverUuid(instance), payload));
 }
 
 export async function updateSchedule(
   token: string,
   instance: OwnedInstance,
   id: number,
-  payload: Record<string, unknown>,
+  payload: { name?: string; cron?: string; active?: boolean; payload?: Record<string, unknown> },
 ) {
-  return client.updateSchedule(token, serverUuid(instance), id, payload);
+  return call(instance, token, (t) => client.updateSchedule(t, serverUuid(instance), id, payload));
 }
 
 export async function deleteSchedule(token: string, instance: OwnedInstance, id: number) {
-  return client.deleteSchedule(token, serverUuid(instance), id);
+  return call(instance, token, (t) => client.deleteSchedule(t, serverUuid(instance), id));
 }
 
 export async function runSchedule(token: string, instance: OwnedInstance, id: number) {
-  return client.runSchedule(token, serverUuid(instance), id);
+  return call(instance, token, (t) => client.runSchedule(t, serverUuid(instance), id));
 }

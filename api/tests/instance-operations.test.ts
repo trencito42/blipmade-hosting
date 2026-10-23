@@ -92,7 +92,9 @@ function panelAnswer(url: string): Response {
     });
   }
   if (url.includes('/files/contents')) {
-    return json({ object: 'file_contents', attributes: { content: 'hello world', encoding: 'utf-8' } });
+    // The panel answers with the content of the file as it is, not with an
+    // object around it.
+    return new Response('hello world', { status: 200, headers: { 'Content-Type': 'text/plain' } });
   }
   if (url.includes('/backups')) {
     return json({

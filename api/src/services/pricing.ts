@@ -281,7 +281,14 @@ export interface QuoteResult {
   discount: number;
   total: number;
   currency: string;
-  promotion: { code: string; valid: boolean; reason?: string };
+  /**
+   * The promotion of the quote.
+   *
+   * It is null when the customer did not type a code. A code that was typed
+   * and is not valid comes back with the reason, so a screen never shows an
+   * error for a field that was left empty.
+   */
+  promotion: { code: string; valid: boolean; reason?: string } | null;
   promotionRecord: { id: string; code: string; type: 'PERCENT' | 'FIXED'; value: number } | null;
 }
 
@@ -316,7 +323,9 @@ export async function buildQuote(
     discount,
     total: Math.max(0, subtotal - discount),
     currency,
-    promotion: { code: resolved.code, valid: resolved.valid, ...(resolved.reason ? { reason: resolved.reason } : {}) },
+    promotion: resolved.code
+      ? { code: resolved.code, valid: resolved.valid, ...(resolved.reason ? { reason: resolved.reason } : {}) }
+      : null,
     promotionRecord,
   };
 }

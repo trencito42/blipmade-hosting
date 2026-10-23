@@ -15,7 +15,6 @@ import { ApiError, api, del, get, post, put, readCookie, type Instance } from '.
 
 export type PowerSignal = 'start' | 'stop' | 'restart' | 'kill';
 
-export type ArchiveFormat = 'tar' | 'zip';
 
 export type ScheduleAction = 'power' | 'command' | 'backup';
 
@@ -67,7 +66,8 @@ export interface InstanceFile {
 }
 
 export interface InstanceDatabase {
-  id: number;
+  /** The panel identifies a database with a hash id, not with a number. */
+  id: string;
   name: string;
   username: string;
   host: string;
@@ -322,11 +322,15 @@ export async function uploadFile(
 export const downloadFile = (id: string, path: string) =>
   downloadBlob(`/instances/${id}/files/download`, { path });
 
-export const compressFiles = (id: string, paths: string[], format: ArchiveFormat) =>
-  post<{ compressed: boolean }>(`/instances/${id}/files/compress`, { paths, format });
+/**
+ * The node decides the format of the archive and reads the format of an
+ * archive out of the file itself, so neither call names one.
+ */
+export const compressFiles = (id: string, paths: string[]) =>
+  post<{ compressed: boolean; archive: string }>(`/instances/${id}/files/compress`, { paths });
 
-export const decompressArchive = (id: string, path: string, format: ArchiveFormat) =>
-  post<{ decompressed: boolean }>(`/instances/${id}/files/decompress`, { path, format });
+export const decompressArchive = (id: string, path: string) =>
+  post<{ decompressed: boolean }>(`/instances/${id}/files/decompress`, { path });
 
 /** The same two operations under the names the file manager uses. */
 export const archiveFiles = compressFiles;
@@ -348,18 +352,18 @@ export const createDatabase = (
 
 export const updateDatabase = (
   id: string,
-  databaseId: number,
+  databaseId: string,
   body: { password?: string; remote?: string },
 ) => patch<{ updated: boolean }>(`/instances/${id}/databases/${databaseId}`, body);
 
-export const deleteDatabase = (id: string, databaseId: number) =>
+export const deleteDatabase = (id: string, databaseId: string) =>
   del<void>(`/instances/${id}/databases/${databaseId}`);
 
 /**
  * The credentials of a database. The password is only in this answer, and the
  * call is written to the audit log.
  */
-export const getDatabaseCredentials = (id: string, databaseId: number) =>
+export const getDatabaseCredentials = (id: string, databaseId: string) =>
   get<{ credentials: DatabaseCredentials }>(`/instances/${id}/databases/${databaseId}/credentials`);
 
 // --- backups ---------------------------------------------------------------

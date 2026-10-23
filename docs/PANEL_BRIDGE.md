@@ -122,9 +122,9 @@ The bridge is installed **on the panel host** (VM 100), as root.
 
 1. Copy the directory `panel-bridge/` of this repository to the panel host.
 
-2. Run the installer. It detects the panel directory, copies the controller and the configuration,
-   registers the route, adds the variables to the `.env` of the panel, clears the caches of the
-   panel and prints the secret:
+2. Run the installer. It detects the panel directory and its layout, copies the controller and the
+   configuration, registers the route, adds the variables to the `.env` of the panel, clears the
+   caches of the panel and prints the secret:
 
    ```bash
    cd panel-bridge
@@ -132,9 +132,20 @@ The bridge is installed **on the panel host** (VM 100), as root.
    ```
 
    The first argument is the panel directory (default `/var/www/pterodactyl`, also read from
-   `PANEL_DIR`), the second is the public address of the Blipmade server, which goes into the
-   list of allowed addresses. The script may be run again at any time: it never overwrites an
-   existing secret and it never deletes a file.
+   `PANEL_DIR`), the second is the address of the Blipmade server, which goes into the list of
+   allowed addresses. The script may be run again at any time: it never overwrites an existing
+   secret and it never deletes a file.
+
+   **The two layouts.** Pterodactyl 1.11 and newer split the api routes into
+   `routes/api-client.php` and `routes/api-application.php`, and every one of those files sits behind
+   a middleware that asks for a session or for an API key. The bridge carries its own signature, so
+   it must not sit behind any of them. The installer therefore registers a small service provider
+   (`app/Providers/BlipmadeBridgeServiceProvider.php`) and adds it to the list of providers in
+   `config/app.php`. A panel that still keeps its api routes in `routes/api.php` gets the route
+   appended to that file instead. The installer prints which of the two it did.
+
+   The caches of the panel are cleared **as the owner of the panel**, so the web server can write
+   them again afterwards.
 
 3. Put the two lines that the installer printed into the `.env` of Blipmade
    (`/opt/blipmade/.env` on the control plane host):
@@ -151,29 +162,44 @@ The bridge is installed **on the panel host** (VM 100), as root.
    docker compose -f compose.yml -f compose.api.yml -f compose.web.yml restart api worker
    ```
 
+5. Check that the route is there:
+
+   ```bash
+   cd /var/www/pterodactyl && sudo -u www-data php artisan route:list | grep keymint
+   ```
+
 ---
 
 ## The removal
 
-1. Remove the route from `routes/api.php` of the panel. It is the block that starts with the
-   marker `// Blipmade panel bridge` and ends with the name of the route:
+1. Remove the route. On a panel with the provider, that means removing the line
+   `Pterodactyl\Providers\BlipmadeBridgeServiceProvider::class,` from the list of providers in
+   `config/app.php`:
 
    ```bash
    cd /var/www/pterodactyl
+   sed -i '/BlipmadeBridgeServiceProvider::class,/d' config/app.php
+   ```
+
+   On a panel with `routes/api.php`, it means removing the block that starts with the marker
+   `// Blipmade panel bridge` and ends with the name of the route:
+
+   ```bash
    sed -i '/\/\/ Blipmade panel bridge/,/api\.blipmade\.keymint/d' routes/api.php
    ```
 
-2. Delete the two files of the bridge:
+2. Delete the files of the bridge:
 
    ```bash
    rm -f app/Http/Controllers/BlipmadeKeyMintController.php
+   rm -f app/Providers/BlipmadeBridgeServiceProvider.php
    rm -f config/blipmade_bridge.php
    ```
 
-3. Clear the caches of the panel:
+3. Clear the caches of the panel, as the owner of the panel:
 
    ```bash
-   php artisan optimize:clear
+   sudo -u www-data php artisan optimize:clear
    ```
 
 4. Remove `PANEL_KEYMINT_URL` and `PANEL_KEYMINT_SECRET` from the `.env` of Blipmade and restart
@@ -240,8 +266,8 @@ curl -sS -X POST "$PANEL_KEYMINT_URL" \
 | `404` `not_found` | the account of the customer does not exist on the panel yet, or it is a root administrator. | The account is created when the customer is provisioned. Until then there is nothing to sign a key for. The `external_id` of the customer has to be set on the panel account: `blipmade_acc_<the id of the customer>`. |
 | `503` `disabled` | the bridge is switched off. | `BLIPMADE_KEYMINT_SECRET` is missing or shorter than 32 characters, or `BLIPMADE_KEYMINT_ALLOWED_IPS` is empty on the panel. Set both and run `php artisan optimize:clear` on the panel. |
 | `429` | the throttle spoke. | More than 30 requests in a minute. The backend asks for a key once per customer and then keeps it, so this does not happen in normal operation. |
-| `404` on the address itself | the route is not registered. | Check that the block `// Blipmade panel bridge` is in `routes/api.php` of the panel and that `php artisan optimize:clear` was run. |
-| the key works, but the panel refuses it with `403` | the key was made for a different account, or the address is not in the list. | The list of allowed addresses must name the public address of the Blipmade server, and the key must have been made for the account of that customer. |
+| `404` on the address itself | the route is not registered. | On a panel with the provider, check that `config/app.php` carries the line `Pterodactyl\Providers\BlipmadeBridgeServiceProvider::class,` and that `php artisan optimize:clear` was run. On a panel with `routes/api.php`, check that the block `// Blipmade panel bridge` is in that file. |
+| the key works, but the panel refuses it with `403` | the key was made for a different account, or the address is not in the list. | The list of allowed addresses must name the address of the Blipmade server, and the key must have been made for the account of that customer. The address the panel sees is the one the container of the API connects from, so it is the address of the host, not the one of the container. |
 
 The refusals are written to the log of the panel, with the reason and never with the secret:
 

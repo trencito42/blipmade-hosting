@@ -186,7 +186,11 @@ export interface Quote {
   discount: number;
   total: number;
   currency: string;
-  promotion?: { code: string; valid: boolean; reason?: string };
+  /**
+   * The promotion of the quote. It is null when the customer did not type a
+   * code: an empty field is not a wrong code, so it never carries an error.
+   */
+  promotion: { code: string; valid: boolean; reason?: string } | null;
 }
 
 export interface OrderItem {

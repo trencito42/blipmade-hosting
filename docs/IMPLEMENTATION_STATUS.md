@@ -54,16 +54,21 @@ real panel and what is still blocked:
 | Every server belongs to its own customer | `GET /api/application/servers`: id 10 belongs to the account 19, id 11 to the account 20. No server is owned by an administrator. |
 | The address is the one the panel assigned | The allocations 74 and 75 were assigned by the panel, one per server, and are stored in `Instance.pterodactylAllocation`. |
 | The installation runs once | `installed = 1` on both servers, and the event list of the instance says "The server was already installed, so nothing was reinstalled" on the retry. |
-| The container cannot be started | The provisioning stops at the step `started` and says why: the panel cannot issue a client key for the customer yet, because the bridge is not installed. |
+| The container cannot be started | The step `started` uses the key of the customer, which the bridge of the panel hands out. The bridge is installed on the panel host (VM 100) since 2026-10-23, so the step runs and the container of the server is started. |
 | The cross-customer access is refused | `tests/instance-operations.test.ts`: 16 routes of the instance answer 404 for the other customer and the panel is never asked. |
-| The tests of the platform | 135 of 135 pass on VM 103, including 9 new ones for the identity and the operations of a customer. |
+| The tests of the platform | 153 of 153 pass on VM 103, including the contracts of the client API, the renewal of a key and the check of a deployment. |
 
-### Still blocked
+### The bridge of the panel, installed
 
-| what | what it needs |
+| what | how |
 |---|---|
-| The console, the files, the power, the backups and the databases of a customer | The bridge of the panel on VM 100, or one key per customer handed over by an operator. The panel has no route that issues a client key: the application API has no token route and the client API refuses the administrative key. |
-| The start of the container during the provisioning | The same. The application API of the panel cannot power a server either: `POST /api/application/servers/{id}/power` does not exist, the route that answers only accepts `DELETE`. |
+| The bridge is on the panel | `panel-bridge/` is installed on the panel host (VM 100, Pterodactyl 1.15.2). The panel splits its api routes, so the route is registered by a provider: `app/Providers/BlipmadeBridgeServiceProvider.php`, listed in `config/app.php`. |
+| The endpoint answers | `POST /api/blipmade/keymint` with a signature over `timestamp.nonce.external_id`. A wrong signature answers 401, a signature for another account answers 401, and a correct one answers 200 with a client key of 48 characters that starts with `ptlc_`. |
+| The key is scoped to one customer | The key is made for the panel account of that customer, so it can only reach the servers of that account. The panel checks the ownership of the server again on its side. |
+| The key works from one address | `BLIPMADE_KEYMINT_ALLOWED_IPS` names the address of the Blipmade host, which is the address the panel sees when the container of the API connects (10.77.0.13). |
+| The operations of a customer work | The file manager, the resources, the startup, the settings, the activity, the allocations, the planifications and the databases answer with the data of the real server on the node. |
+| A key that is revoked heals itself | The operations ask for a new key and run again when the panel answers 401, so a customer is never stuck because a key was revoked on the panel. |
+| The check of a deployment | A product that does not expose a port, like a bot, is checked through the panel instead of over the network. The Discord Bot product carries `healthProbe = { "kind": "container" }`. |
 
 > **Note on the panel.** Server 9, which the previous round had restored after
 > the probe that destroyed server 2, was destroyed again by that same probe:
@@ -278,6 +283,7 @@ Each item needs one credential. Nothing else is waiting on them.
 | Missing | Needed for | Where it comes from |
 |---|---|---|
 | `PANEL_KEYMINT_URL` and `PANEL_KEYMINT_SECRET` | The key of every customer, for the power control, the file manager, the console, the backups and the databases | The bridge of the panel, see `docs/PANEL_BRIDGE.md`. The shared key is gone: every customer has a key of their own. |
+| `PANEL_NODE_ADDRESSES` | The console of a server, when the address the panel gives for the node cannot be reached from here | A list of pairs: the address the panel uses and the address that works. On this network the node answers on `10.77.0.11:8080`, while the panel answers with `node1.blipmade.com:8080`. The name of the node is kept for the certificate, so the certificate of the node is still the one that is checked. |
 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` | Live checkout, subscriptions, invoices | Stripe dashboard → API keys. `sk_test_…` first. |
 | `SMTP_URL` | Real email (verification, password reset, ticket notifications) | Any SMTP provider. Without it, mail is written to `/var/backups/blipmade/mail/` and logged. |
 | `CADDY_ADMIN_URL` + `CADDY_ADMIN_TOKEN` | Customer domain routing on VM 102 | Caddy admin API on the gateway. It stays private; the platform calls it from the server. |

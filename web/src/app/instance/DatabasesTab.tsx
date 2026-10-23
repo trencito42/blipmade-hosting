@@ -38,8 +38,8 @@ export default function DatabasesTab({ instance }: TabProps) {
   const [form, setForm] = useState({ database: '', username: '', password: '', remote: '' });
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [credentials, setCredentials] = useState<{ id: number; label: string; text: string } | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null);
+  const [credentials, setCredentials] = useState<{ id: string; label: string; text: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const rows = databases.data?.databases ?? [];
 
@@ -64,7 +64,7 @@ export default function DatabasesTab({ instance }: TabProps) {
     }
   };
 
-  const showCredentials = async (id: number, name: string) => {
+  const showCredentials = async (id: string, name: string) => {
     try {
       const answer = await getDatabaseCredentials(instance.id, id);
       const c = answer.credentials;
@@ -78,7 +78,7 @@ export default function DatabasesTab({ instance }: TabProps) {
     }
   };
 
-  const changePassword = async (id: number) => {
+  const changePassword = async (id: string) => {
     const password = window.prompt('The new password of the database.');
     if (!password) return;
     try {
@@ -90,7 +90,7 @@ export default function DatabasesTab({ instance }: TabProps) {
     }
   };
 
-  const remove = async (id: number) => {
+  const remove = async (id: string) => {
     try {
       await deleteDatabase(instance.id, id);
       push('The database was deleted.', 'ok');
