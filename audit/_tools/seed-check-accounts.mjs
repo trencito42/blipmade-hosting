@@ -37,37 +37,17 @@ const PRODUCTS = [
 ];
 
 for (const product of PRODUCTS) {
+  const { baseAmount, ...fields } = product;
+  // The price rows are the same for every product. On the update path the old
+  // rows are removed first; on the create path "deleteMany" is not a valid
+  // argument, so the two paths use two different shapes.
+  const priceCreate = [{ period: 'MONTHLY', baseAmount, ramPerGb: 60, cpuPerUnit: 40, diskPerGb: 2, currency: 'EUR', active: true }];
   const existing = await prisma.product.findUnique({ where: { slug: product.slug } });
   if (existing) {
-    await prisma.product.update({
-      where: { id: existing.id },
-      data: { ...product, visible: true, prices: { deleteMany: {}, create: [{ period: 'MONTHLY', baseAmount: product.baseAmount, ramPerGb: 60, cpuPerUnit: 40, diskPerGb: 2, currency: 'EUR', active: true }] } },
-    });
+    await prisma.product.update({ where: { id: existing.id }, data: { ...fields, visible: true, prices: { deleteMany: {}, create: priceCreate } } });
     continue;
   }
-  await prisma.product.create({
-    data: {
-      slug: product.slug,
-      name: product.name,
-      category: product.category,
-      description: product.description,
-      icon: product.icon,
-      minRam: product.minRam,
-      minCpu: product.minCpu,
-      minDisk: product.minDisk,
-      defaultRam: product.defaultRam,
-      defaultCpu: product.defaultCpu,
-      defaultDisk: product.defaultDisk,
-      maxRam: product.maxRam,
-      maxCpu: product.maxCpu,
-      maxDisk: product.maxDisk,
-      visible: true,
-      deployable: product.deployable,
-      eggId: product.eggId,
-      sortOrder: product.sortOrder,
-      prices: { create: [{ period: 'MONTHLY', baseAmount: product.baseAmount, ramPerGb: 60, cpuPerUnit: 40, diskPerGb: 2, currency: 'EUR', active: true }] },
-    },
-  });
+  await prisma.product.create({ data: { ...fields, visible: true, prices: { create: priceCreate } } });
 }
 
 const passwordHash = await hashPassword(PASSWORD);

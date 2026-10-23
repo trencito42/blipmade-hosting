@@ -13,6 +13,7 @@ const bool = (fallback: boolean) =>
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(3100),
+  LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(10),
   WORKER_HEALTH_PORT: z.coerce.number().default(3101),
   HOST: z.string().default('0.0.0.0'),
 
@@ -130,6 +131,10 @@ export const env = {
       : raw.COOKIE_SECURE === 'false'
         ? false
         : raw.APP_ORIGIN.startsWith('https://'),
+  // The limit of the sign-in attempts. It is configurable because an
+  // environment that shares one address (a test stack, an office) needs a
+  // different limit than one where every customer has its own address.
+  loginRateLimitMax: raw.LOGIN_RATE_LIMIT_MAX,
   stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   /**
    * The origin every outward link is built from, without a trailing slash.

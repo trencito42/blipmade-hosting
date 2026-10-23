@@ -23,9 +23,24 @@ fi
 # The compose network hostnames only resolve inside the containers.
 HOST_URL="${DATABASE_URL/@postgres:/@localhost:}"
 HOST_URL="${HOST_URL/@redis:/@localhost:}"
-TEST_URL="$(echo "$HOST_URL" | sed -E 's#/([^/?]+)$#/blipmade_test#')"
 
-if [[ "$TEST_URL" != *"/blipmade_test" ]]; then
+# The name of the database the suite runs against. The default is the shared
+# test database. A second name lets the suite run while another process is
+# using the shared one, which is what the auditors need: the fixtures of the
+# suite and the fixtures of an audit must not land in the same tables.
+#
+# The name must end with "_test", so the suite can never be pointed at the
+# live database.
+TEST_DB_NAME="${TEST_DB_NAME:-blipmade_test}"
+
+if [[ "$TEST_DB_NAME" != *_test ]]; then
+  echo "The test database name must end with _test. Refusing to run." >&2
+  exit 1
+fi
+
+TEST_URL="${HOST_URL%/*}/$TEST_DB_NAME"
+
+if [[ "$TEST_URL" != *"/$TEST_DB_NAME" ]]; then
   echo "Could not derive the test database URL from DATABASE_URL." >&2
   exit 1
 fi

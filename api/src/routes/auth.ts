@@ -221,7 +221,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/auth/login', {
-    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: env.loginRateLimitMax, timeWindow: '15 minutes' } },
     preHandler: loginGuard,
     handler: async (request: FastifyRequest, reply) => {
       const body = loginSchema.parse(request.body);
