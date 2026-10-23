@@ -48,12 +48,17 @@ export default function Settings() {
 
   useEffect(() => {
     if (!state.data?.settings) return;
-    const loaded = Object.entries(state.data.settings).map(([key, value], index) => ({
-      id: index + 1,
-      key,
-      valueText: toText(value),
-      original: value,
-    }));
+    // The keys that start with "internal." belong to the platform itself: the
+    // counter of the order numbers lives there. They are not a setting a
+    // person edits, so they are not shown.
+    const loaded = Object.entries(state.data.settings)
+      .filter(([key]) => !key.startsWith('internal.'))
+      .map(([key, value], index) => ({
+        id: index + 1,
+        key,
+        valueText: toText(value),
+        original: value,
+      }));
     setRows(loaded);
     setNextId(loaded.length + 1);
   }, [state.data]);

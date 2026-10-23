@@ -219,7 +219,10 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
           <div className="max-w-xl">
             <Eyebrow>Founding users offer</Eyebrow>
             <h3 className="mt-3 text-[clamp(26px,3vw,36px)] font-extrabold leading-none tracking-[-0.05em]">Your first deployment, for less.</h3>
-            <p className="mt-2 text-ink2">Get 50% off your first month. Available for the first 50 eligible customers.</p>
+            <p className="mt-2 text-ink2">
+              A promotion code lowers the price of the order you are about to place. The amount, the limit of the campaign
+              and the number of accounts that can use the code are shown before you pay.
+            </p>
           </div>
           <Button to="/login" icon="arrowUR">Claim at checkout</Button>
         </Reveal>

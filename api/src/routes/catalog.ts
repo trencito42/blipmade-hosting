@@ -173,7 +173,10 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         .object({ items: z.array(quoteItemSchema).min(1, 'Choose at least one app.'), promotionCode: z.string().trim().optional() })
         .parse(request.body);
 
-      const quote = await buildQuote(body.items, body.promotionCode);
+      // The customer who is signed in is known here, so the limit of a
+      // campaign per account is checked while the quote is made. A code that
+      // the customer has already used is refused here, not later at the order.
+      const quote = await buildQuote(body.items, body.promotionCode, request.user?.id ?? null);
       return {
         items: quote.items.map((item) => ({
           productSlug: item.productSlug,

@@ -16,6 +16,7 @@ import {
 } from '../services/panel/credentials.js';
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
 import { env } from '../env.js';
 
 const money = (amount: number) => amount / 100;
@@ -363,6 +364,47 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * called: a second call finds the order already refunded and stops, so the
    * customer is never charged back twice.
    */
+  app.post('/admin/instances/reconcile-prices', { preHandler: requirePermission('pricing.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+
+    // The price of an instance is the price of the configuration it runs. The
+    // reconciliation recomputes it and writes the difference to the journal.
+    const result = await reconcileInstancePrices({ actorId: actor.id, actorEmail: actor.email });
+
+    return {
+      checked: result.checked,
+      corrected: result.corrected,
+      differences: result.differences.slice(0, 50),
+    };
+  });
+
+  app.post('/admin/invoices/:id/confirm-collection', { preHandler: requirePermission('orders.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z
+      .object({ reference: z.string().trim().min(1).max(200) })
+      .parse(request.body ?? {});
+
+    // A collection that was made outside the provider is confirmed here, and
+    // only here the invoice becomes paid and the period moves.
+    const invoice = await confirmLocalCollection(id, {
+      reference: body.reference,
+      actorId: actor.id,
+      actorEmail: actor.email,
+    });
+
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'invoice.collection_confirmed',
+      targetType: 'invoice',
+      targetId: invoice.invoiceId,
+      meta: { reference: body.reference },
+    });
+
+    return { invoice };
+  });
+
   app.post('/admin/orders/:id/refund', { preHandler: requirePermission('orders.write') }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
@@ -754,6 +796,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         type: promotion.type.toLowerCase(),
         value: promotion.value,
         maxRedemptions: promotion.maxRedemptions,
+        // How many times one account may use the code. Null means no limit.
+        maxPerUser: promotion.maxPerUser,
         usedCount: promotion.usedCount,
         active: promotion.active,
         startsAt: promotion.startsAt,
@@ -772,6 +816,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         type: z.enum(['PERCENT', 'FIXED']),
         value: z.number().int().min(0),
         maxRedemptions: z.number().int().min(1).nullable().optional(),
+        // How many times one account may use the code. A positive whole
+        // number, or nothing at all for a code without a limit per account.
+        maxPerUser: z.number().int().min(1).nullable().optional(),
         startsAt: z.string().datetime().nullable().optional(),
         endsAt: z.string().datetime().nullable().optional(),
         active: z.boolean().default(true),
@@ -779,6 +826,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       .parse(request.body);
 
     if (body.type === 'PERCENT' && body.value > 10_000) throw badRequest('A percentage promotion cannot exceed 100%.');
+    // A fixed-amount campaign carries a cap: the amount it takes off one
+    // order, which is the most it may ever take. Without an amount it would
+    // take the whole order and the campaign would promise nothing.
+    if (body.type === 'FIXED' && body.value < 1) {
+      throw badRequest('A fixed-amount promotion needs an amount: the most it may take off one order.', {
+        value: 'Give the amount the code takes off one order.',
+      });
+    }
     const existing = await prisma.promotion.findUnique({ where: { code: body.code } });
     if (existing) throw conflict('A promotion with this code already exists.');
 
@@ -788,6 +843,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         type: body.type,
         value: body.value,
         maxRedemptions: body.maxRedemptions ?? null,
+        maxPerUser: body.maxPerUser ?? null,
         startsAt: body.startsAt ? new Date(body.startsAt) : null,
         endsAt: body.endsAt ? new Date(body.endsAt) : null,
         active: body.active,
@@ -796,6 +852,35 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'promotion.created', targetType: 'promotion', targetId: promotion.id, meta: { code: promotion.code }, ip: request.ip });
     return reply.code(201).send({ promotion });
+  });
+
+  app.patch('/admin/promotions/:id', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z
+      .object({
+        // A positive whole number, or nothing at all to clear the limit.
+        maxPerUser: z.number().int().min(1).nullable(),
+      })
+      .parse(request.body);
+
+    const promotion = await prisma.promotion.findUnique({ where: { id } });
+    if (!promotion) throw notFound('Promotion not found.');
+
+    const updated = await prisma.promotion.update({
+      where: { id },
+      data: { maxPerUser: body.maxPerUser },
+    });
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'promotion.updated',
+      targetType: 'promotion',
+      targetId: updated.id,
+      meta: { code: updated.code, maxPerUser: updated.maxPerUser },
+      ip: request.ip,
+    });
+    return { promotion: updated };
   });
 
   app.get('/admin/infrastructure', { preHandler: requirePermission('infrastructure.read') }, async () => {
@@ -1133,7 +1218,18 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         ram: server.limits.memory,
         cpu: Math.max(1, Math.round(server.limits.cpu / 100)),
         disk: Math.max(1, Math.round(server.limits.disk / 1024)),
-        price: price?.baseAmount ?? 0,
+        // The price of an instance is the price of the configuration it runs,
+        // not the base price of the product.
+        price:
+          (await configurationPrice(
+            product,
+            {
+              ram: Math.max(1, Math.round(server.limits.memory)),
+              cpu: Math.max(1, Math.round(server.limits.cpu / 100)),
+              disk: Math.max(1, Math.round(server.limits.disk / 1024)),
+            },
+            price?.period ?? 'MONTHLY',
+          )) ?? price?.baseAmount ?? 0,
         currency: price?.currency ?? 'EUR',
         provisioningKey: `import:${server.id}`,
       },

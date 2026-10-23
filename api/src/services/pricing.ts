@@ -2,7 +2,7 @@ import { prisma } from '../db.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { normalizeAmount } from '../lib/money.js';
 import { deploymentAvailability, unavailableMessage } from './availability.js';
-import type { BillingPeriod, Product, ProductOption, ProductPrice } from '@prisma/client';
+import type { BillingPeriod, Prisma, Product, ProductOption, ProductPrice } from '@prisma/client';
 
 export interface ResourceConfig {
   ram: number;
@@ -205,6 +205,23 @@ export async function priceItems(
 export const PROMOTION_RESERVATION_MS = 48 * 60 * 60 * 1000;
 
 /**
+ * The redemptions that hold a campaign slot right now: the paid orders and
+ * the reservations of the orders that are still awaiting payment and have not
+ * expired yet.
+ *
+ * The rule lives here so the resolution of a code and the reservation of a
+ * slot always count the same redemptions.
+ */
+function effectiveRedemptions(cutoff: Date): Prisma.PromotionRedemptionWhereInput {
+  return {
+    OR: [
+      { order: { status: { in: ['PAID', 'FULFILLED'] } } },
+      { order: { status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gte: cutoff } } },
+    ],
+  };
+}
+
+/**
  * Counts the redemptions that currently consume a campaign: the paid orders
  * and the reservations of orders that are still awaiting payment and have not
  * expired yet.
@@ -218,10 +235,7 @@ export async function countEffectiveRedemptions(
     where: {
       promotionId,
       ...(userId ? { userId } : {}),
-      OR: [
-        { order: { status: { in: ['PAID', 'FULFILLED'] } } },
-        { order: { status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gte: cutoff } } },
-      ],
+      ...effectiveRedemptions(cutoff),
     },
   });
 }
@@ -259,6 +273,12 @@ export async function resolvePromotion(
  * Reserves a promotion for an order. The reservation is what holds the slot
  * while the customer pays; it becomes a redemption when the payment lands and
  * it is released when the order is cancelled.
+ *
+ * The reservation is atomic. The row of the campaign is locked for the
+ * transaction, so two orders that arrive at the same moment are counted one
+ * after the other: the second one sees the slot the first one took and is
+ * refused when the limit is reached. Without the lock both would read the
+ * same count and both would write, and the limit would be exceeded.
  */
 export async function reservePromotion(params: {
   promotionId: string;
@@ -269,52 +289,52 @@ export async function reservePromotion(params: {
   const promotion = await prisma.promotion.findUnique({ where: { id: params.promotionId } });
   if (!promotion) throw badRequest('This code is not valid.');
 
-  await prisma.$transaction(async (tx) => {
-    const existing = await tx.promotionRedemption.findUnique({ where: { orderId: params.orderId } });
-    if (existing) return;
+  await prisma.$transaction(
+    async (tx) => {
+      // The lock of the campaign. Every reservation of this campaign waits
+      // for it, so the count below and the write that follows cannot be
+      // separated by another reservation of the same campaign.
+      await tx.$queryRaw`SELECT "id" FROM "Promotion" WHERE "id" = ${params.promotionId} FOR UPDATE`;
 
-    if (promotion.maxRedemptions !== null) {
+      // The campaign is read again under the lock, so the limits that are
+      // applied are the limits of the campaign as it is right now.
+      const current = await tx.promotion.findUnique({ where: { id: params.promotionId } });
+      if (!current) throw badRequest('This code is not valid.');
+
+      const existing = await tx.promotionRedemption.findUnique({ where: { orderId: params.orderId } });
+      if (existing) return;
+
       const cutoff = new Date(Date.now() - PROMOTION_RESERVATION_MS);
-      const used = await tx.promotionRedemption.count({
-        where: {
-          promotionId: params.promotionId,
-          OR: [
-            { order: { status: { in: ['PAID', 'FULFILLED'] } } },
-            { order: { status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gte: cutoff } } },
-          ],
-        },
-      });
-      if (used >= promotion.maxRedemptions) {
-        throw badRequest('This code has reached its redemption limit.');
+
+      if (current.maxRedemptions !== null) {
+        const used = await tx.promotionRedemption.count({
+          where: { promotionId: params.promotionId, ...effectiveRedemptions(cutoff) },
+        });
+        if (used >= current.maxRedemptions) {
+          throw badRequest('This code has reached its redemption limit.');
+        }
       }
-    }
 
-    if (promotion.maxPerUser !== null) {
-      const cutoff = new Date(Date.now() - PROMOTION_RESERVATION_MS);
-      const usedByUser = await tx.promotionRedemption.count({
-        where: {
+      if (current.maxPerUser !== null) {
+        const usedByUser = await tx.promotionRedemption.count({
+          where: { promotionId: params.promotionId, userId: params.userId, ...effectiveRedemptions(cutoff) },
+        });
+        if (usedByUser >= current.maxPerUser) {
+          throw badRequest('This code has already been used on your account.');
+        }
+      }
+
+      await tx.promotionRedemption.create({
+        data: {
           promotionId: params.promotionId,
           userId: params.userId,
-          OR: [
-            { order: { status: { in: ['PAID', 'FULFILLED'] } } },
-            { order: { status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gte: cutoff } } },
-          ],
+          orderId: params.orderId,
+          amount: params.amount,
         },
       });
-      if (usedByUser >= promotion.maxPerUser) {
-        throw badRequest('This code has already been used on your account.');
-      }
-    }
-
-    await tx.promotionRedemption.create({
-      data: {
-        promotionId: params.promotionId,
-        userId: params.userId,
-        orderId: params.orderId,
-        amount: params.amount,
-      },
-    });
-  });
+    },
+    { timeout: 15_000, maxWait: 15_000 },
+  );
 }
 
 /** Releases the reservation of an order that will never be paid. */
@@ -323,20 +343,54 @@ export async function releasePromotionReservation(orderId: string): Promise<void
 }
 
 /**
+ * The amount of a promotion: what it takes off an order.
+ */
+export interface PromotionAmount {
+  type: 'PERCENT' | 'FIXED';
+  value: number;
+}
+
+/**
+ * The most a promotion may take off a single order.
+ *
+ * Every campaign carries a cap:
+ *
+ *   fixed    the amount the operator set for the campaign is its cap: that is
+ *            what it takes off one order and the most it may ever take
+ *   percent  the campaign has no absolute amount, so the server derives the
+ *            safe bound: the subtotal of the order
+ *
+ * The subtotal is the outer bound of every campaign, so a promotion can
+ * never take more than the order is worth and a total can never be negative.
+ */
+export function promotionCap(subtotal: number, promotion: PromotionAmount | null): number {
+  if (!promotion) return 0;
+  // What the order is worth.
+  const bound = normalizeAmount(subtotal);
+  if (promotion.type === 'FIXED') {
+    // The cap of a fixed-amount campaign is the amount it was created with.
+    return Math.min(bound, normalizeAmount(promotion.value));
+  }
+  return bound;
+}
+
+/**
  * Applies a promotion to a subtotal. Percentages and fixed amounts are both
  * expressed in minor units; a percentage is stored as basis points (1/100 of a
  * percent) so the whole calculation stays in integers.
+ *
+ * The discount is never bigger than the cap of the campaign and never bigger
+ * than the subtotal, so the total of the order can never be negative.
  */
-export function applyPromotion(
-  subtotal: number,
-  promotion: { type: 'PERCENT' | 'FIXED'; value: number } | null,
-): number {
+export function applyPromotion(subtotal: number, promotion: PromotionAmount | null): number {
   if (!promotion) return 0;
+  const cap = promotionCap(subtotal, promotion);
+  if (cap <= 0) return 0;
   if (promotion.type === 'PERCENT') {
     // value is in basis points: 1000 = 10%.
-    return Math.min(subtotal, normalizeAmount((subtotal * promotion.value) / 10_000));
+    return Math.min(cap, normalizeAmount((subtotal * promotion.value) / 10_000));
   }
-  return Math.min(subtotal, normalizeAmount(promotion.value));
+  return Math.min(cap, normalizeAmount(promotion.value));
 }
 
 export interface QuoteResult {
