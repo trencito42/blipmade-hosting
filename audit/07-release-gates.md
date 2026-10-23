@@ -135,7 +135,7 @@
 ### Poarta 7 — Se vinde un produs fără un runtime verificat funcțional → 🔴 RED
 
 **Dovezi**
-- **4 din 5 produse au preț și nu au runtime.** `wordpress`, `code-server`, `uptime-kuma`, `postgresql` au `eggId` NULL, `dockerImage` gol, `startup` `{}`, toate `deployable=false` — dar toate sunt `visible=true` și **au preț activ**, afișat public: 149 / 299 / 149 / 449 EUR pe lună (`audit/04-product-certification.md` §3.2–3.5; live, `GET /api/catalog/products`).
+- **4 din 5 produse au preț și nu au runtime.** `wordpress`, `code-server`, `uptime-kuma`, `postgresql` au `eggId` NULL, `dockerImage` gol, `startup` `{}`, toate `deployable=false` — dar toate sunt `visible=true` și **au preț activ**, afișat public: 149 / 299 / 149 / 449 unități minori pe lună (€1.49 / €2.99 / €1.49 / €4.49) (`audit/04-product-certification.md` §3.2–3.5; live, `GET /api/catalog/products`).
 - **Al cincilea produs nu are un runtime verificat.** `discord-bot` are ou real (egg 15 „node.js generic”), server real și lanț complet de provisionare — dar:
   - **Baza de date platformei spune `ONLINE`, panoul spune că nu rulează.** Pentru instanța `cmvkbgm9h0001r18096ep5jzl`, cu `status = ONLINE` și `provisionStep = activated` în baza de date și un eveniment „Instance is online.” în jurnal:
     ```
@@ -194,7 +194,7 @@
 - `api/tests/pricing.test.ts` — „charges the base amount for the minimum configuration”, „charges extra memory, cpu and storage above the minimum”, „keeps every amount an integer number of minor units”, „rejects a configuration below the product minimum”, „rejects a configuration above the product maximum”, „adds paid options to the total”, „applies a percentage promotion”, „reports an unknown promotion without failing the quote”, „has no promotion at all when no code was typed”, „refuses to quote a product that is not deployable”.
 - `api/tests/catalog.test.ts` — „returns every amount as an integer number of cents”, „shows a product without a price as a null price”.
 - Linia de comandă a checkoutului preia **prețul server-side al comenzii**, nu unul din browser: `api/tests/stripe-origin.test.ts` — „keeps the line items and the metadata of the order”, „creates an order with a server-side price” (`api/tests/webhooks.test.ts`).
-- **Live:** `GET /api/catalog/products` → 149 / 299 / 149 / 149 / 449 EUR, `EUR/MONTHLY`, identice cu `ProductPrice` din bază de date. `api/tests/pricing.test.ts` confirmă că suma e rotunjită la sutimi.
+- **Live:** `GET /api/catalog/products` → 149 / 299 / 149 / 149 / 449 unități minori (€1.49 / €2.99 / €1.49 / €1.49 / €4.49), `EUR/MONTHLY`, identice cu `ProductPrice` din bază de date. `api/tests/pricing.test.ts` confirmă că suma e rotunjită la sutimi.
 - Live: promoțiile **nu sunt consumate înainte de plată** (`webhooks.test.ts` — „does not consume a promotion before the payment”).
 
 **Rezervă declarată:** ecranul de checkout nu a fost randat niciodată cu o sumă, pentru că `POST /api/orders/:id/checkout` răspunde `503`. Verificarea e despre **calculul** prețului, nu despre afișaj. **Observație conexă, tratată la poarta 7:** prețul afișat pentru 4 produse fără runtime nu e greșit ca sumă, dar promite un lucru care nu poate fi livrat.

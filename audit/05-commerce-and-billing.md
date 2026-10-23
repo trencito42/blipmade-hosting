@@ -527,6 +527,8 @@ cmvkn67g90003psd841h9qc3g     512   1    5     149    EUR       (null)          
 
 (`VERIFIED`, DB producție)
 
+> **Unitate.** Coloana `price` este stocată în **unități minori (sutimi)** cu `currency = EUR`: `172` = **€1.72**, `149` = **€1.49**. Valorile de mai jos sunt copia brută a rândurilor, așa cum le stochează baza de date; nu trebuie citite ca euro fără împărțire la 100.
+
 **Același „Browser instance" cu 512 MB / 1 vCPU / 5 GB este stocat la două prețuri diferite: 172 și 149.** Prețul corect pentru configurația 512/1/5, conform motorului, este **172** (149 + 15 + 0 + 8). Instanța a treia (fără `orderId`, creată pentru contul `browser-customer@blipmade.test`) este stocată la **149**, adică la prețul **minimului** produsului (256/1/1).
 
 ### 6.2 Corecția necesară asupra cifrelor din mesajul de coordonare

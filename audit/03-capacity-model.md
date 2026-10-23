@@ -207,7 +207,7 @@ Nu există în sistem nicio preț de piață, niciun preț de concurență, nici
 
 | Câmp | Valoare | Sursă | Clasă |
 |---|---|---|---|
-| `baseAmount` | 149 (EUR/lună, în unități minor) | `ProductPrice` | `VERIFIED` |
+| `baseAmount` | 149 unități minori (= **€1.49**/lună) | `ProductPrice` | `VERIFIED` |
 | `ramPerGb` | 60 | `ProductPrice` | `VERIFIED` |
 | `cpuPerUnit` | 40 | `ProductPrice` | `VERIFIED` |
 | `diskPerGb` | 2 | `ProductPrice` | `VERIFIED` |
@@ -227,17 +227,17 @@ preț = baseAmount
 
 **Observația decisivă: lista de prețuri este liniară în exact resursele care se consumă.** Prin urmare:
 
-| Configurație `discord-bot` | Preț/lună | vCPU | **EUR per vCPU vândut** |
+| Configurație `discord-bot` | Preț/lună (unități minori) | vCPU | **EUR per vCPU vândut** |
 |---|---|---|---|
-| Minim (256 MB / 1 / 1 GB) | 149 | 1 | 149 |
-| Implicit (512 MB / 1 / 5 GB) | 172 | 1 | **172** |
-| 2 GB / 1 / 5 GB | 262 | 1 | **262** |
-| Maxim (4 GB / 4 / 50 GB) | 592 | 4 | 148 |
+| Minim (256 MB / 1 / 1 GB) | 149 (€1.49) | 1 | 1.49 |
+| Implicit (512 MB / 1 / 5 GB) | 172 (€1.72) | 1 | **1.72** |
+| 2 GB / 1 / 5 GB | 262 (€2.62) | 1 | **2.62** |
+| Maxim (4 GB / 4 / 50 GB) | 592 (€5.92) | 4 | 1.48 |
 
-**Concluzie, derivată, nu inventată:** deoarece RAM-ul este abundent (240 de instanțe ar încăpea în RAM) și vCPU-ul este rar (20), **rentabilitatea pe vCPU este maximă la instanțele cu multă memorie și un singur vCPU**. O instanță de 2 GB la 1 vCPU aduce 262 EUR pe un vCPU consumat; o instanță maximă de 4 GB la 4 vCPU aduce 148 EUR pe vCPU. **Mixul optim comercial este „memorie mare, un singur vCPU"** — exact inversul instinctului de „vânză puternică, cu multe vCPU-uri".
+**Concluzie, derivată, nu inventată:** deoarece RAM-ul este abundent (240 de instanțe ar încăpea în RAM) și vCPU-ul este rar (20), **rentabilitatea pe vCPU este maximă la instanțele cu multă memorie și un singur vCPU**. O instanță de 2 GB la 1 vCPU aduce **€2.62** pe un vCPU consumat; o instanță maximă de 4 GB la 4 vCPU aduce **€1.48** pe vCPU. **Mixul optim comercial este „memorie mare, un singur vCPU"** — exact inversul instinctului de „vânză puternică, cu multe vCPU-uri".
 
 Verificarea acestui mix pe nod, la 16 instanțe (numărul sigur), toate la 2 GB / 1 vCPU / 10 GB:
-RAM 32 GiB / 120 GiB ✅ · Disc 160 GiB / 800 GiB ✅ · vCPU 16 / 20 ✅ → 16 × 262 = **4 192 EUR/lună** la nivelul listei de prețuri a platformei.
+RAM 32 GiB / 120 GiB ✅ · Disc 160 GiB / 800 GiB ✅ · vCPU 16 / 20 ✅ → 16 × 262 = 4 192 **unități minori** = **41,92 EUR/lună** la nivelul listei de prețuri a platformei.
 
 > **Limită explicită.** Aceste sume sunt **prețurile pe care platforma le are deja definite în propria listă**, nu o proiecție de piață și nu o recomandare de preț. Cât de mult din această listă poate fi încărcat efectiv pe piață este `UNVERIFIED` — nu există în sistem nicio valoare de concurență, niciun volum de căutare, nici un istoric de vânzări (`0` abonamente, `0` facturi, `0` plăți în baza de date). În plus, `PAYMENTS_ENABLED = false`, deci **astăzi nu se încasează nimic** prin acest canal.
 

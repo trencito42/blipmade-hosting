@@ -239,7 +239,7 @@ components: 10
 | Capability | Class | One-line evidence |
 |---|---|---|
 | Catalogue (public list, prices) | **VERIFIED** | `GET /api/catalog/products` → 5 products, 1 deployable |
-| Pricing (formula, minor units) | **CODE-INSPECTED** | `api/src/services/pricing.ts:48-51`; live prices 149/299/149/149/449 EUR |
+| Pricing (formula, minor units) | **CODE-INSPECTED** | `api/src/services/pricing.ts:48-51`; live prices 149/299/149/149/449 unități minori (€1.49/€2.99/€1.49/€1.49/€4.49) |
 | Promotions | **CODE-INSPECTED** | reserved at order creation, consumed on payment; 0 live rows |
 | Checkout | **CODE-INSPECTED** | `POST /api/orders/:id/checkout` → 503 `payments_unavailable` (`api/src/routes/orders.ts:154`) |
 | Stripe | **CODE-INSPECTED** (off) | `/api/health` → `"stripe": "not_configured"`; all three keys empty |

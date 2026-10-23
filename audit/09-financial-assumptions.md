@@ -59,7 +59,7 @@ Confirmat de trei surse independente care concordă: 255/255 cote live (`05-pric
 
 ### 1.2 O eroare de 100× în `03-capacity-model.md` §2.8
 
-`03-capacity-model.md` scrie: „16 × 262 = **4 192 EUR/lună**". 262 sunt **unități minori** = €2.62, deci `16 × 262 = 4 192 minor units = **€41.92/lună**`. Este exact greșeala de 100× pe care `05-pricing-consistency.md` §0 și `05-commerce-and-billing.md` §0 semnalează pentru celelalte rapoarte — și pe care **modelul meu le folosește, deci le corectez aici explicit**.
+`03-capacity-model.md` §2.8 scria: „16 × 262 = **4 192 EUR/lună**". 262 sunt **unități minori** = €2.62, deci `16 × 262 = 4 192 minor units = **€41.92/lună**`. Este exact greșeala de 100× pe care `05-pricing-consistency.md` §0 și `05-commerce-and-billing.md` §0 semnalează pentru celelalte rapoarte — și pe care **modelul meu le folosește, deci le corectez aici explicit**. **Actualizare:** orchestratorul a corectat deja sursa în `03-capacity-model.md` §2.8 (textul acum spune „4 192 unități minori = 41,92 EUR/lună"); citirea de mai sus rămâne corectă.
 
 Consecință: **plafonul de venit al nodului la lista proprie de prețuri este €23.84–€36.48/lună, nu mii de euro.** Un model care ar folosi „4 192 EUR/lună" ar inversa complet decizia de investiție.
 

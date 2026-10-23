@@ -19,13 +19,15 @@ curl -s https://blipmade.com/api/catalog/products
 
 | slug | name | category | deployable | price (public API) |
 |---|---|---|---|---|
-| `wordpress` | WordPress | WEB_CMS | **false** | 149 EUR / MONTHLY |
-| `code-server` | Code Server | DEVELOPER_TOOLS | **false** | 299 EUR / MONTHLY |
-| `discord-bot` | Discord Bot | BOTS | **true** | 149 EUR / MONTHLY |
-| `uptime-kuma` | Uptime Kuma | MONITORING | **false** | 149 EUR / MONTHLY |
-| `postgresql` | PostgreSQL | DATABASES | **false** | 449 EUR / MONTHLY |
+| `wordpress` | WordPress | WEB_CMS | **false** | 149 unități minori (€1.49) / MONTHLY |
+| `code-server` | Code Server | DEVELOPER_TOOLS | **false** | 299 unități minori (€2.99) / MONTHLY |
+| `discord-bot` | Discord Bot | BOTS | **true** | 149 unități minori (€1.49) / MONTHLY |
+| `uptime-kuma` | Uptime Kuma | MONITORING | **false** | 149 unități minori (€1.49) / MONTHLY |
+| `postgresql` | PostgreSQL | DATABASES | **false** | 449 unități minori (€4.49) / MONTHLY |
 
-`VERIFIED` (interogare SQL pe `Product` pe VM 103 + `GET /api/catalog/products`).
+`VERIFIED` (interogare SQL pe `Product` pe VM 103 + `GET /api/catalog/products`; re-verificat live în această rundă: `wordpress` 149, `code-server` 299, `discord-bot` 149, `uptime-kuma` 149, `postgresql` 449).
+
+> **Atenție la unitate.** API-ul public întoarce `price: { amount: 149, currency: "EUR", period: "MONTHLY" }` — suma este în **unități minori (sutimi)**, nu în euro: `149` = **€1.49**. Câmpul `amount` nu spune unitatea (constatarea B9 din `05-commerce-and-billing.md`). Toate valorile de preț din acest raport sunt date în unități minori, cu echivalentul în euro între paranteză.
 
 Cele patru produse marcate `deployable=false` sunt exact cele patru pe care interfața le etichetează „Coming soon” (`web/src/app/DeployCatalog.tsx:43-49`) și pe care pagina de deploy le refuză explicit („It has not been validated for deployment yet.”, `web/src/app/Deploy.tsx:304-307`). **Marketingul și baza de date sunt de acord.** `CODE-INSPECTED` pentru UI, `VERIFIED` pentru date.
 
@@ -176,10 +178,10 @@ Cele 8 rânduri `order.paid` sunt **toate** din 2026-10-22 între 20:03 și 20:1
 
 | Produs | Motivul exact |
 |---|---|
-| `wordpress` | **Nu există produsul**: `eggId` NULL, `dockerImage` gol, `startup` `{}` ⇒ `NOT-IMPLEMENTED`. Panoul nu are niciun egg WordPress (16 egg-uri, niciunul de CMS). Server-side, comanda e respinsă cu 400 („WordPress is not available to order yet.”, `api/src/services/pricing.ts:104`), deci nici măcar nu se poate „cumpăra și pierde” — dar **nici prețul afișat nu are acoperire**: clientul vede 149 EUR/lună pentru un serviciu inexistent. |
-| `code-server` | **Nu există produsul**: `eggId` NULL. Pe panou există egg 16 „python generic”, dar **nu există egg code-server** și produsul nu îl referă. Preț 299 EUR/lună fără acoperire. |
-| `uptime-kuma` | **Nu există produsul**: `eggId` NULL. Niciun egg de monitoring pe panou. Preț 149 EUR/lună fără acoperire. |
-| `postgresql` | **Nu există produsul**: `eggId` NULL, niciun egg PostgreSQL pe panou. Preț 449 EUR/lună, `maxDisk=200` GB, `maxRam=16384` MB — și **cu poarta de capacitate a discului defectă**, un server cu 200 GB ar fi acceptat pe un nod cu 800 GB liber fără nicio verificare reală. |
+| `wordpress` | **Nu există produsul**: `eggId` NULL, `dockerImage` gol, `startup` `{}` ⇒ `NOT-IMPLEMENTED`. Panoul nu are niciun egg WordPress (16 egg-uri, niciunul de CMS). Server-side, comanda e respinsă cu 400 („WordPress is not available to order yet.”, `api/src/services/pricing.ts:104`), deci nici măcar nu se poate „cumpăra și pierde” — dar **nici prețul afișat nu are acoperire**: clientul vede €1.49/lună pentru un serviciu inexistent. |
+| `code-server` | **Nu există produsul**: `eggId` NULL. Pe panou există egg 16 „python generic”, dar **nu există egg code-server** și produsul nu îl referă. Preț €2.99/lună fără acoperire. |
+| `uptime-kuma` | **Nu există produsul**: `eggId` NULL. Niciun egg de monitoring pe panou. Preț €1.49/lună fără acoperire. |
+| `postgresql` | **Nu există produsul**: `eggId` NULL, niciun egg PostgreSQL pe panou. Preț €4.49/lună, `maxDisk=200` GB, `maxRam=16384` MB — și **cu poarta de capacitate a discului defectă**, un server cu 200 GB ar fi acceptat pe un nod cu 800 GB liber fără nicio verificare reală. |
 
 Toate patru au `deployable=false` în baza de date, deci sunt **blocate server-side**, nu doar ascunse în interfață. `CODE-INSPECTED` + `VERIFIED`.
 
