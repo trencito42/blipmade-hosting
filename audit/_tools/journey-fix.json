@@ -1,0 +1,346 @@
+[
+  {
+    "step": "J3.4 the price of a configuration",
+    "status": "BROKEN",
+    "detail": "POST /api/catalog/quote answered 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"Memory must be at least 256.\",\"requestId\":\"req-4if\",\"fields\":{\"memory\":\"Minimum is 256.\"}}}",
+    "api": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"Memory must be at least 256.\",\"requestId\":\"req-4if\",\"fields\":{\"memory\":\"Minimum is 256.\"}}}"
+    }
+  },
+  {
+    "step": "J4.3 the payment of an order",
+    "status": "BLOCKED",
+    "detail": "POST /api/orders/cmvkbgm4k0008r1011in2sa3u/checkout (order AWAITING_PAYMENT) answered 503: {\"error\":{\"code\":\"payments_unavailable\",\"message\":\"Payments are not available at the moment: no Stripe key is configured on this environment.\",\"requestId\":\"req-4ih\"}}",
+    "api": {
+      "order": "cmvkbgm4k0008r1011in2sa3u",
+      "orderStatus": "AWAITING_PAYMENT",
+      "status": 503,
+      "body": "{\"error\":{\"code\":\"payments_unavailable\",\"message\":\"Payments are not available at the moment: no Stripe key is configured on this environment.\",\"requestId\":\"req-4ih\"}}"
+    }
+  },
+  {
+    "step": "J5.3 the list of the domains and the address of the instance",
+    "status": "WORKS",
+    "detail": "GET /api/domains → {\"domains\":[]}; GET /api/instances/cmvkbgm9h0001r18096ep5jzl → {\"instance\":{\"id\":\"cmvkbgm9h0001r18096ep5jzl\",\"name\":\"Discord Bot\",\"status\":\"online\",\"product\":{\"id\":\"cmvjyo5z00004dxtlpy0h5smc\",\"slug\":\"discord-bot\",\"name\":\"Discord Bot\",\"category\":\"BOTS\",\"description\":\"Run a Node.js bot around the clock without a home server. Runs on the verified Node.js image.\",\"",
+    "api": {
+      "list": {
+        "status": 200,
+        "body": "{\"domains\":[]}"
+      },
+      "inst": {
+        "status": 200,
+        "body": "{\"instance\":{\"id\":\"cmvkbgm9h0001r18096ep5jzl\",\"name\":\"Discord Bot\",\"status\":\"online\",\"product\":{\"id\":\"cmvjyo5z00004dxtlpy0h5smc\",\"slug\":\"discord-bot\",\"name\":\"Discord Bot\",\"category\":\"BOTS\",\"description\":\"Run a Node.js bot around the clock without a home server. Runs on the verified Node.js image.\",\"icon\":\"bot\",\"eggId\":15,\"eggUuid\":null,\"dockerImage\":\"ghcr.io/ptero-eggs/yolks:nodejs_25\",\"startup\":{\"MAIN_FILE\":\"index.js\"},\"startupCommand\":\"npm run start\",\"minRam\":256,\"minCpu\":1,\"minDisk\":1,\"defaultRam\":512,\"defaultCpu\":1,\"defaultDisk\":5,\"maxRam\":4096,\"maxCpu\":4,\"maxDisk\":50,\"visible\":true,\"deployable\":true,\"healthProbe\":{\"kind\":\"container\"},\"docsUrl\":null,\"sortOrder\":30,\"createdAt\":\"2026-10-22T19:55:54.300Z\",\"updatedAt\":\"2026-10-23T04:15:01.845Z\"},\"ram\":512,\"cpu\":1,\"disk\":5,\"price\":172,\"currency\":\"EUR\",\"url\":null,\"createdAt\":\"2026-10-23T01:53:57.173Z\",\"node\":null,\"subscription\":null},\"events\":[{\"id\":\"cmvkgi2yk001fp001k96bkx7j\",\"type\":\"provisioned\",\"message\":\"Instance is online.\",\"createdAt\":\"2026-10-23T04:15:03.548Z\"},{\"id\":\"cmvkgi2xu001dp001et6v86dk\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"activated\\\".\",\"createdAt\":\"2026-10-23T04:15:03.522Z\"},{\"id\":\"cmvkgi2wy0019p001iurid1nx\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"subscription_linked\\\".\",\"createdAt\":\"2026-10-23T04:15:03.490Z\"},{\"id\":\"cmvkgi2wj0015p001m0ccw8wi\",\"type\":\"provisioning\",\"message\":\"The server is on the node and the panel manages it (state: starting).\",\"createdAt\":\"2026-10-23T04:15:03.475Z\"},{\"id\":\"cmvkgi2pj0013p001zrsqbmc5\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"health_verified\\\".\",\"createdAt\":\"2026-10-23T04:15:03.223Z\"},{\"id\":\"cmvkgi2p4000zp001z7dsm2ah\",\"type\":\"provisioning\",\"message\":\"Container started.\",\"createdAt\":\"2026-10-23T04:15:03.209Z\"},{\"id\":\"cmvkgi28p000np001w2wehtef\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T04:15:02.617Z\"},{\"id\":\"cmvkgi281000fp001ag3axz13\",\"type\":\"provisioning\",\"message\":\"The installation was already requested, skipping it.\",\"createdAt\":\"2026-10-23T04:15:02.593Z\"},{\"id\":\"cmvkgi20i000bp001oj45h0xp\",\"type\":\"provisioning\",\"message\":\"Pterodactyl account ready.\",\"createdAt\":\"2026-10-23T04:15:02.322Z\"},{\"id\":\"cmvkgi1wu0007p001sqvrv9gw\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"pterodactyl_user\\\".\",\"createdAt\":\"2026-10-23T04:15:02.191Z\"},{\"id\":\"cmvkgg0wo003dog01xk4u6zrv\",\"type\":\"failed\",\"message\":\"Provisioning failed at \\\"server_created\\\": Pterodactyl client POST /api/client/servers/ecb75d8a-636a-4dcd-aad7-69f8c5beb7d1/power failed with 401. Unauthenticated.\",\"createdAt\":\"2026-10-23T04:13:27.576Z\"},{\"id\":\"cmvkgg0ro003bog01ztlv3pzo\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T04:13:27.396Z\"},{\"id\":\"cmvkgg0p60037og011tbkfey7\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"installed\\\".\",\"createdAt\":\"2026-10-23T04:13:27.306Z\"},{\"id\":\"cmvkgg0or0033og01mom5dmpf\",\"type\":\"provisioning\",\"message\":\"The server was already installed, so nothing was reinstalled.\",\"createdAt\":\"2026-10-23T04:13:27.292Z\"},{\"id\":\"cmvkgg0od0031og01dnae54f3\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"image_built\\\".\",\"createdAt\":\"2026-10-23T04:13:27.277Z\"},{\"id\":\"cmvkgg0jg002xog01w1jub5fd\",\"type\":\"provisioning\",\"message\":\"Pterodactyl account ready.\",\"createdAt\":\"2026-10-23T04:13:27.100Z\"},{\"id\":\"cmvkgg0gi002vog01nk9ix9oe\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"pterodactyl_user\\\".\",\"createdAt\":\"2026-10-23T04:13:26.994Z\"},{\"id\":\"cmvkgf5it002pog01o3nk5i3j\",\"type\":\"failed\",\"message\":\"Provisioning failed at \\\"server_created\\\": Pterodactyl client POST /api/client/servers/ecb75d8a-636a-4dcd-aad7-69f8c5beb7d1/power failed with 401. Unauthenticated.\",\"createdAt\":\"2026-10-23T04:12:46.901Z\"},{\"id\":\"cmvkgf5dt002nog01ocm7q47z\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T04:12:46.722Z\"},{\"id\":\"cmvkgf5de002jog010gdsu39m\",\"type\":\"provisioning\",\"message\":\"The installation was already requested, skipping it.\",\"createdAt\":\"2026-10-23T04:12:46.706Z\"},{\"id\":\"cmvkgf58r002hog01n653fmrh\",\"type\":\"provisioning\",\"message\":\"Pterodactyl account ready.\",\"createdAt\":\"2026-10-23T04:12:46.539Z\"},{\"id\":\"cmvkgf55y002fog0104pc2bor\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"pterodactyl_user\\\".\",\"createdAt\":\"2026-10-23T04:12:46.438Z\"},{\"id\":\"cmvkgeplv0029og01bofl9f29\",\"type\":\"failed\",\"message\":\"Provisioning failed at \\\"server_created\\\": Pterodactyl client POST /api/client/servers/ecb75d8a-636a-4dcd-aad7-69f8c5beb7d1/power failed with 401. Unauthenticated.\",\"createdAt\":\"2026-10-23T04:12:26.275Z\"},{\"id\":\"cmvkgepgs0027og0165tb37zp\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T04:12:26.093Z\"},{\"id\":\"cmvkgepea0023og0104b0r46i\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"installed\\\".\",\"createdAt\":\"2026-10-23T04:12:26.002Z\"},{\"id\":\"cmvkgepdw001zog01abmaz031\",\"type\":\"provisioning\",\"message\":\"The server was already installed, so nothing was reinstalled.\",\"createdAt\":\"2026-10-23T04:12:25.988Z\"},{\"id\":\"cmvkgepdh001xog01dwckoriw\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"image_built\\\".\",\"createdAt\":\"2026-10-23T04:12:25.973Z\"},{\"id\":\"cmvkgep8k001tog013lvvisxb\",\"type\":\"provisioning\",\"message\":\"Pterodactyl account ready.\",\"createdAt\":\"2026-10-23T04:12:25.796Z\"},{\"id\":\"cmvkgep5n001rog01euj4wcga\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"pterodactyl_user\\\".\",\"createdAt\":\"2026-10-23T04:12:25.691Z\"},{\"id\":\"cmvkgehc0001log01p27zwyo0\",\"type\":\"failed\",\"message\":\"Provisioning failed at \\\"server_created\\\": Pterodactyl client POST /api/client/servers/ecb75d8a-636a-4dcd-aad7-69f8c5beb7d1/power failed with 401. Unauthenticated.\",\"createdAt\":\"2026-10-23T04:12:15.552Z\"},{\"id\":\"cmvkgeh6v001jog01ug88ml5l\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T04:12:15.368Z\"},{\"id\":\"cmvkgeh6g001fog01ov89lawl\",\"type\":\"provisioning\",\"message\":\"The installation was already requested, skipping it.\",\"createdAt\":\"2026-10-23T04:12:15.353Z\"},{\"id\":\"cmvkgeh1q001dog01wfn6n3zq\",\"type\":\"provisioning\",\"message\":\"Pterodactyl account ready.\",\"createdAt\":\"2026-10-23T04:12:15.182Z\"},{\"id\":\"cmvkgegyl001bog01qn16cmbu\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"pterodactyl_user\\\".\",\"createdAt\":\"2026-10-23T04:12:15.069Z\"},{\"id\":\"cmvkgeczj0015og01ovo7d5dr\",\"type\":\"failed\",\"message\":\"Provisioning failed at \\\"server_created\\\": Pterodactyl client POST /api/client/servers/ecb75d8a-636a-4dcd-aad7-69f8c5beb7d1/power failed with 401. Unauthenticated.\",\"createdAt\":\"2026-10-23T04:12:09.919Z\"},{\"id\":\"cmvkgecu00013og01vj72bi1i\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T04:12:09.720Z\"},{\"id\":\"cmvkgecr4000rog01m7nndxip\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"installed\\\".\",\"createdAt\":\"2026-10-23T04:12:09.616Z\"},{\"id\":\"cmvkgecqc000jog017l2ao4h1\",\"type\":\"provisioning\",\"message\":\"The server was already installed, so nothing was reinstalled.\",\"createdAt\":\"2026-10-23T04:12:09.588Z\"},{\"id\":\"cmvkgecpc000fog01alf9xshw\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"image_built\\\".\",\"createdAt\":\"2026-10-23T04:12:09.552Z\"},{\"id\":\"cmvkgecj40009og01069iby7s\",\"type\":\"provisioning\",\"message\":\"Pterodactyl account ready.\",\"createdAt\":\"2026-10-23T04:12:09.328Z\"},{\"id\":\"cmvkgeceo0007og01iy9dtpbr\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"pterodactyl_user\\\".\",\"createdAt\":\"2026-10-23T04:12:09.168Z\"},{\"id\":\"cmvkfz9fk003bny017eghwjb1\",\"type\":\"failed\",\"message\":\"Provisioning failed at \\\"server_created\\\": Pterodactyl client POST /api/client/servers/ecb75d8a-636a-4dcd-aad7-69f8c5beb7d1/power failed with 401. Unauthenticated.\",\"createdAt\":\"2026-10-23T04:00:25.472Z\"},{\"id\":\"cmvkfz9am0039ny01zrv2gx3d\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T04:00:25.294Z\"},{\"id\":\"cmvkfz9a70035ny0152kunzuo\",\"type\":\"provisioning\",\"message\":\"The installation was already requested, skipping it.\",\"createdAt\":\"2026-10-23T04:00:25.280Z\"},{\"id\":\"cmvkfz95i0033ny016cwrr768\",\"type\":\"provisioning\",\"message\":\"Pterodactyl account ready.\",\"createdAt\":\"2026-10-23T04:00:25.111Z\"},{\"id\":\"cmvkfz92k0031ny01bpjcs8f5\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"pterodactyl_user\\\".\",\"createdAt\":\"2026-10-23T04:00:25.005Z\"},{\"id\":\"cmvkfye4o002vny014ftkoww7\",\"type\":\"failed\",\"message\":\"Provisioning failed at \\\"server_created\\\": Pterodactyl client POST /api/client/servers/ecb75d8a-636a-4dcd-aad7-69f8c5beb7d1/power failed with 401. Unauthenticated.\",\"createdAt\":\"2026-10-23T03:59:44.905Z\"},{\"id\":\"cmvkfydzw002tny0182qy1g4n\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"started\\\".\",\"createdAt\":\"2026-10-23T03:59:44.733Z\"},{\"id\":\"cmvkfydxh002pny015mafb7hc\",\"type\":\"provisioning\",\"message\":\"Started at step \\\"installed\\\".\",\"createdAt\":\"2026-10-23T03:59:44.645Z\"},{\"id\":\"cmvkfydx2002lny01ij7jd1iu\",\"type\":\"provisioning\",\"message\":\"The server was already installed, so nothing was reinstalled.\",\"createdAt\":\"2026-10-23T03:59:44.631Z\"}]}"
+      }
+    }
+  },
+  {
+    "step": "J3 the Console tab of the instance",
+    "status": "WORKS",
+    "detail": "the tab opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files D",
+    "alerts": [],
+    "inputs": [
+      {
+        "id": "_r_3_",
+        "type": null,
+        "label": "Command"
+      },
+      {
+        "id": "_r_0_",
+        "type": null,
+        "label": "Instance name"
+      }
+    ],
+    "shot": "journey-j3-instance-console.png"
+  },
+  {
+    "step": "J3 the Files tab of the instance",
+    "status": "WORKS",
+    "detail": "the tab opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files D",
+    "alerts": [],
+    "inputs": [
+      {
+        "id": "",
+        "type": "file",
+        "label": null
+      },
+      {
+        "id": "_r_0_",
+        "type": null,
+        "label": "Instance name"
+      }
+    ],
+    "shot": "journey-j3-instance-files.png"
+  },
+  {
+    "step": "J3 the Network tab of the instance",
+    "status": "WORKS",
+    "detail": "the tab opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files D",
+    "alerts": [],
+    "inputs": [
+      {
+        "id": "_r_0_",
+        "type": null,
+        "label": "Instance name"
+      }
+    ],
+    "shot": "journey-j3-instance-network.png"
+  },
+  {
+    "step": "J3 the Startup tab of the instance",
+    "status": "WORKS",
+    "detail": "the tab opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files D",
+    "alerts": [],
+    "inputs": [
+      {
+        "id": "_r_6_",
+        "type": null,
+        "label": "Docker image"
+      },
+      {
+        "id": "_r_8_",
+        "type": null,
+        "label": "Startup command"
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "",
+        "type": null,
+        "label": null
+      },
+      {
+        "id": "_r_0_",
+        "type": null,
+        "label": "Instance name"
+      }
+    ],
+    "shot": "journey-j3-instance-startup.png"
+  },
+  {
+    "step": "J6.5 the field of the reply",
+    "status": "WORKS",
+    "detail": "the reply form exists (label: \"Your message\"), the buttons are: Send reply",
+    "reply": {
+      "hasTextarea": true,
+      "textareaLabel": "Your message",
+      "hasFile": true,
+      "fileLabel": "Attachment",
+      "note": "Up to 10 MB. Only the file name, size and type are sent with your reply — the file contents are not uploaded from this form.",
+      "sendButtons": [
+        "Send reply"
+      ]
+    },
+    "shot": "journey-j6-reply-form.png"
+  },
+  {
+    "step": "J6.6 the attachment of a file",
+    "status": "PARTIAL",
+    "detail": "the field exists (label \"Attachment\") and the page says: \"Up to 10 MB. Only the file name, size and type are sent with your reply — the file contents are not uploaded from this form.\". The bytes of the file are not sent: only the name, the size and the type.",
+    "reply": {
+      "hasTextarea": true,
+      "textareaLabel": "Your message",
+      "hasFile": true,
+      "fileLabel": "Attachment",
+      "note": "Up to 10 MB. Only the file name, size and type are sent with your reply — the file contents are not uploaded from this form.",
+      "sendButtons": [
+        "Send reply"
+      ]
+    }
+  },
+  {
+    "step": "J1.6 the notice that the address was never verified",
+    "status": "PARTIAL",
+    "detail": "the Settings page says \"Not verified\". The dashboard (/app) says nothing about it.",
+    "shot": "journey-j1-not-verified.png"
+  },
+  {
+    "step": "J1.6b the dashboard of the customer",
+    "status": "NOT-IMPLEMENTED",
+    "detail": "the dashboard says nothing about the address not being verified",
+    "body": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy SERVICES 1 one app or database MONTHLY TOTAL €1.72 / month What your services cost per month NEEDS ATTENTION 0 Everything is running DEPLOY Add a service Choose from the catalog Your services Discord Bot Discord Bot Online PURCHASED LIMITS 512 MB · 1 vCPU · 5 GB disk No public URL yet €1.72 / month Recent activity The latest event of each service. Discord Bot provisioned: Instance is online. 2"
+  },
+  {
+    "step": "J2.1 the catalogue",
+    "status": "WORKS",
+    "detail": "2 product links: /apps/discord-bot, /apps/discord-bot",
+    "catalog": {
+      "slugs": [
+        "/apps/discord-bot",
+        "/apps/discord-bot"
+      ],
+      "names": [
+        "Deploy",
+        "Discord BotBotsRun a Node.js bot around "
+      ],
+      "prices": [
+        "€1.49/mo",
+        "€1.49/mo",
+        "€2.99/mo",
+        "€1.49/mo",
+        "€2.99/mo",
+        "€1.49/mo",
+        "€1.49/mo",
+        "€4.49/mo"
+      ]
+    }
+  },
+  {
+    "step": "J2.2 the price of every product",
+    "status": "WORKS",
+    "detail": "/apps/discord-bot: €1.49 ;; /apps/discord-bot: €1.49",
+    "productPrices": [
+      {
+        "slug": "/apps/discord-bot",
+        "h1": "Discord Bot",
+        "prices": [
+          "€1.49"
+        ],
+        "deployable": true,
+        "body": "blipmade Apps Databases Pricing Docs Status Dashboard Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboa"
+      },
+      {
+        "slug": "/apps/discord-bot",
+        "h1": "Discord Bot",
+        "prices": [
+          "€1.49"
+        ],
+        "deployable": true,
+        "body": "blipmade Apps Databases Pricing Docs Status Dashboard Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboa"
+      }
+    ]
+  }
+]

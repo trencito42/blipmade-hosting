@@ -19,6 +19,8 @@ Gardurile sunt în `web/src/auth-guard.ts` și `web/src/routes.tsx:123-160`.
 | `staff` | `routes.tsx:108-120` | anonim → `/login?next=…`. Clientul (rol `CUSTOMER`) **rămâne pe URL** și vede starea de eroare „Staff access only — Your account does not have permission to open the admin area." `VERIFIED` |
 | `none` | restul | deschis tuturor |
 
+**`/deploy/:slug`** e în categoria „none" dar se comportă ca protejat: `DeployRedirect` (`routes.tsx:70-82`) cere o sesiune ca să poată crea o comandă, deci anonimul ajunge la `/login?next=%2Fapp%2Fdeploy%2Fdiscord-bot`. `VERIFIED`
+
 **Trei observații despre garduri:**
 
 1. **Zona de client nu cere rolul de client.** `area: 'customer'` verifică doar *există o sesiune* (`routes.tsx:97`), nu rolul. Un cont de staff poate deschide `/app`, `/app/instances`, `/app/billing` și vede acolo **contul său de client, gol** — nu o eroare. `VERIFIED` (contul staff a încărcat `/app` cu `GET /api/instances→200`).
@@ -144,13 +146,14 @@ Pagina de coadă de tichete cere și `GET /api/admin/staff`, deși nu afișează
 | intrări de rută (cu `/` și 404) | **35** |
 | URL-uri măsurate | **36** |
 | rute deschise cu succes, autentificat | **36 / 36** |
-| rute deschise cu succes, anonim | **24 / 36** (cele 12 protejate redirecționează corect) |
-| redirecționări corecte la `/login?next=…` | **12 / 12** |
-| redirecționări corecte din `guestOnly` | **2 / 2** |
-| rute de staff blocate corect pentru un client | **13 / 13** |
-| stări de eroare măsurate | **35** (toate) |
-| stări de încărcare măsurate | **35** (toate) |
-| stări goale măsurate | **15** |
+| rute deschise cu succes, anonim | **12 / 36**; celelalte **24** redirecționează corect (23 protejate + `/deploy/:slug`, care cere o sesiune ca să poată crea o comandă) |
+| redirecționări corecte la `/login?next=…` | **24 / 24**, cu `next` url-codat |
+| redirecționări corecte din `guestOnly` | **2 / 2** (clientul → `/app`, staff-ul → `/admin`) |
+| rute de staff blocate corect pentru un client | **13 / 13** („Staff access only") |
+| rute de client **neblocate** pentru un cont de staff | **10 / 10** (vezi §3.3) |
+| stări de eroare măsurate | **36 / 36** |
+| stări de încărcare măsurate | **36 / 36** |
+| stări goale măsurate | **5 / 36** (`/app/domains`, `/app/billing`, `/app/tickets` pentru contul de staff, `/admin/customers/:id`, `/admin/promotions`) |
 | rute de staff fără traseu către o instanță | **1** (`/admin/services`) |
 | apeluri identice repetate pe pagina de pornire | **5 ×** `GET /api/catalog/products` |
 

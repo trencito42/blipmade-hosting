@@ -461,6 +461,33 @@ Testul cerut: poate un client, în primele cincisprezece minute, să facă lucru
 
 ---
 
+## 10. Numărătoarea
+
+| Călătorie | pași | `WORKS` | `PARTIAL` | `BROKEN` | `BLOCKED` | `NOT-IMPLEMENTED` |
+|---|---|---|---|---|---|---|
+| J1 înregistrare → confirmare → prima autentificare | 8 | 5 | 1 | — | 1 | 1 |
+| J2 catalog → produs → preț | 4 | 3 | 1 | — | — | — |
+| J3 configurare → deploy → provisionare → adresă → consolă → fișier → metrici | 11 | 6 | 1 | **1** | 2 | 1 |
+| J4 schimbarea resurselor → preț → plată | 3 | 2 | — | — | 1 | — |
+| J5 domeniu → atașare → verificare | 6 | 3 | — | — | 3 | — |
+| J6 ticket → scriere → urmărire → atașare | 7 | 5 | 1 | — | — | 1 |
+| J7 facturi → reînnoire → plată → anulare | 5 | 2 | 1 | — | 2 | — |
+| J8 profil → email → parolă → sesiuni → deconectare | 5 | 2 | 1 | — | 2 | — |
+| J9 staff: panou → client → instanță → audit → ticket → preț → produs | 10 | 8 | — | — | 2 | — |
+| **total** | **59** | **36** | **6** | **1** | **13** | **3** |
+
+Cele 13 pași `BLOCKED` se împart în:
+- **6** — zidul de plată (`503 payments_unavailable`): J4.3, J5.4, J5.5, J5.6, J7.4, J7.5; plus J9.7b și J9.8b (salvarea prețului și a produsului, care scrie în baza de date);
+- **2** — regula de audit, nu un defect al produsului: J3.5 (deploy-ul creează o comandă și provisionează) și J3.10 (încărcarea unui fișier pe o instanță reală);
+- **2** — scrieri în baza de date: J8.4 (profil, e-mail, parolă) și J9.7b/J9.8b (salvările de staff);
+- **1** — J1.7: transportul de mail e oprit, deci linkul de confirmare nu ajunge;
+- **1** — J8.5: deconectarea de peste tot ar opri și sesiunea auditului;
+- **1** — J3.6: provisionarea nu poate fi observată de la zero fără o comandă nouă.
+
+Singurul pas `BROKEN` este **J3.7 (adresa)**. Singurele trei `NOT-IMPLEMENTED` sunt **J1.6b** (panoul nu avertizează că adresa nu e verificată), **J3.3** (parametrii de pornire nu există în formularul de deploy) și **J6.7** (nu se poate șterge un ticket).
+
+---
+
 ## 11. Fișierele de măsură
 
 | Fișier | Ce conține |

@@ -1,0 +1,817 @@
+[
+  {
+    "journey": "J1",
+    "step": "1.1 the registration form",
+    "status": "WORKS",
+    "detail": "the page renders \"Create your account.\" with 4 fields",
+    "fields": [
+      {
+        "id": "firstName",
+        "name": "firstName",
+        "type": "text",
+        "label": "First name",
+        "placeholder": null
+      },
+      {
+        "id": "lastName",
+        "name": "lastName",
+        "type": "text",
+        "label": "Last name",
+        "placeholder": null
+      },
+      {
+        "id": "email",
+        "name": "email",
+        "type": "email",
+        "label": "Email address",
+        "placeholder": null
+      },
+      {
+        "id": "password",
+        "name": "password",
+        "type": "password",
+        "label": "Password",
+        "placeholder": null
+      }
+    ],
+    "shot": "journey-j1-register.png"
+  },
+  {
+    "journey": "J1",
+    "step": "1.2 the rules of the form",
+    "status": "WORKS",
+    "detail": "the password field is type=password, minLength=-1",
+    "email": "email",
+    "password": "password",
+    "minLength": -1,
+    "required": false
+  },
+  {
+    "journey": "J1",
+    "step": "1.3 the registration is refused for an address that already exists",
+    "status": "WORKS",
+    "detail": "the server answered POST /api/auth/register 409; the page says: We could not create the account. Check the details and try again.",
+    "apiCalls": [
+      {
+        "method": "POST",
+        "path": "/api/auth/register",
+        "status": 409
+      }
+    ],
+    "alert": "We could not create the account. Check the details and try again.",
+    "shot": "journey-j1-register-duplicate.png"
+  },
+  {
+    "journey": "J1",
+    "step": "1.4 the verification page with a token that does not exist",
+    "status": "WORKS",
+    "detail": "the page answers: blipmade ACCOUNT SETUP Confirm your email. This confirmation link is invalid or has expired. Confirmation links can only be used once and stop working after a while. Send yourself ",
+    "shot": "journey-j1-verify-bad-token.png"
+  },
+  {
+    "journey": "J1",
+    "step": "1.5 the first sign-in of an address that was never verified",
+    "status": "PARTIAL",
+    "detail": "the sign-in works and lands on /app; the session says emailVerified=false, so the address was never confirmed",
+    "session": {
+      "id": "cmvkbgm1f0000r101e4xeztm7",
+      "email": "qa.headless.one@example.test",
+      "firstName": "Qa",
+      "lastName": "One",
+      "name": "Qa One",
+      "role": "CUSTOMER",
+      "emailVerified": false,
+      "pterodactylUserId": null,
+      "permissions": []
+    }
+  },
+  {
+    "journey": "J1",
+    "step": "1.6 the warning that the address is not verified",
+    "status": "NOT-IMPLEMENTED",
+    "detail": "nothing on the panel mentions that the address was never verified; the customer never learns that the mail never arrived",
+    "banner": null
+  },
+  {
+    "journey": "J2",
+    "step": "2.1 the catalogue",
+    "status": "WORKS",
+    "detail": "2 products are listed",
+    "products": [
+      {
+        "href": "/apps/discord-bot",
+        "text": "Deploy"
+      },
+      {
+        "href": "/apps/discord-bot",
+        "text": "Discord BotBotsRun a Node.js bot around the clock without a home server. Runs on"
+      }
+    ],
+    "shot": "journey-j2-catalogue.png"
+  },
+  {
+    "journey": "J2",
+    "step": "2.2 the page of a product and its price",
+    "status": "WORKS",
+    "detail": "the price block says: €1.49 | per month",
+    "prices": [
+      "€1.49",
+      "per month"
+    ],
+    "shot": "journey-j2-product.png"
+  },
+  {
+    "journey": "J2",
+    "step": "2.3 the page of a product that cannot be deployed",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards",
+    "shot": "journey-j2-product-not-deployable.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.1 the catalogue of the deployment",
+    "status": "WORKS",
+    "detail": "the page is on /app/deploy",
+    "shot": "journey-j3-deploy-catalogue.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.2 the configuration form",
+    "status": "WORKS",
+    "detail": "0 selects, 0 radios, 11 buttons; the price shown: €1.72 | The price of the smallest configuration is €1.49/mo. The amount above is the price of the configuration you chose.",
+    "form": {
+      "selects": [],
+      "radios": [],
+      "checkboxes": [],
+      "buttons": [
+        "0.3 GB",
+        "0.5 GB",
+        "1 GB",
+        "2 GB",
+        "4 GB",
+        "1",
+        "2",
+        "4",
+        "Review order",
+        "Review order",
+        "More"
+      ],
+      "priceText": [
+        "€1.72",
+        "The price of the smallest configuration is €1.49/mo. The amount above is the price of the configuration you chose."
+      ],
+      "startup": false
+    },
+    "shot": "journey-j3-deploy-form.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.3 the startup parameters",
+    "status": "NOT-IMPLEMENTED",
+    "detail": "the form has no field for the startup parameters, the environment variables or the image: the customer cannot choose how the instance starts",
+    "startup": false
+  },
+  {
+    "journey": "J3",
+    "step": "3.4 the price of a configuration",
+    "status": 403,
+    "detail": "POST /api/catalog/quote answered 403 with {\"error\":{\"code\":\"forbidden\",\"message\":\"Invalid or missing CSRF token. Reload the page and try again.\",\"requestId\":\"req-4g9\"}}",
+    "body": {
+      "error": {
+        "code": "forbidden",
+        "message": "Invalid or missing CSRF token. Reload the page and try again.",
+        "requestId": "req-4g9"
+      }
+    }
+  },
+  {
+    "journey": "J3",
+    "step": "3.4b the deployment itself",
+    "status": "BLOCKED",
+    "detail": "the deployment writes an order and provisions a server on the node; the audit is read-only, so the button was not pressed. The order that is already in the database (AWAITING_PAYMENT, 172 cents) is the proof of the flow."
+  },
+  {
+    "journey": "J3",
+    "step": "3.5 the instance page and the address",
+    "status": "WORKS",
+    "detail": {
+      "address": null,
+      "tabs": [
+        "Start",
+        "Restart",
+        "Stop",
+        "Overview",
+        "Console",
+        "Files",
+        "Databases",
+        "Backups",
+        "Network",
+        "Startup",
+        "Schedules",
+        "Settings",
+        "Activity",
+        "Resources",
+        "Domains",
+        "See the full activity",
+        "Save name",
+        "Cancel instance",
+        "More"
+      ],
+      "addresses": [],
+      "hasConsole": true,
+      "hasFiles": true,
+      "hasMetrics": true
+    },
+    "shot": "journey-j3-instance-detail.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.Console the Console of the instance",
+    "status": "WORKS",
+    "detail": "the tab opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files D",
+    "shot": "journey-j3-instance-Console.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.Files the Files of the instance",
+    "status": "WORKS",
+    "detail": "the tab opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files D",
+    "shot": "journey-j3-instance-Files.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.Startup the Startup of the instance",
+    "status": "WORKS",
+    "detail": "the tab opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files D",
+    "shot": "journey-j3-instance-Startup.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.8 the metrics of the instance",
+    "status": "WORKS",
+    "detail": "the Overview tab shows {\"cpu\":\"PROCESSOR 0% of 1 vCPU UPTIME 0 m Container: offline Allocated resources What the instance may use, against what it uses r\",\"memory\":\"MEMORY 0 B of 512 MB DISK 8.6 KB of 5 GB PROCESSOR 0% of 1 vCPU UPTIME 0 m Container: offline Allocated resources \",\"u",
+    "metrics": {
+      "cpu": "PROCESSOR 0% of 1 vCPU UPTIME 0 m Container: offline Allocated resources What the instance may use, against what it uses r",
+      "memory": "MEMORY 0 B of 512 MB DISK 8.6 KB of 5 GB PROCESSOR 0% of 1 vCPU UPTIME 0 m Container: offline Allocated resources ",
+      "uptime": "UPTIME 0 m Container: offline Allocated resources What the instance may use, against what it uses right now. Memory 0 B o",
+      "container": "CONTAINER STATE offline Network Traffic counted by the panel since the instance started. RECE"
+    },
+    "shot": "journey-j3-instance-overview-metrics.png"
+  },
+  {
+    "journey": "J3",
+    "step": "3.9 the calls of the instance page",
+    "status": "WORKS",
+    "detail": "GET /api/auth/session 200 | GET /api/catalog/products 200 | GET /api/auth/session 200 | GET /api/catalog/products/discord-bot 200 | POST /api/catalog/quote 200 | POST /api/catalog/quote 403 | GET /api/auth/session 200 | GET /api/instances/cmvkbgm9h0001r18096ep5jzl 200 | GET /api/instances/cmvkbgm9h0001r18096ep5jzl/events 200 | GET /api/instances/cmvkbgm9h0001r18096ep5jzl/resources 200 | GET /api/i",
+    "apiOnDetail": [
+      "GET /api/auth/session 200",
+      "GET /api/catalog/products 200",
+      "GET /api/auth/session 200",
+      "GET /api/catalog/products/discord-bot 200",
+      "POST /api/catalog/quote 200",
+      "POST /api/catalog/quote 403",
+      "GET /api/auth/session 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl/events 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl/resources 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl/console 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl/files 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl/startup 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl/events 200",
+      "GET /api/instances/cmvkbgm9h0001r18096ep5jzl/resources 200"
+    ]
+  },
+  {
+    "journey": "J4",
+    "step": "4.1 the change of the resources",
+    "status": "NOT-IMPLEMENTED",
+    "detail": "there is no resize control on the instance page; the buttons are: Start | Restart | Stop | Overview | Console | Files | Databases | Backups | Network | Startup | Schedules | Settings | Activity | Resources | Domains | See the full activity | Save name | Cancel instance | More",
+    "buttons": [
+      "Start",
+      "Restart",
+      "Stop",
+      "Overview",
+      "Console",
+      "Files",
+      "Databases",
+      "Backups",
+      "Network",
+      "Startup",
+      "Schedules",
+      "Settings",
+      "Activity",
+      "Resources",
+      "Domains",
+      "See the full activity",
+      "Save name",
+      "Cancel instance",
+      "More"
+    ]
+  },
+  {
+    "journey": "J4",
+    "step": "4.3 the payment",
+    "status": 403,
+    "detail": "POST /api/orders/:id/checkout answered 403: {\"error\":{\"code\":\"forbidden\",\"message\":\"Invalid or missing CSRF token. Reload the page and try again.\",\"requestId\":\"req-4gq\"}}",
+    "order": "cmvkbgm4k0008r1011in2sa3u",
+    "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Invalid or missing CSRF token. Reload the page and try again.\",\"requestId\":\"req-4gq\"}}"
+  },
+  {
+    "journey": "J5",
+    "step": "5.1 the page of the domains",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Domains Deploy Add a domain Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is ro",
+    "inputs": [
+      {
+        "id": "_r_4_",
+        "placeholder": "app.example.com",
+        "label": "Hostname"
+      }
+    ],
+    "buttons": [
+      "Add domain",
+      "More"
+    ],
+    "shot": "journey-j5-domains.png"
+  },
+  {
+    "journey": "J5",
+    "step": "5.2 the list of the domains of the customer",
+    "status": 200,
+    "detail": "GET /api/domains answered 200: {\"domains\":[]}",
+    "body": "{\"domains\":[]}"
+  },
+  {
+    "journey": "J5",
+    "step": "5.3 the availability of a domain",
+    "status": 404,
+    "detail": "the availability answer is 404: {\"error\":{\"code\":\"not_found\",\"message\":\"No such endpoint.\",\"requestId\":\"req-4gv\"}}",
+    "body": "{\"error\":{\"code\":\"not_found\",\"message\":\"No such endpoint.\",\"requestId\":\"req-4gv\"}}"
+  },
+  {
+    "journey": "J6",
+    "step": "6.1 the list of the tickets",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Your tickets Every conversation with Blipmade support, newest activity first. New ticket SUBJECT NUMBER CATEGORY STAT",
+    "shot": "journey-j6-ticket-list.png"
+  },
+  {
+    "journey": "J6",
+    "step": "6.2 the form of a new ticket",
+    "status": "WORKS",
+    "detail": "the form has 4 fields: ticket-subject (Subject), ticket-category (Category), _r_4_ (Related instance), ticket-message (Message)",
+    "formFields": [
+      {
+        "id": "ticket-subject",
+        "type": null,
+        "label": "Subject"
+      },
+      {
+        "id": "ticket-category",
+        "type": null,
+        "label": "Category"
+      },
+      {
+        "id": "_r_4_",
+        "type": null,
+        "label": "Related instance"
+      },
+      {
+        "id": "ticket-message",
+        "type": null,
+        "label": "Message"
+      }
+    ],
+    "shot": "journey-j6-new-ticket.png"
+  },
+  {
+    "journey": "J6",
+    "step": "6.3 the creation of the ticket",
+    "status": "WORKS",
+    "detail": "the ticket appears in the list of the customer",
+    "shot": "journey-j6-ticket-created.png"
+  },
+  {
+    "journey": "J6",
+    "step": "6.4 the conversation",
+    "status": "WORKS",
+    "detail": "the ticket opens: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Ticket Deploy Audit journey probe 2026-10-23 Ticket #48 · opened 23 Oct 2026, 17:39 OPEN CATEGORY TECHNICAL PRIORITY NORMAL RELATED INSTANCE None LAST A",
+    "shot": "journey-j6-ticket-detail.png"
+  },
+  {
+    "journey": "J6",
+    "step": "6.5 the reply",
+    "status": "NOT-IMPLEMENTED",
+    "detail": "there is no field to write a reply on the ticket"
+  },
+  {
+    "journey": "J7",
+    "step": "7.1 the page of the billing",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy THIS MONTH (ESTIMATE) €1.72 Estimated from your current subscriptions in EUR. CURRENT PERIOD ENDS — Not available yet PAYMENT METHOD No payment method on fil",
+    "billingApi": {
+      "/api/billing/summary": {
+        "status": 200,
+        "body": "{\"currency\":\"EUR\",\"monthlyEstimate\":172,\"currentPeriodEnd\":null,\"paymentMethod\":null,\"instances\":[{\"id\":\"cmvkbgm9h0001r18096ep5jzl\",\"name\":\"Discord Bot\",\"price\""
+      },
+      "/api/billing/invoices": {
+        "status": 200,
+        "body": "{\"invoices\":[]}"
+      },
+      "/api/billing/subscriptions": {
+        "status": 200,
+        "body": "{\"subscriptions\":[]}"
+      }
+    },
+    "shot": "journey-j7-billing.png"
+  },
+  {
+    "journey": "J7",
+    "step": "7.2 the renewal date",
+    "status": "NOT-IMPLEMENTED",
+    "detail": "the word \"renew\" is nowhere on the page; the summary endpoint answers {\"currency\":\"EUR\",\"monthlyEstimate\":172,\"currentPeriodEnd\":null,\"paymentMethod\":null,\"instances\":[{\"id\":\"cmvkbgm9h0001r18096ep5jzl\",\"name\":\"Discord Bot\",\"price\"",
+    "billingApi": {
+      "/api/billing/summary": {
+        "status": 200,
+        "body": "{\"currency\":\"EUR\",\"monthlyEstimate\":172,\"currentPeriodEnd\":null,\"paymentMethod\":null,\"instances\":[{\"id\":\"cmvkbgm9h0001r18096ep5jzl\",\"name\":\"Discord Bot\",\"price\""
+      },
+      "/api/billing/invoices": {
+        "status": 200,
+        "body": "{\"invoices\":[]}"
+      },
+      "/api/billing/subscriptions": {
+        "status": 200,
+        "body": "{\"subscriptions\":[]}"
+      }
+    }
+  },
+  {
+    "journey": "J7",
+    "step": "7.3 the invoices",
+    "status": "WORKS",
+    "detail": "GET /api/billing/invoices answered 200: {\"invoices\":[]}",
+    "/api/billing/summary": {
+      "status": 200,
+      "body": "{\"currency\":\"EUR\",\"monthlyEstimate\":172,\"currentPeriodEnd\":null,\"paymentMethod\":null,\"instances\":[{\"id\":\"cmvkbgm9h0001r18096ep5jzl\",\"name\":\"Discord Bot\",\"price\""
+    },
+    "/api/billing/invoices": {
+      "status": 200,
+      "body": "{\"invoices\":[]}"
+    },
+    "/api/billing/subscriptions": {
+      "status": 200,
+      "body": "{\"subscriptions\":[]}"
+    }
+  },
+  {
+    "journey": "J7",
+    "step": "7.4 the payment of an invoice",
+    "status": "BLOCKED",
+    "detail": "the checkout answers 503 payments_unavailable because STRIPE_SECRET_KEY is empty and PAYMENTS_ENABLED is false; the invoices of the test customer are 0, so there is nothing to pay in any case"
+  },
+  {
+    "journey": "J7",
+    "step": "7.5 the cancellation of the subscription",
+    "status": "BLOCKED",
+    "detail": "there is no subscription for the test customer (0 rows in Subscription), so there is nothing to cancel; the page shows the empty state"
+  },
+  {
+    "journey": "J8",
+    "step": "8.1 the page of the settings",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Settings Deploy Profile The details of your Blipmade account. First name Last name Save the name EMAIL ADDRESS qa.headless.one@example.test Not verified",
+    "fields": [
+      {
+        "id": "_r_0_",
+        "name": null,
+        "type": null,
+        "label": "First name",
+        "ariaLabel": null
+      },
+      {
+        "id": "_r_2_",
+        "name": null,
+        "type": null,
+        "label": "Last name",
+        "ariaLabel": null
+      },
+      {
+        "id": "_r_4_",
+        "name": null,
+        "type": "password",
+        "label": "Current password",
+        "ariaLabel": null
+      },
+      {
+        "id": "_r_6_",
+        "name": null,
+        "type": "password",
+        "label": "New password",
+        "ariaLabel": null
+      },
+      {
+        "id": "_r_8_",
+        "name": null,
+        "type": "password",
+        "label": "Repeat the new password",
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "_r_a_",
+        "name": null,
+        "type": "password",
+        "label": "Your password",
+        "ariaLabel": null
+      },
+      {
+        "id": "_r_c_",
+        "name": null,
+        "type": null,
+        "label": "Type CLOSE MY ACCOUNT to confirm",
+        "ariaLabel": null
+      }
+    ],
+    "shot": "journey-j8-settings.png"
+  },
+  {
+    "journey": "J8",
+    "step": "8.2 the list of the sessions",
+    "status": 200,
+    "detail": "GET /api/settings/sessions answered 200: {\"sessions\":[{\"id\":\"cmvl8hlgx00evps01780aghfw\",\"ip\":\"172.64.198.64\",\"userAgent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36\",\"createdAt\":\"2026-10-23T17:18:30.129Z\",\"expiresAt\":\"2026-11-06T17:18:30.126Z\",\"current\":false,\"device\":\"Chrome on Li",
+    "body": "{\"sessions\":[{\"id\":\"cmvl8hlgx00evps01780aghfw\",\"ip\":\"172.64.198.64\",\"userAgent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36\",\"createdAt\":\"2026-10-23T17:18:30.129Z\",\"expiresAt\":\"2026-11-06T17:18:30.126Z\",\"current\":false,\"device\":\"Chrome on Li"
+  },
+  {
+    "journey": "J8",
+    "step": "8.3 the fields of the settings",
+    "status": "PARTIAL",
+    "detail": "5 of the 12 fields have no label: , , , , ",
+    "unlabelled": [
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      },
+      {
+        "id": "",
+        "name": null,
+        "type": "checkbox",
+        "label": null,
+        "ariaLabel": null
+      }
+    ]
+  },
+  {
+    "journey": "J8",
+    "step": "8.4 the change of the profile, the email and the password",
+    "status": "BLOCKED",
+    "detail": "the three forms write to the database (PATCH /api/settings/profile, POST /api/settings/email, POST /api/settings/password); the audit is read-only, so the buttons were not pressed. The forms and their validation were read in the code."
+  },
+  {
+    "journey": "J8",
+    "step": "8.5 the sign-out from every device",
+    "status": "BLOCKED",
+    "detail": "the button calls DELETE /api/settings/sessions, which ends the session of the audit itself; it was not pressed. The control and its label were observed on the page."
+  },
+  {
+    "journey": "J9",
+    "step": "9.1 the overview of the staff",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Dashboard CUSTOMERS 4 Accounts with the customer role. INSTANCES 3 Every instance on the platform. ACT",
+    "shot": "journey-j9-admin-overview.png"
+  },
+  {
+    "journey": "J9",
+    "step": "9.2 the list of the customers",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Customers 4 customers Customers Search by name or e-mail address. Every row links ",
+    "shot": "journey-j9-admin-customers.png"
+  },
+  {
+    "journey": "J9",
+    "step": "9.3 the page of a customer",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Customer Customer Qa One loaded Qa One Everything the API returns about this account. E-MAIL q***@exam",
+    "shot": "journey-j9-admin-customer-detail.png"
+  },
+  {
+    "journey": "J9",
+    "step": "9.4 the list of the instances",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Services 3 services Services Every instance on the platform. Retrying a provisioni",
+    "shot": "journey-j9-admin-services.png"
+  },
+  {
+    "journey": "J9",
+    "step": "9.5 the audit log",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Audit log 300 audit entries Audit log Every staff action the API recorded, newest first. Actor and act",
+    "shot": "journey-j9-admin-audit.png"
+  },
+  {
+    "journey": "J9",
+    "step": "9.6 the tickets of the staff",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Support queue 14 tickets in the queue Queue Newest activity first. Pick a ticket t",
+    "shot": "journey-j9-admin-tickets.png"
+  },
+  {
+    "journey": "J9",
+    "step": "9.7 the change of a price",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Pricing 5 prices Pricing Base price for the minimum configuration plus the rate fo; the fields are: base-cmvjyo5yh0003dxtl58rz6pjt=299, ram-cmvjyo5yh0003dxtl58rz6pjt=60, cpu-cmvjyo5yh0003dxtl58rz6pjt=40, disk-cmvjyo5yh0003dxtl58rz6pjt=2, base-cmvjyo5z10005dxtlhxqlgea5=149, ram-cmvjyo5z10005dxtlhxqlgea5=60, cpu-cmvjyo5z",
+    "priceInputs": [
+      {
+        "id": "base-cmvjyo5yh0003dxtl58rz6pjt",
+        "value": "299",
+        "type": "text",
+        "label": "Base price (cents)"
+      },
+      {
+        "id": "ram-cmvjyo5yh0003dxtl58rz6pjt",
+        "value": "60",
+        "type": "text",
+        "label": "Per GB memory (cents)"
+      },
+      {
+        "id": "cpu-cmvjyo5yh0003dxtl58rz6pjt",
+        "value": "40",
+        "type": "text",
+        "label": "Per vCPU (cents)"
+      },
+      {
+        "id": "disk-cmvjyo5yh0003dxtl58rz6pjt",
+        "value": "2",
+        "type": "text",
+        "label": "Per GB disk (cents)"
+      },
+      {
+        "id": "base-cmvjyo5z10005dxtlhxqlgea5",
+        "value": "149",
+        "type": "text",
+        "label": "Base price (cents)"
+      },
+      {
+        "id": "ram-cmvjyo5z10005dxtlhxqlgea5",
+        "value": "60",
+        "type": "text",
+        "label": "Per GB memory (cents)"
+      },
+      {
+        "id": "cpu-cmvjyo5z10005dxtlhxqlgea5",
+        "value": "40",
+        "type": "text",
+        "label": "Per vCPU (cents)"
+      },
+      {
+        "id": "disk-cmvjyo5z10005dxtlhxqlgea5",
+        "value": "2",
+        "type": "text",
+        "label": "Per GB disk (cents)"
+      },
+      {
+        "id": "base-cmvjyo6030009dxtl5mgclxto",
+        "value": "449",
+        "type": "text",
+        "label": "Base price (cents)"
+      },
+      {
+        "id": "ram-cmvjyo6030009dxtl5mgclxto",
+        "value": "60",
+        "type": "text",
+        "label": "Per GB memory (cents)"
+      },
+      {
+        "id": "cpu-cmvjyo6030009dxtl5mgclxto",
+        "value": "40",
+        "type": "text",
+        "label": "Per vCPU (cents)"
+      },
+      {
+        "id": "disk-cmvjyo6030009dxtl5mgclxto",
+        "value": "2",
+        "type": "text",
+        "label": "Per GB disk (cents)"
+      },
+      {
+        "id": "base-cmvjyo5zl0007dxtlobsgzzzw",
+        "value": "149",
+        "type": "text",
+        "label": "Base price (cents)"
+      },
+      {
+        "id": "ram-cmvjyo5zl0007dxtlobsgzzzw",
+        "value": "60",
+        "type": "text",
+        "label": "Per GB memory (cents)"
+      },
+      {
+        "id": "cpu-cmvjyo5zl0007dxtlobsgzzzw",
+        "value": "40",
+        "type": "text",
+        "label": "Per vCPU (cents)"
+      },
+      {
+        "id": "disk-cmvjyo5zl0007dxtlobsgzzzw",
+        "value": "2",
+        "type": "text",
+        "label": "Per GB disk (cents)"
+      },
+      {
+        "id": "base-cmvjyo5x20001dxtlffzrg7hs",
+        "value": "149",
+        "type": "text",
+        "label": "Base price (cents)"
+      },
+      {
+        "id": "ram-cmvjyo5x20001dxtlffzrg7hs",
+        "value": "60",
+        "type": "text",
+        "label": "Per GB memory (cents)"
+      },
+      {
+        "id": "cpu-cmvjyo5x20001dxtlffzrg7hs",
+        "value": "40",
+        "type": "text",
+        "label": "Per vCPU (cents)"
+      },
+      {
+        "id": "disk-cmvjyo5x20001dxtlffzrg7hs",
+        "value": "2",
+        "type": "text",
+        "label": "Per GB disk (cents)"
+      }
+    ],
+    "shot": "journey-j9-admin-pricing.png"
+  },
+  {
+    "journey": "J9",
+    "step": "9.7b the saving of the price",
+    "status": "BLOCKED",
+    "detail": "the save writes to the database (the price of the product); the audit is read-only, so the button was not pressed"
+  },
+  {
+    "journey": "J9",
+    "step": "9.8 the change of a product",
+    "status": "WORKS",
+    "detail": "the page says: blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Catalog 5 products Catalog Apps and databases that customers can buy. Visibility c",
+    "shot": "journey-j9-admin-products.png"
+  }
+]

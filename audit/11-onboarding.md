@@ -118,7 +118,7 @@ Surse: `web/src/routes.tsx:85-121` (`CODE-INSPECTED`) și capturi de browser pe 
 
 ### 4.2 R2 — Checkout-ul răspunde `503`
 
-`VERIFIED` — am apelat `POST /api/orders/:id/checkout` pe o comandă existentă a contului de test (comanda `BM-00002`, `AWAITING_PAYMENT`, 172 EUR), cu sesiunea deja autentificată. Răspunsul real, capturat:
+`VERIFIED` — am apelat `POST /api/orders/:id/checkout` pe o comandă existentă a contului de test (comanda `BM-00002`, `AWAITING_PAYMENT`, 172 unități minori = €1.72), cu sesiunea deja autentificată. Răspunsul real, capturat:
 
 ```json
 {
