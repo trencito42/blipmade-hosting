@@ -152,8 +152,12 @@ export default function Infrastructure() {
                   header: 'Node',
                   render: (node: AdminNode) => (
                     <span className="block min-w-0">
-                      <span className="block truncate font-bold tracking-[-0.02em] text-ink">{node.name}</span>
-                      <span className="block truncate font-mono text-[12.5px] text-ink3">{node.fqdn}</span>
+                      <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={node.name}>
+                        {node.name}
+                      </span>
+                      <span className="block truncate font-mono text-[12.5px] text-ink3" title={node.fqdn}>
+                        {node.fqdn}
+                      </span>
                     </span>
                   ),
                 },
@@ -201,8 +205,12 @@ export default function Infrastructure() {
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{node.name}</p>
-                      <p className="truncate font-mono text-[12.5px] text-ink3">{node.fqdn}</p>
+                      <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={node.name}>
+                        {node.name}
+                      </p>
+                      <p className="truncate font-mono text-[12.5px] text-ink3" title={node.fqdn}>
+                        {node.fqdn}
+                      </p>
                     </div>
                     <StatusPill
                       status={node.maintenance ? 'on_hold' : 'active'}
@@ -210,15 +218,15 @@ export default function Infrastructure() {
                     />
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
-                    <div>
+                    <div className="min-w-0">
                       <dt className="text-ink3">Memory</dt>
-                      <dd className="font-mono text-ink">
+                      <dd className="font-mono break-words text-ink">
                         {fmtMb(node.memoryAllocated)} / {fmtMb(node.memory)}
                       </dd>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <dt className="text-ink3">Disk</dt>
-                      <dd className="font-mono text-ink">
+                      <dd className="font-mono break-words text-ink">
                         {fmtMb(node.diskAllocated)} / {fmtMb(node.disk)}
                       </dd>
                     </div>
@@ -248,8 +256,12 @@ export default function Infrastructure() {
                   header: 'Egg',
                   render: (egg: AdminEgg) => (
                     <span className="block min-w-0">
-                      <span className="block truncate font-bold tracking-[-0.02em] text-ink">{egg.name}</span>
-                      <span className="block truncate font-mono text-[12.5px] text-ink3">{egg.uuid}</span>
+                      <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={egg.name}>
+                        {egg.name}
+                      </span>
+                      <span className="block truncate font-mono text-[12.5px] text-ink3" title={egg.uuid}>
+                        {egg.uuid}
+                      </span>
                     </span>
                   ),
                 },
@@ -257,14 +269,18 @@ export default function Infrastructure() {
                   key: 'image',
                   header: 'Docker image',
                   render: (egg: AdminEgg) => (
-                    <span className="block max-w-[280px] truncate font-mono text-[12.5px] text-ink2">{egg.dockerImage}</span>
+                    <span className="block max-w-[280px] truncate font-mono text-[12.5px] text-ink2" title={egg.dockerImage}>
+                      {egg.dockerImage}
+                    </span>
                   ),
                 },
                 {
                   key: 'startup',
                   header: 'Startup',
                   render: (egg: AdminEgg) => (
-                    <span className="block max-w-[280px] truncate font-mono text-[12.5px] text-ink2">{egg.startup}</span>
+                    <span className="block max-w-[280px] truncate font-mono text-[12.5px] text-ink2" title={egg.startup}>
+                      {egg.startup}
+                    </span>
                   ),
                 },
                 {
@@ -277,8 +293,12 @@ export default function Infrastructure() {
             <CardList<AdminEgg> rows={eggs} rowKey={(egg) => egg.id}>
               {(egg) => (
                 <div>
-                  <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{egg.name}</p>
-                  <p className="truncate font-mono text-[12.5px] text-ink3">{egg.dockerImage}</p>
+                  <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={egg.name}>
+                    {egg.name}
+                  </p>
+                  <p className="truncate font-mono text-[12.5px] text-ink3" title={egg.dockerImage}>
+                    {egg.dockerImage}
+                  </p>
                   <p className="mt-1.5 break-all font-mono text-[12px] text-ink3">{egg.startup}</p>
                 </div>
               )}

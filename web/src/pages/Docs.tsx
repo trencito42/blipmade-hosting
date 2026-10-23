@@ -2303,7 +2303,7 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
           type="button"
           onClick={copy}
           aria-label={copied ? 'Code copied to the clipboard' : 'Copy the code to the clipboard'}
-          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-s3 px-3 text-[12.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-s3 px-3 text-[12.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
         >
           <Icon name={copied ? 'check' : 'doc'} size={14} />
           {copied ? 'Copied' : 'Copy'}
@@ -2428,7 +2428,7 @@ function NavTree({ activeId, onNavigate }: { activeId: string; onNavigate?: () =
                   onClick={onNavigate}
                   aria-current={page.id === activeId ? 'page' : undefined}
                   className={cn(
-                    'flex min-h-[40px] items-center rounded-xl px-3 text-[14px] font-bold transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc',
+                    'flex min-h-[40px] items-center rounded-xl px-3 text-[14px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
                     page.id === activeId ? 'bg-s2 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
                   )}
                 >
@@ -2530,7 +2530,7 @@ export default function Docs() {
                             onClick={() => {
                               setTerm('');
                             }}
-                            className="block rounded-xl px-3 py-2.5 transition-colors duration-[180ms] hover:bg-s2 focus-visible:ring-2 focus-visible:ring-acc"
+                            className="block rounded-xl px-3 py-2.5 transition-colors duration-[180ms] hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                           >
                             <span className="block text-[14px] font-bold text-ink">{result.title}</span>
                             <span className="block truncate text-[12.5px] text-ink3">{result.group}</span>
@@ -2546,13 +2546,13 @@ export default function Docs() {
             <nav aria-label="Main" className="ml-auto flex items-center gap-1">
               <Link
                 to="/status"
-                className="inline-flex h-11 items-center rounded-full px-3 text-[14.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+                className="hidden h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc min-[380px]:inline-flex sm:px-4 sm:text-[15px]"
               >
                 Status
               </Link>
               <Link
                 to="/"
-                className="inline-flex h-11 items-center rounded-full px-3 text-[14.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+                className="hidden h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc min-[380px]:inline-flex sm:px-4 sm:text-[15px]"
               >
                 Home
               </Link>
@@ -2560,10 +2560,11 @@ export default function Docs() {
                 type="button"
                 onClick={() => setContentsOpen(true)}
                 aria-expanded={contentsOpen}
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-s2 px-4 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-s3 focus-visible:ring-2 focus-visible:ring-acc lg:hidden"
+                aria-label="Contents"
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-s2 px-3 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 lg:hidden"
               >
                 <Icon name="menu" size={16} />
-                Contents
+                <span className="sr-only sm:not-sr-only">Contents</span>
               </button>
             </nav>
           </div>
@@ -2588,7 +2589,9 @@ export default function Docs() {
 
             {page.sections.map((section) => (
               <section key={section.id} className="mt-9">
-                <h2 id={section.id} className="scroll-mt-24 text-[21px] font-extrabold tracking-[-0.035em] text-ink">
+                {/* The sticky header is two rows tall on a phone, so the
+                    anchor needs to clear more space than on a desktop. */}
+                <h2 id={section.id} className="scroll-mt-32 text-[21px] font-extrabold tracking-[-0.035em] text-ink">
                   {section.title}
                 </h2>
                 <div className="mt-3 grid gap-4">
@@ -2606,11 +2609,13 @@ export default function Docs() {
                     <Link
                       key={id}
                       to={`/docs?p=${id}`}
-                      className="flex min-h-[64px] items-center justify-between gap-3 rounded-2xl bg-s1 px-4 py-3 transition-colors duration-[180ms] hover:bg-s2 focus-visible:ring-2 focus-visible:ring-acc"
+                      className="flex min-h-[64px] items-center justify-between gap-3 rounded-2xl bg-s1 px-4 py-3 transition-colors duration-[180ms] hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     >
                       <span className="min-w-0">
                         <span className="block font-mono text-[10.5px] uppercase tracking-[0.1em] text-ink3">Next</span>
-                        <span className="block truncate text-[14.5px] font-bold text-ink">{target.title}</span>
+                        <span className="block truncate text-[14.5px] font-bold text-ink" title={target.title}>
+                          {target.title}
+                        </span>
                       </span>
                       <Icon name="arrow" size={16} className="shrink-0 text-ink3" />
                     </Link>
@@ -2633,7 +2638,7 @@ export default function Docs() {
                       event.preventDefault();
                       scrollToId(section.id);
                     }}
-                    className="block rounded-lg px-1 py-1 text-[13.5px] leading-snug text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+                    className="block rounded-lg px-1 py-1 text-[13.5px] leading-snug text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     {section.title}
                   </a>
@@ -2657,11 +2662,27 @@ export default function Docs() {
               type="button"
               onClick={() => setContentsOpen(false)}
               aria-label="Close the contents"
-              className="grid size-11 place-items-center rounded-full bg-s2 text-ink2 hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+              className="grid size-11 place-items-center rounded-full bg-s2 text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               <span aria-hidden="true">✕</span>
             </button>
           </div>
+          {/* On the narrowest phones the header only has room for the menu
+              button, so the two public links live here as well. */}
+          <nav aria-label="Main" className="mb-5 flex items-center gap-2 min-[380px]:hidden">
+            <Link
+              to="/status"
+              className="inline-flex h-11 items-center rounded-full bg-s2 px-4 text-[14.5px] font-bold text-ink2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+            >
+              Status
+            </Link>
+            <Link
+              to="/"
+              className="inline-flex h-11 items-center rounded-full bg-s2 px-4 text-[14.5px] font-bold text-ink2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+            >
+              Home
+            </Link>
+          </nav>
           <NavTree activeId={page.id} onNavigate={() => setContentsOpen(false)} />
         </div>
       )}

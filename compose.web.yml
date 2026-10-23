@@ -9,6 +9,11 @@ services:
       # The frontend is served from the same origin as the API, so the browser
       # never needs a cross-site cookie.
       API_URL: http://api:3100
+      # The Adobe Fonts web project of proxima nova. Leave it empty to keep the
+      # Geist fallback; when it is set, the kit stylesheet is added to the head
+      # of the page. Only https://use.typekit.net or https://p.typekit.net is
+      # accepted. See docs/TYPOGRAPHY.md.
+      ADOBE_FONTS_KIT_URL: "${ADOBE_FONTS_KIT_URL:-}"
     depends_on:
       - api
     ports:

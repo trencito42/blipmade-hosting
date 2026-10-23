@@ -52,9 +52,9 @@ export default function Customers() {
       render: (customer: AdminCustomer) => (
         <Link
           to={`/admin/customers/${customer.id}`}
-          className="block min-w-0 rounded-lg focus-visible:ring-2 focus-visible:ring-acc"
+          className="block min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
         >
-          <span className="block truncate text-[14px] font-bold tracking-[-0.02em] text-ink">
+          <span className="block truncate text-[14px] font-bold tracking-[-0.02em] text-ink" title={customer.name ?? 'No name'}>
             {customer.name ?? 'No name'}
             {customer.suspended && (
               <span className="ml-2 align-middle">
@@ -62,7 +62,9 @@ export default function Customers() {
               </span>
             )}
           </span>
-          <span className="block truncate font-mono text-[12.5px] text-ink3">{email(customer.email)}</span>
+          <span className="block truncate font-mono text-[12.5px] text-ink3" title={email(customer.email)}>
+            {email(customer.email)}
+          </span>
         </Link>
       ),
     },
@@ -162,11 +164,18 @@ export default function Customers() {
               />
               <CardList<AdminCustomer> rows={customers} rowKey={(customer) => customer.id}>
                 {(customer) => (
-                  <Link to={`/admin/customers/${customer.id}`} className="block rounded-lg focus-visible:ring-2 focus-visible:ring-acc">
+                  <Link to={`/admin/customers/${customer.id}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{customer.name ?? 'No name'}</p>
-                        <p className="truncate font-mono text-[12.5px] text-ink3">{email(customer.email)}</p>
+                        <p
+                          className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink"
+                          title={customer.name ?? 'No name'}
+                        >
+                          {customer.name ?? 'No name'}
+                        </p>
+                        <p className="truncate font-mono text-[12.5px] text-ink3" title={email(customer.email)}>
+                          {email(customer.email)}
+                        </p>
                       </div>
                       {customer.suspended ? (
                         <StatusPill status="suspended" label="Suspended" />
@@ -189,10 +198,12 @@ export default function Customers() {
                         <dt className="text-ink3">Tickets</dt>
                         <dd className="font-mono tabular-nums text-ink">{customer.ticketCount}</dd>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Monthly</dt>
                         <dd>
-                          <Money amount={customer.monthlyValue} period="month" />
+                          {/* The label already says the period, and the period suffix
+                              does not fit next to the amount on a narrow phone. */}
+                          <Money amount={customer.monthlyValue} />
                         </dd>
                       </div>
                     </dl>

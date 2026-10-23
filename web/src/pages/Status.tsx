@@ -141,25 +141,27 @@ export default function Status() {
   return (
     <div className="min-h-[100svh] bg-bg">
       <header className="bg-s1">
-        <div className="mx-auto flex h-[60px] w-full max-w-[1280px] items-center gap-3 px-4 sm:px-6">
-          <Logo />
+        {/* The bar wraps on a narrow phone so no navigation link is pushed out
+            of the viewport. */}
+        <div className="mx-auto flex min-h-[60px] w-full max-w-[1280px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 sm:flex-nowrap sm:px-6 sm:py-0">
+          <Logo className="shrink-0" />
           <nav aria-label="Main" className="ml-auto flex items-center gap-1">
             <Link
               to="/docs"
-              className="inline-flex h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+              className="inline-flex h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 sm:text-[15px]"
             >
               Docs
             </Link>
             <Link
               to="/status"
               aria-current="page"
-              className="inline-flex h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc"
+              className="inline-flex h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 sm:text-[15px]"
             >
               Status
             </Link>
             <Link
               to="/"
-              className="inline-flex h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+              className="inline-flex h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 sm:text-[15px]"
             >
               Home
             </Link>
@@ -207,16 +209,18 @@ export default function Status() {
                     return (
                       <li key={component.id} className="flex items-center gap-3 rounded-2xl bg-s1 px-4 py-3.5">
                         <span aria-hidden="true" className={cn('size-2.5 shrink-0 rounded-full', KIND_DOT[kind])} />
-                        <span className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.02em] text-ink">
+                        <span className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={component.name}>
                           {component.name}
                         </span>
                         <span
                           className={cn(
-                            'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold',
+                            'inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold',
                             KIND_PILL[kind],
                           )}
                         >
-                          {kind === 'unknown' ? `${KIND_LABEL[kind]}: ${component.state}` : KIND_LABEL[kind]}
+                          <span className="min-w-0 break-words">
+                            {kind === 'unknown' ? `${KIND_LABEL[kind]}: ${component.state}` : KIND_LABEL[kind]}
+                          </span>
                         </span>
                       </li>
                     );

@@ -202,6 +202,7 @@ export default function TicketDetail() {
               value={currentStatus}
               onChange={(e) => setStatusChoice(e.target.value)}
               hint="Choose the state that matches where the conversation is."
+              className="scroll-mt-16"
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -247,11 +248,11 @@ export default function TicketDetail() {
                   </span>
                   <span className="text-[12.5px] text-ink3">{fmtDate(message.createdAt)}</span>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-[14.5px] leading-relaxed text-ink2">{message.body}</p>
+                <p className="mt-2 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-ink2">{message.body}</p>
                 {message.attachments.length > 0 && (
                   <ul className="mt-3 grid gap-1.5">
                     {message.attachments.map((file) => (
-                      <li key={`${message.id}-${file.name}`} className="rounded-xl bg-s3 px-3 py-2 text-[12.5px] text-ink2">
+                      <li key={`${message.id}-${file.name}`} className="rounded-xl bg-s3 px-3 py-2 text-[12.5px] break-all text-ink2">
                         <span className="font-mono text-ink">{file.name}</span>
                         <span className="mx-2 text-ink3">·</span>
                         <span>{fmtSize(file.size)}</span>
@@ -276,6 +277,7 @@ export default function TicketDetail() {
             onChange={(e) => setReplyBody(e.target.value)}
             error={replyError ?? undefined}
             placeholder="Add more detail, a log excerpt or a question."
+            className="scroll-mt-16"
           />
 
           <div className="grid gap-2">
@@ -286,7 +288,7 @@ export default function TicketDetail() {
               id="ticket-attachment"
               type="file"
               onChange={(e) => onPickFile(e.target.files?.[0])}
-              className="block w-full text-[14px] text-ink2 file:mr-3 file:h-11 file:rounded-full file:bg-s3 file:px-4 file:text-[14px] file:font-bold file:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+              className="block w-full text-[14px] text-ink2 file:mr-3 file:h-11 file:rounded-full file:bg-s3 file:px-4 file:text-[14px] file:font-bold file:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             />
             <p className="px-1 text-[12.5px] text-ink3">
               Up to 10 MB. Only the file name, size and type are sent with your reply — the file contents are not uploaded
@@ -299,7 +301,7 @@ export default function TicketDetail() {
             )}
             {fileMeta && (
               <p className="px-1 text-[12.5px] text-ink2">
-                Attached: <span className="font-mono text-ink">{fileMeta.name}</span> ({fmtSize(fileMeta.size)})
+                Attached: <span className="font-mono break-all text-ink">{fileMeta.name}</span> ({fmtSize(fileMeta.size)})
               </p>
             )}
           </div>

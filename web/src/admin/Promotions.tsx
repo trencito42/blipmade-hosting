@@ -283,7 +283,9 @@ export default function Promotions() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-mono text-[14px] font-bold text-ink">{promotion.code}</p>
+                        <p className="truncate font-mono text-[14px] font-bold text-ink" title={promotion.code}>
+                          {promotion.code}
+                        </p>
                         <p className="text-[12.5px] capitalize text-ink3">{promotion.type}</p>
                       </div>
                       <StatusPill status={promotion.active ? 'active' : 'draft'} label={promotion.active ? 'Active' : 'Inactive'} />

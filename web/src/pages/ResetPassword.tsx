@@ -1,16 +1,9 @@
 import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { useState, type FormEvent } from 'react';
-import { Icon } from '../icons';
-import { cn } from '../lib';
 import { Button, Eyebrow, Headline, Logo } from '../ui';
 import { Link, useRouter } from '../router';
 import { ApiError, post } from '../lib/api';
-
-const field = (err: boolean) =>
-  cn(
-    'flex h-14 items-center rounded-full bg-s1 pl-5 pr-2 transition-colors duration-[180ms]',
-    err ? 'bg-bad/10 ring-2 ring-bad' : 'focus-within:bg-s2 focus-within:ring-2 focus-within:ring-acc',
-  );
+import { AuthField } from './auth-field';
 
 /** The rules the API enforces, checked here so the user is told before submitting. */
 const passwordIssues = (value: string): string[] => {
@@ -57,7 +50,6 @@ export default function ResetPassword() {
   const token = query.token ?? '';
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [show, setShow] = useState(false);
   const [pwErr, setPwErr] = useState<string | null>(null);
   const [confirmErr, setConfirmErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -72,6 +64,7 @@ export default function ResetPassword() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (pending) return;
     const vp = checkPw(pw);
     const vc = confirm.length === 0 ? 'Type the password again.' : pw !== confirm ? 'The two passwords do not match.' : null;
     setPwErr(vp);
@@ -138,7 +131,7 @@ export default function ResetPassword() {
             </div>
             <p className="text-[15px] text-ink2">Reset links can only be used once and stop working after a while. A new one takes a moment to arrive.</p>
             <Button to="/forgot-password" full size="lg">Request a new link</Button>
-            <p className="text-center text-[14.5px] text-ink2">Remembered it? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
+            <p className="text-center text-[14.5px] text-ink2">Remembered it? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
           </div>
           <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
         </main>
@@ -156,29 +149,41 @@ export default function ResetPassword() {
           <Headline as="h1" lines={['Choose a', 'new password.']} className="text-[clamp(52px,12vw,76px)] leading-[0.9]" />
           <p className="text-[17px] text-ink2">Pick a password you do not use anywhere else.</p>
           {msg && <div role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14.5px] font-bold text-bad">{msg}</div>}
-          <form onSubmit={submit} noValidate className="grid gap-4">
-            <div className="grid gap-2">
-              <label htmlFor="password" className="px-1 text-[14px] font-bold">New password</label>
-              <div className={field(!!pwErr)}>
-                <input id="password" name="password" type={show ? 'text' : 'password'} autoComplete="new-password" value={pw} aria-invalid={pwErr ? true : undefined} aria-describedby={pwErr ? 'password-error' : 'password-hint'} onChange={(e) => { const v = e.target.value; setPw(v); if (pwErr) setPwErr(checkPw(v)); }} onBlur={() => { if (pw) setPwErr(checkPw(pw)); }} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-                <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show} className="grid size-11 place-items-center rounded-full text-ink3 hover:bg-s3 hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"><Icon name={show ? 'eyeOff' : 'eye'} /></button>
-              </div>
-              {pwErr ? (
-                <p id="password-error" className="px-1 text-[12.5px] font-medium text-bad">{pwErr}</p>
-              ) : (
-                <p id="password-hint" className="px-1 text-[12.5px] text-ink3">{passwordHelper(pw)}</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="confirm" className="px-1 text-[14px] font-bold">Repeat new password</label>
-              <div className={field(!!confirmErr)}>
-                <input id="confirm" name="confirm" type={show ? 'text' : 'password'} autoComplete="new-password" value={confirm} aria-invalid={confirmErr ? true : undefined} aria-describedby={confirmErr ? 'confirm-error' : undefined} onChange={(e) => { const v = e.target.value; setConfirm(v); if (confirmErr) setConfirmErr(null); }} onBlur={() => { if (confirm) setConfirmErr(pw !== confirm ? 'The two passwords do not match.' : null); }} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-              </div>
-              {confirmErr && <p id="confirm-error" className="px-1 text-[12.5px] font-medium text-bad">{confirmErr}</p>}
-            </div>
+          <form onSubmit={submit} noValidate aria-busy={pending} className="grid gap-4">
+            <AuthField
+              id="password"
+              label="New password"
+              type="password"
+              autoComplete="new-password"
+              value={pw}
+              error={pwErr}
+              hint={passwordHelper(pw)}
+              onChange={(v) => {
+                setPw(v);
+                if (pwErr) setPwErr(checkPw(v));
+              }}
+              onBlur={() => {
+                if (pw) setPwErr(checkPw(pw));
+              }}
+            />
+            <AuthField
+              id="confirm"
+              label="Repeat new password"
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              error={confirmErr}
+              onChange={(v) => {
+                setConfirm(v);
+                if (confirmErr) setConfirmErr(null);
+              }}
+              onBlur={() => {
+                if (confirm) setConfirmErr(pw !== confirm ? 'The two passwords do not match.' : null);
+              }}
+            />
             <Button type="submit" full size="lg" disabled={pending}>{pending ? 'Saving…' : 'Save new password'}</Button>
           </form>
-          <p className="text-center text-[14.5px] text-ink2">Changed your mind? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
+          <p className="text-center text-[14.5px] text-ink2">Changed your mind? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
       </main>

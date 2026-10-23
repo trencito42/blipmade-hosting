@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Eyebrow, Headline, Logo } from '../ui';
 import { Link, useRouter } from '../router';
 import { ApiError, post } from '../lib/api';
+import { useSession } from '../session';
 import { LoadingBlock } from '../ui-app';
 
 type State = 'checking' | 'verified' | 'failed';
@@ -31,10 +32,15 @@ function PromisePanel() {
 export default function VerifyEmail() {
   const { query } = useRouter();
   const token = query.token ?? '';
+  // The address of the account is only in the session. Without it there is
+  // nothing to send the new link to, and the control is hidden.
+  const { user, loading: sessionLoading } = useSession();
+  const accountEmail = user?.email ?? '';
   const [state, setState] = useState<State>(token ? 'checking' : 'failed');
   const [reason, setReason] = useState<FailReason>(token ? 'unknown' : 'invalid');
   const [attempt, setAttempt] = useState(0);
   const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
   // The confirmation link can only be used once, so the request is sent once
   // per token even when React runs the effect twice.
   const started = useRef<{ token: string; attempt: number } | null>(null);
@@ -67,12 +73,24 @@ export default function VerifyEmail() {
   };
 
   const resendEmail = async () => {
-    setResend('sending');
-    try {
-      await post('/auth/resend-verification');
-      setResend('sent');
-    } catch {
+    if (!accountEmail) {
       setResend('failed');
+      setResendMsg('We do not know the address of the account, so we cannot send another email.');
+      return;
+    }
+    setResend('sending');
+    setResendMsg(null);
+    try {
+      // The API wants the address in the body and answers 204 without a body.
+      await post<void>('/auth/resend-verification', { email: accountEmail });
+      setResend('sent');
+    } catch (err) {
+      setResend('failed');
+      setResendMsg(
+        err instanceof ApiError && (err.status === 429 || err.code === 'rate_limited')
+          ? 'Too many emails asked for. Try again in 15 minutes.'
+          : 'We could not send another email. Try again in a moment.',
+      );
     }
   };
 
@@ -114,16 +132,26 @@ export default function VerifyEmail() {
               {reason === 'network' && (
                 <Button variant="soft" full type="button" onClick={retry}>Try again</Button>
               )}
-              <Button variant="soft" full type="button" onClick={resendEmail} disabled={resend === 'sending'}>
-                {resend === 'sending' ? 'Sending…' : 'Resend the email'}
-              </Button>
-              {resend === 'sent' && (
-                <p role="status" className="px-1 text-[13.5px] text-ink2">If that address has an account, we sent a new confirmation link.</p>
+              {sessionLoading ? (
+                <p className="px-1 text-[13.5px] text-ink3">Checking your account…</p>
+              ) : accountEmail ? (
+                <>
+                  <Button variant="soft" full type="button" onClick={resendEmail} disabled={resend === 'sending'}>
+                    {resend === 'sending' ? 'Sending…' : 'Resend the email'}
+                  </Button>
+                  {resend === 'sent' && (
+                    <p role="status" className="px-1 text-[13.5px] text-ink2">If that address still needs a confirmation, we sent a new link to {accountEmail}.</p>
+                  )}
+                  {resend === 'failed' && (
+                    <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">{resendMsg ?? 'We could not send another email. Try again in a moment.'}</p>
+                  )}
+                </>
+              ) : (
+                <p className="px-1 text-[13.5px] text-ink3">
+                  We cannot send another link without the account. <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link> to ask for one.
+                </p>
               )}
-              {resend === 'failed' && (
-                <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">We could not send another email. Try again in a moment.</p>
-              )}
-              <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/app" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Go to your dashboard</Link></p>
+              <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/app" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Go to your dashboard</Link></p>
             </>
           )}
         </div>

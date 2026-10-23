@@ -154,17 +154,24 @@ export default function Audit() {
                 {(log) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <p className="min-w-0 truncate font-mono text-[13.5px] font-bold text-ink">{log.action}</p>
+                      <p className="min-w-0 truncate font-mono text-[13.5px] font-bold text-ink" title={log.action}>
+                        {log.action}
+                      </p>
                       <span className="shrink-0 text-[12.5px] text-ink3">{fmtDateTime(log.createdAt)}</span>
                     </div>
                     <dl className="mt-2 grid grid-cols-2 gap-2 text-[13px]">
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Actor</dt>
-                        <dd className="truncate font-mono text-ink">{actor(log.actorEmail)}</dd>
+                        <dd className="truncate font-mono text-ink" title={actor(log.actorEmail)}>
+                          {actor(log.actorEmail)}
+                        </dd>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Target</dt>
-                        <dd className="truncate font-mono text-ink">
+                        <dd
+                          className="truncate font-mono text-ink"
+                          title={`${log.targetType ?? DASH}${log.targetId ? ` · ${log.targetId}` : ''}`}
+                        >
                           {log.targetType ?? DASH}
                           {log.targetId ? ` · ${log.targetId}` : ''}
                         </dd>

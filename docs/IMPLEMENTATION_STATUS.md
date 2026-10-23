@@ -85,6 +85,22 @@ labelled Studio simulation are **unchanged**.
 | Scrollbars | One treatment for the whole interface: a flat 10 px track that is invisible, a 6 px thumb in `--color-ink3` (5:1 against the page, so it stays visible without being loud) that turns `--color-acc` on hover and `--color-acc-h` while it is dragged. Chromium and Safari get the `::-webkit-scrollbar` pseudo-elements, Firefox gets `scrollbar-width: thin` with `scrollbar-color` inside a `@supports (-moz-appearance: none)` block, so neither engine ignores the other. `scrollbar-gutter: stable` keeps the layout from shifting between pages. The sideways chip strips keep their bar hidden in every engine through the `bm-hide-scroll` class. |
 | Build | `main` bundle 316.71 kB (94.78 kB gzip); every route chunk ≤ 26 kB. |
 
+### The review of 2026-10-23
+
+A round of frontend work followed the audit of the platform. The details are in
+[`FRONTEND_REVIEW.md`](FRONTEND_REVIEW.md); the summary:
+
+| Area | State |
+|---|---|
+| Typeface | proxima nova is the typeface of the interface. It arrives through the **authorized Adobe Fonts web project**, not through the desktop files: the kit URL comes from `ADOBE_FONTS_KIT_URL` and only `use.typekit.net` and `p.typekit.net` are accepted. No font file is committed. Geist stays the fallback until the kit is set. The weights are normalized in the theme tokens to 400, 600 and 700, so nothing is synthesised. Geist Mono still carries the ports, the console and the numbers. |
+| Focus | One indicator per control. The global indicator sits in the base layer, so a control with a ring of its own switches the outline off with `focus-visible:outline-none`. A field shows the ring of its container, never an outline on top of it. |
+| Autofill | The fill of the browser is painted with the colour of the field (`--bm-field-bg`), so the text stays readable and the rounded shape of the field survives. |
+| Auth screens | Five screens share one field (`src/pages/auth-field.tsx`): the password can be shown and hidden, the error and the disabled state are the same everywhere, the attributes of the password manager are correct, no field is focused on arrival, and an empty field is not an error before the form was sent. The resend of the verification mail now carries the address the API asks for. |
+| Deploy | The deploy button is built from the catalog of the API and points at a product that can really be ordered. `/app/deploy/wordpress` is gone. A product that cannot be deployed says so instead of leading to a dead end. |
+| Overview | A new account gets one onboarding panel with one primary action. An account with services gets four facts and the real list of its services. No number is made up. |
+| Phone | The bottom bar shows four entries and a fifth that opens the rest of the navigation, so no page of the customer area or the staff area is unreachable. The bar hides itself while the keyboard is open, the header keeps clear of the notch, and the tap targets are at least 44 px. |
+| Verification | 150 checks over 27 routes at 320, 375, 390, 768, 1024 and 1440 px: no sideways scroll, no element out of the viewport, no clipped text, no tap target under 40 px, no covered bar, no error in the console. The checks of the fixed behaviour (one indicator, the autofill, the password button, the order of the keyboard, the links, the deploy buttons) pass. |
+
 ---
 
 ## 4. Infrastructure

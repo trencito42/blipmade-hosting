@@ -1,19 +1,12 @@
 import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { useState, type FormEvent } from 'react';
-import { Icon } from '../icons';
-import { cn } from '../lib';
 import { Button, Eyebrow, Headline, Logo } from '../ui';
 import { Link } from '../router';
 import { useSession } from '../session';
 import { ApiError, post } from '../lib/api';
+import { AuthField } from './auth-field';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
-
-const field = (err: boolean) =>
-  cn(
-    'flex h-14 items-center rounded-full bg-s1 pl-5 pr-2 transition-colors duration-[180ms]',
-    err ? 'bg-bad/10 ring-2 ring-bad' : 'focus-within:bg-s2 focus-within:ring-2 focus-within:ring-acc',
-  );
 
 /** The rules the API enforces, checked here so the user is told before submitting. */
 const passwordIssues = (value: string): string[] => {
@@ -60,7 +53,6 @@ export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [show, setShow] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [nameErr, setNameErr] = useState<string | null>(null);
   const [emailErr, setEmailErr] = useState<string | null>(null);
@@ -68,6 +60,7 @@ export default function Register() {
   const [pending, setPending] = useState(false);
   const [accountEmail, setAccountEmail] = useState('');
   const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
 
   const checkEmail = (value: string) => (EMAIL_RE.test(value.trim()) ? null : 'Enter a valid email address.');
   const checkPw = (value: string) =>
@@ -77,6 +70,7 @@ export default function Register() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (pending) return;
     const ve = checkEmail(email);
     const vp = checkPw(pw);
     setEmailErr(ve);
@@ -113,12 +107,24 @@ export default function Register() {
   };
 
   const resendEmail = async () => {
-    setResend('sending');
-    try {
-      await post('/auth/resend-verification');
-      setResend('sent');
-    } catch {
+    if (!accountEmail) {
       setResend('failed');
+      setResendMsg('We need the address of the account to send another email.');
+      return;
+    }
+    setResend('sending');
+    setResendMsg(null);
+    try {
+      // The API wants the address in the body and answers 204 without a body.
+      await post<void>('/auth/resend-verification', { email: accountEmail });
+      setResend('sent');
+    } catch (err) {
+      setResend('failed');
+      setResendMsg(
+        err instanceof ApiError && (err.status === 429 || err.code === 'rate_limited')
+          ? 'Too many emails asked for. Try again in 15 minutes.'
+          : 'We could not send another email. Try again in a moment.',
+      );
     }
   };
 
@@ -143,11 +149,11 @@ export default function Register() {
                 <p role="status" className="px-1 text-[13.5px] text-ink2">We sent a new confirmation link to {accountEmail}.</p>
               )}
               {resend === 'failed' && (
-                <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">We could not send another email. Try again in a moment.</p>
+                <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">{resendMsg ?? 'We could not send another email. Try again in a moment.'}</p>
               )}
             </div>
             <p className="text-[14px] text-ink3">Some features, such as billing and domain changes, need a verified email address. You can confirm it later.</p>
-            <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
+            <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
           </div>
           <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
         </main>
@@ -165,36 +171,55 @@ export default function Register() {
           <Headline as="h1" lines={['Create', 'your account.']} className="text-[clamp(52px,12vw,76px)] leading-[0.9]" />
           <p className="text-[17px] text-ink2">One account for your apps, databases, domains and billing.</p>
           {msg && <div role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14.5px] font-bold text-bad">{msg}</div>}
-          <form onSubmit={submit} noValidate className="grid gap-4">
-            <div className="grid gap-2">
-              <label htmlFor="name" className="px-1 text-[14px] font-bold">Name <span className="font-medium text-ink3">(optional)</span></label>
-              <div className={field(!!nameErr)}>
-                <input id="name" name="name" type="text" autoComplete="name" value={name} aria-invalid={nameErr ? true : undefined} aria-describedby={nameErr ? 'name-error' : undefined} onChange={(e) => { const v = e.target.value; setName(v); if (nameErr) setNameErr(null); }} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-              </div>
-              {nameErr && <p id="name-error" className="px-1 text-[12.5px] font-medium text-bad">{nameErr}</p>}
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="email" className="px-1 text-[14px] font-bold">Email address</label>
-              <div className={field(!!emailErr)}>
-                <input id="email" name="email" type="email" autoComplete="email" inputMode="email" autoFocus value={email} aria-invalid={emailErr ? true : undefined} aria-describedby={emailErr ? 'email-error' : undefined} onChange={(e) => { const v = e.target.value; setEmail(v); if (emailErr) setEmailErr(checkEmail(v)); }} onBlur={() => setEmailErr(checkEmail(email))} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-              </div>
-              {emailErr && <p id="email-error" className="px-1 text-[12.5px] font-medium text-bad">{emailErr}</p>}
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="password" className="px-1 text-[14px] font-bold">Password</label>
-              <div className={field(!!pwErr)}>
-                <input id="password" name="password" type={show ? 'text' : 'password'} autoComplete="new-password" value={pw} aria-invalid={pwErr ? true : undefined} aria-describedby={pwErr ? 'password-error' : 'password-hint'} onChange={(e) => { const v = e.target.value; setPw(v); if (pwErr) setPwErr(checkPw(v)); }} onBlur={() => { if (pw) setPwErr(checkPw(pw)); }} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-                <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show} className="grid size-11 place-items-center rounded-full text-ink3 hover:bg-s3 hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"><Icon name={show ? 'eyeOff' : 'eye'} /></button>
-              </div>
-              {pwErr ? (
-                <p id="password-error" className="px-1 text-[12.5px] font-medium text-bad">{pwErr}</p>
-              ) : (
-                <p id="password-hint" className="px-1 text-[12.5px] text-ink3">{passwordHelper(pw)}</p>
-              )}
-            </div>
+          <form onSubmit={submit} noValidate aria-busy={pending} className="grid gap-4">
+            <AuthField
+              id="name"
+              label={<>Name <span className="font-medium text-ink3">(optional)</span></>}
+              autoComplete="name"
+              value={name}
+              error={nameErr}
+              onChange={(v) => {
+                setName(v);
+                if (nameErr) setNameErr(null);
+              }}
+            />
+            <AuthField
+              id="email"
+              label="Email address"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              error={emailErr}
+              onChange={(v) => {
+                setEmail(v);
+                if (emailErr) setEmailErr(checkEmail(v));
+              }}
+              onBlur={() => {
+                // An empty field is not an error before the form was sent.
+                if (email) setEmailErr(checkEmail(email));
+                else setEmailErr(null);
+              }}
+            />
+            <AuthField
+              id="password"
+              label="Password"
+              type="password"
+              autoComplete="new-password"
+              value={pw}
+              error={pwErr}
+              hint={passwordHelper(pw)}
+              onChange={(v) => {
+                setPw(v);
+                if (pwErr) setPwErr(checkPw(v));
+              }}
+              onBlur={() => {
+                if (pw) setPwErr(checkPw(pw));
+              }}
+            />
             <Button type="submit" full size="lg" disabled={pending}>{pending ? 'Working…' : 'Create account'}</Button>
           </form>
-          <p className="text-center text-[14.5px] text-ink2">Already have an account? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
+          <p className="text-center text-[14.5px] text-ink2">Already have an account? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
       </main>

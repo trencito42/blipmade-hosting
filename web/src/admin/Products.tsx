@@ -147,8 +147,12 @@ export default function Products() {
                     header: 'Product',
                     render: (product: AdminProduct) => (
                       <span className="block min-w-0">
-                        <span className="block truncate font-bold tracking-[-0.02em] text-ink">{product.name}</span>
-                        <span className="block truncate font-mono text-[12.5px] text-ink3">{product.slug}</span>
+                        <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={product.name}>
+                          {product.name}
+                        </span>
+                        <span className="block truncate font-mono text-[12.5px] text-ink3" title={product.slug}>
+                          {product.slug}
+                        </span>
                       </span>
                     ),
                   },
@@ -230,8 +234,12 @@ export default function Products() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{product.name}</p>
-                        <p className="truncate font-mono text-[12.5px] text-ink3">{product.slug}</p>
+                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={product.name}>
+                          {product.name}
+                        </p>
+                        <p className="truncate font-mono text-[12.5px] text-ink3" title={product.slug}>
+                          {product.slug}
+                        </p>
                       </div>
                       <StatusPill
                         status={product.visible ? 'active' : 'draft'}
@@ -239,17 +247,17 @@ export default function Products() {
                       />
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Base price</dt>
                         <dd>{monthlyPrice(product)}</dd>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Category</dt>
                         <dd className="text-ink">{product.category.replace(/_/g, ' ')}</dd>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-2 min-w-0">
                         <dt className="text-ink3">Resources</dt>
-                        <dd className="font-mono text-ink">
+                        <dd className="font-mono break-words text-ink">
                           {product.minRam} MB · {product.minCpu} vCPU · {product.minDisk} GB
                         </dd>
                       </div>
@@ -461,7 +469,7 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="What the customer gets with this app."
-          className="w-full rounded-2xl bg-s3 p-3 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-line"
+          className="w-full scroll-mt-16 rounded-2xl bg-s3 p-3 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-line"
         />
       </Field>
 

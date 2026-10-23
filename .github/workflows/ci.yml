@@ -1,0 +1,406 @@
+# Continuous integration for the Blipmade platform.
+#
+# Every job in this file is blocking: a red job blocks the merge. The decisions
+# that are not obvious are written next to the step they belong to.
+#
+#   api-typecheck     the API and the test suite are type checked
+#   web-build         the frontend is type checked and bundled
+#   test              the API test suite runs against a disposable _test database
+#   secret-scan       the whole git history is scanned for secrets
+#   dependency-audit  npm audit --audit-level=high for both workspaces
+#   schema-drift      the prisma schema is compared with the migration history
+#
+# No secret is stored in this repository and no secret is needed to run it.
+# The only values that are set are throwaway constants for the disposable
+# database and the disposable session secret of the test run.
+
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # The API and the tests are type checked separately, because the production
+  # build excludes the tests and the test build includes them.
+  # ---------------------------------------------------------------------------
+  api-typecheck:
+    name: API typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    env:
+      # prisma validate and prisma generate read the datasource url. The value
+      # is never contacted here, it only has to exist.
+      DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install the dependencies from the lock file
+        run: npm ci
+
+      - name: Generate the Prisma client
+        run: npx prisma generate
+
+      - name: Type check the API
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Type check the tests
+        run: npx tsc -p tsconfig.test.json --noEmit
+
+  # ---------------------------------------------------------------------------
+  # The frontend is type checked and bundled, the same way the image builds it.
+  # ---------------------------------------------------------------------------
+  web-build:
+    name: Web typecheck and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install the dependencies from the lock file
+        run: npm ci
+
+      - name: Type check the frontend
+        run: npx tsc --noEmit
+
+      - name: Build the frontend
+        run: npx vite build
+
+  # ---------------------------------------------------------------------------
+  # The suite runs against its own database. It refuses to run against a
+  # database whose name does not end with "_test", so the name below is part
+  # of the safety rule and not a detail.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Unit and integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: blipmade
+          POSTGRES_PASSWORD: blipmade
+          POSTGRES_DB: blipmade_test
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U blipmade -d blipmade_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - '6379:6379'
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_test
+      REDIS_URL: redis://127.0.0.1:6379
+      # A throwaway value. The suite never talks to a real panel or a real
+      # payment provider, so the secret only has to be long enough.
+      SESSION_SECRET: ci-only-session-secret-not-a-real-secret
+      NODE_ENV: test
+      COOKIE_SECURE: 'false'
+      LOG_LEVEL: silent
+      # The local test gateway is used when no provider key is configured.
+      STRIPE_SECRET_KEY: ''
+      STRIPE_WEBHOOK_SECRET: ''
+      STRIPE_PUBLISHABLE_KEY: ''
+      SMTP_URL: ''
+      BACKUP_DIR: ${{ runner.temp }}/blipmade-backups
+      ATTACHMENT_DIR: ${{ runner.temp }}/blipmade-uploads
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install the dependencies from the lock file
+        working-directory: api
+        run: npm ci
+
+      - name: Generate the Prisma client
+        working-directory: api
+        run: npx prisma generate
+
+      - name: Push the schema into the disposable test database
+        working-directory: api
+        # The test database is thrown away after the run, so the schema is
+        # pushed from prisma/schema.prisma instead of running the migration
+        # history. No production migration is ever executed here.
+        run: npx prisma db push --skip-generate --accept-data-loss
+
+      - name: Record the migration history as applied
+        working-directory: api
+        # api/tests/globalSetup.ts runs "prisma migrate deploy" before the
+        # suite starts. The schema was just pushed, so the migration history
+        # is recorded as applied to keep that step a no-op instead of a second
+        # attempt to create the same tables. The list is read from the
+        # directory, so a new migration needs no change here.
+        run: |
+          for directory in prisma/migrations/*/; do
+            name="$(basename "$directory")"
+            echo "==> Marking $name as applied"
+            npx prisma migrate resolve --applied "$name"
+          done
+
+      - name: Run the test suite
+        # scripts/run-tests.sh points DATABASE_URL at the _test database,
+        # clears the provider keys and runs vitest.
+        run: bash scripts/run-tests.sh
+
+  # ---------------------------------------------------------------------------
+  # The whole history is scanned, not only the tip. A secret that was removed
+  # in a later commit is still a leaked secret.
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the whole history
+        uses: actions/checkout@v4
+        with:
+          # Without the full history the scanner only sees the last commit.
+          fetch-depth: 0
+
+      - name: Scan the history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          # Leave the findings out of the pull request, the job result is the
+          # signal that the run is interested in.
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          # Optional. A personal repository needs no license. When the
+          # repository belongs to an organisation, add a GITLEAKS_LICENSE
+          # secret to the repository settings. Without it the action still
+          # runs on a public repository, so the run never breaks on a missing
+          # secret.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # ---------------------------------------------------------------------------
+  # npm audit --audit-level=high for both workspaces.
+  #
+  # This step is blocking: a high or critical advisory that is not on the
+  # accepted list below fails the job. The accepted list only holds the
+  # advisories that are already in the committed lock files and that need a
+  # breaking upgrade; every entry has to be removed as soon as the package is
+  # upgraded. An advisory that is not on the list fails the build at once.
+  # ---------------------------------------------------------------------------
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            api/package-lock.json
+            web/package-lock.json
+
+      - name: Write the audit checker
+        run: |
+          cat > "$RUNNER_TEMP/audit-check.mjs" <<'EOF'
+          import { readFileSync } from 'node:fs';
+
+          const [reportPath, acceptedPath] = process.argv.slice(2);
+          const raw = readFileSync(reportPath, 'utf8');
+          const start = raw.indexOf('{');
+          if (start < 0) {
+            console.error('npm audit did not return a report.');
+            process.exit(1);
+          }
+          const report = JSON.parse(raw.slice(start));
+          if (!report || typeof report !== 'object' || !('vulnerabilities' in report)) {
+            console.error('npm audit did not return a vulnerability report.');
+            console.error(raw.slice(start, start + 2000));
+            process.exit(1);
+          }
+
+          const accepted = new Set(
+            readFileSync(acceptedPath, 'utf8')
+              .split('\n')
+              .map((line) => line.trim())
+              .filter((line) => line && !line.startsWith('#')),
+          );
+
+          const found = new Map();
+          for (const [name, entry] of Object.entries(report.vulnerabilities ?? {})) {
+            for (const via of entry.via ?? []) {
+              if (typeof via === 'string') continue;
+              if (via.severity !== 'high' && via.severity !== 'critical') continue;
+              const id = (via.url ?? '').split('/').pop() || via.title || name;
+              found.set(id, { severity: via.severity, name, title: via.title ?? '', range: via.range ?? '' });
+            }
+          }
+
+          const unexpected = [...found.entries()].filter(([id]) => !accepted.has(id));
+          const unused = [...accepted].filter((id) => !found.has(id));
+
+          console.log('Advisories at level high or critical:');
+          for (const [id, info] of [...found.entries()].sort()) {
+            console.log(`  ${info.severity.padEnd(8)} ${id}  ${info.name}  ${info.range}`);
+          }
+          if (unused.length) {
+            console.log('Accepted advisories that are no longer reported:');
+            for (const id of unused.sort()) console.log(`  ${id}`);
+          }
+
+          if (unexpected.length) {
+            console.error('New high or critical advisories were found:');
+            for (const [id, info] of unexpected) {
+              console.error(`  ${info.severity} ${id} ${info.name} — ${info.title}`);
+            }
+            process.exit(1);
+          }
+          console.log('No new high or critical advisories.');
+          EOF
+
+      - name: Record the accepted advisories
+        run: |
+          cat > "$RUNNER_TEMP/accepted-advisories.txt" <<'EOF'
+          # Advisories that are already in the committed lock files. They need a
+          # breaking upgrade, so they are accepted until the packages are
+          # replaced. Remove an entry as soon as it is fixed.
+          GHSA-83w8-p2f5-377r
+          GHSA-ggr8-5vv4-36mx
+          GHSA-2x7j-588g-ccc2
+          GHSA-p6gq-j5cr-w38f
+          GHSA-r7g4-qg5f-qqm2
+          GHSA-rcmh-qjqh-p98v
+          GHSA-v53p-9fqp-m79j
+          GHSA-587h-7wmj-h5pm
+          GHSA-fx2h-pf6j-xcff
+          GHSA-5gmw-xhrv-c9v3
+          GHSA-85c8-ppgw-ccpr
+          GHSA-5xrq-8626-4rwp
+          EOF
+
+      - name: Audit the API dependencies
+        working-directory: api
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/npm-audit-api.json"
+          npm audit --json --audit-level=high >"$report" || true
+          node "$RUNNER_TEMP/audit-check.mjs" "$report" "$RUNNER_TEMP/accepted-advisories.txt"
+
+      - name: Audit the web dependencies
+        working-directory: web
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/npm-audit-web.json"
+          npm audit --json --audit-level=high >"$report" || true
+          node "$RUNNER_TEMP/audit-check.mjs" "$report" "$RUNNER_TEMP/accepted-advisories.txt"
+
+  # ---------------------------------------------------------------------------
+  # A schema that was edited without a migration passes every other check, so
+  # it is compared with the migration history here. The comparison needs a
+  # shadow database, because the migration history has to be applied to an
+  # empty database first.
+  # ---------------------------------------------------------------------------
+  schema-drift:
+    name: Schema drift
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: blipmade
+          POSTGRES_PASSWORD: blipmade
+          POSTGRES_DB: postgres
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U blipmade -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install the dependencies from the lock file
+        working-directory: api
+        run: npm ci
+
+      - name: Create the shadow database
+        # The client comes from the same image as the server, so the versions
+        # always match.
+        run: |
+          docker run --rm --network host \
+            -e PGPASSWORD=blipmade \
+            postgres:17 \
+            psql -h 127.0.0.1 -U blipmade -d postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE blipmade_shadow;'
+
+      - name: Validate the schema
+        working-directory: api
+        run: npx prisma validate
+
+      - name: Compare the migration history with the schema
+        working-directory: api
+        # Exit code 2 means the two differ, so the job fails when a model was
+        # changed without a migration. That is the point of this check: it is
+        # the only thing that catches a column that the schema declares and no
+        # migration creates.
+        run: |
+          npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow" \
+            --exit-code

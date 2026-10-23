@@ -1,15 +1,15 @@
 import type { NavEntry } from './ui-app';
 
 export const CUSTOMER_NAV: NavEntry[] = [
-  { to: '/app', label: 'Overview', icon: 'box', exact: true },
-  { to: '/app/instances', label: 'Apps & databases', icon: 'rocket' },
-  { to: '/app/domains', label: 'Domains', icon: 'globe' },
-  { to: '/app/billing', label: 'Billing', icon: 'card' },
-  { to: '/app/tickets', label: 'Support', icon: 'doc' },
-  { to: '/app/settings', label: 'Settings', icon: 'shield' },
+  { to: '/app', label: 'Overview', shortLabel: 'Overview', icon: 'box', exact: true },
+  { to: '/app/instances', label: 'Apps & databases', shortLabel: 'Apps', icon: 'rocket' },
+  { to: '/app/domains', label: 'Domains', shortLabel: 'Domains', icon: 'globe' },
+  { to: '/app/billing', label: 'Billing', shortLabel: 'Billing', icon: 'card' },
+  { to: '/app/tickets', label: 'Support', shortLabel: 'Support', icon: 'doc' },
+  { to: '/app/settings', label: 'Settings', shortLabel: 'Settings', icon: 'shield' },
 ];
 
-/** Phone bottom bar: Overview, Instances, Billing, Support. */
+/** Phone bottom bar: Overview, Apps, Billing, Support. */
 export const CUSTOMER_PHONE_TABS: NavEntry[] = [
   CUSTOMER_NAV[0]!,
   CUSTOMER_NAV[1]!,
@@ -18,20 +18,21 @@ export const CUSTOMER_PHONE_TABS: NavEntry[] = [
 ];
 
 export const ADMIN_NAV: NavEntry[] = [
-  { to: '/admin', label: 'Dashboard', icon: 'chart', exact: true },
-  { to: '/admin/customers', label: 'Customers', icon: 'box' },
-  { to: '/admin/orders', label: 'Orders', icon: 'card' },
-  { to: '/admin/services', label: 'Services', icon: 'rocket' },
-  { to: '/admin/products', label: 'Catalog', icon: 'db' },
-  { to: '/admin/pricing', label: 'Pricing', icon: 'bolt' },
-  { to: '/admin/tickets', label: 'Support', icon: 'doc' },
-  { to: '/admin/promotions', label: 'Promotions', icon: 'shield' },
-  { to: '/admin/infrastructure', label: 'Infrastructure', icon: 'globe' },
-  { to: '/admin/audit', label: 'Audit log', icon: 'term' },
-  { to: '/admin/staff', label: 'Staff', icon: 'bot' },
-  { to: '/admin/settings', label: 'Settings', icon: 'restart' },
+  { to: '/admin', label: 'Dashboard', shortLabel: 'Home', icon: 'chart', exact: true },
+  { to: '/admin/customers', label: 'Customers', shortLabel: 'Users', icon: 'box' },
+  { to: '/admin/orders', label: 'Orders', shortLabel: 'Orders', icon: 'card' },
+  { to: '/admin/services', label: 'Services', shortLabel: 'Services', icon: 'rocket' },
+  { to: '/admin/products', label: 'Catalog', shortLabel: 'Catalog', icon: 'db' },
+  { to: '/admin/pricing', label: 'Pricing', shortLabel: 'Pricing', icon: 'bolt' },
+  { to: '/admin/tickets', label: 'Support queue', shortLabel: 'Tickets', icon: 'doc' },
+  { to: '/admin/promotions', label: 'Promotions', shortLabel: 'Promos', icon: 'shield' },
+  { to: '/admin/infrastructure', label: 'Infrastructure', shortLabel: 'Infra', icon: 'globe' },
+  { to: '/admin/audit', label: 'Audit log', shortLabel: 'Audit', icon: 'term' },
+  { to: '/admin/staff', label: 'Staff', shortLabel: 'Staff', icon: 'bot' },
+  { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },
 ];
 
+/** Phone bottom bar: Dashboard, Customers, Promotions, Audit log. */
 export const ADMIN_PHONE_TABS: NavEntry[] = [
   ADMIN_NAV[0]!,
   ADMIN_NAV[1]!,

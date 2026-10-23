@@ -109,8 +109,15 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
     <div className="rounded-2xl bg-s2 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{price.product.name}</p>
-          <p className="truncate font-mono text-[12.5px] text-ink3">
+          <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={price.product.name}>
+            {price.product.name}
+          </p>
+          {/* The full specification is longer than a phone line, so it wraps
+              instead of being cut off. */}
+          <p
+            className="break-words font-mono text-[12.5px] text-ink3"
+            title={`${price.product.slug} · ${price.period} · min ${price.product.minRam} MB / ${price.product.minCpu} vCPU / ${price.product.minDisk} GB`}
+          >
             {price.product.slug} · {price.period} · min {price.product.minRam} MB / {price.product.minCpu} vCPU /{' '}
             {price.product.minDisk} GB
           </p>

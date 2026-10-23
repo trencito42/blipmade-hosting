@@ -1,19 +1,13 @@
 import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { useState, type FormEvent } from 'react';
-import { Icon } from '../icons';
 import { cn } from '../lib';
 import { Button, Eyebrow, Headline, Logo } from '../ui';
 import { Link, safeNext, useRouter } from '../router';
 import { useSession } from '../session';
 import { ApiError } from '../lib/api';
+import { AuthField } from './auth-field';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
-
-const field = (err: boolean) =>
-  cn(
-    'flex h-14 items-center rounded-full bg-s1 pl-5 pr-2 transition-colors duration-[180ms]',
-    err ? 'bg-bad/10 ring-2 ring-bad' : 'focus-within:bg-s2 focus-within:ring-2 focus-within:ring-acc',
-  );
 
 export default function Login() {
   const catalog = useCatalogSummary();
@@ -21,7 +15,6 @@ export default function Login() {
   const { login } = useSession();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
-  const [show, setShow] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'err' | 'info'; text: string } | null>(null);
   const [emailErr, setEmailErr] = useState<string | null>(null);
   const [pwErr, setPwErr] = useState<string | null>(null);
@@ -32,6 +25,7 @@ export default function Login() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (pending) return;
     const ve = checkEmail(email);
     const vp = checkPw(pw);
     setEmailErr(ve);
@@ -76,26 +70,48 @@ export default function Login() {
           <Headline as="h1" lines={['Welcome', 'back.']} className="text-[clamp(52px,12vw,76px)] leading-[0.9]" />
           <p className="text-[17px] text-ink2">Log in to your Blipmade account.</p>
           {msg && <div role="alert" className={cn('rounded-2xl px-4 py-3 text-[14.5px] font-bold', msg.kind === 'err' ? 'bg-bad/10 text-bad' : 'bg-acc-bg text-acc')}>{msg.text}</div>}
-          <form onSubmit={submit} noValidate className="grid gap-4">
-            <div className="grid gap-2">
-              <label htmlFor="email" className="px-1 text-[14px] font-bold">Email address</label>
-              <div className={field(!!emailErr)}>
-                <input id="email" name="email" type="email" autoComplete="username" inputMode="email" autoFocus value={email} aria-invalid={emailErr ? true : undefined} aria-describedby={emailErr ? 'email-error' : undefined} onChange={(e) => { const v = e.target.value; setEmail(v); if (emailErr) setEmailErr(checkEmail(v)); }} onBlur={() => setEmailErr(checkEmail(email))} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-              </div>
-              {emailErr && <p id="email-error" className="px-1 text-[12.5px] font-medium text-bad">{emailErr}</p>}
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="password" className="px-1 text-[14px] font-bold">Password</label>
-              <div className={field(!!pwErr)}>
-                <input id="password" name="password" type={show ? 'text' : 'password'} autoComplete="current-password" value={pw} aria-invalid={pwErr ? true : undefined} aria-describedby={pwErr ? 'password-error' : undefined} onChange={(e) => { const v = e.target.value; setPw(v); if (pwErr) setPwErr(checkPw(v)); }} onBlur={() => setPwErr(checkPw(pw))} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-                <button type="button" onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show} className="grid size-11 place-items-center rounded-full text-ink3 hover:bg-s3 hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"><Icon name={show ? 'eyeOff' : 'eye'} /></button>
-              </div>
-              {pwErr && <p id="password-error" className="px-1 text-[12.5px] font-medium text-bad">{pwErr}</p>}
-            </div>
-            <div className="flex justify-end px-1 text-[14px]"><Link to="/forgot-password" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Forgot password?</Link></div>
+          <form onSubmit={submit} noValidate aria-busy={pending} className="grid gap-4">
+            <AuthField
+              id="email"
+              label="Email address"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              error={emailErr}
+              onChange={(v) => {
+                setEmail(v);
+                if (emailErr) setEmailErr(checkEmail(v));
+              }}
+              onBlur={() => {
+                // An empty field is not an error before the form was sent.
+                if (email) setEmailErr(checkEmail(email));
+                else setEmailErr(null);
+              }}
+            />
+            <AuthField
+              id="password"
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              value={pw}
+              error={pwErr}
+              onChange={(v) => {
+                setPw(v);
+                if (pwErr) setPwErr(checkPw(v));
+              }}
+              onBlur={() => {
+                // An empty field is not an error before the form was sent.
+                if (pw) setPwErr(checkPw(pw));
+                else setPwErr(null);
+              }}
+            />
             <Button type="submit" full size="lg" disabled={pending}>{pending ? 'Working…' : 'Log in'}</Button>
+            <div className="flex justify-end px-1 text-[14px]">
+              <Link to="/forgot-password" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Forgot password?</Link>
+            </div>
           </form>
-          <p className="text-center text-[14.5px] text-ink2">New to Blipmade? <Link to="/register" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Create account</Link></p>
+          <p className="text-center text-[14.5px] text-ink2">New to Blipmade? <Link to="/register" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Create account</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
       </main>

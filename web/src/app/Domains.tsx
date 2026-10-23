@@ -37,7 +37,7 @@ const DOMAIN_TONES: Record<Domain['status'], string> = {
 };
 
 const linkButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
 
 export default function Domains() {
   const { push } = useToast();
@@ -154,6 +154,7 @@ export default function Domains() {
               value={instanceId}
               onChange={(e) => setInstanceId(e.target.value)}
               hint="The domain is attached to this instance."
+              className="scroll-mt-16"
             >
               {instances.map((instance) => (
                 <option key={instance.id} value={instance.id}>
@@ -170,6 +171,7 @@ export default function Domains() {
               hint="The full hostname, without a protocol."
               autoComplete="off"
               spellCheck={false}
+              className="scroll-mt-16"
             />
             <div className="sm:col-span-2">
               <PrimaryButton onClick={() => void submit()} disabled={addDisabled}>
@@ -205,8 +207,13 @@ export default function Domains() {
               <article key={domain.id} className="rounded-2xl bg-s2 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-[16px] font-extrabold tracking-[-0.02em] text-ink">{domain.hostname}</p>
-                    <p className="mt-0.5 text-[13px] text-ink3">
+                    <p
+                      className="truncate text-[16px] font-extrabold tracking-[-0.02em] text-ink"
+                      title={domain.hostname}
+                    >
+                      {domain.hostname}
+                    </p>
+                    <p className="mt-0.5 break-words text-[13px] text-ink3">
                       {domain.instanceName} · port {domain.targetPort}
                     </p>
                   </div>
@@ -230,7 +237,10 @@ export default function Domains() {
                     <dl className="mt-3 grid gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Name</dt>
-                        <dd className="min-w-0 flex-1 truncate font-mono text-[12.5px] break-all text-ink">
+                        <dd
+                          className="min-w-0 flex-1 truncate font-mono text-[12.5px] break-all text-ink"
+                          title={domain.verification.host ?? undefined}
+                        >
                           {domain.verification.host}
                         </dd>
                         <button
@@ -239,7 +249,7 @@ export default function Domains() {
                           aria-label="Copy the TXT name"
                           className={cn(
                             'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
-                            'focus-visible:ring-2 focus-visible:ring-acc',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
                           )}
                         >
                           Copy
@@ -251,7 +261,10 @@ export default function Domains() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Value</dt>
-                        <dd className="min-w-0 flex-1 truncate font-mono text-[12.5px] break-all text-ink">
+                        <dd
+                          className="min-w-0 flex-1 font-mono text-[12.5px] break-all text-ink"
+                          title={domain.verification.token ?? undefined}
+                        >
                           {domain.verification.token}
                         </dd>
                         <button
@@ -260,7 +273,7 @@ export default function Domains() {
                           aria-label="Copy the TXT value"
                           className={cn(
                             'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
-                            'focus-visible:ring-2 focus-visible:ring-acc',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
                           )}
                         >
                           Copy
@@ -275,7 +288,7 @@ export default function Domains() {
                     Address record to create
                   </p>
                   {domain.dnsRecords.length ? (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto overscroll-x-contain bm-hide-scroll">
                       <table className="w-full border-collapse text-left">
                         <thead>
                           <tr>
@@ -306,7 +319,7 @@ export default function Domains() {
                                   aria-label={`Copy the ${record.type} value for ${record.name}`}
                                   className={cn(
                                     'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
-                                    'focus-visible:ring-2 focus-visible:ring-acc',
+                                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
                                   )}
                                 >
                                   Copy
@@ -337,7 +350,7 @@ export default function Domains() {
                   <button
                     type="button"
                     onClick={() => setPendingDelete(domain)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:ring-2 focus-visible:ring-bad"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad"
                   >
                     Delete
                   </button>

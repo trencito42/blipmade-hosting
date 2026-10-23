@@ -109,7 +109,7 @@ export default function Orders() {
                       order.customer?.id ? (
                         <Link
                           to={`/admin/customers/${order.customer.id}`}
-                          className="font-mono text-[13px] text-ink hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                          className="font-mono text-[13px] text-ink hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                         >
                           {order.number}
                         </Link>
@@ -122,15 +122,23 @@ export default function Orders() {
                     header: 'Customer',
                     render: (order: AdminOrder) => (
                       <span className="block min-w-0">
-                        <span className="block truncate text-ink">{order.customer?.name ?? 'No name'}</span>
-                        <span className="block truncate font-mono text-[12.5px] text-ink3">{email(order.customer?.email ?? '')}</span>
+                        <span className="block truncate text-ink" title={order.customer?.name ?? 'No name'}>
+                          {order.customer?.name ?? 'No name'}
+                        </span>
+                        <span className="block truncate font-mono text-[12.5px] text-ink3" title={email(order.customer?.email ?? '')}>
+                          {email(order.customer?.email ?? '')}
+                        </span>
                       </span>
                     ),
                   },
                   {
                     key: 'items',
                     header: 'Items',
-                    render: (order: AdminOrder) => <span className="block max-w-[260px] truncate text-ink2">{itemsLabel(order)}</span>,
+                    render: (order: AdminOrder) => (
+                    <span className="block max-w-[260px] truncate text-ink2" title={itemsLabel(order)}>
+                      {itemsLabel(order)}
+                    </span>
+                  ),
                   },
                   {
                     key: 'total',
@@ -154,15 +162,24 @@ export default function Orders() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-mono text-[13.5px] text-ink">{order.number}</p>
-                        <p className="truncate text-[13px] text-ink2">{order.customer?.name ?? email(order.customer?.email ?? '')}</p>
+                        <p className="truncate font-mono text-[13.5px] text-ink" title={order.number}>
+                          {order.number}
+                        </p>
+                        <p
+                          className="truncate text-[13px] text-ink2"
+                          title={order.customer?.name ?? email(order.customer?.email ?? '')}
+                        >
+                          {order.customer?.name ?? email(order.customer?.email ?? '')}
+                        </p>
                       </div>
                       <StatusPill status={order.status} />
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
-                      <div className="col-span-2">
+                      <div className="col-span-2 min-w-0">
                         <dt className="text-ink3">Items</dt>
-                        <dd className="truncate text-ink">{itemsLabel(order)}</dd>
+                        <dd className="truncate text-ink" title={itemsLabel(order)}>
+                          {itemsLabel(order)}
+                        </dd>
                       </div>
                       <div>
                         <dt className="text-ink3">Total</dt>

@@ -165,8 +165,12 @@ export default function Services() {
                     header: 'Instance',
                     render: (service: AdminService) => (
                       <span className="block min-w-0">
-                        <span className="block truncate font-bold tracking-[-0.02em] text-ink">{service.name}</span>
-                        <span className="block truncate text-[12.5px] text-ink3">{service.product.name}</span>
+                        <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={service.name}>
+                          {service.name}
+                        </span>
+                        <span className="block truncate text-[12.5px] text-ink3" title={service.product.name}>
+                          {service.product.name}
+                        </span>
                       </span>
                     ),
                   },
@@ -177,7 +181,7 @@ export default function Services() {
                       service.customer?.id ? (
                         <Link
                           to={`/admin/customers/${service.customer.id}`}
-                          className="font-mono text-[12.5px] text-ink2 hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                          className="font-mono text-[12.5px] text-ink2 hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                         >
                           {email(service.customer.email)}
                         </Link>
@@ -227,29 +231,35 @@ export default function Services() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{service.name}</p>
-                        <p className="truncate text-[12.5px] text-ink3">{service.product.name}</p>
+                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={service.name}>
+                          {service.name}
+                        </p>
+                        <p className="truncate text-[12.5px] text-ink3" title={service.product.name}>
+                          {service.product.name}
+                        </p>
                       </div>
                       <StatusPill status={service.status} />
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Customer</dt>
-                        <dd className="truncate font-mono text-ink">{email(service.customer?.email ?? '')}</dd>
+                        <dd className="truncate font-mono text-ink" title={email(service.customer?.email ?? '')}>
+                          {email(service.customer?.email ?? '')}
+                        </dd>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Price</dt>
-                        <dd>
+                        <dd className="min-w-0 break-words">
                           <Money amount={service.price} currency={service.currency} period="month" />
                         </dd>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-2 min-w-0">
                         <dt className="text-ink3">Resources</dt>
-                        <dd className="font-mono text-ink">{resources(service)}</dd>
+                        <dd className="font-mono break-words text-ink">{resources(service)}</dd>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <dt className="text-ink3">Pterodactyl id</dt>
-                        <dd className="font-mono text-ink">{service.pterodactylServerId ?? DASH}</dd>
+                        <dd className="font-mono break-all text-ink">{service.pterodactylServerId ?? DASH}</dd>
                       </div>
                       <div>
                         <dt className="text-ink3">Created</dt>

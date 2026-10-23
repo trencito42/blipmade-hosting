@@ -20,7 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function Settings() {
-  const { user, loading, error, logout } = useSession();
+  const { user, loading, error, logout, refresh } = useSession();
   const { navigate, query } = useRouter();
   const toast = useToast();
 
@@ -37,7 +37,7 @@ export default function Settings() {
   if (error && !user) {
     return (
       <div className="grid gap-4">
-        <ErrorState title="Your account could not be loaded" message={error} />
+        <ErrorState title="Your account could not be loaded" message={error} onRetry={() => void refresh()} />
       </div>
     );
   }
@@ -167,6 +167,7 @@ function PasswordPanel({ token, email }: { token: string; email: string }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             error={passwordError}
+            className="scroll-mt-16"
           />
           <TextInput
             label="Repeat new password"
@@ -175,6 +176,7 @@ function PasswordPanel({ token, email }: { token: string; email: string }) {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             error={confirmError}
+            className="scroll-mt-16"
           />
           {reset.error && (
             <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
@@ -201,11 +203,13 @@ function PasswordPanel({ token, email }: { token: string; email: string }) {
         <div className="grid gap-3">
           <p className="rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
             There is no password change endpoint for a signed-in account, so we cannot set a new password here. Request a
-            reset link instead: we email a link to {email}, and it opens this page with the token to set a new password.
+            reset link instead: we email a link to <span className="break-all">{email}</span>, and it opens this page
+            with the token to set a new password.
           </p>
           {requested && (
             <p className="rounded-2xl bg-acc-bg px-4 py-3 text-[13.5px] text-acc" role="status">
-              If {email} has an account, a reset link is on its way. Check your inbox and your spam folder.
+              If <span className="break-all">{email}</span> has an account, a reset link is on its way. Check your inbox
+              and your spam folder.
             </p>
           )}
           {request.error && (
@@ -221,6 +225,7 @@ function PasswordPanel({ token, email }: { token: string; email: string }) {
                 setRequested(true);
               }}
               disabled={request.pending}
+              className="w-full justify-center sm:w-auto"
             >
               {request.pending ? 'Sending…' : 'Request a password reset link'}
             </PrimaryButton>

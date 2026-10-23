@@ -1,0 +1,92 @@
+# Nightly restore drill.
+#
+# The drill proves that a backup can be restored: the database is dumped, the
+# dump is restored into a scratch database and the scratch database is compared
+# with the live one. The live database is never written to.
+#
+# This workflow runs the tooling against a disposable PostgreSQL service
+# container, so it proves the scripts work end to end without touching the
+# deployed database. The drill against a real off-host backup is a procedure on
+# the control plane host and is described in docs/RUNBOOK.md.
+#
+# No secret is needed to run it.
+
+name: Nightly backup drill
+
+on:
+  schedule:
+    # Every night at 03:17 UTC. A minute that is not round, so the job does not
+    # pile up on the runners of everybody else at midnight.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-backup-drill
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  restore-drill:
+    name: Restore the newest backup into a scratch database
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: blipmade
+          POSTGRES_PASSWORD: blipmade
+          POSTGRES_DB: blipmade
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U blipmade -d blipmade"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install the dependencies from the lock file
+        working-directory: api
+        run: npm ci
+
+      - name: Prepare the disposable database
+        working-directory: api
+        # The drill compares the restored database with the live one, and that
+        # comparison includes the number of applied migrations. The disposable
+        # database therefore carries the same migration history as the deployed
+        # one. These migrations are applied to a throwaway database, never to
+        # the deployed one.
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+
+      - name: Back up and restore into a scratch database
+        # The PostgreSQL client comes from the same image as the server, so the
+        # client and the server always have the same version. The repository is
+        # mounted read only; only the temporary directory is written to.
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade" \
+            -e BACKUP_DIR="/tmp/backups" \
+            -v "$PWD:/repo:ro" \
+            -w /repo \
+            postgres:17 \
+            bash -c 'set -euo pipefail
+              bash scripts/backup.sh nightly
+              bash scripts/restore-drill.sh'

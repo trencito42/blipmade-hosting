@@ -3,11 +3,24 @@ import { Icon, type IconName } from '../icons';
 import { get, type Instance } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
-import { EmptyState, ErrorState, ListRow, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
+import {
+  EmptyState,
+  ErrorState,
+  ListRow,
+  LoadingBlock,
+  Money,
+  Panel,
+  StatTile,
+  StatusPill,
+} from '../ui-app';
+import { deployPath, useDeployableProducts } from '../lib/pricing';
 
 /**
  * Customer overview. Reads the real instance list only: every number on this
  * page comes from GET /api/instances. Nothing here is simulated.
+ *
+ * A new account gets one onboarding panel instead of three empty panels, and
+ * an account with services gets the facts that are worth a panel.
  */
 
 const KNOWN_ICONS: readonly IconName[] = [
@@ -43,9 +56,9 @@ function fmtDate(iso: string): string {
 }
 
 const primaryLink =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
 const softLink =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
 
 /** Reasons this instance needs the customer to act. Empty when all is well. */
 function attentionReasons(instance: Instance): string[] {
@@ -141,10 +154,94 @@ export default function Overview() {
 
   const instances = data?.instances;
   const activity = useRecentActivity(instances);
+  const { products: deployable, loading: catalogLoading } = useDeployableProducts();
 
   const attention = (instances ?? []).filter((instance) => attentionReasons(instance).length > 0);
   const total = (instances ?? []).reduce((sum, instance) => sum + (instance.price ?? 0), 0);
   const currency = instances?.[0]?.currency ?? 'EUR';
+  const count = instances?.length ?? 0;
+
+  // The deploy button only ever points at a product that can be ordered.
+  const firstDeployable = deployable[0];
+
+  if (loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={3} label="Loading your dashboard" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title="We could not load your dashboard"
+        message={error.message}
+        onRetry={reload}
+      />
+    );
+  }
+
+  // A new account gets one panel that explains the next step, not three empty
+  // panels that each say there is nothing here.
+  if (count === 0) {
+    return (
+      <div className="grid gap-4">
+        <Panel
+          title="Deploy your first app"
+          description="Pick an app, choose the resources, and it runs on its own."
+        >
+          <p className="text-[15px] leading-relaxed text-ink2">
+            Every service is billed monthly for the memory, CPU and storage you choose. Nothing is billed before you
+            order, and you can change the size of a service whenever you need more room.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {firstDeployable ? (
+              <Link to={deployPath(firstDeployable.slug)} className={primaryLink}>
+                <Icon name="rocket" size={16} />
+                Deploy {firstDeployable.name}
+              </Link>
+            ) : (
+              <span className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink3">
+                <Icon name="rocket" size={16} />
+                No app is ready to order yet
+              </span>
+            )}
+            <Link to="/" className={softLink}>
+              Browse the catalog
+            </Link>
+          </div>
+
+          {catalogLoading ? (
+            <p className="mt-4 text-[13px] text-ink3">Loading the catalog…</p>
+          ) : deployable.length > 0 ? (
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              {deployable.slice(0, 4).map((product) => (
+                <Link
+                  key={product.id}
+                  to={deployPath(product.slug)}
+                  className="flex items-center gap-3 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                >
+                  <ProductIcon icon={product.icon} size={36} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14.5px] font-bold text-ink">{product.name}</span>
+                    <span className="block truncate text-[12.5px] text-ink3">{product.description}</span>
+                  </span>
+                  {product.price && <Money amount={product.price.amount} currency={product.price.currency} period="month" />}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
+              Nothing can be ordered at the moment. The catalog on the site lists what is coming, and we will let you
+              know when the first app is ready.
+            </p>
+          )}
+        </Panel>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">
@@ -164,121 +261,100 @@ export default function Overview() {
         </Panel>
       )}
 
-      <Panel title="Your instances">
-        {loading ? (
-          <LoadingBlock rows={3} label="Loading your instances" />
-        ) : error ? (
-          <ErrorState title="We could not load your instances" message={error.message} onRetry={reload} />
-        ) : !instances || instances.length === 0 ? (
-          <EmptyState
-            title="No instances yet. Pick an app."
-            description="Deploy an app or database and it runs on the resources you choose."
-            action={
-              <Link to="/app/deploy/wordpress" className={primaryLink}>
-                Deploy an app
+      {/* The facts of the account, with the monthly total in the row where it
+          belongs instead of a panel of its own. */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile label="Services" value={count} hint={count === 1 ? 'one app or database' : 'apps and databases'} />
+        <StatTile
+          label="Monthly total"
+          value={<Money amount={total} currency={currency} period="month" />}
+          hint="What your services cost per month"
+        />
+        <StatTile
+          label="Needs attention"
+          value={attention.length}
+          hint={attention.length === 0 ? 'Everything is running' : 'Open the service below'}
+        />
+        <StatTile
+          label="Deploy"
+          value={
+            firstDeployable ? (
+              <Link to={deployPath(firstDeployable.slug)} className="text-acc underline underline-offset-2 hover:text-acc-h">
+                Add a service
               </Link>
-            }
-          />
+            ) : (
+              <span className="text-ink3">Nothing ready yet</span>
+            )}
+          hint={firstDeployable ? `Start with ${firstDeployable.name}` : 'The catalog lists what is coming'}
+        />
+      </div>
+
+      <Panel title="Your services">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {instances!.map((instance) => (
+            <article key={instance.id} className="grid content-start gap-3 rounded-2xl bg-s2 p-4">
+              <div className="flex items-start gap-3">
+                <ProductIcon icon={instance.product.icon} />
+                <div className="min-w-0 flex-1">
+                  <Link
+                    to={`/app/instances/${instance.id}`}
+                    className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  >
+                    {instance.name}
+                  </Link>
+                  <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
+                </div>
+                <StatusPill status={instance.status} />
+              </div>
+
+              <div className="grid gap-1">
+                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Purchased limits</p>
+                <p className="font-mono text-[13.5px] text-ink">
+                  {fmtRam(instance.ram)} · {instance.cpu} vCPU · {instance.disk} GB disk
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {instance.url ? (
+                  <a
+                    href={instance.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="min-w-0 truncate text-[13.5px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  >
+                    {instance.url}
+                  </a>
+                ) : (
+                  <span className="text-[13.5px] text-ink3">No public URL yet</span>
+                )}
+                <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
+              </div>
+            </article>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Recent activity" description="The latest event of each service.">
+        {activity.loading ? (
+          <LoadingBlock rows={2} label="Loading recent activity" />
+        ) : activity.error ? (
+          <ErrorState title="Activity unavailable" message={activity.error.message} onRetry={activity.reload} />
+        ) : activity.rows.length === 0 ? (
+          <EmptyState title="No activity yet." description="Events appear here when something changes on a service." />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {instances.map((instance) => (
-              <article key={instance.id} className="grid content-start gap-3 rounded-2xl bg-s2 p-4">
-                <div className="flex items-start gap-3">
-                  <ProductIcon icon={instance.product.icon} />
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      to={`/app/instances/${instance.id}`}
-                      className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
-                    >
-                      {instance.name}
-                    </Link>
-                    <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
-                  </div>
-                  <StatusPill status={instance.status} />
-                </div>
-
-                <div className="grid gap-1">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Purchased limits</p>
-                  <p className="font-mono text-[13.5px] text-ink">
-                    {fmtRam(instance.ram)} · {instance.cpu} vCPU · {instance.disk} GB disk
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  {instance.url ? (
-                    <a
-                      href={instance.url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="min-w-0 truncate text-[13.5px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:ring-2 focus-visible:ring-acc"
-                    >
-                      {instance.url}
-                    </a>
-                  ) : (
-                    <span className="text-[13.5px] text-ink3">No public URL yet</span>
-                  )}
-                  <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
-                </div>
-              </article>
+          <div className="grid gap-1.5">
+            {activity.rows.map((row) => (
+              <ListRow
+                key={row.instanceId}
+                to={`/app/instances/${row.instanceId}`}
+                title={row.instanceName}
+                meta={`${row.event.type}: ${row.event.message}`}
+                right={<span className="font-mono text-[12px] text-ink3">{fmtDate(row.event.createdAt)}</span>}
+              />
             ))}
           </div>
         )}
       </Panel>
-
-      <Panel title="Deploy something" description="Start a new app or database on the resources you choose.">
-        <div className="flex flex-wrap gap-2">
-          <Link to="/app/deploy/wordpress" className={primaryLink}>
-            <Icon name="rocket" size={16} />
-            Deploy an app
-          </Link>
-          <Link to="/" className={softLink}>
-            Browse the catalog
-          </Link>
-        </div>
-      </Panel>
-
-      <Panel title="Monthly total">
-        {loading ? (
-          <>
-            <p className="font-mono text-[22px] font-semibold tabular-nums text-ink3">—</p>
-            <p className="mt-1 text-[12.5px] text-ink3">Not available yet</p>
-          </>
-        ) : !instances || instances.length === 0 ? (
-          <>
-            <Money amount={0} currency={currency} />
-            <p className="mt-1 text-[13px] text-ink3">You have no instances, so nothing is billed.</p>
-          </>
-        ) : (
-          <>
-            <Money amount={total} currency={currency} period="month" />
-            <p className="mt-1 text-[13px] text-ink3">Sum of the monthly price of your {instances.length} instances.</p>
-          </>
-        )}
-      </Panel>
-
-      {instances && instances.length > 0 && (
-        <Panel title="Recent activity" description="The latest event of each instance.">
-          {activity.loading ? (
-            <LoadingBlock rows={2} label="Loading recent activity" />
-          ) : activity.error ? (
-            <ErrorState title="Activity unavailable" message={activity.error.message} onRetry={activity.reload} />
-          ) : activity.rows.length === 0 ? (
-            <EmptyState title="No activity yet." description="Events appear here when something changes on an instance." />
-          ) : (
-            <div className="grid gap-1.5">
-              {activity.rows.map((row) => (
-                <ListRow
-                  key={row.instanceId}
-                  to={`/app/instances/${row.instanceId}`}
-                  title={row.instanceName}
-                  meta={`${row.event.type}: ${row.event.message}`}
-                  right={<span className="font-mono text-[12px] text-ink3">{fmtDate(row.event.createdAt)}</span>}
-                />
-              ))}
-            </div>
-          )}
-        </Panel>
-      )}
     </div>
   );
 }

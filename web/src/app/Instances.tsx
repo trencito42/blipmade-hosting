@@ -4,6 +4,7 @@ import { get, type Instance } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, StatusPill, TextInput } from '../ui-app';
+import { deployPath, useDeployEntry } from '../lib/pricing';
 
 /**
  * Instance list. Filters are applied to the real list returned by
@@ -12,7 +13,7 @@ import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, Statu
  */
 
 const primaryLink =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
 
 /** Purchased memory, never live usage. */
 function fmtRam(mb: number): string {
@@ -31,6 +32,9 @@ export default function Instances() {
     (signal) => get<{ instances: Instance[] }>('/instances', undefined, signal),
     [],
   );
+
+  // The deploy button only points at a product the platform can really order.
+  const { slug: deploySlug, loading: deployLoading } = useDeployEntry();
 
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
@@ -62,10 +66,20 @@ export default function Instances() {
           <h2 className="text-[19px] font-extrabold tracking-[-0.035em] text-ink">Instances</h2>
           <p className="text-[13.5px] text-ink3">Your apps and databases, with the limits you bought.</p>
         </div>
-        <Link to="/app/deploy/wordpress" className={primaryLink}>
-          <Icon name="rocket" size={16} />
-          Deploy new
-        </Link>
+        {deploySlug ? (
+          <Link to={deployPath(deploySlug)} className={primaryLink}>
+            <Icon name="rocket" size={16} />
+            Deploy new
+          </Link>
+        ) : (
+          <span
+            aria-disabled="true"
+            className="inline-flex h-11 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink3"
+          >
+            <Icon name="rocket" size={16} />
+            {deployLoading ? 'Checking the catalog…' : 'No app is ready to order yet'}
+          </span>
+        )}
       </div>
 
       <div className="grid gap-3">
@@ -83,7 +97,7 @@ export default function Instances() {
             type="button"
             aria-pressed={status === 'all'}
             onClick={() => setStatus('all')}
-            className={`h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc ${
+            className={`h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
               status === 'all' ? 'bg-ink text-bg' : 'bg-s1 text-ink2 hover:bg-s2 hover:text-ink'
             }`}
           >
@@ -95,7 +109,7 @@ export default function Instances() {
               type="button"
               aria-pressed={status === value}
               onClick={() => setStatus(value)}
-              className={`h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold capitalize transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc ${
+              className={`h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold capitalize transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
                 status === value ? 'bg-ink text-bg' : 'bg-s1 text-ink2 hover:bg-s2 hover:text-ink'
               }`}
             >
@@ -114,9 +128,15 @@ export default function Instances() {
           title="No instances yet. Pick an app."
           description="Deploy an app or database and it runs on the resources you choose."
           action={
-            <Link to="/app/deploy/wordpress" className={primaryLink}>
-              Browse the catalog
-            </Link>
+            deploySlug ? (
+              <Link to={deployPath(deploySlug)} className={primaryLink}>
+                Deploy an app
+              </Link>
+            ) : (
+              <Link to="/#apps" className={primaryLink}>
+                Browse the catalog
+              </Link>
+            )
           }
         />
       ) : filtered.length === 0 ? (
@@ -130,7 +150,7 @@ export default function Instances() {
                 setQuery('');
                 setStatus('all');
               }}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               Clear filters
             </button>
@@ -146,7 +166,7 @@ export default function Instances() {
                 render: (instance: Instance) => (
                   <Link
                     to={`/app/instances/${instance.id}`}
-                    className="block min-w-0 rounded-lg font-bold text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                    className="block min-w-0 rounded-lg font-bold text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <span className="block truncate">{instance.name}</span>
                     <span className="block truncate text-[12.5px] font-normal text-ink3">{instance.product.name}</span>
@@ -164,7 +184,7 @@ export default function Instances() {
                 render: (instance: Instance) => (
                   <Link
                     to={`/app/instances/${instance.id}`}
-                    className="font-mono text-[13px] text-ink2 transition-colors duration-[180ms] hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                    className="font-mono text-[13px] text-ink2 transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     {limitsOf(instance)}
                   </Link>
@@ -176,7 +196,7 @@ export default function Instances() {
                 render: (instance: Instance) => (
                   <Link
                     to={`/app/instances/${instance.id}`}
-                    className="text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                    className="text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
                   </Link>
@@ -200,7 +220,7 @@ export default function Instances() {
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     to={`/app/instances/${instance.id}`}
-                    className="min-w-0 rounded-lg focus-visible:ring-2 focus-visible:ring-acc"
+                    className="min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <span className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{instance.name}</span>
                     <span className="block truncate text-[12.5px] text-ink3">{instance.product.name}</span>

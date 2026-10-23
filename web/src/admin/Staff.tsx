@@ -82,9 +82,9 @@ export default function Staff() {
               checked={checked}
               disabled={!editable}
               onChange={(event) => toggle(member.userId, permission, event.target.checked)}
-              className="size-4 shrink-0 accent-acc focus-visible:ring-2 focus-visible:ring-acc"
+              className="size-4 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             />
-            <span className="font-mono text-[12px] text-ink2">{permission}</span>
+            <span className="min-w-0 font-mono text-[12px] break-all text-ink2">{permission}</span>
           </label>
         );
       })}
@@ -132,10 +132,12 @@ export default function Staff() {
                     header: 'Member',
                     render: (member: StaffMember) => (
                       <span className="block min-w-0">
-                        <span className="block truncate font-bold tracking-[-0.02em] text-ink">
+                        <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
                           {member.name ?? 'No name'}
                         </span>
-                        <span className="block truncate font-mono text-[12.5px] text-ink3">{email(member.email)}</span>
+                        <span className="block truncate font-mono text-[12.5px] text-ink3" title={email(member.email)}>
+                          {email(member.email)}
+                        </span>
                       </span>
                     ),
                   },
@@ -167,8 +169,12 @@ export default function Staff() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{member.name ?? 'No name'}</p>
-                        <p className="truncate font-mono text-[12.5px] text-ink3">{email(member.email)}</p>
+                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
+                          {member.name ?? 'No name'}
+                        </p>
+                        <p className="truncate font-mono text-[12.5px] text-ink3" title={email(member.email)}>
+                          {email(member.email)}
+                        </p>
                       </div>
                       <StatusPill status={member.role === 'admin' ? 'active' : 'pending'} label={member.role} />
                     </div>
@@ -181,10 +187,13 @@ export default function Staff() {
                   <div key={member.userId} className="rounded-2xl bg-s2 p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">
+                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
                           {member.name ?? 'No name'}
                         </p>
-                        <p className="truncate font-mono text-[12.5px] text-ink3">
+                        <p
+                          className="truncate font-mono text-[12.5px] text-ink3"
+                          title={`${email(member.email)} · ${member.role}${member.title ? ` · ${member.title}` : ''}`}
+                        >
                           {email(member.email)} · {member.role}
                           {member.title ? ` · ${member.title}` : ''}
                         </p>

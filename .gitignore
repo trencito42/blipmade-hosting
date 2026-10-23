@@ -13,3 +13,6 @@ tmp/
 *.tsbuildinfo
 # Scratch tooling installed on the server (playwright-core, ws)
 tools/
+# The before and after screenshots of the interface. They are a review
+# artefact, not source, and they would make the history heavy.
+screenshots/

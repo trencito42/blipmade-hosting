@@ -1,17 +1,11 @@
 import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { useState, type FormEvent } from 'react';
-import { cn } from '../lib';
 import { Button, Eyebrow, Headline, Logo } from '../ui';
 import { Link } from '../router';
 import { ApiError, post } from '../lib/api';
+import { AuthField } from './auth-field';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
-
-const field = (err: boolean) =>
-  cn(
-    'flex h-14 items-center rounded-full bg-s1 pl-5 pr-2 transition-colors duration-[180ms]',
-    err ? 'bg-bad/10 ring-2 ring-bad' : 'focus-within:bg-s2 focus-within:ring-2 focus-within:ring-acc',
-  );
 
 function PromisePanel() {
   const catalog = useCatalogSummary();
@@ -44,6 +38,7 @@ export default function ForgotPassword() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (pending) return;
     const ve = checkEmail(email);
     setEmailErr(ve);
     if (ve) return;
@@ -103,17 +98,28 @@ export default function ForgotPassword() {
           <Headline as="h1" lines={['Reset', 'your password.']} className="text-[clamp(52px,12vw,76px)] leading-[0.9]" />
           <p className="text-[17px] text-ink2">Enter your email address and we will send you a reset link.</p>
           {msg && <div role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14.5px] font-bold text-bad">{msg}</div>}
-          <form onSubmit={submit} noValidate className="grid gap-4">
-            <div className="grid gap-2">
-              <label htmlFor="email" className="px-1 text-[14px] font-bold">Email address</label>
-              <div className={field(!!emailErr)}>
-                <input id="email" name="email" type="email" autoComplete="email" inputMode="email" autoFocus value={email} aria-invalid={emailErr ? true : undefined} aria-describedby={emailErr ? 'email-error' : undefined} onChange={(e) => { const v = e.target.value; setEmail(v); if (emailErr) setEmailErr(checkEmail(v)); }} onBlur={() => setEmailErr(checkEmail(email))} className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none" />
-              </div>
-              {emailErr && <p id="email-error" className="px-1 text-[12.5px] font-medium text-bad">{emailErr}</p>}
-            </div>
+          <form onSubmit={submit} noValidate aria-busy={pending} className="grid gap-4">
+            <AuthField
+              id="email"
+              label="Email address"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={email}
+              error={emailErr}
+              onChange={(v) => {
+                setEmail(v);
+                if (emailErr) setEmailErr(checkEmail(v));
+              }}
+              onBlur={() => {
+                // An empty field is not an error before the form was sent.
+                if (email) setEmailErr(checkEmail(email));
+                else setEmailErr(null);
+              }}
+            />
             <Button type="submit" full size="lg" disabled={pending}>{pending ? 'Sending…' : 'Send reset link'}</Button>
           </form>
-          <p className="text-center text-[14.5px] text-ink2">Remembered it? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
+          <p className="text-center text-[14.5px] text-ink2">Remembered it? <Link to="/login" className="font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
       </main>

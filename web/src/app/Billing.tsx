@@ -58,7 +58,7 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
 };
 
 const linkButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -221,7 +221,10 @@ export default function Billing() {
               <div key={subscription.id} className="rounded-2xl bg-s2 p-3.5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">
+                    <p
+                      className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink"
+                      title={subscription.instanceName ?? undefined}
+                    >
                       {subscription.instanceName ?? 'Subscription'}
                     </p>
                     <p className="mt-0.5 text-[13px] text-ink3">
@@ -328,7 +331,7 @@ export default function Billing() {
                         href={invoice.hostedUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="font-bold text-acc hover:underline focus-visible:ring-2 focus-visible:ring-acc"
+                        className="font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         Open
                       </a>
@@ -337,7 +340,7 @@ export default function Billing() {
                         href={invoice.pdfUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="font-bold text-acc hover:underline focus-visible:ring-2 focus-visible:ring-acc"
+                        className="font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         PDF
                       </a>
@@ -355,7 +358,9 @@ export default function Billing() {
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-mono text-[14px] font-bold text-ink">{invoice.number}</p>
+                      <p className="truncate font-mono text-[14px] font-bold text-ink" title={invoice.number}>
+                        {invoice.number}
+                      </p>
                       <p className="text-[12.5px] text-ink3">{formatDate(invoice.createdAt)}</p>
                     </div>
                     <span className="shrink-0 font-mono text-[15px] font-semibold text-ink">
@@ -372,7 +377,7 @@ export default function Billing() {
                         href={invoice.hostedUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="text-[13.5px] font-bold text-acc hover:underline focus-visible:ring-2 focus-visible:ring-acc"
+                        className="text-[13.5px] font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         Open invoice
                       </a>
@@ -381,7 +386,7 @@ export default function Billing() {
                         href={invoice.pdfUrl}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="text-[13.5px] font-bold text-acc hover:underline focus-visible:ring-2 focus-visible:ring-acc"
+                        className="text-[13.5px] font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         PDF
                       </a>

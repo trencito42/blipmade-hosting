@@ -340,6 +340,7 @@ function ConsoleTab({ instance }: { instance: Instance }) {
               onChange={(event) => setCommand(event.target.value)}
               placeholder="Send a command to the server"
               disabled={state !== 'open'}
+              className="scroll-mt-16"
             />
           </div>
           <PrimaryButton onClick={() => void sendCommand()} disabled={state !== 'open' || !command.trim()}>
@@ -371,7 +372,7 @@ function FilesTab({ instance }: { instance: Instance }) {
             type="button"
             onClick={() => setPath('')}
             aria-current={segments.length === 0 ? 'page' : undefined}
-            className="rounded-lg px-1.5 py-1 font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+            className="rounded-lg px-1.5 py-1 font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
           >
             root
           </button>
@@ -384,7 +385,7 @@ function FilesTab({ instance }: { instance: Instance }) {
                 type="button"
                 onClick={() => setPath(segments.slice(0, index + 1).join('/'))}
                 aria-current={index === segments.length - 1 ? 'page' : undefined}
-                className="rounded-lg px-1.5 py-1 font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+                className="rounded-lg px-1.5 py-1 text-left font-bold text-ink2 break-all transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
               >
                 {segment}
               </button>
@@ -419,7 +420,9 @@ function FilesTab({ instance }: { instance: Instance }) {
                 <Icon name={entry.isDirectory ? 'folder' : 'doc'} size={16} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-bold text-ink">{entry.name}</p>
+                <p className="truncate text-[15px] font-bold text-ink" title={entry.name}>
+                  {entry.name}
+                </p>
                 <p className="truncate text-[12.5px] text-ink3">
                   {entry.isDirectory ? 'Directory' : fmtBytes(entry.size)} · {fmtDateTime(entry.modifiedAt)}
                 </p>
@@ -431,7 +434,7 @@ function FilesTab({ instance }: { instance: Instance }) {
                   if (entry.isDirectory) setPath(target);
                   else setOpenPath(target);
                 }}
-                className="h-11 shrink-0 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc"
+                className="h-11 shrink-0 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
               >
                 {entry.isDirectory ? 'Open' : 'Edit'}
               </button>
@@ -501,7 +504,7 @@ function FileEditor({ instance, path, onClose }: { instance: Instance; path: str
             label="File content"
             value={content}
             onChange={(event) => setContent(event.target.value)}
-            className="min-h-[280px] font-mono"
+            className="min-h-[280px] scroll-mt-16 font-mono"
             spellCheck={false}
           />
           {save.error && (
@@ -559,7 +562,7 @@ function Stepper({
 }) {
   const clamp = (next: number) => Math.min(max, Math.max(min, next));
   const buttonClass =
-    'grid size-11 shrink-0 place-items-center rounded-full bg-s3 text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc disabled:cursor-not-allowed disabled:opacity-40';
+    'grid size-11 shrink-0 place-items-center rounded-full bg-s3 text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
     <div className="grid gap-2 rounded-2xl bg-s2 p-4">
@@ -728,7 +731,7 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
         <Panel title="Payment needed" description={`Order ${checkout.orderNumber} covers the price difference.`}>
           <a
             href={checkout.url}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97]"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97]"
           >
             Pay and apply the change
           </a>
@@ -780,7 +783,7 @@ function StartupTab({ instance, onUpdated }: { instance: Instance; onUpdated: (n
             placeholder="npm run start"
             autoComplete="off"
             spellCheck={false}
-            className="font-mono"
+            className="scroll-mt-16 font-mono"
           />
           {save.error && (
             <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
@@ -825,6 +828,7 @@ function StartupTab({ instance, onUpdated }: { instance: Instance; onUpdated: (n
                     placeholder="NODE_ENV"
                     autoComplete="off"
                     spellCheck={false}
+                    className="scroll-mt-16"
                   />
                   <div className="relative">
                     <TextInput
@@ -836,6 +840,7 @@ function StartupTab({ instance, onUpdated }: { instance: Instance; onUpdated: (n
                       }
                       autoComplete="off"
                       spellCheck={false}
+                      className="scroll-mt-16"
                     />
                   </div>
                 </div>
@@ -864,7 +869,9 @@ function StartupTab({ instance, onUpdated }: { instance: Instance; onUpdated: (n
             {revealed.map((row) => (
               <div key={row.key} className="grid gap-1">
                 <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">{row.key}</p>
-                <p className="truncate font-mono text-[13.5px] text-ink">{row.value}</p>
+                <p className="truncate font-mono text-[13.5px] text-ink" title={row.value}>
+                  {row.value}
+                </p>
               </div>
             ))}
           </div>
@@ -904,7 +911,7 @@ function DomainsTab({ instance }: { instance: Instance }) {
           action={
             <Link
               to="/app/domains"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
             >
               Manage domains
             </Link>
@@ -924,7 +931,7 @@ function DomainsTab({ instance }: { instance: Instance }) {
                         href={`https://${domain.hostname}`}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="font-bold text-acc underline underline-offset-2 hover:text-acc-h focus-visible:ring-2 focus-visible:ring-acc"
+                        className="font-bold text-acc underline underline-offset-2 hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         Open site
                       </a>
@@ -944,8 +951,12 @@ function DomainsTab({ instance }: { instance: Instance }) {
                     {domain.dnsRecords.map((record) => (
                       <div key={`${record.name}-${record.type}`} className="flex flex-wrap items-center gap-2 rounded-2xl bg-s2 p-3">
                         <span className="font-mono text-[11.5px] uppercase tracking-[0.08em] text-ink3">{record.type}</span>
-                        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink">{record.name}</span>
-                        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink2">{record.value}</span>
+                        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink" title={record.name}>
+                          {record.name}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink2" title={record.value}>
+                          {record.value}
+                        </span>
                         <SoftButton onClick={() => copy(record.value, 'DNS record')} aria-label={`Copy ${record.type} record for ${record.name}`}>
                           Copy
                         </SoftButton>
@@ -961,7 +972,7 @@ function DomainsTab({ instance }: { instance: Instance }) {
 
           <Link
             to="/app/domains"
-            className="text-[14px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:ring-2 focus-visible:ring-acc"
+            className="text-[14px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
           >
             Manage all domains
           </Link>
@@ -993,8 +1004,8 @@ function EventsTab({ instance }: { instance: Instance }) {
       {list.map((event) => (
         <ListRow
           key={event.id}
-          title={event.type}
-          meta={event.message}
+          title={<span title={event.type}>{event.type}</span>}
+          meta={<span title={event.message}>{event.message}</span>}
           right={<span className="font-mono text-[12px] text-ink3">{fmtDateTime(event.createdAt)}</span>}
         />
       ))}
@@ -1043,7 +1054,13 @@ function SettingsPanel({
   return (
     <Panel title="Settings">
       <div className="grid gap-3">
-        <TextInput label="Instance name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="off" />
+        <TextInput
+          label="Instance name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          autoComplete="off"
+          className="scroll-mt-16"
+        />
         {rename.error && (
           <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
             {rename.error}
@@ -1139,11 +1156,11 @@ export default function InstanceDetail() {
   return (
     <div className="grid gap-4">
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[13px] text-ink3">
-        <Link to="/app/instances" className="font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc">
+        <Link to="/app/instances" className="font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
           Instances
         </Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page" className="truncate font-bold text-ink">
+        <span aria-current="page" className="min-w-0 truncate font-bold text-ink" title={instance.name}>
           {instance.name}
         </span>
       </nav>
@@ -1152,8 +1169,12 @@ export default function InstanceDetail() {
         <div className="flex flex-wrap items-start gap-3">
           <ProductIcon icon={instance.product.icon} size={46} />
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[20px] font-extrabold tracking-[-0.035em] text-ink">{instance.name}</h2>
-            <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
+            <h2 className="truncate text-[20px] font-extrabold tracking-[-0.035em] text-ink" title={instance.name}>
+              {instance.name}
+            </h2>
+            <p className="truncate text-[13px] text-ink3" title={instance.product.name}>
+              {instance.product.name}
+            </p>
           </div>
           <StatusPill status={instance.status} />
         </div>
@@ -1164,10 +1185,11 @@ export default function InstanceDetail() {
               href={instance.url}
               target="_blank"
               rel="noreferrer noopener"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc"
+              title={instance.url}
+              className="inline-flex max-w-full min-h-11 items-center gap-1.5 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
-              {instance.url}
-              <Icon name="arrowUR" size={15} />
+              <span className="min-w-0 break-all">{instance.url}</span>
+              <Icon name="arrowUR" size={15} className="shrink-0" />
             </a>
           ) : (
             <span className="text-[13.5px] text-ink3">No public URL yet</span>

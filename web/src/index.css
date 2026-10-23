@@ -20,15 +20,73 @@
   --color-on-acc: #06130b;
   --color-bad: #ff6b6b;
   --color-warn: #f0b232;
-  --font-sans: "Geist Variable", "Inter", system-ui, sans-serif;
+  /* proxima nova is the typeface of the interface. It is loaded from the
+     authorized Adobe Fonts web project when one is configured; until then
+     Geist stays the fallback, so the site never waits for a font that is not
+     there. The web project may declare the family as "Proxima Nova" or as
+     "proxima-nova", so both names are asked for. */
+  --font-sans: "Proxima Nova", "proxima-nova", "Geist Variable", "Inter", system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* proxima nova has three weights. The tokens are normalized here, so every
+     place that asks for a weight asks for one the typeface really has and
+     nothing is synthesised by the browser. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 700;
+  --font-weight-black: 700;
+
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
-body { font-weight: 500; background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-:focus-visible { outline: 2px solid var(--color-acc); outline-offset: 3px; border-radius: 8px; }
+body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+
+/* The focus indicator of the whole interface. It sits in the base layer, so a
+   control that carries its own ring can switch this one off with the
+   `focus-visible:outline-none` utility. Without that separation a focused
+   control would show two indicators at once: the ring of the control and the
+   outline of the page. */
+@layer base {
+  :focus-visible { outline: 2px solid var(--color-acc); outline-offset: 3px; border-radius: 8px; }
+}
+
 ::selection { background: rgb(107 229 152 / 0.3); }
+
+/* Password managers and the browser fill the fields with their own colours,
+   which are light and unreadable on a dark page. The fill is painted with the
+   colour of the field instead, and the text keeps the colour of the
+   interface. The container keeps its round shape in every state. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--bm-field-bg, var(--color-s2)) inset;
+  box-shadow: 0 0 0 1000px var(--bm-field-bg, var(--color-s2)) inset;
+  caret-color: var(--color-ink);
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
+/* The autofill must not hide the error of the field. */
+input:-webkit-autofill[aria-invalid="true"] {
+  -webkit-box-shadow: 0 0 0 1000px var(--bm-field-bg, var(--color-s2)) inset;
+}
+
+/* A field the browser fills and that is focused at the same time keeps the
+   ring of its own: the paint of the fill is added in front of it, not in
+   place of it. */
+input:-webkit-autofill:focus-visible,
+textarea:-webkit-autofill:focus-visible {
+  -webkit-box-shadow: 0 0 0 1000px var(--bm-field-bg, var(--color-s2)) inset, var(--tw-ring-shadow, 0 0 0 #0000);
+  box-shadow: 0 0 0 1000px var(--bm-field-bg, var(--color-s2)) inset, var(--tw-ring-shadow, 0 0 0 #0000);
+}
 
 /* Scrollbars: one thin, flat treatment for the whole interface. The thumb
    rests on the muted ink so it stays visible (5:1 against the page), and the

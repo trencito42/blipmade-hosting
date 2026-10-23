@@ -69,11 +69,13 @@ export function fmtDateTime(value: string | null | undefined): string {
 
 /** Dense mode: 38 px controls, 14 px body. */
 export const denseInput =
-  'h-[38px] w-full rounded-full bg-s2 px-4 text-[14px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3';
+  // scroll-mt keeps the sticky top bar from covering a field the phone scrolls
+  // into view when it takes the focus.
+  'h-[38px] w-full scroll-mt-16 rounded-full bg-s2 px-4 text-[14px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3';
 export const denseSelect =
-  'h-[38px] w-full appearance-none rounded-full bg-s2 px-4 text-[14px] text-ink outline-none transition-colors duration-[180ms] focus:bg-s3';
+  'h-[38px] w-full scroll-mt-16 appearance-none rounded-full bg-s2 px-4 text-[14px] text-ink outline-none transition-colors duration-[180ms] focus:bg-s3';
 export const denseButton =
-  'inline-flex h-[38px] items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-[38px] items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50';
 export const densePrimary = `${denseButton} bg-acc text-on-acc hover:bg-acc-h`;
 export const denseSoft = `${denseButton} bg-s3 text-ink hover:bg-line`;
 export const denseDanger = `${denseButton} bg-bad/12 text-bad hover:bg-bad/20`;
@@ -145,24 +147,26 @@ export function ConfirmWithReason({
       aria-modal="true"
       aria-label={title}
     >
-      <div className="w-full max-w-[440px] rounded-[22px] bg-s1 p-5">
-        <h2 className="text-[18px] font-extrabold tracking-[-0.03em] text-ink">{title}</h2>
-        {description && <p className="mt-2 text-[14.5px] leading-relaxed text-ink2">{description}</p>}
-        <div className="mt-4">
-          <Field label={reasonLabel} error={error ?? undefined} htmlFor="admin-confirm-reason">
-            <textarea
-              id="admin-confirm-reason"
-              ref={reasonRef}
-              rows={3}
-              value={reason}
-              onChange={(event) => onReasonChange(event.target.value)}
-              placeholder="Recorded in the audit log."
-              className="w-full rounded-2xl bg-s2 p-3 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3"
-            />
-          </Field>
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[440px] flex-col rounded-[22px] bg-s1 p-5">
+        <h2 className="shrink-0 text-[18px] font-extrabold tracking-[-0.03em] text-ink">{title}</h2>
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {description && <p className="text-[14.5px] leading-relaxed text-ink2">{description}</p>}
+          <div className="mt-4">
+            <Field label={reasonLabel} error={error ?? undefined} htmlFor="admin-confirm-reason">
+              <textarea
+                id="admin-confirm-reason"
+                ref={reasonRef}
+                rows={3}
+                value={reason}
+                onChange={(event) => onReasonChange(event.target.value)}
+                placeholder="Recorded in the audit log."
+                className="w-full scroll-mt-16 rounded-2xl bg-s2 p-3 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3"
+              />
+            </Field>
+          </div>
         </div>
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <SoftButton onClick={onCancel} disabled={busy}>
+        <div className="mt-5 flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <SoftButton onClick={onCancel} disabled={busy} className="w-full sm:w-auto">
             Cancel
           </SoftButton>
           <button
@@ -172,8 +176,8 @@ export function ConfirmWithReason({
             disabled={busy}
             className={
               destructive
-                ? 'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50'
-                : densePrimary
+                ? 'inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto'
+                : 'inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto'
             }
           >
             {busy ? 'Working…' : confirmLabel}
@@ -262,7 +266,7 @@ export default function Overview() {
         {failures !== null && failures > 0 ? (
           <Link
             to="/admin/services"
-            className="rounded-2xl bg-warn/12 p-4 transition-colors duration-[180ms] hover:bg-warn/20 focus-visible:ring-2 focus-visible:ring-acc"
+            className="rounded-2xl bg-warn/12 p-4 transition-colors duration-[180ms] hover:bg-warn/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
           >
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-warn">Provisioning failures</p>
             <p className="mt-1 font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-warn">{failures}</p>

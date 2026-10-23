@@ -127,7 +127,8 @@ export default function Tickets() {
                   render: (t) => (
                     <Link
                       to={`/app/tickets/${t.id}`}
-                      className="block truncate font-bold tracking-[-0.02em] text-ink hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                      title={t.subject}
+                      className="block truncate font-bold tracking-[-0.02em] text-ink hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     >
                       {t.subject}
                     </Link>
@@ -156,7 +157,7 @@ export default function Tickets() {
                     <Link
                       to={`/app/tickets/${t.id}`}
                       aria-label={`Open ticket ${t.number}`}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink3 hover:bg-s3 hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink3 hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     >
                       <span aria-hidden="true">→</span>
                     </Link>
@@ -167,10 +168,15 @@ export default function Tickets() {
 
             <CardList<Ticket> rows={rows} rowKey={(t) => t.id}>
               {(t) => (
-                <Link to={`/app/tickets/${t.id}`} className="flex items-start gap-3 focus-visible:ring-2 focus-visible:ring-acc">
+                <Link to={`/app/tickets/${t.id}`} className="flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{t.subject}</p>
-                    <p className="mt-0.5 truncate text-[13px] text-ink3">
+                    <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink" title={t.subject}>
+                      {t.subject}
+                    </p>
+                    <p
+                      className="mt-0.5 truncate text-[13px] text-ink3"
+                      title={`#${t.number} · ${categoryLabel(t.category)} · ${fmtRelative(t.lastReplyAt)}`}
+                    >
                       #{t.number} · {categoryLabel(t.category)} · {fmtRelative(t.lastReplyAt)}
                     </p>
                   </div>
@@ -236,7 +242,7 @@ function NewTicketForm({
   return (
     <>
       <div className="fixed inset-0 z-30 bg-bg/80 lg:hidden" onClick={onClose} aria-hidden="true" />
-      <div className="fixed inset-x-0 bottom-0 z-40 max-h-[92svh] overflow-y-auto rounded-t-[26px] bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:z-auto lg:mt-0 lg:max-h-none lg:rounded-[22px] lg:p-5">
+      <div className="fixed inset-x-0 bottom-0 z-40 max-h-[92dvh] overflow-y-auto overscroll-contain rounded-t-[26px] bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:z-auto lg:mt-0 lg:max-h-none lg:rounded-[22px] lg:p-5">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">New ticket</h2>
@@ -246,7 +252,7 @@ function NewTicketForm({
             type="button"
             onClick={onClose}
             aria-label="Close the new ticket form"
-            className="grid size-11 shrink-0 place-items-center rounded-full bg-s3 text-ink2 hover:text-ink focus-visible:ring-2 focus-visible:ring-acc"
+            className="grid size-11 shrink-0 place-items-center rounded-full bg-s3 text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
           >
             <span aria-hidden="true">✕</span>
           </button>
@@ -260,6 +266,7 @@ function NewTicketForm({
             onChange={(e) => setSubject(e.target.value)}
             error={subjectError}
             autoComplete="off"
+            className="scroll-mt-16"
           />
 
           {categoriesLoading ? (
@@ -275,7 +282,13 @@ function NewTicketForm({
               </SoftButton>
             </div>
           ) : (
-            <Select label="Category" value={category} onChange={(e) => setCategory(e.target.value)} error={categoryError}>
+            <Select
+              label="Category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              error={categoryError}
+              className="scroll-mt-16"
+            >
               <option value="">Choose a category</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -285,7 +298,12 @@ function NewTicketForm({
             </Select>
           )}
 
-          <Select label="Priority" value={priority} onChange={(e) => setPriority(e.target.value)}>
+          <Select
+            label="Priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className="scroll-mt-16"
+          >
             {PRIORITIES.map((p) => (
               <option key={p.value} value={p.value}>
                 {p.label}
@@ -298,6 +316,7 @@ function NewTicketForm({
             hint="Optional. Links the ticket to one of your apps or databases."
             value={instanceId}
             onChange={(e) => setInstanceId(e.target.value)}
+            className="scroll-mt-16"
           >
             <option value="">No related instance</option>
             {instances.data?.instances.map((i) => (
@@ -314,6 +333,7 @@ function NewTicketForm({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             error={bodyError}
+            className="scroll-mt-16"
           />
 
           {create.error && (
@@ -323,10 +343,10 @@ function NewTicketForm({
           )}
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <SoftButton onClick={onClose} disabled={create.pending}>
+            <SoftButton onClick={onClose} disabled={create.pending} className="w-full sm:w-auto">
               Cancel
             </SoftButton>
-            <PrimaryButton onClick={submit} disabled={create.pending}>
+            <PrimaryButton onClick={submit} disabled={create.pending} className="w-full sm:w-auto">
               {create.pending ? 'Sending…' : 'Create ticket'}
             </PrimaryButton>
           </div>

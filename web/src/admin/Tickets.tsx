@@ -148,12 +148,14 @@ export default function Tickets() {
                           type="button"
                           onClick={() => setSelectedId(ticket.id)}
                           aria-pressed={ticket.id === selectedId}
-                          className="block min-w-0 text-left rounded-lg focus-visible:ring-2 focus-visible:ring-acc"
+                          className="block min-w-0 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                         >
-                          <span className="block truncate text-[14px] font-bold tracking-[-0.02em] text-ink">
+                          <span className="block truncate text-[14px] font-bold tracking-[-0.02em] text-ink" title={`#${ticket.number} ${ticket.subject}`}>
                             #{ticket.number} {ticket.subject}
                           </span>
-                          <span className="block truncate text-[12.5px] text-ink3">{maskEmail(ticket.customer?.email ?? '')}</span>
+                          <span className="block truncate text-[12.5px] text-ink3" title={maskEmail(ticket.customer?.email ?? '')}>
+                            {maskEmail(ticket.customer?.email ?? '')}
+                          </span>
                         </button>
                       ),
                     },
@@ -175,14 +177,16 @@ export default function Tickets() {
                       type="button"
                       onClick={() => setSelectedId(ticket.id)}
                       aria-pressed={ticket.id === selectedId}
-                      className="block w-full text-left rounded-lg focus-visible:ring-2 focus-visible:ring-acc"
+                      className="block w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-[14.5px] font-bold tracking-[-0.02em] text-ink">
+                          <p className="truncate text-[14.5px] font-bold tracking-[-0.02em] text-ink" title={`#${ticket.number} ${ticket.subject}`}>
                             #{ticket.number} {ticket.subject}
                           </p>
-                          <p className="truncate font-mono text-[12.5px] text-ink3">{maskEmail(ticket.customer?.email ?? '')}</p>
+                          <p className="truncate font-mono text-[12.5px] text-ink3" title={maskEmail(ticket.customer?.email ?? '')}>
+                            {maskEmail(ticket.customer?.email ?? '')}
+                          </p>
                         </div>
                         <StatusPill status={ticket.status} />
                       </div>
@@ -289,7 +293,7 @@ function TicketDetailPanel({
         description={current ? `Opened ${fmtDateTime(current.createdAt)}` : undefined}
         action={
           <button type="button" onClick={onClose} className={denseSoft}>
-            Back to the queue
+            Back to queue
           </button>
         }
       >
@@ -306,9 +310,9 @@ function TicketDetailPanel({
                   <StatusPill status={current.status} />
                 </dd>
               </div>
-              <div className="rounded-2xl bg-s2 p-3.5">
+              <div className="min-w-0 rounded-2xl bg-s2 p-3.5">
                 <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Customer</dt>
-                <dd className="mt-1 truncate font-mono text-[13px] text-ink">
+                <dd className="mt-1 truncate font-mono text-[13px] text-ink" title={ticket ? maskEmail(ticket.customer?.email ?? '') : undefined}>
                   {ticket ? maskEmail(ticket.customer?.email ?? '') : DASH}
                 </dd>
               </div>
@@ -316,9 +320,11 @@ function TicketDetailPanel({
                 <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Priority</dt>
                 <dd className="mt-1 capitalize text-ink">{current.priority}</dd>
               </div>
-              <div className="rounded-2xl bg-s2 p-3.5">
+              <div className="min-w-0 rounded-2xl bg-s2 p-3.5">
                 <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Instance</dt>
-                <dd className="mt-1 truncate text-ink">{current.instanceName ?? DASH}</dd>
+                <dd className="mt-1 truncate text-ink" title={current.instanceName ?? undefined}>
+                  {current.instanceName ?? DASH}
+                </dd>
               </div>
             </dl>
           </div>
@@ -445,7 +451,7 @@ function TicketDetailPanel({
                       )}
                       <span className="text-[12.5px] text-ink3">{fmtDateTime(message.createdAt)}</span>
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-ink2">{message.body}</p>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ink2">{message.body}</p>
                   </li>
                 ))}
               </ul>
@@ -461,6 +467,7 @@ function TicketDetailPanel({
                 onChange={(event) => setReplyBody(event.target.value)}
                 error={replyError ?? undefined}
                 placeholder="Answer the customer or leave a note for the team."
+                className="scroll-mt-16"
               />
               <div className="flex flex-wrap items-center gap-2">
                 <button

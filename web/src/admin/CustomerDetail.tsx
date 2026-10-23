@@ -151,12 +151,18 @@ export default function CustomerDetail() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`Customer ${customer.name ?? customer.id} loaded`} />
-      <Panel title={customer.name ?? 'No name'} description={`Customer ${customer.id}`}>
+      <Panel title={customer.name ?? 'No name'} description="Everything the API returns about this account.">
         <div className="grid gap-3">
           <dl className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-2xl bg-s2 p-3.5">
               <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">E-mail</dt>
-              <dd className="mt-1 truncate font-mono text-[13.5px] text-ink">{masked}</dd>
+              <dd className="mt-1 truncate font-mono text-[13.5px] text-ink" title={masked}>
+                {masked}
+              </dd>
+            </div>
+            <div className="rounded-2xl bg-s2 p-3.5">
+              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Customer id</dt>
+              <dd className="mt-1 font-mono text-[12px] break-all text-ink">{customer.id}</dd>
             </div>
             <div className="rounded-2xl bg-s2 p-3.5">
               <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Role</dt>
@@ -252,7 +258,10 @@ export default function CustomerDetail() {
 
       <Panel title="Instances" description={`${instanceCount} instance${instanceCount === 1 ? '' : 's'} on this account.`}>
         {!customer.instances.length ? (
-          <EmptyState title="No instances." description="This customer has nothing running yet." />
+          <EmptyState
+            title="No instances."
+            description="This customer has nothing running yet. Instances appear here as soon as one is deployed."
+          />
         ) : (
           <div className="grid gap-3">
             <DataTable<DetailInstance>
@@ -264,8 +273,12 @@ export default function CustomerDetail() {
                   header: 'Instance',
                   render: (instance: DetailInstance) => (
                     <span className="block min-w-0">
-                      <span className="block truncate font-bold tracking-[-0.02em] text-ink">{instance.name}</span>
-                      <span className="block truncate text-[12.5px] text-ink3">{instance.product.name}</span>
+                      <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={instance.name}>
+                        {instance.name}
+                      </span>
+                      <span className="block truncate text-[12.5px] text-ink3" title={instance.product.name}>
+                        {instance.product.name}
+                      </span>
                     </span>
                   ),
                 },
@@ -301,15 +314,19 @@ export default function CustomerDetail() {
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink">{instance.name}</p>
-                      <p className="truncate text-[12.5px] text-ink3">{instance.product.name}</p>
+                      <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={instance.name}>
+                        {instance.name}
+                      </p>
+                      <p className="truncate text-[12.5px] text-ink3" title={instance.product.name}>
+                        {instance.product.name}
+                      </p>
                     </div>
                     <StatusPill status={instance.status} />
                   </div>
                   <dl className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
                     <div>
                       <dt className="text-ink3">Price</dt>
-                      <dd>
+                      <dd className="min-w-0 break-words">
                         <Money amount={instance.price} period="month" />
                       </dd>
                     </div>
@@ -335,7 +352,10 @@ export default function CustomerDetail() {
 
       <Panel title="Invoices" description={`${customer.invoices.length} invoice${customer.invoices.length === 1 ? '' : 's'}.`}>
         {!customer.invoices.length ? (
-          <EmptyState title="No invoices." description="Nothing has been billed to this account." />
+          <EmptyState
+            title="No invoices."
+            description="Nothing has been billed to this account. Invoices appear here after the first payment."
+          />
         ) : (
           <div className="grid gap-3">
             <DataTable<DetailInvoice>
@@ -368,7 +388,9 @@ export default function CustomerDetail() {
               {(invoice) => (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-mono text-[13.5px] text-ink">{invoice.number}</p>
+                    <p className="truncate font-mono text-[13.5px] text-ink" title={invoice.number}>
+                      {invoice.number}
+                    </p>
                     <p className="text-[12.5px] text-ink3">{fmtDate(invoice.createdAt)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -384,7 +406,10 @@ export default function CustomerDetail() {
 
       <Panel title="Tickets" description={`${customer.tickets.length} ticket${customer.tickets.length === 1 ? '' : 's'}.`}>
         {!customer.tickets.length ? (
-          <EmptyState title="No tickets." description="This customer has not contacted support." />
+          <EmptyState
+            title="No tickets."
+            description="This customer has not contacted support. Tickets appear here as soon as they open one."
+          />
         ) : (
           <div className="grid gap-3">
             <DataTable<DetailTicket>
@@ -397,7 +422,7 @@ export default function CustomerDetail() {
                   render: (ticket: DetailTicket) => (
                     <Link
                       to={`/admin/tickets?ticket=${ticket.id}`}
-                      className="font-mono text-[13px] text-ink hover:text-acc focus-visible:ring-2 focus-visible:ring-acc"
+                      className="font-mono text-[13px] text-ink hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     >
                       #{ticket.number}
                     </Link>
@@ -406,7 +431,11 @@ export default function CustomerDetail() {
                 {
                   key: 'subject',
                   header: 'Subject',
-                  render: (ticket: DetailTicket) => <span className="block truncate text-ink">{ticket.subject}</span>,
+                  render: (ticket: DetailTicket) => (
+                    <span className="block truncate text-ink" title={ticket.subject}>
+                      {ticket.subject}
+                    </span>
+                  ),
                 },
                 {
                   key: 'status',
@@ -422,10 +451,12 @@ export default function CustomerDetail() {
             />
             <CardList<DetailTicket> rows={customer.tickets} rowKey={(ticket) => ticket.id}>
               {(ticket) => (
-                <Link to={`/admin/tickets?ticket=${ticket.id}`} className="block rounded-lg focus-visible:ring-2 focus-visible:ring-acc">
+                <Link to={`/admin/tickets?ticket=${ticket.id}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[14.5px] font-bold tracking-[-0.02em] text-ink">{ticket.subject}</p>
+                      <p className="truncate text-[14.5px] font-bold tracking-[-0.02em] text-ink" title={ticket.subject}>
+                      {ticket.subject}
+                    </p>
                       <p className="font-mono text-[12.5px] text-ink3">#{ticket.number} · {fmtDate(ticket.createdAt)}</p>
                     </div>
                     <StatusPill status={ticket.status} />
@@ -439,7 +470,10 @@ export default function CustomerDetail() {
 
       <Panel title="Orders" description={`${customer.orders.length} order${customer.orders.length === 1 ? '' : 's'}.`}>
         {!customer.orders.length ? (
-          <EmptyState title="No orders." description="This customer has not ordered anything." />
+          <EmptyState
+            title="No orders."
+            description="This customer has not ordered anything. Orders appear here as soon as one is placed."
+          />
         ) : (
           <div className="grid gap-3">
             <DataTable<DetailOrder>
@@ -472,7 +506,9 @@ export default function CustomerDetail() {
               {(order) => (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-mono text-[13.5px] text-ink">{order.number}</p>
+                    <p className="truncate font-mono text-[13.5px] text-ink" title={order.number}>
+                      {order.number}
+                    </p>
                     <p className="text-[12.5px] text-ink3">{fmtDate(order.createdAt)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

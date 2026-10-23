@@ -1,5 +1,7 @@
 import {
+  cloneElement,
   createContext,
+  isValidElement,
   useCallback,
   useContext,
   useEffect,
@@ -7,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { cn } from './lib';
@@ -28,6 +31,41 @@ export interface NavEntry {
   icon: IconName;
   /** Only match the exact path, used for the dashboard entry. */
   exact?: boolean;
+  /** Shorter label for the phone tab bar, when the full label does not fit. */
+  shortLabel?: string;
+}
+
+/**
+ * True while the software keyboard covers the bottom of the screen.
+ *
+ * The phone tab bar is fixed to the bottom of the layout viewport, so on a
+ * phone that resizes its layout for the keyboard the bar would sit on top of
+ * the field that is being typed into. The visual viewport tells us how much
+ * of the screen the keyboard covers.
+ */
+function useSoftwareKeyboard(threshold = 120): boolean {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const viewport = typeof window === 'undefined' ? null : window.visualViewport;
+    if (!viewport) return;
+    let frame = 0;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const covered = window.innerHeight - viewport.height - viewport.offsetTop;
+        setOpen(covered > threshold);
+      });
+    };
+    measure();
+    viewport.addEventListener('resize', measure);
+    viewport.addEventListener('scroll', measure);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener('resize', measure);
+      viewport.removeEventListener('scroll', measure);
+    };
+  }, [threshold]);
+  return open;
 }
 
 export function AppShell({
@@ -52,6 +90,35 @@ export function AppShell({
     entry.exact ? path === entry.to : path === entry.to || path.startsWith(`${entry.to}/`);
 
   const tabs = phoneTabs ?? nav.slice(0, 4);
+  const keyboardOpen = useSoftwareKeyboard();
+
+  // The phone bar shows four entries. The rest of the navigation has to stay
+  // reachable, so it opens in a sheet from the fifth cell.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreButton = useRef<HTMLButtonElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const rest = useMemo(() => nav.filter((entry) => !tabs.includes(entry)), [nav, tabs]);
+  const restActive = rest.some(isActive);
+
+  // A new page closes the sheet.
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [path]);
+
+  // The sheet is a dialog: it closes with Escape and returns the focus to the
+  // button that opened it.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMoreOpen(false);
+        moreButton.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    sheet.current?.querySelector<HTMLElement>('a, button')?.focus();
+    return () => document.removeEventListener('keydown', onKey);
+  }, [moreOpen]);
 
   return (
     <div className="min-h-[100svh] bg-bg">
@@ -69,7 +136,7 @@ export function AppShell({
                 to={entry.to}
                 aria-current={isActive(entry) ? 'page' : undefined}
                 className={cn(
-                  'flex h-11 items-center gap-3 rounded-2xl px-3 text-[15px] font-bold transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc',
+                  'flex h-11 items-center gap-3 rounded-2xl px-3 text-[15px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
                   isActive(entry) ? 'bg-s2 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
                 )}
               >
@@ -92,8 +159,9 @@ export function AppShell({
         </aside>
 
         <div className="min-w-0 flex-1">
-          {/* Top bar */}
-          <header className="sticky top-0 z-20 flex items-center gap-3 bg-bg px-4 py-3 sm:px-6">
+          {/* Top bar. The padding keeps the bar clear of the notch of a
+              phone, so the title is never under the camera. */}
+          <header className="sticky top-0 z-20 flex items-center gap-3 bg-bg px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6">
             <Link to="/" className="flex items-center gap-2 lg:hidden" aria-label="Blipmade home">
               <img src={logo} alt="" className="h-6 w-auto" />
             </Link>
@@ -104,30 +172,122 @@ export function AppShell({
             <div className="flex shrink-0 items-center gap-2">{actions}</div>
           </header>
 
-          <main className="px-4 pb-28 pt-2 sm:px-6 lg:pb-10">{children}</main>
+          {/* The phone tab bar is 71px tall plus the safe area of the phone
+              (34px on a home-indicator device), so the page reserves 8rem
+              under the content: the last row of a table is never hidden. */}
+          <main className="px-4 pb-32 pt-2 sm:px-6 lg:pb-10">{children}</main>
         </div>
       </div>
 
       {/* Phone bottom tabs */}
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t-0 bg-s1 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:hidden"
+        data-bottom-nav=""
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-30 grid bg-s1 px-1 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] transition-transform duration-200 lg:hidden',
+          rest.length > 0 ? 'grid-cols-5' : 'grid-cols-4',
+          keyboardOpen && 'pointer-events-none translate-y-full',
+        )}
       >
-        {tabs.map((entry) => (
-          <Link
-            key={entry.to}
-            to={entry.to}
-            aria-current={isActive(entry) ? 'page' : undefined}
+        {tabs.map((entry) => {
+          const active = isActive(entry);
+          return (
+            <Link
+              key={entry.to}
+              to={entry.to}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                // One cell of the grid is the whole touch target: 64px wide
+                // at 320px and 56px tall, well over the 44px minimum.
+                'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-2xl px-1 py-1 text-[11.5px] font-bold leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+                active ? 'bg-s2 text-ink' : 'text-ink3',
+              )}
+            >
+              {/* The bar marks the active tab without relying on colour. It
+                  sits in the padding above the tab, like a tab indicator. */}
+              {active && <span aria-hidden="true" className="absolute inset-x-4 -top-1.5 h-[3px] rounded-full bg-acc" />}
+              <Icon name={entry.icon} size={20} className={active ? 'text-acc' : undefined} />
+              {/* The label wraps onto a second line rather than being cut. */}
+              <span className="flex min-h-[26px] min-w-0 max-w-full items-center justify-center break-words text-center">
+                {entry.shortLabel ?? entry.label}
+              </span>
+            </Link>
+          );
+        })}
+        {rest.length > 0 && (
+          <button
+            ref={moreButton}
+            type="button"
+            aria-expanded={moreOpen}
+            aria-haspopup="dialog"
+            aria-controls="phone-more-sheet"
+            onClick={() => setMoreOpen((open) => !open)}
             className={cn(
-              'flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-2xl text-[11.5px] font-bold transition-colors duration-[180ms]',
-              isActive(entry) ? 'text-acc' : 'text-ink3',
+              'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-2xl px-1 py-1 text-[11.5px] font-bold leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+              moreOpen || restActive ? 'bg-s2 text-ink' : 'text-ink3',
             )}
           >
-            <Icon name={entry.icon} size={20} />
-            {entry.label}
-          </Link>
-        ))}
+            {(moreOpen || restActive) && <span aria-hidden="true" className="absolute inset-x-4 -top-1.5 h-[3px] rounded-full bg-acc" />}
+            <Icon name="menu" size={20} className={moreOpen || restActive ? 'text-acc' : undefined} />
+            <span className="flex min-h-[26px] min-w-0 max-w-full items-center justify-center break-words text-center">
+              More
+            </span>
+          </button>
+        )}
       </nav>
+
+      {/* The sheet with the entries that do not fit in the bar. */}
+      {rest.length > 0 && moreOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div
+            className="absolute inset-0 bg-bg/80"
+            onClick={() => setMoreOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            ref={sheet}
+            id="phone-more-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="More pages"
+            className="absolute inset-x-0 bottom-0 max-h-[86dvh] overflow-y-auto overscroll-contain rounded-t-[26px] bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">All pages</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  moreButton.current?.focus();
+                }}
+                aria-label="Close"
+                className="grid h-11 w-11 place-items-center rounded-full bg-s3 text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+            <nav aria-label="All pages" className="grid gap-1">
+              {nav.map((entry) => {
+                const active = isActive(entry);
+                return (
+                  <Link
+                    key={entry.to}
+                    to={entry.to}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'flex h-12 items-center gap-3 rounded-2xl px-3 text-[15px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+                      active ? 'bg-s2 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
+                    )}
+                  >
+                    <Icon name={entry.icon} size={18} className={active ? 'text-acc' : 'text-ink3'} />
+                    {entry.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -199,7 +359,7 @@ export function ListRow({
   );
   if (to) {
     return (
-      <Link to={to} className="flex items-center gap-3 rounded-2xl bg-s2 p-3.5 transition-colors duration-[180ms] hover:bg-s3 focus-visible:ring-2 focus-visible:ring-acc">
+      <Link to={to} className="flex items-center gap-3 rounded-2xl bg-s2 p-3.5 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
         {inner}
       </Link>
     );
@@ -237,10 +397,12 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl bg-s2 px-5 py-10 text-center">
-      <p className="text-[16px] font-extrabold tracking-[-0.02em] text-ink">{title}</p>
-      {description && <p className="mx-auto mt-1.5 max-w-[38ch] text-[14px] text-ink2">{description}</p>}
-      {action && <div className="mt-4 flex justify-center">{action}</div>}
+    <div className="rounded-2xl bg-s2 px-5 py-8 text-center sm:py-10">
+      <p className="break-words text-[16px] font-extrabold tracking-[-0.02em] text-ink">{title}</p>
+      {description && (
+        <p className="mx-auto mt-1.5 max-w-[38ch] break-words text-[14px] leading-relaxed text-ink2">{description}</p>
+      )}
+      {action && <div className="mt-4 flex justify-center [&>*]:max-w-full">{action}</div>}
     </div>
   );
 }
@@ -258,19 +420,20 @@ export function ErrorState({
 }) {
   return (
     <div role="alert" className="rounded-2xl bg-s2 px-5 py-6">
-      <p className="text-[15px] font-extrabold text-bad">{title}</p>
-      {message && <p className="mt-1.5 text-[14px] text-ink2">{message}</p>}
+      <p className="break-words text-[15px] font-extrabold text-bad">{title}</p>
+      {message && <p className="mt-1.5 break-words text-[14px] leading-relaxed text-ink2">{message}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            className="h-10 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc"
+            // Full width on a phone, so the retry is within reach of a thumb.
+            className="h-11 w-full max-w-full whitespace-normal rounded-full bg-s3 px-4 text-center text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:w-auto"
           >
             Retry
           </button>
         )}
-        {requestId && <span className="font-mono text-[11.5px] text-ink3">request {requestId}</span>}
+        {requestId && <span className="break-all font-mono text-[11.5px] text-ink3">request {requestId}</span>}
       </div>
     </div>
   );
@@ -314,11 +477,12 @@ export function StatusPill({ status, label }: { status: string; label?: string }
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold capitalize',
+        // A long status wraps inside the pill instead of stretching the row.
+        'inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold capitalize',
         STATUS_TONE[key] ?? 'bg-s3 text-ink2',
       )}
     >
-      {text}
+      <span className="min-w-0 break-words">{text}</span>
     </span>
   );
 }
@@ -340,6 +504,12 @@ export function Money({ amount, currency = 'EUR', period }: { amount: number; cu
 
 // --- forms ----------------------------------------------------------------
 
+/** Props the shared fields hand to the control they wrap. */
+interface ControlProps {
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean;
+}
+
 export function Field({
   label,
   hint,
@@ -355,23 +525,73 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
+
+  // The control describes itself, so the hint and the error are wired into it
+  // with aria-describedby and the error is announced.
+  let control = children;
+  if (isValidElement<ControlProps>(children)) {
+    const own = children.props['aria-describedby'];
+    const extra: Partial<ControlProps> = {
+      'aria-describedby': [own, describedBy].filter(Boolean).join(' ') || undefined,
+    };
+    if (error) extra['aria-invalid'] = true;
+    control = cloneElement(children, extra);
+  }
+
   return (
     <div className={cn('grid gap-1.5', className)}>
       <label htmlFor={htmlFor} className="px-1 text-[13.5px] font-bold text-ink">
         {label}
       </label>
-      {children}
-      {error ? (
-        <p className="px-1 text-[12.5px] font-medium text-bad">{error}</p>
-      ) : hint ? (
-        <p className="px-1 text-[12.5px] text-ink3">{hint}</p>
-      ) : null}
+      {control}
+      {error && (
+        <p id={errorId} role="alert" className="px-1 text-[12.5px] font-medium text-bad">
+          {error}
+        </p>
+      )}
+      {hint && (
+        <p id={hintId} className="px-1 text-[12.5px] text-ink3">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
 
-const inputBase =
-  'h-14 w-full rounded-full bg-s2 px-5 text-[16px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3 lg:text-[15px]';
+/**
+ * The shared field look.
+ *
+ * The focus indicator is the ring of the control itself, in the shape of the
+ * control: the outline is switched off, so there is exactly one indicator.
+ * `--bm-field-bg` carries the colour of the container in the current state,
+ * so the paint of the browser's autofill matches an empty field.
+ */
+const fieldBase =
+  'w-full bg-s2 text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 ' +
+  '[--bm-field-bg:var(--color-s2)] focus:bg-s3 focus:[--bm-field-bg:var(--color-s3)] ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ' +
+  'disabled:cursor-not-allowed disabled:bg-s1 disabled:text-ink3 disabled:opacity-70 ' +
+  'read-only:cursor-default read-only:bg-s1 read-only:text-ink2 read-only:focus:bg-s1';
+
+/** The error ring keeps its colour when the field is focused, so the two never fight. */
+const errorRing = 'ring-2 ring-bad focus-visible:outline-none focus-visible:ring-bad';
+
+const inputBase = cn(fieldBase, 'h-14 rounded-full px-5 text-[16px] lg:text-[15px]');
+const areaBase = cn(fieldBase, 'rounded-2xl p-4 text-[16px] leading-relaxed lg:text-[15px]');
+const selectBase = cn(fieldBase, 'h-14 appearance-none rounded-full pl-5 pr-10 text-[16px] lg:text-[15px]');
+
+/** Chevron of the dropdown, drawn in the muted ink. */
+const selectChevron: CSSProperties = {
+  backgroundImage:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237b827b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 1.1rem center',
+  backgroundSize: '16px 16px',
+};
 
 export function TextInput({
   label,
@@ -386,8 +606,7 @@ export function TextInput({
       <input
         {...props}
         id={inputId}
-        aria-invalid={error ? true : undefined}
-        className={cn(inputBase, error && 'ring-2 ring-bad', props.className)}
+        className={cn(inputBase, error && errorRing, props.className)}
       />
     </Field>
   );
@@ -406,8 +625,7 @@ export function TextArea({
       <textarea
         {...props}
         id={areaId}
-        aria-invalid={error ? true : undefined}
-        className={cn('w-full rounded-2xl bg-s2 p-4 text-[16px] leading-relaxed text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3 lg:text-[15px]', error && 'ring-2 ring-bad', props.className)}
+        className={cn(areaBase, error && errorRing, props.className)}
       />
     </Field>
   );
@@ -427,8 +645,8 @@ export function Select({
       <select
         {...props}
         id={selectId}
-        aria-invalid={error ? true : undefined}
-        className={cn('h-14 w-full appearance-none rounded-full bg-s2 px-5 text-[16px] text-ink outline-none transition-colors duration-[180ms] focus:bg-s3 lg:text-[15px]', error && 'ring-2 ring-bad', props.className)}
+        style={{ ...selectChevron, ...props.style }}
+        className={cn(selectBase, error && errorRing, props.className)}
       >
         {children}
       </select>
@@ -444,7 +662,7 @@ export function PrimaryButton({
     <button
       {...props}
       className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
         props.className,
       )}
     >
@@ -461,7 +679,7 @@ export function SoftButton({
     <button
       {...props}
       className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
         props.className,
       )}
     >
@@ -478,7 +696,7 @@ export function DangerButton({
     <button
       {...props}
       className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50',
         props.className,
       )}
     >
@@ -499,7 +717,9 @@ export function Segmented<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="flex gap-1.5 overflow-x-auto pb-1 bm-hide-scroll">
+    // The segments wrap onto a second row on a narrow phone, so no label is
+    // cut and the strip never scrolls the page sideways.
+    <div role="tablist" aria-label={ariaLabel} className="flex min-w-0 flex-wrap gap-1.5">
       {options.map((option) => (
         <button
           key={option.value}
@@ -508,7 +728,7 @@ export function Segmented<T extends string>({
           aria-selected={option.value === value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc',
+            'h-11 max-w-full shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4',
             option.value === value ? 'bg-ink text-bg' : 'bg-s2 text-ink2 hover:bg-s3 hover:text-ink',
           )}
         >
@@ -545,7 +765,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={value}>
       {children}
-      <div aria-live="polite" aria-atomic="false" className="pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4 lg:bottom-6">
+      <div aria-live="polite" aria-atomic="false" className="pointer-events-none fixed inset-x-0 bottom-28 z-50 flex flex-col items-center gap-2 px-4 lg:bottom-6">
         {items.map((item) => (
           <div
             key={item.id}
@@ -586,14 +806,17 @@ export function ConfirmDialog({
   requireText?: string;
 }) {
   const [typed, setTyped] = useState('');
-  const ref = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) {
       setTyped('');
       return;
     }
-    ref.current?.focus();
+    // The focus goes to the panel, so the dialog is announced and the action
+    // is not focused before it can be used.
+    panelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel();
     };
@@ -601,30 +824,49 @@ export function ConfirmDialog({
     return () => removeEventListener('keydown', onKey);
   }, [open, onCancel]);
 
+  // The page behind the dialog must not scroll.
+  useEffect(() => {
+    if (!open) return;
+    const body = document.body;
+    const previous = body.style.overflow;
+    body.style.overflow = 'hidden';
+    return () => {
+      body.style.overflow = previous;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const blocked = Boolean(requireText) && typed.trim() !== requireText;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-3 sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="w-full max-w-[440px] rounded-[22px] bg-s1 p-5">
-        <h2 className="text-[18px] font-extrabold tracking-[-0.03em] text-ink">{title}</h2>
-        {description && <p className="mt-2 text-[14.5px] leading-relaxed text-ink2">{description}</p>}
-        {requireText && (
-          <div className="mt-4">
-            <TextInput label={`Type ${requireText} to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
-          </div>
-        )}
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <SoftButton onClick={onCancel} disabled={busy}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-3 sm:items-center" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        // The dialog fits the screen: the body scrolls, the actions stay.
+        className="flex max-h-[calc(100svh-1.5rem)] w-full max-w-[440px] flex-col rounded-[22px] bg-s1 p-5 focus:outline-none"
+      >
+        <h2 id={titleId} className="text-[18px] font-extrabold tracking-[-0.03em] text-ink">
+          {title}
+        </h2>
+        <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {description && <p className="text-[14.5px] leading-relaxed text-ink2">{description}</p>}
+          {requireText && (
+            <div className="mt-4">
+              <TextInput label={`Type ${requireText} to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+            </div>
+          )}
+        </div>
+        <div className="mt-5 flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <SoftButton onClick={onCancel} disabled={busy} className="w-full sm:w-auto">
             Cancel
           </SoftButton>
           <button
-            ref={ref}
             type="button"
             onClick={onConfirm}
             disabled={busy || blocked}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-white transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-11 w-full max-w-full items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-white transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {busy ? 'Working…' : confirmLabel}
           </button>
@@ -649,7 +891,10 @@ export function DataTable<T>({
 }) {
   if (!rows.length) return <>{empty ?? <EmptyState title="Nothing here yet." />}</>;
   return (
-    <div className="hidden overflow-x-auto md:block">
+    // A wide table scrolls inside its own box: the page never scrolls
+    // sideways. The strip is marked, so the scrollbar of the design system
+    // stays out of the way.
+    <div className="hidden w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain bm-hide-scroll md:block">
       <table className="w-full border-collapse text-left">
         <thead>
           <tr>

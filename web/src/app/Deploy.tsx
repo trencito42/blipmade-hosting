@@ -86,12 +86,12 @@ function formatDateTime(value: string | null | undefined): string {
 
 const pill = (on: boolean) =>
   cn(
-    'h-11 whitespace-nowrap rounded-full px-3 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc lg:h-10',
+    'h-11 whitespace-nowrap rounded-full px-3 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc lg:h-10',
     on ? 'bg-ink text-bg' : 'bg-s2 text-ink2 hover:bg-s3 hover:text-ink',
   );
 
 const linkButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:ring-2 focus-visible:ring-acc';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -303,9 +303,14 @@ export default function Deploy() {
             title={`${product.name} cannot be ordered`}
             description={`${reasons.join(' ')} Ordering is blocked until the catalog team enables it.`}
             action={
-              <Link to="/app" className={linkButton}>
-                Back to your dashboard
-              </Link>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Link to="/app" className={linkButton}>
+                  Back to your dashboard
+                </Link>
+                <Link to="/#apps" className={cn(linkButton, 'bg-s3 text-ink hover:bg-line')}>
+                  Browse the catalog
+                </Link>
+              </div>
             }
           />
         </Panel>

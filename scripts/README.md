@@ -103,7 +103,11 @@ These tools explore the panel. Everything that changes something needs
 | `browser-state.mjs` | Reads the container state of a server through the Client API. | No. | `PANEL_EMAIL`, `PANEL_PASSWORD`, `PROBE_SERVER_UUID` |
 | `browser-console.mjs` | Captures the console output of a server. | No. | `PANEL_EMAIL`, `PANEL_PASSWORD`, `PROBE_SERVER_UUID` |
 | `console-stream.mjs` | The same, reusing the saved session. | No. | `COOKIE_FILE`, `PROBE_SERVER_UUID` |
-| `browser-screenshots.mjs` | Captures the interface at 390 px and 1440 px. | No, it only writes images. | optional `BM_EMAIL`, `BM_PASSWORD`, `BM_BASE`, `SHOT_DIR` |
+| `browser-screenshots.mjs` | Captures the interface at 390 px and 1440 px, with a session for the customer pages and another for the staff pages. | No, it only writes images. | optional `BM_EMAIL`, `BM_PASSWORD`, `BM_ADMIN_EMAIL`, `BM_ADMIN_PASSWORD`, `BM_BASE`, `SHOT_DIR` |
+| `browser-responsive.mjs` | Checks every route at 320, 375, 390, 768, 1024 and 1440 px: sideways scroll, elements out of the viewport, clipped text, the size of the tap targets of the bottom bar and the errors of the console. | No, it only writes a report. | optional `BM_EMAIL`, `BM_PASSWORD`, `BM_BASE`, `SHOT_DIR`, `BM_SHOTS` |
+| `browser-checks.mjs` | Checks the behaviour that was fixed: one focus indicator, the autofill of the browser, the password button, the order of the keyboard, the links and the deploy buttons against the catalog. | No. | optional `BM_EMAIL`, `BM_PASSWORD`, `BM_BASE` |
+| `verify-frontend.sh` | Runs the three passes above in one go. It signs in as few times as possible, because the login endpoint allows ten attempts every fifteen minutes for an address. | No. | `BM_EMAIL`, `BM_PASSWORD`, `BM_ADMIN_EMAIL`, `BM_ADMIN_PASSWORD`, optional `BM_BASE`, `SHOT_DIR` |
+| `seed-browser-account.mjs` | Creates the two accounts that the browser checks sign in with. The password is never stored in the repository. | Writes two accounts in the database. | optional `BM_PASSWORD`, `BM_CLEANUP` |
 | `browser-scrollbar.mjs` | Checks that the custom scrollbar is applied and captures it. | No, it only writes images. | optional `BM_BASE`, `SHOT_DIR` |
 | `browser-scrollbar-hover.mjs` | Captures the scrollbar in its resting and hovered state. | No, it only writes images. | optional `BM_BASE`, `SHOT_DIR` |
 

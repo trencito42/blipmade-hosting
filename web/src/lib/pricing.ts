@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { get, type CatalogProduct } from './api';
 
 /**
@@ -118,4 +118,34 @@ export function useCatalogProducts(): { products: CatalogProduct[]; loading: boo
   }, []);
 
   return { products, loading };
+}
+
+/**
+ * The products that can really be ordered: listed in the public catalog and
+ * validated for deployment.
+ */
+export function useDeployableProducts(): { products: CatalogProduct[]; loading: boolean } {
+  const { products, loading } = useCatalogProducts();
+  const deployable = useMemo(
+    () => products.filter((product) => product.deployable && product.visible),
+    [products],
+  );
+  return { products: deployable, loading };
+}
+
+/**
+ * Where a "deploy" button leads: the first product that can really be ordered.
+ *
+ * A product that is only listed cannot be ordered, so a button must never
+ * point at one. When nothing is deployable yet there is no target and the
+ * button has to say so instead of leading to a dead end.
+ */
+export function useDeployEntry(): { slug: string | null; loading: boolean } {
+  const { products, loading } = useDeployableProducts();
+  return { slug: products[0]?.slug ?? null, loading };
+}
+
+/** The path of the deploy page of a product. */
+export function deployPath(slug: string): string {
+  return `/app/deploy/${encodeURIComponent(slug)}`;
 }
