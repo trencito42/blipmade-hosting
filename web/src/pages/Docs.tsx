@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { APPS, fmtMb, type App } from '../data';
-import { useCatalogProducts } from '../lib/pricing';
+import { get, type CatalogProduct } from '../lib/api';
+import { useAsync } from '../lib/useAsync';
+import { memLabel } from '../lib/pricing';
 import { Icon, type IconName } from '../icons';
 import { cn } from '../lib';
 import { Link, scrollToId, useRouter } from '../router';
 import { Logo } from '../ui';
-import { Money } from '../ui-app';
+import { Money, SoftButton } from '../ui-app';
 
 /**
  * The Blipmade documentation.
@@ -71,31 +72,19 @@ function fmtDate(value: string): string {
   return DATE_FMT.format(date);
 }
 
-function appByName(name: string): App {
-  const app = APPS.find((a) => a.name === name);
-  if (!app) throw new Error(`Unknown app in the catalog data: ${name}`);
-  return app;
-}
-
 /**
- * The price of an app comes from the catalog of the platform. An app that is
- * documented but not offered has no price, and the page says so instead of
- * showing a number the platform does not charge.
+ * The price of a product comes from the catalog of the platform. The page of
+ * a product is only published when the catalog offers the product, so the
+ * price it shows is always a price the platform charges.
  */
-function CatalogPrice({ name }: { name: string }) {
-  const { products } = useCatalogProducts();
-  const product = products.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
-  if (!product) return <span className="text-ink2">Not in the catalog yet</span>;
+function CatalogPrice({ product }: { product: CatalogProduct }) {
   if (!product.price) return <span className="text-ink2">Price on request</span>;
   return <Money amount={product.price.amount} currency={product.price.currency} period="month" />;
 }
 
-/** The smallest configuration of an app, taken from the catalog when it is offered. */
-function CatalogResources({ name, fallback }: { name: string; fallback: string }) {
-  const { products } = useCatalogProducts();
-  const product = products.find((entry) => entry.name.toLowerCase() === name.toLowerCase());
-  if (!product) return <>{fallback}</>;
-  return <>{`${fmtMb(product.minRam)} RAM · ${product.minDisk} GB disk`}</>;
+/** The smallest configuration of a product, taken from the catalog. */
+function CatalogResources({ product }: { product: CatalogProduct }) {
+  return <>{`${memLabel(product.minRam)} RAM · ${product.minDisk} GB disk`}</>;
 }
 
 interface AppDoc {
@@ -104,7 +93,6 @@ interface AppDoc {
   title: string;
   summary: string;
   keywords: string[];
-  app: App;
   intro: string;
   firstRun: Step[];
   envIntro: string;
@@ -117,8 +105,7 @@ interface AppDoc {
 }
 
 /** Builds one app or database page with the same anatomy but its own content. */
-function appPage(doc: AppDoc): DocPage {
-  const { app } = doc;
+function appPage(doc: AppDoc, product: CatalogProduct): DocPage {
   const envBlocks: Block[] = doc.env.length
     ? [
         { t: 'p', text: doc.envIntro },
@@ -157,9 +144,9 @@ function appPage(doc: AppDoc): DocPage {
           {
             t: 'spec',
             rows: [
-              { k: 'Minimum resources', v: <CatalogResources name={doc.title} fallback={`${fmtMb(app.mb)} RAM · ${app.disk} GB disk`} /> },
+              { k: 'Minimum resources', v: <CatalogResources product={product} /> },
               { k: 'CPU', v: 'Selectable when you deploy' },
-              { k: 'Price from', v: <CatalogPrice name={doc.title} /> },
+              { k: 'Price from', v: <CatalogPrice product={product} /> },
               { k: 'Billing', v: 'Monthly, billed in euros' },
             ],
           },
@@ -203,7 +190,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'WordPress',
     summary: 'WordPress on your own instance: pick the resources, deploy, and finish the installer.',
     keywords: ['wordpress', 'cms', 'blog', 'woocommerce', 'site'],
-    app: appByName('WordPress'),
     intro:
       'WordPress is the site builder in the Blipmade catalog: blogs, company sites and small stores. You choose the memory, CPU and disk, and the instance runs the stack for you.',
     firstRun: [
@@ -266,7 +252,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'Ghost',
     summary: 'Ghost for newsletters and blogs, with its own MySQL database.',
     keywords: ['ghost', 'newsletter', 'blog', 'publishing'],
-    app: appByName('Ghost'),
     intro:
       'Ghost is a publishing platform for newsletters and member sites. It keeps its content in MySQL, so a Ghost deployment runs together with a MySQL database instance.',
     firstRun: [
@@ -336,7 +321,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'Forgejo',
     summary: 'A self-hosted Git forge with repositories, issues and pull requests.',
     keywords: ['forgejo', 'git', 'repository', 'forge', 'pull request'],
-    app: appByName('Forgejo'),
     intro:
       'Forgejo is a lightweight Git forge: repositories, issues, pull requests and a package registry, running on your own instance.',
     firstRun: [
@@ -403,7 +387,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'Code Server',
     summary: 'VS Code in the browser, running on the resources you picked.',
     keywords: ['code server', 'vscode', 'ide', 'editor', 'development'],
-    app: appByName('Code Server'),
     intro:
       'Code Server is the browser version of Visual Studio Code. It runs on your instance, so your editor, your terminal and your project files are the same machine.',
     firstRun: [
@@ -469,7 +452,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'Uptime Kuma',
     summary: 'Uptime monitoring with a public status page, on a small instance.',
     keywords: ['uptime kuma', 'monitoring', 'status page', 'uptime', 'checks'],
-    app: appByName('Uptime Kuma'),
     intro:
       'Uptime Kuma watches your endpoints over HTTP, TCP or ping and publishes a status page you can share with your own users.',
     firstRun: [
@@ -532,7 +514,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'Grafana',
     summary: 'Dashboards over the databases and metrics you already have.',
     keywords: ['grafana', 'dashboards', 'metrics', 'monitoring', 'charts'],
-    app: appByName('Grafana'),
     intro:
       'Grafana turns your data into dashboards. Point it at a PostgreSQL or MySQL instance, a Prometheus server, or anything else that speaks one of its data sources.',
     firstRun: [
@@ -599,7 +580,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'n8n',
     summary: 'Workflow automation with credentials stored inside your own instance.',
     keywords: ['n8n', 'automation', 'workflow', 'integrations', 'webhook'],
-    app: appByName('n8n'),
     intro:
       'n8n connects services into workflows that run on a schedule or on a webhook. Workflows and credentials stay on the instance you deploy.',
     firstRun: [
@@ -669,7 +649,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'Discord Bot',
     summary: 'Run a Discord bot around the clock on a small instance.',
     keywords: ['discord', 'bot', 'chat', 'node', 'python'],
-    app: appByName('Discord Bot'),
     intro:
       'A Discord bot is a small program that stays connected to Discord. The instance keeps it online, restarts it if it stops, and keeps its token out of your repository.',
     firstRun: [
@@ -737,7 +716,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'PostgreSQL',
     summary: 'A managed PostgreSQL instance you connect to from your own apps.',
     keywords: ['postgres', 'postgresql', 'sql', 'database', 'psql'],
-    app: appByName('PostgreSQL'),
     intro:
       'PostgreSQL is a relational database with a strong query planner. The instance gives you a database with its own disk, and you connect to it from anywhere the network allows.',
     firstRun: [
@@ -805,7 +783,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'MySQL',
     summary: 'A MySQL instance for WordPress, Ghost and everything else that speaks MySQL.',
     keywords: ['mysql', 'mariadb', 'sql', 'database', 'wordpress'],
-    app: appByName('MySQL'),
     intro:
       'MySQL is the classic relational database and the one most WordPress and Ghost setups expect. The instance runs the server, the data lives on its disk.',
     firstRun: [
@@ -873,7 +850,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'Redis',
     summary: 'An in-memory store for caching, queues and rate limits.',
     keywords: ['redis', 'cache', 'queue', 'rate limit', 'memory'],
-    app: appByName('Redis'),
     intro:
       'Redis keeps data in memory, which makes it the usual choice for caches, job queues and rate limiters. It is small, fast and easy to lose, so treat it as a cache unless you have enabled persistence.',
     firstRun: [
@@ -940,7 +916,6 @@ const APP_DOCS: AppDoc[] = [
     title: 'MongoDB',
     summary: 'A document database for flexible schemas and JSON-shaped data.',
     keywords: ['mongodb', 'mongo', 'document database', 'nosql'],
-    app: appByName('MongoDB'),
     intro:
       'MongoDB stores documents instead of rows, which suits data whose shape changes. The instance runs the server and keeps the data on its own disk.',
     firstRun: [
@@ -2256,9 +2231,22 @@ curl -X POST "$BASE/api/tickets" \\
   },
 ];
 
-const PAGES: DocPage[] = [...APP_DOCS.map(appPage), ...HAND_WRITTEN];
-
-const PAGE_BY_ID = new Map<string, DocPage>(PAGES.map((page): [string, DocPage] => [page.id, page]));
+/**
+ * The pages of the documentation.
+ *
+ * The page of a product is only published when the catalog of the platform
+ * offers that product: a page for a product the platform does not sell would
+ * send a customer to a dead end. The general pages are local and are always
+ * there.
+ */
+function availablePages(products: CatalogProduct[]): DocPage[] {
+  const bySlug = new Map(products.map((product) => [product.slug, product]));
+  const productPages = APP_DOCS.flatMap((doc) => {
+    const product = bySlug.get(doc.id);
+    return product ? [appPage(doc, product)] : [];
+  });
+  return [...productPages, ...HAND_WRITTEN];
+}
 
 // --- blocks ----------------------------------------------------------------
 
@@ -2415,14 +2403,17 @@ function renderBlock(block: Block, key: number): ReactNode {
 
 // --- navigation ------------------------------------------------------------
 
-function NavTree({ activeId, onNavigate }: { activeId: string; onNavigate?: () => void }) {
+function NavTree({ pages, activeId, onNavigate }: { pages: DocPage[]; activeId: string; onNavigate?: () => void }) {
   return (
     <nav aria-label="Documentation" className="grid gap-5">
-      {GROUPS.map((group) => (
+      {GROUPS.map((group) => {
+        const groupPages = pages.filter((page) => page.group === group);
+        if (!groupPages.length) return null;
+        return (
         <div key={group}>
           <p className="px-3 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">{group}</p>
           <ul className="mt-2 grid gap-0.5">
-            {PAGES.filter((page) => page.group === group).map((page) => (
+            {groupPages.map((page) => (
               <li key={page.id}>
                 <Link
                   to={`/docs?p=${page.id}`}
@@ -2439,7 +2430,8 @@ function NavTree({ activeId, onNavigate }: { activeId: string; onNavigate?: () =
             ))}
           </ul>
         </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
@@ -2454,8 +2446,18 @@ export default function Docs() {
   const contentsButton = useRef<HTMLButtonElement>(null);
   const contentsSheet = useRef<HTMLDivElement>(null);
 
-  const pageId = query.p || PAGES[0]!.id;
-  const page = PAGE_BY_ID.get(pageId) ?? PAGES[0]!;
+  // The catalog decides which product pages exist. A product the platform
+  // does not offer has no page, so the documentation cannot advertise it.
+  const catalog = useAsync<{ products: CatalogProduct[] }>((signal) =>
+    get<{ products: CatalogProduct[] }>('/catalog/products', undefined, signal),
+  );
+  const products = catalog.data?.products ?? [];
+  const pages = useMemo(() => availablePages(products), [products]);
+  const pageById = useMemo(() => new Map(pages.map((page) => [page.id, page])), [pages]);
+  const catalogFailed = Boolean(catalog.error);
+
+  const pageId = query.p && pageById.has(query.p) ? query.p : pages[0]?.id;
+  const page = (pageId ? pageById.get(pageId) : undefined) ?? pages[0]!;
 
   // The list of contents is a dialog on a phone: the focus goes into it, it
   // closes with Escape and the focus goes back to the button that opened it.
@@ -2507,7 +2509,7 @@ export default function Docs() {
   const results = useMemo(() => {
     const needle = term.trim().toLowerCase();
     if (!needle) return [];
-    return PAGES.filter(
+    return pages.filter(
       (candidate) =>
         candidate.title.toLowerCase().includes(needle) ||
         candidate.group.toLowerCase().includes(needle) ||
@@ -2609,11 +2611,23 @@ export default function Docs() {
       <div className="mx-auto grid w-full max-w-[1280px] gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[230px_minmax(0,1fr)_210px]">
         <aside className="hidden lg:block">
           <div className="sticky top-[84px] max-h-[calc(100svh-104px)] overflow-y-auto pb-6">
-            <NavTree activeId={page.id} />
+            <NavTree pages={pages} activeId={page.id} />
           </div>
         </aside>
 
         <main className="min-w-0">
+          {catalogFailed && (
+            <div role="status" className="mb-7 grid gap-3 rounded-[24px] bg-s1 p-5">
+              <p className="text-[15px] font-extrabold tracking-[-0.02em]">The catalog could not be loaded.</p>
+              <p className="text-[14px] leading-relaxed text-ink2">
+                The pages of the products are published from the catalog of the platform, so they are not listed while it is
+                unreachable. The rest of the documentation is here.
+              </p>
+              <div>
+                <SoftButton onClick={catalog.reload}>Try again</SoftButton>
+              </div>
+            </div>
+          )}
           <article className="min-w-0 max-w-[72ch]">
             <p className="font-mono text-[11.5px] uppercase tracking-[0.12em] text-ink3">{page.group}</p>
             <h1 className="mt-2 text-[clamp(30px,6vw,42px)] font-extrabold leading-[1.06] tracking-[-0.05em] text-ink">
@@ -2638,7 +2652,7 @@ export default function Docs() {
             {page.next.length > 0 && (
               <nav aria-label="Next pages" className="mt-12 grid gap-2 sm:grid-cols-2">
                 {page.next.map((id) => {
-                  const target = PAGE_BY_ID.get(id);
+                  const target = pageById.get(id);
                   if (!target) return null;
                   return (
                     <Link
@@ -2723,6 +2737,7 @@ export default function Docs() {
             </Link>
           </nav>
           <NavTree
+            pages={pages}
             activeId={page.id}
             onNavigate={() => {
               setContentsOpen(false);

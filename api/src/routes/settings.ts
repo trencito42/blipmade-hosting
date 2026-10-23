@@ -97,55 +97,118 @@ function serializePreferences(preferences: {
 }
 
 /** The sessions of the account, newest first. */
-function serializeSession(session: {
-  id: string;
-  ip: string | null;
-  userAgent: string | null;
-  createdAt: Date;
-  expiresAt: Date;
-}, currentId: string | undefined) {
+function serializeSession(
+  session: {
+    id: string;
+    ip: string | null;
+    userAgent: string | null;
+    createdAt: Date;
+    expiresAt: Date;
+    lastSeenAt: Date | null;
+  },
+  currentId: string | undefined,
+) {
   return {
     id: session.id,
     ip: session.ip,
     userAgent: session.userAgent,
     createdAt: session.createdAt.toISOString(),
+    // The moment of the last use of the session. It is empty for a session
+    // that was never used again.
+    lastSeenAt: session.lastSeenAt?.toISOString() ?? null,
     expiresAt: session.expiresAt.toISOString(),
     current: session.id === currentId,
   };
 }
 
 /**
- * The short name of a browser, so the list of the sessions can be read.
+ * The name of the browser.
  *
  * Every browser of an iPhone sends "Safari" in its user agent, because the
- * system browser is the engine. The name of the browser comes before the
- * name of the engine, so a Chrome on an iPhone is not called a Safari.
+ * system browser is the engine. The name of the browser comes before the name
+ * of the engine, so a Chrome on an iPhone is not called a Safari. The
+ * browsers of iOS have a name of their own: `CriOS`, `EdgiOS`, `FxiOS` and
+ * `OPiOS`.
  */
-function describeAgent(userAgent: string | null): string {
+function describeBrowser(userAgent: string): string {
+  if (/Edg(?:iOS|A)?\//.test(userAgent)) return 'Edge';
+  if (/OP(?:R|iOS|T)\//.test(userAgent)) return 'Opera';
+  if (/(?:CriOS|Chrome)\//.test(userAgent)) return 'Chrome';
+  if (/(?:FxiOS|Firefox)\//.test(userAgent)) return 'Firefox';
+  if (/Safari\//.test(userAgent)) return 'Safari';
+  return 'A browser';
+}
+
+/** The system, its version and the model of the device, when they are there. */
+interface SystemDescription {
+  name: string;
+  version?: string;
+  model?: string;
+}
+
+/**
+ * The system of the device.
+ *
+ * Only what the user agent really carries is read. A value that is not
+ * there is left out, never guessed: a wrong version is worse than no version
+ * at all.
+ */
+function describeSystem(userAgent: string): SystemDescription {
+  // iOS and iPadOS: "iPhone; CPU iPhone OS 18_7 like Mac OS X" and
+  // "iPad; CPU OS 17_5 like Mac OS X".
+  if (/iPhone|iPad|iPod/.test(userAgent)) {
+    const version = /OS (\d+(?:[._]\d+)*) like Mac OS X/.exec(userAgent);
+    return {
+      name: 'iOS',
+      version: version ? version[1].replace(/_/g, '.') : undefined,
+      model: /iPad/.test(userAgent) ? 'iPad' : /iPod/.test(userAgent) ? 'iPod' : 'iPhone',
+    };
+  }
+
+  // Android: "Linux; Android 14; SM-G991B". The model is the part between the
+  // version of the system and the build.
+  if (/Android/.test(userAgent)) {
+    const version = /Android (\d+(?:\.\d+)*)/.exec(userAgent);
+    const model = /Android [\d.]+; ([^)]+?)(?: Build|\))/i.exec(userAgent);
+    return {
+      name: 'Android',
+      version: version ? version[1] : undefined,
+      model: model ? model[1] : undefined,
+    };
+  }
+
+  // Windows: "Windows NT 10.0".
+  if (/Windows/.test(userAgent)) {
+    const version = /Windows NT (\d+(?:\.\d+)*)/.exec(userAgent);
+    return { name: 'Windows', version: version ? version[1].replace(/\.0$/, '') : undefined };
+  }
+
+  // macOS: "Macintosh; Intel Mac OS X 10_15_7".
+  if (/Mac OS X/.test(userAgent)) {
+    const version = /Mac OS X (\d+(?:[._]\d+)*)/.exec(userAgent);
+    return { name: 'macOS', version: version ? version[1].replace(/_/g, '.') : undefined };
+  }
+
+  if (/Linux|X11/.test(userAgent)) return { name: 'Linux' };
+
+  return { name: '' };
+}
+
+/**
+ * The short name of a device, so the list of the sessions can be read.
+ *
+ * The name of the browser, the name of the system with its version and the
+ * model of the device are joined together, so two sessions of the same
+ * browser on two devices do not look the same.
+ */
+export function describeAgent(userAgent: string | null): string {
   if (!userAgent) return 'Unknown device';
-  const browser = /Edg(?:iOS|A)?\//.test(userAgent)
-    ? 'Edge'
-    : /OPR(?:iOS)?\//.test(userAgent)
-      ? 'Opera'
-      : /(?:CriOS|Chrome)\/|CriOS/.test(userAgent)
-        ? 'Chrome'
-        : /(?:FxiOS|Firefox)\/|FxiOS/.test(userAgent)
-          ? 'Firefox'
-          : /Safari\//.test(userAgent)
-            ? 'Safari'
-            : 'A browser';
-  const system = /Windows/.test(userAgent)
-    ? 'Windows'
-    : /Android/.test(userAgent)
-      ? 'Android'
-      : /iPhone|iPad|iPod/.test(userAgent)
-        ? 'iOS'
-        : /Mac OS X/.test(userAgent)
-          ? 'macOS'
-          : /Linux/.test(userAgent)
-            ? 'Linux'
-            : '';
-  return system ? `${browser} on ${system}` : browser;
+  const browser = describeBrowser(userAgent);
+  const system = describeSystem(userAgent);
+  if (!system.name) return browser;
+  const version = system.version ? ` ${system.version}` : '';
+  const model = system.model ? ` (${system.model})` : '';
+  return `${browser} on ${system.name}${version}${model}`;
 }
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
@@ -167,7 +230,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       }),
       prisma.notificationPreference.findUnique({ where: { userId: user.id } }),
       prisma.session.findMany({
-        where: { userId: user.id },
+        where: { userId: user.id, expiresAt: { gt: new Date() } },
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
@@ -405,7 +468,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
   app.get('/settings/sessions', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const sessions = await prisma.session.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -415,6 +478,30 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
         device: describeAgent(session.userAgent),
       })),
     };
+  });
+
+  /**
+   * Every other session of the account is closed.
+   *
+   * The session of the request stays open, so the customer is not signed out
+   * of the page they are on. The answer says how many sessions were closed.
+   */
+  app.delete('/settings/sessions', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const closed = await prisma.session.deleteMany({
+      where: { userId: user.id, ...(request.sessionId ? { id: { not: request.sessionId } } : {}) },
+    });
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'settings.sessions_closed',
+      targetType: 'user',
+      targetId: user.id,
+      meta: { closed: closed.count },
+      ip: request.ip,
+    });
+
+    return { closed: closed.count, current: true };
   });
 
   /** One session is closed. The current one may be closed too. */

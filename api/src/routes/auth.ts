@@ -2,9 +2,10 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
-import { badRequest, conflict, notFound, unauthorized } from '../lib/errors.js';
+import { badRequest, conflict, notFound, tooMany, unauthorized } from '../lib/errors.js';
 import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
+import { rateLimitRun } from '../lib/rate-limit.js';
 import { mailEnabled, mailLogLine, mailNotice, registrationNotice, tokenReference, type MailSendResult } from '../lib/mailer.js';
 import { passwordResetTemplate, verificationTemplate } from '../lib/email-templates.js';
 import { dispatchEmail } from '../services/queue.js';
@@ -48,6 +49,54 @@ const loginSchema = z.object({
 });
 
 const tokenSchema = z.object({ token: z.string().min(10, 'This link is not valid.') });
+
+/**
+ * The window of the limit of the attempts on one account.
+ *
+ * The limit of the address protects the server; the limit of the account
+ * protects the account. Ten attempts on an account count as ten attempts,
+ * even when they come from ten different addresses, so an account cannot be
+ * guessed from everywhere at once.
+ */
+const ACCOUNT_ATTEMPTS_WINDOW = '15 minutes';
+
+/**
+ * The key of the counter of an account: the address of the account, written
+ * the way the accounts are written.
+ *
+ * A request without a readable address falls back on the address of the
+ * caller, so two requests that cannot be read never share a counter.
+ */
+function accountKey(request: FastifyRequest): string {
+  const body = request.body as { email?: unknown } | undefined;
+  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const key = email ? `account:${email}` : `address:${request.ip}`;
+  // In the test environment the key carries the run number, so the counters
+  // of one test do not count against the next one.
+  return env.isTest ? `${key}:${rateLimitRun()}` : key;
+}
+
+/**
+ * The guard of the attempts on one account.
+ *
+ * The counter of the account is a counter of its own: it shares nothing with
+ * the counter of the address, so the two limits are two limits and a breach
+ * of either one is refused with the same answer as the other.
+ */
+function accountGuard(app: FastifyInstance, max: number) {
+  const limiter = app.createRateLimit({
+    max,
+    timeWindow: ACCOUNT_ATTEMPTS_WINDOW,
+    keyGenerator: accountKey,
+  });
+
+  return async (request: FastifyRequest) => {
+    const result = await limiter(request);
+    if (result.isAllowed) return;
+    if (!result.isExceeded) return;
+    throw tooMany();
+  };
+}
 
 /** The shape returned to the browser. Never includes password material. */
 export function publicUser(user: {
@@ -128,8 +177,16 @@ export async function sendResetEmail(userId: string, email: string, name: string
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+  // The counters of the accounts. Every one of them is a counter of its own,
+  // so the limit of the address and the limit of the account are two limits.
+  const loginGuard = accountGuard(app, 10);
+  const registerGuard = accountGuard(app, 10);
+  const mailGuard = accountGuard(app, 5);
+  const enrollGuard = accountGuard(app, 5);
+
   app.post('/auth/register', {
     config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
+    preHandler: registerGuard,
     handler: async (request: FastifyRequest, reply) => {
       const body = registerSchema.parse(request.body);
       const problems = passwordProblems(body.password);
@@ -151,7 +208,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      await createSession(request, reply, user.id);
+      await createSession(request, reply, user.id, user.email);
       const mail = await sendVerificationEmail(user.id, user.email, fullName(user));
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.register', targetType: 'user', targetId: user.id, ip: request.ip });
 
@@ -165,9 +222,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/auth/login', {
     config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+    preHandler: loginGuard,
     handler: async (request: FastifyRequest, reply) => {
       const body = loginSchema.parse(request.body);
-      const user = await prisma.user.findUnique({ where: { email: body.email } });
+      const user = await prisma.user.findUnique({ where: { email: body.email }, include: { staff: true } });
 
       // Always run a hash comparison so a missing account and a wrong password
       // take the same time.
@@ -180,10 +238,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
       if (user.suspendedAt) throw unauthorized('This account is suspended.');
 
-      await createSession(request, reply, user.id);
+      await createSession(request, reply, user.id, user.email);
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.login', targetType: 'user', targetId: user.id, ip: request.ip });
 
-      return { user: publicUser(user) };
+      // The answer of the sign-in carries the permissions of the account, so
+      // the interface is right from the first frame and not only after the
+      // session is read again.
+      return { user: { ...publicUser(user), permissions: user.staff?.permissions ?? [] } };
     },
   });
 
@@ -226,6 +287,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/auth/resend-verification', {
     config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    preHandler: mailGuard,
     handler: async (request: FastifyRequest, reply) => {
       const { email } = z.object({ email: emailSchema }).parse(request.body ?? {});
       const user = await prisma.user.findUnique({ where: { email } });
@@ -243,6 +305,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/auth/forgot-password', {
     config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    preHandler: mailGuard,
     handler: async (request: FastifyRequest, reply) => {
       const { email } = z.object({ email: emailSchema }).parse(request.body);
       const user = await prisma.user.findUnique({ where: { email } });
@@ -289,6 +352,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/auth/enroll-admin', {
     config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+    preHandler: enrollGuard,
     handler: async (request: FastifyRequest, reply) => {
       if (!env.ADMIN_ENROLLMENT_KEY) {
         throw badRequest('Administrator enrollment is not configured on this environment.');
@@ -327,7 +391,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         },
       });
       await prisma.staffMember.create({ data: { userId: user.id, permissions: [] } });
-      await createSession(request, reply, user.id);
+      await createSession(request, reply, user.id, user.email);
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.admin_enrolled', targetType: 'user', targetId: user.id, ip: request.ip });
 
       return { user: publicUser(user) };

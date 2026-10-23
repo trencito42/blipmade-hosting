@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { get, post, type Invoice, type Subscription } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { Link } from '../router';
 import {
+  ButtonLink,
   CardList,
   ConfirmDialog,
   DataTable,
@@ -57,9 +57,6 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
   INCOMPLETE_EXPIRED: 'Expired',
 };
 
-const linkButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
-
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
@@ -69,7 +66,7 @@ function formatDate(value: string | null | undefined): string {
 
 /** Only describes the fields the API actually returned. */
 function describePaymentMethod(method: PaymentMethod | null | undefined): string {
-  if (!method) return 'No payment method on file';
+  if (!method) return '—';
   const brand = method.brand ?? method.type;
   const last4 = method.last4;
   if (brand && last4) return `${brand} ····${last4}`;
@@ -164,7 +161,7 @@ export default function Billing() {
             <StatTile
               label="Payment method"
               value={describePaymentMethod(summary.paymentMethod)}
-              hint={summary.paymentMethod ? undefined : 'No payment method on file.'}
+              hint={summary.paymentMethod ? undefined : 'No payment method on file. Add one to be able to pay your invoices.'}
             />
           </>
         ) : null}
@@ -186,7 +183,7 @@ export default function Billing() {
             </PrimaryButton>
           </div>
           {paymentIssue && (
-            <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] text-ink2">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14px] text-ink2">
               <span className="font-bold text-bad">Not available. </span>
               {paymentIssue}
             </p>
@@ -214,9 +211,7 @@ export default function Billing() {
             title="No subscriptions yet"
             description="A subscription starts with your first instance. Deploy an app or a database and the plan follows it."
             action={
-              <Link to="/app/deploy" className={linkButton}>
-                See what you can deploy
-              </Link>
+              <ButtonLink to="/app/deploy">See what you can deploy</ButtonLink>
             }
           />
         ) : (
@@ -391,23 +386,23 @@ export default function Billing() {
                       label={INVOICE_STATUS_LABELS[invoice.status.toUpperCase()] ?? invoice.status}
                     />
                     {invoice.hostedUrl ? (
-                      <a
+                      <ButtonLink
                         href={invoice.hostedUrl}
+                        variant="soft"
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         Open invoice
-                      </a>
+                      </ButtonLink>
                     ) : invoice.pdfUrl ? (
-                      <a
+                      <ButtonLink
                         href={invoice.pdfUrl}
+                        variant="soft"
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
                         PDF
-                      </a>
+                      </ButtonLink>
                     ) : (
                       <span className="text-[12.5px] text-ink3">No link available</span>
                     )}

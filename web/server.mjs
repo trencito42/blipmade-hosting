@@ -2,6 +2,7 @@ import { createServer, request as httpRequest } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { resolve, join, extname, sep } from 'node:path';
 import { PROXIMA_NOVA_FILES, fontStatus } from './fonts.mjs';
+import { isTrustedAddress, parseTrustedProxies, resolveClientAddress } from './src/lib/client-address.mjs';
 
 const root = resolve(process.cwd(), 'dist');
 const port = Number(process.env.SERVER_PORT || process.env.PORT || 30001);
@@ -65,42 +66,32 @@ if (fonts.installed) {
  * The addresses whose forwarding headers are believed. Every other request is
  * treated as coming straight from the client, so a forged header cannot be
  * used to fake an address.
+ *
+ * The list comes from the environment (`TRUSTED_PROXY_IPS`, separated by
+ * commas). An entry is an address or a block of addresses, written as
+ * `172.16.0.0/12`. When the value is not set, nobody is trusted and the
+ * address of the socket is the address that is written down.
  */
-const TRUSTED_PROXY_IPS = (process.env.TRUSTED_PROXY_IPS || '')
-  .split(',')
-  .map((value) => value.trim())
-  .filter(Boolean);
-
-function normalizeAddress(address) {
-  return (address || '').replace(/^::ffff:/, '');
-}
-
-function isTrustedProxy(address) {
-  return TRUSTED_PROXY_IPS.includes(normalizeAddress(address));
-}
+const TRUSTED_PROXIES = parseTrustedProxies(process.env.TRUSTED_PROXY_IPS || '');
 
 /**
- * The address of the client. The forwarding headers are only used when the
- * request came from a known proxy, and only the last entry is believed,
- * because that is the one the proxy itself added.
+ * The address of the client.
+ *
+ * The chain of the header is read from the left, because the first element of
+ * the chain is the client and the last one is the proxy that is the closest to
+ * this server. The address of the proxy is never the address that is written
+ * down.
  */
 function clientAddress(req) {
-  const peer = normalizeAddress(req.socket.remoteAddress);
-  if (!isTrustedProxy(peer)) return peer;
-  const forwarded = req.headers['x-forwarded-for'];
-  const chain =
-    typeof forwarded === 'string'
-      ? forwarded.split(',').map((value) => value.trim()).filter(Boolean)
-      : [];
-  return chain.length ? chain[chain.length - 1] : peer;
+  return resolveClientAddress(req.socket.remoteAddress, req.headers['x-forwarded-for'], TRUSTED_PROXIES);
 }
 
 /** The scheme the client used, taken from a trusted proxy only. */
 function clientProtocol(req) {
-  const peer = normalizeAddress(req.socket.remoteAddress);
+  const peer = req.socket.remoteAddress;
   const forwarded = req.headers['x-forwarded-proto'];
   const value = typeof forwarded === 'string' ? forwarded.split(',').pop()?.trim() : undefined;
-  if (isTrustedProxy(peer) && value) return value;
+  if (isTrustedAddress(peer, TRUSTED_PROXIES) && value) return value;
   return 'http';
 }
 
@@ -127,8 +118,9 @@ const server = createServer(async (req, res) => {
   // first-party and never needs a cross-site exemption.
   if (req.url?.startsWith('/api/')) {
     const target = new URL(req.url, API_URL);
-    // The forwarding headers of the request are replaced, so the API only
-    // ever sees an address that this server established itself.
+    // The forwarding headers of the request are replaced, so the API only ever
+    // sees an address that this server established itself: the address of the
+    // client, not the address of the proxy and not the header of the client.
     const headers = { ...req.headers, host: target.host };
     delete headers['x-forwarded-for'];
     delete headers['x-forwarded-host'];

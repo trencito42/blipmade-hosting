@@ -8,6 +8,10 @@ services:
       HOST: 0.0.0.0
       PORT: 3100
       RUN_MIGRATIONS: "true"
+      # The addresses whose forwarding headers are believed. The web container
+      # is the only one that reaches the API, so this is the scope that is
+      # narrowed in the .env of the operator (SEC-05).
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}"
     extra_hosts:
       - "panel.blipmade.com:10.77.0.10"
     ports:
@@ -38,6 +42,7 @@ services:
     env_file: .env
     environment:
       NODE_ENV: production
+      TRUSTED_PROXIES: "${TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}"
     extra_hosts:
       - "panel.blipmade.com:10.77.0.10"
     volumes:

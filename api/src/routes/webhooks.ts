@@ -12,6 +12,7 @@ import { enqueueProvisioning } from '../services/queue.js';
 import { notifyInvoiceFailed, notifyInvoicePaid } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { applyUpgradeOrder } from '../services/upgrades.js';
+import { allocateUnitPrices } from '../services/order-amounts.js';
 import { audit } from '../lib/audit.js';
 
 /**
@@ -129,7 +130,7 @@ class DeferredWebhookError extends Error {}
  * Every order line produces as many instances as its quantity, and the
  * idempotency key of each instance makes the step safe to repeat.
  */
-async function fulfilOrder(orderId: string): Promise<void> {
+export async function fulfilOrder(orderId: string): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (!order) return;
 
@@ -138,7 +139,15 @@ async function fulfilOrder(orderId: string): Promise<void> {
     return;
   }
 
-  for (const item of order.items) {
+  // The price of an instance is the price that is really paid for it. A
+  // promotion belongs to the order, so the catalogue price of the line is
+  // not what the customer pays for the instance.
+  const unitPrices = allocateUnitPrices(
+    order.items.map((item) => ({ unitAmount: item.unitAmount, quantity: item.quantity, total: item.total })),
+    order.total,
+  );
+
+  for (const [index, item] of order.items.entries()) {
     const subscription = await prisma.subscription.findUnique({ where: { orderItemId: item.id } });
     const config = (item.config ?? {}) as { ram?: number; cpu?: number; disk?: number };
 
@@ -159,7 +168,7 @@ async function fulfilOrder(orderId: string): Promise<void> {
           ram: config.ram ?? 512,
           cpu: config.cpu ?? 1,
           disk: config.disk ?? 5,
-          price: item.unitAmount,
+          price: unitPrices[index] ?? item.unitAmount,
           currency: order.currency,
           provisioningKey,
         },

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ApiError, del, get, patch, post, put } from '../lib/api';
+import { ApiError, del, get, patch, post, put, sessionSummary, type AccountSession } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useRouter } from '../router';
 import { useSession } from '../session';
@@ -10,6 +10,7 @@ import {
   Panel,
   PrimaryButton,
   SoftButton,
+  StatusPill,
   TextInput,
   useToast,
 } from '../ui-app';
@@ -41,15 +42,7 @@ interface SettingsResponse {
     marketing: boolean;
     updatedAt: string;
   };
-  sessions: {
-    id: string;
-    ip: string | null;
-    userAgent: string | null;
-    device: string;
-    createdAt: string;
-    expiresAt: string;
-    current: boolean;
-  }[];
+  sessions: AccountSession[];
   account: {
     deletionRequestedAt: string | null;
     services: number;
@@ -69,24 +62,7 @@ function fmtDate(value: string): string {
   return date.toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/**
- * The date and the hour.
- *
- * The sessions of an account need it: two sessions of the same device, of the
- * same address and of the same day look the same with the date alone.
- */
-function fmtDateTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('en-IE', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
+/** The message of an error, in the words of the server. */
 function messageOf(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     const field = error.fields ? Object.values(error.fields)[0] : undefined;
@@ -443,7 +419,7 @@ function PasswordPanel() {
   );
 }
 
-/** The devices that are signed in. */
+/** The sessions that are open for this account. */
 function SessionsPanel({
   sessions,
   onChanged,
@@ -459,11 +435,23 @@ function SessionsPanel({
     return result;
   });
 
-  const onRevoke = async (id: string, current: boolean) => {
+  const closeOthers = useAction(async () => {
+    const result = await del<{ closed: number; current: boolean }>('/settings/sessions');
+    return result;
+  });
+
+  // Closing the other sessions is asked for twice: once for the button and
+  // once for the words that say what is about to happen.
+  const [confirmingOthers, setConfirmingOthers] = useState(false);
+  const others = sessions.filter((session) => !session.current).length;
+
+  const onRevoke = async (id: string) => {
     const result = await revoke.run(id);
     if (!result) return;
     onChanged();
-    if (current) {
+    // The server says which session was closed. The answer of the server is
+    // the truth, not the sign that was in the list.
+    if (result.current) {
       await logout();
       toast.push('This session was closed', 'ok');
       return;
@@ -471,8 +459,21 @@ function SessionsPanel({
     toast.push('Session closed', 'ok');
   };
 
+  const onCloseOthers = async () => {
+    const result = await closeOthers.run();
+    setConfirmingOthers(false);
+    if (!result) return;
+    onChanged();
+    toast.push(
+      result.closed > 0
+        ? `${result.closed} other session${result.closed === 1 ? '' : 's'} closed.`
+        : 'There was no other session to close.',
+      'ok',
+    );
+  };
+
   return (
-    <Panel title="Sessions" description="The devices that are signed in to this account.">
+    <Panel title="Sessions" description="The sessions that are open for this account.">
       {sessions.length === 0 ? (
         <p className="rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
           No session is open for this account right now.
@@ -484,16 +485,12 @@ function SessionsPanel({
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2 text-[14.5px] font-bold text-ink">
                   {session.device}
-                  {session.current && (
-                    <span className="rounded-full bg-acc-bg px-2.5 py-0.5 text-[11px] font-bold text-acc">This device</span>
-                  )}
+                  {session.current && <StatusPill status="current" label="This device" />}
                 </p>
-                <p className="mt-0.5 font-mono text-[12.5px] text-ink3">
-                  {session.ip ?? 'Unknown address'} · signed in on {fmtDateTime(session.createdAt)}
-                </p>
+                <p className="mt-0.5 font-mono text-[12.5px] text-ink3">{sessionSummary(session)}</p>
               </div>
               <SoftButton
-                onClick={() => onRevoke(session.id, session.current)}
+                onClick={() => onRevoke(session.id)}
                 disabled={revoke.pending}
                 className="w-full sm:w-auto"
               >
@@ -507,6 +504,35 @@ function SessionsPanel({
       {revoke.error && (
         <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
           {revoke.error}
+        </p>
+      )}
+
+      {others > 0 && (
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+          {confirmingOthers ? (
+            <>
+              <span className="mr-auto text-[12.5px] leading-relaxed text-ink3">
+                Close the {others} other session{others === 1 ? '' : 's'} of this account? The session of this device
+                stays open.
+              </span>
+              <SoftButton onClick={() => setConfirmingOthers(false)} disabled={closeOthers.pending}>
+                Cancel
+              </SoftButton>
+              <DangerButton onClick={onCloseOthers} disabled={closeOthers.pending}>
+                {closeOthers.pending ? 'Working…' : 'Close the other sessions'}
+              </DangerButton>
+            </>
+          ) : (
+            <SoftButton onClick={() => setConfirmingOthers(true)} disabled={closeOthers.pending}>
+              Close all other sessions
+            </SoftButton>
+          )}
+        </div>
+      )}
+
+      {closeOthers.error && (
+        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+          {closeOthers.error}
         </p>
       )}
 
@@ -655,14 +681,14 @@ function AccountPanel({ account }: { account: SettingsResponse['account'] }) {
           <SoftButton onClick={onCancelRequest} disabled={cancel.pending}>
             {cancel.pending ? 'Working…' : 'Take the request back'}
           </SoftButton>
-          <DangerButton
+          <SoftButton
             onClick={async () => {
               await logout();
               toast.push('Signed out', 'ok');
             }}
           >
             Sign out
-          </DangerButton>
+          </SoftButton>
         </div>
       </Panel>
     );

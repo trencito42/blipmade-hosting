@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
-import { LiveRegion, can, denseGhost, denseInput, densePrimary, denseSelect, fmtDate, useStaffUser } from './Overview';
+import { CardList, ConfirmDialog, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
+import { LiveRegion, TruncationNote, can, denseGhost, denseInput, densePrimary, denseSelect, fmtDate, useAdminSession } from './Overview';
 
 /**
  * Staff promotions — GET /api/admin/promotions, POST /api/admin/promotions
@@ -39,12 +39,15 @@ function toIso(value: string): string | null {
 }
 
 export default function Promotions() {
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
   const [creating, setCreating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  const state = useAsync((signal) => get<{ promotions: AdminPromotion[] }>('/admin/promotions', undefined, signal), []);
+  const state = useAsync((signal) => get<{ promotions: AdminPromotion[]; total?: number }>('/admin/promotions', undefined, signal), []);
   const promotions = state.data?.promotions ?? [];
+  const total = state.data?.total;
   const mayWrite = can(staff, 'promotions.write');
 
   const [code, setCode] = useState('');
@@ -85,8 +88,19 @@ export default function Promotions() {
     setStartsAt('');
     setEndsAt('');
     setTouched(false);
+    setConfirming(false);
     state.reload();
   };
+
+  /** What the confirmation states: the code that is created and what it does. */
+  const confirmation = [
+    `The code ${code.trim().toUpperCase() || '(no code)'} is created.`,
+    type === 'percent'
+      ? `Every order that uses it is reduced by ${value ? fmtBasisPoints(Number(value)) : 'nothing yet'}.`
+      : `Every order that uses it is reduced by ${value || 0} cents.`,
+    maxRedemptions.trim() === '' ? 'The code can be used as often as it is used.' : `The code can be used ${maxRedemptions.trim()} times.`,
+    active ? 'The code works from the moment it is created.' : 'The code is created inactive and does not work yet.',
+  ].join(' ');
 
   const valueLabel = (promotion: AdminPromotion) => {
     if (promotion.type === 'percent') {
@@ -99,6 +113,22 @@ export default function Promotions() {
     }
     return <Money amount={promotion.value} />;
   };
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={3} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">
@@ -208,7 +238,7 @@ export default function Promotions() {
                 >
                   {active ? 'Active' : 'Inactive'}
                 </button>
-                <button type="button" onClick={submit} disabled={create.pending} className={densePrimary}>
+                <button type="button" onClick={() => setConfirming(true)} disabled={create.pending} className={densePrimary}>
                   {create.pending ? 'Saving…' : 'Create promotion'}
                 </button>
               </div>
@@ -320,6 +350,7 @@ export default function Promotions() {
                   </div>
                 )}
               </CardList>
+              <TruncationNote shown={promotions.length} total={total} />
             </div>
           )}
 
@@ -330,6 +361,16 @@ export default function Promotions() {
           )}
         </div>
       </Panel>
+
+      <ConfirmDialog
+        open={confirming}
+        title="Create the promotion"
+        description={confirmation}
+        confirmLabel="Create promotion"
+        onConfirm={submit}
+        onCancel={() => setConfirming(false)}
+        busy={create.pending}
+      />
     </div>
   );
 }

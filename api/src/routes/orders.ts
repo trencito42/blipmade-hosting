@@ -4,7 +4,8 @@ import { prisma } from '../db.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
-import { createCheckout, stripeTestGateway } from '../services/stripe.js';
+import { createCheckout, markOrderPaid, stripeTestGateway } from '../services/stripe.js';
+import { fulfilOrder } from './webhooks.js';
 import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
 
@@ -149,6 +150,29 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (!order) throw notFound('Order not found.');
     if (order.status === 'PAID' || order.status === 'FULFILLED') {
       throw badRequest('This order has already been paid.');
+    }
+
+    // An order that a promotion covers completely costs nothing, so there is
+    // no amount to collect. The order is confirmed and provisioned without a
+    // payment provider, instead of sending the customer to a checkout of zero.
+    if (order.total === 0) {
+      await markOrderPaid({ orderId: order.id, amount: 0 });
+      await fulfilOrder(order.id);
+      await audit({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: 'order.checkout_completed',
+        targetType: 'order',
+        targetId: order.id,
+        meta: { total: 0, free: true },
+      });
+      return {
+        url: null,
+        sessionId: null,
+        message: 'This order is covered by the promotion, so no payment was due.',
+        free: true,
+        testGateway: stripeTestGateway(),
+      };
     }
 
     const checkout = await createCheckout(order);

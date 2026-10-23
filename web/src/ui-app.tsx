@@ -569,6 +569,14 @@ const STATUS_TONE: Record<string, string> = {
   failed: 'bg-bad/12 text-bad',
   error: 'bg-bad/12 text-bad',
   refunded: 'bg-bad/12 text-bad',
+  // The account is confirmed and the session of this device is the current
+  // one: both are good news, so both are drawn in the accent.
+  verified: 'bg-acc/12 text-acc',
+  current: 'bg-acc/12 text-acc',
+  // A state that has no colour of its own: the product cannot be ordered
+  // yet, and the reason is written under it.
+  unavailable: 'bg-s3 text-ink2',
+  neutral: 'bg-s3 text-ink2',
 };
 
 export function StatusPill({ status, label }: { status: string; label?: string }) {
@@ -754,6 +762,39 @@ export function Select({
   );
 }
 
+/**
+ * The three steps of a button, written once.
+ *
+ * A button that acts is a `<button>` and a button that navigates is an
+ * `<a>`. Both carry the same classes, so the step of an action never
+ * changes because the action navigates.
+ */
+export type ButtonVariant = 'primary' | 'soft' | 'danger';
+
+const primaryButtonClass =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
+
+const softButtonClass =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
+
+/**
+ * The same step of the secondary button, on a raised surface.
+ *
+ * A button on a raised row (`bg-s3`) needs a surface of its own to stay
+ * visible, so it sinks one level (`bg-s1`).
+ */
+const sunkenSoftButtonClass =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s1 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
+
+const dangerButtonClass =
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50';
+
+const buttonClass: Record<ButtonVariant, string> = {
+  primary: primaryButtonClass,
+  soft: softButtonClass,
+  danger: dangerButtonClass,
+};
+
 export function PrimaryButton({
   children,
   ...props
@@ -761,10 +802,7 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
-        props.className,
-      )}
+      className={cn(primaryButtonClass, props.className)}
     >
       {children}
     </button>
@@ -773,15 +811,13 @@ export function PrimaryButton({
 
 export function SoftButton({
   children,
+  surface = 's3',
   ...props
-}: React.ComponentProps<'button'> & { children: ReactNode }) {
+}: React.ComponentProps<'button'> & { children: ReactNode; surface?: 's3' | 's1' }) {
   return (
     <button
       {...props}
-      className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
-        props.className,
-      )}
+      className={cn(surface === 's1' ? sunkenSoftButtonClass : softButtonClass, props.className)}
     >
       {children}
     </button>
@@ -795,13 +831,52 @@ export function DangerButton({
   return (
     <button
       {...props}
-      className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50',
-        props.className,
-      )}
+      className={cn(dangerButtonClass, props.className)}
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * A link that looks like a button.
+ *
+ * The three steps of a button are the same for an action and for a link
+ * that navigates: the size, the shape and the colour come from the same
+ * classes, so an action keeps its look on every screen.
+ *
+ * `to` is a route of this site and keeps the router of the application.
+ * `href` is an address outside of it and is a plain link. Exactly one of
+ * the two is given.
+ */
+export function ButtonLink({
+  to,
+  href,
+  variant = 'primary',
+  children,
+  className,
+  ...rest
+}: {
+  /** A route of this site: the link keeps the router of the application. */
+  to?: string;
+  /** An address outside of this site: the link is a plain anchor. */
+  href?: string;
+  variant?: ButtonVariant;
+  children: ReactNode;
+  className?: string;
+} & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'children' | 'className'>) {
+  const classes = cn(buttonClass[variant], className);
+  if (href) {
+    return (
+      <a href={href} className={classes} {...rest}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link to={to ?? ''} className={classes} {...rest}>
+      {children}
+    </Link>
   );
 }
 

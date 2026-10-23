@@ -4,13 +4,16 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
 import { Icon } from '../icons';
 import { Link, useParams, useRouter } from '../router';
-import { catalogPath, formatPrice, periodSuffix, productPath } from '../lib/pricing';
+import { catalogPath, formatPrice, memLabel, periodSuffix, productPath } from '../lib/pricing';
 import {
   configurationFromQuery,
+  cpuOptions,
   deployPathFor,
+  diskOptions,
   isOrderable,
   optionCodesFromQuery,
   orderBlockers,
+  ramOptions,
   recommendedPreset,
   recommendedPrice,
   sameConfiguration,
@@ -53,9 +56,6 @@ function stepFromQuery(query: Record<string, string>, orderId: string | null): D
   return 1;
 }
 
-const RAM_STEPS_GB = [0.5, 1, 2, 4, 8, 16, 32, 64, 128];
-const CPU_STEPS = [1, 2, 4, 8, 16];
-
 const ORDER_STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pending',
   AWAITING_PAYMENT: 'Awaiting payment',
@@ -91,18 +91,10 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /**
- * The catalogue stores memory in MB (the Pterodactyl convention). A catalogue
- * that already uses GB is detected from its own range, so the pills always
- * show GB while the numbers sent to the API stay in the server's unit.
+ * The catalogue stores memory in MB (the Pterodactyl convention) and the
+ * server prices it that way, so every memory size of the interface is written
+ * with the same helper: memLabel().
  */
-function ramScale(maxRam: number): number {
-  return maxRam >= 1024 ? 1024 : 1;
-}
-
-function formatGb(value: number, scale: number): string {
-  const gb = value / scale;
-  return Number.isInteger(gb) ? String(gb) : gb.toFixed(1);
-}
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—';
@@ -244,39 +236,21 @@ export default function Deploy() {
     navigate(address({ step: next }));
   };
 
-  const scale = product ? ramScale(product.maxRam) : 1;
+  // The options of the control come from the contract, the same place the
+  // estimate and the price book get their configuration from. The smallest
+  // configuration, the recommended one and the largest one are always among
+  // them, so the control can always show what the server prices.
+  const ramChoices = useMemo(() => (product ? ramOptions(product) : []), [product]);
+  const cpuChoices = useMemo(() => (product ? cpuOptions(product) : []), [product]);
+  const diskChoices = useMemo(() => (product ? diskOptions(product) : []), [product]);
 
-  const ramOptions = useMemo(() => {
-    if (!product) return [] as number[];
-    const values = new Set<number>();
-    for (const stepGb of RAM_STEPS_GB) {
-      const value = stepGb * scale;
-      if (value >= product.minRam && value <= product.maxRam) values.add(value);
-    }
-    values.add(product.minRam);
-    values.add(product.maxRam);
-    values.add(product.defaultRam);
-    return [...values].filter((v) => v >= product.minRam && v <= product.maxRam).sort((a, b) => a - b);
-  }, [product, scale]);
+  /** The position of a size in the grid of the control. */
+  const diskPosition = Math.max(0, diskChoices.indexOf(disk));
 
-  const cpuOptions = useMemo(() => {
-    if (!product) return [] as number[];
-    const values = new Set<number>();
-    for (const step of CPU_STEPS) {
-      if (step >= product.minCpu && step <= product.maxCpu) values.add(step);
-    }
-    values.add(product.minCpu);
-    values.add(product.maxCpu);
-    values.add(product.defaultCpu);
-    return [...values].filter((v) => v >= product.minCpu && v <= product.maxCpu).sort((a, b) => a - b);
-  }, [product]);
-
-  const diskStep = product ? Math.max(1, Math.ceil((product.maxDisk - product.minDisk) / 20)) : 1;
-
-  const onDisk = (raw: number) => {
-    if (!product) return;
-    const snapped = product.minDisk + Math.round((raw - product.minDisk) / diskStep) * diskStep;
-    applyConfig({ disk: Math.min(product.maxDisk, Math.max(product.minDisk, snapped)) });
+  const onDisk = (position: number) => {
+    const value = diskChoices[position];
+    if (value === undefined) return;
+    applyConfig({ disk: value });
   };
 
   // --- quote --------------------------------------------------------------
@@ -541,7 +515,7 @@ export default function Deploy() {
               {recommendationAmount !== null && (
                 <Preset
                   label="Recommended configuration"
-                  detail={`${formatGb(recommendation.ram, scale)} GB · ${recommendation.cpu} vCPU · ${recommendation.disk} GB disk`}
+                  detail={`${memLabel(recommendation.ram)} · ${recommendation.cpu} vCPU · ${recommendation.disk} GB disk`}
                   price={`${formatPrice(recommendationAmount, currency)}${periodSuffix(product.price?.period ?? 'MONTHLY')}`}
                   active={atRecommendation}
                   onClick={() => applyConfig(recommendation)}
@@ -550,10 +524,10 @@ export default function Deploy() {
 
               <div>
                 <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">Memory</p>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="Memory in gigabytes">
-                  {ramOptions.map((value) => (
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="Memory">
+                  {ramChoices.map((value) => (
                     <button key={value} type="button" aria-pressed={ram === value} onClick={() => applyConfig({ ram: value })} className={pill(ram === value)}>
-                      {formatGb(value, scale)} GB
+                      {memLabel(value)}
                     </button>
                   ))}
                 </div>
@@ -564,7 +538,7 @@ export default function Deploy() {
                   CPU <span className="font-mono font-normal text-ink3">vCPU</span>
                 </p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="vCPU cores">
-                  {cpuOptions.map((value) => (
+                  {cpuChoices.map((value) => (
                     <button key={value} type="button" aria-pressed={cpu === value} onClick={() => applyConfig({ cpu: value })} className={pill(cpu === value)}>
                       {value}
                     </button>
@@ -577,20 +551,23 @@ export default function Deploy() {
                   Storage
                   <span className="font-mono font-medium text-acc">{disk} GB</span>
                 </label>
-                {/* The control is 44px tall, so the finger has room to
-                    drag it, and the track is drawn inside that height. */}
+                {/* The control walks over the sizes of the contract, so every
+                    size it offers is one the server accepts and prices. The
+                    control is 44px tall, so the finger has room to drag it,
+                    and the track is drawn inside that height. */}
                 <input
                   id="deploy-disk"
                   type="range"
-                  min={product.minDisk}
-                  max={product.maxDisk}
-                  step={diskStep}
-                  value={disk}
+                  min={0}
+                  max={Math.max(0, diskChoices.length - 1)}
+                  step={1}
+                  value={diskPosition}
+                  aria-valuetext={`${disk} GB`}
                   onChange={(e) => onDisk(Number(e.target.value))}
                   className={rangeInput}
                 />
                 <p className="mt-2 px-1 text-[12.5px] text-ink3">
-                  Between {product.minDisk} GB and {product.maxDisk} GB.
+                  Between {diskChoices[0] ?? product.minDisk} GB and {diskChoices[diskChoices.length - 1] ?? product.maxDisk} GB.
                 </p>
               </div>
 
@@ -657,13 +634,13 @@ export default function Deploy() {
                     {formatPrice(startAmount, currency)}
                     {periodSuffix(product.price?.period ?? 'MONTHLY')}
                   </span>{' '}
-                  for the smallest configuration: {formatGb(startConfiguration.ram, scale)} GB · {startConfiguration.cpu} vCPU ·{' '}
+                  for the smallest configuration: {memLabel(startConfiguration.ram)} · {startConfiguration.cpu} vCPU ·{' '}
                   {startConfiguration.disk} GB disk.
                 </p>
               )}
               {recommendationAmount !== null && !atRecommendation && (
                 <p className="text-[12.5px] leading-relaxed text-ink3">
-                  Recommended configuration ({formatGb(recommendation.ram, scale)} GB · {recommendation.cpu} vCPU · {recommendation.disk} GB
+                  Recommended configuration ({memLabel(recommendation.ram)} · {recommendation.cpu} vCPU · {recommendation.disk} GB
                   disk):{' '}
                   <span className="font-mono text-ink2">
                     {formatPrice(recommendationAmount, currency)}
@@ -694,7 +671,7 @@ export default function Deploy() {
                 </Link>
               </Row>
               <Row label="Name">{name || product.slug}</Row>
-              <Row label="Memory">{formatGb(ram, scale)} GB</Row>
+              <Row label="Memory">{memLabel(ram)}</Row>
               <Row label="vCPU">{cpu}</Row>
               <Row label="Storage">{disk} GB</Row>
               {configuredOptions.map((option) => (
@@ -784,7 +761,7 @@ export default function Deploy() {
               <dl className="grid gap-2">
                 <Row label="Product">{product.name}</Row>
                 <Row label="Name">{name || product.slug}</Row>
-                <Row label="Memory">{formatGb(ram, scale)} GB</Row>
+                <Row label="Memory">{memLabel(ram)}</Row>
                 <Row label="vCPU">{cpu}</Row>
                 <Row label="Storage">{disk} GB</Row>
                 <Row label="Total per month">

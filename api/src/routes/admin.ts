@@ -2,11 +2,12 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
-import { badRequest, conflict, notFound } from '../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound, unavailable, upstream } from '../lib/errors.js';
 import { requireStaff, requirePermission } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
+import { refundPayment, stripeLive } from '../services/stripe.js';
 import { PERMISSIONS } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
 import {
@@ -90,19 +91,20 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/customers', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
     const query = z.object({ search: z.string().trim().optional() }).parse(request.query ?? {});
+    const where: Prisma.UserWhereInput = {
+      role: 'CUSTOMER',
+      ...(query.search
+        ? {
+            OR: [
+              { email: { contains: query.search, mode: 'insensitive' } },
+              { firstName: { contains: query.search, mode: 'insensitive' } },
+              { lastName: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
     const customers = await prisma.user.findMany({
-      where: {
-        role: 'CUSTOMER',
-        ...(query.search
-          ? {
-              OR: [
-                { email: { contains: query.search, mode: 'insensitive' } },
-                { firstName: { contains: query.search, mode: 'insensitive' } },
-                { lastName: { contains: query.search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
+      where,
       include: {
         instances: { select: { id: true, status: true, price: true, name: true, cancelledAt: true } },
         _count: { select: { orders: true, tickets: true } },
@@ -110,6 +112,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+    // The number of accounts the search really found, so the list can say that
+    // it shows only the first rows of them.
+    const total = await prisma.user.count({ where });
 
     return {
       customers: customers.map((customer) => ({
@@ -124,6 +129,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         ticketCount: customer._count.tickets,
         monthlyValue: customer.instances.filter((instance) => instance.cancelledAt === null).reduce((sum, instance) => sum + instance.price, 0),
       })),
+      total,
     };
   });
 
@@ -137,6 +143,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         tickets: { orderBy: { createdAt: 'desc' }, take: 50 },
         orders: { orderBy: { createdAt: 'desc' }, take: 50 },
         payments: { orderBy: { createdAt: 'desc' }, take: 50 },
+        // The number of rows each list really has, so the screen can say that
+        // it shows only the first ones.
+        _count: { select: { invoices: true, tickets: true, orders: true, payments: true } },
       },
     });
     if (!customer) throw notFound('Customer not found.');
@@ -187,6 +196,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           currency: order.currency,
           createdAt: order.createdAt,
         })),
+        // The number of rows behind each list, so the screen can say that it
+        // shows only the first ones.
+        counts: {
+          invoices: customer._count.invoices,
+          tickets: customer._count.tickets,
+          orders: customer._count.orders,
+          payments: customer._count.payments,
+        },
       },
     };
   });
@@ -260,6 +277,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       action: 'customer.panel_credential_stored',
       targetType: 'user',
       targetId: customer.id,
+      ip: request.ip,
     });
     return { stored: true };
   });
@@ -275,6 +293,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       action: 'customer.panel_credential_forgotten',
       targetType: 'user',
       targetId: id,
+      ip: request.ip,
     });
     return reply.code(204).send();
   });
@@ -299,6 +318,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       targetType: 'user',
       targetId: id,
       meta: { reason },
+      ip: request.ip,
     });
 
     return { customer: { id, suspended } };
@@ -306,8 +326,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/orders', { preHandler: requirePermission('orders.read') }, async (request: FastifyRequest) => {
     const query = z.object({ status: z.string().optional() }).parse(request.query ?? {});
+    const where: Prisma.OrderWhereInput = query.status ? { status: query.status as never } : {};
     const orders = await prisma.order.findMany({
-      where: query.status ? { status: query.status as never } : {},
+      where,
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         items: { include: { product: { select: { slug: true } } } },
@@ -315,6 +336,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+    // The number of orders the filter really found, so the list can say that
+    // it shows only the first rows of them.
+    const total = await prisma.order.count({ where });
     return {
       orders: orders.map((order) => ({
         id: order.id,
@@ -327,20 +351,105 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         customer: { id: order.user.id, email: order.user.email, name: fullName(order.user) },
         items: order.items.map((item) => ({ id: item.id, name: item.name, quantity: item.quantity, total: item.total })),
       })),
+      total,
+    };
+  });
+
+  /**
+   * Refunds a paid order.
+   *
+   * The money is returned by the payment provider, so the order must carry a
+   * payment intent. The order is marked as refunded before the provider is
+   * called: a second call finds the order already refunded and stops, so the
+   * customer is never charged back twice.
+   */
+  app.post('/admin/orders/:id/refund', { preHandler: requirePermission('orders.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { payments: { orderBy: { createdAt: 'desc' } } },
+    });
+    if (!order) throw notFound('Order not found.');
+
+    // Only a paid order can be refunded. An order that is not paid has nothing
+    // to give back, and an order that was refunded already is refused here, so
+    // the money is never returned twice.
+    if (order.status !== 'PAID' && order.status !== 'FULFILLED') {
+      throw conflict(`This order is not paid, so there is nothing to refund. Its status is ${order.status.toLowerCase()}.`);
+    }
+
+    // The payment intent is what the provider refunds.
+    const payment = order.payments.find((entry) => entry.stripePaymentIntentId) ?? null;
+    const paymentIntentId = order.stripePaymentIntentId ?? payment?.stripePaymentIntentId ?? null;
+    if (!paymentIntentId) {
+      throw conflict('This order carries no Stripe payment intent, so it cannot be refunded from here.');
+    }
+    if (!stripeLive()) {
+      throw unavailable('Payments are not configured on this environment, so this order cannot be refunded from here.');
+    }
+
+    // The order is claimed first: the update only touches an order that is
+    // still paid, so two refunds at the same time cannot both go through.
+    const claimed = await prisma.order.updateMany({
+      where: { id, status: { in: ['PAID', 'FULFILLED'] } },
+      data: { status: 'REFUNDED' },
+    });
+    if (claimed.count !== 1) {
+      throw conflict('This order was refunded already.');
+    }
+
+    const refunded = await refundPayment({
+      orderId: order.id,
+      stripePaymentIntentId: paymentIntentId,
+      reason: body.reason,
+    });
+    if (!refunded) {
+      // The provider refused the refund, so the order goes back to what it was.
+      await prisma.order.update({ where: { id }, data: { status: order.status } });
+      throw upstream('The payment provider refused the refund. The order was left as it was.');
+    }
+
+    const amount = payment?.amount ?? order.total;
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'order.refunded',
+      targetType: 'order',
+      targetId: order.id,
+      meta: { reason: body.reason, amount, currency: order.currency, number: order.number },
+      ip: request.ip,
+    });
+
+    return {
+      order: {
+        id: order.id,
+        number: order.number,
+        status: 'refunded',
+        amount,
+        currency: order.currency,
+        reason: body.reason,
+      },
     };
   });
 
   app.get('/admin/services', { preHandler: requirePermission('services.read') }, async (request: FastifyRequest) => {
     const query = z.object({ status: z.string().optional(), search: z.string().trim().optional() }).parse(request.query ?? {});
+    const where: Prisma.InstanceWhereInput = {
+      ...(query.status ? { status: query.status as never } : {}),
+      ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+    };
     const services = await prisma.instance.findMany({
-      where: {
-        ...(query.status ? { status: query.status as never } : {}),
-        ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
-      },
+      where,
       include: { user: { select: { id: true, email: true } }, product: { select: { name: true, slug: true } } },
       orderBy: { createdAt: 'desc' },
       take: 300,
     });
+    // The number of services the filter really found, so the list can say that
+    // it shows only the first rows of them.
+    const total = await prisma.instance.count({ where });
     return {
       services: services.map((service) => ({
         id: service.id,
@@ -356,6 +465,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         customer: { id: service.user.id, email: service.user.email },
         product: service.product,
       })),
+      total,
     };
   });
 
@@ -472,7 +582,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       include: { prices: true, options: true },
     });
 
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.created', targetType: 'product', targetId: product.id, meta: { slug: product.slug } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.created', targetType: 'product', targetId: product.id, meta: { slug: product.slug }, ip: request.ip });
     return reply.code(201).send({ product: { id: product.id, slug: product.slug, name: product.name } });
   });
 
@@ -515,7 +625,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const data = { ...body } as Record<string, unknown>;
     if (body.healthProbe === null) data.healthProbe = Prisma.JsonNull;
     await prisma.product.update({ where: { id }, data: data as never });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.updated', targetType: 'product', targetId: id, meta: body });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.updated', targetType: 'product', targetId: id, meta: body, ip: request.ip });
 
     const updated = await prisma.product.findUnique({ where: { id }, include: { prices: true, options: true } });
     return { product: updated };
@@ -529,7 +639,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (product._count.instances > 0) throw badRequest('This product is used by existing instances and cannot be deleted. Hide it instead.');
 
     await prisma.product.delete({ where: { id } });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.deleted', targetType: 'product', targetId: id, meta: { slug: product.slug } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.deleted', targetType: 'product', targetId: id, meta: { slug: product.slug }, ip: request.ip });
     return reply.code(204).send();
   });
 
@@ -571,14 +681,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (!existing) throw notFound('Price not found.');
 
     const price = await prisma.productPrice.update({ where: { id }, data: body });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: body });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: body, ip: request.ip });
     return { price };
   });
 
   app.get('/admin/tickets', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {
     const query = z.object({ status: z.string().optional() }).parse(request.query ?? {});
+    const where: Prisma.TicketWhereInput = query.status ? { status: query.status as never } : {};
     const tickets = await prisma.ticket.findMany({
-      where: query.status ? { status: query.status as never } : {},
+      where,
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         instance: { select: { id: true, name: true } },
@@ -588,6 +699,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       orderBy: { updatedAt: 'desc' },
       take: 200,
     });
+    // The number of tickets the filter really found, so the list can say that
+    // it shows only the first rows of them.
+    const total = await prisma.ticket.count({ where });
     return {
       tickets: tickets.map((ticket) => ({
         id: ticket.id,
@@ -605,6 +719,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           ? fullName(ticket.assignedTo.user) || ticket.assignedTo.user.email
           : null,
       })),
+      total,
     };
   });
 
@@ -623,12 +738,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     await prisma.ticket.update({ where: { id }, data: { assignedToId: userId } });
     await prisma.ticketEvent.create({ data: { ticketId: id, type: 'assigned', message: userId ? 'Ticket assigned.' : 'Ticket unassigned.', actorId: actor.id } });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'ticket.assigned', targetType: 'ticket', targetId: id, meta: { userId } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'ticket.assigned', targetType: 'ticket', targetId: id, meta: { userId }, ip: request.ip });
     return { ticket: { id, assignedToId: userId } };
   });
 
   app.get('/admin/promotions', { preHandler: requirePermission('promotions.read') }, async () => {
     const promotions = await prisma.promotion.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
+    // The number of promotions there really are, so the list can say that it
+    // shows only the first rows of them.
+    const total = await prisma.promotion.count();
     return {
       promotions: promotions.map((promotion) => ({
         id: promotion.id,
@@ -642,6 +760,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         endsAt: promotion.endsAt,
         createdAt: promotion.createdAt,
       })),
+      total,
     };
   });
 
@@ -675,7 +794,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         createdById: actor.id,
       },
     });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'promotion.created', targetType: 'promotion', targetId: promotion.id, meta: { code: promotion.code } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'promotion.created', targetType: 'promotion', targetId: promotion.id, meta: { code: promotion.code }, ip: request.ip });
     return reply.code(201).send({ promotion });
   });
 
@@ -761,7 +880,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'infrastructure.synced', meta: { nodes: panelNodes.length, eggs: allEggs.length } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'infrastructure.synced', meta: { nodes: panelNodes.length, eggs: allEggs.length }, ip: request.ip });
     return { nodes: panelNodes.length, eggs: allEggs.length };
   });
 
@@ -769,15 +888,19 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const query = z
       .object({ actor: z.string().trim().optional(), action: z.string().trim().optional(), targetType: z.string().trim().optional() })
       .parse(request.query ?? {});
+    const where: Prisma.AuditLogWhereInput = {
+      ...(query.actor ? { actorEmail: { contains: query.actor, mode: 'insensitive' } } : {}),
+      ...(query.action ? { action: { contains: query.action, mode: 'insensitive' } } : {}),
+      ...(query.targetType ? { targetType: query.targetType } : {}),
+    };
     const logs = await prisma.auditLog.findMany({
-      where: {
-        ...(query.actor ? { actorEmail: { contains: query.actor, mode: 'insensitive' } } : {}),
-        ...(query.action ? { action: { contains: query.action, mode: 'insensitive' } } : {}),
-        ...(query.targetType ? { targetType: query.targetType } : {}),
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 300,
     });
+    // The number of entries the filter really found, so the list can say that
+    // it shows only the first rows of them.
+    const total = await prisma.auditLog.count({ where });
     return {
       logs: logs.map((log) => ({
         id: log.id,
@@ -790,6 +913,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         ip: log.ip,
         createdAt: log.createdAt,
       })),
+      total,
     };
   });
 
@@ -814,21 +938,94 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const actor = await requireStaff(request);
     const { userId } = z.object({ userId: z.string() }).parse(request.params);
     const body = z
-      .object({ permissions: z.array(z.enum(PERMISSIONS)).optional(), title: z.string().trim().max(120).nullable().optional() })
-      .parse(request.body);
+      .object({
+        permissions: z.array(z.enum(PERMISSIONS)).optional(),
+        title: z.string().trim().max(120).nullable().optional(),
+        role: z.enum(['STAFF', 'ADMIN']).optional(),
+      })
+      .parse(request.body ?? {});
 
-    const member = await prisma.staffMember.findUnique({ where: { userId } });
-    if (!member) throw notFound('Staff member not found.');
-
-    await prisma.staffMember.update({
+    const member = await prisma.staffMember.findUnique({
       where: { userId },
-      data: {
-        ...(body.permissions ? { permissions: body.permissions } : {}),
-        ...(body.title !== undefined ? { title: body.title } : {}),
-      },
+      include: { user: { select: { role: true } } },
     });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'staff.permissions_updated', targetType: 'user', targetId: userId, meta: body });
-    return { staff: { userId, permissions: body.permissions ?? member.permissions } };
+    if (!member) throw notFound('Staff member not found.');
+    if (body.permissions === undefined && body.title === undefined && body.role === undefined) {
+      throw badRequest('There is nothing to change.');
+    }
+
+    // The role of an account decides what it may do, so only an administrator
+    // gives that role or takes it away. The interface cannot be the only place
+    // that knows this, because the endpoint is called directly as well.
+    const roleChanges = body.role !== undefined && body.role !== member.user.role;
+    const newRole = body.role ?? member.user.role;
+    if (roleChanges && actor.role !== 'ADMIN') {
+      throw forbidden('Only an administrator can change the role of a staff member.');
+    }
+
+    // The permission list of an administrator is the administrator role written
+    // down, so only an administrator touches it.
+    if (body.permissions !== undefined && member.user.role === 'ADMIN' && actor.role !== 'ADMIN') {
+      throw forbidden('Only an administrator can change the permissions of an administrator.');
+    }
+
+    // The whole list of permissions is the administrator role in all but name,
+    // so a staff member may not hand it out.
+    if (body.permissions !== undefined && new Set(body.permissions).size >= PERMISSIONS.length && actor.role !== 'ADMIN') {
+      throw forbidden('Only an administrator can grant the whole permission list.');
+    }
+
+    await prisma.$transaction([
+      prisma.staffMember.update({
+        where: { userId },
+        data: {
+          ...(body.permissions ? { permissions: body.permissions } : {}),
+          ...(body.title !== undefined ? { title: body.title } : {}),
+        },
+      }),
+      ...(roleChanges ? [prisma.user.update({ where: { id: userId }, data: { role: body.role } })] : []),
+    ]);
+
+    if (body.permissions !== undefined) {
+      await audit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'staff.permissions_updated',
+        targetType: 'user',
+        targetId: userId,
+        meta: { permissions: body.permissions },
+        ip: request.ip,
+      });
+    }
+    if (body.title !== undefined) {
+      await audit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'staff.title_updated',
+        targetType: 'user',
+        targetId: userId,
+        meta: { title: body.title },
+        ip: request.ip,
+      });
+    }
+    if (roleChanges) {
+      await audit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'staff.role_updated',
+        targetType: 'user',
+        targetId: userId,
+        meta: { role: body.role, previousRole: member.user.role },
+        ip: request.ip,
+      });
+    }
+    return {
+      staff: {
+        userId,
+        role: newRole.toLowerCase(),
+        permissions: body.permissions ?? member.permissions,
+      },
+    };
   });
 
   app.get('/admin/settings', { preHandler: requirePermission('settings.read') }, async () => {
@@ -857,7 +1054,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     for (const [key, value] of Object.entries(body)) {
       await prisma.setting.upsert({ where: { key }, create: { key, value: value as never }, update: { value: value as never } });
     }
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.updated', meta: { keys: Object.keys(body) } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.updated', meta: { keys: Object.keys(body) }, ip: request.ip });
     return { settings: body };
   });
 
@@ -879,7 +1076,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     await prisma.instance.update({ where: { id }, data: { status: 'PROVISIONING', provisionError: null } });
     await enqueueProvisioning(id, { reason, requestedBy: actor.id });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'instance.retry_requested', targetType: 'instance', targetId: id, meta: { reason } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'instance.retry_requested', targetType: 'instance', targetId: id, meta: { reason }, ip: request.ip });
 
     return reply.code(202).send({ instance: { id, status: 'provisioning' } });
   });
@@ -952,6 +1149,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       targetType: 'instance',
       targetId: instance.id,
       meta: { pterodactylServerId: server.id, customerId: customer.id },
+      ip: request.ip,
     });
 
     return reply.code(201).send({ instance: { id: instance.id, name: instance.name, status: instance.status.toLowerCase() } });

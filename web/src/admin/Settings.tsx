@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Panel, useToast } from '../ui-app';
-import { LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, useStaffUser } from './Overview';
+import { LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, useAdminSession } from './Overview';
 
 /**
  * System settings — GET /api/admin/settings, PUT /api/admin/settings
@@ -36,7 +36,8 @@ function parseValue(row: SettingRow): unknown {
 }
 
 export default function Settings() {
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
   const [rows, setRows] = useState<SettingRow[]>([]);
   const [removing, setRemoving] = useState<SettingRow | null>(null);
@@ -94,6 +95,22 @@ export default function Settings() {
     toast.push('Settings saved', 'ok');
     state.reload();
   };
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={3} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">

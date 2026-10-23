@@ -68,7 +68,7 @@ export function Hero({ cat, setCat }: { cat: Category; setCat: (c: Category) => 
           <div className="origin-top will-change-transform" style={{ transform: `rotateX(${tilt}deg) scale(${0.96 + k * 0.04})`, opacity: 0.85 + k * 0.15 }}>
             <Studio cat={cat} setCat={setCat} />
           </div>
-          <p className="mt-3 px-1 text-[13px] text-ink3">Try it: pick an app, change the size, press Deploy, then type <code className="rounded-md bg-s2 px-1.5 py-0.5 font-mono text-[12px] text-ink">help</code> in the console.</p>
+          <p className="mt-3 px-1 text-[13px] text-ink3">Try it: pick an app, change the size and watch the server price it. Deploy takes you to the real configurator, and the start-up you see here is only a preview.</p>
         </Reveal>
       </Wrap>
     </section>

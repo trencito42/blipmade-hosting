@@ -5,7 +5,7 @@ import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
 import type { TableColumn } from '../lib/table';
-import { DASH, LiveRegion, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
+import { DASH, LiveRegion, TruncationNote, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
 
 /**
  * Staff customer list — GET /api/admin/customers?search=
@@ -39,11 +39,12 @@ export default function Customers() {
   }, [search]);
 
   const state = useAsync(
-    (signal) => get<{ customers: AdminCustomer[] }>('/admin/customers', { search: query || undefined }, signal),
+    (signal) => get<{ customers: AdminCustomer[]; total?: number }>('/admin/customers', { search: query || undefined }, signal),
     [query],
   );
 
   const customers = state.data?.customers ?? [];
+  const total = state.data?.total;
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
   const columns: TableColumn<AdminCustomer>[] = [
@@ -224,6 +225,7 @@ export default function Customers() {
                   </Link>
                 )}
               </CardList>
+              <TruncationNote shown={customers.length} total={total} />
             </div>
           )}
 

@@ -146,8 +146,8 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
           </Panel>
 
           <Panel
-            title="Operations that cannot be undone"
-            description="Both operations act on the container of the instance."
+            title="Operations on the container"
+            description="Reinstalling erases the files of the container. Suspending only stops it, and you can start it again at any time."
           >
             <div className="grid gap-3">
               <div className="grid gap-1.5 rounded-2xl bg-s2 p-3.5">
@@ -173,7 +173,9 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
                   {current?.suspended ? (
                     <SoftButton onClick={() => setConfirmResume(true)}>Restore the instance</SoftButton>
                   ) : (
-                    <DangerButton onClick={() => setConfirmSuspend(true)}>Suspend the instance</DangerButton>
+                    /* Suspending stops the container and keeps every file, so
+                       it is the same step as the restore next to it. */
+                    <SoftButton onClick={() => setConfirmSuspend(true)}>Suspend the instance</SoftButton>
                   )}
                 </div>
               </div>

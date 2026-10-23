@@ -19,9 +19,12 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY index.html server.mjs fonts.mjs ./
 COPY public ./public
+# The resolver of the address of the client runs in the server itself, so it
+# has to be in the image.
+COPY src/lib/client-address.mjs ./src/lib/client-address.mjs
 # The source files may carry restrictive permissions from the build machine, so
 # the runtime user is given read access to everything it serves.
-RUN chmod -R a+rX /app/dist /app/public \
+RUN chmod -R a+rX /app/dist /app/public /app/src \
   && chmod 644 /app/index.html /app/server.mjs /app/fonts.mjs \
   && chmod -R a+rX /app/node_modules
 

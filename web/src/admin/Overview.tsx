@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, get, type SessionUser } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { useSession } from '../session';
 import { ErrorState, Field, ListRow, LoadingBlock, Money, Panel, SoftButton, StatTile } from '../ui-app';
+import { can } from './permissions';
 
 /**
  * Staff dashboard — GET /api/admin/overview.
@@ -30,16 +31,112 @@ export type StaffUser = SessionUser & { permissions?: string[] };
 
 export const DASH = '—';
 
-export function useStaffUser(): StaffUser | null {
-  const { user } = useSession();
-  return user ? (user as StaffUser) : null;
+export { can } from './permissions';
+
+/**
+ * The real session of the operator.
+ *
+ * The answer of the login endpoint carries an empty permission list, so the
+ * admin area reads the session from the API again. The answer is kept for the
+ * account, so the screens of the area share one read and a screen that opens
+ * later does not wait for it again.
+ */
+const sessionUsers = new Map<string, StaffUser | null>();
+const sessionReads = new Map<string, Promise<StaffUser | null>>();
+
+function readSession(userId: string): Promise<StaffUser | null> {
+  const cached = sessionReads.get(userId);
+  if (cached) return cached;
+  const read = get<{ user: SessionUser | null }>('/auth/session')
+    .then((data) => {
+      const real = data.user ? ({ ...data.user, permissions: data.user.permissions ?? [] } as StaffUser) : null;
+      sessionUsers.set(userId, real);
+      return real;
+    })
+    .catch((error: unknown) => {
+      // A failed read is not kept: the screen asks again when it is retried.
+      sessionReads.delete(userId);
+      sessionUsers.delete(userId);
+      throw error;
+    });
+  sessionReads.set(userId, read);
+  return read;
 }
 
-/** Administrators hold every permission server-side, so the client mirrors that. */
-export function can(user: StaffUser | null, permission: string): boolean {
-  if (!user) return false;
-  if (user.role === 'ADMIN') return true;
-  return (user.permissions ?? []).includes(permission);
+export interface AdminSession {
+  /** The operator, with the permission list the server really holds. */
+  staff: StaffUser | null;
+  /** True while the real permission list is still being read. */
+  loading: boolean;
+  /** Why the real permission list could not be read. */
+  error: string | null;
+  /** Reads the real session again. */
+  reload: () => void;
+}
+
+/**
+ * The operator of the admin area, with the permissions the server really holds.
+ *
+ * A session that cannot be read is an error the operator sees, not an empty
+ * permission list: a broken admin must never look like a role without rights.
+ */
+export function useAdminSession(): AdminSession {
+  const { user } = useSession();
+  const staff = user ? (user as StaffUser) : null;
+  const userId = staff?.id ?? null;
+  // The answer of the login endpoint carries an empty permission list. An
+  // administrator holds every permission anyway, so the read is only needed
+  // for the other roles.
+  const needsRead = userId !== null && staff?.role !== 'ADMIN' && (staff?.permissions ?? []).length === 0;
+
+  const [read, setRead] = useState<{ id: string; staff: StaffUser | null; error: string | null } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!userId || !needsRead) return;
+    let alive = true;
+    readSession(userId)
+      .then((real) => {
+        if (alive) setRead({ id: userId, staff: real, error: null });
+      })
+      .catch((cause: unknown) => {
+        if (!alive) return;
+        const message = cause instanceof ApiError ? cause.message : 'The session could not be read.';
+        setRead({ id: userId, staff: null, error: message });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, needsRead, attempt]);
+
+  // The answer of this render, or the one a screen of the area read before.
+  const known =
+    read && read.id === userId
+      ? read
+      : userId !== null && sessionUsers.has(userId)
+        ? { id: userId, staff: sessionUsers.get(userId) ?? null, error: null }
+        : null;
+
+  const reload = useCallback(() => {
+    if (!userId) return;
+    sessionReads.delete(userId);
+    sessionUsers.delete(userId);
+    setRead(null);
+    setAttempt((value) => value + 1);
+  }, [userId]);
+
+  const permissions = known ? (known.staff?.permissions ?? []) : (staff?.permissions ?? []);
+
+  return {
+    staff: staff ? { ...staff, permissions } : null,
+    loading: needsRead && !known,
+    error: known?.error ?? null,
+    reload,
+  };
+}
+
+export function useStaffUser(): StaffUser | null {
+  return useAdminSession().staff;
 }
 
 /** Masks a personal address: j***@example.com */
@@ -65,6 +162,24 @@ export function fmtDateTime(value: string | null | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return DASH;
   return `${DAY.format(date)}, ${TIME.format(date)}`;
+}
+
+/**
+ * The note that says the list on the screen is only the first rows of the list
+ * the platform holds.
+ *
+ * The number behind it comes from the API, never from the length of the array
+ * that arrived, so a list that is cut short is never shown as if it were the
+ * whole of it.
+ */
+export function TruncationNote({ shown, total }: { shown: number; total: number | undefined }) {
+  if (typeof total !== 'number' || total <= shown) return null;
+  return (
+    <p className="px-1 text-[12.5px] leading-relaxed text-ink3">
+      Showing the first {shown} of {total}. The API returns the first rows only, so the older entries are not in this
+      list.
+    </p>
+  );
 }
 
 /**

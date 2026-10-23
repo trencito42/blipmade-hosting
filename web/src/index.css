@@ -52,6 +52,9 @@
   --color-on-acc: #06130b;
   --color-bad: #ff6b6b;
   --color-warn: #f0b232;
+  /* One shade of red for the alerts of the interface: `bg-bad/10`, the block
+     that carries an error message. The danger button keeps `bg-bad/12`,
+     because it is a control and not an alert. */
   /* proxima nova is the typeface of the interface. It is served from this
      machine under /fonts/, and Geist stays the fallback, so the site never
      waits for a font that is not there. The name is written twice, because

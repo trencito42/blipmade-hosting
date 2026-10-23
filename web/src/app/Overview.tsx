@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon, type IconName } from '../icons';
 import { get, type Instance } from '../lib/api';
-import { cn } from '../lib';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
+  ButtonLink,
   EmptyState,
   ErrorState,
   ListRow,
@@ -56,11 +56,6 @@ function fmtDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
-const primaryLink =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
-const softLink =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
 
 /** Reasons this instance needs the customer to act. Empty when all is well. */
 function attentionReasons(instance: Instance): string[] {
@@ -198,13 +193,13 @@ export default function Overview() {
           {/* The next step is one button on a phone, both of them within reach
               of a thumb instead of side by side in a narrow row. */}
           <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap">
-            <Link to="/app/deploy" className={cn(primaryLink, 'w-full sm:w-auto')}>
+            <ButtonLink to="/app/deploy" className="w-full sm:w-auto">
               <Icon name="rocket" size={16} />
               Choose an app
-            </Link>
-            <Link to={catalogPath()} className={cn(softLink, 'w-full sm:w-auto')}>
+            </ButtonLink>
+            <ButtonLink to={catalogPath()} variant="soft" className="w-full sm:w-auto">
               Browse the public catalog
-            </Link>
+            </ButtonLink>
           </div>
 
           {catalogLoading ? (
@@ -283,13 +278,10 @@ export default function Overview() {
           value={
             // A link that is only a word is too small for a finger, so the
             // action in this tile is a real button of its own.
-            <Link
-              to="/app/deploy"
-              className="inline-flex h-11 w-full max-w-full items-center justify-center gap-2 rounded-full bg-s3 px-4 font-sans text-[14px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-            >
+            <ButtonLink to="/app/deploy" variant="soft" className="w-full max-w-full font-sans">
               <Icon name="rocket" size={15} />
               Add a service
-            </Link>
+            </ButtonLink>
           }
           hint="Choose from the catalog"
         />

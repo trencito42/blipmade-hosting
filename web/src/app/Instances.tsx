@@ -3,8 +3,19 @@ import { Icon } from '../icons';
 import { get, type CatalogProduct, type Instance } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
-import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, ScrollRow, StatusPill, TextInput } from '../ui-app';
-import { cn } from '../lib';
+import {
+  ButtonLink,
+  CardList,
+  DataTable,
+  EmptyState,
+  ErrorState,
+  LoadingBlock,
+  Money,
+  Segmented,
+  SoftButton,
+  StatusPill,
+  TextInput,
+} from '../ui-app';
 import { catalogPath, formatPrice, periodLabel, productIcon } from '../lib/pricing';
 import { deployPathFor, isOrderable, startingConfiguration } from '../lib/pricing-contract';
 
@@ -14,15 +25,17 @@ import { deployPathFor, isOrderable, startingConfiguration } from '../lib/pricin
  * exact same rows.
  */
 
-const primaryLink =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
-
 /** Purchased memory, never live usage. */
 function fmtRam(mb: number): string {
   if (!Number.isFinite(mb)) return '—';
   if (mb < 1024) return `${mb} MB`;
   const gb = Math.round((mb / 1024) * 100) / 100;
   return `${gb} GB`;
+}
+
+/** The name of a state, written the way the pill of the table writes it. */
+function stateLabel(state: string): string {
+  return state.replace(/_/g, ' ').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
 function limitsOf(instance: Instance): string {
@@ -52,10 +65,10 @@ function NoInstances() {
         title="You have no apps or databases yet."
         description="Pick a product from the catalog. You choose the resources on the next screen and the server sets the price."
         action={
-          <Link to="/app/deploy" className={primaryLink}>
+          <ButtonLink to="/app/deploy">
             <Icon name="rocket" size={16} />
             Choose a product
-          </Link>
+          </ButtonLink>
         }
       />
 
@@ -72,9 +85,7 @@ function NoInstances() {
           title="Nothing can be deployed right now."
           description="The catalog is empty at the moment. Please check back later."
           action={
-            <Link to={catalogPath()} className={primaryLink}>
-              Browse the public catalog
-            </Link>
+            <ButtonLink to={catalogPath()}>Browse the public catalog</ButtonLink>
           }
         />
       ) : (
@@ -98,9 +109,9 @@ function NoInstances() {
                   </p>
                 </div>
               </div>
-              <Link to={deployPathFor(product.slug, startingConfiguration(product))} className={`${primaryLink} w-full shrink-0 sm:w-auto`}>
+              <ButtonLink to={deployPathFor(product.slug, startingConfiguration(product))} className="w-full shrink-0 sm:w-auto">
                 Deploy
-              </Link>
+              </ButtonLink>
             </li>
           ))}
         </ul>
@@ -147,10 +158,10 @@ export default function Instances() {
         </div>
         {/* The selector of the customer area, so the customer picks the
             product instead of being sent to one by surprise. */}
-        <Link to="/app/deploy" className={cn(primaryLink, 'w-full sm:w-auto')}>
+        <ButtonLink to="/app/deploy" className="w-full sm:w-auto">
           <Icon name="rocket" size={16} />
           Deploy new
-        </Link>
+        </ButtonLink>
       </div>
 
       <div className="grid gap-3">
@@ -163,38 +174,19 @@ export default function Instances() {
           autoComplete="off"
         />
 
-        {/* The filters scroll sideways on a phone. The strip stays inside the
-            page and its right edge fades, so it is clear that there is more
-            to swipe. */}
-        <ScrollRow
-          label="Filter by status"
-          className="-mx-4 sm:mx-0"
-          innerClassName="gap-2 px-4 pb-1 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
-        >
-          <button
-            type="button"
-            aria-pressed={status === 'all'}
-            onClick={() => setStatus('all')}
-            className={`h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
-              status === 'all' ? 'bg-ink text-bg' : 'bg-s1 text-ink2 hover:bg-s2 hover:text-ink'
-            }`}
-          >
-            All
-          </button>
-          {statuses.map((value) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={status === value}
-              onClick={() => setStatus(value)}
-              className={`h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold capitalize transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
-                status === value ? 'bg-ink text-bg' : 'bg-s1 text-ink2 hover:bg-s2 hover:text-ink'
-              }`}
-            >
-              {value.replace(/_/g, ' ')}
-            </button>
-          ))}
-        </ScrollRow>
+        {/* The band of filters is the shared selector of the interface: it
+            scrolls sideways on a phone and its right edge fades, so it is
+            clear that there is more to swipe. */}
+        <Segmented
+          role="group"
+          ariaLabel="Filter instances by status"
+          options={[
+            { value: 'all', label: 'All' },
+            ...statuses.map((value) => ({ value, label: stateLabel(value) })),
+          ]}
+          value={status}
+          onChange={setStatus}
+        />
       </div>
 
       {loading ? (
@@ -208,16 +200,14 @@ export default function Instances() {
           title="No instances match your filters."
           description="Clear the search or pick another status to see your instances again."
           action={
-            <button
-              type="button"
+            <SoftButton
               onClick={() => {
                 setQuery('');
                 setStatus('all');
               }}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               Clear filters
-            </button>
+            </SoftButton>
           }
         />
       ) : (

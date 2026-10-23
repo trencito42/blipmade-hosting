@@ -108,7 +108,8 @@ export default function StartupTab({ instance }: TabProps) {
               <div className="grid gap-2.5">
                 {pairs.map((pair, index) => (
                   <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
-                    <input
+                    <TextInput
+                      label="Name"
                       value={pair.key}
                       onChange={(event) => {
                         const next = [...pairs];
@@ -116,10 +117,10 @@ export default function StartupTab({ instance }: TabProps) {
                         setPairs(next);
                       }}
                       placeholder="PORT"
-                      aria-label={`The name of the variable ${index + 1}`}
-                      className="h-12 min-w-0 rounded-full bg-s2 px-4 font-mono text-[14px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      className="font-mono"
                     />
-                    <input
+                    <TextInput
+                      label="Value"
                       value={pair.value}
                       onChange={(event) => {
                         const next = [...pairs];
@@ -127,12 +128,11 @@ export default function StartupTab({ instance }: TabProps) {
                         setPairs(next);
                       }}
                       placeholder="3000"
-                      aria-label={`The value of the variable ${index + 1}`}
-                      className="h-12 min-w-0 rounded-full bg-s2 px-4 font-mono text-[14px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      className="font-mono"
                     />
                     <SoftButton
                       onClick={() => setPairs(pairs.filter((_, position) => position !== index))}
-                      className="h-12"
+                      className="self-end"
                     >
                       Remove
                     </SoftButton>

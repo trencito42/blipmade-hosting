@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { del, get, post, type Domain, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { cn } from '../lib';
-import { Link } from '../router';
 import {
+  ButtonLink,
   ConfirmDialog,
+  DangerButton,
   EmptyState,
   ErrorState,
   LoadingBlock,
@@ -35,9 +35,6 @@ const DOMAIN_TONES: Record<Domain['status'], string> = {
   active: 'active',
   error: 'error',
 };
-
-const linkButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
 
 export default function Domains() {
   const { push } = useToast();
@@ -142,9 +139,7 @@ export default function Domains() {
             title="No instances yet"
             description="A domain is attached to an instance, so deploy an app or a database first."
             action={
-              <Link to="/app/deploy" className={linkButton}>
-                See what you can deploy
-              </Link>
+              <ButtonLink to="/app/deploy">See what you can deploy</ButtonLink>
             }
           />
         ) : (
@@ -225,7 +220,7 @@ export default function Domains() {
                 </div>
 
                 {domain.lastError && (
-                  <p role="alert" className="mt-3 rounded-2xl bg-bad/12 px-3.5 py-2.5 text-[13.5px] text-ink2">
+                  <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-3.5 py-2.5 text-[13.5px] text-ink2">
                     <span className="font-bold text-bad">Last error: </span>
                     {domain.lastError}
                   </p>
@@ -247,17 +242,13 @@ export default function Domains() {
                         >
                           {domain.verification.host}
                         </dd>
-                        <button
-                          type="button"
+                        <SoftButton
+                          surface="s1"
                           onClick={() => void copy(domain.verification.host ?? '', 'TXT name')}
                           aria-label="Copy the TXT name"
-                          className={cn(
-                            'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-                          )}
                         >
                           Copy
-                        </button>
+                        </SoftButton>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Type</dt>
@@ -271,17 +262,13 @@ export default function Domains() {
                         >
                           {domain.verification.token}
                         </dd>
-                        <button
-                          type="button"
+                        <SoftButton
+                          surface="s1"
                           onClick={() => void copy(domain.verification.token ?? '', 'TXT value')}
                           aria-label="Copy the TXT value"
-                          className={cn(
-                            'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-                          )}
                         >
                           Copy
-                        </button>
+                        </SoftButton>
                       </div>
                     </dl>
                   </div>
@@ -338,17 +325,13 @@ export default function Domains() {
                                 {record.value}
                               </td>
                               <td className="rounded-r-2xl bg-s3 px-2.5 py-2.5 align-middle text-right">
-                                <button
-                                  type="button"
+                                <SoftButton
+                                  surface="s1"
                                   onClick={() => void copy(record.value, `${record.type} value`)}
                                   aria-label={`Copy the ${record.type} value for ${record.name}`}
-                                  className={cn(
-                                    'h-11 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
-                                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-                                  )}
                                 >
                                   Copy
-                                </button>
+                                </SoftButton>
                               </td>
                             </tr>
                           ))}
@@ -364,17 +347,14 @@ export default function Domains() {
                             <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
                               {record.type}
                             </span>
-                            <button
-                              type="button"
+                            <SoftButton
+                              surface="s1"
+                              className="shrink-0"
                               onClick={() => void copy(record.value, `${record.type} value`)}
                               aria-label={`Copy the ${record.type} value for ${record.name}`}
-                              className={cn(
-                                'h-11 shrink-0 rounded-full bg-s1 px-3.5 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line',
-                                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-                              )}
                             >
                               Copy
-                            </button>
+                            </SoftButton>
                           </div>
                           <span className="min-w-0 break-all font-mono text-[12.5px] text-ink2">{record.name}</span>
                           <span className="min-w-0 break-all font-mono text-[12.5px] text-ink">{record.value}</span>
@@ -399,13 +379,7 @@ export default function Domains() {
                   >
                     {verifyingId === domain.id ? 'Working…' : 'Verify now'}
                   </SoftButton>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(domain)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad"
-                  >
-                    Delete
-                  </button>
+                  <DangerButton onClick={() => setPendingDelete(domain)}>Delete</DangerButton>
                 </div>
               </article>
             ))}

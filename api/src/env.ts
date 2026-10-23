@@ -91,8 +91,14 @@ const schema = z.object({
    * The addresses that are allowed to set the forwarding headers. Only these
    * are trusted, so a client cannot forge its own address and slip past the
    * rate limit.
+   *
+   * The default believes the loopback and nothing else. The private range of
+   * the container network is NOT believed by default: every container in it
+   * could set the header and write an address of its own choosing into the
+   * session and into the journal (SEC-05). The operator sets here the
+   * address of the web container, which is the only one that reaches the API.
    */
-  TRUSTED_PROXIES: z.string().default('127.0.0.1,::1,172.16.0.0/12'),
+  TRUSTED_PROXIES: z.string().default('127.0.0.1,::1'),
 
   /** Where the worker serves its own health endpoint. */
   WORKER_URL: z.string().default('http://worker:3101'),

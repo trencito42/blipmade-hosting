@@ -5,7 +5,7 @@ import type { TableColumn } from '../lib/table';
 import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
-import { ConfirmWithReason, DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useStaffUser } from './Overview';
+import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useAdminSession } from './Overview';
 
 /**
  * Staff service list — GET /api/admin/services?status=&search=
@@ -50,7 +50,8 @@ function fmtRam(mb: number): string {
 }
 
 export default function Services() {
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
@@ -67,7 +68,7 @@ export default function Services() {
 
   const state = useAsync(
     (signal) =>
-      get<{ services: AdminService[] }>(
+      get<{ services: AdminService[]; total?: number }>(
         '/admin/services',
         { status: status || undefined, search: query || undefined },
         signal,
@@ -82,6 +83,7 @@ export default function Services() {
   });
 
   const services = state.data?.services ?? [];
+  const total = state.data?.total;
   const mayWrite = can(staff, 'services.write');
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
@@ -110,6 +112,22 @@ export default function Services() {
       {fmtRam(service.ram)} · {service.cpu} vCPU · {service.disk} GB
     </span>
   );
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={4} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">
@@ -285,6 +303,7 @@ export default function Services() {
                   </div>
                 )}
               </CardList>
+              <TruncationNote shown={services.length} total={total} />
             </div>
           )}
 

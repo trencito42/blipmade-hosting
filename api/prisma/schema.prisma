@@ -158,10 +158,15 @@ model Session {
   expiresAt DateTime
   ip        String?
   userAgent String?
+  // The moment the session was last used. It is written at most once every
+  // five minutes, so the list of the sessions can tell two sessions of the
+  // same device apart without a write on every request.
+  lastSeenAt DateTime?
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([userId, createdAt])
 }
 
 enum TokenType {

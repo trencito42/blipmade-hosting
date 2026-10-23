@@ -5,6 +5,7 @@ import { hashToken, randomToken } from '../lib/tokens.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
+import { audit } from '../lib/audit.js';
 
 export const SESSION_COOKIE = 'bm_session';
 export const CSRF_COOKIE = 'bm_csrf';
@@ -62,37 +63,125 @@ export function resolveCookieSecure(request: FastifyRequest): boolean {
  */
 const MAX_SESSIONS_PER_USER = 20;
 
+/**
+ * How often the moment of the last use of a session is written.
+ *
+ * The write happens once every five minutes for every session, so the column
+ * can say when a session was last used without a write on every request.
+ */
+const LAST_SEEN_WRITE_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * Opens the session of an account.
+ *
+ * When the request already carries a session of the same account, that
+ * session is rotated: the row stays, the token and the term are new. The
+ * session is found by its token and never by the address or by the browser,
+ * because two devices can share an address and a browser.
+ */
+async function openSession(
+  request: FastifyRequest,
+  userId: string,
+  session: { token: string; expiresAt: Date; ip: string | null; userAgent: string | null },
+): Promise<string> {
+  const carried = request.cookies?.[SESSION_COOKIE];
+  const existing = carried
+    ? await prisma.session.findUnique({ where: { tokenHash: hashToken(carried) } })
+    : null;
+
+  if (existing && existing.userId === userId && existing.expiresAt.getTime() > Date.now()) {
+    await prisma.session.update({
+      where: { id: existing.id },
+      data: {
+        tokenHash: hashToken(session.token),
+        expiresAt: session.expiresAt,
+        ip: session.ip,
+        userAgent: session.userAgent,
+        lastSeenAt: new Date(),
+      },
+    });
+    return existing.id;
+  }
+
+  const created = await prisma.session.create({
+    data: {
+      tokenHash: hashToken(session.token),
+      userId,
+      expiresAt: session.expiresAt,
+      ip: session.ip,
+      userAgent: session.userAgent,
+    },
+  });
+  return created.id;
+}
+
+/**
+ * Closes the sessions that are over the cap.
+ *
+ * Only the sessions that have not expired are counted, so a session that is
+ * already dead does not take the place of a live one. The session of the
+ * request that is running is never closed: the sign-in that just happened
+ * would sign the customer out.
+ *
+ * Every session that is closed here is written to the journal, because the
+ * customer has to be able to read why a session of their account ended.
+ */
+async function closeSessionsOverTheCap(
+  request: FastifyRequest,
+  userId: string,
+  currentSessionId: string,
+  actorEmail: string | null,
+): Promise<void> {
+  const live = await prisma.session.findMany({
+    where: { userId, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+
+  // The session of this request takes one of the places of the cap.
+  const others = live.filter((session) => session.id !== currentSessionId);
+  const closed = others.slice(Math.max(MAX_SESSIONS_PER_USER - 1, 0));
+
+  if (!closed.length) return;
+
+  await prisma.session.deleteMany({ where: { id: { in: closed.map((session) => session.id) } } });
+
+  for (const session of closed) {
+    await audit({
+      actorId: userId,
+      actorEmail,
+      action: 'settings.session_revoked',
+      targetType: 'session',
+      targetId: session.id,
+      meta: { reason: 'session_cap' },
+      ip: request.ip,
+    });
+  }
+}
+
 /** Creates a server-side session and sets the cookies. */
 export async function createSession(
   request: FastifyRequest,
   reply: FastifyReply,
   userId: string,
+  actorEmail: string | null = null,
 ): Promise<void> {
   const token = randomToken(32);
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
-  await prisma.session.create({
-    data: {
-      tokenHash: hashToken(token),
-      userId,
-      expiresAt,
-      ip: request.ip ?? null,
-      userAgent: (request.headers['user-agent'] ?? null) as string | null,
-    },
+  const sessionId = await openSession(request, userId, {
+    token,
+    expiresAt,
+    ip: request.ip ?? null,
+    userAgent: (request.headers['user-agent'] ?? null) as string | null,
   });
 
   // The account keeps a bounded number of sessions: the oldest ones are
   // closed, so the list of the sessions stays readable and the table cannot
   // grow without end.
-  const stale = await prisma.session.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    skip: MAX_SESSIONS_PER_USER,
-    select: { id: true },
-  });
-  if (stale.length) {
-    await prisma.session.deleteMany({ where: { id: { in: stale.map((session) => session.id) } } });
-  }
+  await closeSessionsOverTheCap(request, userId, sessionId, actorEmail);
+
+  request.sessionId = sessionId;
 
   reply.setCookie(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -139,6 +228,18 @@ export async function loadSession(request: FastifyRequest): Promise<AuthUser | u
   if (session.user.suspendedAt) return undefined;
 
   request.sessionId = session.id;
+
+  /**
+   * The moment of the last use is written at most once every five minutes
+   * for every session. The row is already read here, so the write costs
+   * nothing on the requests that do not cross the interval.
+   */
+  const now = Date.now();
+  if (!session.lastSeenAt || session.lastSeenAt.getTime() <= now - LAST_SEEN_WRITE_INTERVAL_MS) {
+    await prisma.session
+      .update({ where: { id: session.id }, data: { lastSeenAt: new Date(now) } })
+      .catch(() => undefined);
+  }
 
   return {
     id: session.user.id,

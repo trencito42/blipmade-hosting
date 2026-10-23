@@ -43,6 +43,10 @@ export async function buildApp(): Promise<FastifyInstance> {
      * Only the addresses that are known proxies may set the forwarding
      * headers. Trusting every proxy would let a client forge its own address
      * and walk around the rate limit.
+     *
+     * The list comes from the environment and believes the loopback and
+     * nothing else by default, so the private range of the container network
+     * is never believed without the operator saying so (SEC-05).
      */
     trustProxy: env.trustProxies,
     bodyLimit: 2 * 1024 * 1024,
@@ -61,9 +65,18 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
   await app.register(rateLimit, {
     global: false,
-    // The address of the caller is the key. In the test environment the key
-    // carries the run number, so the counters of one test do not count
-    // against the next one.
+    /**
+     * The address of the caller is the key.
+     *
+     * `request.ip` is the address of the client and not the address of a
+     * proxy: the web server resolves the chain of the forwarding header
+     * before it forwards it, and only the addresses of `TRUSTED_PROXIES` may
+     * set that header. Without that list every request would carry the
+     * address of the web container and every visitor would share one counter.
+     *
+     * In the test environment the key carries the run number, so the counters
+     * of one test do not count against the next one.
+     */
     keyGenerator: (request) => (env.isTest ? `${request.ip}:${rateLimitRun()}` : request.ip),
     errorResponseBuilder: (_request, context) => ({
       statusCode: 429,

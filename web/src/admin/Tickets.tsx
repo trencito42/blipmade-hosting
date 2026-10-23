@@ -15,7 +15,7 @@ import {
   TextArea,
   useToast,
 } from '../ui-app';
-import { DASH, LiveRegion, can, denseGhost, denseSelect, denseSoft, fmtDateTime, maskEmail, useStaffUser } from './Overview';
+import { DASH, LiveRegion, TruncationNote, can, denseGhost, denseSelect, denseSoft, fmtDateTime, maskEmail, useAdminSession } from './Overview';
 
 /**
  * Staff support queue — GET /api/admin/tickets
@@ -86,7 +86,8 @@ const STATUS_OPTIONS = [
 
 export default function Tickets() {
   const { query } = useRouter();
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
   const [status, setStatus] = useState('');
   const [selectedId, setSelectedId] = useState('');
@@ -97,13 +98,23 @@ export default function Tickets() {
   }, [query.ticket]);
 
   const queue = useAsync(
-    (signal) => get<{ tickets: AdminTicket[] }>('/admin/tickets', { status: status || undefined }, signal),
+    (signal) => get<{ tickets: AdminTicket[]; total?: number }>('/admin/tickets', { status: status || undefined }, signal),
     [status],
   );
 
-  const staffList = useAsync((signal) => get<{ staff: StaffMember[] }>('/admin/staff', undefined, signal), []);
+  // The list of staff is read only when the account may read it. A role that
+  // may not read it gets an empty menu instead of a failed request.
+  const mayReadStaff = can(staff, 'staff.read');
+  const staffList = useAsync(
+    (signal) =>
+      mayReadStaff
+        ? get<{ staff: StaffMember[] }>('/admin/staff', undefined, signal)
+        : Promise.resolve({ staff: [] as StaffMember[] }),
+    [mayReadStaff],
+  );
 
   const tickets = queue.data?.tickets ?? [];
+  const total = queue.data?.total;
   const mayWrite = can(staff, 'tickets.write');
 
   const assign = useAction(async (userId: string | null) => {
@@ -116,6 +127,22 @@ export default function Tickets() {
   });
 
   const selected = tickets.find((ticket) => ticket.id === selectedId) ?? null;
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={4} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
@@ -199,6 +226,7 @@ export default function Tickets() {
                     </button>
                   )}
                 </CardList>
+                <TruncationNote shown={tickets.length} total={total} />
               </div>
             )}
           </div>
@@ -212,6 +240,7 @@ export default function Tickets() {
             ticket={selected}
             staffList={staffList.data?.staff ?? []}
             staffLoading={staffList.loading}
+            mayReadStaff={mayReadStaff}
             mayWrite={mayWrite}
             onClose={() => setSelectedId('')}
             onChanged={() => {
@@ -238,6 +267,7 @@ function TicketDetailPanel({
   ticket,
   staffList,
   staffLoading,
+  mayReadStaff,
   mayWrite,
   onClose,
   onChanged,
@@ -248,6 +278,8 @@ function TicketDetailPanel({
   ticket: AdminTicket | null;
   staffList: StaffMember[];
   staffLoading: boolean;
+  /** The account may read the list of staff, so the assignment menu is filled. */
+  mayReadStaff: boolean;
   mayWrite: boolean;
   onClose: () => void;
   onChanged: () => void;
@@ -349,6 +381,7 @@ function TicketDetailPanel({
                       id="ticket-assignee"
                       value={assignee}
                       onChange={(event) => setAssignee(event.target.value)}
+                      disabled={!mayReadStaff}
                       className={denseSelect}
                     >
                       <option value="">Unassigned</option>
@@ -361,7 +394,7 @@ function TicketDetailPanel({
                   </Field>
                   <button
                     type="button"
-                    disabled={assignAction.pending || staffLoading}
+                    disabled={assignAction.pending || staffLoading || !mayReadStaff}
                     onClick={async () => {
                       const result = await assignAction.run(assignee || null);
                       if (!result) return;
@@ -373,6 +406,12 @@ function TicketDetailPanel({
                   >
                     {assignAction.pending ? 'Saving…' : 'Save assignment'}
                   </button>
+                  {!mayReadStaff && (
+                    <p className="text-[13px] text-ink3 sm:col-span-2">
+                      Your role does not hold &quot;staff.read&quot;, so the list of staff cannot be read and a ticket cannot be
+                      assigned from here.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="text-[13px] text-ink3">Your role does not hold &quot;tickets.write&quot;, so the ticket is read-only.</p>

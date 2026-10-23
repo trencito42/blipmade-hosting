@@ -78,7 +78,12 @@ describe('the availability of a product', () => {
     const client = makeClient(app);
     const response = await client.request('GET', '/api/catalog/products');
     const bySlug = Object.fromEntries(
-      response.body.products.map((product: { slug: string }) => [product.slug, product.availability]),
+      response.body.products.map(
+        (product: { slug: string; availability: { state: string; orderable: boolean } }) => [
+          product.slug,
+          product.availability,
+        ],
+      ),
     );
 
     // Published and deployable.
@@ -90,9 +95,22 @@ describe('the availability of a product', () => {
     // Published, but the operator has not validated it yet.
     expect(bySlug['uptime-kuma'].state).toBe('COMING_SOON');
     expect(bySlug['uptime-kuma'].orderable).toBe(false);
-    // Not listed at all.
-    expect(bySlug['postgresql'].state).toBe('UNPUBLISHED');
-    expect(bySlug['postgresql'].orderable).toBe(false);
+    // A hidden product is not in the public list at all.
+    expect(bySlug['postgresql']).toBeUndefined();
+
+    // The staff sees it, with the state that says it is not published.
+    const admin = await createAdmin(app);
+    const staffView = await admin.client.request('GET', '/api/catalog/products?includeHidden=true');
+    const staffBySlug = Object.fromEntries(
+      staffView.body.products.map(
+        (product: { slug: string; availability: { state: string; orderable: boolean } }) => [
+          product.slug,
+          product.availability,
+        ],
+      ),
+    );
+    expect(staffBySlug['postgresql'].state).toBe('UNPUBLISHED');
+    expect(staffBySlug['postgresql'].orderable).toBe(false);
   });
 
   it('is orderable when the operator allows it and the panel can build it', async () => {

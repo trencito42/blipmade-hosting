@@ -136,6 +136,74 @@ export const del = <T,>(path: string, body?: unknown) => api<T>(path, { method: 
 
 export type Role = 'CUSTOMER' | 'STAFF' | 'ADMIN';
 
+/**
+ * One session of the account, as the API sends it.
+ */
+export interface AccountSession {
+  id: string;
+  ip: string | null;
+  userAgent: string | null;
+  /** The name of the browser and of the device of the session. */
+  device: string;
+  /** The moment the session was opened. */
+  createdAt: string;
+  /** The moment the session was last used. Null when it was never used again. */
+  lastSeenAt: string | null;
+  /** The moment the session ends by itself. */
+  expiresAt: string;
+  /** True when this session is the one the request was made with. */
+  current: boolean;
+}
+
+/**
+ * The date and the hour of a moment.
+ */
+export function formatMoment(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'an unknown moment';
+  return date.toLocaleString('en-IE', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * A moment in the past, written in words.
+ */
+export function relativeTime(value: string | null, now: number = Date.now()): string {
+  if (!value) return 'not known';
+  const time = Date.parse(value);
+  if (Number.isNaN(time)) return 'not known';
+  const seconds = Math.round((now - time) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+/**
+ * The last activity of a session, in words.
+ */
+export function sessionActivity(session: Pick<AccountSession, 'lastSeenAt'>, now: number = Date.now()): string {
+  if (!session.lastSeenAt) return 'no activity recorded';
+  return `active ${relativeTime(session.lastSeenAt, now)}`;
+}
+
+/**
+ * The line of a session in the list: the address, the moment of the sign-in
+ * and the last activity of the session.
+ */
+export function sessionSummary(session: AccountSession, now: number = Date.now()): string {
+  const address = session.ip ?? 'Unknown address';
+  return `${address} · signed in on ${formatMoment(session.createdAt)} · ${sessionActivity(session, now)}`;
+}
+
 export interface SessionUser {
   id: string;
   email: string;

@@ -3,6 +3,7 @@ import { env } from '../env.js';
 import { prisma } from '../db.js';
 import { AppError, badRequest, unavailable } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
+import { allocateOrderAmounts, allocateLineTotals } from './order-amounts.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
 
 let client: Stripe | null = null;
@@ -135,6 +136,46 @@ export async function findStripeCustomerId(userId: string): Promise<string | nul
 }
 
 /**
+ * The line items of a checkout session.
+ *
+ * The provider is given the price that is really due, which is the order
+ * total split over the lines. A promotion belongs to the order and not to a
+ * line, so without this split the customer would be charged the catalogue
+ * price and the amount collected would not match the amount quoted.
+ */
+export function buildCheckoutLineItems(
+  items: OrderItem[],
+  orderTotal: number,
+): Stripe.Checkout.SessionCreateParams.LineItem[] {
+  const chunks = allocateOrderAmounts(
+    items.map((item) => ({ unitAmount: item.unitAmount, quantity: item.quantity, total: item.total })),
+    orderTotal,
+  );
+
+  return chunks.flatMap((chunk) => {
+    const item = items[chunk.lineIndex];
+    const config = (item.config ?? {}) as { ram?: number; cpu?: number; disk?: number };
+    const parts = [
+      item.name,
+      config.ram ? `${config.ram} MB RAM` : null,
+      config.cpu ? `${config.cpu} vCPU` : null,
+      config.disk ? `${config.disk} GB storage` : null,
+    ].filter(Boolean);
+    return [
+      {
+        quantity: chunk.quantity,
+        price_data: {
+          currency: item.currency.toLowerCase(),
+          unit_amount: chunk.unitAmount,
+          recurring: { interval: 'month' as const },
+          product_data: { name: parts.join(' · ') },
+        },
+      },
+    ];
+  });
+}
+
+/**
  * Creates a Checkout session for an order. Each order item becomes its own
  * recurring line so every instance can be cancelled or scaled on its own, and
  * an upgrade order is charged exactly the price difference.
@@ -160,24 +201,7 @@ export async function createCheckout(order: Order & { items: OrderItem[] }): Pro
   const isUpgrade = order.kind === 'UPGRADE';
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = order.items.length
-    ? order.items.map((item) => {
-        const config = (item.config ?? {}) as { ram?: number; cpu?: number; disk?: number };
-        const parts = [
-          item.name,
-          config.ram ? `${config.ram} MB RAM` : null,
-          config.cpu ? `${config.cpu} vCPU` : null,
-          config.disk ? `${config.disk} GB storage` : null,
-        ].filter(Boolean);
-        return {
-          quantity: item.quantity,
-          price_data: {
-            currency: item.currency.toLowerCase(),
-            unit_amount: item.unitAmount,
-            recurring: { interval: 'month' as const },
-            product_data: { name: parts.join(' · ') },
-          },
-        };
-      })
+    ? buildCheckoutLineItems(order.items, order.total)
     : [
         {
           quantity: 1,
@@ -295,7 +319,15 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
   }
 
   const subscriptions: Subscription[] = [];
-  for (const item of order.items) {
+  // The amount of a line is what is really due for it: the promotion is
+  // spread over the lines, so the subscription carries the amount that was
+  // charged and not the catalogue price.
+  const lineTotals = allocateLineTotals(
+    order.items.map((item) => ({ unitAmount: item.unitAmount, quantity: item.quantity, total: item.total })),
+    order.total,
+  );
+  for (const [index, item] of order.items.entries()) {
+    const lineTotal = lineTotals[index] ?? item.total;
     const stripeItemId =
       params.stripeSubscriptionItemIds?.[item.id] ??
       (stripeItems.length === order.items.length ? stripeItems[order.items.indexOf(item)].id : undefined) ??
@@ -310,7 +342,7 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
         stripeSubscriptionItemId: stripeItemId,
         status: 'ACTIVE',
         quantity: item.quantity,
-        amount: item.total,
+        amount: lineTotal,
         currency: item.currency,
         currentPeriodStart,
         currentPeriodEnd,
@@ -319,7 +351,7 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
         stripeSubscriptionId: params.stripeSubscriptionId ?? undefined,
         stripeSubscriptionItemId: stripeItemId ?? undefined,
         status: 'ACTIVE',
-        amount: item.total,
+        amount: lineTotal,
         currency: item.currency,
         currentPeriodStart: currentPeriodStart ?? undefined,
         currentPeriodEnd: currentPeriodEnd ?? undefined,

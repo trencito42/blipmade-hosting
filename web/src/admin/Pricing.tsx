@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
-import { DASH, LiveRegion, denseInput, densePrimary, denseSoft } from './Overview';
+import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
+import { DASH, LiveRegion, denseGhost, denseInput, densePrimary, denseSoft, useAdminSession } from './Overview';
+import { pricingGate } from './permissions';
 
 /**
  * Staff pricing — GET /api/admin/pricing, PUT /api/admin/pricing/:id
@@ -10,6 +11,10 @@ import { DASH, LiveRegion, denseInput, densePrimary, denseSoft } from './Overvie
  * Every field stays in integer minor units. The preview repeats the rate card
  * the server uses: base price for the minimum configuration, plus the extra
  * gigabytes of memory, vCPUs and disk above the minimum.
+ *
+ * The screen is gated on the permissions of the account: "pricing.read" opens
+ * it, "pricing.write" makes it editable. The server refuses a write without
+ * "pricing.write", so the interface says the same before the operator tries.
  */
 
 interface AdminPrice {
@@ -33,8 +38,44 @@ function parseMinor(value: string): number | null {
 }
 
 export default function Pricing() {
-  const state = useAsync((signal) => get<{ prices: AdminPrice[] }>('/admin/pricing', undefined, signal), []);
+  const session = useAdminSession();
+  const { mayRead, mayWrite } = pricingGate(session.staff);
+
+  const state = useAsync(
+    (signal) =>
+      mayRead
+        ? get<{ prices: AdminPrice[] }>('/admin/pricing', undefined, signal)
+        : Promise.resolve({ prices: [] as AdminPrice[] }),
+    [mayRead],
+  );
   const prices = state.data?.prices ?? [];
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={3} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
+
+  if (!mayRead) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState
+          title="The prices are not available for your role"
+          message='Your role does not hold "pricing.read", so the price list cannot be shown.'
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">
@@ -52,9 +93,15 @@ export default function Pricing() {
         ) : (
           <div className="grid gap-3">
             {prices.map((price) => (
-              <PriceEditor key={price.id} price={price} onSaved={state.reload} />
+              <PriceEditor key={price.id} price={price} mayWrite={mayWrite} onSaved={state.reload} />
             ))}
           </div>
+        )}
+
+        {!mayWrite && (
+          <p className="px-1 text-[13px] text-ink3">
+            Your role does not hold &quot;pricing.write&quot;, so the prices are read-only for you.
+          </p>
         )}
       </Panel>
 
@@ -66,13 +113,24 @@ export default function Pricing() {
   );
 }
 
-function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => void }) {
+function PriceEditor({
+  price,
+  mayWrite,
+  onSaved,
+}: {
+  price: AdminPrice;
+  mayWrite: boolean;
+  onSaved: () => void;
+}) {
   const toast = useToast();
   const [base, setBase] = useState(String(price.baseAmount));
   const [ram, setRam] = useState(String(price.ramPerGb));
   const [cpu, setCpu] = useState(String(price.cpuPerUnit));
   const [disk, setDisk] = useState(String(price.diskPerGb));
+  // The price can be taken out of the catalog without changing the amounts.
+  const [active, setActive] = useState(price.active);
   const [touched, setTouched] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const save = useAction(async () => {
     return put<{ price: AdminPrice }>(`/admin/pricing/${price.id}`, {
@@ -80,6 +138,7 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
       ramPerGb: parseMinor(ram),
       cpuPerUnit: parseMinor(cpu),
       diskPerGb: parseMinor(disk),
+      active,
     });
   });
 
@@ -96,12 +155,36 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
   // no extra resources, so the preview is the base amount.
   const preview = baseAmount === null ? null : baseAmount;
 
+  /** The changes the confirmation states, one line for every amount that moves. */
+  const changes: string[] = [];
+  if (baseAmount !== null && baseAmount !== price.baseAmount) {
+    changes.push(`The base price goes from ${price.baseAmount} to ${baseAmount} cents.`);
+  }
+  if (ramPerGb !== null && ramPerGb !== price.ramPerGb) {
+    changes.push(`The price of an extra gigabyte of memory goes from ${price.ramPerGb} to ${ramPerGb} cents.`);
+  }
+  if (cpuPerUnit !== null && cpuPerUnit !== price.cpuPerUnit) {
+    changes.push(`The price of an extra vCPU goes from ${price.cpuPerUnit} to ${cpuPerUnit} cents.`);
+  }
+  if (diskPerGb !== null && diskPerGb !== price.diskPerGb) {
+    changes.push(`The price of an extra gigabyte of disk goes from ${price.diskPerGb} to ${diskPerGb} cents.`);
+  }
+  if (active !== price.active) {
+    changes.push(
+      active
+        ? 'The price becomes active again and can be bought.'
+        : 'The price becomes inactive and cannot be bought any more. The running instances keep running.',
+    );
+  }
+  const changed = changes.length > 0;
+
   const submit = async () => {
     setTouched(true);
     if (!valid) return;
     const result = await save.run();
     if (!result) return;
     toast.push(`${price.product.name} price saved`, 'ok');
+    setConfirming(false);
     onSaved();
   };
 
@@ -122,7 +205,19 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
             {price.product.minDisk} GB
           </p>
         </div>
-        <StatusPill status={price.active ? 'active' : 'draft'} label={price.active ? 'Active' : 'Inactive'} />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill status={price.active ? 'active' : 'draft'} label={price.active ? 'Active' : 'Inactive'} />
+          {mayWrite && (
+            <button
+              type="button"
+              aria-pressed={active}
+              onClick={() => setActive((value) => !value)}
+              className={active ? `${denseGhost} bg-ink text-bg hover:bg-ink` : denseGhost}
+            >
+              {active ? 'Active' : 'Inactive'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -134,6 +229,7 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
             autoComplete="off"
             value={base}
             onChange={(event) => setBase(event.target.value)}
+            disabled={!mayWrite}
             className={denseInput}
           />
         </Field>
@@ -145,6 +241,7 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
             autoComplete="off"
             value={ram}
             onChange={(event) => setRam(event.target.value)}
+            disabled={!mayWrite}
             className={denseInput}
           />
         </Field>
@@ -156,6 +253,7 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
             autoComplete="off"
             value={cpu}
             onChange={(event) => setCpu(event.target.value)}
+            disabled={!mayWrite}
             className={denseInput}
           />
         </Field>
@@ -167,6 +265,7 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
             autoComplete="off"
             value={disk}
             onChange={(event) => setDisk(event.target.value)}
+            disabled={!mayWrite}
             className={denseInput}
           />
         </Field>
@@ -210,24 +309,37 @@ function PriceEditor({ price, onSaved }: { price: AdminPrice; onSaved: () => voi
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={submit} disabled={save.pending} className={densePrimary}>
-          {save.pending ? 'Saving…' : 'Save price'}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setBase(String(price.baseAmount));
-            setRam(String(price.ramPerGb));
-            setCpu(String(price.cpuPerUnit));
-            setDisk(String(price.diskPerGb));
-            setTouched(false);
-          }}
-          className={denseSoft}
-        >
-          Reset
-        </button>
-      </div>
+      {mayWrite && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setConfirming(true)} disabled={!changed || save.pending} className={densePrimary}>
+            {save.pending ? 'Saving…' : 'Save price'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setBase(String(price.baseAmount));
+              setRam(String(price.ramPerGb));
+              setCpu(String(price.cpuPerUnit));
+              setDisk(String(price.diskPerGb));
+              setActive(price.active);
+              setTouched(false);
+            }}
+            className={denseSoft}
+          >
+            Reset
+          </button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirming}
+        title={`Save the price of ${price.product.name}`}
+        description={changes.join(' ')}
+        confirmLabel="Save price"
+        onConfirm={submit}
+        onCancel={() => setConfirming(false)}
+        busy={save.pending}
+      />
     </div>
   );
 }

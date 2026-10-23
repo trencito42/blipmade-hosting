@@ -87,6 +87,82 @@ export function recommendedPreset(product: CatalogProduct): ResourceConfiguratio
   return recommendedConfiguration(product);
 }
 
+/**
+ * The options the customer can pick for a product.
+ *
+ * The control that edits a configuration, the estimate that prices it and the
+ * price book of the server have to describe the same configuration, so the
+ * grid lives here, in the contract, and not in the page that shows it.
+ *
+ * Three configurations are always among the options: the smallest one, the
+ * recommended one of the price book and the largest one the product allows.
+ * A control built on this grid can therefore always show the configuration a
+ * price belongs to.
+ */
+
+/** The memory sizes the catalogue knows, in megabytes. */
+const RAM_STEPS_MB = [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072];
+
+/** The vCPU counts the catalogue knows. */
+const CPU_STEPS = [1, 2, 4, 8, 16];
+
+/** The memory sizes the customer can pick, in megabytes. */
+export function ramOptions(product: CatalogProduct): number[] {
+  const min = product.minRam;
+  const max = Math.max(min, product.maxRam);
+  const values = new Set<number>([min, max, recommendedPreset(product).ram]);
+  for (const step of RAM_STEPS_MB) if (step >= min && step <= max) values.add(step);
+  return [...values].filter((value) => value >= min && value <= max).sort((a, b) => a - b);
+}
+
+/** The vCPU counts the customer can pick. */
+export function cpuOptions(product: CatalogProduct): number[] {
+  const min = product.minCpu;
+  const max = Math.max(min, product.maxCpu);
+  const values = new Set<number>([min, max, recommendedPreset(product).cpu]);
+  for (const step of CPU_STEPS) if (step >= min && step <= max) values.add(step);
+  return [...values].filter((value) => value >= min && value <= max).sort((a, b) => a - b);
+}
+
+/**
+ * The storage sizes the customer can pick, in gigabytes.
+ *
+ * The server only accepts whole gigabytes, so the grid holds every whole
+ * gigabyte between the smallest and the largest size of the product. The
+ * maximum the catalogue announces is therefore reachable, and the recommended
+ * configuration of the price book is one of them.
+ */
+export function diskOptions(product: CatalogProduct): number[] {
+  const min = Math.max(1, Math.trunc(product.minDisk));
+  const max = Math.max(min, Math.trunc(product.maxDisk));
+  const options: number[] = [];
+  for (let value = min; value <= max; value += 1) options.push(value);
+  return options;
+}
+
+/** The option of a list that is the closest to a value. */
+export function nearestOption(options: number[], value: number): number {
+  if (!options.length) return value;
+  return options.reduce((best, option) => (Math.abs(option - value) < Math.abs(best - value) ? option : best), options[0]!);
+}
+
+/**
+ * A configuration the control can show and the server can price.
+ *
+ * Every value is moved onto the grid of the options, so the control, the
+ * estimate and the price book always talk about the same configuration.
+ */
+export function selectableConfiguration(
+  product: CatalogProduct,
+  config: ResourceConfiguration,
+): ResourceConfiguration {
+  return {
+    ram: nearestOption(ramOptions(product), config.ram),
+    cpu: nearestOption(cpuOptions(product), config.cpu),
+    disk: nearestOption(diskOptions(product), config.disk),
+  };
+}
+
 /** The price of the starting configuration, in minor units. */
 export function startingPrice(product: CatalogProduct): number | null {
   if (product.pricing) return product.pricing.minimum.amount;
@@ -108,25 +184,27 @@ export function sameConfiguration(a: ResourceConfiguration, b: ResourceConfigura
  *
  * A value that is not a whole number, or that is outside the limits of the
  * product, is replaced by the value of the starting configuration: the page
- * never shows a configuration the server would refuse.
+ * never shows a configuration the server would refuse. A value that the
+ * control cannot show is moved onto the grid of the options, so the control
+ * and the estimate always describe the same configuration.
  */
 export function configurationFromQuery(
   query: Record<string, string | undefined>,
   product: CatalogProduct,
 ): ResourceConfiguration {
   const fallback = startingConfiguration(product);
-  const read = (key: string, min: number, max: number, fallbackValue: number): number => {
+  const read = (key: string, options: number[], fallbackValue: number): number => {
     const raw = query[key];
     if (raw === undefined || raw === '') return fallbackValue;
     const value = Number(raw);
     if (!Number.isInteger(value)) return fallbackValue;
-    return clampConfiguration(value, min, max);
+    return nearestOption(options, value);
   };
-  return {
-    ram: read('ram', product.minRam, product.maxRam, fallback.ram),
-    cpu: read('cpu', product.minCpu, product.maxCpu, fallback.cpu),
-    disk: read('disk', product.minDisk, product.maxDisk, fallback.disk),
-  };
+  return selectableConfiguration(product, {
+    ram: read('ram', ramOptions(product), fallback.ram),
+    cpu: read('cpu', cpuOptions(product), fallback.cpu),
+    disk: read('disk', diskOptions(product), fallback.disk),
+  });
 }
 
 /** The query of the deploy page for a configuration. */

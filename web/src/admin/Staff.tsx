@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Icon } from '../icons';
-import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatusPill, useToast } from '../ui-app';
-import { DASH, LiveRegion, denseGhost, densePrimary, maskEmail, useStaffUser } from './Overview';
+import { CardList, ConfirmDialog, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Panel, StatusPill, useToast } from '../ui-app';
+import { DASH, LiveRegion, denseGhost, densePrimary, denseSelect, maskEmail, useAdminSession } from './Overview';
 
 /**
  * Staff and permissions — GET /api/admin/staff, PUT /api/admin/staff/:userId
  *
- * Only an administrator may change permissions. A staff member sees the same
- * list read-only.
+ * The role of an account decides what it may do, so the server asks for the
+ * role of an administrator when a role is given or taken away, and when the
+ * permission list of an administrator is changed. The screen says the same, so
+ * the interface and the server speak about one thing.
  */
 
 interface StaffMember {
@@ -21,11 +23,20 @@ interface StaffMember {
   permissions: string[];
 }
 
+/** The roles the server accepts. */
+const ROLES = [
+  { value: 'STAFF', label: 'Staff' },
+  { value: 'ADMIN', label: 'Administrator' },
+];
+
 export default function Staff() {
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
   const [showEmails, setShowEmails] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string[]>>({});
+  const [roles, setRoles] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<StaffMember | null>(null);
 
   const state = useAsync(
     (signal) => get<{ staff: StaffMember[]; available: string[] }>('/admin/staff', undefined, signal),
@@ -35,16 +46,24 @@ export default function Staff() {
   useEffect(() => {
     if (!state.data?.staff) return;
     const next: Record<string, string[]> = {};
-    for (const member of state.data.staff) next[member.userId] = member.permissions;
+    const nextRoles: Record<string, string> = {};
+    for (const member of state.data.staff) {
+      next[member.userId] = member.permissions;
+      nextRoles[member.userId] = member.role.toUpperCase();
+    }
     setDrafts(next);
+    setRoles(nextRoles);
   }, [state.data]);
 
   const members = state.data?.staff ?? [];
   const available = state.data?.available ?? [];
   const mayEdit = staff?.role === 'ADMIN';
 
-  const save = useAction(async (userId: string, permissions: string[]) => {
-    return put<{ staff: { userId: string; permissions: string[] } }>(`/admin/staff/${userId}`, { permissions });
+  const save = useAction(async (userId: string, permissions: string[], role?: string) => {
+    return put<{ staff: { userId: string; permissions: string[] } }>(`/admin/staff/${userId}`, {
+      permissions,
+      ...(role ? { role } : {}),
+    });
   });
 
   const toggle = (userId: string, permission: string, checked: boolean) => {
@@ -55,15 +74,54 @@ export default function Staff() {
     });
   };
 
-  const saveMember = async (member: StaffMember) => {
-    const permissions = drafts[member.userId] ?? member.permissions;
-    const result = await save.run(member.userId, permissions);
+  /** The lines the confirmation shows: what the member gains and what it loses. */
+  const changesOf = (member: StaffMember): string[] => {
+    const lines: string[] = [];
+    const current = member.permissions;
+    const next = drafts[member.userId] ?? member.permissions;
+    const added = next.filter((permission) => !current.includes(permission));
+    const removed = current.filter((permission) => !next.includes(permission));
+    if (added.length) lines.push(`${member.name ?? member.email} gains ${added.join(', ')}.`);
+    if (removed.length) lines.push(`${member.name ?? member.email} loses ${removed.join(', ')}.`);
+    const role = roles[member.userId] ?? member.role.toUpperCase();
+    if (role !== member.role.toUpperCase()) {
+      lines.push(
+        role === 'ADMIN'
+          ? `${member.name ?? member.email} becomes an administrator and holds every permission.`
+          : `${member.name ?? member.email} is no longer an administrator.`,
+      );
+    }
+    return lines;
+  };
+
+  const confirmSave = async () => {
+    if (!saving) return;
+    const permissions = drafts[saving.userId] ?? saving.permissions;
+    const role = roles[saving.userId] ?? saving.role.toUpperCase();
+    const result = await save.run(saving.userId, permissions, role === saving.role.toUpperCase() ? undefined : role);
     if (!result) return;
-    toast.push(`${member.name ?? maskEmail(member.email)} updated`, 'ok');
+    toast.push(`${saving.name ?? maskEmail(saving.email)} updated`, 'ok');
+    setSaving(null);
     state.reload();
   };
 
   const email = (value: string) => (showEmails ? value : maskEmail(value));
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={3} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   const permissionGrid = (member: StaffMember, editable: boolean) => (
     <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -98,8 +156,8 @@ export default function Staff() {
         title="Staff and permissions"
         description={
           mayEdit
-            ? 'Changes are saved with the permission list of that member and written to the audit log.'
-            : 'Only an administrator can change permissions. You see the list read-only.'
+            ? 'Changes are saved with the permission list of that member and written to the audit log. Giving or taking away the role of an administrator, and changing the permissions of an administrator, are the business of an administrator.'
+            : 'Only an administrator can change a role or the permissions of an administrator. You see the list read-only.'
         }
         actionBelow
         action={
@@ -204,11 +262,31 @@ export default function Staff() {
                         </p>
                       </div>
                       {mayEdit && (
-                        <button type="button" onClick={() => saveMember(member)} disabled={save.pending} className={densePrimary}>
+                        <button type="button" onClick={() => setSaving(member)} disabled={save.pending} className={densePrimary}>
                           {save.pending ? 'Saving…' : 'Save permissions'}
                         </button>
                       )}
                     </div>
+                    {mayEdit && (
+                      <div className="mb-3 max-w-[280px]">
+                        <Field label="Role" htmlFor={`role-${member.userId}`}>
+                          <select
+                            id={`role-${member.userId}`}
+                            value={roles[member.userId] ?? member.role.toUpperCase()}
+                            onChange={(event) =>
+                              setRoles((current) => ({ ...current, [member.userId]: event.target.value }))
+                            }
+                            className={denseSelect}
+                          >
+                            {ROLES.map((role) => (
+                              <option key={role.value} value={role.value}>
+                                {role.label}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                    )}
                     {permissionGrid(member, mayEdit)}
                   </div>
                 ))}
@@ -223,6 +301,20 @@ export default function Staff() {
           )}
         </div>
       </Panel>
+
+      <ConfirmDialog
+        open={saving !== null}
+        title={`Save the rights of ${saving?.name ?? maskEmail(saving?.email ?? '')}`}
+        description={
+          saving
+            ? changesOf(saving).join(' ') || 'Nothing changes. The permission list and the role stay as they are.'
+            : undefined
+        }
+        confirmLabel="Save permissions"
+        onConfirm={confirmSave}
+        onCancel={() => setSaving(null)}
+        busy={save.pending}
+      />
     </div>
   );
 }

@@ -1,16 +1,20 @@
 import { useState } from 'react';
-import { get } from '../lib/api';
-import { useAsync } from '../lib/useAsync';
+import { get, post } from '../lib/api';
+import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { Icon } from '../icons';
-import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, Panel, Segmented, StatusPill } from '../ui-app';
-import { DASH, LiveRegion, denseGhost, fmtDate, maskEmail } from './Overview';
+import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
+import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
+import type { TableColumn } from '../lib/table';
 
 /**
  * Staff order list — GET /api/admin/orders?status=
  *
  * The status filter is sent with the value the API stores (upper case). The
  * API answers with the lower-case form, which is what the table shows.
+ *
+ * A paid order can be refunded from here. The refund is the money of the
+ * customer, so it asks for a reason and shows the amount before it is sent.
  */
 
 interface AdminOrderItem {
@@ -43,22 +47,86 @@ const STATUS_OPTIONS = [
   { value: 'REFUNDED', label: 'Refunded' },
 ];
 
+/** Only a paid order holds money that can be given back. */
+function canBeRefunded(order: AdminOrder): boolean {
+  return order.status === 'paid' || order.status === 'fulfilled';
+}
+
 export default function Orders() {
+  const session = useAdminSession();
+  const staff = session.staff;
+  const mayWrite = can(staff, 'orders.write');
+  const toast = useToast();
   const [status, setStatus] = useState('');
   const [showEmails, setShowEmails] = useState(false);
+  const [refunding, setRefunding] = useState<AdminOrder | null>(null);
+  const [reason, setReason] = useState('');
+  const [reasonTouched, setReasonTouched] = useState(false);
 
   const state = useAsync(
-    (signal) => get<{ orders: AdminOrder[] }>('/admin/orders', { status: status || undefined }, signal),
+    (signal) => get<{ orders: AdminOrder[]; total?: number }>('/admin/orders', { status: status || undefined }, signal),
     [status],
   );
 
+  const refund = useAction(async (order: AdminOrder) => {
+    return post<{ order: { id: string; status: string; amount: number; currency: string } }>(
+      `/admin/orders/${order.id}/refund`,
+      { reason: reason.trim() },
+    );
+  });
+
   const orders = state.data?.orders ?? [];
+  const total = state.data?.total;
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
   const itemsLabel = (order: AdminOrder) =>
     order.items.length
       ? order.items.map((item) => `${item.name} ×${item.quantity}`).join(', ')
       : DASH;
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={4} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
+
+  const confirmRefund = async () => {
+    if (!refunding) return;
+    setReasonTouched(true);
+    if (reason.trim().length < 3) return;
+    const result = await refund.run(refunding);
+    if (!result) return;
+    toast.push(`${refunding.number} refunded`, 'ok');
+    setRefunding(null);
+    setReason('');
+    setReasonTouched(false);
+    state.reload();
+  };
+
+  const refundButton = (order: AdminOrder) =>
+    mayWrite && canBeRefunded(order) ? (
+      <button
+        type="button"
+        onClick={() => {
+          setReason('');
+          setReasonTouched(false);
+          setRefunding(order);
+        }}
+        className={denseDanger}
+      >
+        Refund
+      </button>
+    ) : null;
 
   return (
     <div className="grid gap-4">
@@ -163,6 +231,17 @@ export default function Orders() {
                     nowrap: true,
                     render: (order: AdminOrder) => <span className="text-ink2">{fmtDate(order.createdAt)}</span>,
                   },
+                  ...(mayWrite
+                    ? ([
+                        {
+                          key: 'action',
+                          header: 'Action',
+                          align: 'right',
+                          nowrap: true,
+                          render: (order: AdminOrder) => refundButton(order),
+                        },
+                      ] satisfies TableColumn<AdminOrder>[])
+                    : []),
                 ]}
               />
               <CardList<AdminOrder> rows={orders} rowKey={(order) => order.id}>
@@ -200,13 +279,52 @@ export default function Orders() {
                         <dd className="text-ink">{fmtDate(order.createdAt)}</dd>
                       </div>
                     </dl>
+                    {refundButton(order) && (
+                      <div className="mt-3 flex flex-wrap gap-2">{refundButton(order)}</div>
+                    )}
                   </div>
                 )}
               </CardList>
+              <TruncationNote shown={orders.length} total={total} />
             </div>
           )}
         </div>
       </Panel>
+
+      {!mayWrite && (
+        <p className="px-1 text-[13px] text-ink3">
+          Your role does not hold &quot;orders.write&quot;, so the orders are read-only for you.
+        </p>
+      )}
+
+      <ConfirmWithReason
+        open={refunding !== null}
+        title={`Refund ${refunding?.number ?? ''}`}
+        description={
+          refunding
+            ? `${refunding.number} gives ${refunding.total} ${refunding.currency} back to the customer. The money is returned by the payment provider and the order is marked as refunded. The reason is kept in the audit journal.`
+            : undefined
+        }
+        confirmLabel="Refund the order"
+        reasonLabel="Why is the order refunded?"
+        reason={reason}
+        onReasonChange={(value) => {
+          setReason(value);
+          setReasonTouched(true);
+        }}
+        onConfirm={confirmRefund}
+        onCancel={() => {
+          setRefunding(null);
+          setReason('');
+          setReasonTouched(false);
+        }}
+        busy={refund.pending}
+        error={
+          reasonTouched && reason.trim().length < 3
+            ? 'Write a reason of at least three characters. It is kept in the audit journal.'
+            : (refund.error ?? null)
+        }
+      />
     </div>
   );
 }

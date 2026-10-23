@@ -13,7 +13,7 @@ import {
   StatusPill,
   useToast,
 } from '../ui-app';
-import { ConfirmWithReason, DASH, LiveRegion, can, denseDanger, denseGhost, fmtDate, maskEmail, useStaffUser } from './Overview';
+import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
 
 /**
  * Staff customer record — GET /api/admin/customers/:id
@@ -74,11 +74,14 @@ interface AdminCustomerDetail {
   invoices: DetailInvoice[];
   tickets: DetailTicket[];
   orders: DetailOrder[];
+  /** The number of rows each list really holds, so a cut-off list says so. */
+  counts: { invoices: number; tickets: number; orders: number; payments: number };
 }
 
 export default function CustomerDetail() {
   const { id = '' } = useParams();
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
   const [reason, setReason] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -119,6 +122,22 @@ export default function CustomerDetail() {
     state.reload();
     toast.push(next ? 'Customer suspended' : 'Customer reinstated', 'ok');
   };
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={4} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   if (state.loading) {
     return (
@@ -412,6 +431,7 @@ export default function CustomerDetail() {
                 </div>
               )}
             </CardList>
+              <TruncationNote shown={customer.invoices.length} total={customer.counts?.invoices} />
           </div>
         )}
       </Panel>
@@ -480,6 +500,7 @@ export default function CustomerDetail() {
                 </Link>
               )}
             </CardList>
+              <TruncationNote shown={customer.tickets.length} total={customer.counts?.tickets} />
           </div>
         )}
       </Panel>
@@ -539,6 +560,7 @@ export default function CustomerDetail() {
                 </div>
               )}
             </CardList>
+              <TruncationNote shown={customer.orders.length} total={customer.counts?.orders} />
           </div>
         )}
       </Panel>

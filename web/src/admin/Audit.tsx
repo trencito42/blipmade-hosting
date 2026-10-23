@@ -3,13 +3,16 @@ import { get } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Panel } from '../ui-app';
-import { DASH, LiveRegion, denseGhost, denseInput, fmtDateTime, maskEmail } from './Overview';
+import { DASH, LiveRegion, TruncationNote, denseGhost, denseInput, fmtDateTime, maskEmail } from './Overview';
 
 /**
  * Staff audit log — GET /api/admin/audit?actor=&action=&targetType=
  *
  * Only the columns the API returns are shown. The API does not return a
  * request id, so there is no request id column.
+ *
+ * Every entry shows the address the action came from and the payload the
+ * action carried — the reason of a suspension or of a retry lives there.
  */
 
 interface AuditLog {
@@ -32,6 +35,41 @@ const FILTERS = [
 
 type FilterKey = (typeof FILTERS)[number]['key'];
 
+/** The payload of an entry, as the pairs the API stored. */
+function metaEntries(meta: unknown): { key: string; value: string }[] {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return [];
+  return Object.entries(meta as Record<string, unknown>).map(([key, value]) => ({
+    key,
+    value:
+      typeof value === 'string'
+        ? value
+        : Array.isArray(value)
+          ? value.map((entry) => String(entry)).join(', ')
+          : value && typeof value === 'object'
+            ? JSON.stringify(value)
+            : String(value),
+  }));
+}
+
+/**
+ * The payload of an entry, one line per value. The reason the staff gave is
+ * the part an operator reads, so it is never hidden behind a summary.
+ */
+function MetaList({ meta }: { meta: unknown }) {
+  const entries = metaEntries(meta);
+  if (!entries.length) return <span className="text-ink3">{DASH}</span>;
+  return (
+    <span className="block min-w-0">
+      {entries.map((entry) => (
+        <span key={entry.key} className="block truncate text-[12.5px] text-ink2" title={`${entry.key}: ${entry.value}`}>
+          <span className="text-ink3">{entry.key}: </span>
+          {entry.value}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function Audit() {
   const [filters, setFilters] = useState<Record<FilterKey, string>>({ actor: '', action: '', targetType: '' });
   const [applied, setApplied] = useState<Record<FilterKey, string>>({ actor: '', action: '', targetType: '' });
@@ -44,7 +82,7 @@ export default function Audit() {
 
   const state = useAsync(
     (signal) =>
-      get<{ logs: AuditLog[] }>(
+      get<{ logs: AuditLog[]; total?: number }>(
         '/admin/audit',
         {
           actor: applied.actor || undefined,
@@ -57,6 +95,7 @@ export default function Audit() {
   );
 
   const logs = state.data?.logs ?? [];
+  const total = state.data?.total;
   const actor = (value: string | null) => (value === null ? DASH : showEmails ? value : maskEmail(value));
 
   return (
@@ -153,6 +192,18 @@ export default function Audit() {
                       </span>
                     ),
                   },
+                  {
+                    key: 'source',
+                    header: 'Source',
+                    nowrap: true,
+                    render: (log: AuditLog) => <span className="font-mono text-[12.5px] text-ink2">{log.ip ?? DASH}</span>,
+                  },
+                  {
+                    key: 'detail',
+                    header: 'Detail',
+                    className: 'max-w-[280px]',
+                    render: (log: AuditLog) => <MetaList meta={log.meta} />,
+                  },
                 ]}
               />
               <CardList<AuditLog> rows={logs} rowKey={(log) => log.id}>
@@ -181,10 +232,21 @@ export default function Audit() {
                           {log.targetId ? ` · ${log.targetId}` : ''}
                         </dd>
                       </div>
+                      <div className="min-w-0">
+                        <dt className="text-ink3">Source</dt>
+                        <dd className="truncate font-mono text-ink">{log.ip ?? DASH}</dd>
+                      </div>
+                      <div className="col-span-2 min-w-0">
+                        <dt className="text-ink3">Detail</dt>
+                        <dd>
+                          <MetaList meta={log.meta} />
+                        </dd>
+                      </div>
                     </dl>
                   </div>
                 )}
               </CardList>
+              <TruncationNote shown={logs.length} total={total} />
             </div>
           )}
         </div>

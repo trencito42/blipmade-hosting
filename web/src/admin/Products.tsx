@@ -14,7 +14,7 @@ import {
   StatusPill,
   useToast,
 } from '../ui-app';
-import { DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useStaffUser } from './Overview';
+import { DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
 
 /**
@@ -75,15 +75,21 @@ interface ToggleTarget {
 }
 
 export default function Products() {
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
   const [toggle, setToggle] = useState<ToggleTarget | null>(null);
   const [removing, setRemoving] = useState<AdminProduct | null>(null);
   const [creating, setCreating] = useState(false);
+  // The egg that is being typed is kept here, so the table and the card list
+  // show the same value and the operator does not save a stale one.
+  const [eggs, setEggs] = useState<Record<string, string>>({});
 
   const state = useAsync((signal) => get<{ products: AdminProduct[] }>('/admin/products', undefined, signal), []);
   const products = state.data?.products ?? [];
   const mayWrite = can(staff, 'products.write');
+
+  const eggValue = (product: AdminProduct) => eggs[product.id] ?? (product.eggId ? String(product.eggId) : '');
 
   const patchProduct = useAction(async (id: string, body: { visible?: boolean; deployable?: boolean; eggId?: number | null }) => {
     return api<{ product: AdminProduct }>(`/admin/products/${id}`, { method: 'PATCH', body });
@@ -122,6 +128,22 @@ export default function Products() {
     const monthly = product.prices.find((price) => price.period === 'monthly') ?? product.prices[0];
     return monthly ? <Money amount={monthly.baseAmount} currency={monthly.currency} period="month" /> : DASH;
   };
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={4} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">
@@ -214,25 +236,19 @@ export default function Products() {
                   {
                     key: 'deployable',
                     header: 'Deployable',
-                    nowrap: true,
                     render: (product: AdminProduct) => {
                       // The flag says that the operator allows the product to
                       // be ordered. The state says whether the panel can build
                       // it. A product that is switched on but cannot be built
-                      // is shown as blocked, with the reason.
-                      const state = product.availability?.state;
-                      const orderable = product.availability?.orderable ?? product.deployable;
-                      const blockers = product.availability?.blockers ?? [];
+                      // is shown as blocked, with the reason — and the switch
+                      // stays there, so the product can be opened for ordering
+                      // again from this table as well.
+                      const availability = product.availability;
+                      const state = availability?.state;
+                      const blockers = availability?.blockers ?? [];
                       const title = blockers.join(' ');
-                      if (state && state !== 'DEPLOYABLE' && product.deployable) {
-                        return (
-                          <span className="inline-flex items-center gap-1.5" title={title}>
-                            <StatusPill status="degraded" label="Blocked" />
-                            <span className="font-mono text-[11.5px] text-ink3">{title}</span>
-                          </span>
-                        );
-                      }
-                      return mayWrite ? (
+                      const blocked = Boolean(state && state !== 'DEPLOYABLE' && product.deployable);
+                      const switchButton = mayWrite ? (
                         <button
                           type="button"
                           aria-pressed={product.deployable}
@@ -247,7 +263,39 @@ export default function Products() {
                           label={product.deployable ? 'Deployable' : 'Not deployable'}
                         />
                       );
+                      if (!blocked) return switchButton;
+                      return (
+                        <span className="flex flex-col items-start gap-1">
+                          <span className="inline-flex items-center gap-1.5">
+                            {switchButton}
+                            <StatusPill status="degraded" label="Blocked" />
+                          </span>
+                          <span className="font-mono text-[11.5px] text-ink3">{title}</span>
+                        </span>
+                      );
                     },
+                  },
+                  {
+                    key: 'egg',
+                    header: 'Panel egg',
+                    render: (product: AdminProduct) => (
+                      <span className="block min-w-0">
+                        <span className="block font-mono text-[12.5px] text-ink2">
+                          {product.eggId ?? 'Not set — the product cannot be built yet'}
+                        </span>
+                        {mayWrite && (
+                          <EggForm
+                            product={product}
+                            value={eggValue(product)}
+                            onChange={(value) => setEggs((current) => ({ ...current, [product.id]: value }))}
+                            onSaved={(id, value) => {
+                              patchProduct.run(id, { eggId: value });
+                            }}
+                            busy={patchProduct.pending}
+                          />
+                        )}
+                      </span>
+                    ),
                   },
                   ...(mayWrite
                     ? ([
@@ -311,6 +359,8 @@ export default function Products() {
                     {mayWrite && (
                       <EggForm
                         product={product}
+                        value={eggValue(product)}
+                        onChange={(value) => setEggs((current) => ({ ...current, [product.id]: value }))}
                         onSaved={(id, value) => {
                           patchProduct.run(id, { eggId: value });
                         }}
@@ -413,14 +463,17 @@ export default function Products() {
  */
 function EggForm({
   product,
+  value,
+  onChange,
   onSaved,
   busy,
 }: {
   product: AdminProduct;
+  value: string;
+  onChange: (value: string) => void;
   onSaved: (id: string, eggId: number | null) => void;
   busy: boolean;
 }) {
-  const [value, setValue] = useState(product.eggId ? String(product.eggId) : '');
   const changed = value.trim() === '' ? product.eggId !== null : Number(value) !== product.eggId;
 
   return (
@@ -432,7 +485,7 @@ function EggForm({
           inputMode="numeric"
           min={1}
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           placeholder="the id of the egg"
           className="h-10 w-32 rounded-xl bg-s3 px-3 font-mono text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc"
         />

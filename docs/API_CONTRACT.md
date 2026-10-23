@@ -55,12 +55,39 @@ Product = {
   minRam, minCpu, minDisk, defaultRam, defaultCpu, defaultDisk, maxRam, maxCpu, maxDisk,
   visible, deployable, docsUrl,
   price: { amount, currency, period } | null,      // monthly base for the min config
+  pricing: PriceBook | null,                       // the book of the two configurations
+  availability: Availability,
   options: { code, name, description, amount, currency }[]
 }
 QuoteItem = { productSlug, name, ram, cpu, disk, optionCodes, quantity, unitAmount, total, currency }
+
+// Every amount is in minor units (cents) of the currency of the row.
+PriceBook = {
+  currency, period,
+  minimum:    { ram, cpu, disk, amount },   // the configuration the starting price is for
+  recommended: { ram, cpu, disk, amount }    // a bigger configuration, with its own price
+}
+Availability = {
+  state: 'DEPLOYABLE' | 'COMING_SOON' | 'TEMPORARILY_UNAVAILABLE' | 'UNPUBLISHED',
+  enabled,        // the operator marked the product as validated
+  installable,    // the product has an egg mapping on the panel
+  visible,        // the product is published
+  orderable,      // the only state in which an order is accepted
+  blockers: string[]
+}
 ```
 
 Pricing is computed **server-side only**. The client never computes a price; it renders the quote.
+
+The starting price of a product is the price of its **minimum** configuration, and the
+configurator has to start from exactly that configuration. The recommended configuration is a
+bigger one and it has its own price, which is never the same number under two meanings. Both
+numbers come from the same function that prices an order, so the catalogue and the quote cannot
+drift apart.
+
+The availability is **derived**, never set by hand: a product is orderable when it is published,
+validated and has an egg mapping on the panel. A product that exists in the catalogue is not
+therefore orderable, and the server refuses the order with the same states the interface shows.
 
 ## Orders
 
@@ -68,6 +95,8 @@ Pricing is computed **server-side only**. The client never computes a price; it 
 - `GET /api/orders` → `200 { orders: Order[] }`
 - `GET /api/orders/:id` → `200 { order }`
 - `POST /api/orders/:id/checkout` → `200 { url }` (Stripe Checkout URL) or `{ url: null, message }` when Stripe is not configured.
+  An order that a promotion covers completely costs nothing, so it is confirmed and provisioned
+  without a payment provider: `200 { url: null, sessionId: null, message, free: true }`.
 - `POST /api/orders/:id/cancel` → `204`
 
 ```

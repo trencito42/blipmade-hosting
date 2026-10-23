@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatTile, StatusPill, useToast } from '../ui-app';
-import { DASH, LiveRegion, can, densePrimary, useStaffUser } from './Overview';
+import { CardList, ConfirmDialog, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatTile, StatusPill, useToast } from '../ui-app';
+import { DASH, LiveRegion, can, densePrimary, useAdminSession } from './Overview';
 
 /**
  * Staff infrastructure — GET /api/admin/infrastructure,
@@ -47,8 +48,10 @@ function fmtMb(mb: number): string {
 }
 
 export default function Infrastructure() {
-  const staff = useStaffUser();
+  const session = useAdminSession();
+  const staff = session.staff;
   const toast = useToast();
+  const [confirming, setConfirming] = useState(false);
 
   const state = useAsync(
     (signal) => get<{ nodes: AdminNode[]; eggs: AdminEgg[]; stats: AdminStats }>('/admin/infrastructure', undefined, signal),
@@ -68,11 +71,28 @@ export default function Infrastructure() {
     const result = await sync.run();
     if (!result) return;
     toast.push(`Synced ${result.nodes} nodes and ${result.eggs} eggs`, 'ok');
+    setConfirming(false);
     state.reload();
   };
 
   const memoryHeadroom = stats ? stats.totalMemory - stats.allocatedMemory : null;
   const diskHeadroom = stats ? stats.totalDisk - stats.allocatedDisk : null;
+
+  if (session.loading) {
+    return (
+      <div className="grid gap-4">
+        <LoadingBlock rows={3} label="Loading your permissions" />
+      </div>
+    );
+  }
+
+  if (session.error) {
+    return (
+      <div className="grid gap-4">
+        <ErrorState title="The session could not be read" message={session.error} onRetry={session.reload} />
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">
@@ -83,7 +103,7 @@ export default function Infrastructure() {
         actionBelow
         action={
           mayWrite ? (
-            <button type="button" onClick={runSync} disabled={sync.pending} className={densePrimary}>
+            <button type="button" onClick={() => setConfirming(true)} disabled={sync.pending} className={densePrimary}>
               {sync.pending ? 'Syncing…' : 'Sync panel'}
             </button>
           ) : undefined
@@ -318,6 +338,16 @@ export default function Infrastructure() {
           </div>
         )}
       </Panel>
+
+      <ConfirmDialog
+        open={confirming}
+        title="Sync the panel"
+        description="The nodes and the eggs of the panel are read again and the numbers on this screen are replaced by what the panel reports. Nothing of the customers is touched by it."
+        confirmLabel="Sync the panel"
+        onConfirm={runSync}
+        onCancel={() => setConfirming(false)}
+        busy={sync.pending}
+      />
     </div>
   );
 }

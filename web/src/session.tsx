@@ -71,6 +71,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await post<{ user: SessionUser }>('/auth/login', { email, password });
+    // The answer of the sign-in does not carry the permissions of a staff
+    // member, so the session is read afterwards. Without that, a staff member
+    // with a limited set of permissions would see the whole administration
+    // area as read-only until the page is reloaded by hand.
+    try {
+      const session = await get<{ user: SessionUser | null }>('/auth/session');
+      if (session.user) {
+        setUser(session.user);
+        return session.user;
+      }
+    } catch {
+      // The session answer is the one that counts, but a sign-in that worked
+      // must not fail because the second read did not.
+    }
     setUser(data.user);
     return data.user;
   }, []);

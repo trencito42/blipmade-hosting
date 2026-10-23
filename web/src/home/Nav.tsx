@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CATEGORIES, type Category } from '../data';
-import { useCatalogSummary } from '../lib/pricing';
+import { categoryLabel, useCatalogProducts, useCatalogSummary } from '../lib/pricing';
 
-/** The number shown while the catalog is still loading. */
-const APPS_COUNT = 12;
 import { Icon, type IconName } from '../icons';
 import { cn, useScrollY } from '../lib';
 import { scrollToId, useRouter } from '../router';
@@ -11,17 +9,24 @@ import { Button, Logo } from '../ui';
 import { useSession } from '../session';
 import { homeOf } from '../auth-guard';
 
+/**
+ * The icon of a category and the words that describe it while the catalog is
+ * still loading. The products a category holds are never written here: they
+ * come from the catalog of the platform, so the menu cannot advertise a
+ * product the platform does not sell.
+ */
 const CATS: Record<string, [IconName, string]> = {
-  'Web & CMS': ['globe', 'WordPress, Ghost and other site builders'],
-  'Developer Tools': ['code', 'Git forges and cloud editors'],
+  'Web & CMS': ['globe', 'Sites, blogs and stores'],
+  'Developer Tools': ['code', 'Editors, forges and toolchains'],
   Monitoring: ['mon', 'Uptime, metrics and dashboards'],
   Automation: ['flow', 'Workflows that run themselves'],
-  Bots: ['bot', 'Discord and chat bots, always on'],
-  Databases: ['db', 'PostgreSQL, MySQL, Redis, MongoDB'],
+  Bots: ['bot', 'Chat bots, always on'],
+  Databases: ['db', 'Relational and document databases'],
 };
 
 export function Nav({ setCat }: { setCat: (c: Category) => void }) {
   const catalog = useCatalogSummary();
+  const { products } = useCatalogProducts();
   const y = useScrollY();
   const { path, navigate } = useRouter();
   const { user } = useSession();
@@ -85,6 +90,24 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
   const link = 'relative inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[15px] font-bold text-ink2 outline-none transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc';
   const scrolled = y > 24;
 
+  /**
+   * The categories the menu offers, with the products the catalog really has
+   * in them. A category without a product in the catalog is not an entry: it
+   * would lead to an empty page.
+   */
+  const entries = useMemo(() => {
+    const byCategory = new Map<string, string[]>();
+    for (const product of products) {
+      const label = categoryLabel(product.category);
+      const names = byCategory.get(label) ?? [];
+      names.push(product.name);
+      byCategory.set(label, names);
+    }
+    return CATEGORIES.filter((c) => c !== 'All')
+      .map((c) => ({ label: c, icon: CATS[c]?.[0] ?? 'box', names: byCategory.get(c) ?? [] }))
+      .filter((entry) => entry.names.length > 0 || products.length === 0);
+  }, [products]);
+
   return (
     <header ref={root} className="pointer-events-auto fixed inset-x-0 top-0 z-40 bg-bg px-3 pb-2 sm:px-6" onMouseLeave={() => hover(false)}>
       <div className={cn('mx-auto max-w-[1280px] transition-[padding] duration-[220ms]', scrolled ? 'pt-2' : 'pt-3 sm:pt-4')}>
@@ -117,17 +140,17 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
             <div className="overflow-hidden">
               <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-6 px-6 pb-6 pt-3">
                 <ul className="grid grid-cols-2 gap-x-6 gap-y-1">
-                  {CATEGORIES.filter((c) => c !== 'All').map((c) => (
-                    <li key={c}>
-                      <button type="button" tabIndex={menu ? 0 : -1} onClick={() => go('apps', c)} className="group grid w-full grid-cols-[44px_minmax(0,1fr)] items-center gap-4 rounded-2xl p-3 text-left outline-none transition-colors duration-[180ms] hover:bg-s2 focus-visible:ring-2 focus-visible:ring-acc">
-                        <span className="grid size-11 place-items-center rounded-xl bg-s3 text-acc transition-transform duration-[180ms] group-hover:scale-105"><Icon name={CATS[c][0]} size={20} /></span>
-                        <span className="min-w-0"><span className="block text-[18px] font-extrabold leading-tight tracking-[-0.03em]">{c}</span><span className="block text-[13.5px] text-ink2">{CATS[c][1]}</span></span>
+                  {entries.map((entry) => (
+                    <li key={entry.label}>
+                      <button type="button" tabIndex={menu ? 0 : -1} onClick={() => go('apps', entry.label)} className="group grid w-full grid-cols-[44px_minmax(0,1fr)] items-center gap-4 rounded-2xl p-3 text-left outline-none transition-colors duration-[180ms] hover:bg-s2 focus-visible:ring-2 focus-visible:ring-acc">
+                        <span className="grid size-11 place-items-center rounded-xl bg-s3 text-acc transition-transform duration-[180ms] group-hover:scale-105"><Icon name={entry.icon} size={20} /></span>
+                        <span className="min-w-0"><span className="block text-[18px] font-extrabold leading-tight tracking-[-0.03em]">{entry.label}</span><span className="block text-[13.5px] text-ink2">{entry.names.length ? entry.names.join(', ') : CATS[entry.label]?.[1]}</span></span>
                       </button>
                     </li>
                   ))}
                 </ul>
                 <div className="grid content-between gap-6 rounded-[22px] bg-acc p-7 text-on-acc">
-                  <div><p className="font-mono text-[11.5px] uppercase tracking-[0.1em] opacity-70">{catalog.count ?? APPS_COUNT} apps and databases</p><p className="mt-2 text-[30px] font-extrabold leading-[1] tracking-[-0.055em]">Skip the server setup.</p></div>
+                  <div><p className="font-mono text-[11.5px] uppercase tracking-[0.1em] opacity-70">{catalog.count === null ? 'Apps and databases' : `${catalog.count} apps and databases`}</p><p className="mt-2 text-[30px] font-extrabold leading-[1] tracking-[-0.055em]">Skip the server setup.</p></div>
                   <button type="button" tabIndex={menu ? 0 : -1} onClick={() => go('apps', 'All')} className="inline-flex h-11 w-fit items-center gap-1.5 rounded-full bg-on-acc px-5 text-[14.5px] font-bold text-acc">Explore apps<Icon name="arrowUR" size={15} /></button>
                 </div>
               </div>
@@ -142,8 +165,8 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
             <div className="rounded-[24px] bg-s1 p-2">
               <p className="px-4 pb-1 pt-3 font-mono text-[12px] uppercase tracking-[0.1em] text-ink3">Browse</p>
               <ul>
-                {CATEGORIES.map((c) => (
-                  <li key={c}><button type="button" onClick={() => go('apps', c)} className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-4 text-left text-[20px] font-extrabold tracking-[-0.035em] active:bg-s2"><Icon name={c === 'All' ? 'box' : CATS[c][0]} size={20} className="text-acc" />{c === 'All' ? 'All apps' : c}</button></li>
+                {CATEGORIES.filter((c) => c === 'All' || entries.some((entry) => entry.label === c)).map((c) => (
+                  <li key={c}><button type="button" onClick={() => go('apps', c)} className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-4 text-left text-[20px] font-extrabold tracking-[-0.035em] active:bg-s2"><Icon name={c === 'All' ? 'box' : CATS[c]?.[0] ?? 'box'} size={20} className="text-acc" />{c === 'All' ? 'All apps' : c}</button></li>
                 ))}
               </ul>
             </div>

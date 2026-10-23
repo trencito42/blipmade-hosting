@@ -17,10 +17,8 @@ import {
   startingConfiguration,
   startingPrice,
 } from '../lib/pricing-contract';
-import { Link } from '../router';
 import { AppMark } from '../ui';
-import { EmptyState, ErrorState, LoadingBlock, Panel, ScrollRow, TextInput } from '../ui-app';
-import { cn } from '../lib';
+import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, SoftButton, StatusPill, TextInput } from '../ui-app';
 
 /**
  * The product selector of the customer area.
@@ -41,12 +39,6 @@ const CATEGORY_ORDER = [
   'BOTS',
   'DATABASES',
 ];
-
-const deployLink =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
-
-const idleLink =
-  'inline-flex h-11 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink3';
 
 function availability(product: CatalogProduct): { deployable: boolean; label: string; reason: string } {
   const blockers = orderBlockers(product);
@@ -89,9 +81,9 @@ function ProductCard({ product }: { product: CatalogProduct }) {
         {/* The state of the product gets a line of its own on a phone, so the
             name is not cut to make room for the badge. */}
         {!state.deployable && (
-          <span className="w-full shrink-0 self-start rounded-full bg-s3 px-3 py-1 text-center text-[11.5px] font-bold uppercase tracking-[0.06em] text-ink2 sm:w-auto">
-            {state.label}
-          </span>
+          <div className="w-full shrink-0 self-start sm:w-auto">
+            <StatusPill status="unavailable" label={state.label} />
+          </div>
         )}
       </div>
 
@@ -132,14 +124,14 @@ function ProductCard({ product }: { product: CatalogProduct }) {
           )}
         </div>
         {state.deployable ? (
-          <Link to={deployPathFor(product.slug, startingConfiguration(product))} className={cn(deployLink, 'w-full sm:w-auto')}>
+          <ButtonLink to={deployPathFor(product.slug, startingConfiguration(product))} className="w-full sm:w-auto">
             Deploy
             <Icon name="arrowUR" size={15} />
-          </Link>
+          </ButtonLink>
         ) : (
-          <span className={cn(idleLink, 'w-full sm:w-auto')} aria-disabled="true">
+          <SoftButton disabled className="w-full sm:w-auto">
             {state.label}
-          </span>
+          </SoftButton>
         )}
       </div>
 
@@ -204,28 +196,18 @@ export default function DeployCatalog() {
         />
 
         {categories.length > 0 && (
-          <ScrollRow
-            label="Filter by category"
-            className="-mx-4 sm:mx-0"
-            innerClassName="gap-2 px-4 pb-1 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0"
-          >
-            {['All', ...categories].map((code) => {
-              const active = category === code;
-              return (
-                <button
-                  key={code}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setCategory(code)}
-                  className={`h-11 shrink-0 rounded-full px-5 text-[14.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
-                    active ? 'bg-ink text-bg' : 'bg-s1 text-ink2 hover:bg-s2 hover:text-ink'
-                  }`}
-                >
-                  {code === 'All' ? 'All' : categoryLabel(code)}
-                </button>
-              );
-            })}
-          </ScrollRow>
+          /* The band of filters is the shared selector of the interface: it
+             scrolls sideways on a phone and its right edge fades. */
+          <Segmented
+            role="group"
+            ariaLabel="Filter the catalog by category"
+            options={['All', ...categories].map((code) => ({
+              value: code,
+              label: code === 'All' ? 'All' : categoryLabel(code),
+            }))}
+            value={category}
+            onChange={setCategory}
+          />
         )}
       </div>
 
@@ -243,16 +225,14 @@ export default function DeployCatalog() {
           title="No product matches your search."
           description="Clear the search or pick another category to see the catalog again."
           action={
-            <button
-              type="button"
+            <SoftButton
               onClick={() => {
                 setQuery('');
                 setCategory('All');
               }}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               Clear filters
-            </button>
+            </SoftButton>
           }
         />
       ) : (
