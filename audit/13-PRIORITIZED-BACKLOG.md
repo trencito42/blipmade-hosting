@@ -1,6 +1,6 @@
 # 13 — Backlog prioritizat
 
-**Data:** 2026-10-23 · **Sursa:** registrul din `12-FULL-FINDINGS-REGISTER.md` (167 constatări, 28 P0).
+**Data:** 2026-10-23 · **Sursa:** registrul din `12-FULL-FINDINGS-REGISTER.md` (182 constatări, 28 P0).
 **Regula de prioritizare:** P0 blochează lansarea ⇒ se repară primul, indiferent de efort. P1 trebuie reparat înainte de lansarea publică. P2 îmbunătățește și poate aștepta după lansare. P3 e igienă și consistență.
 
 **Cum se citește fiecare rând:**

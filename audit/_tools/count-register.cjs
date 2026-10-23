@@ -19,6 +19,7 @@ const GROUPS = [
   ['PORT', 'Portofoliu și competitivitate'],
   ['MKT', 'Creștere și marketing'],
   ['UX', 'UX și design'],
+  ['BE', 'Backend'],
 ];
 
 const rows = [];

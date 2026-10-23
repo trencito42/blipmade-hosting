@@ -48,7 +48,6 @@ Constatările din rapoartele `03-*` nu au ID-uri numerotate în sursă; aici pri
 ### 0.4 Contoare
 
 Contoarele de mai jos sunt **calculate din tabelele acestui document** (scriptul `_tools/count-register.cjs`), nu numărate cu mâna. Banda **P0 este exclusivă**: un rând e P0 dacă severitatea lui spune P0 **sau** dacă e marcat ca blocant de lansare în coloana „P0". De aceea benzile adună exact la numărul de constatări.
-
 | Securitate (`SEC-*`) | 29 | 2 | 0 | 3 | 10 | 14 |
 | Provisionare și produs (`PROV-*`) | 14 | 3 | 0 | 5 | 5 | 1 |
 | Comerț și facturare (`COMM-*`) | 12 | 4 | 2 | 3 | 3 | 0 |
@@ -63,7 +62,8 @@ Contoarele de mai jos sunt **calculate din tabelele acestui document** (scriptul
 | Portofoliu și competitivitate (`PORT-*`) | 9 | 5 | 0 | 3 | 1 | 0 |
 | Creștere și marketing (`MKT-*`) | 12 | 0 | 2 | 4 | 4 | 2 |
 | UX și design (`UX-*`) | 28 | 0 | 4 | 6 | 7 | 11 |
-| **Total** | **167** | **28** | **11** | **42** | **53** | **33** |
+| Backend (`BE-*`) | 15 | 0 | 0 | 4 | 10 | 1 |
+| **Total** | **182** | **28** | **11** | **46** | **63** | **34** |
 
 > **De ce registrul are 28 de P0, iar backlog-ul are 26.** Backlog-ul grupează constatările în **acțiuni de reparare**: aceleași două constatări se repară împreună. De exemplu `COMM-01` (reducerea nu ajunge la Stripe) și `PROMO-01` (aceeași problemă, văzută din pagina de promoții) sunt **două constatări, un singur rând de backlog** (`B-03`). Cele 28 se reduc la 23 rânduri de acțiune. **Nicio constatare nu se pierde între cele două documente** — fiecare P0 din registru e acoperit de cel puțin un rând din `13-PRIORITIZED-BACKLOG.md`.
 
@@ -372,6 +372,32 @@ Impact: un ticket de test, pe un cont de test, fără date de client. **Niciun c
 
 ---
 
+## 7g. Backend — `BE-01` … `BE-15`
+
+Sursă: `01-backend-audit.md` (1318 de linii, 15 constatări). **Nicio constatare nouă P0**: backendul nu adaugă blocaje de lansare peste ce s-a găsit deja. Confirmă însă **mecanismele** care stau la baza constatărilor P0 existente.
+
+| ID | Sev. | Clasă | Constatare | Suprapunere | P0 |
+|---|---|---|---|---|---|
+| BE-01 | High | `CODE-INSPECTED` | **Calea banului nu are tranzacție**: o comandă poate deveni `PAID` fără plată și fără abonament | `OPS-02`, `COMM-03` | Nu |
+| BE-02 | High | `VERIFIED` | **Marcajul de reluare al provisionării e distrus la fiecare tentativă**; garanția documentată nu se aplică | `PROV-01`, `PROV-13` | Nu |
+| BE-03 | High | `CODE-INSPECTED` | **Ledgerul webhook nu apără de livrările concurente ale aceluiași eveniment** | `COMM-01`, `COMM-05` | Nu |
+| BE-04 | High | `CODE-INSPECTED` | **Provisionarea face 10 mutații pe panou și ~20 de scrieri în DB cu o singură tranzacție** | `PROV-02` | Nu |
+| BE-05 | Medium | `CODE-INSPECTED` | **Cele cinci sume care se deplasează nu au nicio constrângere în schemă** | `COMM-09` (= `PRICE-03`) | Nu |
+| BE-06 | Medium | `CODE-INSPECTED` | O provisionare blocată ține blocaj 30 de minute; retry-ul manual nu poate trece | `PROV-06` | Nu |
+| BE-07 | Medium | `CODE-INSPECTED` | **`pruneQueue()` șterge joburile eșuate și anulează retenția declarată** | `PROV-03` | Nu |
+| BE-08 | Medium | `CODE-INSPECTED` | Patru bucle ale workerului înghit erorile fără să scrie nimic | `PROV-03` | Nu |
+| BE-09 | Medium | `CODE-INSPECTED` | **Verificarea sumei se dezactivează când `amount_total` lipsește** | `COMM-01` | Nu |
+| BE-10 | Medium | `CODE-INSPECTED` | Orice livrare repetată resetează `fulfillmentStatus` la `PROVISIONING` | `COMM-05` | Nu |
+| BE-11 | Medium | `CODE-INSPECTED` | Contractul API și implementarea diferă: o rută documentată nu există, 20 lipsesc | `DOC-07` | Nu |
+| BE-12 | Medium | `DOCUMENTED-ONLY` + `CODE-INSPECTED` | **Cele 240 de teste dovedesc unitățile, nu cusăturile**: panoul, Stripe live, coada, workerul și nodul real nu sunt acoperite | `07-release-gates.md` | Nu |
+| BE-13 | Medium | `VERIFIED` | **Ștergerea unui utilizator cascadează peste istoricul său financiar** | `COMM-08`, `OPS-10` | Nu |
+| BE-14 | Medium | `CODE-INSPECTED` | Numerotarea comenzilor și a facturilor e `count()+1`, nu o secvență | `PROV-07` | Nu |
+| BE-15 | Low | `CODE-INSPECTED` | `WebhookEvent.status` e text liber, fără enum și fără `updatedAt` | — | Nu |
+
+**Concluzia de fond a raportului de backend:** `BE-01` și `BE-04` explică **mecanismul** care stă la baza a trei P0-uri deja înregistrate — o comandă poate ajunge `PAID` fără plată (`OPS-02`), iar provisionarea face zece mutații pe panou fără o tranzacție care să le anuleze (`PROV-02`). `BE-03` explică de ce `COMM-01` produce **mismatch-uri**, nu doar eșecuri. **Backendul nu adaugă nimic nou la lista de blocaje; el arată că mecanismul e mai profund decât părea.**
+
+---
+
 ## 8. Porți de lansare — cele 13 porți
 
 Sursă: `07-release-gates.md`. Fiecare poartă e o întrebare de release, cu verdict și condiții de promovare.
@@ -393,5 +419,3 @@ Sursă: `07-release-gates.md`. Fiecare poartă e o întrebare de release, cu ver
 | 13 | Securitatea infrastructurii critice nu a fost verificată | 🔴 RED |
 
 **Cinci porți RED.** Conform regulii brief-ului, o singură poartă RED blochează lansarea. Condițiile complete de inversare NO-GO → GO sunt cele 9 rânduri din `07-release-gates.md` §3.
-
----

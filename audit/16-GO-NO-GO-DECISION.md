@@ -1,7 +1,7 @@
 # 16 — Decizia go / no-go
 
 **Data:** 2026-10-23 · **Natura auditului:** read-only, fără modificări de producție.
-**Baza deciziei:** cele 13 porți de lansare din `07-release-gates.md`, registrul complet din `12-FULL-FINDINGS-REGISTER.md` (167 constatări, 28 P0) și modelul economic din `09-unit-economics.md`. Documentul a fost revizuit de un auditor independent (`12b-INDEPENDENT-AUDIT.md`), ale cărui 31 de constatări sunt aplicate aici.
+**Baza deciziei:** cele 13 porți de lansare din `07-release-gates.md`, registrul complet din `12-FULL-FINDINGS-REGISTER.md` (182 constatări, 28 P0) și modelul economic din `09-unit-economics.md`. Documentul a fost revizuit de un auditor independent (`12b-INDEPENDENT-AUDIT.md`), ale cărui 31 de constatări sunt aplicate aici.
 
 ---
 

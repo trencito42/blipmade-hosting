@@ -1,7 +1,7 @@
 # 00 — Rezumat executiv
 
 **Audit al platformei Blipmade** · 2026-10-23 · read-only, fără modificări de producție
-**Corpus:** 44 de rapoarte în `audit/`, **167 de constatări clasificate** (28 P0, 10 Critical, 42 High, 54 Medium, 33 Low/Info), 23 de rânduri de acțiune P0 în backlog, 13 porți de lansare
+**Corpus:** 49 de rapoarte în `audit/`, **182 de constatări clasificate** (28 P0, 11 Critical, 46 High, 63 Medium, 34 Low/Info), 23 de rânduri de acțiune P0 în backlog, 13 porți de lansare
 **Întrebări:** cele 25 din brief-ul master, §16
 
 ---

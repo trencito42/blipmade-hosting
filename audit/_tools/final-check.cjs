@@ -144,10 +144,10 @@ console.log('\n=== 6. The independent audit corrections are applied ===');
 console.log('\n=== 7. Cross-document counters ===');
 {
   const pairs = [
-    ['12-FULL-FINDINGS-REGISTER.md', '| **Total** | **167**', 'register'],
-    ['16-GO-NO-GO-DECISION.md', '167 constatări, 28 P0', 'go/no-go'],
-    ['00-EXECUTIVE-SUMMARY.md', '167 de constatări clasificate', 'executive summary'],
-    ['13-PRIORITIZED-BACKLOG.md', '167 constatări, 28 P0', 'backlog'],
+    ['12-FULL-FINDINGS-REGISTER.md', '| **Total** | **182**', 'register'],
+    ['16-GO-NO-GO-DECISION.md', '182 constatări, 28 P0', 'go/no-go'],
+    ['00-EXECUTIVE-SUMMARY.md', '182 de constatări clasificate', 'executive summary'],
+    ['13-PRIORITIZED-BACKLOG.md', '182 constatări, 28 P0', 'backlog'],
   ];
   for (const [f, needle, label] of pairs) {
     const p = base + f;
