@@ -359,12 +359,17 @@ export function ListRow({
   );
   if (to) {
     return (
-      <Link to={to} className="flex items-center gap-3 rounded-2xl bg-s2 p-3.5 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+      <Link
+        to={to}
+        className="flex min-w-0 items-center gap-3 rounded-2xl bg-s2 p-3.5 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+      >
         {inner}
       </Link>
     );
   }
-  return <div className="flex items-center gap-3 rounded-2xl bg-s2 p-3.5">{inner}</div>;
+  // The row may shrink below the width of its text, so a long text is cut and
+  // never pushes the page sideways.
+  return <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-s2 p-3.5">{inner}</div>;
 }
 
 // --- four data states -----------------------------------------------------

@@ -23,7 +23,8 @@ describe('registration', () => {
     const response = await client.request('POST', '/api/auth/register', {
       email: 'New.User@example.com',
       password: VALID_PASSWORD,
-      name: 'New User',
+      firstName: 'New',
+      lastName: 'User',
     });
 
     expect(response.status).toBe(201);
@@ -38,15 +39,30 @@ describe('registration', () => {
 
   it('refuses a duplicate email address', async () => {
     const first = makeClient(app);
-    await first.request('POST', '/api/auth/register', { email: 'dupe@example.com', password: VALID_PASSWORD });
+    await first.request('POST', '/api/auth/register', {
+      email: 'dupe@example.com',
+      password: VALID_PASSWORD,
+      firstName: 'Dupe',
+      lastName: 'Customer',
+    });
     const second = makeClient(app);
-    const response = await second.request('POST', '/api/auth/register', { email: 'dupe@example.com', password: VALID_PASSWORD });
+    const response = await second.request('POST', '/api/auth/register', {
+      email: 'dupe@example.com',
+      password: VALID_PASSWORD,
+      firstName: 'Dupe',
+      lastName: 'Customer',
+    });
     expect(response.status).toBe(409);
   });
 
   it('rejects a weak password with a field error', async () => {
     const client = makeClient(app);
-    const response = await client.request('POST', '/api/auth/register', { email: 'weak@example.com', password: 'short' });
+    const response = await client.request('POST', '/api/auth/register', {
+      email: 'weak@example.com',
+      password: 'short',
+      firstName: 'Weak',
+      lastName: 'Customer',
+    });
     expect(response.status).toBe(400);
     expect(response.body.error.fields.password).toBeTruthy();
   });

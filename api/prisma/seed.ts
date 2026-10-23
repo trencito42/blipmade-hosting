@@ -254,7 +254,14 @@ async function main(): Promise<void> {
     if (!existing) {
       const passwordHash = await hashPassword(adminPassword);
       const user = await prisma.user.create({
-        data: { email: adminEmail.toLowerCase(), passwordHash, role: 'ADMIN', name: 'Administrator', emailVerifiedAt: new Date() },
+        data: {
+          email: adminEmail.toLowerCase(),
+          passwordHash,
+          role: 'ADMIN',
+          firstName: 'Blipmade',
+          lastName: 'Administrator',
+          emailVerifiedAt: new Date(),
+        },
       });
       await prisma.staffMember.create({ data: { userId: user.id, permissions: [], title: 'Administrator' } });
       console.info(`Created administrator ${adminEmail}.`);

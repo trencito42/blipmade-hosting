@@ -9,14 +9,14 @@
  *     on every client endpoint ("You are attempting to use an application API
  *     key on an endpoint that requires a client API key"), so it never reaches
  *     this module and is never returned by it.
- *   - the client key (`ptc_...`) is the only credential a client endpoint
+ *   - the client key (`ptlc_...`) is the only credential a client endpoint
  *     accepts.
  *
- * The intended end state is one panel-issued client key per customer account,
- * stored encrypted on the server (see `api/src/lib/secrets.ts` for
- * `encryptSecret` / `decryptSecret`) and looked up by the Pterodactyl user id.
- * Until that per-customer store exists, the single key configured in
- * `PTERODACTYL_CLIENT_KEY` is the interim fallback for every account.
+ * There is one client key per customer. The panel issues it on request (see
+ * `api/src/services/panel/credentials.ts`), it is scoped to the panel account
+ * of that customer, and it is stored encrypted on this server. There is no
+ * shared key any more: one key for all customers could only ever reach the
+ * servers of the account that owns it.
  *
  * The key stays on the server: it is sent as a bearer token to the panel and
  * is never handed to the browser.
@@ -43,38 +43,51 @@ import type {
 } from './types.js';
 
 const MEDIA = 'Application/vnd.pterodactyl.v1+json';
-/** Prefix of a client API key issued by the panel. */
-const CLIENT_KEY_PREFIX = 'ptc_';
+/**
+ * Prefix of a client API key issued by the panel.
+ *
+ * Pterodactyl names the identifier of a key after its kind: a key of the
+ * client API starts with "ptlc_" and a key of the application API starts with
+ * "ptla_". The full key is the identifier of sixteen characters plus the
+ * secret of thirty-two, so a key of a customer is forty-eight characters long.
+ */
+const CLIENT_KEY_PREFIX = 'ptlc_';
 
 /**
  * True when the configured credential is a panel-issued client key. The
  * application key is administrative and is rejected by the panel on every
  * client endpoint, so it is never a usable client credential.
  */
-export function clientApiKeyIsUsable(): boolean {
-  const key = env.PTERODACTYL_CLIENT_KEY;
-  return typeof key === 'string' && key.startsWith(CLIENT_KEY_PREFIX);
+export function clientApiKeyIsUsable(key: string | null | undefined): boolean {
+  // The identifier of the panel is sixteen characters and the secret is
+  // thirty-two, so a real key of a customer is forty-eight characters long.
+  return typeof key === 'string' && key.startsWith(CLIENT_KEY_PREFIX) && key.length >= 40;
 }
 
-/** True when the client API can be used at all on this environment. */
+/**
+ * True when the client API can be used at all on this environment. The panel
+ * has to be able to issue a key for a customer, and that is what the bridge
+ * of the panel does.
+ */
 export function clientApiAvailable(): boolean {
-  return clientApiKeyIsUsable();
+  return Boolean(env.PTERODACTYL_URL && env.PANEL_KEYMINT_URL && env.PANEL_KEYMINT_SECRET);
 }
 
 /**
  * The bearer token for the client API.
  *
- * `userId` and `perms` are the seam for the per-customer key: the lookup by
- * the Pterodactyl user id lands here once the encrypted per-customer store
- * exists. Until then the configured client key is used for every account.
+ * The token is the client key of the customer. It is resolved by
+ * `services/panel/credentials.ts`, which keeps one key per customer and hands
+ * it over for the length of one request. Nothing else decides which key is
+ * used, so a customer can never act on a server of somebody else.
  */
-export function clientToken(userId: string | number, perms: '*' | string[] = '*'): string {
-  const key = requireClientConfig();
-  // The parameters are part of the contract of the call sites and stay until
-  // the per-customer lookup replaces the global key.
-  void userId;
-  void perms;
-  return key;
+export function clientToken(token: string): string {
+  if (!clientApiKeyIsUsable(token)) {
+    throw unavailable(
+      'The credential of this customer on the panel is missing or invalid. Only a panel-issued client key that starts with "ptlc_" may be used on a client endpoint.',
+    );
+  }
+  return token;
 }
 
 export class ClientApiError extends Error {
@@ -89,21 +102,13 @@ export class ClientApiError extends Error {
 }
 
 /**
- * Fails with an actionable message when the client credential is missing or
- * is not a client key, or when the panel URL is missing. The application key
- * is never accepted here.
+ * Fails with an actionable message when the panel URL is missing. The
+ * credential itself is checked by `clientToken`, because it is per customer.
  */
-function requireClientConfig(): string {
-  const key = env.PTERODACTYL_CLIENT_KEY;
-  if (!clientApiKeyIsUsable()) {
-    throw unavailable(
-      'The Pterodactyl Client API key is missing or invalid. PTERODACTYL_CLIENT_KEY must hold a panel-issued client key that starts with "ptc_"; the application key ("ptla_") is rejected by the client endpoints.',
-    );
-  }
+function requirePanelUrl(): void {
   if (!env.PTERODACTYL_URL) {
     throw unavailable('The Pterodactyl panel URL is not configured (PTERODACTYL_URL).');
   }
-  return key;
 }
 
 /** Turns the panel's error body into a readable message. */
@@ -128,6 +133,8 @@ interface ClientRequestOptions {
   rawBody?: string;
   timeoutMs?: number;
   query?: Record<string, string | number | undefined>;
+  /** The answer is binary and is returned as it is. */
+  binary?: boolean;
 }
 
 async function clientRequest<T>(
@@ -135,12 +142,12 @@ async function clientRequest<T>(
   path: string,
   options: ClientRequestOptions,
 ): Promise<T> {
-  requireClientConfig();
+  requirePanelUrl();
   // The panel refuses an application key on a client endpoint, so a token
   // that is not a client key never leaves the server.
   if (!options.token.startsWith(CLIENT_KEY_PREFIX)) {
     throw unavailable(
-      'The Pterodactyl Client API key is missing or invalid. Only a panel-issued client key that starts with "ptc_" may be used on a client endpoint.',
+      'The credential of this customer on the panel is missing or invalid. Only a panel-issued client key that starts with "ptlc_" may be used on a client endpoint.',
     );
   }
 
@@ -172,6 +179,18 @@ async function clientRequest<T>(
       body,
       signal: controller.signal,
     });
+
+    if (options.binary) {
+      if (!response.ok) {
+        const text = await response.text();
+        throw new ClientApiError(
+          response.status,
+          text,
+          `Pterodactyl client ${method} ${path} failed with ${response.status}. ${clientDetail(text)}`,
+        );
+      }
+      return (Buffer.from(await response.arrayBuffer()) as unknown) as T;
+    }
 
     const text = await response.text();
     if (!response.ok) {
@@ -361,19 +380,11 @@ export function parseConsoleWebsocket(payload: unknown): { socket: string; token
 }
 
 /**
- * Splits a path into the directory and the file names the delete endpoint
- * expects: `/logs/app.log` becomes `{ root: "/logs", files: ["app.log"] }`.
+ * Splits a path into the directory and the file names the file endpoints
+ * expect: `/logs/app.log` becomes `{ root: "/logs", files: ["app.log"] }`.
+ *
+ * Defined once, further down, next to the other path helpers.
  */
-function splitPath(path: string): { root: string; files: string[] } {
-  const normalized = path.replace(/^\/+/, '');
-  const separator = normalized.lastIndexOf('/');
-  if (separator === -1) return { root: '/', files: [normalized] };
-  const directory = normalized.slice(0, separator);
-  const name = normalized.slice(separator + 1);
-  if (!name) return { root: '/', files: [normalized] };
-  return { root: directory ? `/${directory}` : '/', files: [name] };
-}
-
 export function getServer(token: string, uuid: string): Promise<ClientServer> {
   return clientRequest<unknown>('GET', `/api/client/servers/${uuid}`, { token }).then(parseServer);
 }
@@ -450,4 +461,326 @@ export function createBackup(token: string, uuid: string, payload: { name: strin
 export async function consoleWebsocket(token: string, uuid: string): Promise<{ socket: string; token: string }> {
   const result = await clientRequest<unknown>('GET', `/api/client/servers/${uuid}/websocket`, { token });
   return parseConsoleWebsocket(result);
+}
+
+// ---------------------------------------------------------------------------
+// The rest of the client api.
+//
+// Every function here takes the client key of the customer that owns the
+// server. The key is resolved by `services/panel/credentials.ts` and is never
+// shared, so a customer can only reach the servers of their own account.
+// ---------------------------------------------------------------------------
+
+/** Splits a path into the folder and the name inside it. */
+function splitPath(path: string): { root: string; files: string[] } {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const separator = normalized.lastIndexOf('/');
+  if (separator === -1) return { root: '/', files: [normalized] };
+  const directory = normalized.slice(0, separator);
+  const name = normalized.slice(separator + 1);
+  if (!name) return { root: '/', files: [normalized] };
+  // The directory already carries the leading slash, so it is used as it is.
+  return { root: directory || '/', files: [name] };
+}
+
+/** The parent folder of a path and the name inside it. */
+function parentAndName(path: string): { root: string; name: string } {
+  const { root, files } = splitPath(path);
+  return { root, name: files[0] ?? '' };
+}
+
+// --- files ----------------------------------------------------------------
+
+/** Renames a file or a folder inside the same folder. */
+export function renameFile(token: string, uuid: string, path: string, to: string) {
+  const { root } = parentAndName(path);
+  const { name } = parentAndName(to);
+  return clientRequest<void>('PUT', `/api/client/servers/${uuid}/files/rename`, {
+    token,
+    body: { directory: root, files: [{ from: path.split('/').pop(), to: name }] },
+  });
+}
+
+/** Moves a file or a folder to another folder. */
+export function moveFile(token: string, uuid: string, path: string, to: string) {
+  const { root } = parentAndName(path);
+  const { name } = parentAndName(to);
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/move`, {
+    token,
+    body: { directory: root, files: [{ from: path.split('/').pop(), to: name }] },
+  });
+}
+
+/** Copies a file or a folder to another folder. */
+export function copyFile(token: string, uuid: string, path: string, to: string) {
+  const { root } = parentAndName(path);
+  const { name } = parentAndName(to);
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/copy`, {
+    token,
+    body: { directory: root, files: [{ from: path.split('/').pop(), to: name }] },
+  });
+}
+
+/**
+ * Uploads a file. The content is sent as it is, and the panel streams it to
+ * the node.
+ */
+export function uploadFile(
+  token: string,
+  uuid: string,
+  directory: string,
+  filename: string,
+  content: Buffer,
+) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/upload`, {
+    token,
+    query: { directory, filename },
+    rawBody: content.toString('binary'),
+  });
+}
+
+/** Reads a file as it is, for a download. */
+export function downloadFile(token: string, uuid: string, path: string): Promise<Buffer> {
+  return clientRequest<Buffer>('GET', `/api/client/servers/${uuid}/files/contents`, {
+    token,
+    query: { file: path },
+    binary: true,
+  });
+}
+
+/** Compresses files into an archive. */
+export function compressFiles(token: string, uuid: string, paths: string[], format: 'tar' | 'zip') {
+  const first = paths[0] ?? '/';
+  const { root } = parentAndName(first);
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/compress`, {
+    token,
+    body: {
+      directory: root,
+      files: paths.map((path) => path.split('/').pop() ?? path),
+      format,
+    },
+  });
+}
+
+/** Unpacks an archive. */
+export function decompressArchive(token: string, uuid: string, path: string, format: 'tar' | 'zip') {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/decompress`, {
+    token,
+    body: { archive: path, format },
+  });
+}
+
+/** Changes the permissions of a file or a folder. */
+export function chmodFile(token: string, uuid: string, path: string, mode: number) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/chmod`, {
+    token,
+    body: { files: [{ path, mode }] },
+  });
+}
+
+// --- databases ------------------------------------------------------------
+
+export interface ClientDatabase {
+  id: number;
+  name: string;
+  username: string;
+  host: string;
+  port: number;
+  password: string | null;
+  database: string;
+}
+
+/** Reads the databases of a server. The password is only in the answer when the panel sends it. */
+export function listDatabases(token: string, uuid: string): Promise<ClientDatabase[]> {
+  return clientRequest<unknown>('GET', `/api/client/servers/${uuid}/databases`, { token }).then((payload) =>
+    collectionEntries<Record<string, unknown>>(payload).map((entry) => {
+      const attributes = (entry?.attributes ?? {}) as Record<string, unknown>;
+      return {
+        id: Number(attributes.id ?? 0),
+        name: String(attributes.name ?? ''),
+        username: String(attributes.username ?? ''),
+        host: String(attributes.host ?? ''),
+        port: Number(attributes.port ?? 0),
+        password: typeof attributes.password === 'string' ? attributes.password : null,
+        database: String(attributes.database ?? ''),
+      };
+    }),
+  );
+}
+
+export function createDatabase(
+  token: string,
+  uuid: string,
+  payload: { database: string; username: string; password: string; remote: string },
+) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/databases`, { token, body: payload });
+}
+
+export function updateDatabase(
+  token: string,
+  uuid: string,
+  id: number,
+  payload: { password?: string; remote?: string },
+) {
+  return clientRequest<void>('PATCH', `/api/client/servers/${uuid}/databases/${id}`, { token, body: payload });
+}
+
+export function deleteDatabase(token: string, uuid: string, id: number) {
+  return clientRequest<void>('DELETE', `/api/client/servers/${uuid}/databases/${id}`, { token });
+}
+
+/**
+ * The credentials of a database. The answer holds the password, so the call
+ * is written to the audit log by the caller.
+ */
+export function databaseCredentials(token: string, uuid: string, id: number) {
+  return clientRequest<Record<string, unknown>>(
+    'GET',
+    `/api/client/servers/${uuid}/databases/${id}/credentials`,
+    { token },
+  );
+}
+
+// --- backups --------------------------------------------------------------
+
+export function deleteBackup(token: string, uuid: string, id: string) {
+  return clientRequest<void>('DELETE', `/api/client/servers/${uuid}/backups/${id}`, { token });
+}
+
+/** Reads a backup as it is, for a download. */
+export function downloadBackup(token: string, uuid: string, id: string): Promise<Buffer> {
+  return clientRequest<Buffer>('GET', `/api/client/servers/${uuid}/backups/${id}/download`, {
+    token,
+    binary: true,
+  });
+}
+
+/** Restores a backup. The files of the server are replaced by the archive. */
+export function restoreBackup(token: string, uuid: string, id: string) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/backups/${id}/restore`, { token });
+}
+
+// --- schedules ------------------------------------------------------------
+
+export interface ClientSchedule {
+  id: number;
+  name: string;
+  cron: string;
+  action: string;
+  active: boolean;
+  payload: Record<string, unknown>;
+  last_run: string | null;
+  next_run: string | null;
+}
+
+export function listSchedules(token: string, uuid: string): Promise<ClientSchedule[]> {
+  return clientRequest<unknown>('GET', `/api/client/servers/${uuid}/schedules`, { token }).then((payload) =>
+    collectionEntries<Record<string, unknown>>(payload).map((entry) => {
+      const attributes = (entry?.attributes ?? {}) as Record<string, unknown>;
+      return {
+        id: Number(attributes.id ?? 0),
+        name: String(attributes.name ?? ''),
+        cron: String(attributes.cron ?? ''),
+        action: String(attributes.action ?? ''),
+        active: attributes.active === true,
+        payload: (attributes.payload ?? {}) as Record<string, unknown>,
+        last_run: attributes.last_run ? String(attributes.last_run) : null,
+        next_run: attributes.next_run ? String(attributes.next_run) : null,
+      };
+    }),
+  );
+}
+
+export function createSchedule(token: string, uuid: string, payload: Record<string, unknown>) {
+  return clientRequest<unknown>('POST', `/api/client/servers/${uuid}/schedules`, { token, body: payload });
+}
+
+export function updateSchedule(token: string, uuid: string, id: number, payload: Record<string, unknown>) {
+  return clientRequest<unknown>('PATCH', `/api/client/servers/${uuid}/schedules/${id}`, { token, body: payload });
+}
+
+export function deleteSchedule(token: string, uuid: string, id: number) {
+  return clientRequest<void>('DELETE', `/api/client/servers/${uuid}/schedules/${id}`, { token });
+}
+
+export function runSchedule(token: string, uuid: string, id: number) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/schedules/${id}/run`, { token });
+}
+
+// --- allocations ----------------------------------------------------------
+
+export interface ClientAllocation {
+  id: number;
+  ip: string;
+  port: number;
+  alias: string | null;
+  is_default: boolean;
+}
+
+export function listAllocations(token: string, uuid: string): Promise<ClientAllocation[]> {
+  return clientRequest<unknown>('GET', `/api/client/servers/${uuid}/allocations`, { token }).then((payload) =>
+    collectionEntries<Record<string, unknown>>(payload).map((entry) => {
+      const attributes = (entry?.attributes ?? {}) as Record<string, unknown>;
+      return {
+        id: Number(attributes.id ?? 0),
+        ip: String(attributes.ip ?? ''),
+        port: Number(attributes.port ?? 0),
+        alias: attributes.alias ? String(attributes.alias) : null,
+        is_default: attributes.is_default === true,
+      };
+    }),
+  );
+}
+
+export function updateAllocation(
+  token: string,
+  uuid: string,
+  id: number,
+  payload: { is_default?: boolean; alias?: string | null },
+) {
+  return clientRequest<void>('PATCH', `/api/client/servers/${uuid}/allocations/${id}`, { token, body: payload });
+}
+
+export function createAllocation(
+  token: string,
+  uuid: string,
+  payload: { ip: string; port: number; alias?: string },
+) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/allocations`, { token, body: payload });
+}
+
+export function deleteAllocation(token: string, uuid: string, id: number) {
+  return clientRequest<void>('DELETE', `/api/client/servers/${uuid}/allocations/${id}`, { token });
+}
+
+// --- settings and activity ------------------------------------------------
+
+export function renameServer(token: string, uuid: string, payload: { name: string; description?: string }) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/settings/rename`, { token, body: payload });
+}
+
+/** Reinstalls the server. The files of the customer are lost. */
+export function reinstallServer(token: string, uuid: string) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/settings/reinstall`, { token });
+}
+
+export interface ClientActivity {
+  user: string;
+  action: string;
+  meta: Record<string, unknown>;
+  created_at: string;
+}
+
+export function listActivity(token: string, uuid: string): Promise<ClientActivity[]> {
+  return clientRequest<unknown>('GET', `/api/client/servers/${uuid}/activity`, { token }).then((payload) =>
+    collectionEntries<Record<string, unknown>>(payload).map((entry) => {
+      const attributes = (entry?.attributes ?? {}) as Record<string, unknown>;
+      return {
+        user: String(attributes.user ?? ''),
+        action: String(attributes.action ?? ''),
+        meta: (attributes.meta ?? {}) as Record<string, unknown>,
+        created_at: String(attributes.created_at ?? ''),
+      };
+    }),
+  );
 }

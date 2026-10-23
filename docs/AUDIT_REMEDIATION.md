@@ -272,9 +272,9 @@ every customer.
 
 **Now:**
 
-- The invented JWT is gone. A panel-issued client key (`ptc_…`) is the only
+- The invented JWT is gone. A panel-issued client key (`ptlc_…`) is the only
   accepted credential.
-- A key that is missing or is not a `ptc_` key makes `clientApiAvailable()`
+- A key that is missing or is not a `ptlc_` key makes `clientApiAvailable()`
   false, and every call fails with a message that names the missing
   credential. The application key is never sent to a client endpoint.
 - The key stays on the server and never reaches the browser.
@@ -452,7 +452,7 @@ Files: `api/src/services/provisioning.ts`, `api/prisma/schema.prisma`.
 
 These need a credential or a decision that is not the code's to make:
 
-1. `PTERODACTYL_CLIENT_KEY` — a panel-issued client key (`ptc_…`). Without it
+1. `PTERODACTYL_CLIENT_KEY` — a panel-issued client key (`ptlc_…`). Without it
    the platform cannot start or stop a container, and the console cannot be
    opened. This also blocks the per-customer key strategy of BM-AUD-010.
 2. The panel login answers `500 TypeError` for every account, so the panel

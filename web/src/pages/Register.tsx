@@ -50,11 +50,13 @@ function PromisePanel() {
 
 export default function Register() {
   const { register } = useSession();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [nameErr, setNameErr] = useState<string | null>(null);
+  const [lastNameErr, setLastNameErr] = useState<string | null>(null);
   const [emailErr, setEmailErr] = useState<string | null>(null);
   const [pwErr, setPwErr] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -73,15 +75,18 @@ export default function Register() {
     if (pending) return;
     const ve = checkEmail(email);
     const vp = checkPw(pw);
+    const vn = firstName.trim() ? null : 'Enter your first name.';
+    const vl = lastName.trim() ? null : 'Enter your last name.';
     setEmailErr(ve);
     setPwErr(vp);
-    setNameErr(null);
-    if (ve || vp) return;
+    setNameErr(vn);
+    setLastNameErr(vl);
+    if (ve || vp || vn || vl) return;
 
     setPending(true);
     setMsg(null);
     try {
-      await register(email.trim(), pw, name.trim() || undefined);
+      await register(email.trim(), pw, firstName.trim(), lastName.trim());
       setAccountEmail(email.trim());
     } catch (err) {
       if (err instanceof ApiError) {
@@ -91,8 +96,10 @@ export default function Register() {
           setEmailErr(err.fields.email);
         } else if (err.fields?.password) {
           setPwErr(err.fields.password);
-        } else if (err.fields?.name) {
-          setNameErr(err.fields.name);
+        } else if (err.fields?.firstName) {
+          setNameErr(err.fields.firstName);
+        } else if (err.fields?.lastName) {
+          setLastNameErr(err.fields.lastName);
         } else if (err.status === 0) {
           setMsg('Cannot reach the Blipmade API. Check your connection and try again.');
         } else {
@@ -172,17 +179,30 @@ export default function Register() {
           <p className="text-[17px] text-ink2">One account for your apps, databases, domains and billing.</p>
           {msg && <div role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14.5px] font-bold text-bad">{msg}</div>}
           <form onSubmit={submit} noValidate aria-busy={pending} className="grid gap-4">
-            <AuthField
-              id="name"
-              label={<>Name <span className="font-medium text-ink3">(optional)</span></>}
-              autoComplete="name"
-              value={name}
-              error={nameErr}
-              onChange={(v) => {
-                setName(v);
-                if (nameErr) setNameErr(null);
-              }}
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <AuthField
+                id="firstName"
+                label="First name"
+                autoComplete="given-name"
+                value={firstName}
+                error={nameErr}
+                onChange={(v) => {
+                  setFirstName(v);
+                  if (nameErr) setNameErr(null);
+                }}
+              />
+              <AuthField
+                id="lastName"
+                label="Last name"
+                autoComplete="family-name"
+                value={lastName}
+                error={lastNameErr}
+                onChange={(v) => {
+                  setLastName(v);
+                  if (lastNameErr) setLastNameErr(null);
+                }}
+              />
+            </div>
             <AuthField
               id="email"
               label="Email address"

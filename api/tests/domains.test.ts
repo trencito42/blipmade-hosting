@@ -37,13 +37,15 @@ vi.mock('../src/services/pterodactyl/application.js', async (importOriginal) => 
  * The gateway is replaced as well. The real one is exercised through its own
  * helpers further down, but it must never be called over the network here.
  */
+type RouteResult = { applied: boolean; reason: string | null; routeId: string | null };
+
 const { applyRoute, removeRoute } = vi.hoisted(() => ({
-  applyRoute: vi.fn(async () => ({
+  applyRoute: vi.fn(async (): Promise<RouteResult> => ({
     applied: false,
     reason: 'The gateway is not configured on this environment.',
     routeId: 'blipmade-route-test',
   })),
-  removeRoute: vi.fn(async () => ({ applied: true, reason: null, routeId: 'blipmade-route-test' })),
+  removeRoute: vi.fn(async (): Promise<RouteResult> => ({ applied: true, reason: null, routeId: 'blipmade-route-test' })),
 }));
 
 vi.mock('../src/services/gateway.js', async (importOriginal) => {

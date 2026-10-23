@@ -298,40 +298,43 @@ export async function listUsers(): Promise<PteroUser[]> {
   return result.data.map((entry) => entry.attributes as PteroUser);
 }
 
-export async function findUserByEmail(email: string): Promise<PteroUser | null> {
+/**
+ * Finds a panel account by its external id.
+ *
+ * This is the only way an account is found again. An address is never used,
+ * because an address can be typed by hand and can already belong to somebody
+ * else: an account that Blipmade did not create must never be taken over.
+ */
+export async function findUserByExternalId(externalId: string): Promise<PteroUser | null> {
   const users = await listUsers();
-  return users.find((user) => user.email.toLowerCase() === email.toLowerCase()) ?? null;
-}
-
-export async function findUserById(id: number): Promise<PteroUser | null> {
-  const users = await listUsers();
-  return users.find((user) => user.id === id) ?? null;
+  return users.find((user) => user.external_id === externalId) ?? null;
 }
 
 /**
- * Creates a Pterodactyl user. Pterodactyl 1.15 requires a first name and a last
- * name, so the display name is split and a sensible fallback is used when the
- * customer only gave one word.
+ * Creates a Pterodactyl user.
+ *
+ * The account carries the two parts of the name of the customer, so no name is
+ * ever made up, and the external id that links the two identities. The
+ * password is a random value: the customer never signs in to the panel, so
+ * there is nothing to remember and nothing to hand over.
  */
 export async function createUser(input: {
   email: string;
   username: string;
   password: string;
   root_admin: boolean;
-  name?: string | null;
+  external_id?: string | null;
+  first_name?: string;
+  last_name?: string;
 }): Promise<PteroUser> {
-  const parts = (input.name ?? '').trim().split(/\s+/).filter(Boolean);
-  const fallback = input.email.split('@')[0] ?? 'customer';
-  const firstName = parts[0] ?? fallback;
-  const lastName = parts.length > 1 ? parts.slice(1).join(' ') : 'Customer';
-
   const result = await applicationRequest<{ attributes: PteroUser }>('POST', '/api/application/users', {
     email: input.email,
     username: input.username,
-    first_name: firstName,
-    last_name: lastName,
+    first_name: input.first_name ?? 'Customer',
+    last_name: input.last_name ?? 'Customer',
     password: input.password,
     root_admin: input.root_admin,
+    ...(input.external_id ? { external_id: input.external_id } : {}),
   });
   return result.attributes;
 }

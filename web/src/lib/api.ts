@@ -114,7 +114,11 @@ export type Role = 'CUSTOMER' | 'STAFF' | 'ADMIN';
 export interface SessionUser {
   id: string;
   email: string;
-  name: string | null;
+  /** The two parts of the name of the customer. Both are always present. */
+  firstName: string;
+  lastName: string;
+  /** The two parts as one line, for the places that show a single name. */
+  name: string;
   role: Role;
   emailVerified: boolean;
   /** Staff permissions granted to this account. Empty for customers. */

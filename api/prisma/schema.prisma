@@ -24,16 +24,18 @@ model User {
   id             String    @id @default(cuid())
   email          String    @unique
   passwordHash   String
-  name           String?
+  // The name of the customer in two parts. The panel account of this customer
+  // carries the same two parts, so no name is ever invented.
+  firstName      String
+  lastName       String
   role           Role      @default(CUSTOMER)
   emailVerifiedAt DateTime?
-  // Pterodactyl application user id, used for Client API calls.
+  // The panel account that belongs to this customer. The mapping is
+  // permanent and is never derived from an address.
   pterodactylUserId String?
-  // Panel password of the customer account, encrypted with the session
-  // secret. It is kept so the panel account can be reset and so the
-  // credential can be shown to the customer once.
-  pterodactylPasswordEnc String?
-  pterodactylPasswordSetAt DateTime?
+  // The external id that the panel account carries. It is the only link
+  // between the two identities, and it is what a reconciliation looks up.
+  pterodactylExternalId String? @unique
   suspendedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -51,9 +53,34 @@ model User {
   subscriptions  Subscription[]
   promotions     Promotion[] @relation("PromotionCreator")
   promotionRedemptions PromotionRedemption[]
+  panelCredential PanelCredential?
 
   @@index([role])
   @@index([pterodactylUserId])
+}
+
+/// The client credential of one customer on the panel.
+///
+/// The panel issues one client API key per customer. The key is scoped to the
+/// panel account of that customer, so it can only reach the servers of that
+/// customer, and it is stored encrypted on this server. It never reaches the
+/// browser.
+model PanelCredential {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // The panel account the key belongs to.
+  panelUserId Int
+  // The external id of that account on the panel.
+  externalId  String
+  // The client key, encrypted with the session secret of this deployment.
+  tokenEnc    String
+  // Where the key came from: "bridge" when the panel issued it on request,
+  // "bootstrap" when an operator handed it over.
+  source      String   @default("bridge")
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Session {
@@ -504,6 +531,10 @@ model Instance {
   status            InstanceStatus @default(PENDING)
   pterodactylServerId Int?          @unique
   pterodactylUuid   String?        @unique
+  // The allocation that the panel really assigned. The port of the service
+  // is read from it and is never assumed.
+  pterodactylAllocation Int?
+  pterodactylNodeId     Int?
   ram               Int
   cpu               Int
   disk              Int

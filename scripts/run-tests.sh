@@ -42,5 +42,11 @@ export STRIPE_PUBLISHABLE_KEY=""
 export SMTP_URL=""
 export COOKIE_SECURE=false
 
+# The Prisma client is generated from the schema, so it is generated again
+# before the suite runs. A client of an older schema would fail at runtime
+# with an error that has nothing to do with the test.
+echo "==> Generating the Prisma client"
+npx prisma generate
+
 echo "==> Running the test suite against blipmade_test"
 exec npx vitest run "$@"

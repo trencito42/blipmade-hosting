@@ -44,6 +44,10 @@ const ROUTES = [
   { path: '/docs', name: 'docs', auth: false },
   { path: '/app', name: 'app-overview', auth: true },
   { path: '/app/instances', name: 'app-instances', auth: true },
+  // The detail page of an instance, when the account has one.
+  ...(process.env.BM_INSTANCE_PATH
+    ? [{ path: process.env.BM_INSTANCE_PATH, name: 'app-instance-detail', auth: true }]
+    : []),
   { path: '/app/domains', name: 'app-domains', auth: true },
   { path: '/app/billing', name: 'app-billing', auth: true },
   { path: '/app/tickets', name: 'app-tickets', auth: true },

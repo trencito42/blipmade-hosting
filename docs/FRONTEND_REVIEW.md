@@ -162,7 +162,7 @@ The screenshots are not committed; they are a review artefact.
 | Blocker | Effect |
 |---|---|
 | The kit of the Adobe Fonts web project is unknown. | The interface keeps Geist. Everything else works. The operator sets `ADOBE_FONTS_KIT_URL` and the typeface is there. |
-| The web login of the panel answers `500 TypeError` for every account. | A `ptc_` client key cannot be issued from the browser, so the relay of the console, the power control of a customer and the key per customer stay blocked. The interface around them is ready. |
+| The web login of the panel answers `500 TypeError` for every account. | A `ptlc_` client key cannot be issued from the browser, so the relay of the console, the power control of a customer and the key per customer stay blocked. The interface around them is ready. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`, `SMTP_URL`, `CADDY_ADMIN_URL`, `CADDY_ADMIN_TOKEN`, `OFFSITE_TARGET`, `OFFSITE_ENCRYPTION_KEY` are still empty. | The pages of the billing and of the mail show the honest empty state. |
 | There is no endpoint to change the password of a signed in account. | The settings page offers the reset by mail and says so. |
 | The fields of `/admin/overview` are optional in the API. | A counter that is missing is shown as `—`, never estimated. |

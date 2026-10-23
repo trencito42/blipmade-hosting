@@ -26,8 +26,16 @@ const schema = z.object({
   COOKIE_SECURE: z.string().optional(),
 
   PTERODACTYL_URL: z.string().default(''),
+  /** The administrative key of the panel. It never reaches the browser. */
   PTERODACTYL_APP_KEY: z.string().default(''),
-  PTERODACTYL_CLIENT_KEY: z.string().default(''),
+  /**
+   * The endpoint of the panel that issues a client key for one customer.
+   * It is the bridge that the panel carries, and it is the only way to get a
+   * credential that is scoped to a single customer. See docs/PANEL_BRIDGE.md.
+   */
+  PANEL_KEYMINT_URL: z.string().default(''),
+  /** The secret of the bridge. Both sides sign with it. */
+  PANEL_KEYMINT_SECRET: z.string().default(''),
 
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_PUBLISHABLE_KEY: z.string().default(''),
@@ -89,7 +97,12 @@ export const env = {
   stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   mailEnabled: Boolean(raw.SMTP_URL),
   pterodactylEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_APP_KEY),
-  pterodactylClientEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_CLIENT_KEY),
+  /**
+   * True when the panel can issue a client key on request. Without it no
+   * customer operation is possible, because the client API refuses the
+   * administrative key.
+   */
+  panelBridgeEnabled: Boolean(raw.PTERODACTYL_URL && raw.PANEL_KEYMINT_URL && raw.PANEL_KEYMINT_SECRET),
   /** The proxy addresses the API believes when it reads the forwarding headers. */
   trustProxies: raw.TRUSTED_PROXIES.split(',')
     .map((value) => value.trim())

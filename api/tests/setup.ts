@@ -44,6 +44,7 @@ const TABLES = [
   'StaffMember',
   'VerificationToken',
   'Session',
+  'PanelCredential',
   'User',
   'Setting',
 ];

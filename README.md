@@ -67,6 +67,7 @@ Inside the control plane:
 | `web/` | The React frontend and the small server that serves it. |
 | `scripts/` | The operational scripts: backup, restore, restore drill, off-site backup, inventory. |
 | `scripts/ops/` | The verification and probe scripts that read the panel and the node. |
+| `panel-bridge/` | The component that the **panel** carries so that Blipmade can get a client key for one customer. It is installed on the panel host, not here. See `docs/PANEL_BRIDGE.md`. |
 | `docs/` | The contracts, the status report and the runbook. |
 | `compose.yml` | PostgreSQL and Redis. |
 | `compose.api.yml` | The API and the worker. |
@@ -229,13 +230,14 @@ it is invalid. The values below are the placeholders, never a real value.
 | `WORKER_HEALTH_PORT` | The port the worker answers its health check on. | no | no | `3101` |
 | `DATABASE_URL` | The PostgreSQL connection string. | **yes** | **yes**, it carries the password | `<redacted>` |
 | `REDIS_URL` | The Redis connection string. | no | **yes**, if it carries a password | `redis://127.0.0.1:6379` |
-| `SESSION_SECRET` | Signs the session cookie, the CSRF token and the encrypted panel password. At least 16 characters. | **yes** | **yes** | `<redacted>` |
+| `SESSION_SECRET` | Signs the session cookie, the CSRF token and the encrypted client key of a customer. At least 16 characters. | **yes** | **yes** | `<redacted>` |
 | `APP_ORIGIN` | The origin the browser uses. It is the only allowed CORS origin. | no | no | `http://localhost:5173` |
 | `APP_PUBLIC_URL` | The public address of the platform, used in the links of the emails. | no | no | `http://localhost:5173` |
 | `COOKIE_SECURE` | `true`, `false` or unset. Unset follows `APP_ORIGIN`. | no | no | unset |
 | `PTERODACTYL_URL` | The address of the Pterodactyl panel. | for provisioning | no | `<redacted>` |
 | `PTERODACTYL_APP_KEY` | The administrative key of the panel. | for provisioning | **yes** | `<redacted>` |
-| `PTERODACTYL_CLIENT_KEY` | The client key of the panel. Needed for power, files, console and metrics. | for the customer tools | **yes** | `<redacted>` |
+| `PANEL_KEYMINT_URL` | The endpoint of the panel that issues the client key of a customer, for example `https://panel.example.com/api/blipmade/keymint`. It is the bridge of the panel, see `docs/PANEL_BRIDGE.md`. | for the customer tools | **yes** | empty |
+| `PANEL_KEYMINT_SECRET` | The secret both sides sign with. At least 32 characters. The same value is on the panel. | for the customer tools | **yes** | `<redacted>` |
 | `STRIPE_SECRET_KEY` | The Stripe secret key. Without it the local test gateway is used. | for real payments | **yes** | `<redacted>` |
 | `STRIPE_PUBLISHABLE_KEY` | The Stripe publishable key. | for real payments | **yes** | `<redacted>` |
 | `STRIPE_WEBHOOK_SECRET` | The signature secret of the Stripe webhook. | for real payments | **yes** | `<redacted>` |
@@ -380,9 +382,12 @@ repository.
 * **The allocation ports are not published on the node.** A server is created,
   installed and started, but the port the customer would connect to refuses
   connections. The fault is on the node (VM 101), not in the platform.
-* **`PTERODACTYL_CLIENT_KEY` is empty.** The power control, the file manager,
-  the console and the live metrics have never run against the real panel. The
-  panel rejects the administrative key on the client endpoints.
+* **The panel cannot issue a client key on its own.** The power control, the
+  file manager, the console, the backups and the databases need a key that is
+  scoped to one customer, and the panel has no route that creates one. The
+  bridge of `panel-bridge/` is the answer and it has to be installed on the
+  panel; until then the customer operations answer `503` and say so. See
+  `docs/PANEL_BRIDGE.md` and `docs/HEADLESS_PANEL.md`.
 * **The Stripe integration has never run live.** Only the local test gateway
   was exercised. A real checkout and a real webhook delivery are still open.
 * **The mail is never delivered.** Without `SMTP_URL` the messages are written
@@ -413,5 +418,7 @@ round, with the evidence for every line.
 | [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) | What is finished, what is implemented but unverified and what is blocked, with the command that proves each claim. |
 | [`docs/FRONTEND_REVIEW.md`](docs/FRONTEND_REVIEW.md) | The review of the interface of 2026-10-23: the typeface, the auth screens, the path to the first deployment, the customer overview, the phone and the states of every route. |
 | [`docs/TYPOGRAPHY.md`](docs/TYPOGRAPHY.md) | How the typeface is loaded, which weights exist and how to set the Adobe Fonts web project. |
+| [`docs/HEADLESS_PANEL.md`](docs/HEADLESS_PANEL.md) | How the headless integration works: the two identities, the key of a customer, the rules of every operation and the provisioning. |
+| [`docs/PANEL_BRIDGE.md`](docs/PANEL_BRIDGE.md) | The bridge between Blipmade and the panel: what it does, how it is installed on the panel and how it is removed. |
 | [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md) | The readiness report of the last verification round. |
 | [`scripts/README.md`](scripts/README.md) | What every script in `scripts/` does. |

@@ -82,6 +82,14 @@ export interface PteroUser {
   email: string;
   root_admin: boolean;
   created_at: string;
+  /**
+   * The identifier that the owner of the account put on it. Blipmade writes
+   * `blipmade_acc_<the id of the customer>` here, and that is the only thing
+   * a reconciliation looks up. An address is never used to find an account.
+   */
+  external_id: string | null;
+  first_name?: string;
+  last_name?: string;
 }
 
 /** Body accepted by POST /api/application/servers on Pterodactyl 1.15. */

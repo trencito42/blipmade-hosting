@@ -1,6 +1,14 @@
 # Blipmade — implementation status
 
-Last updated: 2026-10-23 00:20 UTC
+Last updated: 2026-10-23 02:10 UTC
+
+> **Update 2026-10-23, second round — the panel became headless.** The panel is
+> now strictly a backend: no customer signs in to it, nothing links to it and no
+> key of it is shared. Every customer has a client key of their own on the
+> panel, issued by the bridge of `panel-bridge/` and stored encrypted. The
+> shared key (`PTERODACTYL_CLIENT_KEY`) and the impersonation that used it are
+> gone. The architecture is in [`HEADLESS_PANEL.md`](HEADLESS_PANEL.md) and the
+> installation of the bridge is in [`PANEL_BRIDGE.md`](PANEL_BRIDGE.md).
 
 This file is the source of truth for what is finished, what is implemented but not
 verified, and what is blocked. Every claim below is backed by a command that was run
@@ -13,9 +21,57 @@ on VM 103 (`10.77.0.13`), not by an assumption.
 > [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md). The corrections to the
 > statements below are marked.
 
-Sections: [Recovered work](#1-recovered-work) · [Backend](#2-backend) · [Frontend](#3-frontend)
+Sections: [The headless round](#0-the-headless-round-2026-10-23-second-round) · [Recovered work](#1-recovered-work) · [Backend](#2-backend) · [Frontend](#3-frontend)
 · [Infrastructure](#4-infrastructure) · [Tests](#5-tests) · [Panel contract](#6-pterodactyl-panel-contract)
 · [Not verified](#7-what-was-not-verified) · [Blocked](#8-blocked) · [Next](#9-next-steps)
+
+---
+
+## 0. The headless round (2026-10-23, second round)
+
+Pterodactyl is strictly a backend. No customer signs in to it, nothing links
+to it and no key of it is shared. What was done, what was checked against the
+real panel and what is still blocked:
+
+### Implemented
+
+| what | where |
+|---|---|
+| The name of a customer is two parts and both are required at the registration. The optional single name is gone. | `api/src/routes/auth.ts`, `web/src/pages/Register.tsx` |
+| One panel account per customer, found by `external_id` and by nothing else. An account that Blipmade did not create is never taken over. The account carries a reserved address that cannot receive mail, and the two parts of the name of the customer. | `api/src/services/panel/identity.ts` |
+| One client key per customer, encrypted in `PanelCredential`. The shared key and the impersonation that used it are gone. | `api/src/services/panel/credentials.ts` |
+| The bridge of the panel: one endpoint that issues a key for one customer, signed with a secret, with a replay guard and an address list. | `panel-bridge/`, `docs/PANEL_BRIDGE.md` |
+| Every server operation goes through the key of the customer, after the ownership of the instance was checked. An instance of somebody else answers 404. | `api/src/services/panel/operations.ts`, `api/src/routes/instance-server.ts` |
+| The console is a relay: the browser opens a socket on Blipmade and Blipmade relays it. The address of the node and the token of the console stay on the server. | `api/src/routes/instances.ts` |
+| The whole page of the instance: overview, console, files, databases, backups, network, startup, schedules, settings, activity. | `web/src/app/instance/` |
+| The provisioning reads the allocation the panel really assigned, never installs a server that is already installed, and never takes over a panel account by its address. | `api/src/services/provisioning.ts` |
+
+### Verified against the real panel
+
+| what | how |
+|---|---|
+| Two disposable customers get two distinct panel identities | `GET /api/application/users`: id 19 and 20, with `external_id = blipmade_acc_<id>`, `root_admin = false` and a reserved address. |
+| Every server belongs to its own customer | `GET /api/application/servers`: id 10 belongs to the account 19, id 11 to the account 20. No server is owned by an administrator. |
+| The address is the one the panel assigned | The allocations 74 and 75 were assigned by the panel, one per server, and are stored in `Instance.pterodactylAllocation`. |
+| The installation runs once | `installed = 1` on both servers, and the event list of the instance says "The server was already installed, so nothing was reinstalled" on the retry. |
+| The container cannot be started | The provisioning stops at the step `started` and says why: the panel cannot issue a client key for the customer yet, because the bridge is not installed. |
+| The cross-customer access is refused | `tests/instance-operations.test.ts`: 16 routes of the instance answer 404 for the other customer and the panel is never asked. |
+| The tests of the platform | 135 of 135 pass on VM 103, including 9 new ones for the identity and the operations of a customer. |
+
+### Still blocked
+
+| what | what it needs |
+|---|---|
+| The console, the files, the power, the backups and the databases of a customer | The bridge of the panel on VM 100, or one key per customer handed over by an operator. The panel has no route that issues a client key: the application API has no token route and the client API refuses the administrative key. |
+| The start of the container during the provisioning | The same. The application API of the panel cannot power a server either: `POST /api/application/servers/{id}/power` does not exist, the route that answers only accepts `DELETE`. |
+
+> **Note on the panel.** Server 9, which the previous round had restored after
+> the probe that destroyed server 2, was destroyed again by that same probe:
+> `DELETE /api/application/servers/9/power` answers 204 through the catch-all
+> route of the panel, and that route deletes the server. The probes of this
+> round only used GET. The panel now carries the server 8 that existed before,
+> the two servers of the check, and the four administrators.
+
 
 ---
 
@@ -179,7 +235,7 @@ the panel answer `500`:
 | `/api/application/servers/{id}/build` | `PATCH` | `allocation` (**plain id**), `limits`, `feature_limits` |
 | `/api/application/servers/{id}/startup` | `PATCH` | `startup`, `environment`, `egg`, `image`, `skip_scripts` |
 | `/api/application/servers/{id}/reinstall` | `POST` | none — answers `204` and the node installs the server |
-| `/api/client/servers/{uuid}/power` | `POST` | `{"signal":"start"}` — **Client API**, needs a `ptc_` key |
+| `/api/client/servers/{uuid}/power` | `POST` | `{"signal":"start"}` — **Client API**, needs a `ptlc_` key |
 
 Two earlier assumptions were wrong and are now corrected in the code:
 
@@ -221,7 +277,7 @@ Each item needs one credential. Nothing else is waiting on them.
 
 | Missing | Needed for | Where it comes from |
 |---|---|---|
-| `PTERODACTYL_CLIENT_KEY` | Power control, file manager, console, live metrics | Pterodactyl → Account → API → Client API Key. The panel expects a `ptc_` token. |
+| `PANEL_KEYMINT_URL` and `PANEL_KEYMINT_SECRET` | The key of every customer, for the power control, the file manager, the console, the backups and the databases | The bridge of the panel, see `docs/PANEL_BRIDGE.md`. The shared key is gone: every customer has a key of their own. |
 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` | Live checkout, subscriptions, invoices | Stripe dashboard → API keys. `sk_test_…` first. |
 | `SMTP_URL` | Real email (verification, password reset, ticket notifications) | Any SMTP provider. Without it, mail is written to `/var/backups/blipmade/mail/` and logged. |
 | `CADDY_ADMIN_URL` + `CADDY_ADMIN_TOKEN` | Customer domain routing on VM 102 | Caddy admin API on the gateway. It stays private; the platform calls it from the server. |

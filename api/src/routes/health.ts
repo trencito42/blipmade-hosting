@@ -29,7 +29,7 @@ async function healthHandler() {
     mail: mailTransportName(),
     stripe: env.stripeEnabled ? 'live' : env.isTest ? 'test' : 'not_configured',
     pterodactyl: env.pterodactylEnabled ? 'configured' : 'not_configured',
-    pterodactylClient: env.pterodactylClientEnabled ? 'configured' : 'not_configured',
+    panelKeyBridge: env.panelBridgeEnabled ? 'configured' : 'not_installed',
   };
 }
 

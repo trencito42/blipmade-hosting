@@ -5,6 +5,7 @@ import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { requireAuth, requireStaff } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { sendMail } from '../lib/mailer.js';
+import { fullName } from '../lib/people.js';
 import {
   readAttachment,
   removeAttachment,
@@ -48,7 +49,7 @@ function serializeTicket(ticket: {
   updatedAt: Date;
   lastReplyAt: Date | null;
   instance: { name: string } | null;
-  assignedTo: { user: { name: string | null; email: string } } | null;
+  assignedTo: { user: { firstName: string; lastName: string; email: string } } | null;
   _count?: { messages: number };
 }) {
   return {
@@ -63,7 +64,9 @@ function serializeTicket(ticket: {
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
     lastReplyAt: ticket.lastReplyAt,
-    assignedTo: ticket.assignedTo ? (ticket.assignedTo.user.name ?? ticket.assignedTo.user.email) : null,
+    assignedTo: ticket.assignedTo
+      ? fullName(ticket.assignedTo.user) || ticket.assignedTo.user.email
+      : null,
     messageCount: ticket._count?.messages ?? 0,
   };
 }
@@ -75,7 +78,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const user = await requireAuth(request);
     const tickets = await prisma.ticket.findMany({
       where: { userId: user.id },
-      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { name: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
       orderBy: { updatedAt: 'desc' },
       take: 100,
     });
@@ -117,7 +120,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         },
         events: { create: { type: 'created', message: 'Ticket opened.', actorId: user.id } },
       },
-      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { name: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
     });
 
     await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'created', message: 'Ticket opened.', actorId: user.id } });
@@ -134,10 +137,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       where: { id },
       include: {
         instance: { select: { name: true } },
-        assignedTo: { include: { user: { select: { name: true, email: true } } } },
+        assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
         messages: {
           include: {
-            author: { select: { id: true, name: true, email: true, role: true } },
+            author: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
             attachments: true,
           },
           orderBy: { createdAt: 'asc' },
@@ -158,7 +161,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         internal: message.internal,
         author: {
           id: message.author.id,
-          name: message.author.name ?? message.author.email,
+          name: fullName(message.author) || message.author.email,
           role: message.author.role,
         },
         createdAt: message.createdAt,
@@ -209,7 +212,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         internal: body.internal ?? false,
         attachmentMeta: (body.attachments ?? []) as never,
       },
-      include: { author: { select: { id: true, name: true, email: true, role: true } } },
+      include: { author: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } },
     });
 
     const nextStatus = body.internal
@@ -236,7 +239,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         id: message.id,
         body: message.body,
         internal: message.internal,
-        author: { id: message.author.id, name: message.author.name ?? message.author.email, role: message.author.role },
+        author: { id: message.author.id, name: fullName(message.author) || message.author.email, role: message.author.role },
         createdAt: message.createdAt,
         attachments: (message.attachmentMeta ?? []) as { name: string; size: number; type: string }[],
       },
@@ -354,7 +357,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
     const updated = await prisma.ticket.findUnique({
       where: { id: ticket.id },
-      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { name: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
     });
     return { ticket: serializeTicket(updated!) };
   });
@@ -379,7 +382,10 @@ async function notifyStaff(ticketId: string, subject: string): Promise<void> {
 
 /** Notifies the other party about a reply. */
 async function notifyReply(ticketId: string, subject: string, customerId: string, authorId: string): Promise<void> {
-  const customer = await prisma.user.findUnique({ where: { id: customerId }, select: { email: true, name: true } });
+  const customer = await prisma.user.findUnique({
+    where: { id: customerId },
+    select: { email: true, firstName: true, lastName: true },
+  });
   if (!customer) return;
   const result = await sendMail({
     to: customer.email,

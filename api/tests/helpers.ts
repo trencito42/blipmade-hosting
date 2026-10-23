@@ -105,7 +105,12 @@ export async function registerAndLogin(
   password = VALID_PASSWORD,
 ): Promise<{ client: TestClient; userId: string }> {
   const client = makeClient(instance);
-  const response = await client.request('POST', '/api/auth/register', { email, password });
+  const response = await client.request('POST', '/api/auth/register', {
+    email,
+    password,
+    firstName: 'Test',
+    lastName: 'Customer',
+  });
   if (response.status !== 201) {
     throw new Error(`Could not register ${email}: ${response.status} ${JSON.stringify(response.body)}`);
   }
@@ -119,7 +124,14 @@ export async function createAdmin(
 ): Promise<{ client: TestClient; userId: string }> {
   const { hashPassword } = await import('../src/lib/password.js');
   const user = await prisma.user.create({
-    data: { email, passwordHash: await hashPassword(password), role: 'ADMIN', emailVerifiedAt: new Date() },
+    data: {
+      email,
+      passwordHash: await hashPassword(password),
+      role: 'ADMIN',
+      firstName: 'Test',
+      lastName: 'Administrator',
+      emailVerifiedAt: new Date(),
+    },
   });
   await prisma.staffMember.create({ data: { userId: user.id, permissions: [] } });
 

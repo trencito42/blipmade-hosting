@@ -208,6 +208,8 @@ describe('admin area', () => {
         email: 'staff@example.com',
         passwordHash: await hashPassword('CorrectHorseBattery9'),
         role: 'STAFF',
+        firstName: 'Staff',
+        lastName: 'Member',
         emailVerifiedAt: new Date(),
       },
     });

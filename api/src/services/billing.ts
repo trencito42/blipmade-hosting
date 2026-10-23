@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
 import * as client from './pterodactyl/client.js';
+import { resolveCustomerCredential } from './panel/credentials.js';
 import { stripeLive, stripeTestGateway } from './stripe.js';
 
 /**
@@ -32,12 +33,23 @@ async function autoDeleteEnabled(): Promise<boolean> {
   return (setting.value as { enabled?: boolean } | null)?.enabled === true;
 }
 
-/** Stops a running container, if the platform is allowed to. */
-async function stopInstance(instance: { id: string; pterodactylUuid: string | null; user: { pterodactylUserId: string | null } }): Promise<void> {
-  if (!instance.pterodactylUuid || !instance.user.pterodactylUserId) return;
-  if (!client.clientApiAvailable()) return;
+/**
+ * Stops a running container, if the platform is allowed to.
+ *
+ * The stop uses the client key of the customer that owns the instance, the
+ * same key every other customer operation uses. The administrative key of the
+ * panel cannot be used on a client endpoint, and a key that can do everything
+ * is not scoped to one customer.
+ */
+async function stopInstance(instance: {
+  id: string;
+  pterodactylUuid: string | null;
+  userId: string;
+}): Promise<void> {
+  if (!instance.pterodactylUuid) return;
   try {
-    await client.sendPower(client.clientToken(instance.user.pterodactylUserId), instance.pterodactylUuid, 'stop');
+    const credential = await resolveCustomerCredential(instance.userId);
+    await client.sendPower(client.clientToken(credential.token), instance.pterodactylUuid, 'stop');
   } catch {
     // A container that cannot be stopped is reported by the status page.
   }
@@ -47,7 +59,7 @@ async function stopInstance(instance: { id: string; pterodactylUuid: string | nu
 async function withdraw(subscriptionId: string): Promise<void> {
   const subscription = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    include: { instance: { include: { user: { select: { pterodactylUserId: true } } } } },
+    include: { instance: { select: { id: true, pterodactylUuid: true, pterodactylServerId: true, userId: true } } },
   });
   if (!subscription || !subscription.instance) return;
 
@@ -197,7 +209,9 @@ export async function sweepSubscriptions(): Promise<{ renewed: number; suspended
     // 2. The subscription is overdue: the service is suspended.
     const record = await prisma.subscription.findUnique({
       where: { id: subscription.id },
-      include: { instance: { include: { user: { select: { pterodactylUserId: true } } } } },
+      include: {
+        instance: { select: { id: true, status: true, pterodactylUuid: true, pterodactylServerId: true, userId: true } },
+      },
     });
     if (!record) continue;
 

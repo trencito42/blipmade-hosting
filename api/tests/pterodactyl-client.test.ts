@@ -19,9 +19,16 @@ import {
 
 const ORIGINAL = {
   PTERODACTYL_URL: env.PTERODACTYL_URL,
-  PTERODACTYL_CLIENT_KEY: env.PTERODACTYL_CLIENT_KEY,
+  PANEL_KEYMINT_URL: env.PANEL_KEYMINT_URL,
+  PANEL_KEYMINT_SECRET: env.PANEL_KEYMINT_SECRET,
   PTERODACTYL_APP_KEY: env.PTERODACTYL_APP_KEY,
 };
+
+/**
+ * A client key of the panel: the identifier of sixteen characters and the
+ * secret of thirty-two, the same shape the panel issues.
+ */
+const CLIENT_KEY = `ptlc_${'a'.repeat(44)}`;
 
 /** The environment is frozen for the type checker, but writable at runtime. */
 function setEnv(key: keyof typeof ORIGINAL, value: string): void {
@@ -39,7 +46,8 @@ function stubFetch(payload?: unknown, status = 200) {
 
 beforeEach(() => {
   setEnv('PTERODACTYL_URL', 'https://panel.example.test');
-  setEnv('PTERODACTYL_CLIENT_KEY', '');
+  setEnv('PANEL_KEYMINT_URL', '');
+  setEnv('PANEL_KEYMINT_SECRET', '');
   setEnv('PTERODACTYL_APP_KEY', 'ptla_admin_key');
 });
 
@@ -49,7 +57,8 @@ afterEach(() => {
 
 afterAll(() => {
   setEnv('PTERODACTYL_URL', ORIGINAL.PTERODACTYL_URL);
-  setEnv('PTERODACTYL_CLIENT_KEY', ORIGINAL.PTERODACTYL_CLIENT_KEY);
+  setEnv('PANEL_KEYMINT_URL', ORIGINAL.PANEL_KEYMINT_URL);
+  setEnv('PANEL_KEYMINT_SECRET', ORIGINAL.PANEL_KEYMINT_SECRET);
   setEnv('PTERODACTYL_APP_KEY', ORIGINAL.PTERODACTYL_APP_KEY);
 });
 
@@ -148,65 +157,61 @@ describe('pterodactyl client adapters', () => {
 });
 
 describe('pterodactyl client credential', () => {
-  it('is not available without a client key', () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', '');
-    expect(clientApiAvailable()).toBe(false);
-    expect(clientApiKeyIsUsable()).toBe(false);
+  it('is not usable when the key is not a client key', () => {
+    expect(clientApiKeyIsUsable('ptla_admin_key')).toBe(false);
+    expect(clientApiKeyIsUsable('')).toBe(false);
+    expect(clientApiKeyIsUsable(null)).toBe(false);
   });
 
-  it('is not available when the key is not a client key', () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptla_admin_key');
-    expect(clientApiAvailable()).toBe(false);
-    expect(clientApiKeyIsUsable()).toBe(false);
+  it('is usable for a client key of the panel', () => {
+    expect(clientApiKeyIsUsable(CLIENT_KEY)).toBe(true);
   });
 
-  it('is available for a client key', () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptc_customer_key');
+  it('is not available while the panel cannot issue a key', () => {
+    setEnv('PANEL_KEYMINT_URL', '');
+    setEnv('PANEL_KEYMINT_SECRET', '');
+    expect(clientApiAvailable()).toBe(false);
+  });
+
+  it('is available when the panel can issue a key', () => {
+    setEnv('PANEL_KEYMINT_URL', 'https://panel.example.test/api/blipmade/keymint');
+    setEnv('PANEL_KEYMINT_SECRET', 'x'.repeat(32));
     expect(clientApiAvailable()).toBe(true);
-    expect(clientApiKeyIsUsable()).toBe(true);
   });
 
   it('names the client credential when the key is not a client key', () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptla_admin_key');
-
-    expect(() => clientToken(4)).toThrow(/Client API key/);
+    expect(() => clientToken('ptla_admin_key')).toThrow(/client key/i);
   });
 
   it('never returns the application key', () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptla_admin_key');
     setEnv('PTERODACTYL_APP_KEY', 'ptla_admin_key');
 
-    expect(() => clientToken(4)).toThrow();
+    expect(() => clientToken('ptla_admin_key')).toThrow();
     expect(() => clientToken('4')).toThrow();
   });
 
-  it('returns the client key', () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptc_customer_key');
-
-    expect(clientToken(4)).toBe('ptc_customer_key');
-    expect(clientToken('4', ['server.control.console'])).toBe('ptc_customer_key');
+  it('returns the client key of the customer', () => {
+    expect(clientToken(CLIENT_KEY)).toBe(CLIENT_KEY);
   });
 });
 
 describe('pterodactyl client requests', () => {
   it('lists the files through the list endpoint', async () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptc_customer_key');
     const fetchMock = stubFetch({ object: 'file_list', data: [] });
 
-    await listFiles('ptc_customer_key', 'uuid-1', '/logs');
+    await listFiles(CLIENT_KEY, 'uuid-1', '/logs');
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain('/api/client/servers/uuid-1/files/list');
     expect(new URL(String(url)).searchParams.get('directory')).toBe('/logs');
     expect(init?.method).toBe('GET');
-    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer ptc_customer_key');
+    expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${CLIENT_KEY}`);
   });
 
   it('deletes a file with a POST to the delete endpoint', async () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptc_customer_key');
     const fetchMock = stubFetch();
 
-    await deleteFile('ptc_customer_key', 'uuid-1', '/logs/app.log');
+    await deleteFile(CLIENT_KEY, 'uuid-1', '/logs/app.log');
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
@@ -216,10 +221,9 @@ describe('pterodactyl client requests', () => {
   });
 
   it('writes a file with the raw content as the body', async () => {
-    setEnv('PTERODACTYL_CLIENT_KEY', 'ptc_customer_key');
     const fetchMock = stubFetch();
 
-    await writeFile('ptc_customer_key', 'uuid-1', '/logs/app.log', 'hello world');
+    await writeFile(CLIENT_KEY, 'uuid-1', '/logs/app.log', 'hello world');
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain('/api/client/servers/uuid-1/files/write');
@@ -232,7 +236,7 @@ describe('pterodactyl client requests', () => {
     const fetchMock = stubFetch();
 
     await expect(writeFile('ptla_admin_key', 'uuid-1', '/logs/app.log', 'hello world')).rejects.toThrow(
-      /Client API key/,
+      /client key/i,
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });

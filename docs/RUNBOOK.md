@@ -70,7 +70,7 @@ The answer of `/health`:
 | `mail` | `file` means `SMTP_URL` is empty and the mail is written to `BACKUP_DIR/mail` instead of being sent. |
 | `stripe` | `not_configured` means `STRIPE_SECRET_KEY` is empty and the local test gateway is used. `test` means the test mode is on. |
 | `pterodactyl` | `not_configured` means `PTERODACTYL_URL` or `PTERODACTYL_APP_KEY` is empty. Nothing can be provisioned. |
-| `pterodactylClient` | `not_configured` means `PTERODACTYL_CLIENT_KEY` is empty. Power, files, console and metrics do not work. |
+| `panelKeyBridge` | `not_installed` means the bridge of the panel is not there, so the panel cannot issue the client key of a customer. Power, files, console, backups and databases do not work. See `docs/PANEL_BRIDGE.md`. |
 
 The answer of `/api/status` has an `overall` of `operational`, `degraded` or
 `major_outage`, and one entry per component. Every component is measured on its
@@ -423,7 +423,8 @@ requires a client API key"* when the wrong one is used on a client endpoint.
 | Variable | Panel | Prefix | Used for |
 |---|---|---|---|
 | `PTERODACTYL_APP_KEY` | Profile → API keys → **Application** key | `ptla_` | Creating and changing servers. The platform needs it. |
-| `PTERODACTYL_CLIENT_KEY` | Account → API → **Client** key | `ptc_` | Power, files, console and metrics for a customer. |
+| `PANEL_KEYMINT_URL` | The endpoint of the bridge of the panel | the address of the bridge | The client key of every customer: power, files, console, backups and databases. |
+| `PANEL_KEYMINT_SECRET` | The secret both sides sign with | the same value as on the panel | The signature of the request for a key. There is no shared key any more. |
 
 **Rotate the application key.**
 

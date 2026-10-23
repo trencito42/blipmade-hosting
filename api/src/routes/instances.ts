@@ -2,10 +2,12 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { env } from '../env.js';
 import { badRequest, notFound, unavailable } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
+import { hasCustomerCredential, resolveCustomerCredential } from '../services/panel/credentials.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange } from '../services/upgrades.js';
 import { createCheckout } from '../services/stripe.js';
@@ -24,8 +26,12 @@ function serializeInstance(instance: {
   subscription: { status: string; currentPeriodEnd: Date | null } | null;
   orderItem?: { subscription: { status: string; currentPeriodEnd: Date | null } | null } | null;
   pterodactylServerId: number | null;
+  domains?: { hostname: string; status: string }[];
 }) {
   const subscription = subscriptionOf(instance);
+  // The address the customer reaches the instance at. It is the domain that
+  // is routed, and there is none before a domain is proven and routed.
+  const active = (instance.domains ?? []).find((domain) => domain.status === 'ACTIVE');
   return {
     id: instance.id,
     name: instance.name,
@@ -36,7 +42,7 @@ function serializeInstance(instance: {
     disk: instance.disk,
     price: instance.price,
     currency: instance.currency,
-    url: instance.pterodactylServerId ? `/app/instances/${instance.id}` : null,
+    url: active ? `https://${active.hostname}` : null,
     createdAt: instance.createdAt,
     node: null as { name: string } | null,
     subscription: subscription
@@ -60,6 +66,7 @@ async function loadInstance(userId: string, id: string) {
       // subscription through the order line.
       orderItem: { include: { subscription: true } },
       user: { select: { pterodactylUserId: true } },
+      domains: { select: { hostname: true, status: true } },
     },
   });
   if (!instance) throw notFound('Instance not found.');
@@ -74,14 +81,19 @@ function subscriptionOf(instance: {
   return instance.subscription ?? instance.orderItem?.subscription ?? null;
 }
 
-function clientTokenFor(instance: { user: { pterodactylUserId: string | null } }) {
-  if (!client.clientApiAvailable()) {
-    throw unavailable('The Pterodactyl client API key is not configured on this environment, so live server control is unavailable.');
+/**
+ * The client key of the customer that owns the instance.
+ *
+ * The key is scoped to the panel account of that customer, so the panel
+ * refuses a request for a server of somebody else even if this check were
+ * wrong. It never reaches the browser.
+ */
+async function clientTokenFor(instance: { id: string; userId: string; pterodactylUuid: string | null }) {
+  if (!instance.pterodactylUuid) {
+    throw unavailable('This instance is not deployed yet.');
   }
-  if (!instance.user.pterodactylUserId) {
-    throw unavailable('This instance is not linked to a Pterodactyl account yet.');
-  }
-  return client.clientToken(instance.user.pterodactylUserId);
+  const credential = await resolveCustomerCredential(instance.userId);
+  return client.clientToken(credential.token);
 }
 
 export async function registerInstanceRoutes(app: FastifyInstance): Promise<void> {
@@ -89,7 +101,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const user = await requireAuth(request);
     const instances = await prisma.instance.findMany({
       where: { userId: user.id },
-      include: { product: true, subscription: true },
+      include: { product: true, subscription: true, domains: { select: { hostname: true, status: true } } },
       orderBy: { createdAt: 'desc' },
     });
     return { instances: instances.map(serializeInstance) };
@@ -118,12 +130,19 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
   app.post('/instances/:id/power', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const { action } = z.object({ action: z.enum(['start', 'stop', 'restart']) }).parse(request.body);
+    const body = z
+      .object({
+        signal: z.enum(['start', 'stop', 'restart', 'kill']).optional(),
+        action: z.enum(['start', 'stop', 'restart', 'kill']).optional(),
+      })
+      .parse(request.body ?? {});
+    const action = body.signal ?? body.action;
+    if (!action) throw badRequest('The power action is missing.');
 
     const instance = await loadInstance(user.id, id);
     if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
 
-    const token = clientTokenFor(instance);
+    const token = await clientTokenFor(instance);
     await client.sendPower(token, instance.pterodactylUuid, action);
 
     const status = action === 'stop' ? 'STOPPED' : action === 'start' ? 'ONLINE' : 'RESTARTING';
@@ -141,7 +160,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     if (!instance.pterodactylUuid) return { metrics: null };
 
     try {
-      const token = clientTokenFor(instance);
+      const token = await clientTokenFor(instance);
       const resources = await client.getResources(token, instance.pterodactylUuid);
       return {
         metrics: {
@@ -172,8 +191,15 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
 
     // The relay checks the ownership again when the socket is opened, so the
     // route only confirms that the service exists.
-    if (!client.clientApiAvailable()) {
-      throw unavailable('The Pterodactyl client API key is not configured on this environment.');
+    //
+    // The console needs the client key of the customer. When there is no key
+    // and the panel cannot issue one, the reason is said out loud instead of
+    // opening a socket that would fail.
+    const hasKey = await hasCustomerCredential(user.id);
+    if (!hasKey && !env.panelBridgeEnabled) {
+      throw unavailable(
+        'The console needs the client key of this customer on the panel. The key bridge of the panel is not installed yet (see docs/PANEL_BRIDGE.md), so the panel cannot issue one.',
+      );
     }
     return { websocket: `/api/instances/${instance.id}/console/stream` };
   });
@@ -197,7 +223,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const instance = await loadInstance(user.id, id);
     if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
 
-    const token = clientTokenFor(instance);
+    const token = await clientTokenFor(instance);
     await client.sendCommand(token, instance.pterodactylUuid, command);
     await prisma.instanceEvent.create({
       data: { instanceId: instance.id, type: 'command', message: `Command sent: ${command}` },
@@ -210,85 +236,6 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
       targetId: instance.id,
     });
     return { sent: true };
-  });
-
-  app.get('/instances/:id/files', async (request: FastifyRequest) => {
-    const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const query = z.object({ path: z.string().max(1024).optional() }).parse(request.query ?? {});
-    const instance = await loadInstance(user.id, id);
-    if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
-
-    const token = clientTokenFor(instance);
-    const files = await client.listFiles(token, instance.pterodactylUuid, query.path ?? '/');
-    return {
-      entries: files.map((file) => ({
-        name: file.name,
-        isDirectory: file.is_directory,
-        isFile: file.is_file,
-        size: file.size,
-        modifiedAt: file.modified_at,
-        mode: file.mode,
-      })),
-    };
-  });
-
-  app.get('/instances/:id/file', async (request: FastifyRequest) => {
-    const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const query = z.object({ path: z.string().min(1).max(1024) }).parse(request.query);
-    const instance = await loadInstance(user.id, id);
-    if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
-
-    const token = clientTokenFor(instance);
-    const file = await client.readFile(token, instance.pterodactylUuid, query.path);
-    return { content: file.content, encoding: file.encoding };
-  });
-
-  app.put('/instances/:id/file', async (request: FastifyRequest, reply) => {
-    const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z.object({ path: z.string().min(1).max(1024), content: z.string().max(5_000_000) }).parse(request.body);
-    const instance = await loadInstance(user.id, id);
-    if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
-
-    const token = clientTokenFor(instance);
-    await client.writeFile(token, instance.pterodactylUuid, body.path, body.content);
-    return reply.code(204).send();
-  });
-
-  app.delete('/instances/:id/file', async (request: FastifyRequest, reply) => {
-    const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const query = z.object({ path: z.string().min(1).max(1024) }).parse(request.query ?? {});
-    const instance = await loadInstance(user.id, id);
-    if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
-
-    const token = clientTokenFor(instance);
-    await client.deleteFile(token, instance.pterodactylUuid, query.path);
-    await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'files', message: `Deleted ${query.path}.` } });
-    return reply.code(204).send();
-  });
-
-  app.put('/instances/:id/startup', async (request: FastifyRequest) => {
-    const user = await requireAuth(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z
-      .object({ startup: z.string().max(4096).optional(), environment: z.record(z.string().max(4096)).optional() })
-      .parse(request.body);
-    const instance = await loadInstance(user.id, id);
-    if (!instance.pterodactylServerId) throw badRequest('This instance is not deployed yet.');
-
-    const server = await pteroApp.getServer(instance.pterodactylServerId);
-    const environment = { ...server.container.environment, ...(body.environment ?? {}) };
-    await pteroApp.setServerEnvironment(instance.pterodactylServerId, environment);
-    if (body.startup) {
-      await pteroApp.updateServerStartup(instance.pterodactylServerId, { startup: body.startup });
-    }
-    await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'startup', message: 'Startup configuration updated.' } });
-    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.startup_updated', targetType: 'instance', targetId: instance.id });
-
-    return { instance: serializeInstance(instance), environment };
   });
 
   /**
@@ -451,15 +398,11 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
     socket.close(4009, 'This instance is not deployed yet.');
     return;
   }
-  if (!client.clientApiAvailable() || !instance.user.pterodactylUserId) {
-    socket.close(4001, 'The Pterodactyl client API is not available on this environment.');
-    return;
-  }
-
   let credentials: { socket: string; token: string };
   try {
+    const credential = await resolveCustomerCredential(user.id);
     credentials = await client.consoleWebsocket(
-      client.clientToken(instance.user.pterodactylUserId),
+      client.clientToken(credential.token),
       instance.pterodactylUuid,
     );
   } catch {

@@ -3,6 +3,16 @@ import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams } from '../router';
+import ActivityTab from './instance/ActivityTab';
+import BackupsTab from './instance/BackupsTab';
+import ConsoleTab from './instance/ConsoleTab';
+import DatabasesTab from './instance/DatabasesTab';
+import FilesTab from './instance/FilesTab';
+import NetworkTab from './instance/NetworkTab';
+import OverviewTab from './instance/OverviewTab';
+import SchedulesTab from './instance/SchedulesTab';
+import SettingsTab from './instance/SettingsTab';
+import StartupTab from './instance/StartupTab';
 import {
   ConfirmDialog,
   DangerButton,
@@ -26,7 +36,19 @@ import {
  * instance is rendered that was not fetched for the id in the route.
  */
 
-type Tab = 'overview' | 'console' | 'files' | 'resources' | 'startup' | 'domains' | 'events';
+type Tab =
+  | 'overview'
+  | 'console'
+  | 'files'
+  | 'databases'
+  | 'backups'
+  | 'network'
+  | 'startup'
+  | 'schedules'
+  | 'settings'
+  | 'activity'
+  | 'resources'
+  | 'domains';
 type PowerAction = 'start' | 'restart' | 'stop';
 
 interface InstanceEvent {
@@ -58,10 +80,15 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'console', label: 'Console' },
   { value: 'files', label: 'Files' },
-  { value: 'resources', label: 'Resources' },
+  { value: 'databases', label: 'Databases' },
+  { value: 'backups', label: 'Backups' },
+  { value: 'network', label: 'Network' },
   { value: 'startup', label: 'Startup' },
+  { value: 'schedules', label: 'Schedules' },
+  { value: 'settings', label: 'Settings' },
+  { value: 'activity', label: 'Activity' },
+  { value: 'resources', label: 'Resources' },
   { value: 'domains', label: 'Domains' },
-  { value: 'events', label: 'Events' },
 ];
 
 const POWER_LABEL: Record<PowerAction, string> = {
@@ -158,388 +185,6 @@ function isSecretKey(key: string): boolean {
 }
 
 // --- tabs ------------------------------------------------------------------
-
-function OverviewTab({ instance }: { instance: Instance }) {
-  const metrics = useAsync(
-    (signal) => get<{ metrics: InstanceMetrics | null }>(`/instances/${instance.id}/metrics`, undefined, signal),
-    [instance.id],
-  );
-  const metric = metrics.data?.metrics ?? null;
-
-  return (
-    <div className="grid gap-3">
-      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-        <Panel title="Purchased limits">
-          <dl className="grid gap-2.5">
-            <div>
-              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Memory</dt>
-              <dd className="font-mono text-[15px] text-ink">{fmtRam(instance.ram)}</dd>
-            </div>
-            <div>
-              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">vCPU</dt>
-              <dd className="font-mono text-[15px] text-ink">{instance.cpu}</dd>
-            </div>
-            <div>
-              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Disk</dt>
-              <dd className="font-mono text-[15px] text-ink">{instance.disk} GB</dd>
-            </div>
-          </dl>
-        </Panel>
-
-        <Panel title="Price">
-          <p className="font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-ink">
-            <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
-          </p>
-          <p className="mt-1 text-[12.5px] text-ink3">Billed monthly for the limits above.</p>
-        </Panel>
-
-        <Panel title="Uptime">
-          {metrics.loading ? (
-            <LoadingBlock rows={1} label="Loading metrics" />
-          ) : metrics.error ? (
-            <ErrorState title="Metrics unavailable" message={metrics.error.message} onRetry={metrics.reload} />
-          ) : metric ? (
-            <div className="grid gap-2.5">
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Uptime</p>
-                <p className="font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-ink">{fmtUptime(metric.uptimeMs)}</p>
-              </div>
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">State</p>
-                <p className="text-[15px] text-ink">{metric.state}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-1">
-              <p className="font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-ink3">—</p>
-              <p className="text-[12.5px] text-ink3">Not available yet</p>
-            </div>
-          )}
-        </Panel>
-
-        <Panel title="Details">
-          <dl className="grid gap-2.5">
-            <div>
-              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Node</dt>
-              <dd className="text-[15px] text-ink">{instance.node?.name ?? '—'}</dd>
-            </div>
-            <div>
-              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Created</dt>
-              <dd className="text-[15px] text-ink">{fmtDate(instance.createdAt)}</dd>
-            </div>
-            <div>
-              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Product</dt>
-              <dd className="text-[15px] text-ink">{instance.product.name}</dd>
-            </div>
-          </dl>
-        </Panel>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The console. The browser opens the relay of the API, which opens the panel
- * console on the server side, so the panel token never reaches the browser.
- */
-function ConsoleTab({ instance }: { instance: Instance }) {
-  const { push } = useToast();
-  const [lines, setLines] = useState<string[]>([]);
-  const [state, setState] = useState<'connecting' | 'open' | 'closed' | 'error'>('connecting');
-  const [command, setCommand] = useState('');
-  const socketRef = useRef<WebSocket | null>(null);
-
-  useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/api/instances/${instance.id}/console/stream`;
-    let socket: WebSocket;
-    try {
-      socket = new WebSocket(url);
-    } catch {
-      setState('error');
-      return;
-    }
-    socketRef.current = socket;
-    setState('connecting');
-
-    socket.onopen = () => setState('open');
-    socket.onmessage = (event) => {
-      const raw = typeof event.data === 'string' ? event.data : String(event.data);
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as { event?: string; message?: string };
-        if (parsed?.event === 'connected') {
-          setLines([]);
-          return;
-        }
-        if (parsed?.event === 'error') {
-          setState('error');
-          setLines((previous) => [...previous, parsed.message ?? 'The console connection failed.']);
-          return;
-        }
-      } catch {
-        // Not a control message, so it is console output.
-      }
-      setLines((previous) => [...previous.slice(-400), raw]);
-    };
-    socket.onerror = () => setState('error');
-    socket.onclose = () => {
-      socketRef.current = null;
-      setState((current) => (current === 'error' ? current : 'closed'));
-    };
-
-    return () => {
-      socketRef.current = null;
-      socket.close();
-    };
-  }, [instance.id]);
-
-  const sendCommand = async () => {
-    const value = command.trim();
-    if (!value) return;
-    try {
-      await post(`/instances/${instance.id}/command`, { command: value });
-      setCommand('');
-      push('Command sent.', 'ok');
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The command could not be sent.', 'error');
-    }
-  };
-
-  return (
-    <div className="grid gap-3">
-      <Panel
-        title="Console"
-        description={
-          state === 'open'
-            ? 'Connected to the server console.'
-            : state === 'connecting'
-              ? 'Opening the console.'
-              : state === 'closed'
-                ? 'The console connection was closed.'
-                : 'The console could not be opened.'
-        }
-      >
-        <div className="rounded-2xl bg-con p-4 font-mono text-[13px] leading-relaxed text-con-ink">
-          {lines.length === 0 ? (
-            <p className="text-con-ink/70">Waiting for output.</p>
-          ) : (
-            lines.map((line, index) => (
-              <p key={`${index}-${line.slice(0, 12)}`} className="break-words whitespace-pre-wrap">
-                {line}
-              </p>
-            ))
-          )}
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <div className="min-w-0 flex-1">
-            <TextInput
-              label="Command"
-              value={command}
-              onChange={(event) => setCommand(event.target.value)}
-              placeholder="Send a command to the server"
-              disabled={state !== 'open'}
-              className="scroll-mt-16"
-            />
-          </div>
-          <PrimaryButton onClick={() => void sendCommand()} disabled={state !== 'open' || !command.trim()}>
-            Send
-          </PrimaryButton>
-        </div>
-      </Panel>
-    </div>
-  );
-}
-
-function FilesTab({ instance }: { instance: Instance }) {
-  const [path, setPath] = useState('');
-  const [openPath, setOpenPath] = useState<string | null>(null);
-
-  const listing = useAsync(
-    (signal) => get<{ entries: FileEntry[] }>(`/instances/${instance.id}/files`, { path }, signal),
-    [instance.id, path],
-  );
-
-  const entries = listing.data?.entries ?? [];
-  const segments = path.split('/').filter(Boolean);
-
-  return (
-    <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <nav aria-label="File path" className="flex min-w-0 flex-wrap items-center gap-1 text-[13px]">
-          <button
-            type="button"
-            onClick={() => setPath('')}
-            aria-current={segments.length === 0 ? 'page' : undefined}
-            className="rounded-lg px-1.5 py-1 font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-          >
-            root
-          </button>
-          {segments.map((segment, index) => (
-            <span key={`${segment}-${index}`} className="flex items-center gap-1">
-              <span aria-hidden="true" className="text-ink3">
-                /
-              </span>
-              <button
-                type="button"
-                onClick={() => setPath(segments.slice(0, index + 1).join('/'))}
-                aria-current={index === segments.length - 1 ? 'page' : undefined}
-                className="rounded-lg px-1.5 py-1 text-left font-bold text-ink2 break-all transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-              >
-                {segment}
-              </button>
-            </span>
-          ))}
-        </nav>
-        {path && (
-          <SoftButton
-            onClick={() => {
-              const parent = segments.slice(0, -1).join('/');
-              setPath(parent);
-            }}
-          >
-            Up one level
-          </SoftButton>
-        )}
-      </div>
-
-      {openPath && <FileEditor instance={instance} path={openPath} onClose={() => setOpenPath(null)} />}
-
-      {listing.loading ? (
-        <LoadingBlock rows={3} label="Loading files" />
-      ) : listing.error ? (
-        <ErrorState title="We could not list the files" message={listing.error.message} onRetry={listing.reload} />
-      ) : entries.length === 0 ? (
-        <EmptyState title="This folder is empty." description="Nothing is stored here yet." />
-      ) : (
-        <div className="grid gap-1.5">
-          {entries.map((entry) => (
-            <div key={entry.name} className="flex items-center gap-3 rounded-2xl bg-s2 p-3.5">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-s3 text-acc">
-                <Icon name={entry.isDirectory ? 'folder' : 'doc'} size={16} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[15px] font-bold text-ink" title={entry.name}>
-                  {entry.name}
-                </p>
-                <p className="truncate text-[12.5px] text-ink3">
-                  {entry.isDirectory ? 'Directory' : fmtBytes(entry.size)} · {fmtDateTime(entry.modifiedAt)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const target = joinPath(path, entry.name);
-                  if (entry.isDirectory) setPath(target);
-                  else setOpenPath(target);
-                }}
-                className="h-11 shrink-0 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-              >
-                {entry.isDirectory ? 'Open' : 'Edit'}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FileEditor({ instance, path, onClose }: { instance: Instance; path: string; onClose: () => void }) {
-  const { push } = useToast();
-  const file = useAsync(
-    (signal) => get<{ content: string; encoding: string }>(`/instances/${instance.id}/file`, { path }, signal),
-    [instance.id, path],
-  );
-  const [content, setContent] = useState('');
-  const [binary, setBinary] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  useEffect(() => {
-    if (!file.data) return;
-    const decoded = decodeContent(file.data.content ?? '', file.data.encoding ?? '');
-    setContent(decoded.text);
-    setBinary(decoded.binary);
-  }, [file.data]);
-
-  const save = useAction(async (next: string) => {
-    await put<void>(`/instances/${instance.id}/file`, { path, content: next });
-    return true;
-  });
-
-  const remove = useAction(async () => {
-    await del<void>(`/instances/${instance.id}/file`, { path });
-    return true;
-  });
-
-  const onSave = async () => {
-    const done = await save.run(content);
-    if (done) push('File saved.', 'ok');
-  };
-
-  const onDelete = async () => {
-    const done = await remove.run();
-    setConfirmOpen(false);
-    if (done) {
-      push('File deleted.', 'ok');
-      onClose();
-    }
-  };
-
-  return (
-    <Panel title={`Edit ${path.split('/').pop() ?? path}`} action={<SoftButton onClick={onClose}>Close</SoftButton>}>
-      {file.loading ? (
-        <LoadingBlock rows={2} label="Loading file" />
-      ) : file.error ? (
-        <ErrorState title="We could not open the file" message={file.error.message} onRetry={file.reload} />
-      ) : binary ? (
-        <EmptyState
-          title="This file is not text."
-          description="Binary files cannot be edited here. Download it with the API if you need to change it."
-        />
-      ) : (
-        <div className="grid gap-3">
-          <TextArea
-            label="File content"
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            className="min-h-[280px] scroll-mt-16 font-mono"
-            spellCheck={false}
-          />
-          {save.error && (
-            <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
-              {save.error}
-            </p>
-          )}
-          {remove.error && (
-            <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
-              {remove.error}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <PrimaryButton onClick={onSave} disabled={save.pending}>
-              {save.pending ? 'Saving…' : 'Save file'}
-            </PrimaryButton>
-            <DangerButton onClick={() => setConfirmOpen(true)} disabled={remove.pending}>
-              Delete file
-            </DangerButton>
-          </div>
-        </div>
-      )}
-
-      <ConfirmDialog
-        open={confirmOpen}
-        title="Delete this file?"
-        description={`${path} is deleted from the instance. This cannot be undone.`}
-        confirmLabel="Delete file"
-        busy={remove.pending}
-        onConfirm={onDelete}
-        onCancel={() => setConfirmOpen(false)}
-      />
-    </Panel>
-  );
-}
 
 function Stepper({
   label,
@@ -741,149 +386,6 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
   );
 }
 
-function StartupTab({ instance, onUpdated }: { instance: Instance; onUpdated: (next: Instance) => void }) {
-  const { push } = useToast();
-  const current = instance as Instance & { startup?: string | null; environment?: Record<string, string> | null };
-
-  const [startup, setStartup] = useState(current.startup ?? '');
-  const [vars, setVars] = useState<{ key: string; value: string }[]>(() =>
-    Object.entries(current.environment ?? {}).map(([key, value]) => ({ key, value })),
-  );
-  const [showSecrets, setShowSecrets] = useState(false);
-  const [revealed, setRevealed] = useState<{ key: string; value: string }[] | null>(null);
-
-  const save = useAction(async () => {
-    const environment: Record<string, string> = {};
-    for (const row of vars) {
-      const key = row.key.trim();
-      if (key) environment[key] = row.value;
-    }
-    const res = await put<{ instance: Instance }>(`/instances/${instance.id}/startup`, { startup, environment });
-    if (res?.instance) onUpdated(res.instance);
-    return res;
-  });
-
-  const onSave = async () => {
-    const res = await save.run();
-    if (res) {
-      setShowSecrets(true);
-      setRevealed(vars.filter((row) => row.key.trim() && isSecretKey(row.key)).map((row) => ({ key: row.key, value: row.value })));
-      push('Startup configuration saved.', 'ok');
-    }
-  };
-
-  return (
-    <div className="grid gap-3">
-      <Panel title="Startup command" description="The command the platform runs when the instance starts.">
-        <div className="grid gap-3">
-          <TextInput
-            label="Command"
-            value={startup}
-            onChange={(event) => setStartup(event.target.value)}
-            placeholder="npm run start"
-            autoComplete="off"
-            spellCheck={false}
-            className="scroll-mt-16 font-mono"
-          />
-          {save.error && (
-            <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
-              {save.error}
-            </p>
-          )}
-          <div>
-            <PrimaryButton onClick={onSave} disabled={save.pending}>
-              {save.pending ? 'Saving…' : 'Save startup'}
-            </PrimaryButton>
-          </div>
-        </div>
-      </Panel>
-
-      <Panel
-        title="Environment variables"
-        description="Values that look like secrets are masked until you save."
-        action={
-          <SoftButton
-            onClick={() => setVars((rows) => [...rows, { key: '', value: '' }])}
-            aria-label="Add environment variable"
-          >
-            Add variable
-          </SoftButton>
-        }
-      >
-        <div className="grid gap-2.5">
-          {vars.length === 0 && (
-            <p className="text-[14px] text-ink3">No environment variables. Add one if your app needs it.</p>
-          )}
-          {vars.map((row, index) => {
-            const secret = isSecretKey(row.key);
-            return (
-              <div key={index} className="grid gap-2 rounded-2xl bg-s2 p-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <TextInput
-                    label="Name"
-                    value={row.key}
-                    onChange={(event) =>
-                      setVars((rows) => rows.map((item, i) => (i === index ? { ...item, key: event.target.value } : item)))
-                    }
-                    placeholder="NODE_ENV"
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="scroll-mt-16"
-                  />
-                  <div className="relative">
-                    <TextInput
-                      label="Value"
-                      type={secret && !showSecrets ? 'password' : 'text'}
-                      value={row.value}
-                      onChange={(event) =>
-                        setVars((rows) => rows.map((item, i) => (i === index ? { ...item, value: event.target.value } : item)))
-                      }
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="scroll-mt-16"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {secret && (
-                    <SoftButton onClick={() => setShowSecrets((value) => !value)} aria-label={showSecrets ? 'Hide secret values' : 'Show secret values'}>
-                      {showSecrets ? 'Hide values' : 'Show values'}
-                    </SoftButton>
-                  )}
-                  <SoftButton
-                    onClick={() => setVars((rows) => rows.filter((_, i) => i !== index))}
-                    aria-label={`Remove ${row.key || 'environment variable'}`}
-                  >
-                    Remove
-                  </SoftButton>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Panel>
-
-      {revealed && revealed.length > 0 && (
-        <Panel title="Saved secret values" description="Shown once after saving. Hide them again when you are done.">
-          <div className="grid gap-2">
-            {revealed.map((row) => (
-              <div key={row.key} className="grid gap-1">
-                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">{row.key}</p>
-                <p className="truncate font-mono text-[13.5px] text-ink" title={row.value}>
-                  {row.value}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3">
-            <SoftButton onClick={() => setRevealed(null)}>Hide values</SoftButton>
-          </div>
-        </Panel>
-      )}
-    </div>
-  );
-}
-
 function DomainsTab({ instance }: { instance: Instance }) {
   const { push } = useToast();
   const domains = useAsync((signal) => get<{ domains: Domain[] }>('/domains', undefined, signal), []);
@@ -978,37 +480,6 @@ function DomainsTab({ instance }: { instance: Instance }) {
           </Link>
         </div>
       )}
-    </div>
-  );
-}
-
-function EventsTab({ instance }: { instance: Instance }) {
-  const events = useAsync(
-    (signal) => get<{ events: InstanceEvent[] }>(`/instances/${instance.id}/events`, undefined, signal),
-    [instance.id],
-  );
-  const list = events.data?.events ?? [];
-
-  if (events.loading) return <LoadingBlock rows={3} label="Loading events" />;
-
-  if (events.error) {
-    return <ErrorState title="We could not load the events" message={events.error.message} onRetry={events.reload} />;
-  }
-
-  if (list.length === 0) {
-    return <EmptyState title="No events yet." description="Provisioning, power and billing events are recorded here." />;
-  }
-
-  return (
-    <div className="grid gap-1.5">
-      {list.map((event) => (
-        <ListRow
-          key={event.id}
-          title={<span title={event.type}>{event.type}</span>}
-          meta={<span title={event.message}>{event.message}</span>}
-          right={<span className="font-mono text-[12px] text-ink3">{fmtDateTime(event.createdAt)}</span>}
-        />
-      ))}
     </div>
   );
 }
@@ -1166,7 +637,7 @@ export default function InstanceDetail() {
       </nav>
 
       <header className="grid gap-3">
-        <div className="flex flex-wrap items-start gap-3">
+        <div className="flex min-w-0 flex-wrap items-start gap-3">
           <ProductIcon icon={instance.product.icon} size={46} />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[20px] font-extrabold tracking-[-0.035em] text-ink" title={instance.name}>
@@ -1179,7 +650,7 @@ export default function InstanceDetail() {
           <StatusPill status={instance.status} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           {instance.url ? (
             <a
               href={instance.url}
@@ -1219,13 +690,18 @@ export default function InstanceDetail() {
       <Segmented options={TABS} value={tab} onChange={setTab} ariaLabel="Instance sections" />
 
       <section role="tabpanel" aria-label={TABS.find((entry) => entry.value === tab)?.label ?? 'Instance section'}>
-        {tab === 'overview' && <OverviewTab instance={instance} />}
+        {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} />}
         {tab === 'console' && <ConsoleTab instance={instance} />}
         {tab === 'files' && <FilesTab instance={instance} />}
+        {tab === 'databases' && <DatabasesTab instance={instance} />}
+        {tab === 'backups' && <BackupsTab instance={instance} />}
+        {tab === 'network' && <NetworkTab instance={instance} />}
+        {tab === 'startup' && <StartupTab instance={instance} />}
+        {tab === 'schedules' && <SchedulesTab instance={instance} />}
+        {tab === 'settings' && <SettingsTab instance={instance} onGoTo={setTab} />}
+        {tab === 'activity' && <ActivityTab instance={instance} />}
         {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
-        {tab === 'startup' && <StartupTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
         {tab === 'domains' && <DomainsTab instance={instance} />}
-        {tab === 'events' && <EventsTab instance={instance} />}
       </section>
 
       <SettingsPanel

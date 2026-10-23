@@ -61,27 +61,51 @@ try {
 
     const customer = await prisma.user.upsert({
       where: { email: CUSTOMER_EMAIL },
-      update: { passwordHash, emailVerifiedAt: new Date(), suspendedAt: null, name: 'Browser Customer' },
+      update: { passwordHash, emailVerifiedAt: new Date(), suspendedAt: null, firstName: 'Browser', lastName: 'Customer' },
       create: {
         email: CUSTOMER_EMAIL,
         passwordHash,
         emailVerifiedAt: new Date(),
-        name: 'Browser Customer',
+        firstName: 'Browser',
+        lastName: 'Customer',
         role: 'CUSTOMER',
       },
     });
 
     const admin = await prisma.user.upsert({
       where: { email: ADMIN_EMAIL },
-      update: { passwordHash, emailVerifiedAt: new Date(), suspendedAt: null, name: 'Browser Admin', role: 'ADMIN' },
+      update: { passwordHash, emailVerifiedAt: new Date(), suspendedAt: null, firstName: 'Browser', lastName: 'Admin', role: 'ADMIN' },
       create: {
         email: ADMIN_EMAIL,
         passwordHash,
         emailVerifiedAt: new Date(),
-        name: 'Browser Admin',
+        firstName: 'Browser',
+        lastName: 'Admin',
         role: 'ADMIN',
       },
     });
+
+    // An instance without a server on the panel. The detail page has to render
+    // it with honest states, not with a broken screen.
+    const product = await prisma.product.findFirst({ where: { slug: 'discord-bot' } });
+    if (product) {
+      const existing = await prisma.instance.findFirst({ where: { userId: customer.id } });
+      if (!existing) {
+        await prisma.instance.create({
+          data: {
+            userId: customer.id,
+            productId: product.id,
+            name: 'Browser instance',
+            status: 'PENDING',
+            ram: 512,
+            cpu: 1,
+            disk: 5,
+            price: 149,
+            currency: 'EUR',
+          },
+        });
+      }
+    }
 
     await prisma.staffMember.upsert({
       where: { userId: admin.id },

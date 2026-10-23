@@ -8,6 +8,16 @@ const panel = {
   servers: [] as { id: number; uuid: string }[],
   nextServerId: 100,
   installed: new Set<number>(),
+  accounts: [] as {
+    id: number;
+    username: string;
+    email: string;
+    external_id: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    root_admin: boolean;
+    created_at: string;
+  }[],
 };
 
 vi.mock('../src/services/pterodactyl/application.js', () => ({
@@ -55,7 +65,8 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
     const id = panel.nextServerId++;
     const server = { id, uuid: `uuid-${id}` };
     panel.servers.push(server);
-    panel.installed.add(id);
+    // A server that is created is not installed yet. The installation is
+    // requested afterwards, and only once.
     return {
       id,
       uuid: server.uuid,
@@ -73,14 +84,17 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
       container: {
         startup_command: 'echo start',
         image: 'ghcr.io/ptero-eggs/yolks:nodejs_25',
-        installed: 1,
+        // A server that is created is not installed yet.
+        installed: 0,
         environment: {},
       },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
   }),
-  reinstallServer: vi.fn(async () => undefined),
+  reinstallServer: vi.fn(async (id: number) => {
+    panel.installed.add(id);
+  }),
   waitForServerInstalled: vi.fn(async () => true),
   updateServerDetails: vi.fn(async () => ({})),
   updateServerBuild: vi.fn(async () => ({})),
@@ -108,16 +122,25 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
   listAllocations: vi.fn(async () => [
     { id: 73, ip: '10.77.0.11', alias: 'node1.blipmade.com', port: 30000, notes: null, assigned: false },
   ]),
-  listUsers: vi.fn(async () => [{ id: 4, username: 'tester', email: 'owner@example.com', root_admin: false, created_at: new Date().toISOString() }]),
-  findUserByEmail: vi.fn(async (email: string) => ({ id: 4, username: 'tester', email, root_admin: false, created_at: new Date().toISOString() })),
-  findUserById: vi.fn(async () => null),
-  createUser: vi.fn(async (input: { email: string }) => ({
-    id: 4,
-    username: 'tester',
-    email: input.email,
-    root_admin: false,
-    created_at: new Date().toISOString(),
-  })),
+  listUsers: vi.fn(async () => panel.accounts),
+  // The account of a customer is found by the external id and by nothing else.
+  findUserByExternalId: vi.fn(async (externalId: string) =>
+    panel.accounts.find((account) => account.external_id === externalId) ?? null,
+  ),
+  createUser: vi.fn(async (input: { email: string; external_id?: string; first_name?: string; last_name?: string }) => {
+    const account = {
+      id: 4,
+      username: 'bm-customer',
+      email: input.email,
+      external_id: input.external_id ?? null,
+      first_name: input.first_name ?? null,
+      last_name: input.last_name ?? null,
+      root_admin: false,
+      created_at: new Date().toISOString(),
+    };
+    panel.accounts.push(account);
+    return account;
+  }),
   ping: vi.fn(async () => true),
 }));
 
@@ -128,8 +151,31 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
 const clientState = { available: true };
 vi.mock('../src/services/pterodactyl/client.js', () => ({
   clientApiAvailable: vi.fn(() => clientState.available),
-  clientToken: vi.fn(() => 'test-client-token'),
+  clientToken: vi.fn((token: string) => token),
   sendPower: vi.fn(async () => undefined),
+}));
+
+/**
+ * The credential of a customer is faked as well. It comes from the bridge of
+ * the panel in the real world, and the bridge is not installed on a test
+ * machine.
+ */
+vi.mock('../src/services/panel/credentials.js', () => ({
+  resolveCustomerCredential: vi.fn(async () => {
+    if (!clientState.available) {
+      const { unavailable } = await import('../src/lib/errors.js');
+      throw unavailable('The key bridge of the panel is not installed.');
+    }
+    return {
+      token: `ptlc_${'a'.repeat(44)}`,
+      panelUserId: 4,
+      externalId: 'blipmade_acc_test',
+      source: 'bridge',
+    };
+  }),
+  hasCustomerCredential: vi.fn(async () => clientState.available),
+  storeCustomerCredential: vi.fn(async () => undefined),
+  forgetCustomerCredential: vi.fn(async () => undefined),
 }));
 
 const { prisma } = await import('../src/db.js');
@@ -153,6 +199,7 @@ beforeEach(async () => {
   panel.servers = [];
   panel.nextServerId = 100;
   panel.installed = new Set();
+  panel.accounts = [];
   clientState.available = true;
 
   // The deployment health check talks to the container over HTTP. The panel
@@ -287,7 +334,7 @@ describe('provisioning', () => {
 
     const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(updated?.status).toBe('FAILED');
-    expect(updated?.provisionError).toContain('Client API key');
+    expect(updated?.provisionError).toContain('key bridge');
     // The server is created and installed before the start step, so it must
     // not be created a second time when the job is retried.
     expect(panel.servers).toHaveLength(1);

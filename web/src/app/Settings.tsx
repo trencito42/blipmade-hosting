@@ -50,15 +50,20 @@ export default function Settings() {
     );
   }
 
-  const name = user.name?.trim() ? user.name : '—';
+  const firstName = user.firstName?.trim() ? user.firstName : '—';
+  const lastName = user.lastName?.trim() ? user.lastName : '—';
 
   return (
     <div className="grid gap-4">
       <Panel title="Profile" description="These are the details stored on your Blipmade account.">
         <dl className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Name</dt>
-            <dd className="mt-1 text-[15px] font-bold text-ink">{name}</dd>
+            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">First name</dt>
+            <dd className="mt-1 text-[15px] font-bold text-ink">{firstName}</dd>
+          </div>
+          <div className="rounded-2xl bg-s2 p-3.5">
+            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Last name</dt>
+            <dd className="mt-1 text-[15px] font-bold text-ink">{lastName}</dd>
           </div>
           <div className="rounded-2xl bg-s2 p-3.5">
             <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Email</dt>

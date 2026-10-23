@@ -4,6 +4,7 @@ import { env } from '../env.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
+import { fullName } from '../lib/people.js';
 
 export const SESSION_COOKIE = 'bm_session';
 export const CSRF_COOKIE = 'bm_csrf';
@@ -12,7 +13,11 @@ export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 export interface AuthUser {
   id: string;
   email: string;
-  name: string | null;
+  /** The two parts of the name of the customer. Both are always present. */
+  firstName: string;
+  lastName: string;
+  /** The two parts as one line, for the screens that show a single name. */
+  name: string;
   role: 'CUSTOMER' | 'STAFF' | 'ADMIN';
   emailVerified: boolean;
   pterodactylUserId: string | null;
@@ -90,7 +95,9 @@ export async function loadSession(request: FastifyRequest): Promise<AuthUser | u
   return {
     id: session.user.id,
     email: session.user.email,
-    name: session.user.name,
+    firstName: session.user.firstName,
+    lastName: session.user.lastName,
+    name: fullName(session.user),
     role: session.user.role,
     emailVerified: Boolean(session.user.emailVerifiedAt),
     pterodactylUserId: session.user.pterodactylUserId,

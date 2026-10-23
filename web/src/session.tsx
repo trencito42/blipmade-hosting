@@ -7,7 +7,7 @@ interface SessionState {
   error: string | null;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<SessionUser>;
-  register: (email: string, password: string, name?: string) => Promise<SessionUser>;
+  register: (email: string, password: string, firstName: string, lastName: string) => Promise<SessionUser>;
   logout: () => Promise<void>;
 }
 
@@ -55,8 +55,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return data.user;
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name?: string) => {
-    const data = await post<{ user: SessionUser }>('/auth/register', { email, password, name: name || undefined });
+  const register = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
+    const data = await post<{ user: SessionUser }>('/auth/register', { email, password, firstName, lastName });
     setUser(data.user);
     return data.user;
   }, []);

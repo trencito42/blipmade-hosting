@@ -7,6 +7,7 @@ import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { sendMail } from '../lib/mailer.js';
 import { audit } from '../lib/audit.js';
+import { fullName } from '../lib/people.js';
 import {
   createSession,
   destroySession,
@@ -19,10 +20,24 @@ import {
 const emailSchema = z.string().trim().toLowerCase().email('Enter a valid email address.');
 const passwordSchema = z.string().min(1, 'Enter your password.');
 
+/**
+ * The name of a customer is required in two parts.
+ *
+ * The panel account of a customer carries the same two parts, so the name of
+ * the customer has to exist before the account is created. A single free text
+ * field would have to be split again, and the split would guess.
+ */
+const nameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Enter this part of your name.')
+  .max(80, 'This part of your name is too long.');
+
 const registerSchema = z.object({
   email: emailSchema,
   password: z.string(),
-  name: z.string().trim().min(1).max(120).optional(),
+  firstName: nameSchema,
+  lastName: nameSchema,
 });
 
 const loginSchema = z.object({
@@ -36,14 +51,17 @@ const tokenSchema = z.object({ token: z.string().min(10, 'This link is not valid
 export function publicUser(user: {
   id: string;
   email: string;
-  name: string | null;
+  firstName: string;
+  lastName: string;
   role: string;
   emailVerifiedAt: Date | null;
 }): AuthUser {
   return {
     id: user.id,
     email: user.email,
-    name: user.name,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    name: fullName(user),
     role: user.role as AuthUser['role'],
     emailVerified: Boolean(user.emailVerifiedAt),
     pterodactylUserId: null,
@@ -64,7 +82,7 @@ async function issueToken(userId: string, type: 'EMAIL_VERIFY' | 'PASSWORD_RESET
   return token;
 }
 
-export async function sendVerificationEmail(userId: string, email: string, name: string | null): Promise<void> {
+export async function sendVerificationEmail(userId: string, email: string, name: string): Promise<void> {
   const token = await issueToken(userId, 'EMAIL_VERIFY', 24);
   const url = `${env.APP_PUBLIC_URL.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
   const result = await sendMail({
@@ -79,7 +97,7 @@ export async function sendVerificationEmail(userId: string, email: string, name:
   }
 }
 
-export async function sendResetEmail(userId: string, email: string, name: string | null): Promise<void> {
+export async function sendResetEmail(userId: string, email: string, name: string): Promise<void> {
   const token = await issueToken(userId, 'PASSWORD_RESET', 1);
   const url = `${env.APP_PUBLIC_URL.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
   const result = await sendMail({
@@ -107,11 +125,17 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       const passwordHash = await hashPassword(body.password);
       const user = await prisma.user.create({
-        data: { email: body.email, passwordHash, name: body.name ?? null, role: 'CUSTOMER' },
+        data: {
+          email: body.email,
+          passwordHash,
+          firstName: body.firstName,
+          lastName: body.lastName,
+          role: 'CUSTOMER',
+        },
       });
 
       await createSession(request, reply, user.id);
-      await sendVerificationEmail(user.id, user.email, user.name);
+      await sendVerificationEmail(user.id, user.email, fullName(user));
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.register', targetType: 'user', targetId: user.id, ip: request.ip });
 
       return reply.code(201).send({ user: publicUser(user) });
@@ -185,7 +209,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const { email } = z.object({ email: emailSchema }).parse(request.body ?? {});
       const user = await prisma.user.findUnique({ where: { email } });
       if (user && !user.emailVerifiedAt) {
-        await sendVerificationEmail(user.id, user.email, user.name);
+        await sendVerificationEmail(user.id, user.email, fullName(user));
       }
       // Always the same answer, so this cannot be used to test for accounts.
       return reply.code(204).send();
@@ -198,7 +222,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const { email } = z.object({ email: emailSchema }).parse(request.body);
       const user = await prisma.user.findUnique({ where: { email } });
       if (user && !user.suspendedAt) {
-        await sendResetEmail(user.id, user.email, user.name);
+        await sendResetEmail(user.id, user.email, fullName(user));
         await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.reset_requested', ip: request.ip });
       }
       // Always the same answer, so this cannot be used to test for accounts.
@@ -241,7 +265,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         throw badRequest('Administrator enrollment is not configured on this environment.');
       }
       const body = z
-        .object({ email: emailSchema, password: z.string(), enrollmentKey: z.string(), name: z.string().trim().max(120).optional() })
+        .object({
+          email: emailSchema,
+          password: z.string(),
+          enrollmentKey: z.string(),
+          firstName: nameSchema,
+          lastName: nameSchema,
+        })
         .parse(request.body);
 
       if (body.enrollmentKey !== env.ADMIN_ENROLLMENT_KEY) {
@@ -259,7 +289,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       const passwordHash = await hashPassword(body.password);
       const user = await prisma.user.create({
-        data: { email: body.email, passwordHash, name: body.name ?? null, role: 'ADMIN' },
+        data: {
+          email: body.email,
+          passwordHash,
+          firstName: body.firstName,
+          lastName: body.lastName,
+          role: 'ADMIN',
+        },
       });
       await prisma.staffMember.create({ data: { userId: user.id, permissions: [] } });
       await createSession(request, reply, user.id);

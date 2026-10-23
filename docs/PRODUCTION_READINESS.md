@@ -70,7 +70,7 @@ application over HTTP with the probe of the product. A server that answers with
 
 `PTERODACTYL_CLIENT_KEY` is empty. The panel answers *"You are attempting to use
 an application API key on an endpoint that requires a client API key"*, so a
-`ptc_` token from Pterodactyl → Account → API is needed. Without it the
+`ptlc_` token from Pterodactyl → Account → API is needed. Without it the
 platform cannot start a container, so the provisioning flow stops at the
 `started` step with that reason in the instance record instead of pretending to
 succeed. It also blocks the console relay and the customer facing power

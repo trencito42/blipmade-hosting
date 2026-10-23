@@ -1,11 +1,11 @@
-import { randomBytes } from 'node:crypto';
 import { connect } from 'node:net';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
-import { encryptSecret } from '../lib/secrets.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
+import { reconcilePanelIdentity } from './panel/identity.js';
+import { resolveCustomerCredential } from './panel/credentials.js';
 import type { Instance, Product } from '@prisma/client';
 
 /** Steps recorded on the instance so an interrupted job can be reconciled. */
@@ -121,80 +121,57 @@ export async function completeProvisioning(instanceId: string): Promise<void> {
 }
 
 /**
- * Returns the Pterodactyl user for a Blipmade customer, creating one on first
- * use. Blipmade manages one Pterodactyl user per customer.
+ * The panel account of the customer that owns the instance.
+ *
+ * The account is found by the external id and by nothing else. An address is
+ * never used for the lookup, so a panel account that somebody created by hand
+ * is never taken over, not even when the address happens to match.
+ *
+ * The account carries the two parts of the name of the customer and a reserved
+ * address that cannot receive mail. The customer never signs in to the panel.
  */
-async function ensurePterodactylUser(instance: Instance & { user: { id: string; email: string; name: string | null; pterodactylUserId: string | null } }): Promise<number> {
-  if (instance.user.pterodactylUserId) return Number(instance.user.pterodactylUserId);
-
-  const existing = await ptero.findUserByEmail(instance.user.email);
-  if (existing) {
-    await prisma.user.update({
-      where: { id: instance.user.id },
-      data: { pterodactylUserId: String(existing.id) },
-    });
-    return existing.id;
+async function ensurePterodactylUser(
+  instance: Instance & {
+    user: {
+      id: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      pterodactylUserId: string | null;
+    };
+  },
+): Promise<number> {
+  const identity = await reconcilePanelIdentity(instance.user);
+  if (identity.created) {
+    await recordEvent(instance.id, 'provisioning', `Panel account ${identity.panelUserId} created for this customer.`);
   }
-
-  // Pterodactyl requires a usable password. A random value is generated because
-  // customers never sign in to the panel directly, but it is kept encrypted so
-  // the panel account can be reset later and the credential can be handed to
-  // the customer once.
-  const password = `bm-${randomBytes(9).toString('base64url')}-${Date.now().toString(36)}`;
-
-  // The username comes from the address, which is unique per customer. The
-  // panel rejects a name that is already taken, so a suffix is added and the
-  // request is retried.
-  const base =
-    (instance.user.email.split('@')[0] ?? instance.user.name ?? 'customer')
-      .replace(/[^a-zA-Z0-9_.-]/g, '')
-      .slice(0, 24) || 'customer';
-
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const username = attempt === 0 ? base : `${base}-${randomBytes(3).toString('base64url')}`;
-    try {
-      const created = await ptero.createUser({
-        email: instance.user.email,
-        username,
-        password,
-        root_admin: false,
-        name: instance.user.name,
-      });
-      await prisma.user.update({
-        where: { id: instance.user.id },
-        data: {
-          pterodactylUserId: String(created.id),
-          pterodactylPasswordEnc: encryptSecret(password),
-          pterodactylPasswordSetAt: new Date(),
-        },
-      });
-      return created.id;
-    } catch (error) {
-      lastError = error;
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes('username has already been taken')) throw error;
-    }
-  }
-
-  throw lastError;
+  return identity.panelUserId;
 }
 
 interface NodeChoice {
   nodeId: number;
   allocationId: number;
-  port: number;
-  ip: string;
 }
 
 /**
  * Chooses a node with free capacity and an unassigned allocation.
- * Only application ports (30000+) are used so game ports stay untouched.
+ *
+ * The address that is reserved here is only a place to put the server. The
+ * port that the service really listens on is read back from the panel after
+ * the server exists, so no port is ever assumed.
+ *
+ * The allocations of the application range are preferred, so the ports that
+ * are reserved for other kinds of workload stay free. A node that only has
+ * addresses left outside that range is still used when it is the only one
+ * with room.
  */
 async function chooseNode(ram: number, disk: number): Promise<NodeChoice> {
   const nodes = await ptero.listNodes();
   const usable = nodes.filter((node) => !node.maintenance_mode);
   if (!usable.length) throw new ProvisioningError('node_selected', 'No node is available for new instances.');
+
+  let spare: NodeChoice | null = null;
+
 
   for (const node of usable) {
     const freeMemory = node.memory + node.memory_overallocate - node.allocated_resources.memory;
@@ -202,12 +179,13 @@ async function chooseNode(ram: number, disk: number): Promise<NodeChoice> {
     if (freeMemory < ram || freeDisk < disk) continue;
 
     const allocations = await ptero.listAllocations(node.id);
-    const candidate = allocations.find((allocation) => !allocation.assigned && allocation.port >= 30000);
-    if (!candidate) continue;
-
-    return { nodeId: node.id, allocationId: candidate.id, port: candidate.port, ip: candidate.ip };
+    const free = allocations.filter((allocation) => !allocation.assigned);
+    const preferred = free.find((allocation) => allocation.port >= 30000);
+    if (preferred) return { nodeId: node.id, allocationId: preferred.id };
+    if (free.length && !spare) spare = { nodeId: node.id, allocationId: free[0]!.id };
   }
 
+  if (spare) return spare;
   throw new ProvisioningError('node_selected', 'No node has enough free capacity for this configuration.');
 }
 
@@ -388,7 +366,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     if (!server) {
       await beginProvisioning(instance, 'node_selected');
       choice = await chooseNode(instance.ram, instance.disk);
-      await recordEvent(instance.id, 'provisioning', `Allocated port ${choice.port} on node ${choice.nodeId}.`);
+      await recordEvent(instance.id, 'provisioning', `Reserved an address on node ${choice.nodeId}.`);
       await completeStep(instance.id, 'node_selected');
 
       const egg = await resolveEgg(product);
@@ -427,7 +405,14 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
 
       await prisma.instance.update({
         where: { id: instance.id },
-        data: { pterodactylServerId: created.id, pterodactylUuid: created.uuid },
+        data: {
+          pterodactylServerId: created.id,
+          pterodactylUuid: created.uuid,
+          // The allocation and the node are the ones the panel really assigned,
+          // never the ones that were asked for.
+          pterodactylAllocation: created.allocation ?? null,
+          pterodactylNodeId: created.node ?? null,
+        },
       });
       server = created;
       await recordEvent(instance.id, 'provisioning', `Created server ${created.id}.`);
@@ -436,20 +421,44 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
 
     if (!server) throw new ProvisioningError('server_created', 'The server could not be created.');
 
-    // Find the allocation for the existing server so health checks work on retries.
+    // The port and the address come from the allocation that the panel really
+    // assigned to this server. A port is never assumed and never taken from
+    // the plan, so a server that the panel moved keeps working.
     const allocations = await ptero.listAllocations(server.node);
-    const allocation = allocations.find((candidate) => candidate.id === server!.allocation);
-    const port = allocation?.port ?? choice?.port ?? 0;
+    const allocationId = server.allocation;
+    const allocation = allocations.find((candidate) => candidate.id === allocationId);
+    const port = allocation?.port ?? 0;
     const ip = allocation?.ip ?? '127.0.0.1';
-    if (!port) throw new ProvisioningError('allocation_selected', 'No port is assigned to this server.');
+    if (!port) {
+      throw new ProvisioningError(
+        'allocation_selected',
+        'The panel did not assign an address to this server, so the service cannot be reached.',
+      );
+    }
 
-    // The install happens once. A retry of a server that was already installed
-    // never triggers a reinstall, so the files of the customer stay untouched.
+    // The assigned allocation is kept on the instance, so the rest of the
+    // platform can show the address without asking the panel again.
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: { pterodactylAllocation: allocationId, pterodactylNodeId: server.node },
+    });
+
+    // The installation is requested once.
+    //
+    // The panel wipes the files of a server when it is reinstalled, so a server
+    // that is already installed is never installed a second time. The state of
+    // the server is read again on every run, so a run that was interrupted
+    // after the server was installed still sees that it is installed.
     if (!done('image_built')) {
       await beginProvisioning(instance, 'image_built');
-      await ptero.reinstallServer(server.id);
-      await completeStep(instance.id, 'image_built');
-      await recordEvent(instance.id, 'provisioning', 'The installation was started on the node.');
+      if (server.container.installed === 1) {
+        await completeStep(instance.id, 'image_built');
+        await recordEvent(instance.id, 'provisioning', 'The server was already installed, so nothing was reinstalled.');
+      } else {
+        await ptero.reinstallServer(server.id);
+        await completeStep(instance.id, 'image_built');
+        await recordEvent(instance.id, 'provisioning', 'The installation was started on the node.');
+      }
     } else {
       await recordEvent(instance.id, 'provisioning', 'The installation was already requested, skipping it.');
     }
@@ -466,19 +475,25 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     if (!done('started')) {
       await beginProvisioning(instance, 'started');
       // An installed container is stopped, so the platform starts it before the
-      // service is handed over. Power control lives on the Client API, which
-      // needs the separate client key.
-      if (!pteroClient.clientApiAvailable()) {
+      // service is handed over.
+      //
+      // The Application API cannot power a server, so this uses the client key
+      // of the customer that owns the instance. That key is scoped to the
+      // panel account of the customer, so it can only ever start this
+      // customer's own server.
+      let customerToken: string;
+      try {
+        const credential = await resolveCustomerCredential(instance.userId);
+        customerToken = pteroClient.clientToken(credential.token);
+      } catch (error) {
         throw new ProvisioningError(
           'started',
-          'The Pterodactyl Client API key is not configured, so the container cannot be started.',
+          `The container cannot be started: ${
+            error instanceof Error ? error.message : 'the client key of the customer is not available.'
+          }`,
         );
       }
-      await pteroClient.sendPower(
-        pteroClient.clientToken(pterodactylUserId),
-        server.uuid,
-        'start',
-      );
+      await pteroClient.sendPower(customerToken, server.uuid, 'start');
       await completeStep(instance.id, 'started');
       await recordEvent(instance.id, 'provisioning', 'Container started.');
     }

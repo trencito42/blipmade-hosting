@@ -7,6 +7,13 @@ import { audit } from '../lib/audit.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { enqueueProvisioning } from '../services/queue.js';
 import { PERMISSIONS } from '../lib/permissions.js';
+import { fullName } from '../lib/people.js';
+import {
+  forgetCustomerCredential,
+  storeCustomerCredential,
+} from '../services/panel/credentials.js';
+import { externalIdFor } from '../services/panel/identity.js';
+import { env } from '../env.js';
 
 const money = (amount: number) => amount / 100;
 
@@ -60,7 +67,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       where: {
         role: 'CUSTOMER',
         ...(query.search
-          ? { OR: [{ email: { contains: query.search, mode: 'insensitive' } }, { name: { contains: query.search, mode: 'insensitive' } }] }
+          ? {
+              OR: [
+                { email: { contains: query.search, mode: 'insensitive' } },
+                { firstName: { contains: query.search, mode: 'insensitive' } },
+                { lastName: { contains: query.search, mode: 'insensitive' } },
+              ],
+            }
           : {}),
       },
       include: {
@@ -75,7 +88,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       customers: customers.map((customer) => ({
         id: customer.id,
         email: customer.email,
-        name: customer.name,
+        name: fullName(customer),
         createdAt: customer.createdAt,
         verified: Boolean(customer.emailVerifiedAt),
         suspended: Boolean(customer.suspendedAt),
@@ -107,7 +120,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       customer: {
         id: customer.id,
         email: customer.email,
-        name: customer.name,
+        name: fullName(customer),
         role: customer.role.toLowerCase(),
         createdAt: customer.createdAt,
         emailVerified: Boolean(customer.emailVerifiedAt),
@@ -151,6 +164,94 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * The panel account of a customer and the state of its client key.
+   *
+   * The key itself is never shown: only the fact that there is one, where it
+   * came from and when it was used the last time.
+   */
+  app.get('/admin/customers/:id/panel', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const customer = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        pterodactylUserId: true,
+        pterodactylExternalId: true,
+        panelCredential: true,
+      },
+    });
+    if (!customer) throw notFound('Customer not found.');
+
+    return {
+      panel: {
+        userId: customer.pterodactylUserId,
+        externalId: customer.pterodactylExternalId,
+        hasCredential: Boolean(customer.panelCredential),
+        credentialSource: customer.panelCredential?.source ?? null,
+        credentialUsedAt: customer.panelCredential?.lastUsedAt ?? null,
+        bridgeEnabled: env.panelBridgeEnabled,
+      },
+    };
+  });
+
+  /**
+   * Stores the client key of a customer that an operator handed over.
+   *
+   * This is the way in when the key bridge of the panel is not installed yet:
+   * the panel issues the key, the operator pastes it here, and every customer
+   * operation works from that moment on. The key is stored encrypted and is
+   * never sent back to the browser.
+   */
+  app.post('/admin/customers/:id/panel/credential', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ token: z.string().trim().min(20) }).parse(request.body);
+
+    const customer = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, pterodactylUserId: true, pterodactylExternalId: true },
+    });
+    if (!customer) throw notFound('Customer not found.');
+    if (!customer.pterodactylUserId) {
+      throw conflict('This customer has no panel account yet. Provision a service first, so the account is created.');
+    }
+
+    await storeCustomerCredential(
+      customer.id,
+      body.token,
+      Number(customer.pterodactylUserId),
+      customer.pterodactylExternalId ?? externalIdFor(customer.id),
+      'bootstrap',
+    );
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'customer.panel_credential_stored',
+      targetType: 'user',
+      targetId: customer.id,
+    });
+    return { stored: true };
+  });
+
+  /** Forgets the client key of a customer. The next operation asks for a new one. */
+  app.delete('/admin/customers/:id/panel/credential', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest, reply) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    await forgetCustomerCredential(id);
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'customer.panel_credential_forgotten',
+      targetType: 'user',
+      targetId: id,
+    });
+    return reply.code(204).send();
+  });
+
   app.post('/admin/customers/:id/suspend', { preHandler: requirePermission('customers.write') }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
@@ -181,7 +282,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const orders = await prisma.order.findMany({
       where: query.status ? { status: query.status as never } : {},
       include: {
-        user: { select: { id: true, email: true, name: true } },
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
         items: { include: { product: { select: { slug: true } } } },
       },
       orderBy: { createdAt: 'desc' },
@@ -196,7 +297,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         discount: order.discount,
         currency: order.currency,
         createdAt: order.createdAt,
-        customer: { id: order.user.id, email: order.user.email, name: order.user.name },
+        customer: { id: order.user.id, email: order.user.email, name: fullName(order.user) },
         items: order.items.map((item) => ({ id: item.id, name: item.name, quantity: item.quantity, total: item.total })),
       })),
     };
@@ -428,9 +529,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const tickets = await prisma.ticket.findMany({
       where: query.status ? { status: query.status as never } : {},
       include: {
-        user: { select: { id: true, email: true, name: true } },
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
         instance: { select: { id: true, name: true } },
-        assignedTo: { include: { user: { select: { name: true, email: true } } } },
+        assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
         _count: { select: { messages: true } },
       },
       orderBy: { updatedAt: 'desc' },
@@ -447,9 +548,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         createdAt: ticket.createdAt,
         updatedAt: ticket.updatedAt,
         messageCount: ticket._count.messages,
-        customer: { id: ticket.user.id, email: ticket.user.email, name: ticket.user.name },
+        customer: { id: ticket.user.id, email: ticket.user.email, name: fullName(ticket.user) },
         instance: ticket.instance,
-        assignedTo: ticket.assignedTo ? (ticket.assignedTo.user.name ?? ticket.assignedTo.user.email) : null,
+        assignedTo: ticket.assignedTo
+          ? fullName(ticket.assignedTo.user) || ticket.assignedTo.user.email
+          : null,
       })),
     };
   });
@@ -640,12 +743,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/admin/staff', { preHandler: requirePermission('staff.read') }, async () => {
-    const staff = await prisma.staffMember.findMany({ include: { user: { select: { id: true, email: true, name: true, role: true } } } });
+    const staff = await prisma.staffMember.findMany({
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, role: true } } },
+    });
     return {
       staff: staff.map((member) => ({
         userId: member.userId,
         email: member.user.email,
-        name: member.user.name,
+        name: fullName(member.user),
         role: member.user.role.toLowerCase(),
         title: member.title,
         permissions: member.permissions,

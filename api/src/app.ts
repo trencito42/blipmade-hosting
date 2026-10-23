@@ -17,6 +17,7 @@ import { registerCatalogRoutes } from './routes/catalog.js';
 import { registerOrderRoutes } from './routes/orders.js';
 import { registerBillingRoutes } from './routes/billing.js';
 import { registerInstanceRoutes } from './routes/instances.js';
+import { registerInstanceServerRoutes } from './routes/instance-server.js';
 import { registerDomainRoutes } from './routes/domains.js';
 import { registerTicketRoutes } from './routes/tickets.js';
 import { registerAdminRoutes } from './routes/admin.js';
@@ -104,6 +105,15 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
   });
 
+  /**
+   * A file that is uploaded to a server is sent as it is, so a binary file is
+   * not changed on the way. The limit of the route is larger than the limit
+   * of the API.
+   */
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_request, body, done) => {
+    done(null, body);
+  });
+
   app.addHook('onRequest', async (request) => {
     csrfGuard(request);
     request.user = await loadSession(request);
@@ -125,6 +135,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerOrderRoutes(api);
       await registerBillingRoutes(api);
       await registerInstanceRoutes(api);
+      await registerInstanceServerRoutes(api);
       await registerDomainRoutes(api);
       await registerTicketRoutes(api);
       await registerAdminRoutes(api);

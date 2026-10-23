@@ -74,25 +74,68 @@ All routes enforce ownership. Any other customer's id returns `404`.
 
 - `GET /api/instances` → `200 { instances: Instance[] }`
 - `GET /api/instances/:id` → `200 { instance: Instance }`
-- `POST /api/instances/:id/power` → `{ action: "start"|"stop"|"restart" }` → `202 { instance }`
+- `POST /api/instances/:id/power` → `{ signal: "start"|"stop"|"restart"|"kill" }` → `202 { instanceId, accepted }`
+- `POST /api/instances/:id/command` → `{ command }` → `200 { sent: true }`
 - `GET /api/instances/:id/metrics` → `200 { metrics: { state, cpuAbsolute, memoryBytes, networkRx, networkTx, diskBytes, uptimeMs } | null }`
-- `GET /api/instances/:id/console` → `200 { token, websocket }` (console WebSocket credentials; never exposes privileged keys)
-- `GET /api/instances/:id/files?path=` → `200 { entries: FileEntry[] }`
-- `GET /api/instances/:id/file?path=&encoding=` → `200 { content, encoding }`
+- `GET /api/instances/:id/resources` → `200 { resources: { state, is_suspended, cpu_absolute, memory_bytes, network: { rx, tx }, disk: { used }, uptime } }`
+- `GET /api/instances/:id/server` → `200 { server: { uuid, identifier, name, state, isSuspended, limits, features, createdAt } }`
+- `GET /api/instances/:id/activity` → `200 { activity: [{ user, action, meta, createdAt }] }`
+- `GET /api/instances/:id/console` → `200 { websocket: "/api/instances/:id/console/stream" }` — the path of the relay on Blipmade. The address of the node and the token of the console never leave the server.
+- `GET /api/instances/:id/console/stream` → WebSocket, the relay to the console of the node. The session of the customer is checked when it opens.
+- `GET /api/instances/:id/files?path=` → `200 { files: FileEntry[], entries: FileEntry[], path }`
+- `GET /api/instances/:id/file?path=` → `200 { content, encoding }`
 - `PUT /api/instances/:id/file` → `{ path, content }` → `204`
-- `DELETE /api/instances/:id/file` → `{ path }` → `204`
-- `PUT /api/instances/:id/startup` → `{ startup, environment }` → `200 { instance }`
+- `DELETE /api/instances/:id/file` → `?path=` → `204`
+- `POST /api/instances/:id/files/rename` → `{ path, to }` → `200 { renamed: true }`
+- `POST /api/instances/:id/files/move` → `{ path, to }` → `200 { moved: true }`
+- `POST /api/instances/:id/files/copy` → `{ path, to }` → `200 { copied: true }`
+- `POST /api/instances/:id/files/compress` → `{ paths, format: "tar"|"zip" }` → `200 { compressed: true }` (also `/files/archive`)
+- `POST /api/instances/:id/files/decompress` → `{ path, format }` → `200 { decompressed: true }` (also `/files/unarchive`)
+- `POST /api/instances/:id/files/chmod` → `{ path, mode }` → `200 { chmodded: true }`
+- `POST /api/instances/:id/files/upload` → `{ path, name, content }` as JSON, or the raw bytes with `?directory=&filename=` → `204`
+- `GET /api/instances/:id/files/download?path=` → the file
+- `GET /api/instances/:id/databases` → `200 { databases: [{ id, name, username, host, port, database, password }] }`
+- `POST /api/instances/:id/databases` → `{ database, username, password, remote }` → `201 { created: true }`
+- `PATCH /api/instances/:id/databases/:databaseId` → `{ password?, remote? }` → `200 { updated: true }`
+- `DELETE /api/instances/:id/databases/:databaseId` → `204`
+- `GET /api/instances/:id/databases/:databaseId/credentials` → `200 { credentials: { username, password, host, port, database } }`
+- `GET /api/instances/:id/backups` → `200 { backups: [{ id, name, size, created_at, is_locked }] }`
+- `POST /api/instances/:id/backups` → `{ name, locked }` → `201 { backup: { id, name } }`
+- `GET /api/instances/:id/backups/:backupId/download` → the archive
+- `POST /api/instances/:id/backups/:backupId/restore` → `200 { restored: true }`
+- `DELETE /api/instances/:id/backups/:backupId` → `204`
+- `GET /api/instances/:id/allocations` → `200 { allocations: [{ id, ip, port, alias, is_default }] }`
+- `POST /api/instances/:id/allocations` → `{ ip, port, alias? }` → `201 { created: true }`
+- `PUT /api/instances/:id/allocations` → `{ primary }` → `200 { updated: true }`
+- `PATCH /api/instances/:id/allocations/:allocationId` → `{ isDefault?, alias? }` → `200 { updated: true }`
+- `DELETE /api/instances/:id/allocations/:allocationId` → `204`
+- `GET /api/instances/:id/startup` → `200 { image, command, environment }`
+- `PUT /api/instances/:id/startup` (or `PATCH`) → `{ image?, command?, environment? }` → `200 { image, command, environment }`
+- `GET /api/instances/:id/schedules` → `200 { schedules: [{ id, name, cron, action, active, payload, last_run, next_run }] }`
+- `POST /api/instances/:id/schedules` → `{ name, cron, action, active, payload }` → `201 { created: true }`
+- `PATCH /api/instances/:id/schedules/:scheduleId` → `{ name?, cron?, active?, payload? }` → `200 { updated: true }`
+- `DELETE /api/instances/:id/schedules/:scheduleId` → `204`
+- `POST /api/instances/:id/schedules/:scheduleId/run` → `200 { ran: true }`
+- `GET /api/instances/:id/settings` → `200 { name, description, suspended, can_reinstall, egg, docker_image, limits }`
+- `PATCH /api/instances/:id/settings` → `{ name?, description? }` → `200 { name, description, suspended, can_reinstall, egg, docker_image }`
+- `POST /api/instances/:id/suspend` → `{ suspended }` → `200 { suspended }`
+- `POST /api/instances/:id/settings/reinstall` → `{ confirm: true }` → `200 { reinstalled: true }`
 - `PUT /api/instances/:id/resources` → `{ ram, cpu, disk }` → `200 { instance, priceDelta }`
 - `GET /api/instances/:id/events` → `200 { events: InstanceEvent[] }`
 - `POST /api/instances/:id/cancel` → `204` (cancel at period end)
 - `POST /api/instances/:id/rename` → `{ name }` → `200 { instance }`
+
+The routes that act on the server of the customer use the client key of that
+customer on the panel. When the panel cannot issue one, they answer `503` with
+`error.code = "unavailable"` and a message that says why. The administrative
+key of the panel is never sent to the browser.
 
 ```
 Instance = {
   id, name, status, product: { slug, name, icon }, ram, cpu, disk,
   price, currency, url, createdAt, node: { name } | null, subscription: { status, currentPeriodEnd } | null
 }
-FileEntry = { name, isDirectory, size, modifiedAt, mode }
+FileEntry = { name, isDirectory, isFile, isSymlink, size, modifiedAt, createdAt, mode }
 ```
 
 `status` is one of `pending|provisioning|online|restarting|stopped|degraded|failed|suspended|cancelled`.
