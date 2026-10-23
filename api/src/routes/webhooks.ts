@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import {
   markOrderPaid,
+  refundPayment,
   stripeLive,
   stripeTestGateway,
   upsertInvoice,
@@ -13,6 +14,7 @@ import { notifyInvoiceFailed, notifyInvoicePaid } from '../services/notification
 import { fullName } from '../lib/people.js';
 import { applyUpgradeOrder } from '../services/upgrades.js';
 import { allocateUnitPrices } from '../services/order-amounts.js';
+import { applyRenewalToSubscription, readRenewalMarker, resolveInvoiceUser } from '../services/billing.js';
 import { audit } from '../lib/audit.js';
 
 /**
@@ -23,15 +25,32 @@ import { audit } from '../lib/audit.js';
  *
  *   received -> processing -> processed
  *                       \-> failed
+ *                       \-> deferred
  *
  * A delivery that fails leaves the event in `failed`, and the request is
  * answered with a non-2xx status so the provider retries it. A redelivery of a
  * failed event is processed again, while a redelivery of a processed event is
  * ignored as a duplicate. Nothing is silently dropped.
+ *
+ * An event that arrives before the state it needs is left in `deferred`: it is
+ * tried again later, so money that was collected is never lost. The number of
+ * tries is bounded, so an event that can never be applied waits for an
+ * operator instead of looping forever.
  */
 
 /** A delivery that is older than this is treated as abandoned and retried. */
 const STALE_ATTEMPT_MS = 5 * 60 * 1000;
+
+/**
+ * How many times an event may be tried before it waits for an operator.
+ *
+ * The bound is what keeps an event that can never be applied from looping
+ * forever: it is marked as failed and stays in the ledger.
+ */
+const MAX_ATTEMPTS = 12;
+
+/** How long a deferred event waits before it is tried again. */
+const DEFER_RETRY_DELAY_MS = 60 * 1000;
 
 export type WebhookOutcome = 'claimed' | 'duplicate' | 'retry';
 
@@ -79,11 +98,17 @@ async function claimEvent(
 
   if (existing.status === 'processed') return 'duplicate';
 
+  // An event that was tried too often is not tried again: it waits for an
+  // operator, so a delivery that can never be applied does not loop forever.
+  if (existing.attempts >= MAX_ATTEMPTS) return 'duplicate';
+
   const abandoned =
     existing.status === 'received' ||
     (existing.lastAttemptAt ? Date.now() - existing.lastAttemptAt.getTime() > STALE_ATTEMPT_MS : false);
 
-  if (existing.status === 'failed' || abandoned) {
+  // A deferred event is tried again: the state it was waiting for may have
+  // arrived in the meantime.
+  if (existing.status === 'failed' || existing.status === 'deferred' || abandoned) {
     await prisma.webhookEvent.update({
       where: { id: existing.id },
       data: { status: 'processing', attempts: { increment: 1 }, lastAttemptAt: new Date(), error: null },
@@ -111,18 +136,67 @@ async function markFailed(eventId: string, message: string): Promise<void> {
 
 /**
  * An event that could not be applied yet, for example because the order it
- * belongs to does not exist. It stays in the ledger and can be replayed, but
- * the provider is not asked to retry it in a loop.
+ * belongs to does not exist. It stays in the ledger and is tried again, so the
+ * state it waits for can arrive in the meantime.
+ *
+ * The event is marked as failed when it was tried too often: from then on it
+ * waits for an operator instead of being tried again.
  */
 async function markDeferred(eventId: string, message: string): Promise<void> {
-  await prisma.webhookEvent.update({
-    where: { provider_eventId: { provider: 'stripe', eventId } },
-    data: { status: 'deferred', error: message, lastAttemptAt: new Date() },
+  // The attempt is counted: an event that cannot be applied yet is tried
+  // again, and the bound that stops the tries has to see them.
+  await prisma.webhookEvent.updateMany({
+    where: { provider: 'stripe', eventId },
+    data: {
+      status: 'deferred',
+      error: message,
+      lastAttemptAt: new Date(),
+      attempts: { increment: 1 },
+    },
   });
+
+  const after = await prisma.webhookEvent.findUnique({
+    where: { provider_eventId: { provider: 'stripe', eventId } },
+    select: { attempts: true },
+  });
+
+  if ((after?.attempts ?? 0) >= MAX_ATTEMPTS) {
+    await prisma.webhookEvent.update({
+      where: { provider_eventId: { provider: 'stripe', eventId } },
+      data: {
+        status: 'failed',
+        error: `${message} The event was tried ${MAX_ATTEMPTS} times, so it waits for an operator.`,
+      },
+    });
+  }
 }
 
 /** Thrown when an event has to wait instead of failing. */
 class DeferredWebhookError extends Error {}
+
+/**
+ * Gives the campaign slot of a cancelled order back to the pool.
+ *
+ * The redemption of the order is removed and the counter of the campaign is
+ * corrected, so an order that was cancelled cannot exhaust a promotion.
+ */
+async function releaseCancelledOrderPromotion(order: {
+  id: string;
+  promotionId: string | null;
+  promotionRedeemedAt: Date | null;
+}): Promise<void> {
+  const redemption = await prisma.promotionRedemption.findUnique({ where: { orderId: order.id } });
+  if (!redemption) return;
+
+  await prisma.promotionRedemption.delete({ where: { orderId: order.id } });
+  if (order.promotionRedeemedAt && order.promotionId) {
+    await prisma.promotion.updateMany({
+      where: { id: order.promotionId, usedCount: { gt: 0 } },
+      data: { usedCount: { decrement: 1 } },
+    });
+    await prisma.order.update({ where: { id: order.id }, data: { promotionRedeemedAt: null } });
+  }
+}
 
 /**
  * Turns a paid order into running services.
@@ -133,6 +207,38 @@ class DeferredWebhookError extends Error {}
 export async function fulfilOrder(orderId: string): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (!order) return;
+
+  // A cancelled order is never fulfilled. The campaign slot goes back into
+  // the pool and the situation is written down, so nothing is created for an
+  // order that was cancelled.
+  if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
+    await releaseCancelledOrderPromotion(order);
+    await audit({
+      action: 'order.cancelled_not_fulfilled',
+      targetType: 'order',
+      targetId: order.id,
+      meta: { status: order.status, total: order.total, currency: order.currency },
+    });
+    return;
+  }
+
+  // A renewal extends a service, it does not create one.
+  const renewal = readRenewalMarker(order.requestedConfig);
+  if (renewal) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { orderId: order.id, status: 'OPEN' },
+      orderBy: { createdAt: 'desc' },
+    });
+    await applyRenewalToSubscription({
+      subscriptionId: renewal.subscriptionId,
+      periodStart: invoice?.periodStart ?? null,
+      periodEnd: invoice?.periodEnd ?? null,
+      interval: renewal.interval,
+      orderId: order.id,
+    });
+    await prisma.order.update({ where: { id: order.id }, data: { fulfillmentStatus: 'FULFILLED' } });
+    return;
+  }
 
   if (order.kind === 'UPGRADE') {
     await applyUpgradeOrder(order.id);
@@ -204,6 +310,54 @@ async function verifyAmount(orderId: string, amountTotal: unknown): Promise<stri
   return null;
 }
 
+/**
+ * Handles a payment that arrives for an order that was cancelled.
+ *
+ * Nothing is created for the order. The money is returned with the refund the
+ * platform already uses, the campaign slot goes back into the pool and the
+ * situation is written down. A refund that cannot be executed here is
+ * reported, so an operator can return the money with the refund route of the
+ * administration.
+ */
+async function handleCancelledOrderPayment(
+  order: {
+    id: string;
+    userId: string;
+    total: number;
+    currency: string;
+    stripePaymentIntentId: string | null;
+    promotionId: string | null;
+    promotionRedeemedAt: Date | null;
+  },
+  object: Record<string, unknown>,
+): Promise<void> {
+  const paymentIntentId = (object.payment_intent as string) ?? order.stripePaymentIntentId ?? null;
+  const refunded = await refundPayment({
+    orderId: order.id,
+    stripePaymentIntentId: paymentIntentId,
+    amount: order.total,
+    reason: 'the order was cancelled before the payment arrived',
+  });
+
+  await releaseCancelledOrderPromotion(order);
+  await prisma.order.update({
+    where: { id: order.id },
+    data: { status: refunded ? 'REFUNDED' : 'CANCELLED' },
+  });
+  await audit({
+    action: refunded ? 'order.cancelled_payment_refunded' : 'order.cancelled_payment_received',
+    targetType: 'order',
+    targetId: order.id,
+    meta: {
+      userId: order.userId,
+      amount: order.total,
+      currency: order.currency,
+      refunded,
+      reason: 'the order was cancelled before the payment arrived',
+    },
+  });
+}
+
 async function handleStripeEvent(event: StripeEvent): Promise<void> {
   const object = event.data.object ?? {};
 
@@ -223,6 +377,13 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       // A session that is not paid yet waits for the async confirmation.
       const paymentStatus = object.payment_status as string | undefined;
       if (paymentStatus === 'unpaid') break;
+
+      // An order that was cancelled is never fulfilled. The money that arrives
+      // for it is returned and the campaign slot goes back into the pool.
+      if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
+        await handleCancelledOrderPayment(order, object);
+        break;
+      }
 
       const amountProblem = await verifyAmount(orderId, object.amount_total);
       if (amountProblem) {
@@ -282,43 +443,55 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
               include: { orderItem: true },
             })
           : null;
+
+        // The invoice can arrive before the checkout of the same order. The
+        // event then waits in the ledger and is tried again, so the money
+        // that was collected is never lost.
+        if (subscriptionId && !subscription) {
+          throw new DeferredWebhookError(
+            `The subscription ${subscriptionId} of invoice ${invoiceId} is not known yet.`,
+          );
+        }
+
         const order = subscription?.orderItem
           ? await prisma.order.findUnique({ where: { id: subscription.orderItem.orderId } })
           : null;
-        const userId = order?.userId ?? subscription?.userId;
-        if (userId) {
-          await upsertInvoice({
-            stripeInvoiceId: invoiceId,
-            userId,
-            orderId: order?.id ?? null,
-            amount: paid,
-            currency: (object.currency as string) ?? 'EUR',
-            status: 'PAID',
-            hostedUrl: (object.hosted_invoice_url as string) ?? null,
-            pdfUrl: (object.invoice_pdf as string) ?? null,
-            paidAt: new Date(),
-            periodStart: typeof object.period_start === 'number' ? new Date(object.period_start * 1000) : null,
-            periodEnd: typeof object.period_end === 'number' ? new Date(object.period_end * 1000) : null,
+        const userId = order?.userId ?? subscription?.userId ?? (await resolveInvoiceUser(undefined, customerId));
+        if (!userId) {
+          throw new DeferredWebhookError(`The customer of invoice ${invoiceId} is not known yet.`);
+        }
+
+        await upsertInvoice({
+          stripeInvoiceId: invoiceId,
+          userId,
+          orderId: order?.id ?? null,
+          amount: paid,
+          currency: (object.currency as string) ?? 'EUR',
+          status: 'PAID',
+          hostedUrl: (object.hosted_invoice_url as string) ?? null,
+          pdfUrl: (object.invoice_pdf as string) ?? null,
+          paidAt: new Date(),
+          periodStart: typeof object.period_start === 'number' ? new Date(object.period_start * 1000) : null,
+          periodEnd: typeof object.period_end === 'number' ? new Date(object.period_end * 1000) : null,
+        });
+        // The customer hears about the payment. The message follows the
+        // preferences of the account and its state is the one of the mailer:
+        // while no relay is configured, it is written to a file and nobody
+        // receives it.
+        const invoice = await prisma.invoice.findUnique({
+          where: { stripeInvoiceId: invoiceId },
+          include: { user: true },
+        });
+        if (invoice) {
+          await notifyInvoicePaid({
+            userId: invoice.userId,
+            email: invoice.user.email,
+            name: fullName(invoice.user),
+            number: invoice.number,
+            amount: invoice.amount,
+            currency: invoice.currency,
+            periodEnd: invoice.periodEnd,
           });
-          // The customer hears about the payment. The message follows the
-          // preferences of the account and its state is the one of the mailer:
-          // while no relay is configured, it is written to a file and nobody
-          // receives it.
-          const invoice = await prisma.invoice.findUnique({
-            where: { stripeInvoiceId: invoiceId },
-            include: { user: true },
-          });
-          if (invoice) {
-            await notifyInvoicePaid({
-              userId: invoice.userId,
-              email: invoice.user.email,
-              name: fullName(invoice.user),
-              number: invoice.number,
-              amount: invoice.amount,
-              currency: invoice.currency,
-              periodEnd: invoice.periodEnd,
-            });
-          }
         }
       }
 
@@ -602,12 +775,26 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
 }
 
 /**
- * Retries the events that failed, for the provider deliveries that never came
- * back. It is called by the worker on a schedule.
+ * Retries the events that failed or that were deferred, for the provider
+ * deliveries that never came back. It is called by the worker on a schedule.
+ *
+ * The number of tries is bounded: an event that was tried too often waits for
+ * an operator instead of being tried again.
  */
 export async function retryFailedWebhookEvents(limit = 20): Promise<number> {
+  const retryBefore = new Date(Date.now() - DEFER_RETRY_DELAY_MS);
   const events = await prisma.webhookEvent.findMany({
-    where: { provider: 'stripe', status: 'failed' },
+    where: {
+      provider: 'stripe',
+      attempts: { lt: MAX_ATTEMPTS },
+      OR: [
+        { status: 'failed' },
+        {
+          status: 'deferred',
+          OR: [{ lastAttemptAt: null }, { lastAttemptAt: { lt: retryBefore } }],
+        },
+      ],
+    },
     orderBy: { createdAt: 'asc' },
     take: limit,
   });

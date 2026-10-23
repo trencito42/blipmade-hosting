@@ -111,19 +111,24 @@ describe('billing sweep', () => {
     expect(updatedSubscription?.status).toBe('PAST_DUE');
   });
 
-  it('renews a service whose period ended and writes the invoice', async () => {
+  it('writes an open invoice for a service whose period ended, and waits for the money', async () => {
     const { instance, subscription } = await seedSubscription({ periodEndedDaysAgo: 1 });
 
     const result = await sweepSubscriptions();
 
-    expect(result.renewed).toBe(1);
+    // Without a payment provider nothing is collected, so nothing is marked
+    // as paid: the invoice stays open and the service waits for the payment.
+    expect(result.renewed).toBe(0);
+    expect(result.pending).toBe(1);
+
     const updated = await prisma.subscription.findUnique({ where: { id: subscription.id } });
-    expect(updated?.status).toBe('ACTIVE');
-    expect(updated?.currentPeriodEnd?.getTime()).toBeGreaterThan(Date.now());
+    expect(updated?.status).toBe('PAST_DUE');
+    expect(updated?.currentPeriodEnd?.getTime()).toBeLessThanOrEqual(Date.now());
 
     const invoices = await prisma.invoice.findMany({ where: { userId: subscription.userId } });
     expect(invoices).toHaveLength(1);
-    expect(invoices[0]?.status).toBe('PAID');
+    expect(invoices[0]?.status).toBe('OPEN');
+    expect(invoices[0]?.paidAt).toBeNull();
     expect(invoices[0]?.amount).toBe(149);
 
     const unchangedInstance = await prisma.instance.findUnique({ where: { id: instance.id } });

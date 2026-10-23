@@ -2,8 +2,15 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { requireAuth } from '../plugins/auth.js';
-import { cancelSubscription, createBillingPortal, paymentState, resumeSubscription } from '../services/stripe.js';
-import { notFound } from '../lib/errors.js';
+import { cancelSubscription, createBillingPortal, paymentState, resumeSubscription, stripeLive } from '../services/stripe.js';
+import { notFound, unavailable } from '../lib/errors.js';
+import {
+  buildInstanceExport,
+  createLocalRenewal,
+  instanceRetention,
+  instanceRetentions,
+} from '../services/billing.js';
+import { applyPromotion, priceItems, resolvePromotion } from '../services/pricing.js';
 import {
   formatAmount,
   formatDate,
@@ -116,11 +123,17 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
   app.get('/billing/summary', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const [instances, subscriptions, invoices, payments] = await Promise.all([
+    const [instances, subscriptions, invoices, payments, cancellations] = await Promise.all([
       prisma.instance.findMany({ where: { userId: user.id, cancelledAt: null }, select: { id: true, name: true, price: true, currency: true, status: true } }),
       prisma.subscription.findMany({ where: { userId: user.id }, include: { instance: { select: { name: true } } }, orderBy: { createdAt: 'desc' } }),
       prisma.invoice.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 50 }),
       prisma.payment.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 1 }),
+      prisma.instance.findMany({
+        where: { userId: user.id, cancelledAt: { not: null } },
+        select: { id: true, name: true, cancelledAt: true },
+        orderBy: { cancelledAt: 'desc' },
+        take: 50,
+      }),
     ]);
 
     const currency = subscriptions[0]?.currency ?? instances[0]?.currency ?? 'EUR';
@@ -133,6 +146,21 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     const paymentMethod = payments.length
       ? { status: payments[0]!.status, lastPaidAt: payments[0]!.createdAt, currency: payments[0]!.currency }
       : null;
+
+    // The services that were cancelled are kept for a term, and the export of
+    // the data stays available after the deletion.
+    const retentions = await instanceRetentions();
+    const pendingRenewals = invoices
+      .filter((invoice) => invoice.status === 'OPEN' && invoice.periodStart !== null)
+      .map((invoice) => ({
+        id: invoice.id,
+        number: invoice.number,
+        amount: invoice.amount,
+        currency: invoice.currency,
+        dueDate: invoice.dueDate,
+        periodStart: invoice.periodStart,
+        periodEnd: invoice.periodEnd,
+      }));
 
     return {
       currency,
@@ -150,6 +178,144 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         currentPeriodEnd: subscription.currentPeriodEnd,
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
       })),
+      cancellations: cancellations.map((instance) => ({
+        id: instance.id,
+        name: instance.name,
+        cancelledAt: instance.cancelledAt,
+        deletionScheduledFor: retentions[instance.id]?.scheduledFor ?? null,
+        exportAvailable: Boolean(retentions[instance.id]),
+        deletedAt: retentions[instance.id]?.deletedAt ?? null,
+      })),
+      pendingRenewals,
+    };
+  });
+
+  /**
+   * Quotes a configuration for a period.
+   *
+   * The quote uses the same function that prices an order, so a yearly plan
+   * is priced with the yearly prices of the catalogue.
+   */
+  app.post('/billing/quote', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const body = z
+      .object({
+        items: z
+          .array(
+            z.object({
+              productSlug: z.string().min(1),
+              ram: z.number().int().positive(),
+              cpu: z.number().int().positive(),
+              disk: z.number().int().positive(),
+              optionCodes: z.array(z.string()).optional(),
+              quantity: z.number().int().min(1).max(20).optional(),
+            }),
+          )
+          .min(1),
+        period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
+        promotionCode: z.string().trim().optional(),
+      })
+      .parse(request.body ?? {});
+
+    const priced = await priceItems(body.items, body.period);
+    const subtotal = priced.reduce((sum, item) => sum + item.total, 0);
+    const quoteCurrency = priced[0]?.currency ?? 'EUR';
+
+    const resolved = await resolvePromotion(body.promotionCode, user.id);
+    let discount = 0;
+    if (resolved.valid && resolved.code) {
+      const promotion = await prisma.promotion.findUnique({ where: { code: resolved.code } });
+      if (promotion) discount = applyPromotion(subtotal, promotion);
+    }
+
+    return {
+      period: body.period,
+      items: priced.map((item) => ({
+        productSlug: item.productSlug,
+        name: item.name,
+        ram: item.ram,
+        cpu: item.cpu,
+        disk: item.disk,
+        optionCodes: item.optionCodes,
+        quantity: item.quantity,
+        unitAmount: item.unitAmount,
+        total: item.total,
+        currency: item.currency,
+      })),
+      subtotal,
+      discount,
+      total: Math.max(0, subtotal - discount),
+      currency: quoteCurrency,
+      promotion: resolved.code
+        ? { code: resolved.code, valid: resolved.valid, ...(resolved.reason ? { reason: resolved.reason } : {}) }
+        : null,
+    };
+  });
+
+  /**
+   * Renews a subscription without a payment provider.
+   *
+   * The renewal is explicit: it writes the invoice that is due and the period
+   * is only extended when the collection is confirmed. Nothing is paid for
+   * here, so nothing is claimed to be paid.
+   */
+  app.post('/billing/subscriptions/:id/renew', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ period: z.enum(['MONTHLY', 'YEARLY']).optional() }).parse(request.body ?? {});
+
+    const subscription = await prisma.subscription.findFirst({ where: { id, userId: user.id } });
+    if (!subscription) throw notFound('Subscription not found.');
+    if (stripeLive()) {
+      throw unavailable('Payments are collected by the payment provider on this environment, so the subscription is renewed by the provider.');
+    }
+
+    const renewal = await createLocalRenewal(subscription.id, {
+      interval: body.period,
+      actorId: user.id,
+      actorEmail: user.email,
+    });
+    return {
+      renewal: {
+        invoiceId: renewal.invoiceId,
+        number: renewal.number,
+        orderId: renewal.orderId,
+        amount: renewal.amount,
+        currency: renewal.currency,
+        interval: renewal.interval,
+        periodStart: renewal.periodStart,
+        periodEnd: renewal.periodEnd,
+      },
+    };
+  });
+
+  /**
+   * The data of the customer of a service.
+   *
+   * The export is written when the service is cancelled and it stays
+   * available after the service is deleted.
+   */
+  app.get('/billing/instances/:id/export', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const instance = await prisma.instance.findFirst({ where: { id, userId: user.id }, select: { id: true } });
+    if (!instance) throw notFound('Instance not found.');
+
+    const retention = await instanceRetention(instance.id);
+    if (retention) {
+      return {
+        export: retention.export,
+        createdAt: retention.exportCreatedAt,
+        deletionScheduledFor: retention.scheduledFor,
+        deletedAt: retention.deletedAt,
+      };
+    }
+
+    return {
+      export: await buildInstanceExport(instance.id),
+      createdAt: null,
+      deletionScheduledFor: null,
+      deletedAt: null,
     };
   });
 

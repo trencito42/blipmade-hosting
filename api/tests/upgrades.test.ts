@@ -23,6 +23,17 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
   clientToken: vi.fn(() => 'test-client-token'),
   sendPower: vi.fn(async () => undefined),
   sendCommand: vi.fn(async () => undefined),
+  // The application of the product is written into the container before it
+  // starts, so the files of the container are written here as well.
+  writeFile: vi.fn(async () => undefined),
+  // The error the panel raises when the key of the customer is refused.
+  ClientApiError: class ClientApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+    }
+  },
 }));
 
 const { prisma } = await import('../src/db.js');

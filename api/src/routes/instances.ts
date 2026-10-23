@@ -10,7 +10,7 @@ import * as client from '../services/pterodactyl/client.js';
 import { hasCustomerCredential, resolveCustomerCredential } from '../services/panel/credentials.js';
 import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
-import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange } from '../services/upgrades.js';
+import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeUpgradeOrder } from '../services/upgrades.js';
 import { createCheckout } from '../services/stripe.js';
 
 function serializeInstance(instance: {
@@ -277,8 +277,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
 
     if (!quote.requiresPayment) {
       // A change that costs less is applied right away and the recurring
-      // amount is lowered afterwards.
+      // amount is lowered afterwards. There is no money to collect, so the
+      // platform settles the order itself before the change is applied.
       const order = await createUpgradeOrder(instance, body, quote, user);
+      await settleFreeUpgradeOrder(order.id, user);
       const result = await applyUpgradeOrder(order.id);
       const updated = await loadInstance(user.id, instance.id);
       return {

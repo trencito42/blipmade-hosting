@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { nextOrderNumber } from './order-numbers.js';
 import { badRequest } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { priceConfiguration, validateConfiguration } from './pricing.js';
@@ -69,10 +70,11 @@ export async function createUpgradeOrder(
   quote: ResourceQuote,
   user: { id: string; email: string },
 ): Promise<Order> {
-  const count = await prisma.order.count();
   const order = await prisma.order.create({
     data: {
-      number: `BM-${String(count + 1).padStart(5, '0')}`,
+      // The number comes from the counter of the platform, so an upgrade order
+      // and a normal order can never carry the same number.
+      number: await nextOrderNumber(),
       userId: user.id,
       status: 'PENDING',
       kind: 'UPGRADE',
@@ -99,6 +101,10 @@ export async function createUpgradeOrder(
 /**
  * Applies a paid resource change.
  *
+ * The payment is checked here, inside the function, so every caller is
+ * covered: a change that was not paid for never touches the resources of a
+ * running service.
+ *
  * The panel is updated first. If it refuses, the database is left untouched,
  * the payment is refunded and the order is marked as failed, so the customer
  * is never charged for a change that did not happen.
@@ -112,6 +118,26 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
   if (order.kind !== 'UPGRADE') return { applied: false, reason: 'This order is not a resource change.' };
   if (!order.instance) return { applied: false, reason: 'The instance of this order no longer exists.' };
   if (order.fulfillmentStatus === 'FULFILLED') return { applied: true, reason: null };
+
+  // The change was not paid for, so it is not applied and the service keeps
+  // the resources it has.
+  if (order.status !== 'PAID' && order.status !== 'FULFILLED') {
+    const reason = `This change has not been paid for, so it was not applied (the order is ${order.status.toLowerCase()}).`;
+    await prisma.instanceEvent.create({
+      data: {
+        instanceId: order.instance.id,
+        type: 'resources',
+        message: `The resource change was refused: ${reason}`,
+      },
+    });
+    await audit({
+      action: 'instance.upgrade_refused',
+      targetType: 'order',
+      targetId: order.id,
+      meta: { instanceId: order.instance.id, status: order.status, reason },
+    });
+    return { applied: false, reason };
+  }
 
   const request = (order.requestedConfig ?? {}) as unknown as ResourceRequest;
   if (!request.ram || !request.cpu || !request.disk) {
@@ -221,4 +247,34 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
   });
 
   return { applied: true, reason: null };
+}
+
+/**
+ * Settles a change that costs less than the service the customer already has.
+ *
+ * There is no money to collect: the difference is credited on the next
+ * invoice, so the platform settles the order itself. The order is marked as
+ * paid here, because `applyUpgradeOrder` only applies a change that was paid
+ * for.
+ */
+export async function settleFreeUpgradeOrder(
+  orderId: string,
+  actor: { id: string; email: string },
+): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw badRequest('Order not found.');
+  if (order.status === 'PAID' || order.status === 'FULFILLED') return;
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'PAID', paidAt: new Date() },
+  });
+  await audit({
+    actorId: actor.id,
+    actorEmail: actor.email,
+    action: 'instance.upgrade_credited',
+    targetType: 'order',
+    targetId: orderId,
+    meta: { total: order.total, discount: order.discount, reason: 'the change costs less, so there is nothing to collect' },
+  });
 }

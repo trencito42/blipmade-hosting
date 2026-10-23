@@ -154,20 +154,23 @@ export function buildCheckoutLineItems(
 
   return chunks.flatMap((chunk) => {
     const item = items[chunk.lineIndex];
-    const config = (item.config ?? {}) as { ram?: number; cpu?: number; disk?: number };
+    const config = (item.config ?? {}) as { ram?: number; cpu?: number; disk?: number; period?: string };
     const parts = [
       item.name,
       config.ram ? `${config.ram} MB RAM` : null,
       config.cpu ? `${config.cpu} vCPU` : null,
       config.disk ? `${config.disk} GB storage` : null,
     ].filter(Boolean);
+    // The interval of the subscription is the interval of the price that was
+    // ordered: a yearly plan is charged once a year, not once a month.
+    const interval = config.period === 'YEARLY' ? ('year' as const) : ('month' as const);
     return [
       {
         quantity: chunk.quantity,
         price_data: {
           currency: item.currency.toLowerCase(),
           unit_amount: chunk.unitAmount,
-          recurring: { interval: 'month' as const },
+          recurring: { interval },
           product_data: { name: parts.join(' · ') },
         },
       },
