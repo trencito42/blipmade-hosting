@@ -342,9 +342,14 @@ the emulation of a phone.
   machine. The interface draws with Geist until they are there. Nothing was
   substituted and nothing was claimed.
 * **Safari on a real phone.** There is no Safari and no WebKit in this
-  environment, so the measurements were made in Chromium only. The rules that
-  were changed are plain CSS (`minmax(0, 1fr)`, `w-0`, `min-width: 0`), which
-  Safari reads the same way, but that was not measured.
+  environment — no `WebKitWebDriver`, no `epiphany`, no cached Playwright
+  browser — so the measurements were made in Chromium 156 only. The rules
+  that were changed are plain CSS (`minmax(0, 1fr)`, `w-0`, `min-width: 0`),
+  which Safari reads the same way, but that was not measured.
+* **The gateway holds the fonts for four hours.** The server answers with
+  `public, max-age=0, must-revalidate` and an `ETag`; the gateway in front of
+  the site rewrites the time to four hours. A file that is replaced may be
+  held for that long, so it is purged at the gateway when it changes.
 * **The payments and the mail.** `STRIPE_SECRET_KEY` and `SMTP_URL` are
   empty, so the checkout answers `503 payments_unavailable` and the mail is
   written to a file. Nothing of that was touched in this round.

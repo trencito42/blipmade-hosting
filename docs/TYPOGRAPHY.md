@@ -216,6 +216,12 @@ stack on purpose and is named in the health of the site.
    The second line has to name the family and show `loaded` for the three
    weights.
 
+7. **When a file is replaced.** The server answers with
+   `public, max-age=0, must-revalidate` and an `ETag`, so the browser asks
+   whether the file changed. The gateway in front of the site rewrites the
+   time to four hours, so a file that is replaced may be held for that long.
+   Purge `/fonts/*` at the gateway, or wait, before the change is seen.
+
 ## 6. The fallback
 
 Until the files are there, `"Proxima Nova"` resolves to nothing and the
