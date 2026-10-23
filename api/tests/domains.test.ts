@@ -91,6 +91,7 @@ async function seedInstance(userId: string) {
       description: 'A website and blog platform.',
       icon: 'globe',
       deployable: true,
+      eggId: 1,
     },
   });
   return prisma.instance.create({

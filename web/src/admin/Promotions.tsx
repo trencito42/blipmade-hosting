@@ -236,6 +236,7 @@ export default function Promotions() {
                   {
                     key: 'code',
                     header: 'Code',
+                    nowrap: true,
                     render: (promotion: AdminPromotion) => (
                       <span className="font-mono text-[13.5px] font-bold text-ink">{promotion.code}</span>
                     ),
@@ -243,6 +244,7 @@ export default function Promotions() {
                   {
                     key: 'type',
                     header: 'Type',
+                    nowrap: true,
                     render: (promotion: AdminPromotion) => (
                       <span className="capitalize text-ink2">{promotion.type}</span>
                     ),
@@ -250,11 +252,15 @@ export default function Promotions() {
                   {
                     key: 'value',
                     header: 'Value',
+                    align: 'right',
+                    nowrap: true,
                     render: (promotion: AdminPromotion) => valueLabel(promotion),
                   },
                   {
                     key: 'used',
                     header: 'Redemptions',
+                    align: 'right',
+                    nowrap: true,
                     render: (promotion: AdminPromotion) => (
                       <span className="font-mono tabular-nums text-ink2">
                         {promotion.usedCount} / {promotion.maxRedemptions ?? 'no cap'}
@@ -264,6 +270,7 @@ export default function Promotions() {
                   {
                     key: 'active',
                     header: 'State',
+                    nowrap: true,
                     render: (promotion: AdminPromotion) => (
                       <StatusPill status={promotion.active ? 'active' : 'draft'} label={promotion.active ? 'Active' : 'Inactive'} />
                     ),
@@ -271,6 +278,7 @@ export default function Promotions() {
                   {
                     key: 'window',
                     header: 'Window',
+                    nowrap: true,
                     render: (promotion: AdminPromotion) => (
                       <span className="text-ink2">
                         {fmtDate(promotion.startsAt)} → {fmtDate(promotion.endsAt)}

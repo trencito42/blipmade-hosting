@@ -32,6 +32,7 @@ async function makeInstance(ownerId: string, name = 'Test instance') {
       maxCpu: 4,
       maxDisk: 100,
       deployable: true,
+      eggId: 1,
       prices: { create: { period: 'MONTHLY', baseAmount: 149, currency: 'EUR' } },
     },
   });
@@ -115,6 +116,7 @@ describe('cross-customer isolation', () => {
         minCpu: 1,
         minDisk: 5,
         deployable: true,
+        eggId: 1,
         prices: { create: { period: 'MONTHLY', baseAmount: 149, currency: 'EUR' } },
       },
     });

@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 import { cn } from './lib';
+import { cellClass, headerClass, type TableColumn } from './lib/table';
 import { Icon, type IconName } from './icons';
 import { Link, useRouter } from './router';
 import logo from './logo.svg';
@@ -1037,11 +1038,14 @@ export function DataTable<T>({
   rows,
   rowKey,
   empty,
+  minWidth = '640px',
 }: {
-  columns: { key: string; header: string; render: (row: T) => ReactNode; className?: string }[];
+  columns: TableColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string;
   empty?: ReactNode;
+  /** The smallest width of the table. Below it the table scrolls sideways. */
+  minWidth?: string;
 }) {
   if (!rows.length) return <>{empty ?? <EmptyState title="Nothing here yet." />}</>;
   return (
@@ -1049,21 +1053,34 @@ export function DataTable<T>({
     // sideways. The strip is marked, so the scrollbar of the design system
     // stays out of the way.
     <div className="hidden w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain bm-hide-scroll md:block">
-      <table className="w-full border-collapse text-left">
+      <table
+        className="w-full border-separate text-left"
+        // The rows are separated by a gap, like the cards of the design. The
+        // horizontal spacing stays at zero, so the columns of the header and
+        // the columns of the rows are the same columns.
+        style={{ borderSpacing: '0 6px', minWidth }}
+      >
+        {/* The widths of the columns are decided once, here, and the header
+            and the rows use the same ones. */}
+        <colgroup>
+          {columns.map((column) => (
+            <col key={column.key} style={column.width ? { width: column.width } : undefined} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.key} scope="col" className="px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">
+              <th key={column.key} scope="col" className={headerClass(column)}>
                 {column.header}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="grid gap-1.5">
+        <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} className="rounded-2xl bg-s2">
-              {columns.map((column) => (
-                <td key={column.key} className={cn('px-3 py-3 align-middle text-[14px] text-ink', column.className)}>
+            <tr key={rowKey(row)}>
+              {columns.map((column, index) => (
+                <td key={column.key} className={cellClass(column, index, columns.length)}>
                   {column.render(row)}
                 </td>
               ))}

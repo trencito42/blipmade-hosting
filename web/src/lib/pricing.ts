@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { get, type CatalogProduct } from './api';
+import { isOrderable } from './pricing-contract';
 import type { IconName } from '../icons';
 
 /**
@@ -28,14 +29,26 @@ const EMPTY: CatalogSummary = {
 
 /** Loads the catalog once and keeps it for the whole page. */
 let cached: { products: CatalogProduct[]; at: number } | null = null;
+let pending: Promise<CatalogProduct[]> | null = null;
 const listeners = new Set<(products: CatalogProduct[]) => void>();
 
 async function load(): Promise<CatalogProduct[]> {
   if (cached && Date.now() - cached.at < 60_000) return cached.products;
-  const response = await get<{ products: CatalogProduct[] }>('/catalog/products');
-  cached = { products: response.products, at: Date.now() };
-  for (const listener of listeners) listener(response.products);
-  return response.products;
+  // The promise is kept as well as the result. Several parts of a page ask
+  // for the catalog at the same time, and they must cause one request and not
+  // one request per part.
+  if (!pending) {
+    pending = get<{ products: CatalogProduct[] }>('/catalog/products')
+      .then((response) => {
+        cached = { products: response.products, at: Date.now() };
+        for (const listener of listeners) listener(response.products);
+        return response.products;
+      })
+      .finally(() => {
+        pending = null;
+      });
+  }
+  return pending;
 }
 
 /**
@@ -128,7 +141,7 @@ export function useCatalogProducts(): { products: CatalogProduct[]; loading: boo
 export function useDeployableProducts(): { products: CatalogProduct[]; loading: boolean } {
   const { products, loading } = useCatalogProducts();
   const deployable = useMemo(
-    () => products.filter((product) => product.deployable && product.visible),
+    () => products.filter((product) => isOrderable(product) && product.visible),
     [products],
   );
   return { products: deployable, loading };

@@ -151,6 +151,7 @@ export default function Infrastructure() {
                 {
                   key: 'name',
                   header: 'Node',
+                  truncate: true,
                   render: (node: AdminNode) => (
                     <span className="block min-w-0">
                       <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={node.name}>
@@ -165,6 +166,8 @@ export default function Infrastructure() {
                 {
                   key: 'memory',
                   header: 'Memory',
+                  align: 'right',
+                  nowrap: true,
                   render: (node: AdminNode) => (
                     <span className="font-mono text-[12.5px] text-ink2">
                       {fmtMb(node.memoryAllocated)} / {fmtMb(node.memory)}
@@ -175,6 +178,8 @@ export default function Infrastructure() {
                 {
                   key: 'disk',
                   header: 'Disk',
+                  align: 'right',
+                  nowrap: true,
                   render: (node: AdminNode) => (
                     <span className="font-mono text-[12.5px] text-ink2">
                       {fmtMb(node.diskAllocated)} / {fmtMb(node.disk)}
@@ -185,6 +190,7 @@ export default function Infrastructure() {
                 {
                   key: 'maintenance',
                   header: 'State',
+                  nowrap: true,
                   render: (node: AdminNode) => (
                     <StatusPill
                       status={node.maintenance ? 'on_hold' : 'active'}
@@ -195,6 +201,7 @@ export default function Infrastructure() {
                 {
                   key: 'panel',
                   header: 'Pterodactyl id',
+                  nowrap: true,
                   render: (node: AdminNode) => (
                     <span className="font-mono text-[12.5px] text-ink2">{node.pterodactylId}</span>
                   ),
@@ -255,6 +262,7 @@ export default function Infrastructure() {
                 {
                   key: 'name',
                   header: 'Egg',
+                  truncate: true,
                   render: (egg: AdminEgg) => (
                     <span className="block min-w-0">
                       <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={egg.name}>
@@ -269,6 +277,7 @@ export default function Infrastructure() {
                 {
                   key: 'image',
                   header: 'Docker image',
+                  truncate: true,
                   render: (egg: AdminEgg) => (
                     <span className="block max-w-[280px] truncate font-mono text-[12.5px] text-ink2" title={egg.dockerImage}>
                       {egg.dockerImage}
@@ -278,6 +287,7 @@ export default function Infrastructure() {
                 {
                   key: 'startup',
                   header: 'Startup',
+                  truncate: true,
                   render: (egg: AdminEgg) => (
                     <span className="block max-w-[280px] truncate font-mono text-[12.5px] text-ink2" title={egg.startup}>
                       {egg.startup}
@@ -287,6 +297,7 @@ export default function Infrastructure() {
                 {
                   key: 'panel',
                   header: 'Pterodactyl id',
+                  nowrap: true,
                   render: (egg: AdminEgg) => <span className="font-mono text-[12.5px] text-ink2">{egg.pterodactylId}</span>,
                 },
               ]}

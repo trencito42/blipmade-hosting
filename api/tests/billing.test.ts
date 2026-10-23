@@ -46,6 +46,7 @@ async function seedSubscription(options: {
       description: 'A service.',
       icon: 'globe',
       deployable: true,
+      eggId: 1,
       prices: { create: { period: 'MONTHLY', baseAmount: 149, currency: 'EUR' } },
     },
   });
@@ -139,6 +140,7 @@ describe('billing sweep', () => {
         description: 'A service.',
         icon: 'globe',
         deployable: true,
+        eggId: 1,
         prices: { create: { period: 'MONTHLY', baseAmount: 149, currency: 'EUR' } },
       },
     });

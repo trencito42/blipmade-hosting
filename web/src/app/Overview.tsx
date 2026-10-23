@@ -14,7 +14,8 @@ import {
   StatTile,
   StatusPill,
 } from '../ui-app';
-import { catalogPath, deployPath, useDeployableProducts } from '../lib/pricing';
+import { catalogPath, useDeployableProducts } from '../lib/pricing';
+import { deployPathFor, startingConfiguration } from '../lib/pricing-contract';
 
 /**
  * Customer overview. Reads the real instance list only: every number on this
@@ -215,7 +216,7 @@ export default function Overview() {
                 {deployable.slice(0, 4).map((product) => (
                   <Link
                     key={product.id}
-                    to={deployPath(product.slug)}
+                    to={deployPathFor(product.slug, startingConfiguration(product))}
                     className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <ProductIcon icon={product.icon} size={36} />

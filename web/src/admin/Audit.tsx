@@ -127,21 +127,25 @@ export default function Audit() {
                   {
                     key: 'createdAt',
                     header: 'Time',
+                    nowrap: true,
                     render: (log: AuditLog) => <span className="text-ink2">{fmtDateTime(log.createdAt)}</span>,
                   },
                   {
                     key: 'actor',
                     header: 'Actor',
+                    truncate: true,
                     render: (log: AuditLog) => <span className="font-mono text-[12.5px] text-ink">{actor(log.actorEmail)}</span>,
                   },
                   {
                     key: 'action',
                     header: 'Action',
+                    nowrap: true,
                     render: (log: AuditLog) => <span className="font-mono text-[12.5px] text-ink">{log.action}</span>,
                   },
                   {
                     key: 'target',
                     header: 'Target',
+                    truncate: true,
                     render: (log: AuditLog) => (
                       <span className="font-mono text-[12.5px] text-ink2">
                         {log.targetType ?? DASH}

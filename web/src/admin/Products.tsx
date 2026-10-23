@@ -15,6 +15,7 @@ import {
   useToast,
 } from '../ui-app';
 import { DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useStaffUser } from './Overview';
+import type { TableColumn } from '../lib/table';
 
 /**
  * Staff catalog — GET /api/admin/products, POST /api/admin/products,
@@ -46,6 +47,8 @@ interface AdminProduct {
   deployable: boolean;
   eggId: number | null;
   dockerImage: string | null;
+  /** What the catalog and the ordering will answer for this product. */
+  availability: { enabled: boolean; installable: boolean; blockers: string[]; orderable: boolean };
   minRam: number;
   minCpu: number;
   minDisk: number;
@@ -146,6 +149,7 @@ export default function Products() {
                   {
                     key: 'product',
                     header: 'Product',
+                    truncate: true,
                     render: (product: AdminProduct) => (
                       <span className="block min-w-0">
                         <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={product.name}>
@@ -160,6 +164,7 @@ export default function Products() {
                   {
                     key: 'category',
                     header: 'Category',
+                    nowrap: true,
                     render: (product: AdminProduct) => (
                       <span className="text-ink2">{product.category.replace(/_/g, ' ')}</span>
                     ),
@@ -167,11 +172,14 @@ export default function Products() {
                   {
                     key: 'price',
                     header: 'Base price',
+                    align: 'right',
+                    nowrap: true,
                     render: (product: AdminProduct) => monthlyPrice(product),
                   },
                   {
                     key: 'resources',
                     header: 'Min · max',
+                    nowrap: true,
                     render: (product: AdminProduct) => (
                       <span className="font-mono text-[12.5px] text-ink2">
                         {product.minRam} MB · {product.minCpu} vCPU · {product.minDisk} GB
@@ -181,6 +189,7 @@ export default function Products() {
                   {
                     key: 'visible',
                     header: 'Visible',
+                    nowrap: true,
                     render: (product: AdminProduct) =>
                       mayWrite ? (
                         <button
@@ -198,8 +207,24 @@ export default function Products() {
                   {
                     key: 'deployable',
                     header: 'Deployable',
-                    render: (product: AdminProduct) =>
-                      mayWrite ? (
+                    nowrap: true,
+                    render: (product: AdminProduct) => {
+                      // The flag says that the operator allows the product to
+                      // be ordered. The availability says whether the panel can
+                      // build it. A product that is switched on but cannot be
+                      // built is shown as blocked, with the reason.
+                      const orderable = product.availability?.orderable ?? product.deployable;
+                      const blocked = product.deployable && !orderable;
+                      const title = product.availability?.blockers?.join(' ') ?? '';
+                      if (blocked) {
+                        return (
+                          <span className="inline-flex items-center gap-1.5" title={title}>
+                            <StatusPill status="degraded" label="Blocked" />
+                            <span className="font-mono text-[11.5px] text-ink3">{title}</span>
+                          </span>
+                        );
+                      }
+                      return mayWrite ? (
                         <button
                           type="button"
                           aria-pressed={product.deployable}
@@ -213,20 +238,22 @@ export default function Products() {
                           status={product.deployable ? 'active' : 'draft'}
                           label={product.deployable ? 'Deployable' : 'Not deployable'}
                         />
-                      ),
+                      );
+                    },
                   },
                   ...(mayWrite
-                    ? [
+                    ? ([
                         {
                           key: 'actions',
                           header: 'Action',
+                          align: 'right',
                           render: (product: AdminProduct) => (
                             <button type="button" onClick={() => setRemoving(product)} className={denseDanger}>
                               Delete
                             </button>
                           ),
                         },
-                      ]
+                      ] satisfies TableColumn<AdminProduct>[])
                     : []),
                 ]}
               />

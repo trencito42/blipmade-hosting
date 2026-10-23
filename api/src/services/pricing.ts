@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { normalizeAmount } from '../lib/money.js';
+import { deploymentAvailability, unavailableMessage } from './availability.js';
 import type { BillingPeriod, Product, ProductOption, ProductPrice } from '@prisma/client';
 
 export interface ResourceConfig {
@@ -37,7 +38,7 @@ export interface PromotionResult {
  * + selected paid options
  */
 export function priceConfiguration(
-  price: ProductPrice,
+  price: Pick<ProductPrice, 'baseAmount' | 'ramPerGb' | 'cpuPerUnit' | 'diskPerGb'>,
   product: Pick<Product, 'minRam' | 'minCpu' | 'minDisk'>,
   config: { ram: number; cpu: number; disk: number },
   options: ProductOption[] = [],
@@ -50,6 +51,66 @@ export function priceConfiguration(
       normalizeAmount(Math.max(0, config.disk - product.minDisk) * price.diskPerGb) +
       options.reduce((sum, option) => sum + option.amount, 0),
   );
+}
+
+/**
+ * Keeps a value inside the limits of a product.
+ */
+export function clampConfiguration(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * A configuration of a product and what it costs.
+ */
+export interface PricedConfiguration {
+  ram: number;
+  cpu: number;
+  disk: number;
+  amount: number;
+}
+
+/**
+ * The price book of a product: the two configurations the catalog talks about
+ * and what they cost.
+ *
+ *   minimum      the smallest configuration; its price is the starting price
+ *                the catalog shows
+ *   recommended  the configuration the platform recommends; its price is the
+ *                price of a bigger deployment
+ *
+ * Both are calculated with the same function that prices an order, so a price
+ * can never mean two things. The add-ons are not part of the book: they are
+ * chosen by the customer and are priced when they are picked.
+ */
+export function priceBook(
+  product: Pick<
+    Product,
+    'minRam' | 'minCpu' | 'minDisk' | 'defaultRam' | 'defaultCpu' | 'defaultDisk' | 'maxRam' | 'maxCpu' | 'maxDisk'
+  >,
+  price: Pick<ProductPrice, 'baseAmount' | 'ramPerGb' | 'cpuPerUnit' | 'diskPerGb' | 'currency' | 'period'>,
+): {
+  currency: string;
+  period: BillingPeriod;
+  minimum: PricedConfiguration;
+  recommended: PricedConfiguration;
+} {
+  const minimum = {
+    ram: clampConfiguration(product.minRam, product.minRam, product.maxRam),
+    cpu: clampConfiguration(product.minCpu, product.minCpu, product.maxCpu),
+    disk: clampConfiguration(product.minDisk, product.minDisk, product.maxDisk),
+  };
+  const recommended = {
+    ram: clampConfiguration(product.defaultRam, product.minRam, product.maxRam),
+    cpu: clampConfiguration(product.defaultCpu, product.minCpu, product.maxCpu),
+    disk: clampConfiguration(product.defaultDisk, product.minDisk, product.maxDisk),
+  };
+  return {
+    currency: price.currency,
+    period: price.period,
+    minimum: { ...minimum, amount: priceConfiguration(price, product, minimum) },
+    recommended: { ...recommended, amount: priceConfiguration(price, product, recommended) },
+  };
 }
 
 export function validateConfiguration(
@@ -101,7 +162,10 @@ export async function priceItems(
   for (const item of items) {
     const product = productBySlug.get(item.productSlug);
     if (!product) throw notFound(`Unknown product: ${item.productSlug}`);
-    if (!product.deployable) throw badRequest(`${product.name} is not available to order yet.`);
+    // The same rule as the catalog: a product that the panel cannot build is
+    // not orderable, whatever the flag of the catalog row says.
+    const availability = deploymentAvailability(product);
+    if (!availability.orderable) throw badRequest(unavailableMessage(product, availability));
 
     validateConfiguration(product, { ram: item.ram, cpu: item.cpu, disk: item.disk });
 

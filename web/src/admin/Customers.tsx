@@ -4,6 +4,7 @@ import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
+import type { TableColumn } from '../lib/table';
 import { DASH, LiveRegion, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
 
 /**
@@ -45,10 +46,11 @@ export default function Customers() {
   const customers = state.data?.customers ?? [];
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
-  const columns = [
+  const columns: TableColumn<AdminCustomer>[] = [
     {
       key: 'customer',
       header: 'Customer',
+      truncate: true,
       render: (customer: AdminCustomer) => (
         <Link
           to={`/admin/customers/${customer.id}`}
@@ -71,26 +73,35 @@ export default function Customers() {
     {
       key: 'instances',
       header: 'Instances',
+      align: 'right',
+      nowrap: true,
       render: (customer: AdminCustomer) => <span className="font-mono tabular-nums text-ink2">{customer.instanceCount}</span>,
     },
     {
       key: 'orders',
       header: 'Orders',
+      align: 'right',
+      nowrap: true,
       render: (customer: AdminCustomer) => <span className="font-mono tabular-nums text-ink2">{customer.orderCount}</span>,
     },
     {
       key: 'tickets',
       header: 'Tickets',
+      align: 'right',
+      nowrap: true,
       render: (customer: AdminCustomer) => <span className="font-mono tabular-nums text-ink2">{customer.ticketCount}</span>,
     },
     {
       key: 'value',
       header: 'Monthly value',
+      align: 'right',
+      nowrap: true,
       render: (customer: AdminCustomer) => <Money amount={customer.monthlyValue} period="month" />,
     },
     {
       key: 'verified',
       header: 'Verified',
+      nowrap: true,
       render: (customer: AdminCustomer) =>
         customer.verified ? (
           <StatusPill status="active" label="Verified" />
@@ -101,6 +112,7 @@ export default function Customers() {
     {
       key: 'created',
       header: 'Created',
+      nowrap: true,
       render: (customer: AdminCustomer) => <span className="text-ink2">{fmtDate(customer.createdAt)}</span>,
     },
   ];

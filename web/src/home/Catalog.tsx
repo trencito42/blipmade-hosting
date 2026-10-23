@@ -13,6 +13,7 @@ import {
   productIcon,
   productPath,
 } from '../lib/pricing';
+import { isOrderable, orderBlockers, startingPrice } from '../lib/pricing-contract';
 import { AppMark, Button, Eyebrow, Headline, Reveal, Wrap } from '../ui';
 import { ScrollRow } from '../ui-app';
 import { Link } from '../router';
@@ -37,11 +38,12 @@ function Skeleton({ className }: { className?: string }) {
 
 /** The amount, with the period it covers. A product without a price says so. */
 function Amount({ product, className, suffixClass = 'opacity-70' }: { product: CatalogProduct; className?: string; suffixClass?: string }) {
-  if (!product.price) return <span className={cn('font-mono text-ink3', className)}>Not priced</span>;
+  const amount = startingPrice(product);
+  if (amount === null) return <span className={cn('font-mono text-ink3', className)}>Not priced</span>;
   return (
     <span className={className}>
-      {formatPrice(product.price.amount, product.price.currency)}
-      <span className={suffixClass}>{periodSuffix(product.price.period)}</span>
+      {formatPrice(amount, product.price?.currency ?? 'EUR')}
+      <span className={suffixClass}>{periodSuffix(product.price?.period ?? 'MONTHLY')}</span>
     </span>
   );
 }
@@ -69,7 +71,7 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
   // The products that can be deployed come first: they are the ones the
   // platform can deliver today.
   const featured = useMemo(
-    () => [...products].sort((a, b) => Number(b.deployable) - Number(a.deployable)).slice(0, 3),
+    () => [...products].sort((a, b) => Number(isOrderable(b)) - Number(isOrderable(a))).slice(0, 3),
     [products],
   );
 
@@ -96,7 +98,7 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
             <div className="-mx-4 mb-3.5 flex snap-x gap-3 overflow-x-auto px-4 pb-1 bm-hide-scroll sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0">
               {featured.map((product, i) => {
                 const tone = POP[i] ?? POP[2];
-                const deployable = product.deployable && Boolean(product.price);
+                const deployable = isOrderable(product);
                 return (
                   <Reveal key={product.slug} delay={i * 60} className={cn('group grid min-h-[250px] w-[82vw] max-w-[360px] shrink-0 snap-start content-between gap-8 rounded-[28px] p-6 sm:w-auto sm:max-w-none sm:min-h-[270px]', tone.card)}>
                     <div className="flex items-start justify-between"><AppMark icon={productIcon(product.icon)} size={52} tone={tone.mark} /><span className="font-mono text-[12px] uppercase tracking-[0.1em] opacity-60">Popular</span></div>
@@ -108,9 +110,17 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
                         {deployable ? (
                           <Link to={productPath(product.slug)} className={cn('inline-flex h-11 items-center gap-1.5 rounded-full px-5 text-[14.5px] font-bold transition-transform duration-[180ms] group-hover:translate-x-0.5', tone.cta)}>Deploy<Icon name="arrowUR" size={15} /></Link>
                         ) : (
-                          <span className={cn('inline-flex h-11 items-center rounded-full px-5 text-[13.5px] font-bold', tone.muted)}>Not available yet</span>
+                          <span
+                            className={cn('inline-flex h-11 items-center rounded-full px-5 text-[13.5px] font-bold', tone.muted)}
+                            title={orderBlockers(product).join(' ')}
+                          >
+                            Not available yet
+                          </span>
                         )}
                       </div>
+                      {!deployable && orderBlockers(product).length > 0 && (
+                        <p className="mt-3 text-[13px] leading-relaxed opacity-70">{orderBlockers(product).join(' ')}</p>
+                      )}
                     </div>
                   </Reveal>
                 );
@@ -153,7 +163,8 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-live="polite">
             {list.map((product) => {
-              const deployable = product.deployable && Boolean(product.price);
+              const deployable = isOrderable(product);
+              const blockers = orderBlockers(product);
               const body = (
                 <>
                   <div className="flex items-center gap-3">
@@ -172,6 +183,9 @@ export function Catalog({ cat, setCat }: { cat: Category; setCat: (c: Category) 
                       <span className="rounded-full bg-s3 px-3 py-1.5 font-mono text-[11.5px] text-ink2">Not available yet</span>
                     )}
                   </div>
+                  {!deployable && blockers.length > 0 && (
+                    <p className="text-[12.5px] leading-relaxed text-ink3">{blockers.join(' ')}</p>
+                  )}
                 </>
               );
 

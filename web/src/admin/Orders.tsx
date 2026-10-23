@@ -106,6 +106,7 @@ export default function Orders() {
                   {
                     key: 'number',
                     header: 'Number',
+                    nowrap: true,
                     render: (order: AdminOrder) =>
                       order.customer?.id ? (
                         <Link
@@ -121,6 +122,7 @@ export default function Orders() {
                   {
                     key: 'customer',
                     header: 'Customer',
+                    truncate: true,
                     render: (order: AdminOrder) => (
                       <span className="block min-w-0">
                         <span className="block truncate text-ink" title={order.customer?.name ?? 'No name'}>
@@ -135,6 +137,7 @@ export default function Orders() {
                   {
                     key: 'items',
                     header: 'Items',
+                    nowrap: true,
                     render: (order: AdminOrder) => (
                     <span className="block max-w-[260px] truncate text-ink2" title={itemsLabel(order)}>
                       {itemsLabel(order)}
@@ -144,16 +147,20 @@ export default function Orders() {
                   {
                     key: 'total',
                     header: 'Total',
+                    align: 'right',
+                    nowrap: true,
                     render: (order: AdminOrder) => <Money amount={order.total} currency={order.currency} />,
                   },
                   {
                     key: 'status',
                     header: 'Status',
+                    nowrap: true,
                     render: (order: AdminOrder) => <StatusPill status={order.status} />,
                   },
                   {
                     key: 'created',
                     header: 'Date',
+                    nowrap: true,
                     render: (order: AdminOrder) => <span className="text-ink2">{fmtDate(order.createdAt)}</span>,
                   },
                 ]}

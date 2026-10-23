@@ -5,7 +5,8 @@ import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, ScrollRow, StatusPill, TextInput } from '../ui-app';
 import { cn } from '../lib';
-import { catalogPath, deployPath, formatPrice, periodLabel, productIcon } from '../lib/pricing';
+import { catalogPath, formatPrice, periodLabel, productIcon } from '../lib/pricing';
+import { deployPathFor, isOrderable, startingConfiguration } from '../lib/pricing-contract';
 
 /**
  * Instance list. Filters are applied to the real list returned by
@@ -41,7 +42,7 @@ function NoInstances() {
 
   // Only the products the platform can really deliver are worth offering.
   const deployable = useMemo(
-    () => (catalog.data?.products ?? []).filter((product) => product.deployable && product.visible),
+    () => (catalog.data?.products ?? []).filter((product) => isOrderable(product) && product.visible),
     [catalog.data],
   );
 
@@ -97,7 +98,7 @@ function NoInstances() {
                   </p>
                 </div>
               </div>
-              <Link to={deployPath(product.slug)} className={`${primaryLink} w-full shrink-0 sm:w-auto`}>
+              <Link to={deployPathFor(product.slug, startingConfiguration(product))} className={`${primaryLink} w-full shrink-0 sm:w-auto`}>
                 Deploy
               </Link>
             </li>
@@ -226,6 +227,7 @@ export default function Instances() {
               {
                 key: 'instance',
                 header: 'Instance',
+                truncate: true,
                 render: (instance: Instance) => (
                   <Link
                     to={`/app/instances/${instance.id}`}
@@ -239,11 +241,13 @@ export default function Instances() {
               {
                 key: 'status',
                 header: 'Status',
+                nowrap: true,
                 render: (instance: Instance) => <StatusPill status={instance.status} />,
               },
               {
                 key: 'limits',
                 header: 'Limits',
+                nowrap: true,
                 render: (instance: Instance) => (
                   <Link
                     to={`/app/instances/${instance.id}`}
@@ -256,6 +260,8 @@ export default function Instances() {
               {
                 key: 'price',
                 header: 'Price',
+                align: 'right',
+                nowrap: true,
                 render: (instance: Instance) => (
                   <Link
                     to={`/app/instances/${instance.id}`}
@@ -268,6 +274,7 @@ export default function Instances() {
               {
                 key: 'node',
                 header: 'Node',
+                nowrap: true,
                 render: (instance: Instance) => (
                   <span className="text-[13.5px] text-ink2">{instance.node?.name ?? '—'}</span>
                 ),

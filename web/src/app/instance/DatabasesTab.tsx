@@ -22,6 +22,7 @@ import {
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, type TabProps } from './common';
+import type { TableColumn } from '../../lib/table';
 
 /**
  * The databases of the instance.
@@ -102,20 +103,23 @@ export default function DatabasesTab({ instance }: TabProps) {
     }
   };
 
-  const columns = [
+  const columns: TableColumn<(typeof rows)[number]>[] = [
     {
       key: 'name',
       header: 'Database',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => <span className="font-mono">{row.database}</span>,
     },
     {
       key: 'user',
       header: 'User',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => <span className="font-mono">{row.username}</span>,
     },
     {
       key: 'host',
       header: 'Address',
+      truncate: true,
       render: (row: (typeof rows)[number]) => (
         <span className="font-mono text-[13px]">
           {row.host}:{row.port}
@@ -125,6 +129,7 @@ export default function DatabasesTab({ instance }: TabProps) {
     {
       key: 'actions',
       header: '',
+      align: 'right',
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
           <SoftButton onClick={() => showCredentials(row.id, row.database)}>Credentials</SoftButton>

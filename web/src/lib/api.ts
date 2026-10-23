@@ -169,6 +169,33 @@ export interface ProductOption {
   currency: string;
 }
 
+/**
+ * A configuration of a product and what it costs.
+ *
+ * The catalog sends the minimum configuration (the starting price of the
+ * catalog) and the recommended one, both priced by the server with the same
+ * function that prices an order.
+ */
+export interface PricedConfiguration {
+  ram: number;
+  cpu: number;
+  disk: number;
+  amount: number;
+}
+
+/**
+ * What the catalog and the ordering know about a product.
+ *
+ * `orderable` is the answer that counts: a product that is listed and priced
+ * but that the panel cannot build is not orderable.
+ */
+export interface DeploymentAvailability {
+  enabled: boolean;
+  installable: boolean;
+  blockers: string[];
+  orderable: boolean;
+}
+
 export interface CatalogProduct {
   id: string;
   slug: string;
@@ -187,8 +214,18 @@ export interface CatalogProduct {
   maxDisk: number;
   visible: boolean;
   deployable: boolean;
+  eggId: number | null;
   docsUrl: string | null;
   price: { amount: number; currency: string; period: string } | null;
+  /** The price book of the product. Null when it has no active price. */
+  pricing: {
+    currency: string;
+    period: string;
+    minimum: PricedConfiguration;
+    recommended: PricedConfiguration;
+  } | null;
+  /** Whether the product can be ordered, and why not. */
+  availability: DeploymentAvailability;
   options: ProductOption[];
 }
 

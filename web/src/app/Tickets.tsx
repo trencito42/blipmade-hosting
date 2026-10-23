@@ -152,6 +152,7 @@ export default function Tickets() {
                 {
                   key: 'subject',
                   header: 'Subject',
+                  truncate: true,
                   render: (t) => (
                     <Link
                       to={`/app/tickets/${t.id}`}
@@ -162,16 +163,18 @@ export default function Tickets() {
                     </Link>
                   ),
                 },
-                { key: 'number', header: 'Number', render: (t) => <span className="font-mono tabular-nums text-ink2">#{t.number}</span> },
-                { key: 'category', header: 'Category', render: (t) => <span className="text-ink2">{categoryLabel(t.category)}</span> },
+                { key: 'number', header: 'Number', nowrap: true, render: (t) => <span className="font-mono tabular-nums text-ink2">#{t.number}</span> },
+                { key: 'category', header: 'Category', nowrap: true, render: (t) => <span className="text-ink2">{categoryLabel(t.category)}</span> },
                 {
                   key: 'status',
                   header: 'Status',
+                  nowrap: true,
                   render: (t) => <StatusPill status={t.status} label={statusLabel(t.status)} />,
                 },
                 {
                   key: 'last',
                   header: 'Last reply',
+                  nowrap: true,
                   render: (t) => (
                     <span className="text-ink2" title={fmtDate(t.lastReplyAt)}>
                       {fmtRelative(t.lastReplyAt)}
@@ -181,6 +184,8 @@ export default function Tickets() {
                 {
                   key: 'open',
                   header: 'Open',
+                  align: 'center',
+                  nowrap: true,
                   render: (t) => (
                     <Link
                       to={`/app/tickets/${t.id}`}

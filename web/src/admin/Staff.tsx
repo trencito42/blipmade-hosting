@@ -131,6 +131,7 @@ export default function Staff() {
                   {
                     key: 'member',
                     header: 'Member',
+                    truncate: true,
                     render: (member: StaffMember) => (
                       <span className="block min-w-0">
                         <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
@@ -145,6 +146,7 @@ export default function Staff() {
                   {
                     key: 'role',
                     header: 'Role',
+                    nowrap: true,
                     render: (member: StaffMember) => (
                       <StatusPill status={member.role === 'admin' ? 'active' : 'pending'} label={member.role} />
                     ),
@@ -152,11 +154,13 @@ export default function Staff() {
                   {
                     key: 'title',
                     header: 'Title',
+                    truncate: true,
                     render: (member: StaffMember) => <span className="text-ink2">{member.title ?? DASH}</span>,
                   },
                   {
                     key: 'permissions',
                     header: 'Permissions',
+                    truncate: true,
                     render: (member: StaffMember) => (
                       <span className="font-mono text-[12.5px] text-ink2">
                         {(drafts[member.userId] ?? member.permissions).length} / {available.length}

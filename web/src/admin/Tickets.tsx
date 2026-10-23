@@ -143,6 +143,7 @@ export default function Tickets() {
                     {
                       key: 'subject',
                       header: 'Ticket',
+                      truncate: true,
                       render: (ticket: AdminTicket) => (
                         <button
                           type="button"
@@ -162,11 +163,13 @@ export default function Tickets() {
                     {
                       key: 'status',
                       header: 'Status',
+                      nowrap: true,
                       render: (ticket: AdminTicket) => <StatusPill status={ticket.status} />,
                     },
                     {
                       key: 'assigned',
                       header: 'Assigned',
+                      truncate: true,
                       render: (ticket: AdminTicket) => <span className="text-ink2">{ticket.assignedTo ?? DASH}</span>,
                     },
                   ]}

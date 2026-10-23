@@ -271,6 +271,7 @@ export default function CustomerDetail() {
                 {
                   key: 'name',
                   header: 'Instance',
+                  truncate: true,
                   render: (instance: DetailInstance) => (
                     <span className="block min-w-0">
                       <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={instance.name}>
@@ -285,26 +286,32 @@ export default function CustomerDetail() {
                 {
                   key: 'status',
                   header: 'Status',
+                  nowrap: true,
                   render: (instance: DetailInstance) => <StatusPill status={instance.status} />,
                 },
                 {
                   key: 'price',
                   header: 'Price',
+                  align: 'right',
+                  nowrap: true,
                   render: (instance: DetailInstance) => <Money amount={instance.price} period="month" />,
                 },
                 {
                   key: 'subscription',
                   header: 'Subscription',
+                  nowrap: true,
                   render: (instance: DetailInstance) => <span className="text-ink2">{instance.subscriptionStatus ?? DASH}</span>,
                 },
                 {
                   key: 'node',
                   header: 'Pterodactyl id',
+                  nowrap: true,
                   render: (instance: DetailInstance) => <span className="font-mono text-[12.5px] text-ink2">{instance.node ?? DASH}</span>,
                 },
                 {
                   key: 'created',
                   header: 'Created',
+                  nowrap: true,
                   render: (instance: DetailInstance) => <span className="text-ink2">{fmtDate(instance.createdAt)}</span>,
                 },
               ]}
@@ -365,21 +372,26 @@ export default function CustomerDetail() {
                 {
                   key: 'number',
                   header: 'Number',
+                  nowrap: true,
                   render: (invoice: DetailInvoice) => <span className="font-mono text-[13px] text-ink">{invoice.number}</span>,
                 },
                 {
                   key: 'status',
                   header: 'Status',
+                  nowrap: true,
                   render: (invoice: DetailInvoice) => <StatusPill status={invoice.status} />,
                 },
                 {
                   key: 'total',
                   header: 'Total',
+                  align: 'right',
+                  nowrap: true,
                   render: (invoice: DetailInvoice) => <Money amount={invoice.total} currency={invoice.currency} />,
                 },
                 {
                   key: 'created',
                   header: 'Date',
+                  nowrap: true,
                   render: (invoice: DetailInvoice) => <span className="text-ink2">{fmtDate(invoice.createdAt)}</span>,
                 },
               ]}
@@ -419,6 +431,7 @@ export default function CustomerDetail() {
                 {
                   key: 'number',
                   header: 'Number',
+                  nowrap: true,
                   render: (ticket: DetailTicket) => (
                     <Link
                       to={`/admin/tickets?ticket=${ticket.id}`}
@@ -431,6 +444,7 @@ export default function CustomerDetail() {
                 {
                   key: 'subject',
                   header: 'Subject',
+                  truncate: true,
                   render: (ticket: DetailTicket) => (
                     <span className="block truncate text-ink" title={ticket.subject}>
                       {ticket.subject}
@@ -440,11 +454,13 @@ export default function CustomerDetail() {
                 {
                   key: 'status',
                   header: 'Status',
+                  nowrap: true,
                   render: (ticket: DetailTicket) => <StatusPill status={ticket.status} />,
                 },
                 {
                   key: 'created',
                   header: 'Opened',
+                  nowrap: true,
                   render: (ticket: DetailTicket) => <span className="text-ink2">{fmtDate(ticket.createdAt)}</span>,
                 },
               ]}
@@ -483,21 +499,26 @@ export default function CustomerDetail() {
                 {
                   key: 'number',
                   header: 'Number',
+                  nowrap: true,
                   render: (order: DetailOrder) => <span className="font-mono text-[13px] text-ink">{order.number}</span>,
                 },
                 {
                   key: 'status',
                   header: 'Status',
+                  nowrap: true,
                   render: (order: DetailOrder) => <StatusPill status={order.status} />,
                 },
                 {
                   key: 'total',
                   header: 'Total',
+                  align: 'right',
+                  nowrap: true,
                   render: (order: DetailOrder) => <Money amount={order.total} currency={order.currency} />,
                 },
                 {
                   key: 'created',
                   header: 'Date',
+                  nowrap: true,
                   render: (order: DetailOrder) => <span className="text-ink2">{fmtDate(order.createdAt)}</span>,
                 },
               ]}

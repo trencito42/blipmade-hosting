@@ -307,16 +307,20 @@ export default function Billing() {
                 {
                   key: 'number',
                   header: 'Number',
+                  nowrap: true,
                   render: (invoice) => <span className="font-mono text-[13px]">{invoice.number}</span>,
                 },
                 {
                   key: 'date',
                   header: 'Date',
+                  nowrap: true,
                   render: (invoice) => <span className="text-[13.5px] text-ink2">{formatDate(invoice.createdAt)}</span>,
                 },
                 {
                   key: 'amount',
                   header: 'Amount',
+                  align: 'right',
+                  nowrap: true,
                   render: (invoice) => (
                     <span className="grid gap-0.5">
                       <Money amount={invoice.total} currency={invoice.currency} />
@@ -330,6 +334,7 @@ export default function Billing() {
                 {
                   key: 'status',
                   header: 'Status',
+                  nowrap: true,
                   render: (invoice) => (
                     <StatusPill status={invoice.status} label={INVOICE_STATUS_LABELS[invoice.status.toUpperCase()] ?? invoice.status} />
                   ),
@@ -337,6 +342,7 @@ export default function Billing() {
                 {
                   key: 'link',
                   header: 'Invoice',
+                  nowrap: true,
                   render: (invoice) =>
                     invoice.hostedUrl ? (
                       <a

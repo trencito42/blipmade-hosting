@@ -5,6 +5,19 @@ import { cn } from '../lib';
 import { Icon } from '../icons';
 import { Link, useParams, useRouter } from '../router';
 import { catalogPath, formatPrice, periodSuffix, productPath } from '../lib/pricing';
+import {
+  configurationFromQuery,
+  deployPathFor,
+  isOrderable,
+  optionCodesFromQuery,
+  orderBlockers,
+  recommendedPreset,
+  recommendedPrice,
+  sameConfiguration,
+  startingConfiguration,
+  startingPrice,
+  type ResourceConfiguration,
+} from '../lib/pricing-contract';
 import { rangeInput } from '../ui';
 import {
   EmptyState,
@@ -28,6 +41,17 @@ import {
 type DeployStep = 1 | 2 | 3 | 4;
 
 const STEP_LABELS = ['Configure', 'Review', 'Payment', 'Provisioning'] as const;
+
+/**
+ * The step of the flow, read from the address. An order in the address means
+ * the customer comes back from the payment page.
+ */
+function stepFromQuery(query: Record<string, string>, orderId: string | null): DeployStep {
+  if (orderId) return 4;
+  const raw = Number(query.step);
+  if (raw === 2 || raw === 3 || raw === 4) return raw;
+  return 1;
+}
 
 const RAM_STEPS_GB = [0.5, 1, 2, 4, 8, 16, 32, 64, 128];
 const CPU_STEPS = [1, 2, 4, 8, 16];
@@ -105,18 +129,51 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/**
+ * A configuration the customer can take in one click, with its price.
+ *
+ * The price is the price of that configuration, calculated by the server. It
+ * is never the price of another one, so a shortcut can never surprise the
+ * customer with a different amount later.
+ */
+function Preset({
+  label,
+  detail,
+  price,
+  active,
+  onClick,
+}: {
+  label: string;
+  detail: string;
+  price: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center justify-between gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+        active ? 'bg-ink text-bg' : 'bg-s2 text-ink hover:bg-s3',
+      )}
+    >
+      <span className="min-w-0">
+        <span className="block text-[14px] font-bold">{label}</span>
+        <span className={cn('block text-[12.5px]', active ? 'opacity-75' : 'text-ink3')}>{detail}</span>
+      </span>
+      <span className="shrink-0 font-mono text-[13.5px] font-semibold">{price}</span>
+    </button>
+  );
+}
+
 export default function Deploy() {
   const { slug = '' } = useParams();
   const { query, navigate } = useRouter();
 
-  const [step, setStep] = useState<DeployStep>(1);
   const [name, setName] = useState('');
-  const [ram, setRam] = useState(0);
-  const [cpu, setCpu] = useState(0);
-  const [disk, setDisk] = useState(0);
-  const [optionCodes, setOptionCodes] = useState<string[]>([]);
   const [promotionCode, setPromotionCode] = useState('');
-  const [orderId, setOrderId] = useState<string | null>(null);
   const [checkoutIssue, setCheckoutIssue] = useState<string | null>(null);
 
   const seeded = useRef<string | null>(null);
@@ -129,14 +186,63 @@ export default function Deploy() {
   );
   const product = productState.data?.product;
 
+  // The configuration, the step and the order live in the address. A refresh,
+  // a link and the back button bring the customer back to the same
+  // deployment, and the page never holds a state the server cannot see.
+  const config = useMemo<ResourceConfiguration | null>(
+    () => (product ? configurationFromQuery(query, product) : null),
+    [product, query],
+  );
+  const optionCodes = useMemo(() => (product ? optionCodesFromQuery(query, product) : []), [product, query]);
+  const orderId = query.order ?? null;
+  const step = useMemo(() => stepFromQuery(query, orderId), [query.step, orderId]);
+
+  const ram = config?.ram ?? 0;
+  const cpu = config?.cpu ?? 0;
+  const disk = config?.disk ?? 0;
+
   useEffect(() => {
     if (!product || seeded.current === product.id) return;
     seeded.current = product.id;
     setName(product.slug);
-    setRam(Math.min(product.maxRam, Math.max(product.minRam, product.defaultRam)));
-    setCpu(Math.min(product.maxCpu, Math.max(product.minCpu, product.defaultCpu)));
-    setDisk(Math.min(product.maxDisk, Math.max(product.minDisk, product.defaultDisk)));
   }, [product]);
+
+  /**
+   * The address of the deploy page with a configuration, a step and an order.
+   * Everything the customer chose travels in it, so the flow can be shared,
+   * reloaded and walked through with the back button.
+   */
+  const address = (overrides: {
+    config?: ResourceConfiguration;
+    options?: string[];
+    step?: DeployStep;
+    order?: string | null;
+  } = {}): string => {
+    const target = overrides.config ?? config ?? { ram: 0, cpu: 0, disk: 0 };
+    const options = overrides.options ?? optionCodes;
+    const extra: Record<string, string> = {};
+    const targetStep = overrides.step ?? step;
+    if (targetStep > 1) extra.step = String(targetStep);
+    const order = overrides.order === undefined ? orderId : overrides.order;
+    if (order) extra.order = order;
+    return deployPathFor(slug, target, options, extra);
+  };
+
+  /** A change of resources keeps the customer on the page. */
+  const applyConfig = (next: Partial<ResourceConfiguration>) => {
+    if (!config) return;
+    navigate(address({ config: { ...config, ...next } }), { replace: true, scroll: false });
+  };
+
+  /** A change of add-ons keeps the customer on the page too. */
+  const applyOptions = (next: string[]) => {
+    navigate(address({ options: next }), { replace: true, scroll: false });
+  };
+
+  /** A step of the flow is a page of its own, so the back button walks back. */
+  const goToStep = (next: DeployStep) => {
+    navigate(address({ step: next }));
+  };
 
   const scale = product ? ramScale(product.maxRam) : 1;
 
@@ -170,7 +276,7 @@ export default function Deploy() {
   const onDisk = (raw: number) => {
     if (!product) return;
     const snapped = product.minDisk + Math.round((raw - product.minDisk) / diskStep) * diskStep;
-    setDisk(Math.min(product.maxDisk, Math.max(product.minDisk, snapped)));
+    applyConfig({ disk: Math.min(product.maxDisk, Math.max(product.minDisk, snapped)) });
   };
 
   // --- quote --------------------------------------------------------------
@@ -235,13 +341,8 @@ export default function Deploy() {
 
   const events = eventsState.data?.events ?? [];
 
-  // Resume an order that was created before a redirect to the payment page.
-  useEffect(() => {
-    const existing = query.order;
-    if (!existing) return;
-    setOrderId(existing);
-    setStep(4);
-  }, [query.order]);
+  // The order of a payment that came back is in the address, so the page
+  // picks it up on its own.
 
   useEffect(() => {
     if (!orderId || orderFinished) return;
@@ -261,10 +362,10 @@ export default function Deploy() {
       ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
     });
     const createdOrder = created.order;
-    setOrderId(createdOrder.id);
     setCheckoutIssue(null);
-    navigate(`/app/deploy/${slug}?order=${createdOrder.id}`, { replace: true });
-    setStep(4);
+    // The configuration stays in the address, so the customer comes back to
+    // the same deployment after the payment.
+    navigate(address({ order: createdOrder.id, step: 4 }), { replace: true });
 
     const checkout = await post<{ url: string | null; message?: string }>(`/orders/${createdOrder.id}/checkout`);
     if (checkout.url) {
@@ -301,10 +402,12 @@ export default function Deploy() {
     );
   }
 
-  if (!product.deployable || !product.visible) {
+  if (!isOrderable(product) || !product.visible) {
     const reasons: string[] = [];
     if (!product.visible) reasons.push('It is not listed in the public catalog.');
-    if (!product.deployable) reasons.push('It has not been validated for deployment yet.');
+    const blockers = orderBlockers(product);
+    if (blockers.length) reasons.push(...blockers);
+    if (!reasons.length) reasons.push('It is not validated for deployment yet.');
     return (
       <div className="grid gap-4">
         <Panel title="Not available to deploy">
@@ -331,6 +434,15 @@ export default function Deploy() {
   const total = quote?.total;
   const currency = quote?.currency ?? product.price?.currency ?? 'EUR';
 
+  // The two configurations the catalog talks about, with their prices. The
+  // starting price is the price of the smallest configuration; the
+  // recommended configuration is a bigger one and has its own price.
+  const startConfiguration = startingConfiguration(product);
+  const startAmount = startingPrice(product);
+  const recommendation = recommendedPreset(product);
+  const recommendationAmount = recommendedPrice(product);
+  const atRecommendation = config ? sameConfiguration(config, recommendation) : false;
+
   const primaryLabel =
     step === 1 ? 'Review order' : step === 2 ? 'Continue to payment' : step === 3 ? 'Pay and deploy' : orderFinished ? 'Open instance' : 'Deploying…';
 
@@ -338,8 +450,8 @@ export default function Deploy() {
     (step === 3 && (!quote || placeOrder.pending)) || (step === 4 && !orderFinished);
 
   const onPrimary = () => {
-    if (step === 1) setStep(2);
-    else if (step === 2) setStep(3);
+    if (step === 1) goToStep(2);
+    else if (step === 2) goToStep(3);
     else if (step === 3) void placeOrder.run();
   };
 
@@ -423,11 +535,24 @@ export default function Deploy() {
                 spellCheck={false}
               />
 
+              {/* The recommended configuration is one click away, and it
+                  carries its own price. The price of the smallest
+                  configuration is in the estimate on the right. */}
+              {recommendationAmount !== null && (
+                <Preset
+                  label="Recommended configuration"
+                  detail={`${formatGb(recommendation.ram, scale)} GB · ${recommendation.cpu} vCPU · ${recommendation.disk} GB disk`}
+                  price={`${formatPrice(recommendationAmount, currency)}${periodSuffix(product.price?.period ?? 'MONTHLY')}`}
+                  active={atRecommendation}
+                  onClick={() => applyConfig(recommendation)}
+                />
+              )}
+
               <div>
                 <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">Memory</p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="Memory in gigabytes">
                   {ramOptions.map((value) => (
-                    <button key={value} type="button" aria-pressed={ram === value} onClick={() => setRam(value)} className={pill(ram === value)}>
+                    <button key={value} type="button" aria-pressed={ram === value} onClick={() => applyConfig({ ram: value })} className={pill(ram === value)}>
                       {formatGb(value, scale)} GB
                     </button>
                   ))}
@@ -440,7 +565,7 @@ export default function Deploy() {
                 </p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="vCPU cores">
                   {cpuOptions.map((value) => (
-                    <button key={value} type="button" aria-pressed={cpu === value} onClick={() => setCpu(value)} className={pill(cpu === value)}>
+                    <button key={value} type="button" aria-pressed={cpu === value} onClick={() => applyConfig({ cpu: value })} className={pill(cpu === value)}>
                       {value}
                     </button>
                   ))}
@@ -481,10 +606,10 @@ export default function Deploy() {
                             type="checkbox"
                             checked={checked}
                             onChange={() =>
-                              setOptionCodes((current) =>
-                                current.includes(option.code)
-                                  ? current.filter((code) => code !== option.code)
-                                  : [...current, option.code],
+                              applyOptions(
+                                optionCodes.includes(option.code)
+                                  ? optionCodes.filter((code) => code !== option.code)
+                                  : [...optionCodes, option.code],
                               )
                             }
                             className="mt-0.5 size-5 shrink-0 accent-acc"
@@ -523,17 +648,33 @@ export default function Deploy() {
               ) : (
                 <p className="text-[14px] text-ink3">Not available yet</p>
               )}
-              {product.price && (
+              {/* The starting price and the recommended price are two prices
+                  of two configurations. They are never mixed up. */}
+              {startAmount !== null && (
                 <p className="text-[12.5px] leading-relaxed text-ink3">
-                  The price of the smallest configuration is{' '}
+                  Starting price{' '}
                   <span className="font-mono text-ink2">
-                    {formatPrice(product.price.amount, product.price.currency)}
-                    {periodSuffix(product.price.period)}
-                  </span>
-                  . The amount above is the price of the configuration you chose.
+                    {formatPrice(startAmount, currency)}
+                    {periodSuffix(product.price?.period ?? 'MONTHLY')}
+                  </span>{' '}
+                  for the smallest configuration: {formatGb(startConfiguration.ram, scale)} GB · {startConfiguration.cpu} vCPU ·{' '}
+                  {startConfiguration.disk} GB disk.
                 </p>
               )}
-              <p className="text-[12.5px] text-ink3">Priced by the server on every change.</p>
+              {recommendationAmount !== null && !atRecommendation && (
+                <p className="text-[12.5px] leading-relaxed text-ink3">
+                  Recommended configuration ({formatGb(recommendation.ram, scale)} GB · {recommendation.cpu} vCPU · {recommendation.disk} GB
+                  disk):{' '}
+                  <span className="font-mono text-ink2">
+                    {formatPrice(recommendationAmount, currency)}
+                    {periodSuffix(product.price?.period ?? 'MONTHLY')}
+                  </span>
+                  .
+                </p>
+              )}
+              <p className="text-[12.5px] text-ink3">
+                The amount above is the price of the configuration you chose. Priced by the server on every change.
+              </p>
             </div>
           </Panel>
         </div>
@@ -763,7 +904,7 @@ export default function Deploy() {
       {/* Desktop action row */}
       <div className="hidden items-center justify-between gap-3 lg:flex">
         {step > 1 && step < 4 ? (
-          <SoftButton onClick={() => setStep(Math.max(1, step - 1) as DeployStep)}>Back</SoftButton>
+          <SoftButton onClick={() => goToStep(Math.max(1, step - 1) as DeployStep)}>Back</SoftButton>
         ) : (
           <span />
         )}
@@ -783,7 +924,7 @@ export default function Deploy() {
             </p>
           </div>
           {step > 1 && step < 4 && (
-            <SoftButton onClick={() => setStep(Math.max(1, step - 1) as DeployStep)} className="shrink-0">
+            <SoftButton onClick={() => goToStep(Math.max(1, step - 1) as DeployStep)} className="shrink-0">
               Back
             </SoftButton>
           )}

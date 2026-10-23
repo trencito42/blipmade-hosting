@@ -7,7 +7,7 @@ export interface RouterState {
   search: string;
   /** Parsed query parameters. */
   query: Record<string, string>;
-  navigate: (to: string, options?: { replace?: boolean }) => void;
+  navigate: (to: string, options?: { replace?: boolean; scroll?: boolean }) => void;
 }
 
 const Ctx = createContext<RouterState>({ path: '/', search: '', query: {}, navigate: () => {} });
@@ -49,12 +49,14 @@ export function Router({ children }: { children: ReactNode }) {
   const value = useMemo<RouterState>(() => {
     const query: Record<string, string> = {};
     for (const [key, val] of new URLSearchParams(state.search)) query[key] = val;
-    const navigate = (to: string, options?: { replace?: boolean }) => {
+    const navigate = (to: string, options?: { replace?: boolean; scroll?: boolean }) => {
       const url = new URL(to, location.origin);
       if (options?.replace) history.replaceState(null, '', url.pathname + url.search + url.hash);
       else history.pushState(null, '', url.pathname + url.search + url.hash);
       setState(readLocation());
-      scrollTo(0, 0);
+      // A page that changes its own address without leaving it does not want
+      // to jump to the top: the customer is in the middle of the page.
+      if (options?.scroll !== false) scrollTo(0, 0);
     };
     return { path: state.path, search: state.search, query, navigate };
   }, [state.path, state.search]);

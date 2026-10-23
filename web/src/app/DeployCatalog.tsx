@@ -9,6 +9,7 @@ import {
   productIcon,
   useCatalogProducts,
 } from '../lib/pricing';
+import { deployPathFor, isOrderable, orderBlockers, startingConfiguration, startingPrice } from '../lib/pricing-contract';
 import { Link } from '../router';
 import { AppMark } from '../ui';
 import { EmptyState, ErrorState, LoadingBlock, Panel, ScrollRow, TextInput } from '../ui-app';
@@ -41,11 +42,14 @@ const idleLink =
   'inline-flex h-11 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink3';
 
 function availability(product: CatalogProduct): { deployable: boolean; label: string; reason: string } {
-  if (!product.deployable) {
+  const blockers = orderBlockers(product);
+  if (!isOrderable(product)) {
     return {
       deployable: false,
-      label: 'Coming soon',
-      reason: 'This product is not validated for deployment yet. You cannot order it today.',
+      label: blockers.length && !product.deployable ? 'Coming soon' : 'Not available',
+      reason: blockers.length
+        ? blockers.join(' ')
+        : 'This product is not validated for deployment yet. You cannot order it today.',
     };
   }
   if (!product.price) {
@@ -60,6 +64,7 @@ function availability(product: CatalogProduct): { deployable: boolean; label: st
 
 function ProductCard({ product }: { product: CatalogProduct }) {
   const state = availability(product);
+  const amount = startingPrice(product);
   const price = product.price;
 
   return (
@@ -102,20 +107,23 @@ function ProductCard({ product }: { product: CatalogProduct }) {
           squeezed into a narrow column and the button is a full-width target. */}
       <div className="mt-auto grid gap-3 sm:flex sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0">
-          {price ? (
+          {amount !== null && price ? (
             <>
               <p className="font-mono text-[19px] font-semibold tracking-[-0.03em] text-ink">
-                {formatPrice(price.amount, price.currency)}
+                {formatPrice(amount, price.currency)}
                 <span className="text-[13px] font-normal text-ink3"> {periodSuffix(price.period)}</span>
               </p>
-              <p className="text-[12px] leading-relaxed text-ink3">Starting price. You choose the resources on the next screen.</p>
+              <p className="text-[12px] leading-relaxed text-ink3">
+                Starting price, for the smallest configuration: {memLabel(product.minRam)} · {product.minCpu} vCPU · {product.minDisk} GB.
+                You choose the resources on the next screen.
+              </p>
             </>
           ) : (
             <p className="text-[13.5px] text-ink3">No price yet.</p>
           )}
         </div>
         {state.deployable ? (
-          <Link to={`/app/deploy/${encodeURIComponent(product.slug)}`} className={cn(deployLink, 'w-full sm:w-auto')}>
+          <Link to={deployPathFor(product.slug, startingConfiguration(product))} className={cn(deployLink, 'w-full sm:w-auto')}>
             Deploy
             <Icon name="arrowUR" size={15} />
           </Link>
@@ -157,7 +165,7 @@ export default function DeployCatalog() {
   }, [products, query, category]);
 
   const deployableCount = useMemo(
-    () => products.filter((product) => product.deployable && product.price).length,
+    () => products.filter((product) => isOrderable(product)).length,
     [products],
   );
 

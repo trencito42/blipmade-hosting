@@ -24,6 +24,7 @@ import {
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, fmtDateTime, type TabProps } from './common';
+import type { TableColumn } from '../../lib/table';
 import type { ScheduleAction } from '../../lib/instance-api';
 
 /**
@@ -110,25 +111,29 @@ export default function SchedulesTab({ instance }: TabProps) {
     }
   };
 
-  const columns = [
+  const columns: TableColumn<(typeof rows)[number]>[] = [
     {
       key: 'name',
       header: 'Schedule',
+      truncate: true,
       render: (row: (typeof rows)[number]) => <span className="break-words">{row.name}</span>,
     },
     {
       key: 'cron',
       header: 'When',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => <span className="font-mono">{row.cron}</span>,
     },
     {
       key: 'action',
       header: 'Action',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => <span className="capitalize">{String(row.action)}</span>,
     },
     {
       key: 'next',
       header: 'Next run',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => (
         <span className="whitespace-nowrap font-mono text-[13px]">
           {row.next_run ? fmtDateTime(row.next_run) : '—'}
@@ -138,6 +143,7 @@ export default function SchedulesTab({ instance }: TabProps) {
     {
       key: 'state',
       header: 'State',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => (
         <StatusPill status={row.active ? 'active' : 'paused'} label={row.active ? 'Active' : 'Paused'} />
       ),
@@ -145,6 +151,7 @@ export default function SchedulesTab({ instance }: TabProps) {
     {
       key: 'actions',
       header: '',
+      align: 'right',
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
           <SoftButton onClick={() => run(row.id)}>Run now</SoftButton>

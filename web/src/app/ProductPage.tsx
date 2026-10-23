@@ -5,12 +5,21 @@ import { useAsync } from '../lib/useAsync';
 import {
   catalogPath,
   categoryLabel,
-  deployPath,
   formatPrice,
   memLabel,
   periodLabel,
   productIcon,
 } from '../lib/pricing';
+import {
+  deployPathFor,
+  isOrderable,
+  orderBlockers,
+  recommendedPreset,
+  recommendedPrice,
+  sameConfiguration,
+  startingConfiguration,
+  startingPrice,
+} from '../lib/pricing-contract';
 import { Link, useParams } from '../router';
 import { useSession } from '../session';
 import { AppMark, Button, Eyebrow, Headline, Wrap } from '../ui';
@@ -130,12 +139,19 @@ export default function ProductPage() {
   }
 
   const isDatabase = product.category === 'DATABASES';
-  const target = deployPath(product.slug);
+  // The deploy button carries the configuration the starting price is the
+  // price of, so the configurator starts where the page promised.
+  const startConfiguration = startingConfiguration(product);
+  const target = deployPathFor(product.slug, startConfiguration);
   // A visitor without a session is sent to the login with the same path. While
   // the session is still being checked the deploy page is used: its guard
   // sends a visitor to the login anyway.
   const deployHref = user || sessionLoading ? target : `/login?next=${encodeURIComponent(target)}`;
-  const orderable = product.deployable && Boolean(product.price);
+  const orderable = isOrderable(product);
+  const blockers = orderBlockers(product);
+  const startAmount = startingPrice(product);
+  const recommendation = recommendedPreset(product);
+  const recommendationAmount = recommendedPrice(product);
 
   return (
     <PublicShell>
@@ -161,15 +177,26 @@ export default function ProductPage() {
             <p className="mt-5 max-w-[56ch] text-[17px] leading-relaxed text-ink2">{product.description}</p>
 
             <div className="mt-7">
-              {product.price ? (
+              {startAmount !== null ? (
                 <>
                   <p className="flex flex-wrap items-baseline gap-2">
                     <span className="font-mono text-[clamp(26px,4vw,34px)] font-semibold tracking-[-0.04em] text-ink">
-                      {formatPrice(product.price.amount, product.price.currency)}
+                      {formatPrice(startAmount, product.price?.currency ?? 'EUR')}
                     </span>
-                    <span className="text-[14px] text-ink3">{periodLabel(product.price.period)}</span>
+                    <span className="text-[14px] text-ink3">{periodLabel(product.price?.period ?? 'MONTHLY')}</span>
                   </p>
-                  <p className="mt-1 text-[13.5px] text-ink3">Starting price. The resources are chosen on the next screen.</p>
+                  {/* The price on this page belongs to one configuration, and
+                      that configuration is named here. */}
+                  <p className="mt-1 text-[13.5px] text-ink3">
+                    Starting price, for the smallest configuration: {memLabel(startConfiguration.ram)} · {startConfiguration.cpu} vCPU ·{' '}
+                    {startConfiguration.disk} GB. The resources are chosen on the next screen.
+                  </p>
+                  {recommendationAmount !== null && !sameConfiguration(startConfiguration, recommendation) && (
+                    <p className="mt-1 text-[13.5px] text-ink3">
+                      The recommended configuration ({memLabel(recommendation.ram)} · {recommendation.cpu} vCPU · {recommendation.disk} GB) costs{' '}
+                      {formatPrice(recommendationAmount, product.price?.currency ?? 'EUR')} {periodLabel(product.price?.period ?? 'MONTHLY')}.
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className="text-[15px] text-ink3">Not priced yet.</p>
@@ -188,9 +215,9 @@ export default function ProductPage() {
                 </div>
               ) : (
                 <p className="rounded-2xl bg-s2 px-4 py-3.5 text-[14.5px] leading-relaxed text-ink2">
-                  {product.deployable
-                    ? 'This product has no price yet, so it cannot be ordered.'
-                    : 'This product cannot be ordered yet. It is not validated for deployment.'}
+                  {blockers.length
+                    ? `This product cannot be ordered yet. ${blockers.join(' ')}`
+                    : 'This product cannot be ordered yet.'}
                 </p>
               )}
             </div>

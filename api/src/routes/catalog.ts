@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { Prisma } from '@prisma/client';
+import type { BillingPeriod, Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { notFound } from '../lib/errors.js';
-import { buildQuote } from '../services/pricing.js';
+import { buildQuote, priceBook } from '../services/pricing.js';
+import { deploymentAvailability } from '../services/availability.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -32,11 +33,40 @@ function serializeProduct(product: {
   maxDisk: number;
   visible: boolean;
   deployable: boolean;
+  eggId: number | null;
   docsUrl: string | null;
-  prices: { baseAmount: number; currency: string; period: string; active: boolean }[];
+  prices: {
+    baseAmount: number;
+    ramPerGb: number;
+    cpuPerUnit: number;
+    diskPerGb: number;
+    currency: string;
+    period: BillingPeriod;
+    active: boolean;
+  }[];
   options: { code: string; name: string; description: string | null; amount: number; currency: string; active: boolean }[];
 }) {
   const price = product.prices.find((p) => p.active && p.period === 'MONTHLY') ?? product.prices.find((p) => p.active);
+  // The availability is derived from the product itself, so the catalog, the
+  // quote and the order always answer the same way.
+  const availability = deploymentAvailability({
+    name: product.name,
+    deployable: product.deployable,
+    eggId: product.eggId,
+  });
+  // The price book: what the minimum configuration costs (the starting price
+  // of the catalog) and what the recommended one costs. Both are calculated
+  // with the function that prices an order.
+  const book = price
+    ? priceBook(product, {
+        baseAmount: price.baseAmount,
+        ramPerGb: price.ramPerGb,
+        cpuPerUnit: price.cpuPerUnit,
+        diskPerGb: price.diskPerGb,
+        currency: price.currency,
+        period: price.period,
+      })
+    : null;
   return {
     id: product.id,
     slug: product.slug,
@@ -55,8 +85,18 @@ function serializeProduct(product: {
     maxDisk: product.maxDisk,
     visible: product.visible,
     deployable: product.deployable,
+    eggId: product.eggId,
     docsUrl: product.docsUrl,
     price: price ? { amount: price.baseAmount, currency: price.currency, period: price.period } : null,
+    pricing: book
+      ? {
+          currency: book.currency,
+          period: book.period,
+          minimum: book.minimum,
+          recommended: book.recommended,
+        }
+      : null,
+    availability,
     options: product.options
       .filter((option) => option.active)
       .map((option) => ({

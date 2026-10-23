@@ -168,6 +168,7 @@ describe('admin area', () => {
         minDisk: 5,
         visible: true,
         deployable: false,
+        eggId: 5,
       },
     });
 

@@ -29,6 +29,8 @@ interface SeedInput {
   name?: string;
   visible?: boolean;
   deployable?: boolean;
+  /** The egg of the panel. Without it the panel cannot build the product. */
+  eggId?: number | null;
   /** The monthly price in cents. `null` creates the product without a price. */
   amount?: number | null;
   /** A price can exist and still be inactive. */
@@ -36,7 +38,7 @@ interface SeedInput {
 }
 
 async function seedProduct(input: SeedInput) {
-  const { slug, name, visible, deployable, amount, active } = input;
+  const { slug, name, visible, deployable, eggId, amount, active } = input;
   return prisma.product.create({
     data: {
       slug,
@@ -55,6 +57,7 @@ async function seedProduct(input: SeedInput) {
       maxDisk: 100,
       visible: visible ?? true,
       deployable: deployable ?? true,
+      eggId: eggId === undefined ? 1 : eggId,
       ...(amount === null
         ? {}
         : {
@@ -101,8 +104,8 @@ describe('public catalog', () => {
   });
 
   it('reports whether a product can be deployed', async () => {
-    await seedProduct({ slug: 'discord-bot', deployable: true, amount: 749 });
-    await seedProduct({ slug: 'wordpress', deployable: false, amount: 149 });
+    await seedProduct({ slug: 'discord-bot', deployable: true, eggId: 4, amount: 749 });
+    await seedProduct({ slug: 'wordpress', deployable: false, eggId: 4, amount: 149 });
 
     const client = makeClient(app);
     const response = await client.request('GET', '/api/catalog/products');
@@ -111,6 +114,26 @@ describe('public catalog', () => {
     const bySlug = Object.fromEntries(response.body.products.map((product: { slug: string }) => [product.slug, product]));
     expect(bySlug['discord-bot'].deployable).toBe(true);
     expect(bySlug['wordpress'].deployable).toBe(false);
+    // The availability is the answer that counts, and it is derived from the
+    // product: a product the panel cannot build is not orderable.
+    expect(bySlug['discord-bot'].availability.orderable).toBe(true);
+    expect(bySlug['wordpress'].availability.orderable).toBe(false);
+  });
+
+  it('is not orderable when the panel cannot build the product', async () => {
+    // The flag says yes, but there is no egg mapping, so the deployment would
+    // fail at the step "server_created".
+    await seedProduct({ slug: 'wordpress', deployable: true, eggId: null, amount: 149 });
+
+    const client = makeClient(app);
+    const response = await client.request('GET', '/api/catalog/products');
+
+    expect(response.status).toBe(200);
+    const product = response.body.products[0];
+    expect(product.deployable).toBe(true);
+    expect(product.availability.orderable).toBe(false);
+    expect(product.availability.installable).toBe(false);
+    expect(product.availability.blockers.length).toBeGreaterThan(0);
   });
 
   it('returns every amount as an integer number of cents', async () => {

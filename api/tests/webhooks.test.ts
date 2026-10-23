@@ -36,6 +36,7 @@ async function seedProduct() {
       maxCpu: 4,
       maxDisk: 100,
       deployable: true,
+      eggId: 1,
       prices: { create: { period: 'MONTHLY', baseAmount: 149, currency: 'EUR' } },
     },
   });

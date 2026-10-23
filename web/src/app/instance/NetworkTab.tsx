@@ -23,6 +23,7 @@ import {
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, type TabProps } from './common';
+import type { TableColumn } from '../../lib/table';
 
 /**
  * The addresses of the instance.
@@ -96,10 +97,11 @@ export default function NetworkTab({ instance }: TabProps) {
     }
   };
 
-  const columns = [
+  const columns: TableColumn<(typeof rows)[number]>[] = [
     {
       key: 'address',
       header: 'Address',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => (
         <span className="font-mono">
           {row.ip}:{row.port}
@@ -109,17 +111,20 @@ export default function NetworkTab({ instance }: TabProps) {
     {
       key: 'alias',
       header: 'Name',
+      truncate: true,
       render: (row: (typeof rows)[number]) => <span className="font-mono">{row.alias || '—'}</span>,
     },
     {
       key: 'state',
       header: 'State',
+      nowrap: true,
       render: (row: (typeof rows)[number]) =>
         row.is_default ? <StatusPill status="primary" label="Primary" /> : <StatusPill status="extra" label="Extra" />,
     },
     {
       key: 'actions',
       header: '',
+      align: 'right',
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
           {!row.is_default && <SoftButton onClick={() => makePrimary(row.id)}>Make primary</SoftButton>}

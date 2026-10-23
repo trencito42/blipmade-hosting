@@ -14,6 +14,7 @@ import {
   storeCustomerCredential,
 } from '../services/panel/credentials.js';
 import { externalIdFor } from '../services/panel/identity.js';
+import { deploymentAvailability } from '../services/availability.js';
 import { env } from '../env.js';
 
 const money = (amount: number) => amount / 100;
@@ -375,6 +376,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         deployable: product.deployable,
         eggId: product.eggId,
         dockerImage: product.dockerImage,
+        // What the catalog and the ordering will answer for this product.
+        availability: deploymentAvailability(product),
         minRam: product.minRam,
         minCpu: product.minCpu,
         minDisk: product.minDisk,
@@ -432,6 +435,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const existing = await prisma.product.findUnique({ where: { slug: body.slug } });
     if (existing) throw conflict('A product with this slug already exists.');
+
+    // A product can only be opened for ordering when the panel can build it.
+    // A product without an egg mapping can never be deployed, so it must not
+    // be sellable either.
+    if (body.deployable && (body.eggId === null || body.eggId === undefined)) {
+      throw badRequest('Set the panel egg of the product before it can be ordered. A product without an egg can never be deployed.');
+    }
 
     const product = await prisma.product.create({
       data: {
@@ -491,6 +501,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) throw notFound('Product not found.');
+
+    // Opening a product for ordering needs a product the panel can build.
+    // Without an egg mapping the deployment fails at the step "server_created",
+    // so the flag must not be set on a product that has none.
+    if (body.deployable === true) {
+      const eggId = body.eggId !== undefined ? body.eggId : product.eggId;
+      if (eggId === null || eggId === undefined) {
+        throw badRequest('Set the panel egg of the product before it can be ordered. A product without an egg can never be deployed.');
+      }
+    }
 
     const data = { ...body } as Record<string, unknown>;
     if (body.healthProbe === null) data.healthProbe = Prisma.JsonNull;

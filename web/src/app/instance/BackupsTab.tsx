@@ -17,6 +17,7 @@ import {
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, fmtBytes, fmtDateTime, type TabProps } from './common';
+import type { TableColumn } from '../../lib/table';
 
 /**
  * The backups of the instance.
@@ -90,20 +91,24 @@ export default function BackupsTab({ instance }: TabProps) {
     }
   };
 
-  const columns = [
+  const columns: TableColumn<(typeof rows)[number]>[] = [
     {
       key: 'name',
       header: 'Backup',
+      truncate: true,
       render: (row: (typeof rows)[number]) => <span className="break-words">{row.name}</span>,
     },
     {
       key: 'size',
       header: 'Size',
+      align: 'right',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => <span className="font-mono">{fmtBytes(row.size)}</span>,
     },
     {
       key: 'created',
       header: 'Created',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => (
         <span className="whitespace-nowrap font-mono text-[13px]">{fmtDateTime(row.created_at)}</span>
       ),
@@ -111,6 +116,7 @@ export default function BackupsTab({ instance }: TabProps) {
     {
       key: 'state',
       header: 'State',
+      nowrap: true,
       render: (row: (typeof rows)[number]) => (
         <StatusPill status={row.is_locked ? 'locked' : 'available'} label={row.is_locked ? 'Locked' : 'Available'} />
       ),
@@ -118,6 +124,7 @@ export default function BackupsTab({ instance }: TabProps) {
     {
       key: 'actions',
       header: '',
+      align: 'right',
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
           <SoftButton onClick={() => download(row.id, row.name)}>Download</SoftButton>

@@ -35,6 +35,7 @@ async function seedProduct(overrides: Record<string, unknown> = {}) {
       maxCpu: 4,
       maxDisk: 100,
       deployable: true,
+      eggId: 1,
       prices: {
         create: {
           period: 'MONTHLY',

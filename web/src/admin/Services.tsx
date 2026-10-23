@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import type { TableColumn } from '../lib/table';
 import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
@@ -164,6 +165,7 @@ export default function Services() {
                   {
                     key: 'name',
                     header: 'Instance',
+                    truncate: true,
                     render: (service: AdminService) => (
                       <span className="block min-w-0">
                         <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={service.name}>
@@ -178,6 +180,7 @@ export default function Services() {
                   {
                     key: 'customer',
                     header: 'Customer',
+                    truncate: true,
                     render: (service: AdminService) =>
                       service.customer?.id ? (
                         <Link
@@ -193,37 +196,44 @@ export default function Services() {
                   {
                     key: 'resources',
                     header: 'Resources',
+                    nowrap: true,
                     render: (service: AdminService) => resources(service),
                   },
                   {
                     key: 'price',
                     header: 'Price',
+                    align: 'right',
+                    nowrap: true,
                     render: (service: AdminService) => <Money amount={service.price} currency={service.currency} period="month" />,
                   },
                   {
                     key: 'status',
                     header: 'Status',
+                    nowrap: true,
                     render: (service: AdminService) => <StatusPill status={service.status} />,
                   },
                   {
                     key: 'server',
                     header: 'Pterodactyl id',
+                    nowrap: true,
                     render: (service: AdminService) => (
                       <span className="font-mono text-[12.5px] text-ink2">{service.pterodactylServerId ?? DASH}</span>
                     ),
                   },
                   ...(mayWrite
-                    ? [
+                    ? ([
                         {
                           key: 'retry',
                           header: 'Action',
+                          align: 'right',
+                          nowrap: true,
                           render: (service: AdminService) => (
                             <button type="button" onClick={() => openRetry(service)} className={denseDanger}>
                               Retry provisioning
                             </button>
                           ),
                         },
-                      ]
+                      ] satisfies TableColumn<AdminService>[])
                     : []),
                 ]}
               />
