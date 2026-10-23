@@ -42,7 +42,7 @@ N_max(config) = min( SAFE_VCPU_POOL_PER_NODE / vcpu_per_instance,      ← 16 vC
 | €5.90 | 4096 MB / 4 / 49 GB | 4 | **€23.60** | −€37.40 |
 | **€9.99 (recomandat)** | 512 MB / 1 / 5 GB, `baseAmount` 976 | 16 | **€159.84** | **+€98.84** |
 
-> **Corectură necesară înainte de a folosi cifrele din alte documente:** `03-capacity-model.md` §2.8 afirmă „16 × 262 = **4 192 EUR/lună**". 262 sunt unități minori ⇒ `16 × 262 = 4 192 minor = **€41.92/lună**`. E exact eroarea de 100× pe care `05-pricing-consistency.md` §0 semnalează. **Plafonul real al nodului la lista proprie de prețuri este €23.84–€36.48/lună.** **Actualizare:** sursa a fost corectată în această rundă în `03-capacity-model.md` §2.8; cifra de mai sus rămâne cea corectă.
+> **Notă de reconciliere.** `03-capacity-model.md` §2.8 conținea o eroare de 100× („16 × 262 = **4 192 EUR/lună**"). **Eroarea a fost corectată în această rundă**: textul spune acum „4 192 **unități minori** = **41,92 EUR/lună**". Cifra de mai sus (€23.84–€36.48/lună ca plafon de venit al nodului la lista proprie de prețuri) rămâne cea corectă.
 
 ---
 

@@ -207,7 +207,16 @@ Raportul perete înapoi cu culoarea textului, **compusând alpha-ul suprafeței 
 
 `VERIFIED` — raportul relativ de luminanță WCAG, calculat din valorile `getComputedStyle` ale fiecărui element de text.
 
-**`--ink-3` este singurul token care eșuează.** El eșuează pe trei suprafețe (`s2`, `s3`, `acc-bg`) și e folosit pe **toate cele 30 de pagini** măsurate — în total **86 de elemente de text** măsurate ca sub prag, în 22 de pagini.
+**`--ink-3` este singurul token care eșuează — și singurul.** Din **63 de elemente de text** aflați sub prag pe 31 de pagini măsurate, **toate cele 63** au culoarea `#7b827b`. Nu există nicio altă pereche de culori care să eșueze. Distribuția:
+
+| pereche | raport | prag | elemente | pagini |
+|---|---|---|---|---|
+| `#7b827b` pe `#1a1d1a` (`--s2`) | 4.31 | 4.5 | **56** | 20 |
+| `#7b827b` pe `#232823` (`--s3`) | 3.80 | 4.5 | **4** | 4 |
+| `#7b827b` pe `#12291b` (`--acc-bg`) | 3.92 | 4.5 | **3** | 3 |
+| orice altă pereche | — | — | **0** | 0 |
+
+`VERIFIED` — `audit/_tools/a11y-report.json`, grupat pe perechea (foreground, background).
 
 Cazuri concrete, cu selectorul, măsurătoarea și fixul:
 
@@ -217,7 +226,7 @@ Cazuri concrete, cu selectorul, măsurătoarea și fixul:
 | A-2 | `.text-ink3` pe `--s3` | „3 KB" (pagina de start), „Coming soon" (`/app/deploy`), „Preview · minimum configuration", „/ month" (`/admin/pricing`) | `#7b827b` / `#232823` | **3.80** | 4.5 | 1.4.3 | `--color-ink3: #8a9090` → 4.63 pe `s3` |
 | A-3 | `.text-ink3` pe `--acc-bg` | „sample", „Deploy" (`/`), „23 Oct 2026, 07:20" (`/app/tickets/:id`) | `#7b827b` / `#12291b` | **3.92** | 4.5 | 1.4.3 | `--color-ink3: #8a9090` → 4.76 pe `acc-bg` |
 
-**Un singur rând de CSS repară toate cele 86 de elemente.** Valoarea propusă `#8a9090` păstrează aceeași nuanță (decalarea +6/+6 pe canalele roșu și verde a lui `#7b827b`) și trece pragul pe toate cele trei suprafețe: `s2` 5.24, `s3` 4.63, `acc-bg` 4.76, `bg` 6.11. `VERIFIED` (rapoartele calculate).
+**Un singur rând de CSS repară toate cele 63 de elemente, din 20 de pagini.** Valoarea propusă `#8a9090` păstrează aceeași nuanță (decalarea +6/+6 pe canalele roșu și verde a lui `#7b827b`) și trece pragul pe toate cele trei suprafețe: `s2` 5.24, `s3` 4.63, `acc-bg` 4.76, `bg` 6.11. `VERIFIED` (rapoartele calculate).
 
 **Un buton cu text alb pe roșu — 2.78:1.** Măsurat în browser, pe pagina reală a instanței, cu dialogul de confirmare deschis (`audit/screenshots/a11y-confirm-dialog.png`):
 
@@ -290,8 +299,10 @@ Măsurat din DOM (`getBoundingClientRect`), pe toate paginile.
 | T-2 | `app/Tickets.tsx` — `a.block.truncate.font-bold` (titlul fiecărui ticket, 11 elemente) | înălțime **21** | „Panel check 2026-10-23T08:16:11", „My Discord bot keeps crashing…" | 2.5.8 | `py-1` pe rând, sau `min-h-11` pe link |
 | T-3 | `app/Overview.tsx:307` — linkul numelui instanței | **145.2×23.3** | „Discord Bot" | 2.5.8 | `py-1` |
 | T-4 | `app/InstanceDetail.tsx` — linkul „Instances" | **62.8×19.5** | „Instances" | 2.5.8 | `py-1` |
-| T-5 | `app/ProductPage.tsx:147` — linkul „← Back to the catalog" | înălțime **20.3** | „← Back to the catalog" | 2.5.8 | `py-1` |
-| T-6 | `/` și `/apps` — `input` de căutare | **503×21** / **320×24** | „Search apps and databases" | 2.5.8 (înălțimea) | câmpul e într-un `<label>` de 48 px, deci ținta reală e 48 px; totuși inputul trebuie să aibă `h-full` |
+| T-5 | `app/ProductPage.tsx:147` — linkul „← Back to the catalog" | **147×20** | „← Back to the catalog" | 2.5.8 | `py-1` |
+| T-6 | `home/Catalog.tsx:126` — numele produsului în card | **172×23** | „WordPress", „Code Server" | 2.5.8 | `py-1` |
+| T-7 | `home/Catalog.tsx:126` și `home/Studio.tsx:149` — câmpul de căutare | **228×24** / **155×23** | „Search apps and databases" | 2.5.8 (înălțimea) | câmpul e într-un `<label>` de 48 px, deci ținta reală e 48 px; totuși inputul trebuie să aibă `h-full` |
+| T-8 | `/` și `/apps` — câmpul de căutare | **503×21** / **320×24** | „Search apps and databases" | 2.5.8 (înălțimea) | idem |
 
 `VERIFIED` — `audit/_tools/a11y-report.json`, câmpul `small`; măsurători re-verificate în `audit/_tools/tab-dump.mjs`.
 
@@ -336,7 +347,7 @@ Vezi §2.4. Rezumat: clasele proprii sunt oprite corect; **166** de elemente cu 
 
 | Criteriu | Stare | Dovezi |
 |---|---|---|
-| 1.4.3 Contrast (Minimum) | **3 probleme** | `--ink-3` pe 3 suprafețe (86 elemente); alb pe `bg-bad` (2.78); `--ink` pe `bg-bad` (2.55) |
+| 1.4.3 Contrast (Minimum) | **1 cauză, 63 de elemente, 20 de pagini** | `--ink-3` pe 3 suprafețe; **zero** alte eșecuri |
 | 1.4.11 Non-text Contrast | ok | inelul verde 2.78:1 peste `bg`… **de verificat**: raportul inelului `--acc` pe `--bg` = 12.55, peste `--s2` = 10.76 — peste 3:1 |
 | 1.4.1 Use of Color | 1 caz | câmpul de căutare își schimbă doar fundalul la focus |
 | 2.4.7 Focus Visible | **3 controale** fără indicator efectiv (2 câmpuri de căutare) |
@@ -381,7 +392,7 @@ Problemele sunt **la margine**, nu în centru: trei butoane periculoase desenate
 
 | ID | Sev | Problemă | Fișier | Verificare |
 |---|---|---|---|---|
-| DS-01 | **Mare** | `--color-ink3` = `#7b827b` nu trece 4.5:1 pe `--s2` (4.31), `--s3` (3.80) și `--acc-bg` (3.92). 86 de elemente pe 22 de pagini | `web/src/index.css:49` | `VERIFIED` |
+| DS-01 | **Mare** | `--color-ink3` = `#7b827b` nu trece 4.5:1 pe `--s2` (4.31), `--s3` (3.80) și `--acc-bg` (3.92). **63 de elemente pe 20 de pagini** | `web/src/index.css:49` | `VERIFIED` |
 | DS-02 | **Mare** | Butonul de confirmare al dialogului: alb pe `--bad` = 2.78:1 | `web/src/ui-app.tsx:1023` | `VERIFIED` |
 | DS-03 | **Mare** | Butonul periculos din panoul de staff: `--ink` pe `--bad` = 2.55:1 | `web/src/admin/Overview.tsx:192` | `CODE-INSPECTED` |
 | DS-04 | **Mediu** | 42 de casete de permisiuni la 16×16 px | `web/src/admin/Staff.tsx` | `VERIFIED` |

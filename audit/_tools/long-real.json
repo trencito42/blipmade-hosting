@@ -1,0 +1,231 @@
+[
+  {
+    "width": 320,
+    "page": "/app/tickets",
+    "found": true,
+    "subject": 100,
+    "rowWidth": 0,
+    "rowScrollWidth": 0,
+    "rowClientWidth": 0,
+    "rowOverflow": 0,
+    "rowTextOverflow": "clip",
+    "rowWhiteSpace": "normal",
+    "cellWidth": 0,
+    "cellScrollWidth": 0,
+    "cellOverflow": 0,
+    "cellTextOverflow": "clip",
+    "linkText": "My Discord bot keeps crashing after the latest update and I cannot open the console to read the logs",
+    "linkVisibleWidth": 0,
+    "linkScrollWidth": 0,
+    "rowRight": 0,
+    "viewport": 320
+  },
+  {
+    "width": 190,
+    "page": "/app/tickets/:id",
+    "found": true,
+    "tag": "h2",
+    "cls": "text-[17px] font-extrabold tracking-[-0.03em] text-ink",
+    "scrollWidth": 190,
+    "overflow": 0,
+    "textOverflow": "clip",
+    "whiteSpace": "normal",
+    "overflowWrap": "normal",
+    "wordBreak": "normal",
+    "parentWidth": 190,
+    "parentOverflow": 0,
+    "parentTextOverflow": "clip",
+    "parentWhiteSpace": "normal",
+    "parentOverflowWrap": "normal"
+  },
+  {
+    "width": 390,
+    "page": "/app/tickets",
+    "found": true,
+    "subject": 100,
+    "rowWidth": 0,
+    "rowScrollWidth": 0,
+    "rowClientWidth": 0,
+    "rowOverflow": 0,
+    "rowTextOverflow": "clip",
+    "rowWhiteSpace": "normal",
+    "cellWidth": 0,
+    "cellScrollWidth": 0,
+    "cellOverflow": 0,
+    "cellTextOverflow": "clip",
+    "linkText": "My Discord bot keeps crashing after the latest update and I cannot open the console to read the logs",
+    "linkVisibleWidth": 0,
+    "linkScrollWidth": 0,
+    "rowRight": 0,
+    "viewport": 390
+  },
+  {
+    "width": 260,
+    "page": "/app/tickets/:id",
+    "found": true,
+    "tag": "h2",
+    "cls": "text-[17px] font-extrabold tracking-[-0.03em] text-ink",
+    "scrollWidth": 260,
+    "overflow": 0,
+    "textOverflow": "clip",
+    "whiteSpace": "normal",
+    "overflowWrap": "normal",
+    "wordBreak": "normal",
+    "parentWidth": 260,
+    "parentOverflow": 0,
+    "parentTextOverflow": "clip",
+    "parentWhiteSpace": "normal",
+    "parentOverflowWrap": "normal"
+  },
+  {
+    "width": 1280,
+    "page": "/app/tickets",
+    "found": true,
+    "subject": 100,
+    "rowWidth": 548,
+    "rowScrollWidth": 1027,
+    "rowClientWidth": 548,
+    "rowOverflow": 479,
+    "rowTextOverflow": "clip",
+    "rowWhiteSpace": "normal",
+    "cellWidth": 684,
+    "cellScrollWidth": 684,
+    "cellOverflow": 0,
+    "cellTextOverflow": "clip",
+    "linkText": "My Discord bot keeps crashing after the latest update and I cannot open the console to read the logs",
+    "linkVisibleWidth": 660,
+    "linkScrollWidth": 660,
+    "rowRight": 864,
+    "viewport": 1280
+  },
+  {
+    "width": 784,
+    "page": "/app/tickets/:id",
+    "found": true,
+    "tag": "h2",
+    "cls": "text-[17px] font-extrabold tracking-[-0.03em] text-ink",
+    "scrollWidth": 784,
+    "overflow": 0,
+    "textOverflow": "clip",
+    "whiteSpace": "normal",
+    "overflowWrap": "normal",
+    "wordBreak": "normal",
+    "parentWidth": 784,
+    "parentOverflow": 0,
+    "parentTextOverflow": "clip",
+    "parentWhiteSpace": "normal",
+    "parentOverflowWrap": "normal"
+  },
+  {
+    "width": 320,
+    "page": "/app",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "23 Oct 2026",
+      "lastBottom": 609,
+      "hidden": false,
+      "atBottom": true
+    }
+  },
+  {
+    "width": 320,
+    "page": "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "Cancel instance",
+      "lastBottom": 636,
+      "hidden": false,
+      "atBottom": true
+    }
+  },
+  {
+    "width": 320,
+    "page": "/app/tickets",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "Open",
+      "lastBottom": 618,
+      "hidden": false,
+      "atBottom": true
+    }
+  },
+  {
+    "width": 320,
+    "page": "/app/settings",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "Ask for the account to be closed",
+      "lastBottom": 1695,
+      "hidden": true,
+      "atBottom": false
+    }
+  },
+  {
+    "width": 390,
+    "page": "/app",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "23 Oct 2026",
+      "lastBottom": 609,
+      "hidden": false,
+      "atBottom": true
+    }
+  },
+  {
+    "width": 390,
+    "page": "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "Cancel instance",
+      "lastBottom": 636,
+      "hidden": false,
+      "atBottom": true
+    }
+  },
+  {
+    "width": 390,
+    "page": "/app/tickets",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "Open",
+      "lastBottom": 618,
+      "hidden": false,
+      "atBottom": true
+    }
+  },
+  {
+    "width": 390,
+    "page": "/app/settings",
+    "bar": {
+      "barTop": 709,
+      "barHeight": 71,
+      "mainPaddingBottom": "128px",
+      "bodyPaddingBottom": "0px",
+      "lastText": "Ask for the account to be closed",
+      "lastBottom": 1676,
+      "hidden": true,
+      "atBottom": false
+    }
+  }
+]

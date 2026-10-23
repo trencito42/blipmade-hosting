@@ -11,9 +11,9 @@
 
 1. **Portofoliul de azi este o greșeală, dar nu pentru motivul la care te-ai gândi.** Nu este greșeală că vinde „apps și baze de date" pe un nod de gaming — este greșeală că **vinde patru produse care nu pot fi livrate** (`deployable = false`) cu **prețuri afișate**, în timp ce **singurul produs care poate fi livrat** (`discord-bot`, €1.72/lună) nu poate fi plătit, pentru că plățile sunt oprite pe VM 103 (`PAYMENTS_ENABLED=false`, `STRIPE_SECRET_KEY` gol, măsurat 2026-10-23).
 2. **Hardware-ul și panoul sunt un joc de serveruri, nu o platformă de aplicații.** 16 egg-uri de joc, 173 alocări pregătite, 20 vCPU Broadwell 2016, 120 GiB RAM, 800 GiB disc. Niciun egg de CMS, niciun egg de bază de date, niciun egg de monitoring.
-3. **Produsul de lansat este Minecraft (Paper), la ~€3.89/lună pentru 4 GB / 2 vCPU / 25 GB**, cu un plafon de **16 instanțe** (= 16 clienți) — preț sub toți cei trei furnizori români verificați (€3.99 / €4.49 / €4.74 la aceeași specificație).
+3. **Produsul de lansat este Minecraft (Paper), la €4.09/lună pentru 4 GB / 1 vCPU / 25 GB** (tierul de 2 vCPU: €4.49; 6 GB / 2 vCPU / 40 GB: €5.99), cu un plafon de **16 instanțe** — dar numai dacă fiecare ia **1 vCPU**: cu 2 vCPU, nodul duce doar 8. Prețul de intrare e **la nivelul pieței** (Zentaris: €4.49 la 4 GB / 2 vCPU), nu sub el, pentru că unit economics-ul nu permite subcotarea (`08-product-launch-order.md` §7).
 4. **Două lucruri lipsesc și se vând înaintea oricărui joc:** backup (nu există niciunul, `feature_limits.backups = 0` pe toate cele 5 servere) și protecție DDoS (niciun trafic de joc nu este filtrat; doar `blipmade.com` și `www.` sunt prin Cloudflare).
-5. **Verdictul economic cel mai important:** la 16 instanțe Minecraft × €3.89, platforma poate duce un cost de nod de **până la €62.24/lună**; portofoliul de boți, singur, poate duce **€27.52/lună**. Node de gaming + produs de boți = **pierdere garantată dacă boții sunt singuri**.
+5. **Verdictul economic cel mai important:** la 16 instanțe Minecraft × €4.09 (1 vCPU fiecare), platforma poate duce un cost de nod de **până la €65.44/lună**; cu instanțe de 2 vCPU (8 pe nod) poate duce doar **€35.92/lună**; portofoliul de boți, singur, **€27.52/lună**. Node de gaming + produs de boți = **pierdere garantată dacă boții sunt singuri**.
 
 ---
 
@@ -84,19 +84,19 @@ Toate sunt măsurate din panou (Application API, 2026-10-23). **Niciunul nu este
 
 | # | Egg (id) | Workload | Imagine (măsurată) | Config. min → rec → max (RAM/vCPU/disc) | Preț propus (eur), cu `base` propus | Cost de instalare | Povară operațională | Competiție | Verdict |
 |---|---|---|---|---|---|---|---|---|---|
-| E1 | **Paper** (5) | server Minecraft Java | `ghcr.io/pterodactyl/yolks:java_25` — **208.9 MiB** | 2048/1/10 → **4096/2/25** → 4096/2/50 | €1.99 → **€3.89** → €4.39 (`base 199`; `199+120+40+30=389`) | imagine 208.9 MiB + jar-ul serverului (≈50–100 MB, **NOT-MEASURED**) + generarea lumii la primul start | stateful (lumea), updates de versiune, **fără backup** | RO: OVI €3.99, Zentaris €4.49, Torchbyte €4.74 (la 4 GB / 2 vCPU) | **LAUNCH-AFTER-FIX** ← *produsul de fază 1* |
-| E2 | Vanilla Minecraft (1) | server Minecraft Java (purist) | `yolks:java_25` — 208.9 MiB | 2048/1/10 → 4096/2/25 → 4096/2/50 | €1.99 → €3.89 → €4.39 | idem E1 | idem E1 | idem E1 | **LAUNCH-AFTER-FIX** (faza 2: al doilea rând `Product`, același card) |
-| E3 | Forge Minecraft (3) | Minecraft moddat | `yolks:java_25` — 208.9 MiB | 4096/2/20 → 6144/4/50 → 6144/4/50 | €1.99 → €4.59 (`base 199`) | descărcare de installer + modpack (2–10 GB, **NOT-MEASURED**) | **installerul e `eclipse-temurin:8-jdk-jammy` (Java 8), runtime-ul e `yolks:java_25` (Java 25)** → combinația nu e suportată pentru Minecraft modern (INFERRED, din cele două imagini măsurate) | idem E1 | **NOT-IMPLEMENTED** (blocaj: Java-ul runtime-ului trebuie să corespundă versiunii) |
-| E4 | Sponge (SpongeVanilla) (4) | Minecraft cu Sponge | `yolks:java_25` — 208.9 MiB | 2048/1/10 → 4096/2/25 → 4096/2/50 | €1.99 → €3.89 | idem E1 | idem E1 | niște | **NOT-IMPLEMENTED** |
+| E1 | **Paper** (5) | server Minecraft Java | `ghcr.io/pterodactyl/yolks:java_25` — **208.9 MiB** | 4096/1/25 → **4096/1/25** → 6144/2/40 | €4.09 → **€4.09** → €5.99 (`base 409`, `minRam 4096`, `minCpu 1`, `minDisk 25`; tier 2 vCPU: `409+40=449` = €4.49) | imagine 208.9 MiB + jar-ul serverului (≈50–100 MB, **NOT-MEASURED**) + generarea lumii la primul start | stateful (lumea), updates de versiune, **fără backup**; **1 vCPU/instanță = 16 instanțe pe nod**; cu 2 vCPU = doar 8 | RO: OVI €3.99, Zentaris €4.49, Torchbyte €4.74 (la 4 GB / 2 vCPU) | **LAUNCH-AFTER-FIX** ← *produsul de fază 1* |
+| E2 | Vanilla Minecraft (1) | server Minecraft Java (purist) | `yolks:java_25` — 208.9 MiB | 4096/1/25 → 4096/1/25 → 6144/2/40 | €4.09 → €4.09 → €5.99 (același card ca E1) | idem E1 | idem E1 | idem E1 | **LAUNCH-AFTER-FIX** (faza 2: al doilea rând `Product`, același card) |
+| E3 | Forge Minecraft (3) | Minecraft moddat | `yolks:java_25` — 208.9 MiB | 4096/2/25 → 6144/4/40 → 6144/4/50 | €4.49 → €6.79 (`base 409`; indicativ) | descărcare de installer + modpack (2–10 GB, **NOT-MEASURED**) | **installerul e `eclipse-temurin:8-jdk-jammy` (Java 8), runtime-ul e `yolks:java_25` (Java 25)** → combinația nu e suportată pentru Minecraft modern (INFERRED, din cele două imagini măsurate) | idem E1 | **NOT-IMPLEMENTED** (blocaj: Java-ul runtime-ului trebuie să corespundă versiunii) |
+| E4 | Sponge (SpongeVanilla) (4) | Minecraft cu Sponge | `yolks:java_25` — 208.9 MiB | 4096/1/25 → 4096/1/25 → 6144/2/40 | €4.09 → €4.09 → €5.99 (indicativ) | idem E1 | idem E1 | niște | **NOT-IMPLEMENTED** |
 | E5 | Bungeecord (2) | proxy pentru rețele de servere | `yolks:java_25` — 208.9 MiB | 1024/1/5 → 2048/2/10 → 2048/2/20 | €1.49 → €2.59 | 208.9 MiB + jar | proxy: trebuie să ajungă la alte servere; niște | niște | **NOT-IMPLEMENTED** |
 | E6 | Custom Source Engine (6) | orice joc Source (CS 1.6 = appid 90, CS2 = 730) | `ghcr.io/pterodactyl/games:source` — **233.5 MiB** | 512/1/5 → 1024/2/25 → 2048/2/25 | €1.49 → €2.59 (`base 149`) | steamcmd + conținutul jocului (**multi-GB, NOT-MEASURED** — VM 101 inaccesibil pentru un test de install) | updates Steam, content creator | Zentaris CS 1.6: **€3.49** (16 sloturi) / €4.99 (24) / €7.99 (32) | **NOT-IMPLEMENTED** (faza 3: produsul CS 1.6/CS2 — egg-ul are deja variabila `SRCDS_APPID`, deci produsul se poate construi, dar install-ul trebuie dovedit pe nod) |
 | E7 | CS:GO (7) | Counter-Strike: Global Offensive (2012) | `games:source` — 233.5 MiB | 512/1/5 → 1024/2/25 → 2048/2/25 | €1.49 → €2.59 | steamcmd, conținut CS:GO (**NOT-MEASURED**) | titlu înlocuit de CS2 | jocuri vechi | **NOT-IMPLEMENTED** (nu se vinde un titlu mort) |
 | E8 | Ark: Survival Evolved (8) | server Ark | `games:source` — 233.5 MiB | 4096/2/20 → 6144/4/50 → 6144/4/50 | €2.49 → €5.09 (`base 249`) | steamcmd, joc foarte mare (**NOT-MEASURED**) | **3 porturi** (SERVER/RCON/QUERY); CPU-gol | niște, hardware dedicat | **NOT-IMPLEMENTED** |
 | E9 | Team Fortress 2 (9) | server TF2 | `games:source` — 233.5 MiB | 512/1/5 → 1024/2/25 → 2048/2/25 | €1.49 → €2.59 | steamcmd (**NOT-MEASURED**) | titlu vechi, niște | niște | **NOT-IMPLEMENTED** |
 | E10 | Insurgency (10) | server Insurgency | `games:source` — 233.5 MiB | 512/1/5 → 1024/2/25 → 2048/2/25 | €1.49 → €2.59 | steamcmd (**NOT-MEASURED**) | titlu vechi, niște | niște | **NOT-IMPLEMENTED** |
-| E11 | Garry's Mod (11) | server GMod | `games:source` — 233.5 MiB | 2048/2/20 → 4096/4/50 → 6144/4/50 | €1.99 → €4.59 (`base 199`) | steamcmd + workshop content (**NOT-MEASURED**) | tickrate, CPU-gol, conținut creat de terți | niște | **NOT-IMPLEMENTED** |
-| E12 | Mumble Server (12) | server voce Mumble | `ghcr.io/parkervcp/yolks:voice_mumble` — **116.0 MiB** | 512/1/5 → 1024/1/5 → 2048/1/10 | €1.49 → €1.79 (`base 149`) | 116 MiB + `apk add murmur` | **startup-ul nu are nicio variabilă de port** (`mumble-server -fg -ini murmur.ini`) → ascultă pe **64738**, care **nu e publicat și nu există ca alocare** | niște; TS3 e standardul în RO | **NOT-IMPLEMENTED** (blocaj de rețea, §6) |
-| E13 | Teamspeak3 Server (13) | server voce TS3 | `ghcr.io/pterodactyl/yolks:debian` — **293.1 MiB** | 1024/1/5 → 2048/2/10 → 4096/2/20 | €1.79 → €2.59 → €3.49 (`base 149`) | 293.1 MiB + tarball TS3 (~100–200 MB, **NOT-MEASURED**) | **5 porturi** (voice/query/filetransfer/query-http/query-ssh); produs de familie, ARPU bun | Zentaris TS3: **€3.49/lună** | **LAUNCH-AFTER-FIX** (faza 3, produs complementar) |
+| E11 | Garry's Mod (11) | server GMod | `games:source` — 233.5 MiB | 4096/2/25 → 6144/4/40 → 6144/4/50 | €4.49 → €6.79 (`base 409`; indicativ) | steamcmd + workshop content (**NOT-MEASURED**) | tickrate, CPU-gol, conținut creat de terți | niște | **NOT-IMPLEMENTED** |
+| E12 | Mumble Server (12) | server voce Mumble | `ghcr.io/parkervcp/yolks:voice_mumble` — **116.0 MiB** | 512/1/5 → 1024/1/5 → 2048/1/10 | €1.49 → €1.79 → €2.49 (`base 149`) | 116 MiB + `apk add murmur` | **startup-ul nu are nicio variabilă de port** (`mumble-server -fg -ini murmur.ini`) → ascultă pe **64738**, care **nu e publicat și nu există ca alocare** | niște; TS3 e standardul în RO | **NOT-IMPLEMENTED** (blocaj de rețea, §6) |
+| E13 | Teamspeak3 Server (13) | server voce TS3 | `ghcr.io/pterodactyl/yolks:debian` — **293.1 MiB** | 1024/1/5 → 2048/2/10 → 4096/2/20 | €1.49 → €2.59 → €3.99 (`base 149`; `149+180+40+30=399`) | 293.1 MiB + tarball TS3 (~100–200 MB, **NOT-MEASURED**) | **5 porturi** (voice/query/filetransfer/query-http/query-ssh); produs de familie; **2 vCPU/instanță → 8 instanțe pe nod** | Zentaris TS3: **€3.49/lună** | **LAUNCH-AFTER-FIX** (faza 3, produs complementar) |
 | E14 | Rust (14) | server Rust | `ghcr.io/pterodactyl/games:rust` — **158.6 MiB** | 4096/2/20 → 4096/4/50 → 6144/4/50 | €2.49 → €3.89 → €5.09 (`base 249`) | 158.6 MiB + steamcmd + RustDedicated + generarea hărții la primul start (multi-GB, **NOT-MEASURED**) | **4 porturi**; primul start consumă un nucleu complet (INFERRED din natura jocului) | joc popular în RO, preț de verificat | **LAUNCH-AFTER-FIX** (faza 3, cu condiții) |
 | E15 | node.js generic (15) | container Node.js generic | `ghcr.io/ptero-eggs/yolks:nodejs_25` — **419.6 MiB** | 256/1/1 → 512/1/5 → 4096/4/50 | €1.49 → €1.72 → €5.92 | 419.6 MiB + deps | fără backup; livrare de cod lipsă | Lunafy €0, Render $7, Railway $5, Contabo €5.50 | **ca imagine a lui `discord-bot`: LAUNCH-AFTER-FIX** · **ca „hosting Node.js generic": DO-NOT-OFFER-ON-THIS-HARDWARE** |
 | E16 | python generic (16) | container Python generic | `ghcr.io/ptero-eggs/yolks:python_3.13` — **401.6 MiB** | 512/1/5 → 1024/1/10 → 4096/4/50 | €1.72 → €2.12 → €5.92 (`base 172`, propus) | 401.6 MiB + pip install | fără backup; `pip install -U` la fiecare start | idem E15 | **ca „Discord Bot (Python)": LAUNCH-AFTER-FIX** (faza 2) · **ca „hosting Python generic": DO-NOT-OFFER-ON-THIS-HARDWARE** |
@@ -118,6 +118,16 @@ Toate sunt măsurate din panou (Application API, 2026-10-23). **Niciunul nu este
 5. **Prețul de intrare e sub piața și sub costul nodului.** WordPress la €1.49 și Uptime Kuma la €1.49 nu au corespondent pe piață (Render $7, Railway $5, Heroku $7, Contabo €5.50) — nici sus, nici jos: nu câștigi clienți pentru că e ieftin (PaaS-ul e mai ieftin sau gratuit) și nu câștigi pentru că e scump (nimeni nu plătește €1.49 pentru hosting).
 
 **Concluzia secțiunii:** hardware-ul, panoul și rețeaua sunt **coerente ca produs de game hosting** și **incoerente ca platformă de aplicații**. Portofoliul de azi (4 din 5 produse sunt din categoria care nu se potrivește) este **inversat față de hardware**.
+
+**Atenție: limita de capacitate e dată de vCPU-ul pe instanță, nu de numărul de instanțe.** Cu același nod (20 vCPU, rezervă de 20% → 16 vCPU vândabili):
+
+| vCPU pe instanță | Instanțe sigure | RAM maximă pe instanță (la 16 instanțe) | Instanțe sigure cu 2 vCPU | Instanțe sigure cu 4 vCPU |
+|---|---|---|---|---|
+| **1 vCPU** | **16** | 7,5 GiB | 8 | 4 |
+| 2 vCPU | 8 | — | 8 | 4 |
+| 4 vCPU | 4 | — | 4 | 4 |
+
+(calcul: `N = min(20/v, 120/GB, 800/GB)`, rezervă 20%, conform `audit/03-capacity-model.md:111-150`). **Un produs de joc vândut la 2 vCPU — adică standardul pieței — înjumătățește numărul de clienți pe nod** și e exact cauza pentru care pragul de rentabilitate al nodului nu se atinge la preț de piață (`08-product-launch-order.md` §7.4).
 
 ---
 
@@ -200,8 +210,8 @@ Sursă: `listAllocations(1)` prin clientul platformei (2026-10-23) — 173 aloc�
 | **Retrage** | `uptime-kuma` | idem | **S** | owner web |
 | **Retrage** | `postgresql` | idem | **S** | owner web |
 | **Păstrează, re-spec** | `discord-bot` | `baseAmount` 149→**172**, `minRam` 256→**512**, `minDisk` 1→**5**; `healthProbe = { kind: 'container' }` (există deja în cod, `provisioning.ts:285-286`); **livrare de cod**: clone-ul repo-ului la creare (egg-ul 15 face deja `git pull` dacă `.git` există); documentație; 2 capturi de ecran | **M** (1–2 zile) | owner API + web |
-| **Nou** | `minecraft-paper` | **rând `Product`** (slug `minecraft-paper`, `eggId=5`, `dockerImage=ghcr.io/pterodactyl/yolks:java_25`, `startupCommand` = cel al egg-ului 5, `healthProbe={kind:'tcp'}`); **rând `ProductPrice`** (base 199, 60/40/2, MONTHLY); limite: min 2048/1/10, default 4096/2/25, max 4096/2/50; **categorie nouă `GAMES`** → migrare Prisma (`api/prisma/schema.prisma:200-207` nu are `GAMES`); **opțiuni** (`ProductOption`, 0 rânduri azi): „Paper 1.21.x", „Paper + plugins", „backup zilnic" (opțiunile au `amount` și `recurring`, `schema.prisma:279-292`); pagină de produs (`web/src/app/ProductPage.tsx`), documentație (port, versiune, backup, limite), 3 capturi de ecran | **M** (2–3 zile) | owner DB (migrare enum) + API + web |
-| **Nou, faza 2** | `minecraft-vanilla` | rând `Product` pe egg 1 + rând `ProductPrice` (base 199) + pagină de produs | **S** (2–3 h) | owner API + web |
+| **Nou** | `minecraft-paper` | **rând `Product`** (slug `minecraft-paper`, `eggId=5`, `dockerImage=ghcr.io/pterodactyl/yolks:java_25`, `startupCommand` = cel al egg-ului 5, `healthProbe={kind:'tcp'}`); **rând `ProductPrice`** (base 409, 60/40/2, MONTHLY); limite: min 4096/1/25, default 4096/1/25, max 6144/2/40 (1 vCPU/instanță → 16 instanțe pe nod); **categorie nouă `GAMES`** → migrare Prisma (`api/prisma/schema.prisma:200-207` nu are `GAMES`); **opțiuni** (`ProductOption`, 0 rânduri azi): „Paper 1.21.x", „Paper + plugins", „backup zilnic" (opțiunile au `amount` și `recurring`, `schema.prisma:279-292`); pagină de produs (`web/src/app/ProductPage.tsx`), documentație (port, versiune, backup, limite), 3 capturi de ecran | **M** (2–3 zile) | owner DB (migrare enum) + API + web |
+| **Nou, faza 2** | `minecraft-vanilla` | rând `Product` pe egg 1 + rând `ProductPrice` (base 409) + pagină de produs | **S** (2–3 h) | owner API + web |
 | **Nou, faza 2** | `discord-bot-python` | rând `Product` pe egg 16 + `ProductPrice` (base 172) + doc | **S** (2–3 h) | owner API |
 | **Nou, faza 3** | `rust` | rând `Product` pe egg 14 + `ProductPrice` (base 249) + **provisionare cu 4 alocări** (platforma atribuie 1) + limitarea instalărilor simultane | **L** (3–5 zile) | owner API (provisionare multi-alocare) |
 | **Nou, faza 3** | `teamspeak3` | rând `Product` pe egg 13 + `ProductPrice` (base 149) + **provisionare cu 5 alocări** | **L** (3–5 zile) | owner API |
@@ -228,14 +238,17 @@ Ambele sunt în `api/src/services/provisioning.ts` — proprietatea ownerului AP
 
 ## 10. Sumarul verdicturilor (21 de candidați)
 
-| Verdict | Număr | Candidati |
+| Verdict | Număr | Candidați (21 = 5 din catalog + 16 egg-uri) |
 |---|---|---|
 | `LAUNCH-NOW` | **0** | — (plățile sunt oprite: `PAYMENTS_ENABLED=false`, `STRIPE_SECRET_KEY` gol — niciun produs nu poate fi vândut azi) |
-| `LAUNCH-AFTER-FIX` | **6** | Minecraft Paper (E1), Minecraft Vanilla (E2), Discord Bot (C1/E15), Discord Bot Python (E16), Rust (E14), Teamspeak3 (E13) |
-| `DO-NOT-OFFER-ON-THIS-HARDWARE` | **6** | WordPress (C2), Code Server (C3), Uptime Kuma (C4), PostgreSQL (C5), Node.js generic ca produs (E15), Python generic ca produs (E16) |
-| `NOT-IMPLEMENTED` | **9** | Forge (E3), Sponge (E4), Bungeecord (E5), Custom Source (E6), CS:GO (E7), Ark (E8), TF2 (E9), Insurgency (E10), GMod (E11), Mumble (E12) — **10 rânduri**, dintre care 4 sunt „decizii de fază 3" (Custom Source/CS 1.6, Rust, TS3) și 6 sunt „nu se construiește" |
+| `LAUNCH-AFTER-FIX` | **7** | C1 `discord-bot` (imagine: E15) · E1 Paper · E2 Vanilla · E16 python generic (imagine pentru `discord-bot-python`) · E14 Rust · E13 Teamspeak3 |
+| `DO-NOT-OFFER-ON-THIS-HARDWARE` | **4** | C2 `wordpress` · C3 `code-server` · C4 `uptime-kuma` · C5 `postgresql` |
+| `NOT-IMPLEMENTED` | **10** | E3 Forge · E4 Sponge · E5 Bungeecord · E6 Custom Source · E7 CS:GO · E8 Ark · E9 TF2 · E10 Insurgency · E11 GMod · E12 Mumble |
+| **Total** | **21** | ✔ |
 
-*(Recapitulare: 5 din catalog + 16 egg-uri = 21 de candidați. Numărul de rânduri din tabelul de mai sus: 6 + 6 + 10 = 22, pentru că E15/E16 apar de două ori — o dată ca „imaginea" unui produs recomandat și o dată ca „produs generic" — și C1 apare ca produsul de catalog și E15 ca imaginea lui.)*
+**Două decizii suplimentare, care nu adaugă candidați** (ci schimbă sensul unui egg deja numărat):
+- **E15 și E16 ca „hosting generic"** (Node.js / Python vândut ca atare) → `DO-NOT-OFFER-ON-THIS-HARDWARE`: egg-urile sunt valorizate **ca imagine** a celor două produse de bot, nu ca produse de aplicații. Raționamentul e în rândurile lor (§4).
+- **E6, E13, E14** sunt `NOT-IMPLEMENTED` *azi*, dar sunt **decizii de fază 3**, nu „nu se construiește" (§9.1).
 
 ---
 

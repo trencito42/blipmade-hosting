@@ -1,6 +1,6 @@
 {
   "base": "https://blipmade.com",
-  "at": "2026-10-23T17:21:36.644Z",
+  "at": "2026-10-23T17:46:39.506Z",
   "routes": [
     {
       "path": "/",
@@ -16,12 +16,17 @@
           "calls": [
             {
               "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
               "path": "/api/catalog/products",
               "status": 200
             },
             {
               "method": "GET",
-              "path": "/api/auth/session",
+              "path": "/api/catalog/products",
               "status": 200
             },
             {
@@ -79,10 +84,15 @@
               "aside": 3
             },
             "hasBottomNav": false,
-            "textLength": 5421,
+            "textLength": 6854,
             "bodyStart": "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases PostgreSQL",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Not available",
+              "Not available",
+              "Not available",
+              "Not available"
+            ],
             "inputCount": 6,
             "unlabelled": [],
             "links": [
@@ -90,6 +100,8 @@
               "/docs",
               "/status",
               "/login",
+              "/apps/discord-bot",
+              "/apps/discord-bot",
               "/login",
               "/",
               "/docs",
@@ -131,6 +143,11 @@
           "calls": [
             {
               "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            },
+            {
+              "method": "GET",
               "path": "/api/auth/session",
               "status": 200
             },
@@ -194,10 +211,15 @@
               "aside": 3
             },
             "hasBottomNav": false,
-            "textLength": 5427,
+            "textLength": 6860,
             "bodyStart": "blipmade Apps Databases Pricing Docs Status Dashboard Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases Postgre",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Not available",
+              "Not available",
+              "Not available",
+              "Not available"
+            ],
             "inputCount": 6,
             "unlabelled": [],
             "links": [
@@ -205,6 +227,8 @@
               "/docs",
               "/status",
               "/app",
+              "/apps/discord-bot",
+              "/apps/discord-bot",
               "/login",
               "/",
               "/docs",
@@ -334,28 +358,43 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Welcomeback."
+            ],
+            "h2": [
+              "Pick an app.Deploy it."
+            ],
+            "buttons": [
+              "Log in"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
-              "main": 0,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 7,
-            "bodyStart": "Loading",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/forgot-password",
+              "/register"
+            ]
           },
           "shot": "anonymous-login.png",
           "errorState": {
@@ -378,30 +417,77 @@
           }
         },
         "customer": {
-          "finalPath": "/login",
+          "finalPath": "/app",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances/cmvkbgm9h0001r18096ep5jzl/events",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Overview"
+            ],
+            "h2": [
+              "Your services",
+              "Recent activity"
+            ],
+            "buttons": [
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 510,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy SERVICES 1 one app or database MONTHLY TOTAL €1.72 / month What your services cost per month NEEDS ATTENTION 0 Everything is running DEPLOY Add a service Choose from the catalog Your services Disc",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app/deploy",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "customer-login.png"
         },
@@ -494,28 +580,42 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Createyour account."
+            ],
+            "h2": [
+              "Pick an app.Deploy it."
+            ],
+            "buttons": [
+              "Create account"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
-              "main": 0,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 7,
-            "bodyStart": "Loading",
+            "textLength": 478,
+            "bodyStart": "blipmade GET STARTED Create your account. One account for your apps, databases, domains and billing. First name Last name Email address Password At least 10 characters, with an uppercase letter, a lowercase letter and a number. Create account Already have an account? Log in Protected session access ",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 4,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/login"
+            ]
           },
           "shot": "anonymous-register.png",
           "errorState": {
@@ -538,30 +638,77 @@
           }
         },
         "customer": {
-          "finalPath": "/register",
+          "finalPath": "/app",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances/cmvkbgm9h0001r18096ep5jzl/events",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Overview"
+            ],
+            "h2": [
+              "Your services",
+              "Recent activity"
+            ],
+            "buttons": [
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 510,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy SERVICES 1 one app or database MONTHLY TOTAL €1.72 / month What your services cost per month NEEDS ATTENTION 0 Everything is running DEPLOY Add a service Choose from the catalog Your services Disc",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app/deploy",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "customer-register.png"
         },
@@ -680,7 +827,7 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 358,
+            "textLength": 366,
             "bodyStart": "blipmade ACCOUNT HELP Reset your password. Enter your email address and we will send you a reset link. Email address Send reset link Remembered it? Back to log in Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Ap",
             "emptyHits": [],
             "errorHits": [],
@@ -746,7 +893,7 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 358,
+            "textLength": 366,
             "bodyStart": "blipmade ACCOUNT HELP Reset your password. Enter your email address and we will send you a reset link. Email address Send reset link Remembered it? Back to log in Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Ap",
             "emptyHits": [],
             "errorHits": [],
@@ -849,7 +996,7 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 460,
+            "textLength": 468,
             "bodyStart": "blipmade ACCOUNT HELP Link not valid. This reset link is invalid or has expired. Request a new one and try again. Reset links can only be used once and stop working after a while. A new one takes a moment to arrive. Request a new link Remembered it? Back to log in Protected session access BLIPMADE P",
             "emptyHits": [],
             "errorHits": [
@@ -914,7 +1061,7 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 460,
+            "textLength": 468,
             "bodyStart": "blipmade ACCOUNT HELP Link not valid. This reset link is invalid or has expired. Request a new one and try again. Reset links can only be used once and stop working after a while. A new one takes a moment to arrive. Request a new link Remembered it? Back to log in Protected session access BLIPMADE P",
             "emptyHits": [],
             "errorHits": [
@@ -1021,8 +1168,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 463,
-            "bodyStart": "blipmade ACCOUNT SETUP Confirm your email. This confirmation link is invalid or has expired. Confirmation links can only be used once and stop working after a while. Send yourself a new one and try again. Checking your account… Already confirmed? Go to your dashboard Protected session access BLIPMAD",
+            "textLength": 520,
+            "bodyStart": "blipmade ACCOUNT SETUP Confirm your email. This confirmation link is invalid or has expired. Confirmation links can only be used once and stop working after a while. Send yourself a new one and try again. We cannot send another link without the account. Log in to ask for one. Already confirmed? Go t",
             "emptyHits": [],
             "errorHits": [
               "try again"
@@ -1031,6 +1178,7 @@
             "unlabelled": [],
             "links": [
               "/",
+              "/login",
               "/app"
             ]
           },
@@ -1061,6 +1209,11 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
             }
           ],
           "consoleErrors": [],
@@ -1071,7 +1224,9 @@
             "h2": [
               "Pick an app.Deploy it."
             ],
-            "buttons": [],
+            "buttons": [
+              "Resend the email"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -1080,8 +1235,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 463,
-            "bodyStart": "blipmade ACCOUNT SETUP Confirm your email. This confirmation link is invalid or has expired. Confirmation links can only be used once and stop working after a while. Send yourself a new one and try again. Checking your account… Already confirmed? Go to your dashboard Protected session access BLIPMAD",
+            "textLength": 465,
+            "bodyStart": "blipmade ACCOUNT SETUP Confirm your email. This confirmation link is invalid or has expired. Confirmation links can only be used once and stop working after a while. Send yourself a new one and try again. Resend the email Already confirmed? Go to your dashboard Protected session access BLIPMADE Pick",
             "emptyHits": [],
             "errorHits": [
               "try again"
@@ -1168,6 +1323,11 @@
               "method": "GET",
               "path": "/api/catalog/products",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
             }
           ],
           "consoleErrors": [],
@@ -1194,7 +1354,7 @@
               "aside": 4
             },
             "hasBottomNav": false,
-            "textLength": 3451,
+            "textLength": 3442,
             "bodyStart": "blipmade Status Home GETTING STARTED Create an account and sign in Deploy your first app APPS WordPress Ghost Forgejo Code Server Uptime Kuma Grafana n8n Discord Bot DATABASES PostgreSQL MySQL Redis MongoDB RESOURCES & BILLING Choose the right resources Invoices and payment methods Upgrade or resize",
             "emptyHits": [],
             "errorHits": [],
@@ -1265,27 +1425,93 @@
           "finalPath": "/docs",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "WordPress"
+            ],
+            "h2": [
+              "What you get",
+              "First run",
+              "Environment variables",
+              "Backups",
+              "Upgrading",
+              "Troubleshooting"
+            ],
+            "buttons": [
+              "Contents"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 3,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 4
             },
             "hasBottomNav": false,
-            "textLength": 7,
-            "bodyStart": "Loading",
+            "textLength": 3442,
+            "bodyStart": "blipmade Status Home GETTING STARTED Create an account and sign in Deploy your first app APPS WordPress Ghost Forgejo Code Server Uptime Kuma Grafana n8n Discord Bot DATABASES PostgreSQL MySQL Redis MongoDB RESOURCES & BILLING Choose the right resources Invoices and payment methods Upgrade or resize",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 1,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/status",
+              "/",
+              "/docs?p=getting-started",
+              "/docs?p=first-app",
+              "/docs?p=wordpress",
+              "/docs?p=ghost",
+              "/docs?p=forgejo",
+              "/docs?p=code-server",
+              "/docs?p=uptime-kuma",
+              "/docs?p=grafana",
+              "/docs?p=n8n",
+              "/docs?p=discord-bot",
+              "/docs?p=postgresql",
+              "/docs?p=mysql",
+              "/docs?p=redis",
+              "/docs?p=mongodb",
+              "/docs?p=resources",
+              "/docs?p=billing",
+              "/docs?p=upgrade",
+              "/docs?p=cancel",
+              "/docs?p=domains",
+              "/docs?p=dns",
+              "/docs?p=ssl",
+              "/docs?p=files",
+              "/docs?p=console",
+              "/docs?p=account-security",
+              "/docs?p=instance-access",
+              "/docs?p=troubleshooting",
+              "/docs?p=limits",
+              "/docs?p=upgrade",
+              "/docs?p=files",
+              "#what-you-get",
+              "#first-run",
+              "#environment",
+              "#backups",
+              "#upgrading",
+              "#troubleshooting"
+            ]
           },
           "shot": "customer-docs.png"
         },
@@ -1414,7 +1640,9 @@
               "Service status"
             ],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Refresh"
+            ],
             "landmarks": {
               "header": 1,
               "nav": 1,
@@ -1423,10 +1651,12 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 196,
-            "bodyStart": "blipmade Docs Status Home Service status Live state of the Blipmade platform, straight from the status endpoint. Loading the current status Something broken that is not listed here? Open a ticket.",
+            "textLength": 674,
+            "bodyStart": "blipmade Docs Status Home Service status Live state of the Blipmade platform, straight from the status endpoint. Degraded performance Everything is reachable, but some components are slower than usual. Platform API Operational Dashboard Operational Cache and queues Operational Control panel Operatio",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "not available"
+            ],
             "inputCount": 0,
             "unlabelled": [],
             "links": [
@@ -1479,7 +1709,9 @@
               "Service status"
             ],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Refresh"
+            ],
             "landmarks": {
               "header": 1,
               "nav": 1,
@@ -1488,10 +1720,12 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 196,
-            "bodyStart": "blipmade Docs Status Home Service status Live state of the Blipmade platform, straight from the status endpoint. Loading the current status Something broken that is not listed here? Open a ticket.",
+            "textLength": 674,
+            "bodyStart": "blipmade Docs Status Home Service status Live state of the Blipmade platform, straight from the status endpoint. Degraded performance Everything is reachable, but some components are slower than usual. Platform API Operational Dashboard Operational Cache and queues Operational Control panel Operatio",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "not available"
+            ],
             "inputCount": 0,
             "unlabelled": [],
             "links": [
@@ -1617,10 +1851,15 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 964,
+            "textLength": 2396,
             "bodyStart": "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases PostgreSQL",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Not available",
+              "Not available",
+              "Not available",
+              "Not available"
+            ],
             "inputCount": 1,
             "unlabelled": [],
             "links": [
@@ -1628,6 +1867,8 @@
               "/docs",
               "/status",
               "/login",
+              "/apps/discord-bot",
+              "/apps/discord-bot",
               "/login",
               "/",
               "/docs",
@@ -1715,10 +1956,15 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 970,
+            "textLength": 2402,
             "bodyStart": "blipmade Apps Databases Pricing Docs Status Dashboard Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases Postgre",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Not available",
+              "Not available",
+              "Not available",
+              "Not available"
+            ],
             "inputCount": 1,
             "unlabelled": [],
             "links": [
@@ -1726,6 +1972,8 @@
               "/docs",
               "/status",
               "/app",
+              "/apps/discord-bot",
+              "/apps/discord-bot",
               "/login",
               "/",
               "/docs",
@@ -1828,11 +2076,31 @@
           "finalPath": "/apps/discord-bot",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products/discord-bot",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
+            "h1": [
+              "Discord Bot"
+            ],
+            "h2": [
+              "Minimum resources"
+            ],
             "buttons": [
               "Apps",
               "Databases",
@@ -1856,7 +2124,7 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 449,
+            "textLength": 774,
             "bodyStart": "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases PostgreSQL",
             "emptyHits": [],
             "errorHits": [],
@@ -1867,13 +2135,40 @@
               "/docs",
               "/status",
               "/login",
+              "/apps",
+              "/login?next=%2Fapp%2Fdeploy%2Fdiscord-bot",
               "/",
               "/docs",
               "/status",
               "/login"
             ]
           },
-          "shot": "anonymous-apps_discord-bot.png"
+          "shot": "anonymous-apps_discord-bot.png",
+          "errorState": {
+            "bodyStart": "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and c",
+            "alertText": "The product could not be loadedCannot reach the Blipmade API. Check your connection and retry.Retry",
+            "alertCount": 1,
+            "hasRetry": true,
+            "buttons": [
+              "Apps",
+              "Databases",
+              "Pricing",
+              "Get started",
+              "Web & CMSWordPress, Ghost and other site builders",
+              "Developer ToolsGit forges and cloud editors",
+              "MonitoringUptime, metrics and dashboards",
+              "AutomationWorkflows that run themselves"
+            ],
+            "shot": "error-anonymous-apps_discord-bot.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 449,
+            "bodyStart": "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, me",
+            "shot": "loading-anonymous-apps_discord-bot.png"
+          }
         },
         "customer": {
           "finalPath": "/apps/discord-bot",
@@ -1898,8 +2193,12 @@
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
+            "h1": [
+              "Discord Bot"
+            ],
+            "h2": [
+              "Minimum resources"
+            ],
             "buttons": [
               "Apps",
               "Databases",
@@ -1923,7 +2222,7 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 455,
+            "textLength": 745,
             "bodyStart": "blipmade Apps Databases Pricing Docs Status Dashboard Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases Postgre",
             "emptyHits": [],
             "errorHits": [],
@@ -1934,6 +2233,8 @@
               "/docs",
               "/status",
               "/app",
+              "/apps",
+              "/app/deploy/discord-bot",
               "/",
               "/docs",
               "/status",
@@ -2047,8 +2348,12 @@
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
+            "h1": [
+              "WordPress"
+            ],
+            "h2": [
+              "Minimum resources"
+            ],
             "buttons": [
               "Apps",
               "Databases",
@@ -2072,7 +2377,7 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 449,
+            "textLength": 818,
             "bodyStart": "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases PostgreSQL",
             "emptyHits": [],
             "errorHits": [],
@@ -2083,6 +2388,7 @@
               "/docs",
               "/status",
               "/login",
+              "/apps",
               "/",
               "/docs",
               "/status",
@@ -2123,19 +2429,28 @@
           "calls": [
             {
               "method": "GET",
-              "path": "/api/catalog/products/wordpress",
+              "path": "/api/auth/session",
               "status": 200
             },
             {
               "method": "GET",
               "path": "/api/catalog/products",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products/wordpress",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
+            "h1": [
+              "WordPress"
+            ],
+            "h2": [
+              "Minimum resources"
+            ],
             "buttons": [
               "Apps",
               "Databases",
@@ -2159,8 +2474,8 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 449,
-            "bodyStart": "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases PostgreSQL",
+            "textLength": 824,
+            "bodyStart": "blipmade Apps Databases Pricing Docs Status Dashboard Get started Web & CMS WordPress, Ghost and other site builders Developer Tools Git forges and cloud editors Monitoring Uptime, metrics and dashboards Automation Workflows that run themselves Bots Discord and chat bots, always on Databases Postgre",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
@@ -2169,11 +2484,12 @@
               "/",
               "/docs",
               "/status",
-              "/login",
+              "/app",
+              "/apps",
               "/",
               "/docs",
               "/status",
-              "/login"
+              "/app"
             ]
           },
           "shot": "customer-apps_wordpress.png"
@@ -2190,12 +2506,12 @@
             },
             {
               "method": "GET",
-              "path": "/api/catalog/products/wordpress",
+              "path": "/api/catalog/products",
               "status": 200
             },
             {
               "method": "GET",
-              "path": "/api/catalog/products",
+              "path": "/api/catalog/products/wordpress",
               "status": 200
             }
           ],
@@ -2260,32 +2576,71 @@
       "nav": "home",
       "roles": {
         "anonymous": {
-          "finalPath": "/app/deploy/discord-bot",
+          "finalPath": "/login?next=%2Fapp%2Fdeploy%2Fdiscord-bot",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Welcomeback."
+            ],
+            "h2": [
+              "Pick an app.Deploy it."
+            ],
+            "buttons": [
+              "Log in"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
-              "main": 0,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/forgot-password",
+              "/register"
+            ]
           },
-          "shot": "anonymous-deploy_discord-bot.png"
+          "shot": "anonymous-deploy_discord-bot.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-anonymous-deploy_discord-bot.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-anonymous-deploy_discord-bot.png"
+          }
         },
         "customer": {
           "finalPath": "/app/deploy/discord-bot",
@@ -2296,6 +2651,16 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products/discord-bot",
+              "status": 200
+            },
+            {
+              "method": "POST",
+              "path": "/api/catalog/quote",
+              "status": 200
             }
           ],
           "consoleErrors": [],
@@ -2303,23 +2668,36 @@
             "h1": [
               "Deploy"
             ],
-            "h2": [],
+            "h2": [
+              "Configure",
+              "Estimate"
+            ],
             "buttons": [
+              "0.3 GB",
+              "0.5 GB",
+              "1 GB",
+              "2 GB",
+              "4 GB",
+              "1",
+              "2",
+              "4",
+              "Review order",
+              "Review order",
               "More"
             ],
             "landmarks": {
               "header": 1,
-              "nav": 2,
+              "nav": 3,
               "main": 1,
               "footer": 0,
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 109,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy Loading",
+            "textLength": 475,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Memory 0.3 GB 0.5 GB 1 GB 2 GB 4 GB CPU vCPU 1 2 4 Storage 5 GB Between 1 GB and 50 GB. Estimate PER MO",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
             "links": [
               "/",
@@ -2355,6 +2733,11 @@
               "method": "GET",
               "path": "/api/catalog/products/discord-bot",
               "status": 200
+            },
+            {
+              "method": "POST",
+              "path": "/api/catalog/quote",
+              "status": 200
             }
           ],
           "consoleErrors": [],
@@ -2362,23 +2745,36 @@
             "h1": [
               "Deploy"
             ],
-            "h2": [],
+            "h2": [
+              "Configure",
+              "Estimate"
+            ],
             "buttons": [
+              "0.3 GB",
+              "0.5 GB",
+              "1 GB",
+              "2 GB",
+              "4 GB",
+              "1",
+              "2",
+              "4",
+              "Review order",
+              "Review order",
               "More"
             ],
             "landmarks": {
               "header": 1,
-              "nav": 2,
+              "nav": 3,
               "main": 1,
               "footer": 0,
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 121,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy Loading the product",
+            "textLength": 475,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Memory 0.3 GB 0.5 GB 1 GB 2 GB 4 GB CPU vCPU 1 2 4 Storage 5 GB Between 1 GB and 50 GB. Estimate PER MO",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
             "links": [
               "/",
@@ -2410,30 +2806,51 @@
       "nav": "CUSTOMER_NAV[0]",
       "roles": {
         "anonymous": {
-          "finalPath": "/app",
+          "finalPath": "/login?next=%2Fapp",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Welcomeback."
+            ],
+            "h2": [
+              "Pick an app.Deploy it."
+            ],
+            "buttons": [
+              "Log in"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
-              "main": 0,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/forgot-password",
+              "/register"
+            ]
           },
           "shot": "anonymous-app.png"
         },
@@ -2441,29 +2858,94 @@
           "finalPath": "/app",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances/cmvkbgm9h0001r18096ep5jzl/events",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Overview"
+            ],
+            "h2": [
+              "Your services",
+              "Recent activity"
+            ],
+            "buttons": [
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 510,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy SERVICES 1 one app or database MONTHLY TOTAL €1.72 / month What your services cost per month NEEDS ATTENTION 0 Everything is running DEPLOY Add a service Choose from the catalog Your services Disc",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app/deploy",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
-          "shot": "customer-app.png"
+          "shot": "customer-app.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-customer-app.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-customer-app.png"
+          }
         },
         "staff": {
           "finalPath": "/app",
@@ -2491,7 +2973,9 @@
             "h1": [
               "Overview"
             ],
-            "h2": [],
+            "h2": [
+              "Deploy your first app"
+            ],
             "buttons": [
               "More"
             ],
@@ -2503,8 +2987,8 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 126,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy Loading your dashboard",
+            "textLength": 553,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy Deploy your first app Pick an app, choose the resources, and it runs on its own. Every service is billed monthly for the memory, CPU and storage you choose. Nothing is billed before you order, and",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
@@ -2521,6 +3005,9 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/deploy",
+              "/apps",
+              "/app/deploy/discord-bot",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -2539,7 +3026,7 @@
       "nav": "CUSTOMER_NAV[2]",
       "roles": {
         "anonymous": {
-          "finalPath": "/app/instances",
+          "finalPath": "/login?next=%2Fapp%2Finstances",
           "navigated": 200,
           "failure": null,
           "calls": [
@@ -2547,28 +3034,43 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Welcomeback."
+            ],
+            "h2": [
+              "Pick an app.Deploy it."
+            ],
+            "buttons": [
+              "Log in"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
-              "main": 0,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/forgot-password",
+              "/register"
+            ]
           },
           "shot": "anonymous-app_instances.png"
         },
@@ -2590,24 +3092,53 @@
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Apps & databases"
+            ],
+            "h2": [
+              "Instances"
+            ],
+            "buttons": [
+              "All",
+              "online",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 322,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Instances Your apps and databases, with the limits you bought. Deploy new Search instances All Online INSTANCE STATUS LIMITS PRICE NODE Discord Bot Discord Bot Online 512 MB · 1 vCPU · 5 G",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 1,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app/deploy",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app/instances/cmvkbgm9h0001r18096ep5jzl",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "customer-app_instances.png",
           "errorState": {
@@ -2643,6 +3174,11 @@
               "method": "GET",
               "path": "/api/instances",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
             }
           ],
           "consoleErrors": [],
@@ -2650,8 +3186,11 @@
             "h1": [
               "Apps & databases"
             ],
-            "h2": [],
+            "h2": [
+              "Instances"
+            ],
             "buttons": [
+              "All",
               "More"
             ],
             "landmarks": {
@@ -2662,11 +3201,11 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 119,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Loading",
+            "textLength": 500,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Instances Your apps and databases, with the limits you bought. Deploy new Search instances All You have no apps or databases yet. Pick a product from the catalog. You choose the resources ",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 1,
             "unlabelled": [],
             "links": [
               "/",
@@ -2680,6 +3219,9 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/deploy",
+              "/app/deploy",
+              "/app/deploy/discord-bot",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -2755,6 +3297,21 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances/cmvkbgm9h0001r18096ep5jzl",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances/cmvkbgm9h0001r18096ep5jzl/events",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances/cmvkbgm9h0001r18096ep5jzl/resources",
+              "status": 200
             }
           ],
           "consoleErrors": [],
@@ -2762,23 +3319,44 @@
             "h1": [
               "Instance"
             ],
-            "h2": [],
+            "h2": [
+              "Discord Bot",
+              "Allocated resources",
+              "Network",
+              "Recent activity",
+              "Settings"
+            ],
             "buttons": [
-              "More"
+              "Start",
+              "Restart",
+              "Stop",
+              "Overview",
+              "Console",
+              "Files",
+              "Databases",
+              "Backups",
+              "Network",
+              "Startup",
+              "Schedules",
+              "Settings",
+              "Activity",
+              "Resources",
+              "Domains",
+              "See the full activity"
             ],
             "landmarks": {
-              "header": 1,
-              "nav": 2,
+              "header": 2,
+              "nav": 3,
               "main": 1,
               "footer": 0,
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 111,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Loading",
+            "textLength": 1285,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Instances / Discord Bot Discord Bot Discord Bot Online No public URL yet Start Restart Stop Overview Console Files Databases Backups Network Startup Schedules Settings Activity Resources Domains M",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 1,
             "unlabelled": [],
             "links": [
               "/",
@@ -2792,6 +3370,7 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/instances",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -2800,11 +3379,13 @@
           },
           "shot": "customer-app_instances_cmvkbgm9h0001r18096ep5jzl.png",
           "errorState": {
-            "bodyStart": "Loading",
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
             "alertText": "",
             "alertCount": 0,
             "hasRetry": false,
-            "buttons": [],
+            "buttons": [
+              "Log in"
+            ],
             "shot": "error-customer-app_instances_cmvkbgm9h0001r18096ep5jzl.png"
           },
           "loadingState": {
@@ -2839,6 +3420,7 @@
             ],
             "h2": [],
             "buttons": [
+              "Retry",
               "More"
             ],
             "landmarks": {
@@ -2849,10 +3431,12 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 111,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy Loading",
+            "textLength": 184,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Instance Deploy We could not load this instance Instance not found. Retry Back to your instances",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
             "links": [
@@ -2867,6 +3451,7 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/instances",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -2919,8 +3504,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -2954,8 +3539,16 @@
             "h1": [
               "Deploy"
             ],
-            "h2": [],
+            "h2": [
+              "Deploy an app"
+            ],
             "buttons": [
+              "All",
+              "Web & CMS",
+              "Developer Tools",
+              "Monitoring",
+              "Bots",
+              "Databases",
               "More"
             ],
             "landmarks": {
@@ -2966,11 +3559,11 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 109,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy Loading",
+            "textLength": 1874,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy Deploy an app 1 of 5 products can be deployed right now. Search the catalog All Web & CMS Developer Tools Monitoring Bots Databases WordPress WEB & CMS COMING SOON The most widely used CMS. Its imag",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 1,
             "unlabelled": [],
             "links": [
               "/",
@@ -2984,6 +3577,7 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/deploy/discord-bot",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -3122,8 +3716,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -3145,28 +3739,71 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products/discord-bot",
+              "status": 200
+            },
+            {
+              "method": "POST",
+              "path": "/api/catalog/quote",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Deploy"
+            ],
+            "h2": [
+              "Configure",
+              "Estimate"
+            ],
+            "buttons": [
+              "0.3 GB",
+              "0.5 GB",
+              "1 GB",
+              "2 GB",
+              "4 GB",
+              "1",
+              "2",
+              "4",
+              "Review order",
+              "Review order",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 3,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 475,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Memory 0.3 GB 0.5 GB 1 GB 2 GB 4 GB CPU vCPU 1 2 4 Storage 5 GB Between 1 GB and 50 GB. Estimate PER MO",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "customer-app_deploy_discord-bot.png",
           "errorState": {
@@ -3197,28 +3834,71 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products/discord-bot",
+              "status": 200
+            },
+            {
+              "method": "POST",
+              "path": "/api/catalog/quote",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Deploy"
+            ],
+            "h2": [
+              "Configure",
+              "Estimate"
+            ],
+            "buttons": [
+              "0.3 GB",
+              "0.5 GB",
+              "1 GB",
+              "2 GB",
+              "4 GB",
+              "1",
+              "2",
+              "4",
+              "Review order",
+              "Review order",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 3,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 475,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Memory 0.3 GB 0.5 GB 1 GB 2 GB 4 GB CPU vCPU 1 2 4 Storage 5 GB Between 1 GB and 50 GB. Estimate PER MO",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "staff-app_deploy_discord-bot.png"
         }
@@ -3266,8 +3946,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -3289,28 +3969,64 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/domains",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Domains"
+            ],
+            "h2": [
+              "Add a domain",
+              "Your domains"
+            ],
+            "buttons": [
+              "Add domain",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
-            "emptyHits": [],
+            "hasBottomNav": true,
+            "textLength": 464,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Domains Deploy Add a domain Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed. Instance Discord Bot · Discord Bot The domain is attached to this instance",
+            "emptyHits": [
+              "No domains yet"
+            ],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 2,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "customer-app_domains.png",
           "errorState": {
@@ -3341,28 +4057,65 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/domains",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/instances",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Domains"
+            ],
+            "h2": [
+              "Add a domain",
+              "Your domains"
+            ],
+            "buttons": [
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
-            "emptyHits": [],
+            "hasBottomNav": true,
+            "textLength": 428,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Domains Deploy Add a domain Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed. No instances yet Deploy an app or database first, then attach a domain to ",
+            "emptyHits": [
+              "No instances yet",
+              "No domains yet"
+            ],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "staff-app_domains.png"
         }
@@ -3383,6 +4136,11 @@
             {
               "method": "GET",
               "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
               "status": 200
             }
           ],
@@ -3405,8 +4163,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -3431,17 +4189,17 @@
             },
             {
               "method": "GET",
+              "path": "/api/billing/subscriptions",
+              "status": 200
+            },
+            {
+              "method": "GET",
               "path": "/api/billing/invoices",
               "status": 200
             },
             {
               "method": "GET",
               "path": "/api/billing/summary",
-              "status": 200
-            },
-            {
-              "method": "GET",
-              "path": "/api/billing/subscriptions",
               "status": 200
             }
           ],
@@ -3450,8 +4208,13 @@
             "h1": [
               "Billing"
             ],
-            "h2": [],
+            "h2": [
+              "Payment method",
+              "Subscriptions",
+              "Invoices"
+            ],
             "buttons": [
+              "Manage payment method",
               "More"
             ],
             "landmarks": {
@@ -3462,10 +4225,15 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 110,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy Loading",
-            "emptyHits": [],
-            "errorHits": [],
+            "textLength": 652,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy THIS MONTH (ESTIMATE) €1.72 Estimated from your current subscriptions in EUR. CURRENT PERIOD ENDS — Not available yet PAYMENT METHOD No payment method on file No payment method on file. Payment met",
+            "emptyHits": [
+              "No subscriptions yet",
+              "No invoices yet"
+            ],
+            "errorHits": [
+              "Not available"
+            ],
             "inputCount": 0,
             "unlabelled": [],
             "links": [
@@ -3480,6 +4248,7 @@
               "/",
               "/",
               "/app/deploy",
+              "/app",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -3518,17 +4287,17 @@
             },
             {
               "method": "GET",
-              "path": "/api/billing/summary",
-              "status": 200
-            },
-            {
-              "method": "GET",
               "path": "/api/billing/invoices",
               "status": 200
             },
             {
               "method": "GET",
               "path": "/api/billing/subscriptions",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/billing/summary",
               "status": 200
             }
           ],
@@ -3554,10 +4323,15 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 378,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy Loading your billing summary Payment method Manage the card or payment method used for your subscriptions. You are taken to the secure billing portal. Manage payment method Subscriptions One subscr",
-            "emptyHits": [],
-            "errorHits": [],
+            "textLength": 652,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy THIS MONTH (ESTIMATE) €0.00 Estimated from your current subscriptions in EUR. CURRENT PERIOD ENDS — Not available yet PAYMENT METHOD No payment method on file No payment method on file. Payment met",
+            "emptyHits": [
+              "No subscriptions yet",
+              "No invoices yet"
+            ],
+            "errorHits": [
+              "Not available"
+            ],
             "inputCount": 0,
             "unlabelled": [],
             "links": [
@@ -3572,6 +4346,7 @@
               "/",
               "/",
               "/app/deploy",
+              "/app",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -3624,8 +4399,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -3650,12 +4425,12 @@
             },
             {
               "method": "GET",
-              "path": "/api/tickets",
+              "path": "/api/tickets/categories",
               "status": 200
             },
             {
               "method": "GET",
-              "path": "/api/tickets/categories",
+              "path": "/api/tickets",
               "status": 200
             }
           ],
@@ -3664,8 +4439,11 @@
             "h1": [
               "Support"
             ],
-            "h2": [],
+            "h2": [
+              "Your tickets"
+            ],
             "buttons": [
+              "New ticket",
               "More"
             ],
             "landmarks": {
@@ -3676,9 +4454,14 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 110,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Loading",
-            "emptyHits": [],
+            "textLength": 1190,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Your tickets Every conversation with Blipmade support, newest activity first. New ticket SUBJECT NUMBER CATEGORY STATUS LAST REPLY OPEN Audit journey probe 2026-10-23 #48 Technical Open No replies ",
+            "emptyHits": [
+              "No replies yet",
+              "No replies yet",
+              "No replies yet",
+              "No replies yet"
+            ],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
@@ -3694,6 +4477,45 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/tickets/cmvl98z3t00ezps01mz9hdi9b",
+              "/app/tickets/cmvl98z3t00ezps01mz9hdi9b",
+              "/app/tickets/cmvl85xrw00emps01lu7lcf8s",
+              "/app/tickets/cmvl85xrw00emps01lu7lcf8s",
+              "/app/tickets/cmvkp46cg00ccps01l4vevmi0",
+              "/app/tickets/cmvkp46cg00ccps01l4vevmi0",
+              "/app/tickets/cmvkotkae00adps01f7yjbkxe",
+              "/app/tickets/cmvkotkae00adps01f7yjbkxe",
+              "/app/tickets/cmvkonix00082ps01h5b3s87r",
+              "/app/tickets/cmvkonix00082ps01h5b3s87r",
+              "/app/tickets/cmvkn40w50037ps01eiupqv3y",
+              "/app/tickets/cmvkn40w50037ps01eiupqv3y",
+              "/app/tickets/cmvkmdmvd001ups01lzdp9pc1",
+              "/app/tickets/cmvkmdmvd001ups01lzdp9pc1",
+              "/app/tickets/cmvkmbj94000rps014vbh4wpy",
+              "/app/tickets/cmvkmbj94000rps014vbh4wpy",
+              "/app/tickets/cmvkm2u0c00afnh0138z9vkmf",
+              "/app/tickets/cmvkm2u0c00afnh0138z9vkmf",
+              "/app/tickets/cmvkly9wz008snh01jhlunjjk",
+              "/app/tickets/cmvkly9wz008snh01jhlunjjk",
+              "/app/tickets/cmvklcsg9005tnh01n27vpsuf",
+              "/app/tickets/cmvklcsg9005tnh01n27vpsuf",
+              "/app/tickets/cmvkkxvej0036nh01ko4howkf",
+              "/app/tickets/cmvkkxvej0036nh01ko4howkf",
+              "/app/tickets/cmvkktafk001hnh01ixxjnma2",
+              "/app/tickets/cmvkktafk001hnh01ixxjnma2",
+              "/app/tickets/cmvl98z3t00ezps01mz9hdi9b",
+              "/app/tickets/cmvl85xrw00emps01lu7lcf8s",
+              "/app/tickets/cmvkp46cg00ccps01l4vevmi0",
+              "/app/tickets/cmvkotkae00adps01f7yjbkxe",
+              "/app/tickets/cmvkonix00082ps01h5b3s87r",
+              "/app/tickets/cmvkn40w50037ps01eiupqv3y",
+              "/app/tickets/cmvkmdmvd001ups01lzdp9pc1",
+              "/app/tickets/cmvkmbj94000rps014vbh4wpy",
+              "/app/tickets/cmvkm2u0c00afnh0138z9vkmf",
+              "/app/tickets/cmvkly9wz008snh01jhlunjjk",
+              "/app/tickets/cmvklcsg9005tnh01n27vpsuf",
+              "/app/tickets/cmvkkxvej0036nh01ko4howkf",
+              "/app/tickets/cmvkktafk001hnh01ixxjnma2",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -3732,12 +4554,12 @@
             },
             {
               "method": "GET",
-              "path": "/api/tickets",
+              "path": "/api/tickets/categories",
               "status": 200
             },
             {
               "method": "GET",
-              "path": "/api/tickets/categories",
+              "path": "/api/tickets",
               "status": 200
             }
           ],
@@ -3834,8 +4656,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -3869,8 +4691,15 @@
             "h1": [
               "Ticket"
             ],
-            "h2": [],
+            "h2": [
+              "My Discord bot keeps crashing after the latest update and I cannot open the console to read the logs",
+              "Status",
+              "Conversation",
+              "Reply"
+            ],
             "buttons": [
+              "Update status",
+              "Send reply",
               "More"
             ],
             "landmarks": {
@@ -3881,11 +4710,11 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 109,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Ticket Deploy Loading",
+            "textLength": 1254,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Ticket Deploy My Discord bot keeps crashing after the latest update and I cannot open the console to read the logs Ticket #42 · opened 23 Oct 2026, 07:20 OPEN CATEGORY TECHNICAL PRIORITY NORMAL RELATED INSTANCE N",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 3,
             "unlabelled": [],
             "links": [
               "/",
@@ -3899,6 +4728,7 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/tickets",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -3946,8 +4776,15 @@
             "h1": [
               "Ticket"
             ],
-            "h2": [],
+            "h2": [
+              "My Discord bot keeps crashing after the latest update and I cannot open the console to read the logs",
+              "Status",
+              "Conversation",
+              "Reply"
+            ],
             "buttons": [
+              "Update status",
+              "Send reply",
               "More"
             ],
             "landmarks": {
@@ -3958,11 +4795,11 @@
               "aside": 1
             },
             "hasBottomNav": true,
-            "textLength": 120,
-            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Ticket Deploy Loading the ticket",
+            "textLength": 1257,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Ticket Deploy My Discord bot keeps crashing after the latest update and I cannot open the console to read the logs Ticket #42 · opened 23 Oct 2026, 07:20 OPEN CATEGORY TECHNICAL PRIORITY NORMAL RELATED INSTANCE N",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 3,
             "unlabelled": [],
             "links": [
               "/",
@@ -3976,6 +4813,7 @@
               "/",
               "/",
               "/app/deploy",
+              "/app/tickets",
               "/app",
               "/app/instances",
               "/app/billing",
@@ -4002,6 +4840,11 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/catalog/products",
+              "status": 200
             }
           ],
           "consoleErrors": [],
@@ -4023,8 +4866,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -4055,32 +4898,75 @@
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Settings"
+            ],
+            "h2": [
+              "Profile",
+              "Password",
+              "Sessions",
+              "Notifications",
+              "Account"
+            ],
+            "buttons": [
+              "Save the name",
+              "Change the email address",
+              "Change the password",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Sign out",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 5347,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Settings Deploy Profile The details of your Blipmade account. First name Last name Save the name EMAIL ADDRESS qa.headless.one@example.test Not verified Change the email address ACCOUNT ROLE Customer MEMBER SINCE",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 12,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "customer-app_settings.png",
           "errorState": {
-            "bodyStart": "Loading",
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
             "alertText": "",
             "alertCount": 0,
             "hasRetry": false,
-            "buttons": [],
+            "buttons": [
+              "Log in"
+            ],
             "shot": "error-customer-app_settings.png"
           },
           "loadingState": {
@@ -4101,28 +4987,74 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/settings",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Settings"
+            ],
+            "h2": [
+              "Profile",
+              "Password",
+              "Sessions",
+              "Notifications",
+              "Account"
+            ],
+            "buttons": [
+              "Save the name",
+              "Change the email address",
+              "Change the password",
+              "Sign out",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session",
+              "Close session"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 3461,
+            "bodyStart": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Settings Deploy Profile The details of your Blipmade account. First name Last name Save the name EMAIL ADDRESS browser-admin@blipmade.test Verified Change the email address ACCOUNT ROLE Admin MEMBER SINCE 23 Oct ",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 12,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/app",
+              "/app/deploy",
+              "/app/instances",
+              "/app/domains",
+              "/app/billing",
+              "/app/tickets",
+              "/app/settings",
+              "/",
+              "/",
+              "/app/deploy",
+              "/app",
+              "/app/instances",
+              "/app/billing",
+              "/app/tickets"
+            ]
           },
           "shot": "staff-app_settings.png"
         }
@@ -4170,8 +5102,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -4199,7 +5131,9 @@
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -4208,13 +5142,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin.png"
         },
@@ -4222,29 +5160,90 @@
           "finalPath": "/admin",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/overview",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Dashboard"
+            ],
+            "h2": [
+              "Go to"
+            ],
+            "buttons": [
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 1097,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Dashboard CUSTOMERS 4 Accounts with the customer role. INSTANCES 3 Every instance on the platform. ACTIVE INSTANCES 2 Online, provisioning or ",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/tickets",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
-          "shot": "staff-admin.png"
+          "shot": "staff-admin.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-staff-admin.png"
+          }
         }
       }
     },
@@ -4290,8 +5289,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -4319,7 +5318,9 @@
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -4328,13 +5329,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_customers.png"
         },
@@ -4347,28 +5352,68 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/customers",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Customers"
+            ],
+            "h2": [
+              "Customers"
+            ],
+            "buttons": [
+              "Show e-mails",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 782,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Customers 4 customers Customers Search by name or e-mail address. Every row links to the customer record. Show e-mails Search Matches the name",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 1,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin/customers/cmvkn67ex0000psd8jm9c7zmu",
+              "/admin/customers/cmvkbicei000dr101eefha38m",
+              "/admin/customers/cmvkbgm1f0000r101e4xeztm7",
+              "/admin/customers/cmvk3ctdw0000p801ay37ey0l",
+              "/admin/customers/cmvkn67ex0000psd8jm9c7zmu",
+              "/admin/customers/cmvkbicei000dr101eefha38m",
+              "/admin/customers/cmvkbgm1f0000r101e4xeztm7",
+              "/admin/customers/cmvk3ctdw0000p801ay37ey0l",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
           "shot": "staff-admin_customers.png",
           "errorState": {
@@ -4434,8 +5479,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -4463,7 +5508,9 @@
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -4472,13 +5519,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_customers_cmvkbgm1f0000r101e4xeztm7.png"
         },
@@ -4491,28 +5542,94 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/customers/cmvkbgm1f0000r101e4xeztm7",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Customer"
+            ],
+            "h2": [
+              "Qa One",
+              "Account access",
+              "Instances",
+              "Invoices",
+              "Tickets",
+              "Orders"
+            ],
+            "buttons": [
+              "Suspend customer",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
-            "emptyHits": [],
+            "hasBottomNav": true,
+            "textLength": 1732,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Customer Customer Qa One loaded Qa One Everything the API returns about this account. E-MAIL q***@example.test CUSTOMER ID cmvkbgm1f0000r101e4",
+            "emptyHits": [
+              "No invoices"
+            ],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin/tickets?ticket=cmvl98z3t00ezps01mz9hdi9b",
+              "/admin/tickets?ticket=cmvl85xrw00emps01lu7lcf8s",
+              "/admin/tickets?ticket=cmvkp46cg00ccps01l4vevmi0",
+              "/admin/tickets?ticket=cmvkotkae00adps01f7yjbkxe",
+              "/admin/tickets?ticket=cmvkonix00082ps01h5b3s87r",
+              "/admin/tickets?ticket=cmvkn40w50037ps01eiupqv3y",
+              "/admin/tickets?ticket=cmvkmdmvd001ups01lzdp9pc1",
+              "/admin/tickets?ticket=cmvkmbj94000rps014vbh4wpy",
+              "/admin/tickets?ticket=cmvkm2u0c00afnh0138z9vkmf",
+              "/admin/tickets?ticket=cmvkly9wz008snh01jhlunjjk",
+              "/admin/tickets?ticket=cmvklcsg9005tnh01n27vpsuf",
+              "/admin/tickets?ticket=cmvkkxvej0036nh01ko4howkf",
+              "/admin/tickets?ticket=cmvkktafk001hnh01ixxjnma2",
+              "/admin/tickets?ticket=cmvl98z3t00ezps01mz9hdi9b",
+              "/admin/tickets?ticket=cmvl85xrw00emps01lu7lcf8s",
+              "/admin/tickets?ticket=cmvkp46cg00ccps01l4vevmi0",
+              "/admin/tickets?ticket=cmvkotkae00adps01f7yjbkxe",
+              "/admin/tickets?ticket=cmvkonix00082ps01h5b3s87r",
+              "/admin/tickets?ticket=cmvkn40w50037ps01eiupqv3y",
+              "/admin/tickets?ticket=cmvkmdmvd001ups01lzdp9pc1",
+              "/admin/tickets?ticket=cmvkmbj94000rps014vbh4wpy",
+              "/admin/tickets?ticket=cmvkm2u0c00afnh0138z9vkmf",
+              "/admin/tickets?ticket=cmvkly9wz008snh01jhlunjjk",
+              "/admin/tickets?ticket=cmvklcsg9005tnh01n27vpsuf",
+              "/admin/tickets?ticket=cmvkkxvej0036nh01ko4howkf",
+              "/admin/tickets?ticket=cmvkktafk001hnh01ixxjnma2",
+              "/admin/customers",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
           "shot": "staff-admin_customers_cmvkbgm1f0000r101e4xeztm7.png",
           "errorState": {
@@ -4578,8 +5695,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -4636,29 +5753,98 @@
           "finalPath": "/admin/orders",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/orders",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Orders"
+            ],
+            "h2": [
+              "Orders"
+            ],
+            "buttons": [
+              "Show e-mails",
+              "All",
+              "Pending",
+              "Awaiting payment",
+              "Paid",
+              "Fulfilled",
+              "Failed",
+              "Cancelled",
+              "Refunded",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 798,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Orders 5 orders Orders Every order with its status, items and total. Amounts are minor units from the API. Show e-mails All Pending Awaiting p",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin/customers/cmvk3ctdw0000p801ay37ey0l",
+              "/admin/customers/cmvk3ctdw0000p801ay37ey0l",
+              "/admin/customers/cmvkbicei000dr101eefha38m",
+              "/admin/customers/cmvkbgm1f0000r101e4xeztm7",
+              "/admin/customers/cmvk3ctdw0000p801ay37ey0l",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
-          "shot": "staff-admin_orders.png"
+          "shot": "staff-admin_orders.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_orders.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-staff-admin_orders.png"
+          }
         }
       }
     },
@@ -4704,8 +5890,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -4762,29 +5948,107 @@
           "finalPath": "/admin/services",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/services",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Services"
+            ],
+            "h2": [
+              "Services"
+            ],
+            "buttons": [
+              "Show e-mails",
+              "All",
+              "Pending",
+              "Provisioning",
+              "Online",
+              "Restarting",
+              "Stopped",
+              "Degraded",
+              "Failed",
+              "Suspended",
+              "Cancelled",
+              "Retry provisioning",
+              "Retry provisioning",
+              "Retry provisioning",
+              "Retry provisioning",
+              "Retry provisioning"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
+            "hasBottomNav": true,
+            "textLength": 814,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Services 3 services Services Every instance on the platform. Retrying a provisioning run re-queues the worker for that instance. Show e-mails ",
+            "emptyHits": [],
+            "errorHits": [
+              "Retry",
+              "Retry",
+              "Retry",
+              "Retry"
+            ],
+            "inputCount": 1,
+            "unlabelled": [],
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin/customers/cmvkn67ex0000psd8jm9c7zmu",
+              "/admin/customers/cmvkbicei000dr101eefha38m",
+              "/admin/customers/cmvkbgm1f0000r101e4xeztm7",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
+          },
+          "shot": "staff-admin_services.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_services.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
             "textLength": 21,
             "bodyStart": "Checking your session",
-            "emptyHits": [],
-            "errorHits": [],
-            "inputCount": 0,
-            "unlabelled": [],
-            "links": []
-          },
-          "shot": "staff-admin_services.png"
+            "shot": "loading-staff-admin_services.png"
+          }
         }
       }
     },
@@ -4830,8 +6094,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -4848,12 +6112,20 @@
           "finalPath": "/admin/products",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -4862,13 +6134,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_products.png"
         },
@@ -4876,29 +6152,99 @@
           "finalPath": "/admin/products",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/products",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Catalog"
+            ],
+            "h2": [
+              "Catalog"
+            ],
+            "buttons": [
+              "New product",
+              "Visible",
+              "Not deployable",
+              "Delete",
+              "Visible",
+              "Not deployable",
+              "Delete",
+              "Visible",
+              "Deployable",
+              "Delete",
+              "Visible",
+              "Not deployable",
+              "Delete",
+              "Visible",
+              "Not deployable",
+              "Delete"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 863,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Catalog 5 products Catalog Apps and databases that customers can buy. Visibility controls the catalog, deployable controls ordering. New produ",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
-          "shot": "staff-admin_products.png"
+          "shot": "staff-admin_products.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_products.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-staff-admin_products.png"
+          }
         }
       }
     },
@@ -4944,8 +6290,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -5007,28 +6353,69 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/pricing",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Pricing"
+            ],
+            "h2": [
+              "Pricing"
+            ],
+            "buttons": [
+              "Save price",
+              "Reset",
+              "Save price",
+              "Reset",
+              "Save price",
+              "Reset",
+              "Save price",
+              "Reset",
+              "Save price",
+              "Reset",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 1894,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Pricing 5 prices Pricing Base price for the minimum configuration plus the rate for every extra gigabyte of memory, vCPU and disk. Code Server",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 20,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
           "shot": "staff-admin_pricing.png",
           "errorState": {
@@ -5094,8 +6481,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -5112,12 +6499,20 @@
           "finalPath": "/admin/tickets",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -5126,13 +6521,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_tickets.png"
         },
@@ -5140,29 +6539,105 @@
           "finalPath": "/admin/tickets",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/staff",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/tickets",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Support queue"
+            ],
+            "h2": [
+              "Queue",
+              "No ticket open"
+            ],
+            "buttons": [
+              "All",
+              "Open",
+              "Awaiting customer",
+              "Awaiting staff",
+              "On hold",
+              "Closed",
+              "#48 Audit journey probe 2026-10-23q***@example.test",
+              "#47 Panel check 2026-10-23T17:09:26q***@example.test",
+              "#46 test12321321s***@xodo.ro",
+              "#45 Panel check 2026-10-23T08:16:11q***@example.test",
+              "#44 Panel check 2026-10-23T08:07:55q***@example.test",
+              "#43 Panel check 2026-10-23T08:03:14q***@example.test",
+              "#42 My Discord bot keeps crashing after the latest update and I cannot open the console to read the logsq***@example.test",
+              "#41 Panel check 2026-10-23T06:59:33q***@example.test",
+              "#40 Panel check 2026-10-23T06:57:55q***@example.test",
+              "#39 Panel check 2026-10-23T06:51:09q***@example.test"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 1353,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Support queue 14 tickets in the queue Queue Newest activity first. Pick a ticket to open the thread. All Open Awaiting customer Awaiting staff",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
-          "shot": "staff-admin_tickets.png"
+          "shot": "staff-admin_tickets.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_tickets.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-staff-admin_tickets.png"
+          }
         }
       }
     },
@@ -5208,8 +6683,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -5266,29 +6741,87 @@
           "finalPath": "/admin/promotions",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/promotions",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Promotions"
+            ],
+            "h2": [
+              "Promotions"
+            ],
+            "buttons": [
+              "New promotion",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
-            "emptyHits": [],
+            "hasBottomNav": true,
+            "textLength": 356,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Promotions 0 promotions Promotions Codes with the real redemption count against the real cap. Nothing here is a simulated counter. New promoti",
+            "emptyHits": [
+              "No promotions yet"
+            ],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
-          "shot": "staff-admin_promotions.png"
+          "shot": "staff-admin_promotions.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_promotions.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-staff-admin_promotions.png"
+          }
         }
       }
     },
@@ -5334,8 +6867,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -5363,7 +6896,9 @@
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -5372,13 +6907,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_infrastructure.png"
         },
@@ -5386,29 +6925,87 @@
           "finalPath": "/admin/infrastructure",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/infrastructure",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Infrastructure"
+            ],
+            "h2": [
+              "Infrastructure",
+              "Nodes",
+              "Eggs"
+            ],
+            "buttons": [
+              "Sync panel",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 673,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Infrastructure 0 nodes, 0 eggs Infrastructure Nodes and eggs as the panel reports them. Syncing re-reads the panel and refreshes these numbers",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
-          "shot": "staff-admin_infrastructure.png"
+          "shot": "staff-admin_infrastructure.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_infrastructure.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-staff-admin_infrastructure.png"
+          }
         }
       }
     },
@@ -5454,8 +7051,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -5483,7 +7080,9 @@
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -5492,13 +7091,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_audit.png"
         },
@@ -5506,29 +7109,88 @@
           "finalPath": "/admin/audit",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/audit",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Audit log"
+            ],
+            "h2": [
+              "Audit log"
+            ],
+            "buttons": [
+              "Show e-mails",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
+            "hasBottomNav": true,
+            "textLength": 25513,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Audit log 300 audit entries Audit log Every staff action the API recorded, newest first. Actor and action match on part of the text. Show e-ma",
+            "emptyHits": [],
+            "errorHits": [
+              "retry",
+              "retry"
+            ],
+            "inputCount": 3,
+            "unlabelled": [],
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
+          },
+          "shot": "staff-admin_audit.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_audit.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
             "textLength": 21,
             "bodyStart": "Checking your session",
-            "emptyHits": [],
-            "errorHits": [],
-            "inputCount": 0,
-            "unlabelled": [],
-            "links": []
-          },
-          "shot": "staff-admin_audit.png"
+            "shot": "loading-staff-admin_audit.png"
+          }
         }
       }
     },
@@ -5574,8 +7236,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -5592,12 +7254,20 @@
           "finalPath": "/admin/staff",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -5606,13 +7276,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_staff.png"
         },
@@ -5620,29 +7294,87 @@
           "finalPath": "/admin/staff",
           "navigated": 200,
           "failure": null,
-          "calls": [],
+          "calls": [
+            {
+              "method": "GET",
+              "path": "/api/auth/session",
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/staff",
+              "status": 200
+            }
+          ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Staff & permissions"
+            ],
+            "h2": [
+              "Staff and permissions"
+            ],
+            "buttons": [
+              "Show e-mails",
+              "Save permissions",
+              "Save permissions",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 1240,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Staff & permissions 2 staff members Staff and permissions Changes are saved with the permission list of that member and written to the audit l",
             "emptyHits": [],
             "errorHits": [],
-            "inputCount": 0,
+            "inputCount": 42,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
-          "shot": "staff-admin_staff.png"
+          "shot": "staff-admin_staff.png",
+          "errorState": {
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and bil",
+            "alertText": "",
+            "alertCount": 0,
+            "hasRetry": false,
+            "buttons": [
+              "Log in"
+            ],
+            "shot": "error-staff-admin_staff.png"
+          },
+          "loadingState": {
+            "status": 1,
+            "busy": 1,
+            "skeletons": 1,
+            "textLength": 21,
+            "bodyStart": "Checking your session",
+            "shot": "loading-staff-admin_staff.png"
+          }
         }
       }
     },
@@ -5688,8 +7420,8 @@
               "aside": 1
             },
             "hasBottomNav": false,
-            "textLength": 344,
-            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from —/mo D",
+            "textLength": 352,
+            "bodyStart": "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected session access BLIPMADE Pick an app. Deploy it. One account for your apps, databases, domains and billing. No VPS to set up. Apps from €1.49/",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 2,
@@ -5717,7 +7449,9 @@
           "info": {
             "h1": [],
             "h2": [],
-            "buttons": [],
+            "buttons": [
+              "Retry"
+            ],
             "landmarks": {
               "header": 0,
               "nav": 0,
@@ -5726,13 +7460,17 @@
               "aside": 0
             },
             "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "textLength": 108,
+            "bodyStart": "Staff access only Your account does not have permission to open the admin area. Retry Back to your dashboard",
             "emptyHits": [],
-            "errorHits": [],
+            "errorHits": [
+              "Retry"
+            ],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/app"
+            ]
           },
           "shot": "customer-admin_settings.png"
         },
@@ -5745,28 +7483,62 @@
               "method": "GET",
               "path": "/api/auth/session",
               "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/api/admin/settings",
+              "status": 200
             }
           ],
           "consoleErrors": [],
           "info": {
-            "h1": [],
-            "h2": [],
-            "buttons": [],
+            "h1": [
+              "Settings"
+            ],
+            "h2": [
+              "Settings"
+            ],
+            "buttons": [
+              "Add a setting",
+              "Save settings",
+              "Add a setting",
+              "More"
+            ],
             "landmarks": {
-              "header": 0,
-              "nav": 0,
-              "main": 0,
+              "header": 1,
+              "nav": 2,
+              "main": 1,
               "footer": 0,
-              "aside": 0
+              "aside": 1
             },
-            "hasBottomNav": false,
-            "textLength": 21,
-            "bodyStart": "Checking your session",
+            "hasBottomNav": true,
+            "textLength": 364,
+            "bodyStart": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Settings 0 settings Settings Feature flags and provider switches. The API stores a free key and value object. Add a setting No settings stored",
             "emptyHits": [],
             "errorHits": [],
             "inputCount": 0,
             "unlabelled": [],
-            "links": []
+            "links": [
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/orders",
+              "/admin/services",
+              "/admin/products",
+              "/admin/pricing",
+              "/admin/tickets",
+              "/admin/promotions",
+              "/admin/infrastructure",
+              "/admin/audit",
+              "/admin/staff",
+              "/admin/settings",
+              "/",
+              "/",
+              "/admin",
+              "/admin/customers",
+              "/admin/tickets",
+              "/admin/audit"
+            ]
           },
           "shot": "staff-admin_settings.png",
           "errorState": {
