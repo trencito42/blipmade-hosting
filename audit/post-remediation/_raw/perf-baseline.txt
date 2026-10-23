@@ -1,0 +1,233 @@
+# Baseline de performanta si fiabilitate
+
+Data: 2026-10-23T23:45:17+00:00
+Masina: blipmade-platform (6.12.113+deb13-cloud-amd64, 4 nuclee, 7947 MB RAM)
+Stack: build de productie (vite build + node server.mjs), API 3101, web 30003, baza blipmade_test
+ATENTIE: aceste sunt masuratori pe stiva izolata, nu pe productie.
+
+## 1. Dimensiunile bundle-ului (build de productie)
+
+### 1.1 Total pe tip
+/tmp/perf-baseline.sh: line 30: bc: command not found
+- js: 36 fisier(e), 754872 bytes (0.0 KB)
+/tmp/perf-baseline.sh: line 30: bc: command not found
+- css: 1 fisier(e), 65229 bytes (0.0 KB)
+/tmp/perf-baseline.sh: line 30: bc: command not found
+- html: 1 fisier(e), 850 bytes (0.0 KB)
+
+### 1.2 Cele mai mari 25 de fisiere din bundle
+   320.8 KB  /tmp/web-check/dist/assets/index-CmJkQ0sT.js
+    77.5 KB  /tmp/web-check/dist/assets/Docs-BejaFPi-.js
+    67.7 KB  /tmp/web-check/dist/assets/InstanceDetail-Dxphuo_Q.js
+    63.7 KB  /tmp/web-check/dist/assets/index-B8mkGcfB.css
+    28.7 KB  /tmp/web-check/dist/assets/geist-latin-wght-normal-BgDaEnEv.woff2
+    22.6 KB  /tmp/web-check/dist/assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+    19.9 KB  /tmp/web-check/dist/assets/Deploy-D9c36LeY.js
+    16.6 KB  /tmp/web-check/dist/assets/Products-BB-jB2LX.js
+    16.1 KB  /tmp/web-check/dist/assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2
+    15.9 KB  /tmp/web-check/dist/assets/Promotions-Bfb8KgGT.js
+    15.4 KB  /tmp/web-check/dist/assets/logo-CHVIDgEH.js
+    14.7 KB  /tmp/web-check/dist/assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2
+    14.6 KB  /tmp/web-check/dist/assets/Settings-BQs9IgjV.js
+    14.4 KB  /tmp/web-check/dist/assets/geist-mono-latin-ext-wght-normal-Bwz-egvJ.woff2
+    13.5 KB  /tmp/web-check/dist/assets/Tickets-Cjv8ZRAh.js
+    13.2 KB  /tmp/web-check/dist/assets/CustomerDetail-CS5M3Imx.js
+    12.6 KB  /tmp/web-check/dist/assets/geist-mono-cyrillic-wght-normal-DiZS0aHC.woff2
+     9.4 KB  /tmp/web-check/dist/assets/Domains-BSyuQu3l.js
+     9.3 KB  /tmp/web-check/dist/assets/Overview-BaJz-G3s.js
+     8.6 KB  /tmp/web-check/dist/assets/Pricing-Bvzbhp4A.js
+     8.3 KB  /tmp/web-check/dist/assets/TicketDetail-DZHxL_Ib.js
+     8.2 KB  /tmp/web-check/dist/assets/Tickets-Dvk12c6e.js
+     8.2 KB  /tmp/web-check/dist/assets/Billing-DgPMXS7L.js
+     8.0 KB  /tmp/web-check/dist/assets/Overview-CTqoslcy.js
+     7.8 KB  /tmp/web-check/dist/assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2
+
+### 1.3 Dimensiunile gzip si brotli ale bundle-ului JavaScript principal
+- logo-CHVIDgEH.js: raw 15803 B, gzip 6422 B, brotli n/a
+- auth-field-DO-g9R65.js: raw 2213 B, gzip 1034 B, brotli n/a
+- api-CGY1ZpEO.js: raw 2763 B, gzip 1450 B, brotli n/a
+- VerifyEmail-BSnAJK2T.js: raw 5569 B, gzip 2210 B, brotli n/a
+- Tickets-Dvk12c6e.js: raw 8374 B, gzip 2989 B, brotli n/a
+- Tickets-Cjv8ZRAh.js: raw 13781 B, gzip 3699 B, brotli n/a
+- TicketDetail-DZHxL_Ib.js: raw 8473 B, gzip 2980 B, brotli n/a
+- Status-CEwFkeJL.js: raw 6602 B, gzip 2332 B, brotli n/a
+
+### 1.4 Cache-Control si ETag pe fisierele statice si pe index.html
+- / -> Content-Type: text/html; charset=utf-8 Cache-Control: no-cache 
+- /assets/ -> Content-Type: text/html; charset=utf-8 Cache-Control: no-cache 
+- /index.html -> Content-Type: text/html; charset=utf-8 Cache-Control: no-cache 
+
+## 2. Latenta HTTP a paginilor (web, port 30003)
+
+RUTA                                 TTFBms  TOTALms     SIZE       HTTP
+/                                  0.001874 0.001962      850        200
+/apps                              0.001731 0.001815      850        200
+/apps/wordpress                    0.001999 0.002095      850        200
+/apps/discord-bot                  0.002130 0.002274      850        200
+/docs                              0.001729 0.001816      850        200
+/status                            0.001750 0.001837      850        200
+/login                             0.001818 0.002174      850        200
+/register                          0.001768 0.001857      850        200
+/forgot-password                   0.001992 0.002079      850        200
+/app                               0.001802 0.001891      850        200
+/app/deploy                        0.001776 0.001864      850        200
+/app/instances                     0.001764 0.001847      850        200
+/app/billing                       0.001738 0.001823      850        200
+/app/tickets                       0.001812 0.001997      850        200
+/app/domains                       0.002448 0.002537      850        200
+/app/settings                      0.001779 0.001866      850        200
+/admin                             0.001850 0.001938      850        200
+/admin/customers                   0.001791 0.001882      850        200
+/admin/orders                      0.001793 0.001882      850        200
+/admin/services                    0.001766 0.001854      850        200
+/admin/products                    0.001680 0.001768      850        200
+/admin/pricing                     0.001831 0.001918      850        200
+/admin/tickets                     0.001823 0.001910      850        200
+/admin/promotions                  0.001759 0.001846      850        200
+/admin/infrastructure              0.001904 0.001994      850        200
+/admin/audit                       0.001631 0.001714      850        200
+/admin/staff                       0.001792 0.001881      850        200
+/admin/settings                    0.001784 0.001871      850        200
+
+## 3. Latenta API (Fastify, port 3101)
+
+ENDPOINT                                         TTFBms  TOTALms   HTTP
+/api/health                                    0.006386 0.006490    200
+/api/catalog/products                          0.017764 0.017864    200
+/api/auth/session                              0.001529 0.001631    200
+/api/instances                                 0.001820 0.001918    401
+/api/orders                                    0.001841 0.001939    401
+/api/invoices                                  0.002227 0.002327    404
+/api/tickets                                   0.001731 0.001853    401
+/api/admin/overview                            0.001787 0.001885    401
+/api/admin/customers                           0.001749 0.001855    401
+/api/admin/orders                              0.001741 0.001839    401
+/api/admin/services                            0.001742 0.001837    401
+/api/admin/products                            0.001766 0.001865    401
+/api/admin/pricing                             0.001713 0.001815    401
+/api/admin/tickets                             0.002644 0.002742    401
+/api/admin/promotions                          0.001917 0.002039    401
+/api/admin/infrastructure                      0.001808 0.001905    401
+/api/admin/audit                               0.001837 0.001936    401
+/api/admin/staff                               0.001897 0.002023    401
+/api/admin/settings                            0.002487 0.002587    401
+
+### 3.1 POST /api/catalog/quote (calculul de pret)
+- rularea 1: ttfb 0.002446 ms, total 0.002545 ms, http 403
+- rularea 2: ttfb 0.002111 ms, total 0.002213 ms, http 403
+- rularea 3: ttfb 0.002047 ms, total 0.002146 ms, http 403
+
+## 4. Memorie si CPU ale proceselor stivei
+
+- pid 822463 rss 231504 kB, threaduri 16, node dist/index.js 
+- pid 822467 rss 69852 kB, threaduri 11, node server.mjs 
+
+### 4.1 Consumul de CPU al containerelor de productie (doar citire)
+blipmade-api-1	CPU 0.00%	MEM 65.11MiB / 7.762GiB	NET 6.94MB / 6.52MB	BLK 123MB / 16.4kB
+blipmade-web-1	CPU 0.00%	MEM 23.91MiB / 7.762GiB	NET 30.3MB / 34.6MB	BLK 1.03MB / 0B
+blipmade-worker-1	CPU 0.22%	MEM 45.86MiB / 7.762GiB	NET 7.39MB / 25.9MB	BLK 246kB / 16.4kB
+blipmade-postgres-1	CPU 0.20%	MEM 1.369GiB / 7.762GiB	NET 100MB / 121MB	BLK 4.67MB / 3.52GB
+blipmade-redis-1	CPU 0.93%	MEM 11.23MiB / 7.762GiB	NET 42.1MB / 12MB	BLK 25.9MB / 32.7MB
+
+## 5. Baza de date
+
+### 5.1 Dimensiunea bazei si a tabelelor
+  baza: 12 MB
+  User | 200 kB | 45 randari
+  AuditLog | 184 kB | 229 randari
+  Order | 160 kB | 7 randari
+  Subscription | 144 kB | 3 randari
+  Session | 128 kB | 67 randari
+  Instance | 112 kB | 4 randari
+  Payment | 112 kB | 1 randari
+  Ticket | 112 kB | 4 randari
+  Invoice | 96 kB | 1 randari
+  Product | 80 kB | 16 randari
+  PromotionRedemption | 80 kB | 2 randari
+  WebhookEvent | 80 kB | 1 randari
+  MailDelivery | 64 kB | 5 randari
+  StaffMember | 64 kB | 34 randari
+  Promotion | 64 kB | 13 randari
+
+### 5.2 Numarul de conexiuni si pool-ul
+  active = 1
+  idle = 8
+  effective_cache_size = 524288
+  max_connections = 100
+  shared_buffers = 16384
+  work_mem = 4096
+
+### 5.3 Cache-ul PostgreSQL (hit ratio, trebuie sa fie mare)
+  bloki citite: 192954 | bloki din cache: 70097207 | hit ratio: 99.73%
+
+### 5.4 Indicile care nu sunt folositi niciodata (candidates de stergere)
+  VerificationToken.VerificationToken_pkey | 0 scanari
+  ProductOption.ProductOption_pkey | 0 scanari
+  Node.Node_pkey | 0 scanari
+  Egg.Egg_pkey | 0 scanari
+  Payment.Payment_pkey | 0 scanari
+  InstanceEvent.InstanceEvent_pkey | 0 scanari
+  TicketEvent.TicketEvent_pkey | 0 scanari
+  AuditLog.AuditLog_pkey | 0 scanari
+  ProvisioningJob.ProvisioningJob_pkey | 0 scanari
+  User.User_pterodactylUserId_idx | 0 scanari
+  Product.Product_category_idx | 0 scanari
+  Order.Order_stripeCheckoutSessionId_key | 0 scanari
+  Invoice.Invoice_number_key | 0 scanari
+  Invoice.Invoice_status_idx | 0 scanari
+  Payment.Payment_stripeCustomerId_key | 0 scanari
+  Payment.Payment_status_idx | 0 scanari
+  Instance.Instance_pterodactylUuid_key | 0 scanari
+  Ticket.Ticket_number_key | 0 scanari
+  Ticket.Ticket_assignedToId_idx | 0 scanari
+  WebhookEvent.WebhookEvent_provider_type_idx | 0 scanari
+
+## 6. Coada si workerul
+
+### 6.1 Joburi in asteptare / active / esuate / finalizate
+  (error) ERR Number of keys can't be greater than number of args
+  cheie: bull:blipmade.provision:provision-cmvlm537l01f7dxxca3jdmk2x:logs
+  cheie: bull:blipmade.provision:provision-cmvlm537l01f7dxxca3jdmk2x
+  cheie: bull:blipmade.provision:provision-cmvlm4zrd01a1dxxcsq0dh08w:logs
+  cheie: bull:blipmade.provision:provision-cmvlm508x01avdxxcc7yq5ttz:logs
+  cheie: bull:blipmade.email:events
+  cheie: bull:blipmade.provision:provision-cmvlm51zl01dodxxcql1h6vat:logs
+  cheie: bull:blipmade.provision:provision-cmvlm51ij01cydxxcax563kbv:logs
+  cheie: bull:blipmade.email:meta
+  cheie: bull:blipmade.provision:provision-cmvlm5wtr028tdxxcmexhfqin:logs
+  cheie: bull:blipmade.provision:id
+  cheie: bull:blipmade.provision:provision-cmvlm52ha01efdxxcdhzmz8vi
+  cheie: bull:blipmade.provision:provision-cmvlm4z7z0196dxxcf7u8dr4f
+  cheie: bull:blipmade.provision:provision-inst_audit_two:logs
+  cheie: bull:blipmade.provision:provision-cmvlm4zqt019zdxxcjo8733li:logs
+  cheie: bull:blipmade.provision:provision-inst_audit_two
+  cheie: bull:blipmade.provision:provision-cmvlm510s01c5dxxcjmvm86hg:logs
+  cheie: bull:blipmade.provision:provision-cmvlm4zqt019zdxxcjo8733li
+  cheie: bull:blipmade.provision:provision-cmvlm5xdp029ldxxcwikivj8z:logs
+  cheie: bull:blipmade.email:completed
+  cheie: bull:blipmade.provision:provision-cmvlm5xdp029ldxxcwikivj8z
+
+### 6.2 Memoria si timpul de activitate al workerului
+  2 evenimente in coada
+
+## 7. Fiabilitate: repornirea si recuperarea
+
+### 7.1 Timpul de pornire al API-ului
+  API-ul raspunde inainte de repornire: da
+  (repornirea stivei se face separat; nu se reinitializeaza nimic aici)
+
+### 7.2 Endpoint-urile de sanatate
+- /api/health -> 200
+- /health -> 200
+- /healthz -> 404
+- web /healthz -> 200
+- web / -> 200
+
+## 8. Ce NU a putut fi masurat in acest mediu
+
+- Lighthouse: nu este instalat pe masina de audit. Cifrele Lighthouse lipsesc; in schimb sunt masurate TTFB, dimensiunea bundle-ului si latenta API.
+- Core Web Vitals reale (INP/LCP/CLS de la utilizatori reali): nu exista trafic de productie in acest mediu. Valorile ar fi sintetice si nu trebuie prezentate ca atare.
+- Firefox si WebKit: nu sunt instalate. Auditul vizual acopera doar Chromium.
+- Comportament sub sarcina: nu a fost rulat, pentru ca nu exista un mediu de test autorizat pentru asta.
+
+Sfarsitul raportului.
