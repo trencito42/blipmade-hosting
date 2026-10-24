@@ -45,7 +45,7 @@ function PublicShell({ children }: { children: ReactNode }) {
       {/* The category of the navigation belongs to the catalog page. Here the
           chips only lead back to the site. */}
       <Nav setCat={() => {}} />
-      <main className="pt-[84px] sm:pt-[104px]">{children}</main>
+      <main className="min-h-[100svh] pt-[84px] sm:pt-[104px]">{children}</main>
       <Footer />
     </>
   );
@@ -64,7 +64,7 @@ export function CatalogIndex() {
   return (
     <>
       <Nav setCat={setCat} />
-      <main className="pt-[84px] sm:pt-[104px]">
+      <main className="min-h-[100svh] pt-[84px] sm:pt-[104px]">
         <Catalog cat={cat} setCat={setCat} />
       </main>
       <Footer />
