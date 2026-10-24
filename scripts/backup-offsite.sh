@@ -48,6 +48,24 @@ umask 077
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=scripts/backup-common.sh
+source "$ROOT/scripts/backup-common.sh"
+
+# A run that is not allowed to go on without an off-site target. The
+# unattended run of the timer uses it, so a missing target is a failure and
+# not a quiet success.
+ALLOW_NO_TARGET=0
+for argument in "$@"; do
+  case "$argument" in
+    --allow-no-target) ALLOW_NO_TARGET=1 ;;
+    -h|--help) sed -n '2,45p' "$0"; exit 0 ;;
+    *)
+      echo "unknown argument: $argument" >&2
+      exit 2
+      ;;
+  esac
+done
+
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/blipmade}"
 # The upload storage is the directory the platform stores the attached files
 # in. It is taken from the platform configuration when it is not set here.
@@ -65,14 +83,28 @@ if [[ -f .env ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Without a target there is nothing to do. The local backup is not affected and
-# the script never claims that a copy was made.
+# Without a target there is nothing to do.
+#
+# The host uses RAID 0, so a copy that stays on this machine is not a
+# disaster recovery backup. The unattended run therefore FAILS when no target
+# is configured: a backup that produced no copy off the host must never be
+# reported as a successful disaster recovery backup. A human who wants to
+# see the local copy only can say so with --allow-no-target.
 # ---------------------------------------------------------------------------
 if [[ -z "${OFFSITE_TARGET:-}" ]]; then
-  echo "==> OFFSITE_TARGET is not set, so no off-site copy was made."
-  echo "    The local backup is unaffected. This host uses RAID 0, so configure"
-  echo "    OFFSITE_TARGET before relying on these backups."
-  exit 0
+  echo "==> OFFSITE_TARGET is not set, so no off-site copy was made." >&2
+  echo "    The host uses RAID 0, so the local copy is not a disaster recovery" >&2
+  echo "    backup. Configure OFFSITE_TARGET and the encryption keys:" >&2
+  echo "      OFFSITE_TARGET          where the copy goes" >&2
+  echo "      OFFSITE_AGE_RECIPIENT   the age recipient, for example age1...." >&2
+  echo "      OFFSITE_AGE_IDENTITY    the path to the age identity file" >&2
+  echo "      OFFSITE_ENCRYPTION_KEY  the passphrase of the openssl fallback" >&2
+  if [[ "$ALLOW_NO_TARGET" -eq 1 ]]; then
+    echo "    --allow-no-target was given, so this run ends without a failure." >&2
+    exit 0
+  fi
+  echo "    The backup failed: no copy left this host." >&2
+  exit 3
 fi
 
 if ! [[ "$KEEP_COPIES" =~ ^[0-9]+$ ]] || [[ "$KEEP_COPIES" -lt 1 ]]; then
@@ -205,12 +237,27 @@ echo "==> Dumping the database"
 "$PG_DUMP" "$DB_URL" --format=custom --file="$WORK/database.dump"
 
 MEMBERS=(database.dump)
-if [[ -d "$UPLOAD_DIR" ]]; then
-  echo "==> Adding the upload storage"
-  tar -czf "$WORK/uploads.tar.gz" -C "$UPLOAD_DIR" .
-  MEMBERS+=(uploads.tar.gz)
+UPLOAD_SOURCE="$(blipmade_upload_source "${OFFSITE_UPLOAD_DIR:-${ATTACHMENT_DIR:-}}")"
+if [[ -n "$UPLOAD_SOURCE" ]]; then
+  UPLOAD_COUNT="$(blipmade_count_files "$UPLOAD_SOURCE")"
+  echo "==> Adding the upload storage ($UPLOAD_COUNT files from $UPLOAD_SOURCE)"
+  if blipmade_archive_dir "$UPLOAD_SOURCE" "$WORK/uploads.tar.gz"; then
+    MEMBERS+=(uploads.tar.gz)
+  else
+    echo "    The uploads could not be packed, the payload holds the database only." >&2
+  fi
 else
-  echo "==> There is no upload storage at $UPLOAD_DIR, the payload holds the database only"
+  echo "==> There is no upload storage on this host, the payload holds the database only" >&2
+fi
+
+CONFIG_MEMBERS=()
+while IFS= read -r member; do
+  CONFIG_MEMBERS+=("$member")
+done < <(blipmade_config_members "$ROOT")
+if [[ ${#CONFIG_MEMBERS[@]} -gt 0 ]]; then
+  echo "==> Adding the configuration of the platform"
+  tar -czf "$WORK/config.tar.gz" "${CONFIG_MEMBERS[@]}"
+  MEMBERS+=(config.tar.gz)
 fi
 
 tar -czf "$PAYLOAD" -C "$WORK" "${MEMBERS[@]}"

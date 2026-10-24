@@ -17,8 +17,14 @@ WorkingDirectory=/opt/blipmade
 EnvironmentFile=-/opt/blipmade/.env
 ExecStart=/opt/blipmade/scripts/backup.sh scheduled
 # The off-site copy is encrypted with a key that must never appear in the
-# process list, so it is read from the environment of the service.
+# process list, so it is read from the environment of the service. The local
+# backup and the copy that leaves the host are two different steps, so the
+# database is dumped once.
 ExecStartPost=/opt/blipmade/scripts/backup-offsite.sh
+# A backup that failed must raise an alarm instead of being noticed days
+# later. The alarm is sent by webhook or by mail when one is configured, and
+# is written to the journal of the machine when neither is.
+OnFailure=/opt/blipmade/scripts/backup-alert.sh
 TimeoutStartSec=3600
 Nice=10
 IOSchedulingClass=idle

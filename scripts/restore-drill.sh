@@ -11,6 +11,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=scripts/backup-common.sh
+source "$ROOT/scripts/backup-common.sh"
+
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/blipmade}"
 SCRATCH_DB="${SCRATCH_DB:-blipmade_restore_check}"
 
@@ -67,6 +70,27 @@ USERS='SELECT count(*) FROM "User";'
 PRODUCTS='SELECT count(*) FROM "Product";'
 MIGRATIONS='SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL;'
 
+# The drill proves the whole archive, not only the database. A backup that
+# holds the database but not the files of the customers is not a backup of
+# the platform, so the uploads and the configuration have to be in it and
+# have to be readable.
+echo "==> Checking the rest of the archive"
+archive_status=0
+for member in uploads.tar.gz config.tar.gz; do
+  if [[ -f "$WORK/$member" ]]; then
+    if tar -tzf "$WORK/$member" >/dev/null 2>&1; then
+      count="$(tar -tzf "$WORK/$member" 2>/dev/null | grep -cv '/$' || true)"
+      printf '  %-16s present, %s entries, readable\n' "$member" "$count"
+    else
+      printf '  %-16s present but NOT readable\n' "$member"
+      archive_status=1
+    fi
+  else
+    printf '  %-16s MISSING from the archive\n' "$member"
+    archive_status=1
+  fi
+done
+
 live_tables=$(psql -At "$HOST_URL" -c "$TABLES")
 restored_tables=$(psql -At "$SCRATCH_URL" -c "$TABLES")
 live_users=$(psql -At "$HOST_URL" -c "$USERS")
@@ -86,12 +110,16 @@ status=0
 if [[ "$restore_ok" != "1" ]]; then
   echo "  RESULT: the restore reported errors." >&2
   status=1
+elif [[ "$archive_status" != "0" ]]; then
+  echo "  RESULT: the archive does not hold the uploads and the configuration." >&2
+  status=1
 elif [[ "$live_tables" != "$restored_tables" || "$live_users" != "$restored_users" \
    || "$live_products" != "$restored_products" || "$live_migrations" != "$restored_migrations" ]]; then
   echo "  RESULT: the restored database does not match the live one." >&2
   status=1
 else
-  echo "  RESULT: the backup restores into a database that matches the live one."
+  echo "  RESULT: the backup restores into a database that matches the live one,"
+  echo "           and it holds the uploads and the configuration."
 fi
 
 exit "$status"
