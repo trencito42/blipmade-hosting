@@ -1,0 +1,28 @@
+# Retestul fluxurilor, stiva izolata http://127.0.0.1:30040
+# 2026-10-24T06:53:47.548Z -> 2026-10-24T06:54:07.150Z
+
+| Ruta | Sectiune | HTTP | Destinatie | Erori consola | Cereri esuate |
+|---|---|---|---|---|---|
+| / | vizitator | 200 | / | 0 | 0 |
+| /apps | vizitator | 200 | /apps | 0 | 0 |
+| /login | vizitator | 200 | /login | 0 | 0 |
+| /app | client | 200 | /app | 2 | 5 |
+| /app/instances | client | 200 | /app/instances | 2 | 6 |
+| /app/billing | client | 200 | /app/billing | 2 | 7 |
+| /app/tickets | client | 200 | /app/tickets | 2 | 6 |
+| /app/settings | client | 200 | /app/settings | 2 | 5 |
+| /admin | admin | 200 | /admin | 2 | 5 |
+| /admin/customers | admin | 200 | /admin/customers | 2 | 5 |
+| /admin/orders | admin | 200 | /admin/orders | 2 | 5 |
+| /admin/services | admin | 200 | /admin/services | 2 | 5 |
+| /admin/products | admin | 200 | /admin/products | 2 | 5 |
+| /admin/pricing | admin | 200 | /admin/pricing | 2 | 5 |
+| /admin/tickets | admin | 200 | /admin/tickets | 2 | 6 |
+
+Autentificare: DA (200)
+
+## Tabele
+- /admin/customers: coloane antet 7, coloane date 7, latimi potrivite=DA, derulare orizontala=NU, stare goala=NO
+- /admin/products: coloane antet 8, coloane date 8, latimi potrivite=DA, derulare orizontala=NU, stare goala=NO
+
+## Pagina de produs: buton de deploy = true
