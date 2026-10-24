@@ -447,6 +447,17 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       .object({ reference: z.string().trim().min(1).max(200) })
       .parse(request.body ?? {});
 
+    // Confirming a collection marks the invoice as paid and extends the
+    // period of the service, so it writes to the account of the customer. The
+    // rule that protects the accounts of the platform applies here too: an
+    // administrator is only served by another administrator.
+    const target = await prisma.invoice.findUnique({
+      where: { id },
+      select: { userId: true, user: { select: { role: true } } },
+    });
+    if (!target) throw notFound('Invoice not found.');
+    assertMayActOnAccount(actor, target.user.role, target.userId);
+
     // A collection that was made outside the provider is confirmed here, and
     // only here the invoice becomes paid and the period moves.
     const invoice = await confirmLocalCollection(id, {
