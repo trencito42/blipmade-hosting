@@ -146,6 +146,35 @@ describe('the price book of the catalog', () => {
     expect(product.pricing.minimum.amount).toBe(minimum.total);
   });
 
+  it('gives the same amounts as the quote when two prices have the same date', async () => {
+    await seedWordPress();
+    const product = await prisma.product.findUnique({ where: { slug: 'wordpress' } });
+    const first = await prisma.productPrice.findFirst({ where: { productId: product!.id } });
+    // A second price for the same period, with the same date. The identifier
+    // breaks the tie, the same way in the catalog and in the order.
+    await prisma.productPrice.create({
+      data: {
+        productId: product!.id,
+        period: 'MONTHLY',
+        baseAmount: 349,
+        currency: 'EUR',
+        active: true,
+        createdAt: first!.createdAt,
+      },
+    });
+
+    const client = makeClient(app);
+    const response = await client.request('GET', '/api/catalog/products/wordpress');
+    const product2 = response.body.product;
+
+    const minimum = await quote(client, 512, 1, 5);
+
+    // The two sides have to answer with the same number, whichever row they
+    // choose.
+    expect(product2.price.amount).toBe(minimum.total);
+    expect(product2.pricing.minimum.amount).toBe(minimum.total);
+  });
+
   it('has no book for a product without a price', async () => {
     await prisma.product.create({
       data: {

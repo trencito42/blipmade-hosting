@@ -39,6 +39,7 @@ function serializeProduct(product: {
   eggId: number | null;
   docsUrl: string | null;
   prices: {
+    id: string;
     baseAmount: number;
     ramPerGb: number;
     cpuPerUnit: number;
@@ -148,7 +149,10 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
 
     const products = await prisma.product.findMany({
       where,
-      include: { prices: { where: { active: true } }, options: { where: { active: true } } },
+      include: {
+        prices: { where: { active: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] },
+        options: { where: { active: true } },
+      },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
@@ -160,7 +164,10 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     const staff = request.user?.role === 'ADMIN' || request.user?.role === 'STAFF';
     const product = await prisma.product.findUnique({
       where: { slug },
-      include: { prices: { where: { active: true } }, options: { where: { active: true } } },
+      include: {
+        prices: { where: { active: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] },
+        options: { where: { active: true } },
+      },
     });
     if (!product) throw notFound('This product does not exist.');
     if (!staff) {

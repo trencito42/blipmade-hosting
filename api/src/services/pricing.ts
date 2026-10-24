@@ -137,11 +137,17 @@ export function validateConfiguration(
  * can still show a price.
  */
 export function priceRowFor<
-  T extends { period: string; active: boolean; createdAt: Date },
+  T extends { id: string; period: string; active: boolean; createdAt: Date },
 >(prices: T[], period: BillingPeriod = 'MONTHLY'): T | undefined {
   const active = prices
     .filter((price) => price.active)
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    .sort((a, b) => {
+      const byDate = b.createdAt.getTime() - a.createdAt.getTime();
+      if (byDate !== 0) return byDate;
+      // Two rows with the same date: the identifier breaks the tie, the same
+      // way on both sides, so the catalog and the order cannot disagree.
+      return a.id.localeCompare(b.id);
+    });
   return active.find((price) => price.period === period) ?? active[0];
 }
 
@@ -151,7 +157,9 @@ export async function loadPrice(
 ): Promise<ProductPrice> {
   const price = await prisma.productPrice.findFirst({
     where: { productId, period, active: true },
-    orderBy: { createdAt: 'desc' },
+    // The same order as the catalog: the newest row, and the identifier
+    // breaks the tie between two rows with the same date.
+    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
   });
   if (!price) throw notFound('This product has no active price.');
   return price;
