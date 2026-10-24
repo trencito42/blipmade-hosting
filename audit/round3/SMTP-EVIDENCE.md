@@ -120,7 +120,7 @@ $ cd /home/debian/wt-r3-ops && node audit/_tools/r3-mail-probe.mjs
   | The link works once and expires in 24 hours. If you did not create this account, ignore this message.
   |
   | Confirm my email address:
-  | http://127.0.0.1:3013/verify-email?token=4W1ILM_lYoNSEM9MoZZqRZfJhtBZAAQdJsPhLEN6_Es
+  | http://127.0.0.1:3013/verify-email?token=<redacted>
   |
   | —
   | Blipmade · http://127.0.0.1:3013
@@ -133,6 +133,14 @@ subject `Confirm your Blipmade email address`, the body text
 `Confirm your email address` / `Hi R3 Audit, welcome to Blipmade.` and the
 verification link that carries a token. The message was delivered by the
 **worker**, through the queue: the report below shows the job as `completed`.
+
+The token of the link is written as `<redacted>` here. It was a throwaway
+token of the **local sink** of the audit, for the account
+`r3-audit-customer@blipmade.test`, and it was checked on 2026-10-24 against
+the live database: the token is not there (0 rows in `VerificationToken`) and
+the account does not exist in production either (0 rows in `User` whose
+address ends in `blipmade.test`). The proof below is the status of the
+verification, not the value of the token, so the value is not needed here.
 
 ### 3.2 The token of the message really works
 

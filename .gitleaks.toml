@@ -29,10 +29,29 @@ The findings of the scan that are not secrets.
   it. It is the password of a customer of a test, on a local address, and
   the live database was checked on 2026-10-24: no account of the platform
   uses it. The entry goes away when the history is cleaned of it.
+- The token of the verification message that the audit captured on the
+  local sink of the audit (127.0.0.1:3013), for the account
+  r3-audit-customer@blipmade.test. The token was written in the evidence of
+  the mail, and it is redacted there now, but the history keeps the value,
+  so the scan reports it. It is a throwaway token of a local sink for a
+  test account, and the live database was checked on 2026-10-24: the token
+  is not in the table of the verification tokens (0 rows) and the account
+  does not exist in production either (0 rows). The entry goes away when
+  the history is cleaned of it.
+- The token of the DNS verification of a domain that the audit created on the
+  isolated stack, for the hostname r3-probe.example.test. The host name is
+  in the reserved test domain example.test, the domain was never registered
+  and the token grants access to nothing: it is the random value that the
+  platform writes in a TXT record and reads back to prove that whoever asked
+  for the domain controls it. The value is redacted in the evidence now, but
+  the history keeps it, so the scan reports it. The entry goes away when the
+  history is cleaned of it.
 """
 regexes = [
   '''verification-12345678''',
   '''verification-abcdef01''',
   '''ptlc_0123456789abcdef0123456789abcdef0123456789abcd''',
   '''VerifyHorseBattery9''',
+  '''4W1ILM_lYoNSEM9MoZZqRZfJhtBZAAQdJsPhLEN6_Es''',
+  '''tcDcrLSUqsAQgFIhQPLJKmg4F97FgzqV''',
 ]

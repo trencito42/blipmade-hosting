@@ -129,10 +129,10 @@ $ node audit/_tools/r3-domain-probe.mjs http://127.0.0.1:3113 r3-probe.example.t
     "dnsRecords": [
       { "name": "r3-probe.example.test", "type": "A", "value": "193.34.214.143" },
       { "name": "www.r3-probe.example.test", "type": "CNAME", "value": "r3-probe.example.test" },
-      { "name": "_blipmade-verify.r3-probe.example.test", "type": "TXT", "value": "tcDcrLSUqsAQgFIhQPLJKmg4F97FgzqV" }
+      { "name": "_blipmade-verify.r3-probe.example.test", "type": "TXT", "value": "<redacted>" }
     ],
     "lastError": null,
-    "verification": { "host": "_blipmade-verify.r3-probe.example.test", "token": "tcDcrLSUqsAQgFIhQPLJKmg4F97FgzqV", "verified": false, ... }
+    "verification": { "host": "_blipmade-verify.r3-probe.example.test", "token": "<redacted>", "verified": false, ... }
   }
 }
 ```
