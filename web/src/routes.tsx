@@ -20,6 +20,17 @@ const Docs = lazy(() => import('./pages/Docs'));
 const Status = lazy(() => import('./pages/Status'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
+// The legal pages are text, and they are read by the people who want to
+// know what the platform is. They are split like the rest of the pages,
+// so a visitor who only wants the catalogue does not pay for them.
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Cookies = lazy(() => import('./pages/Cookies'));
+const Aup = lazy(() => import('./pages/Aup'));
+const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
+const Sla = lazy(() => import('./pages/Sla'));
+const ServerError = lazy(() => import('./pages/ServerError'));
+
 const AppOverview = lazy(() => import('./app/Overview'));
 const AppInstances = lazy(() => import('./app/Instances'));
 const AppInstanceDetail = lazy(() => import('./app/InstanceDetail'));
@@ -82,7 +93,7 @@ function DeployRedirect() {
   );
 }
 
-const ROUTES: RouteDef[] = [
+export const ROUTES: RouteDef[] = [
   { pattern: '/login', component: Login, title: 'Log in', guestOnly: true },
   { pattern: '/register', component: Register, title: 'Create account', guestOnly: true },
   { pattern: '/forgot-password', component: ForgotPassword, title: 'Reset password' },
@@ -93,6 +104,21 @@ const ROUTES: RouteDef[] = [
   { pattern: '/apps', component: CatalogIndex, title: 'Catalog' },
   { pattern: '/apps/:slug', component: ProductPage, title: 'Product' },
   { pattern: '/deploy/:slug', component: DeployRedirect, title: 'Deploy' },
+
+  // The legal pages. They are public: a visitor reads them without an
+  // account, and the footer of the site links to all of them.
+  { pattern: '/terms', component: Terms, title: 'Terms of service' },
+  { pattern: '/privacy', component: Privacy, title: 'Privacy policy' },
+  { pattern: '/cookies', component: Cookies, title: 'Cookie policy' },
+  { pattern: '/aup', component: Aup, title: 'Acceptable use policy' },
+  { pattern: '/refund-policy', component: RefundPolicy, title: 'Refund policy' },
+  { pattern: '/sla', component: Sla, title: 'Service levels' },
+
+  // The page the server points at when it cannot answer. It is a route
+  // of the site like any other, so it needs no rule of its own in the
+  // server: the server already serves the site for every address that
+  // has no extension.
+  { pattern: '/500', component: ServerError, title: 'Server error' },
 
   { pattern: '/app', component: AppOverview, title: 'Overview', area: 'customer', exact: true },
   { pattern: '/app/instances', component: AppInstances, title: 'Apps & databases', area: 'customer' },

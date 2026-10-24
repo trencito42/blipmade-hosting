@@ -4,6 +4,7 @@ import { Button, Eyebrow, Headline, Logo } from '../ui';
 import { Link, useRouter } from '../router';
 import { ApiError, post } from '../lib/api';
 import { AuthField } from './auth-field';
+import { LegalFooter } from '../legal/LegalFooter';
 
 /** The rules the API enforces, checked here so the user is told before submitting. */
 const passwordIssues = (value: string): string[] => {
@@ -112,6 +113,7 @@ export default function ResetPassword() {
             <Button to="/login" full size="lg">Go to log in</Button>
           </div>
           <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
+          <LegalFooter className="mt-6" />
         </main>
         <PromisePanel />
       </div>
@@ -134,6 +136,7 @@ export default function ResetPassword() {
             <p className="text-center text-[14.5px] text-ink2">Remembered it? <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
           </div>
           <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
+          <LegalFooter className="mt-6" />
         </main>
         <PromisePanel />
       </div>
@@ -186,6 +189,7 @@ export default function ResetPassword() {
           <p className="text-center text-[14.5px] text-ink2">Changed your mind? <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Back to log in</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
+        <LegalFooter className="mt-6" />
       </main>
       <PromisePanel />
     </div>

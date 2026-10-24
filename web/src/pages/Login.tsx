@@ -7,6 +7,7 @@ import { postLoginTarget } from '../auth-guard';
 import { useSession } from '../session';
 import { ApiError } from '../lib/api';
 import { AuthField } from './auth-field';
+import { LegalFooter } from '../legal/LegalFooter';
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
@@ -117,6 +118,7 @@ export default function Login() {
           <p className="text-center text-[14.5px] text-ink2">New to Blipmade? <Link to="/register" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Create account</Link></p>
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
+        <LegalFooter className="mt-6" />
       </main>
       <aside aria-hidden="true" className="hidden flex-col justify-between gap-8 rounded-[32px] bg-acc p-12 text-on-acc lg:flex">
         <span className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] opacity-70">Blipmade</span>

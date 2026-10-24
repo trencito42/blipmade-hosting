@@ -17,6 +17,7 @@ import { cellClass, headerClass, type TableColumn } from './lib/table';
 import { Icon, type IconName } from './icons';
 import { Link, useRouter } from './router';
 import logo from './logo.svg';
+import { LegalFooter } from './legal/LegalFooter';
 
 /**
  * App-area components. Same visual language as the marketing site: flat
@@ -252,9 +253,16 @@ export function AppShell({
           </header>
 
           {/* The phone tab bar is 71px tall plus the safe area of the phone
-              (34px on a home-indicator device), so the page reserves 8rem
-              under the content: the last row of a table is never hidden. */}
-          <main className="px-4 pb-32 pt-2 sm:px-6 lg:pb-10">{children}</main>
+              (34px on a home-indicator device), so the page reserves 8rem at
+              the bottom: the last row of a table is never hidden. The reserve
+              is on the footer, because the footer is the last thing on the
+              page. */}
+          <main className="px-4 pb-8 pt-2 sm:px-6 lg:pb-10">{children}</main>
+          {/* The legal links are on every page of the app, so the terms
+              are never further than one click away. */}
+          <footer className="px-4 pb-32 pt-6 sm:px-6 lg:pb-10">
+            <LegalFooter />
+          </footer>
         </div>
       </div>
 

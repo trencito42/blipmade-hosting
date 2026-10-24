@@ -1,5 +1,6 @@
 import { Link } from '../router';
 import { Button, Logo } from '../ui';
+import { LegalFooter } from '../legal/LegalFooter';
 
 export default function NotFound() {
   return (
@@ -34,6 +35,12 @@ export default function NotFound() {
           </p>
         </div>
       </main>
+
+      <footer className="px-4 pb-10 sm:px-6">
+        <div className="mx-auto w-full max-w-[560px]">
+          <LegalFooter />
+        </div>
+      </footer>
     </div>
   );
 }

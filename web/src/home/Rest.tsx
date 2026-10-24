@@ -5,6 +5,7 @@ import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { scrollToId } from '../router';
 import { useSession } from '../session';
 import { homeOf } from '../auth-guard';
+import { LegalFooter } from '../legal/LegalFooter';
 
 function Plan({ title, price, items }: { title: string; price: string; items: string[] }) {
   return (
@@ -63,6 +64,9 @@ export function Footer() {
       <Wrap className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4">
         <div className="flex items-center gap-4"><Logo className="!text-[17px] text-ink" /><span>© {new Date().getFullYear()}</span></div>
         <nav className="flex flex-wrap gap-5"><button type="button" className={a} onClick={() => scrollToId('apps')}>Apps</button><button type="button" className={a} onClick={() => scrollToId('pricing')}>Pricing</button><a className={a} href="/docs">Docs</a><a className={a} href="/status">Status</a>{user ? <a className={a} href={homeOf(user.role)}>Dashboard</a> : <a className={a} href="/login">Log in</a>}</nav>
+      </Wrap>
+      <Wrap className="mt-8">
+        <LegalFooter />
       </Wrap>
     </footer>
   );
