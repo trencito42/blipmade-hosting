@@ -207,7 +207,59 @@ promite baze de date si backupe pe produse care nu le au.
 
 ---
 
-## 11. Ce mai blocheaza, pe scurt
+## 11. Adresele de proxy in care se crede (`SEC-P1-02`, `SESS-P1-04`)
+
+**Pregatit in cod:** rezolvarea adresei clientului se face **din dreapta** lantului
+`X-Forwarded-For` (`web/src/lib/client-address.mjs`), deci un client nu mai poate scrie in
+lant o adresa aleasa de el; limita per-adresa a API-ului are cheia **adresa clientului, sau
+conexiunea cand adresa nu se cunoaste** (`api/src/plugins/auth.ts` — `addressRateLimitKey`), deci
+o limita nu mai poate deveni o limita pentru toata platforma nici cand lista de proxy-uri nu e
+setata; contorul de autentificare numara **doar incercarile care au esuat**
+(`api/src/lib/failed-attempts.ts`), deci un client care se autentifica de mai multe ori nu se
+blocheaza singur.
+
+**Masurat (faza 14):** fara reparare, un client care trimite `X-Forwarded-For: 9.9.9.9` era
+inregistrat si limitat dupa `9.9.9.9`; fara reparare, a 11-a autentificare **corecta** era
+refuzata cu HTTP 429. Cu repararea, ambele teste cad (`_raw/phase14-proof-unpatched.txt`).
+
+**Lipseste:** valoarea exacta a listei de proxy-uri pentru **API**. In productie lista exista
+doar ca implicit in `compose.api.yml`:
+
+```bash
+# implicitul curent (compose.api.yml): 127.0.0.1,::1,172.16.0.0/12
+# valoarea recomandata, in /opt/blipmade/.env:
+TRUSTED_PROXIES=127.0.0.1,::1,172.18.0.0/16
+```
+
+**De ce `172.18.0.0/16` si nu adresa containerului:** `172.18.0.0/16` este reteaua Docker
+`blipmade_default` (masurat: `docker network inspect blipmade_default`), iar adresa containerului
+web (`172.18.0.6` la masurare) **se schimba** la fiecare recreare a containerului. O lista cu
+adresa exacta ar pierde increderea la prima redeploy, iar limita per-adresa ar deveni din nou o
+limita pentru toata platforma. Lista implicita `172.16.0.0/12` este mai larga decat necesar:
+ea crede si alte retele private.
+
+**Verificare asteptata dupa ce valoarea e pusa:**
+```bash
+# 1. API-ul primeste lista de la web
+docker exec blipmade-api-1 printenv TRUSTED_PROXIES
+# 2. adresa clientului e cea a vizitatorului, nu a proxy-ului
+#    (se vede in jurnalul de audit: ip = adresa reala)
+docker exec blipmade-postgres-1 psql -U blipmade -d blipmade \
+  -c "SELECT ip, count(*) FROM \"AuditLog\" GROUP BY ip ORDER BY count(*) DESC LIMIT 5;"
+```
+
+**Conditie de infrastructura (edge-ul, la 10.77.0.12):** edge-ul trebuie sa trimita
+`X-Forwarded-For` cu adresa vizitatorului. Fara header, web-ul foloseste adresa socketului
+(adresa edge-ului) si toti vizitatorii primesc aceeasi limita. Verificare: cererea de mai sus
+trebuie sa arate adrese de vizitator, nu `10.77.0.12`.
+
+**De ce conteaza:** fara lista, limitele per-adresa ale cotarii (120/min), comenzii (30/10 min) si
+setarilor (5-10/15 min) sunt **un contor pentru toata platforma** — masurat de retestul
+independent: 121 cotari au dat HTTP 429, iar un alt vizitator primea tot HTTP 429.
+
+---
+
+## 12. Ce mai blocheaza, pe scurt
 
 | Dependența | Efectul | Cine decide |
 |---|---|---|
@@ -219,12 +271,13 @@ promite baze de date si backupe pe produse care nu le au.
 | Caddy admin + `DOMAIN_BASE` | Nicio instanta nu are URL public | Operator (VM 102) |
 | Releu SMTP | Canalul de suport e inert | Operator |
 | Valoarea `C_node` | Cardul de pret nu poate fi decis | Operator (D-1) |
+| Lista `TRUSTED_PROXIES` a API-ului | Limitele per-adresa pot deveni limite de platforma | Operator |
 | Cheie de audit pe VM 100/101 | 19 afirmatii raman neverificabile | Operator (D-3) |
 | Confirmarea celor 3 adrese romanesti + regim fiscal | Citirea corecta a `SEC-01` | Operator (D-4) |
 
 ---
 
-## 12. Ce s-a implementat fara nicio dependenta
+## 13. Ce s-a implementat fara nicio dependenta
 
 Pentru contrast, lista exacta a ce a fost reparat in cod si verificat in aceasta runda este in
 `audit/12-FULL-FINDINGS-REGISTER.md`, sectiunea „Starea remedierii", si in raportul de implementare

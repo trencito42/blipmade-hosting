@@ -101,22 +101,51 @@ administrator, expunerea exportului de clienți, cookie-ul de sesiune fără `Se
 reparate pe ramura `remediation/phase-2-critical-fixes`, cu teste de regresie și **dovada
 că testele eșuează fără reparare**.
 **Criteriu de ieșire:** suita completă verde **și** un agent diferit de cel care a
-implementat confirmă fiecare reparare. **Stare: în curs** — reparatrile sunt implementate,
-retestul independent este ultima etapă a acestei faze.
+implementat confirmă fiecare reparare.
+
+**Stare: în curs, dar mult mai aproape.** Retestul independent al fazei 13
+(`PHASE-13-RETEST.md`, agent diferit de cei care au implementat) a dat **7 reparări `DA`,
+3 `PARȚIAL`, 0 `NU`** și a găsit trei găuri deschise, pe care le-am reparat în fazele 14 și 15
+(`f8b2051`, `4969f4a`, ramura `remediation/phase-2-critical-fixes`):
+
+| Găura găsită de retest | Severitate | Reparată |
+|---|---|---|
+| `RT-P1-01` — comanda anulată sau rambursată putea fi resuscitată prin checkout și onorată (cu instanță, factură și abonament) | **Critical** | ✅ faza 15 — `api/src/routes/orders.ts` |
+| `RT-P1-02` — jumătatea „de personal" a constatării `ADM-P1-02` (un personal putea suspenda alt personal) | **High** | ✅ faza 15 — `api/src/plugins/auth.ts` |
+| `RT-P2-01` — contorul limitării de rată rămănea **global** pe 6 rute, iar niciun test din toată suita nu apăra reparația | Medium | ✅ faza 14 — `api/src/app.ts`, `routes/catalog.ts`, `routes/orders.ts`, `routes/settings.ts` |
+
+Suita pe ramă, după fazele 14 și 15: **API 380/380 în 38 fișiere, web 89/89**. Fiecare reparare
+nouă are **dovada că testele eșuează fără ea** (`_raw/phase14-proof-unpatched.txt`).
+
+**Retestul independent al fazelor 14 și 15 rulează acum** (alt agent). **G6 nu se închide până
+la verdictul lui**, iar verdictul trebuie să acopere și cele patru constatări pe care le-am
+lăsat **deschise, în mod explicit**: `RT-P2-02` (planul anual nu e accesibil din interfață),
+`RT-P2-05` (fișa unui cont `ADMIN` rămâne lizibilă de un personal), `RT-P2-06` (stiva de revizie
+`3101`/`30003` rulează cod vechi) și `RT-P3-03` (două mecanisme paralele pentru `Secure`).
 
 ---
 
-## 3. Starea reparărilor din faza 13
+## 3. Starea reparărilor (fazele 13, 14 și 15)
 
-| Constatare | Severitate | Reparată | Dovada |
-|---|---|---|---|
-| `FIN-P1-01` — o comandă anulată/rambursată putea deveni `PAID` și primi infrastructură | Critical | ✅ | `api/src/services/stripe.ts` (garda de stare); dovadă: `_raw/phase2-proof-lead.txt` — fără reparare, comanda moartă **era plătită** |
-| `FIN-P2-03` — perioada prețului nu ajungea la comandă (o cotare anuală de 1788 producea o comandă de 149) | Critical | ✅ | `pricing.ts`, `routes/orders.ts`, `routes/catalog.ts`, `web/src/app/Deploy.tsx`; dovadă: fără reparare, comanda anuală era taxată **149** |
-| `BE-09` — un eveniment de plată fără sumă trecea drept „sumă corectă" | High | ✅ | `api/src/routes/webhooks.ts`; dovadă: fără reparare, evenimentul **era aplicat** |
-| `ADM-P1-01` — un angajat putea acorda 20 din 21 de permisiuni, inclusiv sieși | High | ⏳ agent | `api/src/routes/admin.ts` |
-| `ADM-P1-02` — `customers.write` putea suspenda un administrator | High | ⏳ agent | `api/src/routes/admin.ts` |
-| `REGR-01` — exportul complet al fiecărui client anulat era expus prin `GET /admin/settings` | High | ⏳ agent | `api/src/routes/admin.ts` |
-| `SEC-P1-01` / `SEC-P1-02` — cookie de sesiune fără `Secure`; limitarea per-adresă devenea globală | Critical | ⏳ agent | `api/src/plugins/auth.ts`, `api/src/env.ts` |
+Verdictul din coloana „Retest" este cel al agentului independent din `PHASE-13-RETEST.md`:
+`DA` = repararea e reală, probată pe server și acoperită de un test de regresie care **chiar
+eșuează fără ea**; `PARȚIAL` = codul există, dar constatarea **nu e închisă** sau există o
+ocolire deschisă.
+
+| Constatare | Severitate | Reparată | Retest | Dovada |
+|---|---|---|---|---|
+| `FIN-P1-01` — o comandă anulată/rambursată putea deveni `PAID` și primi infrastructură | Critical | ✅ | **PARȚIAL → reparat în faza 15** | Retest: ocolirea `cancel` → `POST /orders/:id/checkout` → eveniment de plată ducea comanda la `PAID` cu instanță, factură și abonament. Repararea: checkout-ul refuză `CANCELLED`/`REFUNDED` (`api/src/routes/orders.ts`) |
+| `FIN-P2-03` — perioada prețului nu ajungea la comandă (o cotare anuală de 1788 producea o comandă de 149) | Critical | ✅ | **DA** | `pricing.ts`, `routes/orders.ts`, `routes/catalog.ts`; măsurat: cotare `YEARLY` → 1788, comandă `YEARLY` → 1788 |
+| `BE-09` — un eveniment de plată fără sumă trecea drept „sumă corectă" | High | ✅ | **DA** | `api/src/routes/webhooks.ts`; măsurat: evenimentul fără sumă → HTTP 500, comanda `FAILED`, 0 instanțe |
+| `ADM-P1-01` — un angajat putea acorda 20 din 21 de permisiuni, inclusiv sieși | High | ✅ | **DA** | `api/src/routes/admin.ts`; 6 ocoliri, toate refuzate (403) |
+| `ADM-P1-02` — `customers.write` putea suspenda un administrator | High | ✅ | **PARȚIAL → reparat în faza 15** | Jumătatea „**sau de personal**" rămăsese deschisă; reparată: `assertMayActOnAccount` acoperă și rolul `STAFF` |
+| `REGR-01` — exportul complet al fiecărui client anulat era expus prin `GET /admin/settings` | High | ✅ | **DA** | `api/src/routes/admin.ts`; citirea și scrierea sunt filtrate |
+| `SEC-P1-01` — cookie de sesiune fără `Secure` | Critical | ✅ | **DA** | `api/src/plugins/auth.ts`; în producție: `HttpOnly; Secure; SameSite=Lax` |
+| `SEC-P1-02` / `SESS-P1-04` — limitarea per-adresă devenea limitare globală | High | ✅ | **PARȚIAL → reparat în faza 14** | Reparat pe **toate** cele 12 rute cu limită, nu doar pe cele 6 de autentificare; plus adresa clientului e citită din **dreapta** lanțului, deci nu mai poate fi falsificată |
+| `SESS-P1-05` / `ADM-P2-06` — contorul de autentificare număra și autentificările reușite | Medium | ✅ | **reparat în faza 14** | Contorul numără **doar eșecurile**; măsurat: fără reparare, a 11-a autentificare corectă era refuzată cu 429 |
+| `CJ-P1-01` / `CJ-P1-02` — confirmarea plății în interfață și facturarea sumei încasate | High | ✅ | **DA** | `api/src/routes/orders.ts`, `api/src/services/stripe.ts`, `web/src/app/Billing.tsx` |
+| `RT-P2-03` — `markOrderPaid` nu verifica suma primită | Medium | ✅ | **reparat în faza 15** | Verificarea e fail-closed: suma trebuie să fie cea cotată |
+| `RT-P2-04` — rambursarea comenzii unui administrator nu era acoperită de gardă | Medium | ✅ | **reparat în faza 15** | `api/src/routes/admin.ts` — garda pe rolul deținătorului comenzii |
 
 **O corecție de fond, verificată de lead:** constatarea `ADM-01` din
 `PREVIOUS-FINDINGS-REVALIDATION.md` („rutele de bilete nu verifică permisiunea") este
@@ -172,5 +201,10 @@ vizibil abia după ce se repară exact lucrurile care lipsesc.
 
 **NO-GO pentru lansare comercială, pe 2026-10-24.**
 Condiționat de închiderea porților **G1–G6** și de retestul independent al reparărilor
-din faza 13. Fiecare poartă are un criteriu de ieșire măsurabil, o dependență numită și
+din fazele 13, 14 și 15. Fiecare poartă are un criteriu de ieșire măsurabil, o dependență numită și
 un proprietar: operatorul sau dezvoltarea.
+
+**Starea la 2026-10-24:** `G1`–`G5` sunt dependențe de operator, nemăsurate din lipsă de chei și
+de decizii. `G6` a trecut prin **două** runde de retest independent: prima (faza 13) a închis 7
+reparări din 10 și a găsit trei găuri; a doua (fazele 14 și 15) le-a reparat, cu dovezi de
+regresie, și rulează acum.

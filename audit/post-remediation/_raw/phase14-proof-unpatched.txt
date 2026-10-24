@@ -1,0 +1,53 @@
+=== PHASE 14 REGRESSION PROOF — code WITHOUT the repair (worktree /home/debian/bm-base, HEAD 888a274) ===
+
+--- web: node --test web/tests/client-address.test.mjs ---
+not ok 1 - the last address of the chain is the address of the client
+not ok 11 - the chain of the header is read from the right, not from the left
+not ok 12 - a client that forges the head of the chain does not choose its address
+# tests 13
+# pass 10
+# fail 3
+
+--- api: vitest run tests/phase14-rate-limits.test.ts ---
+   ✓ the limit of a page > is kept per visitor and not for the whole platform 422ms
+   × the limit of the sign-in > does not count a sign-in that worked 1340ms
+     → expected 429 to be 200 // Object.is equality
+   ✓ the limit of the sign-in > counts the attempts that failed and refuses the next one 1089ms
+   × the limit of the sign-in > forgets the attempts that failed when the sign-in works 1144ms
+     → expected 429 to be 401 // Object.is equality
+ FAIL  tests/phase14-rate-limits.test.ts > the limit of the sign-in > does not count a sign-in that worked
+AssertionError: expected 429 to be 200 // Object.is equality
+ FAIL  tests/phase14-rate-limits.test.ts > the limit of the sign-in > forgets the attempts that failed when the sign-in works
+AssertionError: expected 429 to be 401 // Object.is equality
+      Tests  2 failed | 2 passed (4)
+
+=== PHASE 15 REGRESSION PROOF — code WITHOUT the repair (worktree /home/debian/bm-base, HEAD 888a274) ===
+
+--- api: vitest run tests/phase15-order-lifecycle.test.ts ---
+   × the life of an order > does not send a cancelled order to a checkout again 900ms
+     → expected 200 to be 409 // Object.is equality
+   × the life of an order > does not send a refunded order to a checkout again 577ms
+     → expected 200 to be 409 // Object.is equality
+   × the life of an order > keeps the trace of the refund when the order is cancelled 598ms
+     → expected 204 to be 400 // Object.is equality
+   ✓ the life of an order > lets an order that failed be paid again 425ms
+   × the life of an order > pays the order the sum it was quoted 609ms
+     → promise resolved "[ { …(18) } ]" instead of rejecting
+   × the accounts of the platform > does not let a member of the staff suspend another member of the staff 800ms
+     → expected 200 to be 403 // Object.is equality
+   ✓ the accounts of the platform > lets an administrator suspend a member of the staff 808ms
+   × the accounts of the platform > does not let a member of the staff refund the order of an administrator 949ms
+     → expected 409 to be 403 // Object.is equality
+ FAIL  tests/phase15-order-lifecycle.test.ts > the life of an order > does not send a cancelled order to a checkout again
+AssertionError: expected 200 to be 409 // Object.is equality
+ FAIL  tests/phase15-order-lifecycle.test.ts > the life of an order > does not send a refunded order to a checkout again
+AssertionError: expected 200 to be 409 // Object.is equality
+ FAIL  tests/phase15-order-lifecycle.test.ts > the life of an order > keeps the trace of the refund when the order is cancelled
+AssertionError: expected 204 to be 400 // Object.is equality
+ FAIL  tests/phase15-order-lifecycle.test.ts > the life of an order > pays the order the sum it was quoted
+AssertionError: promise resolved "[ { …(18) } ]" instead of rejecting
+ FAIL  tests/phase15-order-lifecycle.test.ts > the accounts of the platform > does not let a member of the staff suspend another member of the staff
+AssertionError: expected 200 to be 403 // Object.is equality
+ FAIL  tests/phase15-order-lifecycle.test.ts > the accounts of the platform > does not let a member of the staff refund the order of an administrator
+AssertionError: expected 409 to be 403 // Object.is equality
+      Tests  6 failed | 2 passed (8)
