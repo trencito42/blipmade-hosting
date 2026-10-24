@@ -90,7 +90,7 @@ provisionare. Platforma de facturare era complet nefuncțională în live.
   `stripeTestGateway()` este `false` în `NODE_ENV=production`.
 
 **Teste** (`api/tests/stripe-webhook.test.ts`, secțiunea „the signature of a
-delivery”): 9 teste — inclusiv unul care acceptă o semnătură produsă de
+delivery”): 10 teste — inclusiv unul care acceptă o semnătură produsă de
 **SDK-ul Stripe însuși** (`Stripe.webhooks.generateTestHeaderString`), ca
 să fie demonstrat că verificarea este cea reală.
 
@@ -423,6 +423,28 @@ Bazele de test folosite (`blipmade_stripe_main_test`, `blipmade_stripe_a_test`,
 `blipmade_stripe_b_test`) se termină în `_test`; scriptul `scripts/run-tests.sh`
 refuză orice bază care nu respectă regulinea. **Producția nu a fost folosită
 ca bază de test și nu a fost modificată.**
+
+### F.1 Integrarea continuă
+
+Rularea pe ramura de remediere (commitul `3557c6a`, care conține tot
+codul):
+
+**https://github.com/trencito42/blipmade-hosting/actions/runs/40132089435**
+
+| Job | Rezultat |
+|---|---|
+| API typecheck | success |
+| Web typecheck and build | success |
+| Unit and integration tests | success |
+| Secret scan | success |
+| Dependency audit | success |
+| Schema drift | success |
+
+Șase joburi, șase reușite. Scanarea secretelor a fost rulată și local, pe
+ramura completă (`gitleaks detect --log-opts="origin/main..HEAD"`): `no leaks
+found`. Commitul următor celui al rulării de mai sus schimbă **doar raportul**
+(nu codul), așa că nu există nicio diferență între codul scanat de CI și cel
+pus în ramură.
 
 Verificarea rutei în producție (read-only, înainte de a scrie ceva):
 
