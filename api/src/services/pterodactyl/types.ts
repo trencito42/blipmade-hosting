@@ -1,4 +1,7 @@
-/** Shapes returned by the Pterodactyl Application API (v1 media type). */
+/**
+ * Shapes returned by the Pterodactyl API, and the vocabulary of the states the
+ * node reports for a server.
+ */
 
 export interface PteroResource {
   object: string;
@@ -196,4 +199,43 @@ export interface PteroClientServerAttributes {
   egg_features?: string[];
   features?: string[];
   created_at?: string;
+}
+
+/**
+ * The state of a container that is really serving.
+ *
+ * The panel takes the state of a server from the daemon of the node. Only
+ * "running" means that the container is up and serving: a container that is
+ * "starting" has not passed its health check yet, and one that is "offline",
+ * "stopped" or "crashed" is not a service at all. A deployment that is called
+ * healthy in one of those states hands a broken container to a customer.
+ */
+export const RUNNING_STATE = 'running';
+
+/**
+ * The state of a container that is coming up.
+ *
+ * A container that is starting may still reach the running state, so a check
+ * that waits for it is right and a check that gives up at once is wrong.
+ */
+export const STARTING_STATE = 'starting';
+
+/**
+ * The state of the node without spaces around it and in one case.
+ *
+ * The daemon of a node is not bound to one spelling of a state, so the states
+ * are compared in a form that does not depend on it.
+ */
+export function normalizeState(state: string | null | undefined): string {
+  return (state ?? '').trim().toLowerCase();
+}
+
+/** True when the state the node reports means the container is up and serving. */
+export function isRunningState(state: string | null | undefined): boolean {
+  return normalizeState(state) === RUNNING_STATE;
+}
+
+/** True when the state the node reports means the container is still coming up. */
+export function isStartingState(state: string | null | undefined): boolean {
+  return normalizeState(state) === STARTING_STATE;
 }
