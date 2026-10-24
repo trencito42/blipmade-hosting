@@ -500,3 +500,44 @@ describe('the sum that pays for an order', () => {
     expect(subscription).toBeNull();
   });
 });
+
+describe('the flow of a payment', () => {
+  it('turns a signed payment into a service that is provisioned', async () => {
+    const user = await seedUser();
+    const { order } = await seedOrder(user.id, { total: 1000 });
+
+    const response = await deliver({
+      id: 'evt_paid_and_provisioned',
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_provisioned',
+          client_reference_id: order.id,
+          payment_status: 'paid',
+          payment_intent: 'pi_provisioned',
+          customer: 'cus_provisioned',
+          subscription: 'sub_provisioned',
+          amount_total: 1000,
+          amount_subtotal: 1000,
+        },
+      },
+    });
+
+    expect(response.status).toBe(200);
+
+    // The order is paid and the fulfilment has started.
+    const updated = await prisma.order.findUnique({ where: { id: order.id } });
+    expect(updated?.status).toBe('PAID');
+    expect(updated?.fulfillmentStatus).toBe('PROVISIONING');
+
+    // The service exists and its provisioning is on the queue.
+    const instances = await prisma.instance.findMany({ where: { orderId: order.id } });
+    expect(instances).toHaveLength(1);
+    const instance = instances[0]!;
+    expect(instance.status).toBe('PENDING');
+
+    const { getQueue } = await import('../src/services/queue.js');
+    const job = await getQueue().getJob(`provision-${instance.id}`);
+    expect(job).toBeTruthy();
+  });
+});
