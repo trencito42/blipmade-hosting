@@ -52,7 +52,20 @@ PROTECTED_USER_IDS = {1, 2, 3, 4}
 #       11: {"email": "<email>", "username": "<username>"},
 #   }
 ALLOWED_SERVERS = {}
-ALLOWED_USERS = {}
+ALLOWED_USERS = {
+    # The four accounts that the verification runs created on the panel. The
+    # address of every one of them ends in ".invalid", a domain name that is
+    # reserved and can never be registered, and the name of the account
+    # follows the pattern of the accounts the platform creates
+    # ("bm-<id of the platform account>"). The document
+    # audit/post-remediation/_raw/PRODUCTION-POLLUTION-INCIDENT.md lists
+    # them as the accounts of the incident, and none of them owns a server:
+    # the panel reports zero servers.
+    19: {"email": "qa-headless-one-e4xeztm7@panel.blipmade.invalid", "username": "bm-01e4xeztm7"},
+    20: {"email": "qa-headless-two-eefha38m@panel.blipmade.invalid", "username": "bm-01eefha38m"},
+    23: {"email": "browser-customer-qhrka12o@panel.blipmade.invalid", "username": "bm-3cqhrka12o"},
+    24: {"email": "browser-customer-jm9c7zmu@panel.blipmade.invalid", "username": "bm-d8jm9c7zmu"},
+}
 
 BASE = ""
 KEY = ""
