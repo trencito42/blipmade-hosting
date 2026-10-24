@@ -26,6 +26,7 @@ import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
 import { env } from '../env.js';
+import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
 
 const money = (amount: number) => amount / 100;
 
@@ -640,6 +641,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/admin/products', { preHandler: requirePermission('products.write') }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
+    // The startup variables are counted before the body is read, so a body
+    // with too many of them is refused without the cost of walking them.
+    assertBoundedFields(request.body, {
+      startup: { max: MAX_STARTUP_VARIABLES, label: 'The startup variables' },
+    });
     const body = z
       .object({
         slug: z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and dashes.'),
@@ -1227,7 +1233,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const { userId } = z.object({ userId: z.string() }).parse(request.params);
     const body = z
       .object({
-        permissions: z.array(z.enum(PERMISSIONS)).optional(),
+        permissions: z.array(z.enum(PERMISSIONS)).max(PERMISSIONS.length).optional(),
         title: z.string().trim().max(120).nullable().optional(),
         role: z.enum(['STAFF', 'ADMIN']).optional(),
       })
@@ -1374,7 +1380,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.put('/admin/settings', { preHandler: requirePermission('settings.write') }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
-    const body = z.record(z.unknown()).parse(request.body);
+    const body = boundedRecord(z.record(z.unknown()), MAX_SETTINGS, 'The settings').parse(request.body);
     // The internal keys are not written here. The counters of the numbers and
     // the record of the retention belong to the platform, and a key that is
     // written by accident destroys a record that has to be kept, so the whole

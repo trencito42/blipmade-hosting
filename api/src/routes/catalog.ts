@@ -6,13 +6,14 @@ import { notFound } from '../lib/errors.js';
 import { addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, priceBook } from '../services/pricing.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
   ram: z.number().int().positive(),
   cpu: z.number().int().positive(),
   disk: z.number().int().positive(),
-  optionCodes: z.array(z.string()).optional(),
+  optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
 });
 
@@ -172,7 +173,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     handler: async (request) => {
       const body = z
         .object({
-          items: z.array(quoteItemSchema).min(1, 'Choose at least one app.'),
+          items: z.array(quoteItemSchema).min(1, 'Choose at least one app.').max(MAX_ORDER_LINES),
           promotionCode: z.string().trim().optional(),
           // The period of the price that is quoted. The order that follows
           // takes the same period, so the sum that was shown is the sum that

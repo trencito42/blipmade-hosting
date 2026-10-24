@@ -7,6 +7,7 @@ import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import * as operations from '../services/panel/operations.js';
+import { assertBoundedFields, MAX_ENVIRONMENT_VARIABLES, MAX_PAYLOAD_KEYS } from '../lib/bounded.js';
 
 /**
  * The operations a customer can run on their own server.
@@ -783,6 +784,11 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    * values that are not mentioned are taken from the current ones.
    */
   const changeStartup = async (request: FastifyRequest) => {
+    // The environment is counted before the body is read, so a body with too
+    // many variables is refused without the cost of walking them.
+    assertBoundedFields(request.body, {
+      environment: { max: MAX_ENVIRONMENT_VARIABLES, label: 'The environment' },
+    });
     const body = z
       .object({
         image: z.string().trim().min(1).max(255).optional(),
@@ -853,6 +859,11 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   });
 
   app.post('/instances/:id/schedules', async (request: FastifyRequest, reply) => {
+    // The payload is counted before the body is read, so a body with too many
+    // keys is refused without the cost of walking them.
+    assertBoundedFields(request.body, {
+      payload: { max: MAX_PAYLOAD_KEYS, label: 'The payload' },
+    });
     const body = z
       .object({
         name: z.string().trim().min(1).max(100),
@@ -877,6 +888,11 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
 
   app.patch('/instances/:id/schedules/:scheduleId', async (request: FastifyRequest) => {
     const params = z.object({ id: z.string(), scheduleId: z.coerce.number().int().positive() }).parse(request.params);
+    // The payload is counted before the body is read, so a body with too many
+    // keys is refused without the cost of walking them.
+    assertBoundedFields(request.body, {
+      payload: { max: MAX_PAYLOAD_KEYS, label: 'The payload' },
+    });
     const body = z
       .object({
         name: z.string().trim().min(1).max(100).optional(),

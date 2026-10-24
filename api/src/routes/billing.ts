@@ -21,6 +21,7 @@ import {
   type EmailTemplate,
 } from '../lib/email-templates.js';
 import { dispatchEmail } from '../services/queue.js';
+import { MAX_OPTION_CODES } from '../lib/bounded.js';
 
 /**
  * Sends a message about the billing.
@@ -220,7 +221,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
               ram: z.number().int().positive(),
               cpu: z.number().int().positive(),
               disk: z.number().int().positive(),
-              optionCodes: z.array(z.string()).optional(),
+              optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
               quantity: z.number().int().min(1).max(20).optional(),
             }),
           )

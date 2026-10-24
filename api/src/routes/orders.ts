@@ -10,13 +10,14 @@ import { createCheckout, markOrderPaid, stripeTestGateway } from '../services/st
 import { fulfilOrder } from './webhooks.js';
 import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
+import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 
 const orderItemSchema = z.object({
   productSlug: z.string().min(1),
   ram: z.number().int().positive(),
   cpu: z.number().int().positive(),
   disk: z.number().int().positive(),
-  optionCodes: z.array(z.string()).optional(),
+  optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
 });
 
@@ -67,7 +68,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const user = await requireAuth(request);
       const body = z
         .object({
-          items: z.array(orderItemSchema).min(1, 'Choose at least one app.'),
+          items: z.array(orderItemSchema).min(1, 'Choose at least one app.').max(MAX_ORDER_LINES),
           promotionCode: z.string().trim().optional(),
           // The period of the price that is ordered. It has to be the same
           // period as the one that was quoted, otherwise the order would be
