@@ -145,8 +145,6 @@ jobs:
       STRIPE_WEBHOOK_SECRET: ''
       STRIPE_PUBLISHABLE_KEY: ''
       SMTP_URL: ''
-      BACKUP_DIR: ${{ runner.temp }}/blipmade-backups
-      ATTACHMENT_DIR: ${{ runner.temp }}/blipmade-uploads
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -190,7 +188,16 @@ jobs:
       - name: Run the test suite
         # scripts/run-tests.sh points DATABASE_URL at the _test database,
         # clears the provider keys and runs vitest.
-        run: bash scripts/run-tests.sh
+        # The two directories are the ones of the runner, so the run writes
+        # nothing outside of them. The variable of the runner is used and not
+        # an expression, because the context of the runner does not exist in
+        # the environment of a job, and the file of the workflow would be
+        # refused before a single job is created.
+        run: |
+          export BACKUP_DIR="$RUNNER_TEMP/blipmade-backups"
+          export ATTACHMENT_DIR="$RUNNER_TEMP/blipmade-uploads"
+          mkdir -p "$BACKUP_DIR" "$ATTACHMENT_DIR"
+          bash scripts/run-tests.sh
 
   # ---------------------------------------------------------------------------
   # The whole history is scanned, not only the tip. A secret that was removed
