@@ -1,0 +1,151 @@
+# Phase 11.5 - Fiabilitate si capacitate
+Data: 2026-10-24T00:50:27+00:00
+
+## 5.1 Endpoint-urile de sanatate: ce spun, cu adevar
+--- GET http://127.0.0.1:3101/health (API, inregistreaza si pe /api/health)
+{"status":"ok","service":"blipmade-api","version":"1.0.0","uptimeSeconds":1331,"database":true,"redis":true,"mail":"file","mailDelivery":{"transport":"file","configured":false,"counts":{"queued":0,"delivered":0,"writtenToFile":0,"failed":0}},"stripe":"test","pterodactyl":"configured","panelKeyBridge":"configured"}
+--- GET http://127.0.0.1:30003/healthz (web)
+{"status":"ok","fonts":{"family":"Proxima Nova","installed":false,"files":[{"file":"/fonts/proxima-nova-400.woff2","weight":400,"present":false},{"file":"/fonts/proxima-nova-600.woff2","weight":600,"present":false},{"file":"/fonts/proxima-nova-700.woff2","weight":700,"present":false}],"missing":["/fonts/proxima-nova-400.woff2","/fonts/proxima-nova-600.woff2","/fonts/proxima-nova-700.woff2"],"fallb
+--- GET http://127.0.0.1:3101/status (public, agregat)
+{"error":{"code":"not_found","message":"No such endpoint.","requestId":"req-1pu"}}
+
+--- web /healthz este o verificare de viabilitate sau de pregatire?
+    (cod sursa web/server.mjs:108-116 -> nu atinge API-ul)
+--- web /healthz in timp ce API-ul este indisponibil: se testeaza mai jos (5.6)
+
+## 5.2 Coada BullMQ: starile joburilor (Redis, coada de provisionare + e-mail)
+--- coada blipmade.provision
+    (error)
+    ERR
+    user_script:1:
+    attempt
+    to
+    concatenate
+    local
+    'q'
+    (a
+    nil
+    value)
+    script:
+    1cfa52bf465c65f26eb7ba136e848b7ad00fe9a8,
+    on
+    @user_script:1.
+    joburi stocate: (error) ERR user_script:1: attempt to concatenate field '?' (a nil value) script: ac46a2a8bfcf90362044f0cabb19e547290df8f2, on @user_script:1.
+--- coada blipmade.email
+    (error)
+    ERR
+    user_script:1:
+    attempt
+    to
+    concatenate
+    local
+    'q'
+    (a
+    nil
+    value)
+    script:
+    1cfa52bf465c65f26eb7ba136e848b7ad00fe9a8,
+    on
+    @user_script:1.
+    joburi stocate: (error) ERR user_script:1: attempt to concatenate field '?' (a nil value) script: ac46a2a8bfcf90362044f0cabb19e547290df8f2, on @user_script:1.
+
+--- joburi blocate ('stalled' / lock-uri active) in coada de provisionare:
+    1) "bull:blipmade.provision:id"
+    2) "bull:blipmade.provision:meta"
+    3) "bull:blipmade.provision:events"
+    4) "bull:blipmade.provision:stalled-check"
+
+## 5.3 Pool-ul de conexiuni al aplicatiei (fara test de incarcare)
+--- setari relevante:
+    autovacuum = on
+    autovacuum_max_workers = 3
+    autovacuum_naptime = 60
+    effective_cache_size = 524288
+    log_min_duration_statement = -1
+    max_connections = 100
+    shared_buffers = 16384
+    superuser_reserved_connections = 3
+    work_mem = 4096
+--- conexiuni deschise acum pe blipmade_test, pe aplicatie:
+    ERROR:  ORDER BY position 3 is not in select list
+    LINE 1: ...made_test' group by application_name, state order by 3 desc;
+                                                                    ^
+--- numarul de procese Node care folosesc baza (pool separat fiecare):
+    procese: 9
+
+--- Prisma: pool implicit (fara DATABASE_URL cu limitari) = num_cpus*2+1
+    nuclee pe gazda: 4  ->  pool implicit per proces: 9
+    (masurat mai jos: numarul de conexiuni 'idle' pe care le tine API-ul)
+
+## 5.4 Memoria si limitele containerelor de productie (doar citire)
+blipmade-web-1	CPU 0.00%	MEM 16.38MiB / 7.762GiB	MEM% 0.21%	NET 150kB / 898kB	PIDS 11
+blipmade-api-1	CPU 0.00%	MEM 49.54MiB / 7.762GiB	MEM% 0.62%	NET 535kB / 112kB	PIDS 17
+blipmade-worker-1	CPU 0.00%	MEM 38.61MiB / 7.762GiB	MEM% 0.49%	NET 407kB / 1.06MB	PIDS 16
+blipmade-postgres-1	CPU 0.22%	MEM 1.411GiB / 7.762GiB	MEM% 18.17%	NET 138MB / 171MB	PIDS 42
+blipmade-redis-1	CPU 1.06%	MEM 11.31MiB / 7.762GiB	MEM% 0.14%	NET 45.4MB / 13MB	PIDS 6
+--- limite impuse de Docker (Memory/MemorySwap/CpuQuota/PidsLimit):
+  blipmade-api-1           Memory=0 MemorySwap=0 NanoCpus=0 CpuQuota=0 PidsLimit=<no value> Restart=unless-stopped
+  blipmade-worker-1        Memory=0 MemorySwap=0 NanoCpus=0 CpuQuota=0 PidsLimit=<no value> Restart=unless-stopped
+  blipmade-web-1           Memory=0 MemorySwap=0 NanoCpus=0 CpuQuota=0 PidsLimit=<no value> Restart=unless-stopped
+  blipmade-postgres-1      Memory=0 MemorySwap=0 NanoCpus=0 CpuQuota=0 PidsLimit=<no value> Restart=unless-stopped
+  blipmade-redis-1         Memory=0 MemorySwap=0 NanoCpus=0 CpuQuota=0 PidsLimit=<no value> Restart=unless-stopped
+--- gazda:
+    RAM total: 7947 MB | folosit: 2958 MB | liber: 4989 MB | disponibil: 5394 MB
+    swap: 0 MB total, 0 MB folosit
+
+## 5.5 Ce se intampla la o recreare de container (deploy) - efect pe sesiuni si joburi
+--- imaginea si politica de repornire a containerelor de productie:
+  blipmade-api-1         Image=blipmade-api Restart=unless-stopped MaxRetry=0 StopTimeout=<nil>
+  blipmade-worker-1      Image=blipmade-worker Restart=unless-stopped MaxRetry=0 StopTimeout=<nil>
+--- sesiunile stocate in baza de date supravietuiesc recrearii containerului?
+    randuri in tabela Session: 73
+    (cookie-ul bm_session este semnat cu SESSION_SECRET din mediu; daca secretul
+     ramane la fel, sesiunea supravietuieste restartului containerului)
+
+--- joburile BullMQ supravietuiesc recrearii workerului?
+    (error) ERR wrong number of arguments for 'eval' command
+    lockDuration provisionare: 120000 ms (api/src/services/queue.ts:95)
+    lockDuration e-mail:        60000 ms (api/src/services/queue.ts:233)
+    backoff provisionare: exponential 5000 ms x 5 incercari (api/src/services/queue.ts:64)
+    backoff e-mail:        exponential 10000 ms x 4 incercari (api/src/services/queue.ts:143)
+
+## 5.6 Oprire blanda (SIGTERM) cu cerere in curs - masuratoare pe o instanta izolata proprie
+--- se porneste o instanta proprie a API-ului pe portul 3127 (aceeasi baza, proces nou)
+    (nu se atinge instanta partajata de pe 3101)
+    copiat: dist node_modules package.json 
+--- instanta proprie PID=927027 pe portul 3127:
+    health=200
+
+--- test 1: cerere LENTA in curs + SIGTERM in timpul ei
+    se trimite SIGTERM procesului 927027 in timp ce cererea ruleaza...
+    cerere lenta: http=200 total=4.017816s
+    cererea s-a terminat dupa 3045 ms de la SIGTERM
+    continut raspuns: {"overall":"major_outage","components":[{"id":"api","name":"Platform API","state":"operational","detail":"The database a
+    procesul: s-a oprit dupa SIGTERM
+    log: {"level":30,"time":1792803036021,"pid":927027,"hostname":"blipmade-platform","reqId":"req-1","req":{"method":"GET","url":"/health","host":"127.0.0.1:3127","remoteAddress":"127.0.0.1","remotePort":55834},"msg":"incoming request"} {"level":30,"time":1792803036181,"pid":927027,"hostname":"blipmade-platform","reqId":"req-1","res":{"statusCode":200},"responseTime":155.8840009999999,"msg":"request completed"} {"level":30,"time":1792803036204,"pid":927027,"hostname":"blipmade-platform","reqId":"req-2","req":{"method":"GET","url":"/api/status","host":"127.0.0.1:3127","remoteAddress":"127.0.0.1","remotePort":55842},"msg":"incoming request"} {"level":30,"time":1792803037185,"pid":927027,"hostname":"blipmade-platform","signal":"SIGTERM","msg":"shutting down"} {"level":30,"time":1792803040221,"pid":927027,"hostname":"blipmade-platform","reqId":"req-2","res":{"statusCode":200},"responseTime":4015.7436479999997,"msg":"request completed"} 
+
+--- test 2: supravietuirea sesiunii la repornirea procesului
+    inainte de repornire: 
+    dupa repornire (PID nou 927175): {"user":null}
+
+## 5.7 Compresie si antete de livrare (server web, stiva izolata)
+--- /
+    HTTP/1.1 200 OK
+    Content-Length: 850
+    Cache-Control: no-cache
+--- /assets/index-CmJkQ0sT.js
+    HTTP/1.1 200 OK
+    Content-Length: 328452
+    Cache-Control: public, max-age=31536000, immutable
+--- /assets/index-B8mkGcfB.css
+    HTTP/1.1 200 OK
+    Content-Length: 65229
+    Cache-Control: public, max-age=31536000, immutable
+
+--- cerere conditionala (If-None-Match) pe index.html:
+    ETag primit: niciunul
+--- cerere conditionala pe un fisier cu hash (immutable):
+    HTTP/1.1 200 OK
+    Cache-Control: public, max-age=31536000, immutable
+
+Sfarsit 11.5

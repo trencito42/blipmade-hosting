@@ -1,0 +1,172 @@
+OK     1 [IDENTITY] 1.1 Înregistrarea creează contul și deschide sesiunea :: HTTP 201; user=cj.id.1792803399581@example.test; emailVerified=false; mail=delivered
+OK     2 [IDENTITY] 1.2 Înregistrarea refuză o adresă deja folosită :: HTTP 409: {"error":{"code":"conflict","message":"An account already uses this email address.","requestId":"req-4"}}
+OK     3 [IDENTITY] 1.3 Înregistrarea refuză o parolă slabă :: HTTP 400: {"error":{"code":"bad_request","message":"Use at least 10 characters. Add an uppercase letter. Add a number.","requestId":"req-5","fields":{"password":"Use at l…
+OK     4 [IDENTITY] 1.4 Înregistrarea refuză un nume incomplet :: HTTP 400: {"error":{"code":"validation_failed","message":"Some fields need attention.","fields":{"firstName":"Enter this part of your name.","lastName":"Enter this part o…
+OK     5 [IDENTITY] 1.5 Autentificare cu date corecte :: HTTP 200; user=cj.id.1792803399581@example.test; role=CUSTOMER
+OK     6 [IDENTITY] 1.6 Parolă greșită refuzată, fără enumerare de conturi :: greșit=401, necunoscut=401, mesaje identice=true; "Email or password is not correct."
+OK     7 [IDENTITY] 1.7 Sonda de sesiune pentru vizitator anonim :: HTTP 200; user=null
+OK     8 [IDENTITY] 1.8 Contul nou pornește neverificat :: emailVerified=false
+OK     9 [IDENTITY] 1.9 Re-trimiterea e-mailului de verificare nu dezvăluie dacă contul există :: existent=200, necunoscut=200, mesaje identice=true; "{"message":"If an account exists for that address, a confirmation link is on its way.","mail":{"configured":true}}"
+OK    10 [IDENTITY] 1.10 E-mailul de verificare este scris în căsuța de e-mail :: token primit prin sink (2 mesaje noi captate)
+OK    11 [IDENTITY] 1.11 Linkul de verificare confirmă adresa :: HTTP 204; emailVerified după= true
+OK    12 [IDENTITY] 1.12 Un token de verificare invalid este refuzat :: HTTP 400: {"error":{"code":"bad_request","message":"This confirmation link is invalid or has expired.","requestId":"req-i"}}
+OK    13 [IDENTITY] 1.13 Cererea de resetare nu dezvăluie dacă contul există :: existent=200, necunoscut=200, mesaje identice=true
+OK    14 [IDENTITY] 1.14 E-mailul de resetare a parolei este scris în căsuța de e-mail :: token primit prin sink (1 mesaje noi)
+OK    15 [IDENTITY] 1.15 Tokenul de resetare schimbă parola :: reset=204, login cu parola nouă=200, login cu parola veche=401
+OK    16 [IDENTITY] 1.16 Un token de resetare invalid este refuzat :: HTTP 400: {"error":{"code":"bad_request","message":"This reset link is invalid or has expired.","requestId":"req-u"}}
+OK    17 [IDENTITY] 1.17 Modificarea profilului este memorată :: PATCH=200; citit înapoi profile.lastName="Renamed"
+OK    18 [IDENTITY] 1.18 Cererea de schimbare a adresei este acceptată :: HTTP 200; pendingEmail=cj.changed.1792803399581@example.test; delivered=true
+OK    19 [IDENTITY] 1.19 Schimbarea adresei către adresa curentă este refuzată :: HTTP 400: {"error":{"code":"bad_request","message":"That is already the address of this account.","requestId":"req-y","fields":{"email":"This account …
+OK    20 [IDENTITY] 1.20 Schimbarea adresei către o adresă invalidă este refuzată :: HTTP 400: {"error":{"code":"validation_failed","message":"email: Enter a valid email address.","requestId":"req-z","fields":{"email":"email: Enter a v…
+OK    21 [IDENTITY] 1.21 Linkul de confirmare schimbă adresa contului :: confirm=200; email în sesiune=cj.changed.1792803399581@example.test
+OK    22 [IDENTITY] 1.22 Lista de sesiuni arată toate dispozitivele deschise :: HTTP 200; 4 sesiuni; current=1
+OK    23 [IDENTITY] 1.23 O sesiune poate fi revocată individual :: DELETE=200; rămase 3 din 4
+OK    24 [IDENTITY] 1.24 „Închide toate celelalte sesiuni" deconectează celelalte dispozitive :: DELETE=200; dispozitivul 2 → 401; dispozitivul 3 → 401
+OK    25 [IDENTITY] 1.25 Schimbarea parolei închide celelalte sesiuni :: POST=200; closedSessions=2; celălalt dispozitiv → 401
+OK    26 [IDENTITY] 1.26 Schimbarea parolei cere parola curentă corectă :: HTTP 400: {"error":{"code":"bad_request","message":"The current password is not correct.","requestId":"req-1m","fields":{"currentP…
+OK    27 [IDENTITY] 1.27 Preferințele de notificare pot fi citite și schimbate :: GET=200, PUT=200, marketing citit înapoi=false
+OK    28 [IDENTITY] 1.28 Două cereri simultane cu aceeași sesiune sunt acceptate :: HTTP 200 / 200
+OK    29 [IDENTITY] 1.29 Două autentificări simultane de pe două dispozitive sunt acceptate :: HTTP 200 / 200
+WARN  30 [IDENTITY] 1.34 Contul de autentificare numără și autentificările reușite, nu doar pe cele greșite :: 12 autentificări corecte pe un cont nou → coduri: 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 429, 429; prima refuzare la poziția 11
+OK    31 [IDENTITY] 1.30 Deconectarea închide sesiunea curentă :: POST /auth/logout=204; sesiune după=200 user=null
+OK    32 [IDENTITY] 1.31 Închiderea contului cere parola și confirmarea scrisă, și poate fi anulată :: cerere=200; confirmare greșită=400; anulare=200; services raportate=0
+OK    33 [IDENTITY] 1.32 Sesiunea are o expirare declarată :: expiresAt=2026-11-07T00:56:45.180Z; createdAt=2026-10-24T00:56:45.181Z; TTL=14 zile
+OK    34 [IDENTITY] 1.33 O cerere mutatoare autentificată fără token CSRF este refuzată :: HTTP 403: {"error":{"code":"forbidden","message":"Invalid or missing CSRF token. Reload the page and try again.","requestId":"req-31"}}
+OK    35 [IDENTITY] 1.33b Modificarea fără CSRF nu a schimbat nimic :: profile.firstName=CJ
+INFO  36 [IDENTITY] 1.33c Autentificarea este scutită de CSRF prin design (doar credențiale în corp) :: POST /api/auth/login fără token CSRF → HTTP 200; lista de excepții este în api/src/plugins/csrf.ts:14-22
+OK    37 [DISCOVERY] 2.1 Catalogul public afișează produsele :: HTTP 200; 5 produse: wordpress, code-server, discord-bot, uptime-kuma, postgresql
+OK    38 [DISCOVERY] 2.2 Fiecare produs din catalog are un preț activ :: toate produsele au preț și carte de prețuri
+OK    39 [DISCOVERY] 2.3 Catalogul publică prețul minim și pe cel recomandat :: wordpress: minim=149 (512MB/1cpu/5GB), recomandat=189 (1024MB/1cpu/10GB)
+OK    40 [DISCOVERY] 2.4 Fiecare produs publică resursele minime și maxime :: wordpress: 512-8192MB/1-4cpu/5-100GB | code-server: 1024-16384MB/1-4cpu/5-100GB | discord-bot: 256-4096MB/1-2cpu/1-50GB | uptime-kuma: 256-4096MB/1-2cpu/5-50GB | postgresql: 1024-8192MB/1-4cpu/5-100GB
+WARN  41 [DISCOVERY] 2.5 Un produs marcat neprovisionabil este totuși listat public :: uptime-kuma are deployable=false și availability.state=COMING_SOON, dar apare în catalogul public cu preț 149
+OK    42 [DISCOVERY] 2.6 Pagina de produs încarcă detaliile :: HTTP 200; slug=discord-bot
+OK    43 [DISCOVERY] 2.7 Un produs inexistent răspunde 404 :: HTTP 404: {"error":{"code":"not_found","message":"This product does not exist.","requestId":"req-37"}}
+OK    44 [DISCOVERY] 2.8 Căutarea în catalog filtrează după text :: HTTP 200; 1 rezultate: discord-bot
+OK    45 [DISCOVERY] 2.9 O căutare fără rezultate întoarce o listă goală, nu o eroare :: HTTP 200; 0 rezultate
+OK    46 [DISCOVERY] 2.10 Filtruul de categorie restrânge catalogul :: HTTP 200; 1 rezultate: postgresql
+OK    47 [DISCOVERY] 2.11 Disponibilitatea de provisionare este publicată per produs :: {"state":"DEPLOYABLE","enabled":true,"installable":true,"visible":true,"orderable":true,"blockers":[]}
+OK    48 [DISCOVERY] 2.12 Cotarea unei configurații minime răspunde cu o sumă :: HTTP 200; subtotal=172, discount=0, total=172, currency=EUR
+OK    49 [DISCOVERY] 2.13 Prețul crește odată cu resursele :: minim=172, mai mare=252 (monedă EUR)
+OK    50 [DISCOVERY] 2.14 O configurație sub minim este refuzată :: HTTP 400: {"error":{"code":"bad_request","message":"Memory must be at least 256.","requestId":"req-3e","fields":{"memory":"Minimum is 256."}}}
+OK    51 [DISCOVERY] 2.15 O configurație peste maxim este refuzată :: HTTP 400: {"error":{"code":"bad_request","message":"Memory must be at most 4096.","requestId":"req-3f","fields":{"memory":"Maximum is 4096."}}}
+OK    52 [DISCOVERY] 2.16 Un produs neprovisionabil nu poate fi cotat :: HTTP 400: {"error":{"code":"bad_request","message":"Uptime Kuma is not available to order yet: It has not been validated for deployment yet.","requestId":"req-3g"}}
+OK    53 [DISCOVERY] 2.17 O cotare pentru un produs necunoscut este refuzată :: HTTP 404: {"error":{"code":"not_found","message":"Unknown product: nope","requestId":"req-3h"}}
+OK    54 [DISCOVERY] 2.18 O cotare fără produse este refuzată :: HTTP 400: {"error":{"code":"validation_failed","message":"Some fields need attention.","fields":{"items":"Choose at least one app.…
+OK    55 [DEPLOYMENT] 3.1 Comanda este creată cu suma cotată :: POST /orders=201; număr=BM-00065; status=PENDING; total=189; cotare=189
+OK    56 [DEPLOYMENT] 3.2 Comanda poate fi revizuită :: HTTP 200; {"order":{"id":"cmvlouz930050dxb9829nd9bd","number":"BM-00065","status":"PENDING","total":189,"discount":0,"currency":"EUR","createdAt":"2026-10-24T00:56:48.375…
+OK    57 [DEPLOYMENT] 3.3 Lista comenzilor conține comanda nouă :: HTTP 200; 1 comenzi
+OK    58 [DEPLOYMENT] 3.4 O promoție validă se aplică la cotare :: HTTP 200; valid=true; subtotal=189; discount=19; total=170
+OK    59 [DEPLOYMENT] 3.5 O promoție inexistentă este refuzată cu motiv, fără eroare :: HTTP 200; valid=false; motiv="This code is not valid."; discount=0
+OK    60 [DEPLOYMENT] 3.6 Checkout-ul cu plățile oprite refuză comanda și nu o trece în „plătită" :: HTTP 200; url=http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlouz930050dxb9829nd9bd; motiv="null"; statusul comenzii=AWAITING_PAYMENT
+OK    61 [DEPLOYMENT] 3.7 O comandă neplătită nu produce nicio instanță :: GET /instances=200; 0 instanțe
+OK    62 [DEPLOYMENT] 3.8 O comandă acoperită integral de promoție are total zero :: HTTP 201; total=0; subtotal implicit=172; discount=172
+OK    63 [DEPLOYMENT] 3.9 Checkout-ul unei comenzi gratuite o confirmă și o trimite la provisionare :: HTTP 200; free=true; statusul comenzii=PAID
+OK    64 [DEPLOYMENT] 3.10 Coada de provisionare creează instanța după confirmarea comenzii :: instanță: Discord Bot; status=online; uuid=lipsă
+OK    65 [DEPLOYMENT] 3.11 O comandă neplătită poate fi anulată :: POST /cancel=204; status după=CANCELLED
+OK    66 [DEPLOYMENT] 3.12 O comandă deja plătită nu poate fi anulată ca o comandă :: HTTP 400: {"error":{"code":"bad_request","message":"This order has already been fulfilled.","requestId":"req-41"}}
+INFO  67 [DEPLOYMENT] 3.13 Două cereri simultane de comandă nu produc două comenzi plătibile :: două cereri simultane → 2 comenzi create (HTTP 201 / 201); rate limit pe /orders: 30/10 min
+OK    68 [DEPLOYMENT] 3.14 Limita de o utilizare pe cont este aplicată :: prima cotare valid=true; a doua valid=false; motiv="This code has already been used on your account."
+OK    69 [DEPLOYMENT] 3.15 Limita globală a campaniei este aplicată :: CJTHREE (maxRedemptions=3): 3 cotări valide dintre 4 → [true,true,true,false]
+OK    70 [SERVICE] 4.1 Provisionarea unei instanțe pentru clienți :: instanță Discord Bot; status=online; plan=undefined; uuid=lipsă
+OK    71 [SERVICE] 4.2 Detaliile instanței se încarcă :: HTTP 200; evenimente=18
+WARN  72 [SERVICE] 4.3 Acțiunea de putere „start" :: HTTP 200: {"instanceId":"cmvlov2hi008xdxb9f8cqottv","accepted":true}
+WARN  73 [SERVICE] 4.3 Acțiunea de putere „stop" :: HTTP 200: {"instanceId":"cmvlov2hi008xdxb9f8cqottv","accepted":true}
+WARN  74 [SERVICE] 4.3 Acțiunea de putere „restart" :: HTTP 200: {"instanceId":"cmvlov2hi008xdxb9f8cqottv","accepted":true}
+WARN  75 [SERVICE] 4.3 Acțiunea de putere „kill" :: HTTP 200: {"instanceId":"cmvlov2hi008xdxb9f8cqottv","accepted":true}
+OK    76 [SERVICE] 4.4 Starea instanței se actualizează după o acțiune de putere :: status=restarting
+OK    77 [SERVICE] 4.5 Metricile instanței sunt disponibile :: HTTP 200; {"metrics":{"state":"stopped","cpuAbsolute":12.5,"memoryBytes":268435456,"networkRx":1024,"networkTx":2048,"diskBytes":1048576,"uptimeMs":3600000}}
+OK    78 [SERVICE] 4.6 Consola instanței răspunde :: HTTP 200; {"websocket":"/api/instances/cmvlov2hi008xdxb9f8cqottv/console/stream"}
+OK    79 [SERVICE] 4.7 Fișierele instanței pot fi listate :: HTTP 200; {"files":[{"name":"server.jar","created_at":"2026-10-24T00:56:53.093Z","modified_at":"2026-10-24T00:56:53.093Z","size":42,"mode":"755","is_directory":false,"is_file":true,"is_symlink":false},{"name":"…
+OK    80 [SERVICE] 4.8 Setările de pornire pot fi citite :: HTTP 200; {"image":"ghcr.io/blipmade/base:1","command":"java -jar server.jar","environment":{"SERVER_JARFILE":"server.jar","VANILLA_VERSION":"latest","MIN_MEMORY":"512","MAX_MEMORY":"512","STARTUP_COMMAND":"jav…
+OK    81 [SERVICE] 4.9 Alocările de rețea pot fi listate :: HTTP 200; {"allocations":[{"id":1,"ip":"10.77.0.11","port":25565,"alias":"cj-alloc-01","is_default":false},{"id":2,"ip":"10.77.0.11","port":25566,"alias":"cj-alloc-02","is_default":false},{"id":3,"ip":"10.77.0.…
+OK    82 [SERVICE] 4.10 Bazele de date ale instanței pot fi listate :: HTTP 200; {"databases":[]}
+OK    83 [SERVICE] 4.11 Copiile de rezervă pot fi listate :: HTTP 200; {"backups":[]}
+OK    84 [SERVICE] 4.12 Instanța poate fi redenumită :: POST=200; nume citit înapoi="CJ Bot"
+OK    85 [SERVICE] 4.13 Schimbarea de resurse este cotată înainte de a fi aplicată :: HTTP 200; {"quote":{"currentPrice":172,"newPrice":212,"priceDelta":40,"currency":"EUR","requiresPayment":true}}
+OK    86 [SERVICE] 4.14 O mărire de resurse fără plăți nu este aplicată pe loc :: HTTP 200: {"status":"requires_payment","order":{"id":"cmvlov4sn009jdxb9i2n3b4z4","number":"BM-00076"},"priceDelta":100,"price":272,"currency":"EUR","checkoutUrl":"http://127.0.0.1:30006/app/billing?checkout=tes…
+OK    87 [SERVICE] 4.15 O micșorare de resurse este aplicată imediat :: HTTP 200; status=applied; ram=512
+OK    88 [SERVICE] 4.16 Evenimentele instanței sunt înregistrate :: HTTP 200; {"events":[{"id":"cmvlov4vf009tdxb9m5ay6vgo","type":"resources","message":"Resources changed to 512 MB, 1 vCPU, 5 GB.","createdAt":"2026-10-24T00:56:55.660Z"},{"id":"cmvlov48x009ddxb9l10iovja","type":"power","message":"P…
+OK    89 [SERVICE] 4.17 Instanța poate fi anulată :: HTTP 204: 
+OK    90 [BILLING] 5.0 Checkout-ul unei comenzi cu sumă reală întoarce o adresă de plată :: HTTP 200; url=http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlov55900a8dxb9ddkyldl1
+OK    91 [BILLING] 5.0b Plată confirmată: comanda trece în PAID și este trimisă la provisionare :: webhook=200 ({"received":true,"eventId":"evt_cj_pay_cmvlov55900a8dxb9ddkyldl1","deferred":false}); statusul comenzii=PAID
+OK    92 [BILLING] 5.1 Rezumatul de facturare reflectă serviciile clientului :: HTTP 200; estimate lunară=172 EUR; instanțe=1; abonamente=1
+OK    93 [BILLING] 5.2 Abonamentele pot fi listate :: HTTP 200; 1 abonamente
+OK    94 [BILLING] 5.3 Facturile pot fi listate :: HTTP 200; 0 facturi
+OK    95 [BILLING] 5.4 Starea plăților este anunțată clientului :: HTTP 200; {"payments":{"enabled":false,"simulated":true,"reason":"The local test gateway is in use, so no real payment is taken."}}
+OK    96 [BILLING] 5.5 Adăugarea unei metode de plată răspunde explicit când plățile nu pot fi luate :: HTTP 503: {"error":{"code":"payments_unavailable","message":"The local test gateway is in use, so no real payment is taken.","requestId":"req-6k"}}
+FAIL  97 [BILLING] 5.6 Cotat = încasat = facturat = prețul serviciului :: cotat(comanda)=172, abonament=172, factură=null, prețul instanței=172
+OK    98 [BILLING] 5.7 Abonamentul poate fi anulat la finalul perioadei și reluat :: anulare=200 ({"id":"cmvlov57f00ajdxb9obib1pvu","status":"active","currentPeriodEnd":null,"cancelAtPeriodEnd":true}); reluare=200 ({"id":"cmvlov57f00ajdxb9obib1pvu","status":"active","currentPeriodEnd":null,"cancelAtPeriodEnd":false})
+OK    99 [BILLING] 5.8 Reînnoirea manuală a unui abonament :: HTTP 200: {"renewal":{"invoiceId":"cmvlow4ts00atdxb94uhumbqn","number":"BM-INV-00005","orderId":"cmvlow4ta00ardxb9egx0szsb","amount":172,"currency":"EUR","interval":"MONTHLY","periodStart":"2026-10-24T00:57:42.220Z","periodEnd":"2…
+OK   100 [BILLING] 5.9 Cotarea de facturare folosește aceleași prețuri ca catalogul :: HTTP 200; {"period":"MONTHLY","items":[{"productSlug":"discord-bot","name":"Discord Bot","ram":512,"cpu":1,"disk":5,"optionCodes":[],"quantity":1,"unitAmount":172,"total":172,"currency":"EUR"}],"subtotal":172,"discount":0,"total":172,"currency":"EUR"…
+OK   101 [BILLING] 5.10 Suma comenzii este suma liniilor, fără rotunjiri ascunse :: total=189; suma liniilor=189
+OK   102 [BILLING] 5.11 Un eveniment de plată repetat este tratat ca duplicat :: prima=200 ({"received":true,"duplicate":true}); a doua=200 ({"received":true,"duplicate":true})
+OK   103 [SUPPORT] 6.1 Categoriile de bilet sunt publicate :: HTTP 200; TECHNICAL, BILLING, ACCOUNT, ABUSE, OTHER
+OK   104 [SUPPORT] 6.2 Un bilet poate fi deschis :: HTTP 201; id=cmvlow55j00bedxb9pbwo6grf; număr=20; status=OPEN; categorie=TECHNICAL; prioritate=NORMAL
+OK   105 [SUPPORT] 6.3 Deschiderea unui bilet trimite notificarea către echipă :: notificare către <admin.check@example.test>: "[Blipmade] New ticket: CJ journey ticket"; către inbox-ul de suport: nu
+FAIL 106 [SUPPORT] 6.3b Clientul care deschide biletul nu primește nicio confirmare prin e-mail :: niciun e-mail către client; singurul mesaj nou este cel către personal
+OK   107 [SUPPORT] 6.4 Biletul poate fi citit în detaliu :: HTTP 200; {"ticket":{"id":"cmvlow55j00bedxb9pbwo6grf","number":20,"subject":"CJ journey ticket","category":"TECHNICAL","priority":"NORMAL","status":"OPEN","instanceId":null,"instanceName":null,"createdAt":"2026-10-24T00:57:42.679Z","updatedAt":"2026-10-24T00:57:42.679Z"…
+OK   108 [SUPPORT] 6.5 Clientul poate răspunde în bilet :: HTTP 201: {"message":{"id":"cmvlow5x400bndxb99ld1kcck","body":"Any update on this?","internal":false,"author":{"id":"cmvlow50y00b6dxb99w5q3v7l","name":"CJ Journey","role":"CUSTOMER"},"createdAt":"2026-10-24T00:…
+OK   109 [SUPPORT] 6.6 Răspunsul este persistat și vizibil în bilet :: 2 mesaje în bilet
+OK   110 [SUPPORT] 6.7 Un client nu poate adăuga o notă internă :: HTTP 403: {"error":{"code":"forbidden","message":"Only staff can add internal notes.","requestId":"req-71"}}
+OK   111 [SUPPORT] 6.8 Un bilet al altui client nu este vizibil :: HTTP 404: {"error":{"code":"not_found","message":"Ticket not found.","requestId":"req-74"}}
+OK   112 [SUPPORT] 6.9 Un client nu poate schimba starea biletului :: HTTP 403: {"error":{"code":"forbidden","message":"Staff access only.","requestId":"req-75"}}
+OK   113 [SUPPORT] 6.10 Personalul vede toate biletele :: HTTP 200; 0 bilete
+OK   114 [SUPPORT] 6.11 Starea poate fi închisă și redeschisă, iar schimbarea este vizibilă clientului :: închidere=200, redeschidere=200, starea citită de client=OPEN
+OK   115 [SUPPORT] 6.12 Un atașament poate fi încărcat :: HTTP 201: {"attachment":{"id":"cmvlow6gx00cedxb91zxm3jyv","filename":"note.txt","contentType":"text/plain","size":21,"messageId":"cmvlow6gn00ccdxb96bt80v0j"}}
+OK   116 [SUPPORT] 6.12b Atașamentul poate fi descărcat de client :: HTTP 200; conținutul începe cu "CJ attachment content"
+OK   117 [SUPPORT] 6.12c Răspunsul personalului ajunge la client prin e-mail :: răspuns=201; e-mailuri noi=1; către client: "[Blipmade] Re: CJ journey ticket"
+OK   118 [SUPPORT] 6.13 Lista de bilete este ordonată descrescător după actualizare :: HTTP 200; 6 bilete; ordine descrescătoare=true
+FAIL 119 [SUPPORT] 6.14 Lista de bilete acceptă paginare :: HTTP 200; 6 bilete returnate pentru limit=2
+
+=== SUMMARY ===
+{
+  "IDENTITY": {
+    "tested": 36,
+    "passed": 34,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 1,
+    "info": 1
+  },
+  "DISCOVERY": {
+    "tested": 18,
+    "passed": 17,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 1,
+    "info": 0
+  },
+  "DEPLOYMENT": {
+    "tested": 15,
+    "passed": 14,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 0,
+    "info": 1
+  },
+  "SERVICE": {
+    "tested": 20,
+    "passed": 16,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 4,
+    "info": 0
+  },
+  "BILLING": {
+    "tested": 13,
+    "passed": 12,
+    "failed": 1,
+    "blocked": 0,
+    "warn": 0,
+    "info": 0
+  },
+  "SUPPORT": {
+    "tested": 17,
+    "passed": 15,
+    "failed": 2,
+    "blocked": 0,
+    "warn": 0,
+    "info": 0
+  }
+}
+TOTAL {"PASS":108,"WARN":6,"INFO":2,"FAIL":3}

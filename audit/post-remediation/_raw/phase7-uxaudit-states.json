@@ -1,0 +1,581 @@
+{
+  "base": "http://127.0.0.1:30005",
+  "at": "2026-10-24T00:35:12.817Z",
+  "entries": [
+    {
+      "area": "customer",
+      "route": "/app",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": true,
+        "rows": 0,
+        "cards": 31,
+        "textLength": 634,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy SERVICES 2 apps and databases MONTHLY TOTAL €2.98 / month What your services cost per month NEEDS ATTENTION 0 Everything is running DEPLOY Add a service Choose from the catalog Your services qa-check-bot Discord Bot Pending PURCHASED LIMITS 512 MB · 1 vCPU · 5 GB disk No public URL yet €1.49 / m"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 26,
+        "textLength": 126,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy Loading your dashboard"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 19,
+        "textLength": 171,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy We could not load your dashboard forced failure for the audit Retry"
+      }
+    },
+    {
+      "area": "customer",
+      "route": "/app/instances",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 2,
+        "cards": 36,
+        "textLength": 406,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Instances Your apps and databases, with the limits you bought. Deploy new Search instances All Pending Online INSTANCE STATUS LIMITS PRICE NODE qa-check-bot Discord Bot Pending 512 MB · 1 vCPU · 5 GB disk €1.49 / month — qa-check-site WordPress Online 1 GB · 1 vCPU · 10 GB disk €1.49 / m"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 32,
+        "textLength": 229,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Instances Your apps and databases, with the limits you bought. Deploy new Search instances All Loading your instances"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 22,
+        "textLength": 274,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Instances Your apps and databases, with the limits you bought. Deploy new Search instances All We could not load your instances forced failure for the audit Retry"
+      }
+    },
+    {
+      "area": "customer",
+      "route": "/app/domains",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": true,
+        "rows": 0,
+        "cards": 23,
+        "textLength": 491,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Domains Deploy Add a domain Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed. Instance qa-check-bot · Discord Bot qa-check-site · WordPress The domain is attached to this instance. Hostname The full hostname, without a protocol. Add domain Your domains"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 2,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 31,
+        "textLength": 282,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Domains Deploy Add a domain Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed. Loading your instances Your domains Loading your domains"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 23,
+        "textLength": 366,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Domains Deploy Add a domain Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed. Could not load your instances forced failure for the audit Retry Your domains Could not load your domains forced failure for the audit Retry"
+      }
+    },
+    {
+      "area": "customer",
+      "route": "/app/billing",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": true,
+        "rows": 0,
+        "cards": 27,
+        "textLength": 712,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy THIS MONTH (ESTIMATE) €2.98 Estimated from your current subscriptions in EUR. CURRENT PERIOD ENDS — Not available yet PAYMENT METHOD — No payment method on file. Add one to be able to pay your invoices. Payment method Manage the card or payment method used for your subscriptions. You are taken to"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 3,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 39,
+        "textLength": 378,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy Loading your billing summary Payment method Manage the card or payment method used for your subscriptions. You are taken to the secure billing portal. Manage payment method Subscriptions One subscription per instance. Loading your subscriptions Invoices Loading your invoices"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 27,
+        "textLength": 504,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy Could not load your billing summary forced failure for the audit Retry Payment method Manage the card or payment method used for your subscriptions. You are taken to the secure billing portal. Manage payment method Subscriptions One subscription per instance. Could not load your subscriptions for"
+      }
+    },
+    {
+      "area": "customer",
+      "route": "/app/tickets",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 3,
+        "cards": 37,
+        "textLength": 495,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Your tickets Every conversation with Blipmade support, newest activity first. New ticket SUBJECT NUMBER CATEGORY STATUS LAST REPLY OPEN Cannot change the password of the panel account #31 Account Closed 2 d ago → Invoice for March is higher than the price shown in the configurator #30 Billing Awa"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 31,
+        "textLength": 212,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Your tickets Every conversation with Blipmade support, newest activity first. New ticket Loading your tickets"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 21,
+        "textLength": 259,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Your tickets Every conversation with Blipmade support, newest activity first. New ticket Your tickets could not be loaded forced failure for the audit Retry"
+      }
+    },
+    {
+      "area": "customer",
+      "route": "/app/settings",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 79,
+        "textLength": 3490,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Settings Deploy Profile The details of your Blipmade account. First name Last name Save the name EMAIL ADDRESS qa.check@example.test Verified Change the email address ACCOUNT ROLE Customer MEMBER SINCE 24 Oct 2026 Password The password of this account. Current password New password At least 10 characters, an up"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 26,
+        "textLength": 124,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Settings Deploy Loading your account"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 19,
+        "textLength": 171,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Settings Deploy Your account could not be loaded forced failure for the audit Retry"
+      }
+    },
+    {
+      "area": "customer",
+      "route": "/app/deploy/wordpress",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 37,
+        "textLength": 634,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for t"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 26,
+        "textLength": 121,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy Loading the product"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 20,
+        "textLength": 187,
+        "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy Could not load this product forced failure for the audit Retry Back to your dashboard"
+      }
+    },
+    {
+      "area": "admin",
+      "route": "/admin",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 37,
+        "textLength": 1099,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Dashboard CUSTOMERS 21 Accounts with the customer role. INSTANCES 6 Every instance on the platform. ACTIVE INSTANCES 4 Online, provisioning or restarting. OPEN TICKETS 12 Not closed. ORDERS TODAY 8 Placed since midnight. REVENUE THIS MONTH €1"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 34,
+        "textLength": 189,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Dashboard Loading the dashboard"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 24,
+        "textLength": 236,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Dashboard The dashboard could not be loaded forced failure for the audit Retry"
+      }
+    },
+    {
+      "area": "admin",
+      "route": "/admin/customers",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 21,
+        "cards": 172,
+        "textLength": 2063,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Customers 21 customers Customers Search by name or e-mail address. Every row links to the customer record. Show e-mails Search Matches the name or the e-mail address. CUSTOMER INSTANCES ORDERS TICKETS MONTHLY VALUE VERIFIED CREATED Raluca Cri"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 37,
+        "textLength": 453,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Customers 0 customers Customers Search by name or e-mail address. Every row links to the customer record. Show e-mails Search Matches the name or the e-mail address. Loading customers Monthly value is the sum of the live instances of that cus"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 27,
+        "textLength": 508,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Customers 0 customers Customers Search by name or e-mail address. Every row links to the customer record. Show e-mails Search Matches the name or the e-mail address. The customer list could not be loaded forced failure for the audit Retry Mon"
+      }
+    },
+    {
+      "area": "admin",
+      "route": "/admin/orders",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 8,
+        "cards": 80,
+        "textLength": 1052,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Orders 8 orders Orders Every order with its status, items and total. Amounts are minor units from the API. Show e-mails All Pending Awaiting payment Paid Fulfilled Failed Cancelled Refunded NUMBER CUSTOMER ITEMS TOTAL STATUS DATE ACTION BM-10"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 44,
+        "textLength": 362,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Orders 0 orders Orders Every order with its status, items and total. Amounts are minor units from the API. Show e-mails All Pending Awaiting payment Paid Fulfilled Failed Cancelled Refunded Loading orders"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 34,
+        "textLength": 417,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Orders 0 orders Orders Every order with its status, items and total. Amounts are minor units from the API. Show e-mails All Pending Awaiting payment Paid Fulfilled Failed Cancelled Refunded The order list could not be loaded forced failure fo"
+      }
+    },
+    {
+      "area": "admin",
+      "route": "/admin/services",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 6,
+        "cards": 77,
+        "textLength": 1186,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Services 6 services Services Every instance on the platform. Retrying a provisioning run re-queues the worker for that instance. Show e-mails All Pending Provisioning Online Restarting Stopped Degraded Failed Suspended Cancelled Search Matche"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 47,
+        "textLength": 437,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Services 0 services Services Every instance on the platform. Retrying a provisioning run re-queues the worker for that instance. Show e-mails All Pending Provisioning Online Restarting Stopped Degraded Failed Suspended Cancelled Search Matche"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 37,
+        "textLength": 492,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Services 0 services Services Every instance on the platform. Retrying a provisioning run re-queues the worker for that instance. Show e-mails All Pending Provisioning Online Restarting Stopped Degraded Failed Suspended Cancelled Search Matche"
+      }
+    },
+    {
+      "area": "admin",
+      "route": "/admin/tickets",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 14,
+        "cards": 128,
+        "textLength": 1671,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Support queue 14 tickets in the queue Queue Newest activity first. Pick a ticket to open the thread. All Open Awaiting customer Awaiting staff On hold Closed TICKET STATUS ASSIGNED #42 Add a second IPv4 v***@example.test Awaiting Staff — #41 "
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 42,
+        "textLength": 449,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Support queue 0 tickets in the queue Queue Newest activity first. Pick a ticket to open the thread. All Open Awaiting customer Awaiting staff On hold Closed Loading the queue No ticket open Pick a ticket from the queue to read the thread, cha"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 32,
+        "textLength": 496,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Support queue 0 tickets in the queue Queue Newest activity first. Pick a ticket to open the thread. All Open Awaiting customer Awaiting staff On hold Closed The queue could not be loaded forced failure for the audit Retry No ticket open Pick "
+      }
+    },
+    {
+      "area": "admin",
+      "route": "/admin/audit",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 34,
+        "cards": 129,
+        "textLength": 3489,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Audit log 34 audit entries Audit log Every staff action the API recorded, newest first. Actor and action match on part of the text. Show e-mails Actor Action Target type Exact match, for example user or product. TIME ACTOR ACTION TARGET SOURC"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 42,
+        "textLength": 390,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Audit log 0 audit entries Audit log Every staff action the API recorded, newest first. Actor and action match on part of the text. Show e-mails Actor Action Target type Exact match, for example user or product. Loading the audit log"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 29,
+        "textLength": 437,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Audit log 0 audit entries Audit log Every staff action the API recorded, newest first. Actor and action match on part of the text. Show e-mails Actor Action Target type Exact match, for example user or product. The audit log could not be load"
+      }
+    },
+    {
+      "area": "admin",
+      "route": "/admin/settings",
+      "width": 1440,
+      "populated": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 27,
+        "textLength": 364,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Settings 0 settings Settings Feature flags and provider switches. The API stores a free key and value object. Add a setting No settings stored. Add one to configure the platform. Save settings Add a setting"
+      },
+      "loading": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 1,
+        "hasRetry": false,
+        "hasError": false,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 35,
+        "textLength": 330,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Settings 0 settings Settings Feature flags and provider switches. The API stores a free key and value object. Add a setting Loading the settings Save settings Add a setting"
+      },
+      "error": {
+        "spinner": 0,
+        "skeleton": 0,
+        "ariaBusy": 0,
+        "hasRetry": true,
+        "hasError": true,
+        "hasEmpty": false,
+        "rows": 0,
+        "cards": 28,
+        "textLength": 377,
+        "text": "blipmade Dashboard Customers Orders Services Catalog Pricing Support queue Promotions Infrastructure Audit log Staff Settings STAFF · PRODUCTION Back to site Settings 0 settings Settings Feature flags and provider switches. The API stores a free key and value object. Add a setting The settings could not be loaded forced failure for the audit Retry Save settings Add a setting"
+      }
+    }
+  ],
+  "errors": []
+}

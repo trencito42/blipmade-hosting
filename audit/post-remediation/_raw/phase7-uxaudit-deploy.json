@@ -1,0 +1,485 @@
+{
+  "base": "http://127.0.0.1:30005",
+  "at": "2026-10-24T00:29:53.514Z",
+  "steps": [
+    {
+      "step": "00-signed-in",
+      "url": "http://127.0.0.1:30005/app"
+    },
+    {
+      "step": "01-initial",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress",
+      "money": [
+        "€1.89",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "name": "_r_0_",
+          "type": "text",
+          "value": "wordpress",
+          "placeholder": "WordPress"
+        },
+        {
+          "name": "deploy-disk",
+          "type": "range",
+          "value": "0",
+          "placeholder": ""
+        }
+      ],
+      "pressed": [
+        {
+          "label": "Recommended configuration1 GB · 1 vCPU ·",
+          "pressed": "false"
+        },
+        {
+          "label": "512 MB",
+          "pressed": "true"
+        },
+        {
+          "label": "1 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "2 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "4 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "8 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "1",
+          "pressed": "true"
+        },
+        {
+          "label": "2",
+          "pressed": "false"
+        },
+        {
+          "label": "4",
+          "pressed": "false"
+        }
+      ],
+      "rows": [
+        "1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change. Review order",
+        "Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change.",
+        "Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB.",
+        "512 MB 1 GB 2 GB 4 GB 8 GB",
+        "PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change."
+      ],
+      "h1": "Deploy",
+      "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the se"
+    },
+    {
+      "step": "02-buttons",
+      "count": 12,
+      "sample": [
+        {
+          "text": "Recommended configuration1 GB · 1 vCPU · 10 GB disk€1.89/mo",
+          "pressed": "false",
+          "label": null
+        },
+        {
+          "text": "512 MB",
+          "pressed": "true",
+          "label": null
+        },
+        {
+          "text": "1 GB",
+          "pressed": "false",
+          "label": null
+        },
+        {
+          "text": "2 GB",
+          "pressed": "false",
+          "label": null
+        },
+        {
+          "text": "4 GB",
+          "pressed": "false",
+          "label": null
+        },
+        {
+          "text": "8 GB",
+          "pressed": "false",
+          "label": null
+        },
+        {
+          "text": "1",
+          "pressed": "true",
+          "label": null
+        },
+        {
+          "text": "2",
+          "pressed": "false",
+          "label": null
+        },
+        {
+          "text": "4",
+          "pressed": "false",
+          "label": null
+        },
+        {
+          "text": "Review order",
+          "pressed": null,
+          "label": null
+        },
+        {
+          "text": "Review order",
+          "pressed": null,
+          "label": null
+        },
+        {
+          "text": "More",
+          "pressed": null,
+          "label": null
+        }
+      ]
+    },
+    {
+      "step": "03-configured",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+      "money": [
+        "€1.89",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "name": "_r_0_",
+          "type": "text",
+          "value": "wordpress",
+          "placeholder": "WordPress"
+        },
+        {
+          "name": "deploy-disk",
+          "type": "range",
+          "value": "0",
+          "placeholder": ""
+        }
+      ],
+      "pressed": [
+        {
+          "label": "Recommended configuration1 GB · 1 vCPU ·",
+          "pressed": "false"
+        },
+        {
+          "label": "512 MB",
+          "pressed": "true"
+        },
+        {
+          "label": "1 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "2 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "4 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "8 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "1",
+          "pressed": "true"
+        },
+        {
+          "label": "2",
+          "pressed": "false"
+        },
+        {
+          "label": "4",
+          "pressed": "false"
+        }
+      ],
+      "rows": [
+        "1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change. Review order",
+        "Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change.",
+        "Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB.",
+        "512 MB 1 GB 2 GB 4 GB 8 GB",
+        "PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change."
+      ],
+      "h1": "Deploy",
+      "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the se"
+    },
+    {
+      "step": "03-ramChanged",
+      "ramChanged": false
+    },
+    {
+      "step": "04-name-typed",
+      "nameTyped": null,
+      "urlAfterTyping": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5"
+    },
+    {
+      "step": "05-server-quote",
+      "status": 403,
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5,
+      "opts": "",
+      "body": {
+        "error": {
+          "code": "forbidden",
+          "message": "Invalid or missing CSRF token. Reload the page and try again.",
+          "requestId": "req-20"
+        }
+      }
+    },
+    {
+      "step": "06-after-reload",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+      "money": [
+        "€1.89",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "name": "_r_0_",
+          "type": "text",
+          "value": "wordpress",
+          "placeholder": "WordPress"
+        },
+        {
+          "name": "deploy-disk",
+          "type": "range",
+          "value": "0",
+          "placeholder": ""
+        }
+      ],
+      "pressed": [
+        {
+          "label": "Recommended configuration1 GB · 1 vCPU ·",
+          "pressed": "false"
+        },
+        {
+          "label": "512 MB",
+          "pressed": "true"
+        },
+        {
+          "label": "1 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "2 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "4 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "8 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "1",
+          "pressed": "true"
+        },
+        {
+          "label": "2",
+          "pressed": "false"
+        },
+        {
+          "label": "4",
+          "pressed": "false"
+        }
+      ],
+      "rows": [
+        "1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change. Review order",
+        "Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change.",
+        "Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB.",
+        "512 MB 1 GB 2 GB 4 GB 8 GB",
+        "PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change."
+      ],
+      "h1": "Deploy",
+      "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the se"
+    },
+    {
+      "step": "07-after-back",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+      "money": [
+        "€1.89",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "name": "_r_0_",
+          "type": "text",
+          "value": "wordpress",
+          "placeholder": "WordPress"
+        },
+        {
+          "name": "deploy-disk",
+          "type": "range",
+          "value": "0",
+          "placeholder": ""
+        }
+      ],
+      "pressed": [
+        {
+          "label": "Recommended configuration1 GB · 1 vCPU ·",
+          "pressed": "false"
+        },
+        {
+          "label": "512 MB",
+          "pressed": "true"
+        },
+        {
+          "label": "1 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "2 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "4 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "8 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "1",
+          "pressed": "true"
+        },
+        {
+          "label": "2",
+          "pressed": "false"
+        },
+        {
+          "label": "4",
+          "pressed": "false"
+        }
+      ],
+      "rows": [
+        "1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change. Review order",
+        "Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change.",
+        "Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB.",
+        "512 MB 1 GB 2 GB 4 GB 8 GB",
+        "PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change."
+      ],
+      "h1": "Deploy",
+      "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the se"
+    },
+    {
+      "step": "08-after-forward",
+      "url": "http://127.0.0.1:30005/app",
+      "money": [
+        "€2.98",
+        "€1.49"
+      ],
+      "inputs": [],
+      "pressed": [],
+      "rows": [
+        "SERVICES 2 apps and databases MONTHLY TOTAL €2.98 / month What your services cost per month NEEDS ATTENTION 0 Everything is running DEPLOY Add a service Choose from the catalog Your services qa-check-bot Discord Bot Pending PURCHASED LIMITS 512 MB · 1 vCPU · 5 GB disk No public URL yet €1.49 / month qa-check-site WordPress Online PURCHASED LIMITS 1 GB · 1 vCPU · 10 GB disk No public URL yet €1.49 / month Recent activity The latest event of each service. No activity yet. Events appear here when something changes on a service.",
+        "qa-check-bot Discord Bot Pending PURCHASED LIMITS 512 MB · 1 vCPU · 5 GB disk No public URL yet €1.49 / month qa-check-site WordPress Online PURCHASED LIMITS 1 GB · 1 vCPU · 10 GB disk No public URL yet €1.49 / month",
+        "qa-check-bot Discord Bot Pending PURCHASED LIMITS 512 MB · 1 vCPU · 5 GB disk No public URL yet €1.49 / month",
+        "PURCHASED LIMITS 512 MB · 1 vCPU · 5 GB disk",
+        "qa-check-site WordPress Online PURCHASED LIMITS 1 GB · 1 vCPU · 10 GB disk No public URL yet €1.49 / month",
+        "PURCHASED LIMITS 1 GB · 1 vCPU · 10 GB disk"
+      ],
+      "h1": "Overview",
+      "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy SERVICES 2 apps and databases MONTHLY TOTAL €2.98 / month What your services cost per month NEEDS ATTENTION 0 Everything is running DEPLOY Add a service Choose from the catalog Your services qa-check-bot Discord Bot Pending PURCHASED LIMITS 512 MB · 1 vCPU · 5 GB disk No public URL yet €1.49 / month qa-check-site WordPress Online PURCHASED LIMITS 1 GB · 1 vCPU · 10 GB disk No public URL yet €1.49 / month Recent activity The latest event of each service. No activity yet. Events appear here wh"
+    },
+    {
+      "step": "09-after-direct-link",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+      "money": [
+        "€1.89",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "name": "_r_0_",
+          "type": "text",
+          "value": "wordpress",
+          "placeholder": "WordPress"
+        },
+        {
+          "name": "deploy-disk",
+          "type": "range",
+          "value": "0",
+          "placeholder": ""
+        }
+      ],
+      "pressed": [
+        {
+          "label": "Recommended configuration1 GB · 1 vCPU ·",
+          "pressed": "false"
+        },
+        {
+          "label": "512 MB",
+          "pressed": "true"
+        },
+        {
+          "label": "1 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "2 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "4 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "8 GB",
+          "pressed": "false"
+        },
+        {
+          "label": "1",
+          "pressed": "true"
+        },
+        {
+          "label": "2",
+          "pressed": "false"
+        },
+        {
+          "label": "4",
+          "pressed": "false"
+        }
+      ],
+      "rows": [
+        "1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change. Review order",
+        "Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change.",
+        "Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB.",
+        "512 MB 1 GB 2 GB 4 GB 8 GB",
+        "PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the server on every change."
+      ],
+      "h1": "Deploy",
+      "text": "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Recommended configuration 1 GB · 1 vCPU · 10 GB disk €1.89/mo Memory 512 MB 1 GB 2 GB 4 GB 8 GB CPU vCPU 1 2 4 Storage 5 GB Between 5 GB and 100 GB. Estimate PER MONTH €1.49 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configuration (1 GB · 1 vCPU · 10 GB disk): €1.89/mo. The amount above is the price of the configuration you chose. Priced by the se"
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "urlBeforeReload": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+    "urlAfterReload": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+    "urlSameAfterReload": true,
+    "urlAfterBack": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+    "urlAfterForward": "http://127.0.0.1:30005/app",
+    "urlAfterDirect": "http://127.0.0.1:30005/app/deploy/wordpress?ram=512&cpu=1&disk=5",
+    "nameAfterReload": null,
+    "nameAfterDirect": null,
+    "nameTyped": null,
+    "pricePage": [
+      "€1.89",
+      "€1.49"
+    ],
+    "priceServer": [
+      null,
+      null
+    ]
+  }
+}

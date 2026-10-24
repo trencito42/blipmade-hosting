@@ -8,3 +8,50 @@ PID API la inceput: n/a
 ## 3.1 Latenta pe endpoint (ms, direct pe API 3101)
 ENDPOINT                                                  MIN      P50      P95      MAX  HTTP
 /api/health                                             3.189    3.381   12.662   12.870  200
+/api/status (public)                                 3710.422 3962.781 3974.336 3975.547  200
+/api/catalog/products                                   6.464    8.142   10.986   12.598  200
+/api/catalog/products/wordpress                         4.777    8.388   14.691   15.460  200
+/api/auth/session (nelogat)                             0.938    1.232    2.698    3.881  200
+/api/auth/session (client)                              6.584   10.408   20.138   25.740  200
+/api/auth/session (admin)                               6.406    8.176    9.361   16.244  200
+/api/instances (client)                                14.035   14.405   18.895   19.246  200
+/api/orders (client)                                    6.077    8.861   16.866   32.705  200
+/api/tickets (client)                                   5.528    6.201    9.777    9.957  200
+/api/billing/invoices (client)                          7.920    9.314   15.707   17.360  200
+/api/admin/overview                                     7.785   11.172   24.938   25.339  200
+/api/admin/customers                                    8.071   11.322   18.850   20.067  200
+/api/admin/orders                                       8.744   13.487   15.307   16.309  200
+/api/admin/services                                     8.935   14.177   25.178   25.653  200
+/api/admin/products                                     7.436    8.995   18.859   19.417  200
+/api/admin/pricing                                      9.593   10.609   15.987   27.412  200
+/api/admin/tickets                                      6.402    9.307   14.869   25.953  200
+/api/admin/promotions                                   5.296    6.410   10.705   11.058  200
+/api/admin/infrastructure                               6.336    9.895   14.894   15.754  200
+/api/admin/audit                                       19.385   23.493   24.967   25.425  200
+/api/admin/staff                                       10.631   13.363   20.249   29.385  200
+/api/admin/settings                                     6.198    7.758    8.620    8.637  200
+
+## 3.2 POST /api/catalog/quote (calculul de pret)
+ENDPOINT                                                  MIN      P50      P95      MAX  HTTP
+quote 1 produs                                          1.559    1.764    3.506    5.033  403
+quote 3 produse                                         1.389    1.631    1.969    2.196  403
+quote 5 produse                                         1.291    1.681    3.237    3.659  403
+quote cu cod de promotie (inexistent)                   1.308    1.659    2.187    2.367  403
+
+## 3.3 Costul prin proxy-ul web (30003) fata de API direct (3101)
+ENDPOINT(prin proxy)                                      MIN      P50      P95      MAX  HTTP
+/api/catalog/products (prin 30003)                     11.110   12.131   19.587   25.972  200
+/api/admin/overview (prin 30003)                        9.576   12.653   19.196   21.563  200
+/api/admin/audit (prin 30003)                          20.514   23.925   35.120   37.991  200
+/api/status (prin 30003)                             3708.808 3963.417 3974.943 3977.014  200
+
+## 3.4 Tranzactii de baza de date pe cerere (xact_commit / cerere)
+Metoda: diferenta de pg_stat_database.xact_commit intre doua momente, impartita la numarul de cereri.
+  /api/catalog/products                      delta xact_commit=28 over 20 cereri -> 1.40 tranzactii/cerere
+  /api/admin/overview                        delta xact_commit=75 over 20 cereri -> 3.75 tranzactii/cerere
+  /api/admin/audit                           delta xact_commit=75 over 20 cereri -> 3.75 tranzactii/cerere
+  /api/admin/customers                       delta xact_commit=131 over 20 cereri -> 6.55 tranzactii/cerere
+  /api/health                                delta xact_commit=2 over 20 cereri -> 0.10 tranzactii/cerere
+
+## 3.5 Blocs citite de baza de date pe cerere (blks_read + blks_hit)
+/tmp/perf11-api.sh: line 130: $2: unbound variable

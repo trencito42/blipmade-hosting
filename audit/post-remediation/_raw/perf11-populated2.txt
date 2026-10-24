@@ -1,0 +1,349 @@
+## 6.2 Popularea cu un volum realist
+      baza: blipmade_perf_test
+      produse: 10
+      User: 5000 randuri in 1.0s
+      Order: 2000 randuri in 0.5s
+      OrderItem: ESUPT dupa 2000 randuri intentionate - PrismaClientValidationError: 
+  Invalid `prisma.orderItem.createMany()` invocation:
+  
+  {
+    data: [
+      {
+        id: "oi000000010000000000000000000",
+        orderId: "o0000000100000000000
+      Instance: 800 randuri in 0.3s
+      Ticket: 3000 randuri in 1.1s
+      AuditLog: 50000 randuri in 17.0s
+      Subscription: 5000 randuri in 2.0s
+      AuditLog           undefined randuri
+      User               undefined randuri
+      Ticket             undefined randuri
+      Order              undefined randuri
+      Subscription       undefined randuri
+      Instance           undefined randuri
+      _prisma_migrations undefined randuri
+      Product            undefined randuri
+      ProductPrice       undefined randuri
+      Session            undefined randuri
+
+## 6.4 Contorizarea randurilor in baza populata
+    User=5001 Instance=800 Order=2000 Ticket=3000 AuditLog=50506 Subscription=800 OrderItem=0
+    32 MB (baza populata)
+
+## 6.4b Dimensiunile tabelelor pe starea populata
+    AuditLog             | 18 MB      | 50506 randuri
+    User                 | 2096 kB    | 5001 randuri
+    Ticket               | 952 kB     | 3000 randuri
+    Order                | 800 kB     | 2000 randuri
+    Subscription         | 544 kB     | 800 randuri
+    Instance             | 432 kB     | 800 randuri
+    Session              | 96 kB      | 5 randuri
+    Product              | 80 kB      | 10 randuri
+    Promotion            | 64 kB      | 0 randuri
+    Payment              | 56 kB      | 0 randuri
+    Invoice              | 48 kB      | 0 randuri
+    ProductPrice         | 48 kB      | 9 randuri
+    PromotionRedemption  | 40 kB      | 0 randuri
+    WebhookEvent         | 40 kB      | 0 randuri
+
+## 6.5 Latenta endpointurilor pe starea populata (API 3131, baza blipmade_perf_test)
+    sesiune admin: {"user":{"id":"uperfadmin000000000000000","email":"admin.perf@example.test","fir
+    sesiune client: {"user":{"id":"u000000010000000000000000000","email":"perf1@example.test","first
+ENDPOINT (baza populata)                         MIN       P50       P95       MAX  HTTP
+/api/health                                    3.455     3.558     3.830     3.929  200
+/api/catalog/products                          9.387    10.302    12.140    12.656  200
+/api/admin/overview                           18.797    21.401    36.385    36.533  200
+/api/admin/customers                          60.129    65.191    69.505    75.701  200
+/api/admin/orders                             39.906    41.689    48.395    49.288  200
+/api/admin/audit                              33.353    34.362    38.907    48.610  200
+/api/admin/services                           51.486    54.161    57.618    60.030  200
+/api/admin/tickets                            42.081    44.150    51.174    52.927  200
+/api/admin/staff                               7.969     8.533     8.750     9.546  200
+/api/tickets (client)                          9.643    10.265    10.792    11.022  200
+/api/instances (client)                       13.048    14.220    15.395    15.649  200
+/api/orders (client)                           9.098     9.471     9.969    10.674  200
+
+## 6.5b Tranzactii de baza de date pe cerere (starea populata)
+  /api/admin/overview                xact_commit +67   / 20 cereri ->  3.35 tranzactii/cerere
+  /api/admin/customers               xact_commit +109  / 20 cereri ->  5.45 tranzactii/cerere
+  /api/admin/orders                  xact_commit +176  / 20 cereri ->  8.80 tranzactii/cerere
+  /api/admin/audit                   xact_commit +114  / 20 cereri ->  5.70 tranzactii/cerere
+
+## 6.6 EXPLAIN (ANALYZE, BUFFERS) pe baza populata
+--- catalog
+                                                      QUERY PLAN                                                  
+    --------------------------------------------------------------------------------------------------------------
+     Sort  (cost=2.50..2.52 rows=8 width=643) (actual rows=8 loops=1)
+       Sort Key: p."sortOrder", p.name
+       Sort Method: quicksort  Memory: 27kB
+       Buffers: shared hit=8
+       ->  Hash Left Join  (cost=1.21..2.38 rows=8 width=643) (actual rows=8 loops=1)
+             Hash Cond: (p.id = po."productId")
+             Buffers: shared hit=2
+             ->  Hash Right Join  (cost=1.20..2.32 rows=8 width=445) (actual rows=8 loops=1)
+                   Hash Cond: (pr."productId" = p.id)
+                   Buffers: shared hit=2
+                   ->  Seq Scan on "ProductPrice" pr  (cost=0.00..1.09 rows=9 width=93) (actual rows=9 loops=1)
+                         Filter: active
+                         Buffers: shared hit=1
+                   ->  Hash  (cost=1.10..1.10 rows=8 width=352) (actual rows=8 loops=1)
+                         Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                         Buffers: shared hit=1
+                         ->  Seq Scan on "Product" p  (cost=0.00..1.10 rows=8 width=352) (actual rows=8 loops=1)
+                               Filter: visible
+                               Rows Removed by Filter: 2
+                               Buffers: shared hit=1
+             ->  Hash  (cost=0.00..0.00 rows=1 width=198) (actual rows=0 loops=1)
+                   Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                   ->  Seq Scan on "ProductOption" po  (cost=0.00..0.00 rows=1 width=198) (actual rows=0 loops=1)
+                         Filter: active
+     Planning:
+       Buffers: shared hit=403
+     Planning Time: 11.148 ms
+     Execution Time: 1.513 ms
+    (28 rows)
+    
+
+--- admin.overview: clienti
+                                                           QUERY PLAN                                                        
+    -------------------------------------------------------------------------------------------------------------------------
+     Aggregate  (cost=124.28..124.29 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=6
+       ->  Index Only Scan using "User_role_idx" on "User"  (cost=0.28..111.78 rows=5000 width=0) (actual rows=5000 loops=1)
+             Index Cond: (role = 'CUSTOMER'::"Role")
+             Heap Fetches: 0
+             Buffers: shared hit=6
+     Planning:
+       Buffers: shared hit=117
+     Planning Time: 3.427 ms
+     Execution Time: 1.449 ms
+    (10 rows)
+    
+
+--- admin.audit: lista (take 300)
+                                                                     QUERY PLAN                                                                  
+    ---------------------------------------------------------------------------------------------------------------------------------------------
+     Limit  (cost=0.29..18.78 rows=300 width=181) (actual rows=300 loops=1)
+       Buffers: shared hit=11
+       ->  Index Scan Backward using "AuditLog_createdAt_idx" on "AuditLog"  (cost=0.29..3113.92 rows=50508 width=181) (actual rows=300 loops=1)
+             Buffers: shared hit=11
+     Planning:
+       Buffers: shared hit=143
+     Planning Time: 4.135 ms
+     Execution Time: 0.481 ms
+    (8 rows)
+    
+
+--- admin.audit: numarul total
+                                                                        QUERY PLAN                                                                     
+    ---------------------------------------------------------------------------------------------------------------------------------------------------
+     Aggregate  (cost=1192.18..1192.19 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=77
+       ->  Index Only Scan using "AuditLog_targetType_targetId_idx" on "AuditLog"  (cost=0.29..1065.91 rows=50508 width=0) (actual rows=50508 loops=1)
+             Heap Fetches: 0
+             Buffers: shared hit=77
+     Planning:
+       Buffers: shared hit=118
+     Planning Time: 3.546 ms
+     Execution Time: 11.356 ms
+    (9 rows)
+    
+
+--- admin.customers: lista (take 200) cu subplan pe rand
+                                                                         QUERY PLAN                                                                     
+    ----------------------------------------------------------------------------------------------------------------------------------------------------
+     Limit  (cost=440.61..2104.11 rows=200 width=307) (actual rows=200 loops=1)
+       Buffers: shared hit=764
+       ->  Result  (cost=440.61..42028.11 rows=5000 width=307) (actual rows=200 loops=1)
+             Buffers: shared hit=764
+             ->  Sort  (cost=440.61..453.11 rows=5000 width=299) (actual rows=200 loops=1)
+                   Sort Key: u."createdAt" DESC
+                   Sort Method: top-N heapsort  Memory: 76kB
+                   Buffers: shared hit=165
+                   ->  Seq Scan on "User" u  (cost=0.00..224.51 rows=5000 width=299) (actual rows=5000 loops=1)
+                         Filter: (role = 'CUSTOMER'::"Role")
+                         Rows Removed by Filter: 1
+                         Buffers: shared hit=162
+             SubPlan 1
+               ->  Aggregate  (cost=8.29..8.30 rows=1 width=8) (actual rows=1 loops=200)
+                     Buffers: shared hit=599
+                     ->  Index Only Scan using "Instance_userId_status_idx" on "Instance" i  (cost=0.28..8.29 rows=1 width=0) (actual rows=1 loops=200)
+                           Index Cond: ("userId" = u.id)
+                           Heap Fetches: 199
+                           Buffers: shared hit=599
+     Planning:
+       Buffers: shared hit=269
+     Planning Time: 7.719 ms
+     Execution Time: 10.186 ms
+    (23 rows)
+    
+
+--- admin.customers: numarul total
+                                                           QUERY PLAN                                                        
+    -------------------------------------------------------------------------------------------------------------------------
+     Aggregate  (cost=124.28..124.29 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=6
+       ->  Index Only Scan using "User_role_idx" on "User"  (cost=0.28..111.78 rows=5000 width=0) (actual rows=5000 loops=1)
+             Index Cond: (role = 'CUSTOMER'::"Role")
+             Heap Fetches: 0
+             Buffers: shared hit=6
+     Planning:
+       Buffers: shared hit=117
+     Planning Time: 3.385 ms
+     Execution Time: 1.446 ms
+    (10 rows)
+    
+
+--- admin.orders: lista (take 200)
+                                                        QUERY PLAN                                                    
+    ------------------------------------------------------------------------------------------------------------------
+     Limit  (cost=419.20..419.70 rows=200 width=304) (actual rows=200 loops=1)
+       Buffers: shared hit=202
+       ->  Sort  (cost=419.20..424.20 rows=2000 width=304) (actual rows=200 loops=1)
+             Sort Key: o."createdAt" DESC
+             Sort Method: top-N heapsort  Memory: 76kB
+             Buffers: shared hit=202
+             ->  Hash Join  (cost=82.00..332.76 rows=2000 width=304) (actual rows=2000 loops=1)
+                   Hash Cond: (u.id = o."userId")
+                   Buffers: shared hit=199
+                   ->  Seq Scan on "User" u  (cost=0.00..212.01 rows=5001 width=49) (actual rows=5001 loops=1)
+                         Buffers: shared hit=162
+                   ->  Hash  (cost=57.00..57.00 rows=2000 width=283) (actual rows=2000 loops=1)
+                         Buckets: 2048  Batches: 1  Memory Usage: 313kB
+                         Buffers: shared hit=37
+                         ->  Seq Scan on "Order" o  (cost=0.00..57.00 rows=2000 width=283) (actual rows=2000 loops=1)
+                               Buffers: shared hit=37
+     Planning:
+       Buffers: shared hit=427
+     Planning Time: 12.482 ms
+     Execution Time: 10.932 ms
+    (20 rows)
+    
+
+--- admin.orders: numarul total
+                                                            QUERY PLAN                                                        
+    --------------------------------------------------------------------------------------------------------------------------
+     Aggregate  (cost=51.28..51.29 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=4
+       ->  Index Only Scan using "Order_kind_idx" on "Order"  (cost=0.28..46.28 rows=2000 width=0) (actual rows=2000 loops=1)
+             Heap Fetches: 0
+             Buffers: shared hit=4
+     Planning:
+       Buffers: shared hit=161
+     Planning Time: 4.798 ms
+     Execution Time: 0.841 ms
+    (9 rows)
+    
+
+--- tickets (client): lista (take 100)
+                                                               QUERY PLAN                                                            
+    ---------------------------------------------------------------------------------------------------------------------------------
+     Limit  (cost=8.31..8.31 rows=1 width=186) (actual rows=0 loops=1)
+       Buffers: shared hit=5
+       ->  Sort  (cost=8.31..8.31 rows=1 width=186) (actual rows=0 loops=1)
+             Sort Key: "updatedAt" DESC
+             Sort Method: quicksort  Memory: 25kB
+             Buffers: shared hit=5
+             ->  Index Scan using "Ticket_userId_status_idx" on "Ticket"  (cost=0.28..8.30 rows=1 width=186) (actual rows=0 loops=1)
+                   Index Cond: ("userId" = 'u00000001000000000000000000'::text)
+                   Buffers: shared hit=2
+     Planning:
+       Buffers: shared hit=178
+     Planning Time: 4.764 ms
+     Execution Time: 0.606 ms
+    (13 rows)
+    
+
+--- order-numbers: secventa (MAX cu regexp)
+                                              QUERY PLAN                                          
+    ----------------------------------------------------------------------------------------------
+     Aggregate  (cost=87.00..87.01 rows=1 width=4) (actual rows=1 loops=1)
+       Buffers: shared hit=37
+       ->  Seq Scan on "Order" o  (cost=0.00..62.00 rows=2000 width=9) (actual rows=2000 loops=1)
+             Filter: (number ~ '^BM-[0-9]+$'::text)
+             Buffers: shared hit=37
+     Planning:
+       Buffers: shared hit=182
+     Planning Time: 6.098 ms
+     Execution Time: 8.275 ms
+    (9 rows)
+    
+
+--- admin.overview: venitul lunii
+                                                                       QUERY PLAN                                                                   
+    ------------------------------------------------------------------------------------------------------------------------------------------------
+     Aggregate  (cost=69.50..69.51 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=37
+       ->  Seq Scan on "Order"  (cost=0.00..67.00 rows=1000 width=4) (actual rows=1000 loops=1)
+             Filter: ((status = ANY ('{PAID,FULFILLED}'::"OrderStatus"[])) AND ("createdAt" >= '2026-10-01 00:00:00'::timestamp without time zone))
+             Rows Removed by Filter: 1000
+             Buffers: shared hit=37
+     Planning:
+       Buffers: shared hit=191
+     Planning Time: 5.490 ms
+     Execution Time: 1.298 ms
+    (10 rows)
+    
+
+--- admin.overview: comenzi de azi
+                                            QUERY PLAN                                        
+    ------------------------------------------------------------------------------------------
+     Aggregate  (cost=63.86..63.87 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=37
+       ->  Seq Scan on "Order"  (cost=0.00..62.00 rows=743 width=0) (actual rows=743 loops=1)
+             Filter: ("createdAt" >= '2026-10-23 00:00:00'::timestamp without time zone)
+             Rows Removed by Filter: 1257
+             Buffers: shared hit=37
+     Planning:
+       Buffers: shared hit=144
+     Planning Time: 4.074 ms
+     Execution Time: 1.012 ms
+    (10 rows)
+    
+
+--- admin.overview: tichete deschise
+                                             QUERY PLAN                                          
+    ---------------------------------------------------------------------------------------------
+     Aggregate  (cost=97.50..97.51 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=55
+       ->  Seq Scan on "Ticket"  (cost=0.00..92.50 rows=2000 width=0) (actual rows=2000 loops=1)
+             Filter: (status <> 'CLOSED'::"TicketStatus")
+             Rows Removed by Filter: 1000
+             Buffers: shared hit=55
+     Planning:
+       Buffers: shared hit=118
+     Planning Time: 3.442 ms
+     Execution Time: 1.484 ms
+    (10 rows)
+    
+
+--- admin.overview: MRR
+                                            QUERY PLAN                                         
+    -------------------------------------------------------------------------------------------
+     Seq Scan on "Subscription"  (cost=0.00..28.00 rows=800 width=4) (actual rows=800 loops=1)
+       Filter: ((NOT "cancelAtPeriodEnd") AND (status = 'ACTIVE'::"SubscriptionStatus"))
+       Buffers: shared hit=18
+     Planning:
+       Buffers: shared hit=167
+     Planning Time: 4.919 ms
+     Execution Time: 0.570 ms
+    (7 rows)
+    
+
+--- admin.overview: esecuri
+                                             QUERY PLAN                                          
+    ---------------------------------------------------------------------------------------------
+     Aggregate  (cost=30.50..30.51 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=20
+       ->  Seq Scan on "Instance"  (cost=0.00..30.00 rows=200 width=0) (actual rows=200 loops=1)
+             Filter: (status = 'FAILED'::"InstanceStatus")
+             Rows Removed by Filter: 600
+             Buffers: shared hit=20
+     Planning:
+       Buffers: shared hit=140
+     Planning Time: 4.052 ms
+     Execution Time: 0.634 ms
+    (10 rows)
+    
+
+Sfarsit 11.6b

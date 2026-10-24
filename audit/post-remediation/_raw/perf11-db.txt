@@ -1,0 +1,660 @@
+# Phase 11.4 - Baza de date (blipmade_test, containerul postgres de pe VM 103)
+Data: 2026-10-24T00:39:53+00:00
+ATENTIE: blipmade_test este impartita cu ceilalti auditori; aici nu s-a scris nimic
+         (EXCEPT: EXPLAIN ANALYZE pe UPDATE a fost rulat intr-o tranzactie cu ROLLBACK).
+
+## 4.1 Dimensiunea bazei si a tabelelor
+baza: 12 MB
+User                   | 200 kB     | 44       randuri | 6 moarte | idx_scan=54374 | seq_scan=43168
+AuditLog               | 184 kB     | 244      randuri | 31 moarte | idx_scan=193 | seq_scan=31345
+Order                  | 160 kB     | 4        randuri | 10 moarte | idx_scan=8204 | seq_scan=56389
+Subscription           | 144 kB     | 1        randuri | 5 moarte | idx_scan=3438 | seq_scan=60222
+Session                | 136 kB     | 73       randuri | 31 moarte | idx_scan=12482 | seq_scan=37017
+Instance               | 112 kB     | 1        randuri | 15 moarte | idx_scan=22470 | seq_scan=47886
+Ticket                 | 112 kB     | 0        randuri | 4 moarte | idx_scan=3795 | seq_scan=31509
+Payment                | 112 kB     | 1        randuri | 0 moarte | idx_scan=863 | seq_scan=46009
+Invoice                | 96 kB      | 0        randuri | 3 moarte | idx_scan=601 | seq_scan=38671
+WebhookEvent           | 80 kB      | 2        randuri | 2 moarte | idx_scan=1015 | seq_scan=30233
+PromotionRedemption    | 80 kB      | 2        randuri | 0 moarte | idx_scan=1145 | seq_scan=29151
+Product                | 80 kB      | 10       randuri | 19 moarte | idx_scan=17170 | seq_scan=31521
+VerificationToken      | 64 kB      | 4        randuri | 0 moarte | idx_scan=315 | seq_scan=22945
+StaffMember            | 64 kB      | 33       randuri | 8 moarte | idx_scan=9153 | seq_scan=11754
+MailDelivery           | 64 kB      | 5        randuri | 0 moarte | idx_scan=3861 | seq_scan=13198
+Promotion              | 64 kB      | 3        randuri | 18 moarte | idx_scan=1432 | seq_scan=23079
+PanelCredential        | 48 kB      | 0        randuri | 1 moarte | idx_scan=328 | seq_scan=12957
+OrderItem              | 48 kB      | 4        randuri | 2 moarte | idx_scan=3328 | seq_scan=15320
+ProductPrice           | 48 kB      | 9        randuri | 18 moarte | idx_scan=4719 | seq_scan=17003
+Egg                    | 48 kB      | 16       randuri | 0 moarte | idx_scan=192 | seq_scan=15358
+Node                   | 48 kB      | 1        randuri | 5 moarte | idx_scan=12 | seq_scan=15358
+TicketMessage          | 48 kB      | 0        randuri | 2 moarte | idx_scan=1167 | seq_scan=15643
+TicketEvent            | 48 kB      | 0        randuri | 10 moarte | idx_scan=492 | seq_scan=15297
+InstanceEvent          | 48 kB      | 0        randuri | 2 moarte | idx_scan=195 | seq_scan=15298
+InstanceDomain         | 40 kB      | 0        randuri | 0 moarte | idx_scan=2656 | seq_scan=30277
+Setting                | 32 kB      | 1        randuri | 12 moarte | idx_scan=2954 | seq_scan=7714
+EmailChangeRequest     | 32 kB      | 0        randuri | 0 moarte | idx_scan=420 | seq_scan=13645
+Attachment             | 32 kB      | 0        randuri | 0 moarte | idx_scan=428 | seq_scan=21861
+_prisma_migrations     | 32 kB      | 11       randuri | 22 moarte | idx_scan=22 | seq_scan=81
+ProvisioningJob        | 32 kB      | 0        randuri | 0 moarte | idx_scan=2667 | seq_scan=22958
+ProductOption          | 32 kB      | 0        randuri | 0 moarte | idx_scan=1653 | seq_scan=22945
+NotificationPreference | 24 kB      | 0        randuri | 0 moarte | idx_scan=520 | seq_scan=9097
+
+## 4.2 Statistici de scanare pe tabelele cu trafic (seq_scan / idx_scan / n_tup_ins)
+User                   | seq_scan=43168   | idx_scan=54374    | ins=7352   | upd=950    | del=263
+Instance               | seq_scan=47886   | idx_scan=22470    | ins=2776   | upd=6334   | del=12
+Order                  | seq_scan=56389   | idx_scan=8204     | ins=2096   | upd=1664   | del=263
+Subscription           | seq_scan=60222   | idx_scan=3438     | ins=679    | upd=601    | del=2
+Session                | seq_scan=37017   | idx_scan=12482    | ins=7775   | upd=1589   | del=302
+Product                | seq_scan=31521   | idx_scan=17170    | ins=4727   | upd=142    | del=18
+Payment                | seq_scan=46009   | idx_scan=863      | ins=503    | upd=61     | del=0
+Invoice                | seq_scan=38671   | idx_scan=601      | ins=81     | upd=14     | del=1
+Ticket                 | seq_scan=31509   | idx_scan=3795     | ins=813    | upd=186    | del=264
+InstanceDomain         | seq_scan=30277   | idx_scan=2656     | ins=572    | upd=176    | del=88
+AuditLog               | seq_scan=31345   | idx_scan=193      | ins=13162  | upd=0      | del=31
+WebhookEvent           | seq_scan=30233   | idx_scan=1015     | ins=723    | upd=696    | del=0
+PromotionRedemption    | seq_scan=29151   | idx_scan=1145     | ins=205    | upd=0      | del=58
+ProvisioningJob        | seq_scan=22958   | idx_scan=2667     | ins=2258   | upd=2339   | del=0
+ProductOption          | seq_scan=22945   | idx_scan=1653     | ins=53     | upd=0      | del=0
+Promotion              | seq_scan=23079   | idx_scan=1432     | ins=362    | upd=98     | del=10
+VerificationToken      | seq_scan=22945   | idx_scan=315      | ins=6109   | upd=0      | del=0
+Attachment             | seq_scan=21861   | idx_scan=428      | ins=0      | upd=0      | del=0
+ProductPrice           | seq_scan=17003   | idx_scan=4719     | ins=3865   | upd=8      | del=21
+StaffMember            | seq_scan=11754   | idx_scan=9153     | ins=879    | upd=38     | del=2
+OrderItem              | seq_scan=15320   | idx_scan=3328     | ins=762    | upd=0      | del=2
+MailDelivery           | seq_scan=13198   | idx_scan=3861     | ins=3861   | upd=0      | del=0
+TicketMessage          | seq_scan=15643   | idx_scan=1167     | ins=651    | upd=0      | del=2
+TicketEvent            | seq_scan=15297   | idx_scan=492      | ins=1178   | upd=0      | del=10
+Egg                    | seq_scan=15358   | idx_scan=192      | ins=32     | upd=160    | del=0
+InstanceEvent          | seq_scan=15298   | idx_scan=195      | ins=5719   | upd=0      | del=2
+Node                   | seq_scan=15358   | idx_scan=12       | ins=2      | upd=10     | del=0
+EmailChangeRequest     | seq_scan=13645   | idx_scan=420      | ins=46     | upd=0      | del=0
+PanelCredential        | seq_scan=12957   | idx_scan=328      | ins=37     | upd=0      | del=1
+Setting                | seq_scan=7714    | idx_scan=2954     | ins=248    | upd=901    | del=1
+NotificationPreference | seq_scan=9097    | idx_scan=520      | ins=23     | upd=0      | del=0
+_prisma_migrations     | seq_scan=81      | idx_scan=22       | ins=11     | upd=22     | del=0
+
+## 4.3 Indici: definitie si utilizare (cei care nu sunt folositi niciodata)
+Attachment             | Attachment_pkey                            | scanari=0 | CREATE UNIQUE INDEX "Attachment_pkey" ON public."Attachment" USING btree (id)
+AuditLog               | AuditLog_pkey                              | scanari=0 | CREATE UNIQUE INDEX "AuditLog_pkey" ON public."AuditLog" USING btree (id)
+Egg                    | Egg_pkey                                   | scanari=0 | CREATE UNIQUE INDEX "Egg_pkey" ON public."Egg" USING btree (id)
+EmailChangeRequest     | EmailChangeRequest_tokenHash_key           | scanari=0 | CREATE UNIQUE INDEX "EmailChangeRequest_tokenHash_key" ON public."EmailChangeRequest" USING btree ("tokenHash")
+EmailChangeRequest     | EmailChangeRequest_pkey                    | scanari=0 | CREATE UNIQUE INDEX "EmailChangeRequest_pkey" ON public."EmailChangeRequest" USING btree (id)
+Instance               | Instance_pterodactylUuid_key               | scanari=0 | CREATE UNIQUE INDEX "Instance_pterodactylUuid_key" ON public."Instance" USING btree ("pterodactylUuid")
+InstanceDomain         | InstanceDomain_status_idx                  | scanari=0 | CREATE INDEX "InstanceDomain_status_idx" ON public."InstanceDomain" USING btree (status)
+InstanceEvent          | InstanceEvent_pkey                         | scanari=0 | CREATE UNIQUE INDEX "InstanceEvent_pkey" ON public."InstanceEvent" USING btree (id)
+Invoice                | Invoice_status_idx                         | scanari=0 | CREATE INDEX "Invoice_status_idx" ON public."Invoice" USING btree (status)
+Invoice                | Invoice_number_key                         | scanari=0 | CREATE UNIQUE INDEX "Invoice_number_key" ON public."Invoice" USING btree (number)
+MailDelivery           | MailDelivery_createdAt_idx                 | scanari=0 | CREATE INDEX "MailDelivery_createdAt_idx" ON public."MailDelivery" USING btree ("createdAt")
+MailDelivery           | MailDelivery_state_idx                     | scanari=0 | CREATE INDEX "MailDelivery_state_idx" ON public."MailDelivery" USING btree (state)
+Node                   | Node_pkey                                  | scanari=0 | CREATE UNIQUE INDEX "Node_pkey" ON public."Node" USING btree (id)
+NotificationPreference | NotificationPreference_pkey                | scanari=0 | CREATE UNIQUE INDEX "NotificationPreference_pkey" ON public."NotificationPreference" USING btree (id)
+Order                  | Order_stripeCheckoutSessionId_key          | scanari=0 | CREATE UNIQUE INDEX "Order_stripeCheckoutSessionId_key" ON public."Order" USING btree ("stripeCheckoutSessionId")
+Order                  | Order_kind_idx                             | scanari=0 | CREATE INDEX "Order_kind_idx" ON public."Order" USING btree (kind)
+PanelCredential        | PanelCredential_pkey                       | scanari=0 | CREATE UNIQUE INDEX "PanelCredential_pkey" ON public."PanelCredential" USING btree (id)
+Payment                | Payment_stripeCustomerId_key               | scanari=0 | CREATE UNIQUE INDEX "Payment_stripeCustomerId_key" ON public."Payment" USING btree ("stripeCustomerId")
+Payment                | Payment_pkey                               | scanari=0 | CREATE UNIQUE INDEX "Payment_pkey" ON public."Payment" USING btree (id)
+Payment                | Payment_status_idx                         | scanari=0 | CREATE INDEX "Payment_status_idx" ON public."Payment" USING btree (status)
+Payment                | Payment_stripeInvoiceId_key                | scanari=0 | CREATE UNIQUE INDEX "Payment_stripeInvoiceId_key" ON public."Payment" USING btree ("stripeInvoiceId")
+Product                | Product_category_idx                       | scanari=0 | CREATE INDEX "Product_category_idx" ON public."Product" USING btree (category)
+ProductOption          | ProductOption_pkey                         | scanari=0 | CREATE UNIQUE INDEX "ProductOption_pkey" ON public."ProductOption" USING btree (id)
+Promotion              | Promotion_active_idx                       | scanari=0 | CREATE INDEX "Promotion_active_idx" ON public."Promotion" USING btree (active)
+PromotionRedemption    | PromotionRedemption_pkey                   | scanari=0 | CREATE UNIQUE INDEX "PromotionRedemption_pkey" ON public."PromotionRedemption" USING btree (id)
+ProvisioningJob        | ProvisioningJob_pkey                       | scanari=0 | CREATE UNIQUE INDEX "ProvisioningJob_pkey" ON public."ProvisioningJob" USING btree (id)
+Subscription           | Subscription_cancelAtPeriodEnd_idx         | scanari=0 | CREATE INDEX "Subscription_cancelAtPeriodEnd_idx" ON public."Subscription" USING btree ("cancelAtPeriodEnd")
+Subscription           | Subscription_stripeSubscriptionItemId_key  | scanari=0 | CREATE UNIQUE INDEX "Subscription_stripeSubscriptionItemId_key" ON public."Subscription" USING btree ("stripeSubscriptionItemId")
+Ticket                 | Ticket_number_key                          | scanari=0 | CREATE UNIQUE INDEX "Ticket_number_key" ON public."Ticket" USING btree (number)
+Ticket                 | Ticket_assignedToId_idx                    | scanari=0 | CREATE INDEX "Ticket_assignedToId_idx" ON public."Ticket" USING btree ("assignedToId")
+TicketEvent            | TicketEvent_pkey                           | scanari=0 | CREATE UNIQUE INDEX "TicketEvent_pkey" ON public."TicketEvent" USING btree (id)
+User                   | User_pterodactylExternalId_key             | scanari=0 | CREATE UNIQUE INDEX "User_pterodactylExternalId_key" ON public."User" USING btree ("pterodactylExternalId")
+User                   | User_pterodactylUserId_idx                 | scanari=0 | CREATE INDEX "User_pterodactylUserId_idx" ON public."User" USING btree ("pterodactylUserId")
+VerificationToken      | VerificationToken_pkey                     | scanari=0 | CREATE UNIQUE INDEX "VerificationToken_pkey" ON public."VerificationToken" USING btree (id)
+WebhookEvent           | WebhookEvent_provider_type_idx             | scanari=0 | CREATE INDEX "WebhookEvent_provider_type_idx" ON public."WebhookEvent" USING btree (provider, type)
+
+## 4.4 Indici existenti pe tabelele calde (definitii complete)
+--- tabela "Session"
+ERROR:  column "session" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = Session or...
+                                                          ^
+--- tabela "Product"
+ERROR:  column "product" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = Product or...
+                                                          ^
+--- tabela "ProductPrice"
+ERROR:  column "productprice" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = ProductPri...
+                                                          ^
+--- tabela "ProductOption"
+ERROR:  column "productoption" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = ProductOpt...
+                                                          ^
+--- tabela "Order"
+ERROR:  syntax error at or near "Order"
+LINE 1: select indexdef from pg_indexes where tablename = Order orde...
+                                                          ^
+--- tabela "OrderItem"
+ERROR:  column "orderitem" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = OrderItem ...
+                                                          ^
+--- tabela "AuditLog"
+ERROR:  column "auditlog" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = AuditLog o...
+                                                          ^
+--- tabela "User"
+--- tabela "Instance"
+ERROR:  column "instance" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = Instance o...
+                                                          ^
+--- tabela "Ticket"
+ERROR:  column "ticket" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = Ticket ord...
+                                                          ^
+--- tabela "Subscription"
+ERROR:  column "subscription" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = Subscripti...
+                                                          ^
+--- tabela "PromotionRedemption"
+ERROR:  column "promotionredemption" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = PromotionR...
+                                                          ^
+--- tabela "Setting"
+ERROR:  column "setting" does not exist
+LINE 1: select indexdef from pg_indexes where tablename = Setting or...
+                                                          ^
+
+## 4.5 Conectiuni, pool si limite
+active = 1
+idle = 9
+--- total per baza:
+cj_test = 7
+
+blipmade_test = 10
+uxaudit_test = 8
+blipmade = 5
+--- setari relevante:
+autovacuum = on
+autovacuum_analyze_scale_factor = 0.1
+autovacuum_analyze_threshold = 50
+autovacuum_max_workers = 3
+autovacuum_naptime = 60s
+autovacuum_vacuum_scale_factor = 0.2
+autovacuum_vacuum_threshold = 50
+effective_cache_size = 5242888kB
+effective_io_concurrency = 1
+idle_in_transaction_session_timeout = 0ms
+lock_timeout = 0ms
+log_duration = off
+log_line_prefix = %m [%p] 
+log_min_duration_statement = -1ms
+log_statement = none
+maintenance_work_mem = 65536kB
+max_connections = 100
+random_page_cost = 4
+seq_page_cost = 1
+shared_buffers = 163848kB
+statement_timeout = 0ms
+superuser_reserved_connections = 3
+track_io_timing = off
+work_mem = 4096kB
+--- pool Prisma: cate conexiuni are deschise procesul API:
+    pid API = 892009
+conexiuni deschise de la PID-ul API: 0
+ | 9 conexiuni | idle
+psql | 1 conexiuni | active
+
+## 4.6 Starea de vacuum / analyse
+AuditLog               | n_live=244     n_dead=31      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:49:15.992817+00
+Session                | n_live=73      n_dead=31      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:58:32.078789+00
+User                   | n_live=44      n_dead=6       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=2026-10-23 23:40:08. | last_autoanalyze=2026-10-23 23:40:08.481474+00
+StaffMember            | n_live=33      n_dead=8       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:38:03.159352+00
+Egg                    | n_live=16      n_dead=0       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:39:03.106992+00
+_prisma_migrations     | n_live=11      n_dead=22      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=-
+Product                | n_live=10      n_dead=19      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:37:00.413354+00
+ProductPrice           | n_live=9       n_dead=18      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:37:00.418442+00
+MailDelivery           | n_live=5       n_dead=0       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:37:00.400277+00
+Order                  | n_live=4       n_dead=10      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=2026-10-23 23:40:08. | last_autoanalyze=2026-10-23 23:40:08.511805+00
+OrderItem              | n_live=4       n_dead=2       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:33:00.056241+00
+VerificationToken      | n_live=4       n_dead=0       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:37:00.430365+00
+Promotion              | n_live=3       n_dead=18      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:38:03.154489+00
+WebhookEvent           | n_live=2       n_dead=2       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:36:00.341089+00
+PromotionRedemption    | n_live=2       n_dead=0       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:28:55.508793+00
+Instance               | n_live=1       n_dead=15      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:36:00.304165+00
+Node                   | n_live=1       n_dead=5       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=-
+Payment                | n_live=1       n_dead=0       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:36:00.282752+00
+Setting                | n_live=1       n_dead=12      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=2026-10-23 22:59:55. | last_autoanalyze=2026-10-23 23:36:00.32443+00
+Subscription           | n_live=1       n_dead=5       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:35:00.122734+00
+TicketEvent            | n_live=0       n_dead=10      | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:37:00.397126+00
+InstanceEvent          | n_live=0       n_dead=2       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:36:00.333699+00
+Ticket                 | n_live=0       n_dead=4       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=2026-10-23 23:40:08. | last_autoanalyze=2026-10-23 23:40:08.45766+00
+TicketMessage          | n_live=0       n_dead=2       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:45:15.962446+00
+Invoice                | n_live=0       n_dead=3       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=2026-10-23 23:04:55.215218+00
+PanelCredential        | n_live=0       n_dead=1       | last_vacuum=-                    | last_analyze=-                    | last_autovacuum=-                    | last_autoanalyze=-
+
+## 4.7 EXPLAIN (ANALYZE, BUFFERS) pe interogarile calde
+--- catalog: lista de produse cu preturi si optiuni
+                                                          QUERY PLAN                                                       
+    -----------------------------------------------------------------------------------------------------------------------
+     Sort  (cost=73.55..74.81 rows=504 width=642) (actual rows=8 loops=1)
+       Sort Key: p."sortOrder", p.name
+       Sort Method: quicksort  Memory: 27kB
+       Buffers: shared hit=8
+       ->  Hash Right Join  (cost=30.13..50.93 rows=504 width=642) (actual rows=8 loops=1)
+             Hash Cond: (pr."productId" = p.id)
+             Buffers: shared hit=2
+             ->  Seq Scan on "ProductPrice" pr  (cost=0.00..16.70 rows=670 width=93) (actual rows=9 loops=1)
+                   Filter: active
+                   Buffers: shared hit=1
+             ->  Hash  (cost=28.16..28.16 rows=158 width=549) (actual rows=8 loops=1)
+                   Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                   Buffers: shared hit=1
+                   ->  Hash Right Join  (cost=14.07..28.16 rows=158 width=549) (actual rows=8 loops=1)
+                         Hash Cond: (po."productId" = p.id)
+                         Buffers: shared hit=1
+                         ->  Seq Scan on "ProductOption" po  (cost=0.00..13.60 rows=180 width=198) (actual rows=0 loops=1)
+                               Filter: active
+                         ->  Hash  (cost=12.10..12.10 rows=158 width=351) (actual rows=8 loops=1)
+                               Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                               Buffers: shared hit=1
+                               ->  Seq Scan on "Product" p  (cost=0.00..12.10 rows=158 width=351) (actual rows=8 loops=1)
+                                     Filter: visible
+                                     Rows Removed by Filter: 2
+                                     Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=403
+     Planning Time: 10.866 ms
+     Execution Time: 1.378 ms
+    (29 rows)
+    
+
+--- pricing.loadPrice: findFirst pe ProductPrice (in lipsa de index, ordonat dupa createdAt)
+                                                                          QUERY PLAN                                                                      
+    ------------------------------------------------------------------------------------------------------------------------------------------------------
+     Limit  (cost=8.18..8.19 rows=1 width=93) (actual rows=0 loops=1)
+       Buffers: shared hit=4
+       ->  Sort  (cost=8.18..8.19 rows=1 width=93) (actual rows=0 loops=1)
+             Sort Key: "createdAt" DESC
+             Sort Method: quicksort  Memory: 25kB
+             Buffers: shared hit=4
+             ->  Index Scan using "ProductPrice_productId_period_active_idx" on "ProductPrice"  (cost=0.15..8.17 rows=1 width=93) (actual rows=0 loops=1)
+                   Index Cond: (("productId" = 'x'::text) AND (period = 'MONTHLY'::"BillingPeriod") AND (active = true))
+                   Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=149
+     Planning Time: 3.946 ms
+     Execution Time: 0.365 ms
+    (13 rows)
+    
+
+--- pricing.loadOptions: optiuni pe cod
+                                                      QUERY PLAN                                                   
+    ---------------------------------------------------------------------------------------------------------------
+     Bitmap Heap Scan on "ProductOption"  (cost=4.16..9.51 rows=1 width=198) (actual rows=0 loops=1)
+       Recheck Cond: (code = ANY ('{a,b}'::text[]))
+       Filter: (active AND (("productId" = 'x'::text) OR ("productId" IS NULL)))
+       Buffers: shared hit=2
+       ->  Bitmap Index Scan on "ProductOption_code_key"  (cost=0.00..4.16 rows=2 width=0) (actual rows=0 loops=1)
+             Index Cond: (code = ANY ('{a,b}'::text[]))
+             Buffers: shared hit=2
+     Planning:
+       Buffers: shared hit=160
+     Planning Time: 5.347 ms
+     Execution Time: 0.179 ms
+    (11 rows)
+    
+
+--- auth.loadSession: cautarea sesiunii dupa tokenHash
+                                           QUERY PLAN                                        
+    -----------------------------------------------------------------------------------------
+     Limit  (cost=0.00..3.85 rows=1 width=190) (actual rows=0 loops=1)
+       Buffers: shared hit=3
+       ->  Seq Scan on "Session"  (cost=0.00..3.85 rows=1 width=190) (actual rows=0 loops=1)
+             Filter: ("tokenHash" = 'deadbeef'::text)
+             Rows Removed by Filter: 73
+             Buffers: shared hit=3
+     Planning:
+       Buffers: shared hit=173
+     Planning Time: 4.884 ms
+     Execution Time: 0.225 ms
+    (10 rows)
+    
+
+--- auth.loadSession: JOIN sesiune + utilizator + staff
+                                                            QUERY PLAN                                                        
+    --------------------------------------------------------------------------------------------------------------------------
+     Limit  (cost=4.00..6.97 rows=1 width=823) (actual rows=0 loops=1)
+       Buffers: shared hit=5
+       ->  Nested Loop Left Join  (cost=4.00..6.97 rows=1 width=823) (actual rows=0 loops=1)
+             Buffers: shared hit=5
+             ->  Hash Join  (cost=3.86..6.40 rows=1 width=464) (actual rows=0 loops=1)
+                   Hash Cond: (u.id = s."userId")
+                   Buffers: shared hit=5
+                   ->  Seq Scan on "User" u  (cost=0.00..2.42 rows=42 width=274) (actual rows=1 loops=1)
+                         Buffers: shared hit=2
+                   ->  Hash  (cost=3.85..3.85 rows=1 width=190) (actual rows=0 loops=1)
+                         Buckets: 1024  Batches: 1  Memory Usage: 8kB
+                         Buffers: shared hit=3
+                         ->  Seq Scan on "Session" s  (cost=0.00..3.85 rows=1 width=190) (actual rows=0 loops=1)
+                               Filter: ("tokenHash" = 'deadbeef'::text)
+                               Rows Removed by Filter: 73
+                               Buffers: shared hit=3
+             ->  Index Scan using "StaffMember_pkey" on "StaffMember" st  (cost=0.14..0.54 rows=1 width=359) (never executed)
+                   Index Cond: ("userId" = u.id)
+     Planning:
+       Buffers: shared hit=483 dirtied=1
+     Planning Time: 14.786 ms
+     Execution Time: 0.740 ms
+    (22 rows)
+    
+
+--- admin.overview: numarul de clienti
+                                         QUERY PLAN                                      
+    -------------------------------------------------------------------------------------
+     Aggregate  (cost=2.55..2.56 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=2
+       ->  Seq Scan on "User"  (cost=0.00..2.52 rows=9 width=0) (actual rows=10 loops=1)
+             Filter: (role = 'CUSTOMER'::"Role")
+             Rows Removed by Filter: 34
+             Buffers: shared hit=2
+     Planning:
+       Buffers: shared hit=117
+     Planning Time: 3.530 ms
+     Execution Time: 0.256 ms
+    (10 rows)
+    
+
+--- admin.overview: numarul de instante
+                                            QUERY PLAN                                         
+    -------------------------------------------------------------------------------------------
+     Aggregate  (cost=12.75..12.76 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=1
+       ->  Seq Scan on "Instance"  (cost=0.00..12.20 rows=220 width=0) (actual rows=1 loops=1)
+             Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=205
+     Planning Time: 5.518 ms
+     Execution Time: 0.413 ms
+    (8 rows)
+    
+
+--- admin.overview: instante active
+                                           QUERY PLAN                                        
+    -----------------------------------------------------------------------------------------
+     Aggregate  (cost=13.03..13.04 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=1
+       ->  Seq Scan on "Instance"  (cost=0.00..13.03 rows=3 width=0) (actual rows=0 loops=1)
+             Filter: (status = ANY ('{ONLINE,PROVISIONING,RESTARTING}'::"InstanceStatus"[]))
+             Rows Removed by Filter: 1
+             Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=234
+     Planning Time: 6.310 ms
+     Execution Time: 0.281 ms
+    (10 rows)
+    
+
+--- admin.overview: tichete deschise
+                                          QUERY PLAN                                      
+    --------------------------------------------------------------------------------------
+     Aggregate  (cost=1.04..1.05 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=1
+       ->  Seq Scan on "Ticket"  (cost=0.00..1.04 rows=2 width=0) (actual rows=0 loops=1)
+             Filter: (status <> 'CLOSED'::"TicketStatus")
+             Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=118
+     Planning Time: 3.720 ms
+     Execution Time: 0.299 ms
+    (9 rows)
+    
+
+--- admin.overview: comenzi de azi
+                                         QUERY PLAN                                      
+    -------------------------------------------------------------------------------------
+     Aggregate  (cost=1.06..1.07 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=1
+       ->  Seq Scan on "Order"  (cost=0.00..1.05 rows=4 width=0) (actual rows=4 loops=1)
+             Filter: ("createdAt" >= '2026-10-23 00:00:00'::timestamp without time zone)
+             Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=136
+     Planning Time: 4.082 ms
+     Execution Time: 0.176 ms
+    (9 rows)
+    
+
+--- admin.overview: venitul lunii
+                                                                       QUERY PLAN                                                                   
+    ------------------------------------------------------------------------------------------------------------------------------------------------
+     Aggregate  (cost=1.07..1.08 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=1
+       ->  Seq Scan on "Order"  (cost=0.00..1.06 rows=3 width=4) (actual rows=1 loops=1)
+             Filter: ((status = ANY ('{PAID,FULFILLED}'::"OrderStatus"[])) AND ("createdAt" >= '2026-10-01 00:00:00'::timestamp without time zone))
+             Rows Removed by Filter: 3
+             Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=184
+     Planning Time: 5.481 ms
+     Execution Time: 0.162 ms
+    (10 rows)
+    
+
+--- admin.overview: esecuri de provisionare
+                                           QUERY PLAN                                        
+    -----------------------------------------------------------------------------------------
+     Aggregate  (cost=12.75..12.76 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=1
+       ->  Seq Scan on "Instance"  (cost=0.00..12.75 rows=1 width=0) (actual rows=0 loops=1)
+             Filter: (status = 'FAILED'::"InstanceStatus")
+             Rows Removed by Filter: 1
+             Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=206
+     Planning Time: 5.387 ms
+     Execution Time: 0.176 ms
+    (10 rows)
+    
+
+--- admin.overview: abonamente active (MRR)
+                                                           QUERY PLAN                                                       
+    ------------------------------------------------------------------------------------------------------------------------
+     Index Scan using "Subscription_status_idx" on "Subscription"  (cost=0.14..8.16 rows=1 width=4) (actual rows=1 loops=1)
+       Index Cond: (status = 'ACTIVE'::"SubscriptionStatus")
+       Filter: (NOT "cancelAtPeriodEnd")
+       Buffers: shared hit=2
+     Planning:
+       Buffers: shared hit=187
+     Planning Time: 6.114 ms
+     Execution Time: 0.232 ms
+    (8 rows)
+    
+
+--- admin.audit: lista de intrari (take 300)
+                                                 QUERY PLAN                                              
+    -----------------------------------------------------------------------------------------------------
+     Limit  (cost=22.60..23.28 rows=270 width=218) (actual rows=244 loops=1)
+       Buffers: shared hit=12
+       ->  Sort  (cost=22.60..23.28 rows=270 width=218) (actual rows=244 loops=1)
+             Sort Key: "createdAt" DESC
+             Sort Method: quicksort  Memory: 91kB
+             Buffers: shared hit=12
+             ->  Seq Scan on "AuditLog"  (cost=0.00..11.70 rows=270 width=218) (actual rows=244 loops=1)
+                   Buffers: shared hit=9
+     Planning:
+       Buffers: shared hit=173
+     Planning Time: 5.434 ms
+     Execution Time: 0.980 ms
+    (12 rows)
+    
+
+--- admin.audit: numarul total de intrari
+                                             QUERY PLAN                                          
+    ---------------------------------------------------------------------------------------------
+     Aggregate  (cost=12.38..12.38 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=9
+       ->  Seq Scan on "AuditLog"  (cost=0.00..11.70 rows=270 width=0) (actual rows=244 loops=1)
+             Buffers: shared hit=9
+     Planning:
+       Buffers: shared hit=145
+     Planning Time: 4.545 ms
+     Execution Time: 0.529 ms
+    (8 rows)
+    
+
+--- admin.audit: filtrare pe actor
+                                                 QUERY PLAN                                              
+    -----------------------------------------------------------------------------------------------------
+     Limit  (cost=16.10..16.38 rows=110 width=218) (actual rows=113 loops=1)
+       Buffers: shared hit=12
+       ->  Sort  (cost=16.10..16.38 rows=110 width=218) (actual rows=113 loops=1)
+             Sort Key: "createdAt" DESC
+             Sort Method: quicksort  Memory: 55kB
+             Buffers: shared hit=12
+             ->  Seq Scan on "AuditLog"  (cost=0.00..12.38 rows=110 width=218) (actual rows=113 loops=1)
+                   Filter: ("actorEmail" ~~* '%admin%'::text)
+                   Rows Removed by Filter: 131
+                   Buffers: shared hit=9
+     Planning:
+       Buffers: shared hit=173
+     Planning Time: 5.156 ms
+     Execution Time: 1.134 ms
+    (14 rows)
+    
+
+--- admin.customers: lista de clienti (take 200)
+                                                                        QUERY PLAN                                                                     
+    ---------------------------------------------------------------------------------------------------------------------------------------------------
+     Limit  (cost=2.67..76.36 rows=9 width=282) (actual rows=10 loops=1)
+       Buffers: shared hit=16
+       ->  Result  (cost=2.67..76.36 rows=9 width=282) (actual rows=10 loops=1)
+             Buffers: shared hit=16
+             ->  Sort  (cost=2.67..2.69 rows=9 width=274) (actual rows=10 loops=1)
+                   Sort Key: u."createdAt" DESC
+                   Sort Method: quicksort  Memory: 29kB
+                   Buffers: shared hit=5
+                   ->  Seq Scan on "User" u  (cost=0.00..2.52 rows=9 width=274) (actual rows=10 loops=1)
+                         Filter: (role = 'CUSTOMER'::"Role")
+                         Rows Removed by Filter: 34
+                         Buffers: shared hit=2
+             SubPlan 1
+               ->  Aggregate  (cost=8.16..8.17 rows=1 width=8) (actual rows=1 loops=10)
+                     Buffers: shared hit=11
+                     ->  Index Only Scan using "Instance_userId_status_idx" on "Instance" i  (cost=0.14..8.16 rows=1 width=0) (actual rows=0 loops=10)
+                           Index Cond: ("userId" = u.id)
+                           Heap Fetches: 1
+                           Buffers: shared hit=11
+     Planning:
+       Buffers: shared hit=338
+     Planning Time: 9.589 ms
+     Execution Time: 0.917 ms
+    (23 rows)
+    
+
+--- admin.customers: numarul total de clienti
+                                         QUERY PLAN                                      
+    -------------------------------------------------------------------------------------
+     Aggregate  (cost=2.55..2.56 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=2
+       ->  Seq Scan on "User"  (cost=0.00..2.52 rows=9 width=0) (actual rows=10 loops=1)
+             Filter: (role = 'CUSTOMER'::"Role")
+             Rows Removed by Filter: 34
+             Buffers: shared hit=2
+     Planning:
+       Buffers: shared hit=117
+     Planning Time: 3.689 ms
+     Execution Time: 0.254 ms
+    (10 rows)
+    
+
+--- admin.orders: lista de comenzi (take 200)
+                                                    QUERY PLAN                                                 
+    -----------------------------------------------------------------------------------------------------------
+     Limit  (cost=3.80..3.81 rows=4 width=315) (actual rows=4 loops=1)
+       Buffers: shared hit=6
+       ->  Sort  (cost=3.80..3.81 rows=4 width=315) (actual rows=4 loops=1)
+             Sort Key: o."createdAt" DESC
+             Sort Method: quicksort  Memory: 26kB
+             Buffers: shared hit=6
+             ->  Hash Join  (cost=1.09..3.76 rows=4 width=315) (actual rows=4 loops=1)
+                   Hash Cond: (u.id = o."userId")
+                   Buffers: shared hit=3
+                   ->  Seq Scan on "User" u  (cost=0.00..2.42 rows=42 width=73) (actual rows=44 loops=1)
+                         Buffers: shared hit=2
+                   ->  Hash  (cost=1.04..1.04 rows=4 width=280) (actual rows=4 loops=1)
+                         Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                         Buffers: shared hit=1
+                         ->  Seq Scan on "Order" o  (cost=0.00..1.04 rows=4 width=280) (actual rows=4 loops=1)
+                               Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=430
+     Planning Time: 12.684 ms
+     Execution Time: 0.938 ms
+    (20 rows)
+    
+
+--- admin.orders: numarul total de comenzi
+                                         QUERY PLAN                                      
+    -------------------------------------------------------------------------------------
+     Aggregate  (cost=1.05..1.06 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=1
+       ->  Seq Scan on "Order"  (cost=0.00..1.04 rows=4 width=0) (actual rows=4 loops=1)
+             Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=161
+     Planning Time: 4.698 ms
+     Execution Time: 0.184 ms
+    (8 rows)
+    
+
+--- pricing.countEffectiveRedemptions: numarul de utilizari ale unei promotii
+                                                                                                            QUERY PLAN                                                                                                        
+    --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+     Aggregate  (cost=10.67..10.68 rows=1 width=8) (actual rows=1 loops=1)
+       Buffers: shared hit=2
+       ->  Nested Loop  (cost=4.16..10.67 rows=2 width=0) (actual rows=0 loops=1)
+             Join Filter: (pr."orderId" = o.id)
+             Buffers: shared hit=2
+             ->  Seq Scan on "Order" o  (cost=0.00..1.07 rows=3 width=18) (actual rows=3 loops=1)
+                   Filter: ((status = ANY ('{PAID,FULFILLED}'::"OrderStatus"[])) OR ((status = ANY ('{PENDING,AWAITING_PAYMENT}'::"OrderStatus"[])) AND ("createdAt" >= '2026-10-21 00:00:00'::timestamp without time zone)))
+                   Rows Removed by Filter: 1
+                   Buffers: shared hit=1
+             ->  Materialize  (cost=4.16..9.51 rows=2 width=32) (actual rows=0 loops=3)
+                   Buffers: shared hit=1
+                   ->  Bitmap Heap Scan on "PromotionRedemption" pr  (cost=4.16..9.50 rows=2 width=32) (actual rows=0 loops=1)
+                         Recheck Cond: ("promotionId" = 'x'::text)
+                         Buffers: shared hit=1
+                         ->  Bitmap Index Scan on "PromotionRedemption_promotionId_userId_idx"  (cost=0.00..4.16 rows=2 width=0) (actual rows=0 loops=1)
+                               Index Cond: ("promotionId" = 'x'::text)
+                               Buffers: shared hit=1
+     Planning:
+       Buffers: shared hit=375
+     Planning Time: 11.007 ms
+     Execution Time: 0.446 ms
+    (21 rows)
+    
+
+--- order-numbers: secventa de numere (MAX cu regexp pe coloana number) - EXPLAIN fara ANALYZE (UPDATE)
+                                    QUERY PLAN                                 
+    ---------------------------------------------------------------------------
+     Insert on "Setting"  (cost=1.06..1.08 rows=0 width=0)
+       Conflict Resolution: NOTHING
+       Conflict Arbiter Indexes: Setting_pkey
+       ->  Subquery Scan on "*SELECT*"  (cost=1.06..1.08 rows=1 width=72)
+             ->  Aggregate  (cost=1.06..1.08 rows=1 width=72)
+                   ->  Seq Scan on "Order" o  (cost=0.00..1.05 rows=1 width=9)
+                         Filter: (number ~ '^BM-[0-9]+$'::text)
+    (7 rows)
+    
+
+                              QUERY PLAN                           
+    ---------------------------------------------------------------
+     Aggregate  (cost=1.06..1.07 rows=1 width=4)
+       ->  Seq Scan on "Order" o  (cost=0.00..1.05 rows=1 width=9)
+             Filter: (number ~ '^BM-[0-9]+$'::text)
+    (3 rows)
+    
+
+## 4.8 Cache-ul bazei de date (hit ratio pe baza de test)
+bloki citite: 192957 | bloki din cache: 70290165 | hit ratio: 99.73%
+temp file bytes: 0 | 0.0 KB
+ERROR:  column "rollbacks" does not exist
+LINE 1: ...elect 'deadlocks: '||deadlocks||' | rollbacks: '||rollbacks|...
+                                                             ^
+Sfarsit 11.4

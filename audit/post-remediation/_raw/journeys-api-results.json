@@ -1,0 +1,1860 @@
+[
+  {
+    "n": 1,
+    "area": "IDENTITY",
+    "step": "1.1 Înregistrarea creează contul și deschide sesiunea",
+    "status": "PASS",
+    "observed": "HTTP 201; user=cj.id.1792803399581@example.test; emailVerified=false; mail=delivered",
+    "expected": "HTTP 201, cont creat, e-mail de verificare trimis, sesiune deschisă",
+    "evidence": {
+      "status": 201,
+      "body": "{\"user\":{\"id\":\"cmvlousps0000dxb9wzkv0k04\",\"email\":\"cj.id.1792803399581@example.test\",\"firstName\":\"CJ\",\"lastName\":\"Journey\",\"name\":\"CJ Journey\",\"role\":\"CUSTOMER\",\"emailVerified\":false,\"pterodactylUserId\":null,\"permissions\":[]},\"mail\":{\"state\":\"delivered\",\"message\":\"A confirmation link is on its way to your email address.\"}}",
+      "cookie": true
+    }
+  },
+  {
+    "n": 2,
+    "area": "IDENTITY",
+    "step": "1.2 Înregistrarea refuză o adresă deja folosită",
+    "status": "PASS",
+    "observed": "HTTP 409: {\"error\":{\"code\":\"conflict\",\"message\":\"An account already uses this email address.\",\"requestId\":\"req-4\"}}",
+    "expected": "HTTP 409",
+    "evidence": {
+      "status": 409,
+      "body": "{\"error\":{\"code\":\"conflict\",\"message\":\"An account already uses this email address.\",\"requestId\":\"req-4\"}}"
+    }
+  },
+  {
+    "n": 3,
+    "area": "IDENTITY",
+    "step": "1.3 Înregistrarea refuză o parolă slabă",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"Use at least 10 characters. Add an uppercase letter. Add a number.\",\"requestId\":\"req-5\",\"fields\":{\"password\":\"Use at l…",
+    "expected": "HTTP 400 care numește problema",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"Use at least 10 characters. Add an uppercase letter. Add a number.\",\"requestId\":\"req-5\",\"fields\":{\"password\":\"Use at least 10 characters. Add an uppercase let"
+    }
+  },
+  {
+    "n": 4,
+    "area": "IDENTITY",
+    "step": "1.4 Înregistrarea refuză un nume incomplet",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"validation_failed\",\"message\":\"Some fields need attention.\",\"fields\":{\"firstName\":\"Enter this part of your name.\",\"lastName\":\"Enter this part o…",
+    "expected": "HTTP 400 care numește câmpul",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"Some fields need attention.\",\"fields\":{\"firstName\":\"Enter this part of your name.\",\"lastName\":\"Enter this part of your name.\"},\"requestId\":\"req-6\"}}"
+    }
+  },
+  {
+    "n": 5,
+    "area": "IDENTITY",
+    "step": "1.5 Autentificare cu date corecte",
+    "status": "PASS",
+    "observed": "HTTP 200; user=cj.id.1792803399581@example.test; role=CUSTOMER",
+    "expected": "HTTP 200 + cookie de sesiune",
+    "evidence": {
+      "status": 200,
+      "body": "{\"user\":{\"id\":\"cmvlousps0000dxb9wzkv0k04\",\"email\":\"cj.id.1792803399581@example.test\",\"firstName\":\"CJ\",\"lastName\":\"Journey\",\"name\":\"CJ Journey\",\"role\":\"CUSTOMER\",\"emailVerified\":false,\"pterodactylUserId\":null,\"permissions\":[]}}"
+    }
+  },
+  {
+    "n": 6,
+    "area": "IDENTITY",
+    "step": "1.6 Parolă greșită refuzată, fără enumerare de conturi",
+    "status": "PASS",
+    "observed": "greșit=401, necunoscut=401, mesaje identice=true; \"Email or password is not correct.\"",
+    "expected": "HTTP 401 în ambele cazuri, cu același mesaj",
+    "evidence": {
+      "wrong": "Email or password is not correct.",
+      "unknown": "Email or password is not correct."
+    }
+  },
+  {
+    "n": 7,
+    "area": "IDENTITY",
+    "step": "1.7 Sonda de sesiune pentru vizitator anonim",
+    "status": "PASS",
+    "observed": "HTTP 200; user=null",
+    "expected": "HTTP 200, user=null",
+    "evidence": {
+      "status": 200,
+      "body": "{\"user\":null}"
+    }
+  },
+  {
+    "n": 8,
+    "area": "IDENTITY",
+    "step": "1.8 Contul nou pornește neverificat",
+    "status": "PASS",
+    "observed": "emailVerified=false",
+    "expected": "emailVerified=false până la folosirea linkului",
+    "evidence": {
+      "status": 200,
+      "body": "{\"user\":{\"id\":\"cmvlousps0000dxb9wzkv0k04\",\"email\":\"cj.id.1792803399581@example.test\",\"firstName\":\"CJ\",\"lastName\":\"Journey\",\"name\":\"CJ Journey\",\"role\":\"CUSTOMER\",\"emailVerified\":false,\"pterodactylUserI"
+    }
+  },
+  {
+    "n": 9,
+    "area": "IDENTITY",
+    "step": "1.9 Re-trimiterea e-mailului de verificare nu dezvăluie dacă contul există",
+    "status": "PASS",
+    "observed": "existent=200, necunoscut=200, mesaje identice=true; \"{\"message\":\"If an account exists for that address, a confirmation link is on its way.\",\"mail\":{\"configured\":true}}\"",
+    "expected": "HTTP 200 cu același mesaj în ambele cazuri",
+    "evidence": {
+      "existing": "{\"message\":\"If an account exists for that address, a confirmation link is on its way.\",\"mail\":{\"configured\":true}}",
+      "unknown": "{\"message\":\"If an account exists for that address, a confirmation link is on its way.\",\"mail\":{\"configured\":true}}"
+    }
+  },
+  {
+    "n": 10,
+    "area": "IDENTITY",
+    "step": "1.10 E-mailul de verificare este scris în căsuța de e-mail",
+    "status": "PASS",
+    "observed": "token primit prin sink (2 mesaje noi captate)",
+    "expected": "Un e-mail de verificare ajunge în sink",
+    "evidence": {
+      "mails": [
+        "Confirm your Blipmade email address",
+        "Confirm your Blipmade email address"
+      ]
+    }
+  },
+  {
+    "n": 11,
+    "area": "IDENTITY",
+    "step": "1.11 Linkul de verificare confirmă adresa",
+    "status": "PASS",
+    "observed": "HTTP 204; emailVerified după= true",
+    "expected": "HTTP 2xx, contul devine verificat",
+    "evidence": {
+      "status": 204,
+      "body": ""
+    }
+  },
+  {
+    "n": 12,
+    "area": "IDENTITY",
+    "step": "1.12 Un token de verificare invalid este refuzat",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"This confirmation link is invalid or has expired.\",\"requestId\":\"req-i\"}}",
+    "expected": "HTTP 400",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"This confirmation link is invalid or has expired.\",\"requestId\":\"req-i\"}}"
+    }
+  },
+  {
+    "n": 13,
+    "area": "IDENTITY",
+    "step": "1.13 Cererea de resetare nu dezvăluie dacă contul există",
+    "status": "PASS",
+    "observed": "existent=200, necunoscut=200, mesaje identice=true",
+    "expected": "HTTP 200, același mesaj",
+    "evidence": {
+      "existing": "{\"message\":\"If an account exists for that address, a reset link is on its way.\",\"mail\":{\"configured\":true}}",
+      "unknown": "{\"message\":\"If an account exists for that address, a reset link is on its way.\",\"mail\":{\"configured\":true}}"
+    }
+  },
+  {
+    "n": 14,
+    "area": "IDENTITY",
+    "step": "1.14 E-mailul de resetare a parolei este scris în căsuța de e-mail",
+    "status": "PASS",
+    "observed": "token primit prin sink (1 mesaje noi)",
+    "expected": "Un e-mail de resetare ajunge în sink",
+    "evidence": {
+      "mails": [
+        "Reset your Blipmade password"
+      ]
+    }
+  },
+  {
+    "n": 15,
+    "area": "IDENTITY",
+    "step": "1.15 Tokenul de resetare schimbă parola",
+    "status": "PASS",
+    "observed": "reset=204, login cu parola nouă=200, login cu parola veche=401",
+    "expected": "HTTP 2xx la resetare, parola nouă merge, cea veche nu",
+    "evidence": {
+      "reset": "",
+      "newStatus": 200,
+      "oldStatus": 401
+    }
+  },
+  {
+    "n": 16,
+    "area": "IDENTITY",
+    "step": "1.16 Un token de resetare invalid este refuzat",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"This reset link is invalid or has expired.\",\"requestId\":\"req-u\"}}",
+    "expected": "HTTP 400",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"This reset link is invalid or has expired.\",\"requestId\":\"req-u\"}}"
+    }
+  },
+  {
+    "n": 17,
+    "area": "IDENTITY",
+    "step": "1.17 Modificarea profilului este memorată",
+    "status": "PASS",
+    "observed": "PATCH=200; citit înapoi profile.lastName=\"Renamed\"",
+    "expected": "PATCH 200, valoarea se citește înapoi",
+    "evidence": {
+      "patch": "{\"firstName\":\"CJ\",\"lastName\":\"Renamed\"}",
+      "settings": "{\"profile\":{\"firstName\":\"CJ\",\"lastName\":\"Renamed\",\"email\":\"cj.id.1792803399581@example.test\",\"emailVerified\":true,\"role\":\"CUSTOMER\",\"createdAt\":\"2026-10-24T00:56:39.904Z\"},\"pendingEmail\":null,\"pendingEmailExpiresAt\":null,\"preferences\":{\"productUpdates\":true,\"billing\":true,\"support\":true,\"incidents\":"
+    }
+  },
+  {
+    "n": 18,
+    "area": "IDENTITY",
+    "step": "1.18 Cererea de schimbare a adresei este acceptată",
+    "status": "PASS",
+    "observed": "HTTP 200; pendingEmail=cj.changed.1792803399581@example.test; delivered=true",
+    "expected": "HTTP 200 cu pasul de confirmare",
+    "evidence": {
+      "status": 200,
+      "body": "{\"pendingEmail\":\"cj.changed.1792803399581@example.test\",\"expiresAt\":\"2026-10-24T01:56:43.023Z\",\"delivery\":\"delivered\",\"delivered\":true,\"message\":\"A confirmation link is on its way to the new address.\"}"
+    }
+  },
+  {
+    "n": 19,
+    "area": "IDENTITY",
+    "step": "1.19 Schimbarea adresei către adresa curentă este refuzată",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"That is already the address of this account.\",\"requestId\":\"req-y\",\"fields\":{\"email\":\"This account …",
+    "expected": "HTTP 400",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"That is already the address of this account.\",\"requestId\":\"req-y\",\"fields\":{\"email\":\"This account already uses this address.\"}}}"
+    }
+  },
+  {
+    "n": 20,
+    "area": "IDENTITY",
+    "step": "1.20 Schimbarea adresei către o adresă invalidă este refuzată",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"validation_failed\",\"message\":\"email: Enter a valid email address.\",\"requestId\":\"req-z\",\"fields\":{\"email\":\"email: Enter a v…",
+    "expected": "HTTP 400",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"email: Enter a valid email address.\",\"requestId\":\"req-z\",\"fields\":{\"email\":\"email: Enter a valid email address.\"}}}"
+    }
+  },
+  {
+    "n": 21,
+    "area": "IDENTITY",
+    "step": "1.21 Linkul de confirmare schimbă adresa contului",
+    "status": "PASS",
+    "observed": "confirm=200; email în sesiune=cj.changed.1792803399581@example.test",
+    "expected": "HTTP 200, sesiunea arată adresa nouă",
+    "evidence": {
+      "confirm": "{\"email\":\"cj.changed.1792803399581@example.test\"}",
+      "session": "{\"user\":{\"id\":\"cmvlousps0000dxb9wzkv0k04\",\"email\":\"cj.changed.1792803399581@example.test\",\"firstName\":\"CJ\",\"lastName\":\"Renamed\",\"name\":\"CJ Renamed\",\"role\":\"CUSTOMER\",\"emailVerified\":true,\"pterodactylUserId\":null,\"permissions\":[]}}"
+    }
+  },
+  {
+    "n": 22,
+    "area": "IDENTITY",
+    "step": "1.22 Lista de sesiuni arată toate dispozitivele deschise",
+    "status": "PASS",
+    "observed": "HTTP 200; 4 sesiuni; current=1",
+    "expected": "HTTP 200, câte o sesiune per dispozitiv",
+    "evidence": {
+      "status": 200,
+      "sessions": [
+        {
+          "id": "cmvlouw2g001tdxb9rvnai2yu",
+          "current": false,
+          "device": "A browser",
+          "ip": "127.0.0.1"
+        },
+        {
+          "id": "cmvlouvz7001pdxb9dv8bqs88",
+          "current": false,
+          "device": "A browser",
+          "ip": "127.0.0.1"
+        },
+        {
+          "id": "cmvlouvv6001ldxb9degkax0h",
+          "current": true,
+          "device": "A browser",
+          "ip": "127.0.0.1"
+        },
+        {
+          "id": "cmvlouvob001fdxb9l7b55d8y",
+          "current": false,
+          "device": "A browser",
+          "ip": "127.0.0.1"
+        }
+      ]
+    }
+  },
+  {
+    "n": 23,
+    "area": "IDENTITY",
+    "step": "1.23 O sesiune poate fi revocată individual",
+    "status": "PASS",
+    "observed": "DELETE=200; rămase 3 din 4",
+    "expected": "HTTP 200, lista scade cu unu",
+    "evidence": {
+      "status": 200,
+      "before": 4,
+      "after": 3
+    }
+  },
+  {
+    "n": 24,
+    "area": "IDENTITY",
+    "step": "1.24 „Închide toate celelalte sesiuni\" deconectează celelalte dispozitive",
+    "status": "PASS",
+    "observed": "DELETE=200; dispozitivul 2 → 401; dispozitivul 3 → 401",
+    "expected": "HTTP 200 și 401 pe celelalte dispozitive",
+    "evidence": {
+      "status": 200,
+      "b": 401,
+      "c": 401
+    }
+  },
+  {
+    "n": 25,
+    "area": "IDENTITY",
+    "step": "1.25 Schimbarea parolei închide celelalte sesiuni",
+    "status": "PASS",
+    "observed": "POST=200; closedSessions=2; celălalt dispozitiv → 401",
+    "expected": "HTTP 200, celălalt dispozitiv primește 401",
+    "evidence": {
+      "status": 200,
+      "body": "{\"changed\":true,\"closedSessions\":2}",
+      "other": 401
+    }
+  },
+  {
+    "n": 26,
+    "area": "IDENTITY",
+    "step": "1.26 Schimbarea parolei cere parola curentă corectă",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"The current password is not correct.\",\"requestId\":\"req-1m\",\"fields\":{\"currentP…",
+    "expected": "HTTP 400/401",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"The current password is not correct.\",\"requestId\":\"req-1m\",\"fields\":{\"currentPassword\":\"The current password is not correct.\"}}}"
+    }
+  },
+  {
+    "n": 27,
+    "area": "IDENTITY",
+    "step": "1.27 Preferințele de notificare pot fi citite și schimbate",
+    "status": "PASS",
+    "observed": "GET=200, PUT=200, marketing citit înapoi=false",
+    "expected": "HTTP 200 la citire și la scriere, valoarea persistată",
+    "evidence": {
+      "get": "{\"preferences\":{\"productUpdates\":true,\"billing\":true,\"support\":true,\"incidents\":true,\"marketing\":false,\"updatedAt\":\"2026-10-24T00:56:45.202Z\"}}",
+      "put": "{\"preferences\":{\"productUpdates\":false,\"billing\":true,\"support\":false,\"incidents\":true,\"marketing\":false,\"updatedAt\":\"2026-10-24T00:56:45.212Z\"}}",
+      "after": "{\"preferences\":{\"productUpdates\":false,\"billing\":true,\"support\":false,\"incidents\":true,\"marketing\":false,\"updatedAt\":\"2026-10-24T00:56:45.212Z\"}}"
+    }
+  },
+  {
+    "n": 28,
+    "area": "IDENTITY",
+    "step": "1.28 Două cereri simultane cu aceeași sesiune sunt acceptate",
+    "status": "PASS",
+    "observed": "HTTP 200 / 200",
+    "expected": "Ambele 200",
+    "evidence": {
+      "a": 200,
+      "b": 200
+    }
+  },
+  {
+    "n": 29,
+    "area": "IDENTITY",
+    "step": "1.29 Două autentificări simultane de pe două dispozitive sunt acceptate",
+    "status": "PASS",
+    "observed": "HTTP 200 / 200",
+    "expected": "Ambele 200",
+    "evidence": {
+      "a": 200,
+      "b": 200,
+      "body": "{\"user\":{\"id\":\"cmvlouwxd002kdxb980rxqwl2\",\"email\":\"cj.conc.1792803399581@example.test\",\"firstName\":\"CJ\",\"lastName\":\"Conc\",\"name\":\"CJ Conc\",\"role\":\"CUSTOMER\",\"em"
+    }
+  },
+  {
+    "n": 30,
+    "area": "IDENTITY",
+    "step": "1.34 Contul de autentificare numără și autentificările reușite, nu doar pe cele greșite",
+    "status": "WARN",
+    "observed": "12 autentificări corecte pe un cont nou → coduri: 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 429, 429; prima refuzare la poziția 11",
+    "expected": "Un cont folosit legitim de mai multe ori (mai multe dispozitive) nu trebuie blocat după 10 autentificări reușite",
+    "evidence": {
+      "codes": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        429,
+        429
+      ]
+    }
+  },
+  {
+    "n": 31,
+    "area": "IDENTITY",
+    "step": "1.30 Deconectarea închide sesiunea curentă",
+    "status": "PASS",
+    "observed": "POST /auth/logout=204; sesiune după=200 user=null",
+    "expected": "HTTP 204, sesiune închisă",
+    "evidence": {
+      "status": 204,
+      "after": 200,
+      "afterBody": "{\"user\":null}"
+    }
+  },
+  {
+    "n": 32,
+    "area": "IDENTITY",
+    "step": "1.31 Închiderea contului cere parola și confirmarea scrisă, și poate fi anulată",
+    "status": "PASS",
+    "observed": "cerere=200; confirmare greșită=400; anulare=200; services raportate=0",
+    "expected": "HTTP 200 la cerere, 400 la confirmare greșită, 200 la anulare",
+    "evidence": {
+      "closure": "{\"requestedAt\":\"2026-10-24T00:56:47.602Z\",\"services\":0,\"subscriptions\":0,\"message\":\"The request is recorded. Your services keep running until the end of the period you paid for, and the team will write to you before anything is closed.\"}",
+      "bad": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"confirmation: Type CLOSE MY ACCOUNT to confirm.\",\"requestId\":\"req-2y\",\"fields\":{\"confirmation\":\"confirmation: Type CLOSE MY ACCOUNT to confirm.\"}}}",
+      "undo": "{\"requestedAt\":null}"
+    }
+  },
+  {
+    "n": 33,
+    "area": "IDENTITY",
+    "step": "1.32 Sesiunea are o expirare declarată",
+    "status": "PASS",
+    "observed": "expiresAt=2026-11-07T00:56:45.180Z; createdAt=2026-10-24T00:56:45.181Z; TTL=14 zile",
+    "expected": "O expirare în viitor, vizibilă clientului",
+    "evidence": {
+      "session": {
+        "id": "cmvlouwsd002ddxb9tox2w7u8",
+        "ip": "127.0.0.1",
+        "userAgent": "node",
+        "createdAt": "2026-10-24T00:56:45.181Z",
+        "lastSeenAt": "2026-10-24T00:56:45.195Z",
+        "expiresAt": "2026-11-07T00:56:45.180Z",
+        "current": true,
+        "device": "A browser"
+      }
+    }
+  },
+  {
+    "n": 34,
+    "area": "IDENTITY",
+    "step": "1.33 O cerere mutatoare autentificată fără token CSRF este refuzată",
+    "status": "PASS",
+    "observed": "HTTP 403: {\"error\":{\"code\":\"forbidden\",\"message\":\"Invalid or missing CSRF token. Reload the page and try again.\",\"requestId\":\"req-31\"}}",
+    "expected": "HTTP 403 „Invalid or missing CSRF token.\"",
+    "evidence": {
+      "status": 403,
+      "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Invalid or missing CSRF token. Reload the page and try again.\",\"requestId\":\"req-31\"}}"
+    }
+  },
+  {
+    "n": 35,
+    "area": "IDENTITY",
+    "step": "1.33b Modificarea fără CSRF nu a schimbat nimic",
+    "status": "PASS",
+    "observed": "profile.firstName=CJ",
+    "expected": "Profilul nu s-a schimbat",
+    "evidence": {
+      "profile": {
+        "firstName": "CJ",
+        "lastName": "Second",
+        "email": "cj.id2.1792803399581@example.test",
+        "emailVerified": false,
+        "role": "CUSTOMER",
+        "createdAt": "2026-10-24T00:56:43.733Z"
+      }
+    }
+  },
+  {
+    "n": 36,
+    "area": "IDENTITY",
+    "step": "1.33c Autentificarea este scutită de CSRF prin design (doar credențiale în corp)",
+    "status": "INFO",
+    "observed": "POST /api/auth/login fără token CSRF → HTTP 200; lista de excepții este în api/src/plugins/csrf.ts:14-22",
+    "expected": "Documentat explicit în lista de excepții; tokenul CSRF ar fi inutil pentru un endpoint care poartă doar credențiale",
+    "evidence": {
+      "status": 200
+    }
+  },
+  {
+    "n": 37,
+    "area": "DISCOVERY",
+    "step": "2.1 Catalogul public afișează produsele",
+    "status": "PASS",
+    "observed": "HTTP 200; 5 produse: wordpress, code-server, discord-bot, uptime-kuma, postgresql",
+    "expected": "HTTP 200 cu lista produselor",
+    "evidence": {
+      "status": 200,
+      "count": 5
+    }
+  },
+  {
+    "n": 38,
+    "area": "DISCOVERY",
+    "step": "2.2 Fiecare produs din catalog are un preț activ",
+    "status": "PASS",
+    "observed": "toate produsele au preț și carte de prețuri",
+    "expected": "Preț pentru fiecare produs listat",
+    "evidence": {
+      "products": [
+        {
+          "slug": "wordpress",
+          "price": {
+            "amount": 149,
+            "currency": "EUR",
+            "period": "MONTHLY"
+          },
+          "pricingMinimum": 149,
+          "pricingRecommended": 189
+        },
+        {
+          "slug": "code-server",
+          "price": {
+            "amount": 299,
+            "currency": "EUR",
+            "period": "MONTHLY"
+          },
+          "pricingMinimum": 299,
+          "pricingRecommended": 369
+        },
+        {
+          "slug": "discord-bot",
+          "price": {
+            "amount": 149,
+            "currency": "EUR",
+            "period": "MONTHLY"
+          },
+          "pricingMinimum": 149,
+          "pricingRecommended": 172
+        },
+        {
+          "slug": "uptime-kuma",
+          "price": {
+            "amount": 149,
+            "currency": "EUR",
+            "period": "MONTHLY"
+          },
+          "pricingMinimum": 149,
+          "pricingRecommended": 174
+        },
+        {
+          "slug": "postgresql",
+          "price": {
+            "amount": 449,
+            "currency": "EUR",
+            "period": "MONTHLY"
+          },
+          "pricingMinimum": 449,
+          "pricingRecommended": 459
+        }
+      ]
+    }
+  },
+  {
+    "n": 39,
+    "area": "DISCOVERY",
+    "step": "2.3 Catalogul publică prețul minim și pe cel recomandat",
+    "status": "PASS",
+    "observed": "wordpress: minim=149 (512MB/1cpu/5GB), recomandat=189 (1024MB/1cpu/10GB)",
+    "expected": "O carte de prețuri cu minim și recomandat",
+    "evidence": {
+      "priceBook": {
+        "currency": "EUR",
+        "period": "MONTHLY",
+        "minimum": {
+          "ram": 512,
+          "cpu": 1,
+          "disk": 5,
+          "amount": 149
+        },
+        "recommended": {
+          "ram": 1024,
+          "cpu": 1,
+          "disk": 10,
+          "amount": 189
+        }
+      }
+    }
+  },
+  {
+    "n": 40,
+    "area": "DISCOVERY",
+    "step": "2.4 Fiecare produs publică resursele minime și maxime",
+    "status": "PASS",
+    "observed": "wordpress: 512-8192MB/1-4cpu/5-100GB | code-server: 1024-16384MB/1-4cpu/5-100GB | discord-bot: 256-4096MB/1-2cpu/1-50GB | uptime-kuma: 256-4096MB/1-2cpu/5-50GB | postgresql: 1024-8192MB/1-4cpu/5-100GB",
+    "expected": "Minim și maxim pe fiecare produs",
+    "evidence": {
+      "products": [
+        {
+          "slug": "wordpress",
+          "minRam": 512,
+          "maxRam": 8192,
+          "minCpu": 1,
+          "maxCpu": 4,
+          "minDisk": 5,
+          "maxDisk": 100
+        },
+        {
+          "slug": "code-server",
+          "minRam": 1024,
+          "maxRam": 16384,
+          "minCpu": 1,
+          "maxCpu": 4,
+          "minDisk": 5,
+          "maxDisk": 100
+        },
+        {
+          "slug": "discord-bot",
+          "minRam": 256,
+          "maxRam": 4096,
+          "minCpu": 1,
+          "maxCpu": 2,
+          "minDisk": 1,
+          "maxDisk": 50
+        },
+        {
+          "slug": "uptime-kuma",
+          "minRam": 256,
+          "maxRam": 4096,
+          "minCpu": 1,
+          "maxCpu": 2,
+          "minDisk": 5,
+          "maxDisk": 50
+        },
+        {
+          "slug": "postgresql",
+          "minRam": 1024,
+          "maxRam": 8192,
+          "minCpu": 1,
+          "maxCpu": 4,
+          "minDisk": 5,
+          "maxDisk": 100
+        }
+      ]
+    }
+  },
+  {
+    "n": 41,
+    "area": "DISCOVERY",
+    "step": "2.5 Un produs marcat neprovisionabil este totuși listat public",
+    "status": "WARN",
+    "observed": "uptime-kuma are deployable=false și availability.state=COMING_SOON, dar apare în catalogul public cu preț 149",
+    "expected": "Un produs pe care panoul nu îl poate construi nu trebuie să poată fi comandat; dacă este listat, trebuie marcat clar",
+    "evidence": {
+      "hidden": {
+        "slug": "uptime-kuma",
+        "deployable": false,
+        "availability": {
+          "state": "COMING_SOON",
+          "enabled": false,
+          "installable": true,
+          "visible": true,
+          "orderable": false,
+          "blockers": [
+            "It has not been validated for deployment yet."
+          ]
+        },
+        "price": {
+          "amount": 149,
+          "currency": "EUR",
+          "period": "MONTHLY"
+        }
+      }
+    }
+  },
+  {
+    "n": 42,
+    "area": "DISCOVERY",
+    "step": "2.6 Pagina de produs încarcă detaliile",
+    "status": "PASS",
+    "observed": "HTTP 200; slug=discord-bot",
+    "expected": "HTTP 200 cu produsul cerut",
+    "evidence": {
+      "status": 200,
+      "body": "{\"product\":{\"id\":\"cmvlnoxim0004dxg4g2bjrg16\",\"slug\":\"discord-bot\",\"name\":\"Discord Bot\",\"category\":\"BOTS\",\"description\":\"A Node.js service that answers on Discord.\",\"icon\":\"bot\",\"minRam\":256,\"minCpu\":1,\"minDisk\":1,\"defaultRam\":512,\"defaultCpu\":1,\"defa"
+    }
+  },
+  {
+    "n": 43,
+    "area": "DISCOVERY",
+    "step": "2.7 Un produs inexistent răspunde 404",
+    "status": "PASS",
+    "observed": "HTTP 404: {\"error\":{\"code\":\"not_found\",\"message\":\"This product does not exist.\",\"requestId\":\"req-37\"}}",
+    "expected": "HTTP 404",
+    "evidence": {
+      "status": 404
+    }
+  },
+  {
+    "n": 44,
+    "area": "DISCOVERY",
+    "step": "2.8 Căutarea în catalog filtrează după text",
+    "status": "PASS",
+    "observed": "HTTP 200; 1 rezultate: discord-bot",
+    "expected": "Rezultate care conțin termenul",
+    "evidence": {
+      "status": 200,
+      "slugs": [
+        "discord-bot"
+      ]
+    }
+  },
+  {
+    "n": 45,
+    "area": "DISCOVERY",
+    "step": "2.9 O căutare fără rezultate întoarce o listă goală, nu o eroare",
+    "status": "PASS",
+    "observed": "HTTP 200; 0 rezultate",
+    "expected": "HTTP 200, listă goală",
+    "evidence": {
+      "status": 200,
+      "body": "{\"products\":[]}"
+    }
+  },
+  {
+    "n": 46,
+    "area": "DISCOVERY",
+    "step": "2.10 Filtruul de categorie restrânge catalogul",
+    "status": "PASS",
+    "observed": "HTTP 200; 1 rezultate: postgresql",
+    "expected": "Doar produsele din categorie",
+    "evidence": {
+      "status": 200,
+      "slugs": [
+        "postgresql"
+      ]
+    }
+  },
+  {
+    "n": 47,
+    "area": "DISCOVERY",
+    "step": "2.11 Disponibilitatea de provisionare este publicată per produs",
+    "status": "PASS",
+    "observed": "{\"state\":\"DEPLOYABLE\",\"enabled\":true,\"installable\":true,\"visible\":true,\"orderable\":true,\"blockers\":[]}",
+    "expected": "Clientul trebuie să vadă dacă produsul poate fi provisionat și în ce regiuni",
+    "evidence": {
+      "availability": {
+        "state": "DEPLOYABLE",
+        "enabled": true,
+        "installable": true,
+        "visible": true,
+        "orderable": true,
+        "blockers": []
+      }
+    }
+  },
+  {
+    "n": 48,
+    "area": "DISCOVERY",
+    "step": "2.12 Cotarea unei configurații minime răspunde cu o sumă",
+    "status": "PASS",
+    "observed": "HTTP 200; subtotal=172, discount=0, total=172, currency=EUR",
+    "expected": "HTTP 200 cu subtotal/discount/total",
+    "evidence": {
+      "status": 200,
+      "body": "{\"items\":[{\"productSlug\":\"discord-bot\",\"name\":\"Discord Bot\",\"ram\":512,\"cpu\":1,\"disk\":5,\"optionCodes\":[],\"quantity\":1,\"unitAmount\":172,\"total\":172,\"currency\":\"EUR\"}],\"subtotal\":172,\"discount\":0,\"total\":172,\"currency\":\"EUR\",\"promotion\":null}"
+    }
+  },
+  {
+    "n": 49,
+    "area": "DISCOVERY",
+    "step": "2.13 Prețul crește odată cu resursele",
+    "status": "PASS",
+    "observed": "minim=172, mai mare=252 (monedă EUR)",
+    "expected": "Configurația mai mare costă mai mult",
+    "evidence": {
+      "minimal": 172,
+      "bigger": 252
+    }
+  },
+  {
+    "n": 50,
+    "area": "DISCOVERY",
+    "step": "2.14 O configurație sub minim este refuzată",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"Memory must be at least 256.\",\"requestId\":\"req-3e\",\"fields\":{\"memory\":\"Minimum is 256.\"}}}",
+    "expected": "HTTP 400 care spune minimul",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"Memory must be at least 256.\",\"requestId\":\"req-3e\",\"fields\":{\"memory\":\"Minimum is 256.\"}}}"
+    }
+  },
+  {
+    "n": 51,
+    "area": "DISCOVERY",
+    "step": "2.15 O configurație peste maxim este refuzată",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"Memory must be at most 4096.\",\"requestId\":\"req-3f\",\"fields\":{\"memory\":\"Maximum is 4096.\"}}}",
+    "expected": "HTTP 400 care spune maximul",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"Memory must be at most 4096.\",\"requestId\":\"req-3f\",\"fields\":{\"memory\":\"Maximum is 4096.\"}}}"
+    }
+  },
+  {
+    "n": 52,
+    "area": "DISCOVERY",
+    "step": "2.16 Un produs neprovisionabil nu poate fi cotat",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"Uptime Kuma is not available to order yet: It has not been validated for deployment yet.\",\"requestId\":\"req-3g\"}}",
+    "expected": "HTTP 400 cu explicația că panoul nu îl poate construi",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"Uptime Kuma is not available to order yet: It has not been validated for deployment yet.\",\"requestId\":\"req-3g\"}}"
+    }
+  },
+  {
+    "n": 53,
+    "area": "DISCOVERY",
+    "step": "2.17 O cotare pentru un produs necunoscut este refuzată",
+    "status": "PASS",
+    "observed": "HTTP 404: {\"error\":{\"code\":\"not_found\",\"message\":\"Unknown product: nope\",\"requestId\":\"req-3h\"}}",
+    "expected": "HTTP 404",
+    "evidence": {
+      "status": 404
+    }
+  },
+  {
+    "n": 54,
+    "area": "DISCOVERY",
+    "step": "2.18 O cotare fără produse este refuzată",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"validation_failed\",\"message\":\"Some fields need attention.\",\"fields\":{\"items\":\"Choose at least one app.…",
+    "expected": "HTTP 400",
+    "evidence": {
+      "status": 400
+    }
+  },
+  {
+    "n": 55,
+    "area": "DEPLOYMENT",
+    "step": "3.1 Comanda este creată cu suma cotată",
+    "status": "PASS",
+    "observed": "POST /orders=201; număr=BM-00065; status=PENDING; total=189; cotare=189",
+    "expected": "HTTP 201, totalul comenzii egal cu cotarea",
+    "evidence": {
+      "status": 201,
+      "order": {
+        "id": "cmvlouz930050dxb9829nd9bd",
+        "number": "BM-00065",
+        "status": "PENDING",
+        "total": 189,
+        "discount": 0,
+        "currency": "EUR",
+        "createdAt": "2026-10-24T00:56:48.375Z",
+        "items": [
+          {
+            "id": "cmvlouz930052dxb9he4qqymi",
+            "name": "WordPress",
+            "productSlug": "wordpress",
+            "quantity": 1,
+            "unitAmount": 189,
+            "total": 189,
+            "config": {
+              "cpu": 1,
+              "ram": 1024,
+              "disk": 10,
+              "period": "MONTHLY",
+              "optionCodes": []
+            }
+          }
+        ]
+      },
+      "quote": {
+        "items": [
+          {
+            "productSlug": "wordpress",
+            "name": "WordPress",
+            "ram": 1024,
+            "cpu": 1,
+            "disk": 10,
+            "optionCodes": [],
+            "quantity": 1,
+            "unitAmount": 189,
+            "total": 189,
+            "currency": "EUR"
+          }
+        ],
+        "subtotal": 189,
+        "discount": 0,
+        "total": 189,
+        "currency": "EUR",
+        "promotion": null
+      }
+    }
+  },
+  {
+    "n": 56,
+    "area": "DEPLOYMENT",
+    "step": "3.2 Comanda poate fi revizuită",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"order\":{\"id\":\"cmvlouz930050dxb9829nd9bd\",\"number\":\"BM-00065\",\"status\":\"PENDING\",\"total\":189,\"discount\":0,\"currency\":\"EUR\",\"createdAt\":\"2026-10-24T00:56:48.375…",
+    "expected": "HTTP 200 cu comanda",
+    "evidence": {
+      "status": 200
+    }
+  },
+  {
+    "n": 57,
+    "area": "DEPLOYMENT",
+    "step": "3.3 Lista comenzilor conține comanda nouă",
+    "status": "PASS",
+    "observed": "HTTP 200; 1 comenzi",
+    "expected": "HTTP 200, comanda apare în listă",
+    "evidence": {
+      "status": 200
+    }
+  },
+  {
+    "n": 58,
+    "area": "DEPLOYMENT",
+    "step": "3.4 O promoție validă se aplică la cotare",
+    "status": "PASS",
+    "observed": "HTTP 200; valid=true; subtotal=189; discount=19; total=170",
+    "expected": "discount>0 și total = subtotal − discount",
+    "evidence": {
+      "status": 200,
+      "body": "{\"items\":[{\"productSlug\":\"wordpress\",\"name\":\"WordPress\",\"ram\":1024,\"cpu\":1,\"disk\":10,\"optionCodes\":[],\"quantity\":1,\"unitAmount\":189,\"total\":189,\"currency\":\"EUR\"}],\"subtotal\":189,\"discount\":19,\"total\":170,\"currency\":\"EUR\",\"promotion\":{\"code\":\"CJTEST10\",\"valid\":true}}"
+    }
+  },
+  {
+    "n": 59,
+    "area": "DEPLOYMENT",
+    "step": "3.5 O promoție inexistentă este refuzată cu motiv, fără eroare",
+    "status": "PASS",
+    "observed": "HTTP 200; valid=false; motiv=\"This code is not valid.\"; discount=0",
+    "expected": "HTTP 200, promoție invalidă, discount 0",
+    "evidence": {
+      "status": 200,
+      "body": "{\"items\":[{\"productSlug\":\"wordpress\",\"name\":\"WordPress\",\"ram\":1024,\"cpu\":1,\"disk\":10,\"optionCodes\":[],\"quantity\":1,\"unitAmount\":189,\"total\":189,\"currency\":\"EUR\"}],\"subtotal\":189,\"discount\":0,\"total\":189,\"currency\":\"EUR\",\"promotion\":{\"code\":\"NO-SUCH-C"
+    }
+  },
+  {
+    "n": 60,
+    "area": "DEPLOYMENT",
+    "step": "3.6 Checkout-ul cu plățile oprite refuză comanda și nu o trece în „plătită\"",
+    "status": "PASS",
+    "observed": "HTTP 200; url=http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlouz930050dxb9829nd9bd; motiv=\"null\"; statusul comenzii=AWAITING_PAYMENT",
+    "expected": "Fără URL de plată, comanda rămâne neplătită",
+    "evidence": {
+      "status": 200,
+      "body": "{\"url\":\"http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlouz930050dxb9829nd9bd\",\"sessionId\":\"test_cs_cmvlouz930050dxb9829nd9bd\",\"message\":null,\"testGateway\":true}",
+      "orderStatus": "AWAITING_PAYMENT"
+    }
+  },
+  {
+    "n": 61,
+    "area": "DEPLOYMENT",
+    "step": "3.7 O comandă neplătită nu produce nicio instanță",
+    "status": "PASS",
+    "observed": "GET /instances=200; 0 instanțe",
+    "expected": "Zero instanțe înainte de plată",
+    "evidence": {
+      "status": 200,
+      "body": "{\"instances\":[]}"
+    }
+  },
+  {
+    "n": 62,
+    "area": "DEPLOYMENT",
+    "step": "3.8 O comandă acoperită integral de promoție are total zero",
+    "status": "PASS",
+    "observed": "HTTP 201; total=0; subtotal implicit=172; discount=172",
+    "expected": "total = 0 când promoția acoperă tot",
+    "evidence": {
+      "status": 201,
+      "order": {
+        "id": "cmvlouzfw0058dxb9r9gc6nje",
+        "number": "BM-00066",
+        "status": "PENDING",
+        "total": 0,
+        "discount": 172,
+        "currency": "EUR",
+        "createdAt": "2026-10-24T00:56:48.620Z",
+        "items": [
+          {
+            "id": "cmvlouzfw005adxb9h9hq28e6",
+            "name": "Discord Bot",
+            "productSlug": "discord-bot",
+            "quantity": 1,
+            "unitAmount": 172,
+            "total": 172,
+            "config": {
+              "cpu": 1,
+              "ram": 512,
+              "disk": 5,
+              "period": "MONTHLY",
+              "optionCodes": []
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "n": 63,
+    "area": "DEPLOYMENT",
+    "step": "3.9 Checkout-ul unei comenzi gratuite o confirmă și o trimite la provisionare",
+    "status": "PASS",
+    "observed": "HTTP 200; free=true; statusul comenzii=PAID",
+    "expected": "HTTP 200, free=true, comanda trece în PAID/FULFILLED",
+    "evidence": {
+      "status": 200,
+      "body": "{\"url\":null,\"sessionId\":null,\"message\":\"This order is covered by the promotion, so no payment was due.\",\"free\":true,\"testGateway\":true}",
+      "orderStatus": "PAID"
+    }
+  },
+  {
+    "n": 64,
+    "area": "DEPLOYMENT",
+    "step": "3.10 Coada de provisionare creează instanța după confirmarea comenzii",
+    "status": "PASS",
+    "observed": "instanță: Discord Bot; status=online; uuid=lipsă",
+    "expected": "O instanță apare în lista clientului și ajunge într-o stare finală",
+    "evidence": {
+      "instances": [
+        {
+          "id": "cmvlouzj8005mdxb989jln1bh",
+          "name": "Discord Bot",
+          "status": "online"
+        }
+      ]
+    }
+  },
+  {
+    "n": 65,
+    "area": "DEPLOYMENT",
+    "step": "3.11 O comandă neplătită poate fi anulată",
+    "status": "PASS",
+    "observed": "POST /cancel=204; status după=CANCELLED",
+    "expected": "HTTP 204, status CANCELLED",
+    "evidence": {
+      "status": 204,
+      "after": "{\"order\":{\"id\":\"cmvlov0sa005qdxb9c2quemyl\",\"number\":\"BM-00067\",\"status\":\"CANCELLED\",\"total\":172,\"discount\":0,\"currency\":\"EUR\",\"createdAt\":\"2026-10-24T00:56:50.362Z\",\"items\":[{\"id\":\"cmvlov0sa005sdxb9bw"
+    }
+  },
+  {
+    "n": 66,
+    "area": "DEPLOYMENT",
+    "step": "3.12 O comandă deja plătită nu poate fi anulată ca o comandă",
+    "status": "PASS",
+    "observed": "HTTP 400: {\"error\":{\"code\":\"bad_request\",\"message\":\"This order has already been fulfilled.\",\"requestId\":\"req-41\"}}",
+    "expected": "HTTP 400 care îndrumă către abonament",
+    "evidence": {
+      "status": 400,
+      "body": "{\"error\":{\"code\":\"bad_request\",\"message\":\"This order has already been fulfilled.\",\"requestId\":\"req-41\"}}"
+    }
+  },
+  {
+    "n": 67,
+    "area": "DEPLOYMENT",
+    "step": "3.13 Două cereri simultane de comandă nu produc două comenzi plătibile",
+    "status": "INFO",
+    "observed": "două cereri simultane → 2 comenzi create (HTTP 201 / 201); rate limit pe /orders: 30/10 min",
+    "expected": "Comportamentul de dublă apăsare trebuie observabil și idempotent pe frontend",
+    "evidence": {
+      "a": 201,
+      "b": 201,
+      "created": 2
+    }
+  },
+  {
+    "n": 68,
+    "area": "DEPLOYMENT",
+    "step": "3.14 Limita de o utilizare pe cont este aplicată",
+    "status": "PASS",
+    "observed": "prima cotare valid=true; a doua valid=false; motiv=\"This code has already been used on your account.\"",
+    "expected": "A doua folosire pe același cont este refuzată",
+    "evidence": {
+      "first": {
+        "code": "CJONCE",
+        "valid": true
+      },
+      "second": {
+        "code": "CJONCE",
+        "valid": false,
+        "reason": "This code has already been used on your account."
+      },
+      "order": 201
+    }
+  },
+  {
+    "n": 69,
+    "area": "DEPLOYMENT",
+    "step": "3.15 Limita globală a campaniei este aplicată",
+    "status": "PASS",
+    "observed": "CJTHREE (maxRedemptions=3): 3 cotări valide dintre 4 → [true,true,true,false]",
+    "expected": "Exact 3 utilizări acceptate, a patra refuzată",
+    "evidence": {
+      "capResults": [
+        {
+          "user": 0,
+          "quoteValid": true,
+          "orderStatus": 201
+        },
+        {
+          "user": 1,
+          "quoteValid": true,
+          "orderStatus": 201
+        },
+        {
+          "user": 2,
+          "quoteValid": true,
+          "orderStatus": 201
+        },
+        {
+          "user": 3,
+          "quoteValid": false,
+          "orderStatus": 201,
+          "reason": "This code has reached its redemption limit."
+        }
+      ]
+    }
+  },
+  {
+    "n": 70,
+    "area": "SERVICE",
+    "step": "4.1 Provisionarea unei instanțe pentru clienți",
+    "status": "PASS",
+    "observed": "instanță Discord Bot; status=online; plan=undefined; uuid=lipsă",
+    "expected": "O instanță apare în lista clientului",
+    "evidence": {
+      "instance": {
+        "id": "cmvlov2hi008xdxb9f8cqottv",
+        "name": "Discord Bot",
+        "status": "online",
+        "product": {
+          "id": "cmvlnoxim0004dxg4g2bjrg16",
+          "slug": "discord-bot",
+          "name": "Discord Bot",
+          "category": "BOTS",
+          "description": "A Node.js service that answers on Discord.",
+          "icon": "bot",
+          "eggId": 15,
+          "eggUuid": null,
+          "dockerImage": null,
+          "startup": null,
+          "startupCommand": null,
+          "minRam": 256,
+          "minCpu": 1,
+          "minDisk": 1,
+          "defaultRam": 512,
+          "defaultCpu": 1,
+          "defaultDisk": 5,
+          "maxRam": 4096,
+          "maxCpu": 2,
+          "maxDisk": 50,
+          "visible": true,
+          "deployable": true,
+          "healthProbe": null,
+          "docsUrl": null,
+          "sortOrder": 3,
+          "createdAt": "2026-10-24T00:24:06.575Z",
+          "updatedAt": "2026-10-24T00:24:36.054Z"
+        },
+        "ram": 512,
+        "cpu": 1,
+        "disk": 5,
+        "price": 172,
+        "currency": "EUR",
+        "url": null,
+        "createdAt": "2026-10-24T00:56:52.566Z",
+        "node": null,
+        "subscription": {
+          "status": "active",
+          "currentPeriodEnd": null
+        }
+      }
+    }
+  },
+  {
+    "n": 71,
+    "area": "SERVICE",
+    "step": "4.2 Detaliile instanței se încarcă",
+    "status": "PASS",
+    "observed": "HTTP 200; evenimente=18",
+    "expected": "HTTP 200 cu instanța și evenimentele",
+    "evidence": {
+      "status": 200,
+      "body": "{\"instance\":{\"id\":\"cmvlov2hi008xdxb9f8cqottv\",\"name\":\"Discord Bot\",\"status\":\"online\",\"product\":{\"id\":\"cmvlnoxim0004dxg4g2bjrg16\",\"slug\":\"discord-bot\",\"name\":\"Discord Bot\",\"category\":\"BOTS\",\"description\":\"A Node.js service that answers on Discord.\",\"icon\":\"bot\",\"eggId\":15,\"eggUuid\":null,\"dockerImage\""
+    }
+  },
+  {
+    "n": 72,
+    "area": "SERVICE",
+    "step": "4.3 Acțiunea de putere „start\"",
+    "status": "WARN",
+    "observed": "HTTP 200: {\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}",
+    "expected": "HTTP 202 Accepted (containerul reacționează asincron); codul din routes/instances.ts:365-368 întoarce 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}"
+    }
+  },
+  {
+    "n": 73,
+    "area": "SERVICE",
+    "step": "4.3 Acțiunea de putere „stop\"",
+    "status": "WARN",
+    "observed": "HTTP 200: {\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}",
+    "expected": "HTTP 202 Accepted (containerul reacționează asincron); codul din routes/instances.ts:365-368 întoarce 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}"
+    }
+  },
+  {
+    "n": 74,
+    "area": "SERVICE",
+    "step": "4.3 Acțiunea de putere „restart\"",
+    "status": "WARN",
+    "observed": "HTTP 200: {\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}",
+    "expected": "HTTP 202 Accepted (containerul reacționează asincron); codul din routes/instances.ts:365-368 întoarce 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}"
+    }
+  },
+  {
+    "n": 75,
+    "area": "SERVICE",
+    "step": "4.3 Acțiunea de putere „kill\"",
+    "status": "WARN",
+    "observed": "HTTP 200: {\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}",
+    "expected": "HTTP 202 Accepted (containerul reacționează asincron); codul din routes/instances.ts:365-368 întoarce 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"instanceId\":\"cmvlov2hi008xdxb9f8cqottv\",\"accepted\":true}"
+    }
+  },
+  {
+    "n": 76,
+    "area": "SERVICE",
+    "step": "4.4 Starea instanței se actualizează după o acțiune de putere",
+    "status": "PASS",
+    "observed": "status=restarting",
+    "expected": "Starea reflectă ultima acțiune",
+    "evidence": {
+      "status": "restarting"
+    }
+  },
+  {
+    "n": 77,
+    "area": "SERVICE",
+    "step": "4.5 Metricile instanței sunt disponibile",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"metrics\":{\"state\":\"stopped\",\"cpuAbsolute\":12.5,\"memoryBytes\":268435456,\"networkRx\":1024,\"networkTx\":2048,\"diskBytes\":1048576,\"uptimeMs\":3600000}}",
+    "expected": "HTTP 200 cu metricile",
+    "evidence": {
+      "status": 200,
+      "body": "{\"metrics\":{\"state\":\"stopped\",\"cpuAbsolute\":12.5,\"memoryBytes\":268435456,\"networkRx\":1024,\"networkTx\":2048,\"diskBytes\":1048576,\"uptimeMs\":3600000}}"
+    }
+  },
+  {
+    "n": 78,
+    "area": "SERVICE",
+    "step": "4.6 Consola instanței răspunde",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"websocket\":\"/api/instances/cmvlov2hi008xdxb9f8cqottv/console/stream\"}",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"websocket\":\"/api/instances/cmvlov2hi008xdxb9f8cqottv/console/stream\"}"
+    }
+  },
+  {
+    "n": 79,
+    "area": "SERVICE",
+    "step": "4.7 Fișierele instanței pot fi listate",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"files\":[{\"name\":\"server.jar\",\"created_at\":\"2026-10-24T00:56:53.093Z\",\"modified_at\":\"2026-10-24T00:56:53.093Z\",\"size\":42,\"mode\":\"755\",\"is_directory\":false,\"is_file\":true,\"is_symlink\":false},{\"name\":\"…",
+    "expected": "HTTP 200 cu lista de fișiere",
+    "evidence": {
+      "status": 200,
+      "body": "{\"files\":[{\"name\":\"server.jar\",\"created_at\":\"2026-10-24T00:56:53.093Z\",\"modified_at\":\"2026-10-24T00:56:53.093Z\",\"size\":42,\"mode\":\"755\",\"is_directory\":false,\"is_file\":true,\"is_symlink\":false},{\"name\":\"config\",\"created_at\":\"2026-10-24T00:56:53.093Z\",\"modified_at\":\"2026-10-24T00:56:53.093Z\",\"size\":0,\"m"
+    }
+  },
+  {
+    "n": 80,
+    "area": "SERVICE",
+    "step": "4.8 Setările de pornire pot fi citite",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"image\":\"ghcr.io/blipmade/base:1\",\"command\":\"java -jar server.jar\",\"environment\":{\"SERVER_JARFILE\":\"server.jar\",\"VANILLA_VERSION\":\"latest\",\"MIN_MEMORY\":\"512\",\"MAX_MEMORY\":\"512\",\"STARTUP_COMMAND\":\"jav…",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"image\":\"ghcr.io/blipmade/base:1\",\"command\":\"java -jar server.jar\",\"environment\":{\"SERVER_JARFILE\":\"server.jar\",\"VANILLA_VERSION\":\"latest\",\"MIN_MEMORY\":\"512\",\"MAX_MEMORY\":\"512\",\"STARTUP_COMMAND\":\"java -jar server.jar\"}}"
+    }
+  },
+  {
+    "n": 81,
+    "area": "SERVICE",
+    "step": "4.9 Alocările de rețea pot fi listate",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"allocations\":[{\"id\":1,\"ip\":\"10.77.0.11\",\"port\":25565,\"alias\":\"cj-alloc-01\",\"is_default\":false},{\"id\":2,\"ip\":\"10.77.0.11\",\"port\":25566,\"alias\":\"cj-alloc-02\",\"is_default\":false},{\"id\":3,\"ip\":\"10.77.0.…",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"allocations\":[{\"id\":1,\"ip\":\"10.77.0.11\",\"port\":25565,\"alias\":\"cj-alloc-01\",\"is_default\":false},{\"id\":2,\"ip\":\"10.77.0.11\",\"port\":25566,\"alias\":\"cj-alloc-02\",\"is_default\":false},{\"id\":3,\"ip\":\"10.77.0.11\",\"port\":25567,\"alias\":\"cj-alloc-03\",\"is_default\":true}]}"
+    }
+  },
+  {
+    "n": 82,
+    "area": "SERVICE",
+    "step": "4.10 Bazele de date ale instanței pot fi listate",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"databases\":[]}",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"databases\":[]}"
+    }
+  },
+  {
+    "n": 83,
+    "area": "SERVICE",
+    "step": "4.11 Copiile de rezervă pot fi listate",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"backups\":[]}",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"backups\":[]}"
+    }
+  },
+  {
+    "n": 84,
+    "area": "SERVICE",
+    "step": "4.12 Instanța poate fi redenumită",
+    "status": "PASS",
+    "observed": "POST=200; nume citit înapoi=\"CJ Bot\"",
+    "expected": "HTTP 200, numele persistat",
+    "evidence": {
+      "status": 200,
+      "name": "CJ Bot"
+    }
+  },
+  {
+    "n": 85,
+    "area": "SERVICE",
+    "step": "4.13 Schimbarea de resurse este cotată înainte de a fi aplicată",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"quote\":{\"currentPrice\":172,\"newPrice\":212,\"priceDelta\":40,\"currency\":\"EUR\",\"requiresPayment\":true}}",
+    "expected": "HTTP 200 cu cotația",
+    "evidence": {
+      "status": 200,
+      "body": "{\"quote\":{\"currentPrice\":172,\"newPrice\":212,\"priceDelta\":40,\"currency\":\"EUR\",\"requiresPayment\":true}}"
+    }
+  },
+  {
+    "n": 86,
+    "area": "SERVICE",
+    "step": "4.14 O mărire de resurse fără plăți nu este aplicată pe loc",
+    "status": "PASS",
+    "observed": "HTTP 200: {\"status\":\"requires_payment\",\"order\":{\"id\":\"cmvlov4sn009jdxb9i2n3b4z4\",\"number\":\"BM-00076\"},\"priceDelta\":100,\"price\":272,\"currency\":\"EUR\",\"checkoutUrl\":\"http://127.0.0.1:30006/app/billing?checkout=tes…",
+    "expected": "Cu plățile oprite, mărirea trebuie refuzată clar, nu aplicată și nici trecută în ordine",
+    "evidence": {
+      "status": 200,
+      "body": "{\"status\":\"requires_payment\",\"order\":{\"id\":\"cmvlov4sn009jdxb9i2n3b4z4\",\"number\":\"BM-00076\"},\"priceDelta\":100,\"price\":272,\"currency\":\"EUR\",\"checkoutUrl\":\"http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlov4sn009jdxb9i2n3b4z4\",\"sessionId\":\"test_cs_cmvlov4sn009jdxb9i2n3b4z4\"}"
+    }
+  },
+  {
+    "n": 87,
+    "area": "SERVICE",
+    "step": "4.15 O micșorare de resurse este aplicată imediat",
+    "status": "PASS",
+    "observed": "HTTP 200; status=applied; ram=512",
+    "expected": "HTTP 200, resursele sunt cele noi",
+    "evidence": {
+      "status": 200,
+      "body": "{\"status\":\"applied\",\"instance\":{\"id\":\"cmvlov2hi008xdxb9f8cqottv\",\"name\":\"CJ Bot\",\"status\":\"restarting\",\"product\":{\"id\":\"cmvlnoxim0004dxg4g2bjrg16\",\"slug\":\"discord-bot\",\"name\":\"Discord Bot\",\"category\":\"BOTS\",\"description\":\"A Node.js service that answers on Discord.\",\"icon\":\"bot\",\"eggId\":15,\"eggUuid\":",
+      "ram": 512
+    }
+  },
+  {
+    "n": 88,
+    "area": "SERVICE",
+    "step": "4.16 Evenimentele instanței sunt înregistrate",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"events\":[{\"id\":\"cmvlov4vf009tdxb9m5ay6vgo\",\"type\":\"resources\",\"message\":\"Resources changed to 512 MB, 1 vCPU, 5 GB.\",\"createdAt\":\"2026-10-24T00:56:55.660Z\"},{\"id\":\"cmvlov48x009ddxb9l10iovja\",\"type\":\"power\",\"message\":\"P…",
+    "expected": "Evenimente persistate pentru fiecare acțiune",
+    "evidence": {
+      "status": 200,
+      "body": "{\"events\":[{\"id\":\"cmvlov4vf009tdxb9m5ay6vgo\",\"type\":\"resources\",\"message\":\"Resources changed to 512 MB, 1 vCPU, 5 GB.\",\"createdAt\":\"2026-10-24T00:56:55.660Z\"},{\"id\":\"cmvlov48x009ddxb9l10iovja\",\"type\":\"power\",\"message\":\"Power action: kill.\",\"createdAt\":\"2026-10-24T00:56:54.849Z\"},{\"id\":\"cmvlov44r0099"
+    }
+  },
+  {
+    "n": 89,
+    "area": "SERVICE",
+    "step": "4.17 Instanța poate fi anulată",
+    "status": "PASS",
+    "observed": "HTTP 204: ",
+    "expected": "HTTP 2xx",
+    "evidence": {
+      "status": 204,
+      "body": ""
+    }
+  },
+  {
+    "n": 90,
+    "area": "BILLING",
+    "step": "5.0 Checkout-ul unei comenzi cu sumă reală întoarce o adresă de plată",
+    "status": "PASS",
+    "observed": "HTTP 200; url=http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlov55900a8dxb9ddkyldl1",
+    "expected": "O adresă de plată și starea AWAITING_PAYMENT",
+    "evidence": {
+      "status": 200,
+      "body": "{\"url\":\"http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlov55900a8dxb9ddkyldl1\",\"sessionId\":\"test_cs_cmvlov55900a8dxb9ddkyldl1\",\"message\":null,\"testGateway\":true}"
+    }
+  },
+  {
+    "n": 91,
+    "area": "BILLING",
+    "step": "5.0b Plată confirmată: comanda trece în PAID și este trimisă la provisionare",
+    "status": "PASS",
+    "observed": "webhook=200 ({\"received\":true,\"eventId\":\"evt_cj_pay_cmvlov55900a8dxb9ddkyldl1\",\"deferred\":false}); statusul comenzii=PAID",
+    "expected": "HTTP 200, comanda PAID",
+    "evidence": {
+      "status": 200,
+      "body": "{\"received\":true,\"eventId\":\"evt_cj_pay_cmvlov55900a8dxb9ddkyldl1\",\"deferred\":false}",
+      "orderStatus": "PAID"
+    }
+  },
+  {
+    "n": 92,
+    "area": "BILLING",
+    "step": "5.1 Rezumatul de facturare reflectă serviciile clientului",
+    "status": "PASS",
+    "observed": "HTTP 200; estimate lunară=172 EUR; instanțe=1; abonamente=1",
+    "expected": "HTTP 200 cu estimate, instanțe și abonamente",
+    "evidence": {
+      "status": 200,
+      "body": "{\"currency\":\"EUR\",\"monthlyEstimate\":172,\"currentPeriodEnd\":null,\"paymentMethod\":{\"status\":\"SUCCEEDED\",\"lastPaidAt\":\"2026-10-24T00:56:56.086Z\",\"currency\":\"EUR\"},\"instances\":[{\"id\":\"cmvlov57z00andxb9cvnlsci2\",\"name\":\"Discord Bot\",\"price\":172,\"status\":\"provisioning\"}],\"subscriptions\":[{\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"instanceId\":\"cmvlov57z00andxb9cvnlsci2\",\"instanceName\":\"Discord Bot\",\"status\":\"act"
+    }
+  },
+  {
+    "n": 93,
+    "area": "BILLING",
+    "step": "5.2 Abonamentele pot fi listate",
+    "status": "PASS",
+    "observed": "HTTP 200; 1 abonamente",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"subscriptions\":[{\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"instanceId\":\"cmvlov57z00andxb9cvnlsci2\",\"instanceName\":\"Discord Bot\",\"status\":\"active\",\"amount\":172,\"currency\":\"EUR\",\"currentPeriodEnd\":null,\"cancelAtPeriodEnd\":false}]}"
+    }
+  },
+  {
+    "n": 94,
+    "area": "BILLING",
+    "step": "5.3 Facturile pot fi listate",
+    "status": "PASS",
+    "observed": "HTTP 200; 0 facturi",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200,
+      "body": "{\"invoices\":[]}"
+    }
+  },
+  {
+    "n": 95,
+    "area": "BILLING",
+    "step": "5.4 Starea plăților este anunțată clientului",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"payments\":{\"enabled\":false,\"simulated\":true,\"reason\":\"The local test gateway is in use, so no real payment is taken.\"}}",
+    "expected": "HTTP 200, interfața poate spune dacă plata este posibilă",
+    "evidence": {
+      "status": 200,
+      "body": "{\"payments\":{\"enabled\":false,\"simulated\":true,\"reason\":\"The local test gateway is in use, so no real payment is taken.\"}}"
+    }
+  },
+  {
+    "n": 96,
+    "area": "BILLING",
+    "step": "5.5 Adăugarea unei metode de plată răspunde explicit când plățile nu pot fi luate",
+    "status": "PASS",
+    "observed": "HTTP 503: {\"error\":{\"code\":\"payments_unavailable\",\"message\":\"The local test gateway is in use, so no real payment is taken.\",\"requestId\":\"req-6k\"}}",
+    "expected": "Răspuns care spune că plata nu este disponibilă, nu o eroare generată",
+    "evidence": {
+      "status": 503,
+      "body": "{\"error\":{\"code\":\"payments_unavailable\",\"message\":\"The local test gateway is in use, so no real payment is taken.\",\"requestId\":\"req-6k\"}}"
+    }
+  },
+  {
+    "n": 97,
+    "area": "BILLING",
+    "step": "5.6 Cotat = încasat = facturat = prețul serviciului",
+    "status": "FAIL",
+    "observed": "cotat(comanda)=172, abonament=172, factură=null, prețul instanței=172",
+    "expected": "Sumele sunt identice",
+    "evidence": {
+      "order": 172,
+      "subscription": {
+        "id": "cmvlov57f00ajdxb9obib1pvu",
+        "instanceId": "cmvlov57z00andxb9cvnlsci2",
+        "instanceName": "Discord Bot",
+        "status": "active",
+        "amount": 172,
+        "currency": "EUR",
+        "currentPeriodEnd": null,
+        "cancelAtPeriodEnd": false
+      },
+      "instancePrice": 172
+    }
+  },
+  {
+    "n": 98,
+    "area": "BILLING",
+    "step": "5.7 Abonamentul poate fi anulat la finalul perioadei și reluat",
+    "status": "PASS",
+    "observed": "anulare=200 ({\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"status\":\"active\",\"currentPeriodEnd\":null,\"cancelAtPeriodEnd\":true}); reluare=200 ({\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"status\":\"active\",\"currentPeriodEnd\":null,\"cancelAtPeriodEnd\":false})",
+    "expected": "Ambele tranziții acceptate și persistate",
+    "evidence": {
+      "cancel": "{\"subscription\":{\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"status\":\"active\",\"currentPeriodEnd\":null,\"cancelAtPeriodEnd\":true}}",
+      "afterCancel": "{\"subscriptions\":[{\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"instanceId\":\"cmvlov57z00andxb9cvnlsci2\",\"instanceName\":\"Discord Bot\",\"status\":\"active\",\"amount\":172,\"currency\":\"EUR\",\"currentPeriodEnd\":null,\"cance",
+      "resume": "{\"subscription\":{\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"status\":\"active\",\"currentPeriodEnd\":null,\"cancelAtPeriodEnd\":false}}",
+      "afterResume": "{\"subscriptions\":[{\"id\":\"cmvlov57f00ajdxb9obib1pvu\",\"instanceId\":\"cmvlov57z00andxb9cvnlsci2\",\"instanceName\":\"Discord Bot\",\"status\":\"active\",\"amount\":172,\"currency\":\"EUR\",\"currentPeriodEnd\":null,\"cance"
+    }
+  },
+  {
+    "n": 99,
+    "area": "BILLING",
+    "step": "5.8 Reînnoirea manuală a unui abonament",
+    "status": "PASS",
+    "observed": "HTTP 200: {\"renewal\":{\"invoiceId\":\"cmvlow4ts00atdxb94uhumbqn\",\"number\":\"BM-INV-00005\",\"orderId\":\"cmvlow4ta00ardxb9egx0szsb\",\"amount\":172,\"currency\":\"EUR\",\"interval\":\"MONTHLY\",\"periodStart\":\"2026-10-24T00:57:42.220Z\",\"periodEnd\":\"2…",
+    "expected": "HTTP 200 sau un refuz explicit și explicat",
+    "evidence": {
+      "status": 200,
+      "body": "{\"renewal\":{\"invoiceId\":\"cmvlow4ts00atdxb94uhumbqn\",\"number\":\"BM-INV-00005\",\"orderId\":\"cmvlow4ta00ardxb9egx0szsb\",\"amount\":172,\"currency\":\"EUR\",\"interval\":\"MONTHLY\",\"periodStart\":\"2026-10-24T00:57:42.220Z\",\"periodEnd\":\"2026-11-24T00:57:42.220Z\"}}"
+    }
+  },
+  {
+    "n": 100,
+    "area": "BILLING",
+    "step": "5.9 Cotarea de facturare folosește aceleași prețuri ca catalogul",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"period\":\"MONTHLY\",\"items\":[{\"productSlug\":\"discord-bot\",\"name\":\"Discord Bot\",\"ram\":512,\"cpu\":1,\"disk\":5,\"optionCodes\":[],\"quantity\":1,\"unitAmount\":172,\"total\":172,\"currency\":\"EUR\"}],\"subtotal\":172,\"discount\":0,\"total\":172,\"currency\":\"EUR\"…",
+    "expected": "HTTP 200 cu total",
+    "evidence": {
+      "status": 200,
+      "body": "{\"period\":\"MONTHLY\",\"items\":[{\"productSlug\":\"discord-bot\",\"name\":\"Discord Bot\",\"ram\":512,\"cpu\":1,\"disk\":5,\"optionCodes\":[],\"quantity\":1,\"unitAmount\":172,\"total\":172,\"currency\":\"EUR\"}],\"subtotal\":172,\"discount\":0,\"total\":172,\"currency\":\"EUR\",\"promotion\":null}"
+    }
+  },
+  {
+    "n": 101,
+    "area": "BILLING",
+    "step": "5.10 Suma comenzii este suma liniilor, fără rotunjiri ascunse",
+    "status": "PASS",
+    "observed": "total=189; suma liniilor=189",
+    "expected": "total = suma liniilor",
+    "evidence": {
+      "order": {
+        "id": "cmvlow4vr00azdxb9atvfwd9a",
+        "number": "BM-00080",
+        "status": "PENDING",
+        "total": 189,
+        "discount": 0,
+        "currency": "EUR",
+        "createdAt": "2026-10-24T00:57:42.327Z",
+        "items": [
+          {
+            "id": "cmvlow4vr00b1dxb95nisxipq",
+            "name": "WordPress",
+            "productSlug": "wordpress",
+            "quantity": 1,
+            "unitAmount": 189,
+            "total": 189,
+            "config": {
+              "cpu": 1,
+              "ram": 1024,
+              "disk": 10,
+              "period": "MONTHLY",
+              "optionCodes": []
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "n": 102,
+    "area": "BILLING",
+    "step": "5.11 Un eveniment de plată repetat este tratat ca duplicat",
+    "status": "PASS",
+    "observed": "prima=200 ({\"received\":true,\"duplicate\":true}); a doua=200 ({\"received\":true,\"duplicate\":true})",
+    "expected": "Al doilea eveniment este recunoscut ca duplicat și nu produce a doua factură",
+    "evidence": {
+      "first": "{\"received\":true,\"duplicate\":true}",
+      "second": "{\"received\":true,\"duplicate\":true}"
+    }
+  },
+  {
+    "n": 103,
+    "area": "SUPPORT",
+    "step": "6.1 Categoriile de bilet sunt publicate",
+    "status": "PASS",
+    "observed": "HTTP 200; TECHNICAL, BILLING, ACCOUNT, ABUSE, OTHER",
+    "expected": "HTTP 200 cu lista categoriilor",
+    "evidence": {
+      "status": 200,
+      "body": "{\"categories\":[{\"id\":\"TECHNICAL\",\"label\":\"Technical\"},{\"id\":\"BILLING\",\"label\":\"Billing\"},{\"id\":\"ACCOUNT\",\"label\":\"Account\"},{\"id\":\"ABUSE\",\"label\":\"Abuse report\"},{\"id\":\"OTHER\",\"label\":\"Other\"}]}"
+    }
+  },
+  {
+    "n": 104,
+    "area": "SUPPORT",
+    "step": "6.2 Un bilet poate fi deschis",
+    "status": "PASS",
+    "observed": "HTTP 201; id=cmvlow55j00bedxb9pbwo6grf; număr=20; status=OPEN; categorie=TECHNICAL; prioritate=NORMAL",
+    "expected": "HTTP 201, bilet în starea OPEN",
+    "evidence": {
+      "status": 201,
+      "body": "{\"ticket\":{\"id\":\"cmvlow55j00bedxb9pbwo6grf\",\"number\":20,\"subject\":\"CJ journey ticket\",\"category\":\"TECHNICAL\",\"priority\":\"NORMAL\",\"status\":\"OPEN\",\"instanceId\":null,\"instanceName\":null,\"createdAt\":\"2026-10-24T00:57:42.679Z\",\"updatedAt\":\"2026-10-24T00:57:42.679Z\",\"lastReplyAt\":null,\"assignedTo\":null,\"messageCount\":1}}"
+    }
+  },
+  {
+    "n": 105,
+    "area": "SUPPORT",
+    "step": "6.3 Deschiderea unui bilet trimite notificarea către echipă",
+    "status": "PASS",
+    "observed": "notificare către <admin.check@example.test>: \"[Blipmade] New ticket: CJ journey ticket\"; către inbox-ul de suport: nu",
+    "expected": "O notificare către echipă este în coada de e-mail",
+    "evidence": {
+      "before": 133,
+      "after": 134,
+      "staff": {
+        "file": "0134.json",
+        "to": [
+          "<admin.check@example.test>"
+        ],
+        "from": "<no-reply@example.test>",
+        "subject": "[Blipmade] New ticket: CJ journey ticket"
+      },
+      "supportInbox": null
+    }
+  },
+  {
+    "n": 106,
+    "area": "SUPPORT",
+    "step": "6.3b Clientul care deschide biletul nu primește nicio confirmare prin e-mail",
+    "status": "FAIL",
+    "observed": "niciun e-mail către client; singurul mesaj nou este cel către personal",
+    "expected": "Un e-mail de confirmare către client (șablonul ticketCreatedTemplate există dar nu este apelat)",
+    "evidence": {
+      "customer": null,
+      "newMessages": [
+        {
+          "to": [
+            "<admin.check@example.test>"
+          ],
+          "subject": "[Blipmade] New ticket: CJ journey ticket"
+        }
+      ]
+    }
+  },
+  {
+    "n": 107,
+    "area": "SUPPORT",
+    "step": "6.4 Biletul poate fi citit în detaliu",
+    "status": "PASS",
+    "observed": "HTTP 200; {\"ticket\":{\"id\":\"cmvlow55j00bedxb9pbwo6grf\",\"number\":20,\"subject\":\"CJ journey ticket\",\"category\":\"TECHNICAL\",\"priority\":\"NORMAL\",\"status\":\"OPEN\",\"instanceId\":null,\"instanceName\":null,\"createdAt\":\"2026-10-24T00:57:42.679Z\",\"updatedAt\":\"2026-10-24T00:57:42.679Z\"…",
+    "expected": "HTTP 200 cu mesajele biletului",
+    "evidence": {
+      "status": 200,
+      "body": "{\"ticket\":{\"id\":\"cmvlow55j00bedxb9pbwo6grf\",\"number\":20,\"subject\":\"CJ journey ticket\",\"category\":\"TECHNICAL\",\"priority\":\"NORMAL\",\"status\":\"OPEN\",\"instanceId\":null,\"instanceName\":null,\"createdAt\":\"2026-10-24T00:57:42.679Z\",\"updatedAt\":\"2026-10-24T00:57:42.679Z\",\"lastReplyAt\":null,\"assignedTo\":null,\"messageCount\":1,\"messages\":[{\"id\":\"cmvlow55j00bgdxb9c104rwoa\",\"body\":\"The instance does not start.\",\""
+    }
+  },
+  {
+    "n": 108,
+    "area": "SUPPORT",
+    "step": "6.5 Clientul poate răspunde în bilet",
+    "status": "PASS",
+    "observed": "HTTP 201: {\"message\":{\"id\":\"cmvlow5x400bndxb99ld1kcck\",\"body\":\"Any update on this?\",\"internal\":false,\"author\":{\"id\":\"cmvlow50y00b6dxb99w5q3v7l\",\"name\":\"CJ Journey\",\"role\":\"CUSTOMER\"},\"createdAt\":\"2026-10-24T00:…",
+    "expected": "HTTP 2xx",
+    "evidence": {
+      "status": 201,
+      "body": "{\"message\":{\"id\":\"cmvlow5x400bndxb99ld1kcck\",\"body\":\"Any update on this?\",\"internal\":false,\"author\":{\"id\":\"cmvlow50y00b6dxb99w5q3v7l\",\"name\":\"CJ Journey\",\"role\":\"CUSTOMER\"},\"createdAt\":\"2026-10-24T00:57:43.672Z\",\"attachments\":[]}}"
+    }
+  },
+  {
+    "n": 109,
+    "area": "SUPPORT",
+    "step": "6.6 Răspunsul este persistat și vizibil în bilet",
+    "status": "PASS",
+    "observed": "2 mesaje în bilet",
+    "expected": "Răspunsul apare în fir",
+    "evidence": {
+      "messages": [
+        {
+          "author": {
+            "id": "cmvlow50y00b6dxb99w5q3v7l",
+            "name": "CJ Journey",
+            "role": "CUSTOMER"
+          },
+          "body": "The instance does not start.",
+          "createdAt": "2026-10-24T00:57:42.679Z"
+        },
+        {
+          "author": {
+            "id": "cmvlow50y00b6dxb99w5q3v7l",
+            "name": "CJ Journey",
+            "role": "CUSTOMER"
+          },
+          "body": "Any update on this?",
+          "createdAt": "2026-10-24T00:57:43.672Z"
+        }
+      ]
+    }
+  },
+  {
+    "n": 110,
+    "area": "SUPPORT",
+    "step": "6.7 Un client nu poate adăuga o notă internă",
+    "status": "PASS",
+    "observed": "HTTP 403: {\"error\":{\"code\":\"forbidden\",\"message\":\"Only staff can add internal notes.\",\"requestId\":\"req-71\"}}",
+    "expected": "HTTP 403",
+    "evidence": {
+      "status": 403,
+      "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Only staff can add internal notes.\",\"requestId\":\"req-71\"}}"
+    }
+  },
+  {
+    "n": 111,
+    "area": "SUPPORT",
+    "step": "6.8 Un bilet al altui client nu este vizibil",
+    "status": "PASS",
+    "observed": "HTTP 404: {\"error\":{\"code\":\"not_found\",\"message\":\"Ticket not found.\",\"requestId\":\"req-74\"}}",
+    "expected": "HTTP 404",
+    "evidence": {
+      "status": 404,
+      "body": "{\"error\":{\"code\":\"not_found\",\"message\":\"Ticket not found.\",\"requestId\":\"req-74\"}}"
+    }
+  },
+  {
+    "n": 112,
+    "area": "SUPPORT",
+    "step": "6.9 Un client nu poate schimba starea biletului",
+    "status": "PASS",
+    "observed": "HTTP 403: {\"error\":{\"code\":\"forbidden\",\"message\":\"Staff access only.\",\"requestId\":\"req-75\"}}",
+    "expected": "HTTP 403",
+    "evidence": {
+      "status": 403,
+      "body": "{\"error\":{\"code\":\"forbidden\",\"message\":\"Staff access only.\",\"requestId\":\"req-75\"}}"
+    }
+  },
+  {
+    "n": 113,
+    "area": "SUPPORT",
+    "step": "6.10 Personalul vede toate biletele",
+    "status": "PASS",
+    "observed": "HTTP 200; 0 bilete",
+    "expected": "HTTP 200",
+    "evidence": {
+      "status": 200
+    }
+  },
+  {
+    "n": 114,
+    "area": "SUPPORT",
+    "step": "6.11 Starea poate fi închisă și redeschisă, iar schimbarea este vizibilă clientului",
+    "status": "PASS",
+    "observed": "închidere=200, redeschidere=200, starea citită de client=OPEN",
+    "expected": "Tranzițiile se aplică și se văd din contul clientului",
+    "evidence": {
+      "closed": "{\"ticket\":{\"id\":\"cmvlow55j00bedxb9pbwo6grf\",\"number\":20,\"subject\":\"CJ journey ticket\",\"category\":\"TECHNICAL\",\"priority\":\"NORMAL\",\"status\":\"CLOSED\",\"instanceId\":null,\"instanceName\":null,\"createdAt\":\"20",
+      "reopened": "{\"ticket\":{\"id\":\"cmvlow55j00bedxb9pbwo6grf\",\"number\":20,\"subject\":\"CJ journey ticket\",\"category\":\"TECHNICAL\",\"priority\":\"NORMAL\",\"status\":\"OPEN\",\"instanceId\":null,\"instanceName\":null,\"createdAt\":\"2026",
+      "after": "OPEN"
+    }
+  },
+  {
+    "n": 115,
+    "area": "SUPPORT",
+    "step": "6.12 Un atașament poate fi încărcat",
+    "status": "PASS",
+    "observed": "HTTP 201: {\"attachment\":{\"id\":\"cmvlow6gx00cedxb91zxm3jyv\",\"filename\":\"note.txt\",\"contentType\":\"text/plain\",\"size\":21,\"messageId\":\"cmvlow6gn00ccdxb96bt80v0j\"}}",
+    "expected": "HTTP 2xx",
+    "evidence": {
+      "status": 201,
+      "body": "{\"attachment\":{\"id\":\"cmvlow6gx00cedxb91zxm3jyv\",\"filename\":\"note.txt\",\"contentType\":\"text/plain\",\"size\":21,\"messageId\":\"cmvlow6gn00ccdxb96bt80v0j\"}}"
+    }
+  },
+  {
+    "n": 116,
+    "area": "SUPPORT",
+    "step": "6.12b Atașamentul poate fi descărcat de client",
+    "status": "PASS",
+    "observed": "HTTP 200; conținutul începe cu \"CJ attachment content\"",
+    "expected": "Conținutul trimis ajunge înapoi",
+    "evidence": {
+      "status": 200,
+      "body": "CJ attachment content"
+    }
+  },
+  {
+    "n": 117,
+    "area": "SUPPORT",
+    "step": "6.12c Răspunsul personalului ajunge la client prin e-mail",
+    "status": "PASS",
+    "observed": "răspuns=201; e-mailuri noi=1; către client: \"[Blipmade] Re: CJ journey ticket\"",
+    "expected": "Clientul primește e-mail la răspunsul personalului",
+    "evidence": {
+      "status": 201,
+      "mails": [
+        {
+          "to": [
+            "<cj.sup.1792803399581@example.test>"
+          ],
+          "subject": "[Blipmade] Re: CJ journey ticket"
+        }
+      ]
+    }
+  },
+  {
+    "n": 118,
+    "area": "SUPPORT",
+    "step": "6.13 Lista de bilete este ordonată descrescător după actualizare",
+    "status": "PASS",
+    "observed": "HTTP 200; 6 bilete; ordine descrescătoare=true",
+    "expected": "Cele mai recente bilete primele",
+    "evidence": {
+      "status": 200,
+      "order": [
+        "2026-10-24T00:57:46.023Z",
+        "2026-10-24T00:57:45.902Z",
+        "2026-10-24T00:57:45.781Z",
+        "2026-10-24T00:57:45.646Z",
+        "2026-10-24T00:57:45.522Z",
+        "2026-10-24T00:57:44.591Z"
+      ]
+    }
+  },
+  {
+    "n": 119,
+    "area": "SUPPORT",
+    "step": "6.14 Lista de bilete acceptă paginare",
+    "status": "FAIL",
+    "observed": "HTTP 200; 6 bilete returnate pentru limit=2",
+    "expected": "Parametrii limit/offset sunt luați în seamă",
+    "evidence": {
+      "status": 200,
+      "body": "{\"tickets\":[{\"id\":\"cmvlow7qe00dudxb9rct0bj2j\",\"number\":25,\"subject\":\"CJ bulk ticket 4\",\"category\":\"BILLING\",\"priority\":\"LOW\",\"status\":\"OPEN\",\"instanceId\":null,\"instanceName\":null,\"createdAt\":\"2026-10-24T00:57:46.023Z\",\"updatedAt\":\"2026-10-24T00:57:46"
+    }
+  }
+]

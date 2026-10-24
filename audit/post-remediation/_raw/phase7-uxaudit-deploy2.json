@@ -1,0 +1,347 @@
+{
+  "at": "2026-10-24T00:31:12.791Z",
+  "steps": [
+    {
+      "step": "01-initial",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress",
+      "csrf": "d4wYKSMat6r3uAIUF4Pwlr2P4Ir2O9FS",
+      "allMoney": [
+        "€1.89",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "ph": "WordPress",
+          "val": "wordpress",
+          "id": "_r_0_",
+          "name": ""
+        },
+        {
+          "type": "range",
+          "ph": "",
+          "val": "0",
+          "id": "deploy-disk",
+          "name": ""
+        }
+      ],
+      "checkboxes": [],
+      "nameValue": "wordpress",
+      "total": "€1.49",
+      "query": {}
+    },
+    {
+      "0": {
+        "t": "Recommended configuration1 GB · 1 vCPU · 10 GB disk€1.89/mo",
+        "pressed": "false"
+      },
+      "1": {
+        "t": "512 MB",
+        "pressed": "true"
+      },
+      "2": {
+        "t": "1 GB",
+        "pressed": "false"
+      },
+      "3": {
+        "t": "2 GB",
+        "pressed": "false"
+      },
+      "4": {
+        "t": "4 GB",
+        "pressed": "false"
+      },
+      "5": {
+        "t": "8 GB",
+        "pressed": "false"
+      },
+      "6": {
+        "t": "1",
+        "pressed": "true"
+      },
+      "7": {
+        "t": "2",
+        "pressed": "false"
+      },
+      "8": {
+        "t": "4",
+        "pressed": "false"
+      },
+      "9": {
+        "t": "Review order",
+        "pressed": null
+      },
+      "10": {
+        "t": "Review order",
+        "pressed": null
+      },
+      "11": {
+        "t": "More",
+        "pressed": null
+      },
+      "step": "02-buttons"
+    },
+    {
+      "step": "03-after-resources",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+      "csrf": "d4wYKSMat6r3uAIUF4Pwlr2P4Ir2O9FS",
+      "allMoney": [
+        "€1.89",
+        "€2.39",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "ph": "WordPress",
+          "val": "wordpress",
+          "id": "_r_0_",
+          "name": ""
+        },
+        {
+          "type": "range",
+          "ph": "",
+          "val": "0",
+          "id": "deploy-disk",
+          "name": ""
+        }
+      ],
+      "checkboxes": [],
+      "nameValue": "wordpress",
+      "total": "€2.39",
+      "query": {
+        "ram": "2048",
+        "cpu": "1",
+        "disk": "5"
+      }
+    },
+    {
+      "step": "04-after-option",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+      "csrf": "d4wYKSMat6r3uAIUF4Pwlr2P4Ir2O9FS",
+      "allMoney": [
+        "€1.89",
+        "€2.39",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "ph": "WordPress",
+          "val": "wordpress",
+          "id": "_r_0_",
+          "name": ""
+        },
+        {
+          "type": "range",
+          "ph": "",
+          "val": "0",
+          "id": "deploy-disk",
+          "name": ""
+        }
+      ],
+      "checkboxes": [],
+      "nameValue": "wordpress",
+      "total": "€2.39",
+      "query": {
+        "ram": "2048",
+        "cpu": "1",
+        "disk": "5"
+      }
+    },
+    {
+      "step": "05-name",
+      "nameCount": 1,
+      "typed": "audit-shop-01",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5"
+    },
+    {
+      "step": "06-server-quote",
+      "status": 200,
+      "body": {
+        "items": [
+          {
+            "productSlug": "wordpress",
+            "name": "WordPress",
+            "ram": 2048,
+            "cpu": 1,
+            "disk": 5,
+            "optionCodes": [],
+            "quantity": 1,
+            "unitAmount": 239,
+            "total": 239,
+            "currency": "EUR"
+          }
+        ],
+        "subtotal": 239,
+        "discount": 0,
+        "total": 239,
+        "currency": "EUR",
+        "promotion": null
+      },
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 5,
+      "opts": ""
+    },
+    {
+      "0": "PER MONTH €2.39 Starting price €1.49/mo for the smallest configuration: 512 MB · 1 vCPU · 5 GB disk. Recommended configu",
+      "1": "Per month€2.39",
+      "step": "07-total-blocks"
+    },
+    {
+      "step": "08-after-reload",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+      "csrf": "d4wYKSMat6r3uAIUF4Pwlr2P4Ir2O9FS",
+      "allMoney": [
+        "€1.89",
+        "€2.39",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "ph": "WordPress",
+          "val": "wordpress",
+          "id": "_r_0_",
+          "name": ""
+        },
+        {
+          "type": "range",
+          "ph": "",
+          "val": "0",
+          "id": "deploy-disk",
+          "name": ""
+        }
+      ],
+      "checkboxes": [],
+      "nameValue": "wordpress",
+      "total": "€2.39",
+      "query": {
+        "ram": "2048",
+        "cpu": "1",
+        "disk": "5"
+      }
+    },
+    {
+      "step": "09-after-back",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+      "csrf": "d4wYKSMat6r3uAIUF4Pwlr2P4Ir2O9FS",
+      "allMoney": [
+        "€1.89",
+        "€2.39",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "ph": "WordPress",
+          "val": "wordpress",
+          "id": "_r_0_",
+          "name": ""
+        },
+        {
+          "type": "range",
+          "ph": "",
+          "val": "0",
+          "id": "deploy-disk",
+          "name": ""
+        }
+      ],
+      "checkboxes": [],
+      "nameValue": "wordpress",
+      "total": "€2.39",
+      "query": {
+        "ram": "2048",
+        "cpu": "1",
+        "disk": "5"
+      }
+    },
+    {
+      "step": "10-after-direct",
+      "url": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+      "csrf": "d4wYKSMat6r3uAIUF4Pwlr2P4Ir2O9FS",
+      "allMoney": [
+        "€1.89",
+        "€2.39",
+        "€1.49"
+      ],
+      "inputs": [
+        {
+          "type": "text",
+          "ph": "WordPress",
+          "val": "wordpress",
+          "id": "_r_0_",
+          "name": ""
+        },
+        {
+          "type": "range",
+          "ph": "",
+          "val": "0",
+          "id": "deploy-disk",
+          "name": ""
+        }
+      ],
+      "checkboxes": [],
+      "nameValue": "wordpress",
+      "total": "€2.39",
+      "query": {
+        "ram": "2048",
+        "cpu": "1",
+        "disk": "5"
+      }
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "urlBefore": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+    "nameAfterReload": "wordpress",
+    "nameAfterDirect": "wordpress",
+    "nameTyped": "audit-shop-01",
+    "urlAfterReload": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+    "urlAfterBack": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+    "urlAfterDirect": "http://127.0.0.1:30005/app/deploy/wordpress?ram=2048&cpu=1&disk=5",
+    "queryAfterReload": {
+      "ram": "2048",
+      "cpu": "1",
+      "disk": "5"
+    },
+    "queryAfterDirect": {
+      "ram": "2048",
+      "cpu": "1",
+      "disk": "5"
+    },
+    "moneyAfterReload": [
+      "€1.89",
+      "€2.39",
+      "€1.49"
+    ],
+    "moneyAfterDirect": [
+      "€1.89",
+      "€2.39",
+      "€1.49"
+    ],
+    "serverQuote": {
+      "items": [
+        {
+          "productSlug": "wordpress",
+          "name": "WordPress",
+          "ram": 2048,
+          "cpu": 1,
+          "disk": 5,
+          "optionCodes": [],
+          "quantity": 1,
+          "unitAmount": 239,
+          "total": 239,
+          "currency": "EUR"
+        }
+      ],
+      "subtotal": 239,
+      "discount": 0,
+      "total": 239,
+      "currency": "EUR",
+      "promotion": null
+    },
+    "checkboxes": []
+  }
+}

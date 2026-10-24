@@ -1,0 +1,29 @@
+## 3.2ter POST /api/catalog/quote - masuratoare valida (produse orderable, sub limita de 120/min)
+Data: 2026-10-24T00:35:30+00:00
+Nota: 'uptime-kuma' are deployable=false in seed, deci un quote cu el este refuzat cu 400
+      (comportament corect, nu o masuratoare de latenta). Rata limit: 120/min pe acest endpoint.
+ENDPOINT                                            MIN      P50      P95      MAX  HTTP
+quote 1 produs                                    8.651   17.033   24.498   28.303  200
+quote 2 produse                                  15.901   18.471   22.841   24.405  200
+quote 4 produse                                  16.012   23.736   27.690   36.631  200
+quote 8 produse                                  22.823   34.791   46.481   58.399  200
+quote 1 produs + cod promo inexistent            10.906   16.328   22.459   22.884  200
+
+## 3.4 Tranzactii de baza de date pe cerere (xact_commit delta / cereri)
+Metoda: contorul pg_stat_database.xact_commit are o intarziere de ~1 s (PGSTAT_MIN_INTERVAL),
+        de aceea se dormeste 2 s inainte de citirea de referinta si 2 s dupa ultima cerere.
+  /api/health                            xact_commit +8    / 20 cereri ->  0.40 tranzactii/cerere
+  /api/catalog/products                  xact_commit +23   / 20 cereri ->  1.15 tranzactii/cerere
+  /api/auth/session                      xact_commit +62   / 20 cereri ->  3.10 tranzactii/cerere
+  /api/instances                         xact_commit +103  / 20 cereri ->  5.15 tranzactii/cerere
+  /api/orders                            xact_commit +83   / 20 cereri ->  4.15 tranzactii/cerere
+  /api/tickets                           xact_commit +84   / 20 cereri ->  4.20 tranzactii/cerere
+  /api/admin/overview                    xact_commit +95   / 20 cereri ->  4.75 tranzactii/cerere
+  /api/admin/customers                   xact_commit +22   / 20 cereri ->  1.10 tranzactii/cerere
+  /api/admin/orders                      xact_commit +131  / 20 cereri ->  6.55 tranzactii/cerere
+  /api/admin/audit                       xact_commit +167  / 20 cereri ->  8.35 tranzactii/cerere
+  /api/admin/services                    xact_commit +104  / 20 cereri ->  5.20 tranzactii/cerere
+  /api/admin/tickets                     xact_commit +147  / 20 cereri ->  7.35 tranzactii/cerere
+
+## 3.5 Blocuri de baza de date citite pe cerere (blks_read + blks_hit)
+/tmp/perf11-api2.sh: line 61: $2: unbound variable

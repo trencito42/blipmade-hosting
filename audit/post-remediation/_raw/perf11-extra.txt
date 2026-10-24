@@ -1,0 +1,69 @@
+## 8.1 Starea cozilor BullMQ (Redis, containerul de productie)
+--- coada blipmade.provision
+    wait = 0 (lista)
+    active = 0 (lista)
+    delayed = 0 (lista)
+    failed = 0 (lista)
+    completed = 0 (lista)
+    paused = 0 (lista)
+    prioritized = 0 (lista)
+    waiting-children = 0 (lista)
+    job-uri stocate (chei 'bull:blipmade.provision:<id>'): 0
+    job-uri in asteptare (zset): 0 delayed, 0 wait
+--- coada blipmade.email
+    wait = 0 (lista)
+    active = 0 (lista)
+    delayed = 0 (lista)
+    failed = 0 (lista)
+    completed = WRONGTYPE Operation against a key holding the wrong kind of value (lista)
+    paused = 0 (lista)
+    prioritized = 0 (lista)
+    waiting-children = 0 (lista)
+    job-uri stocate (chei 'bull:blipmade.email:<id>'): 2
+    job-uri in asteptare (zset): 0 delayed, 0 wait
+
+--- cheile cozii de provisionare prezente in Redis:
+    bull:blipmade.provision:events
+    bull:blipmade.provision:stalled-check
+    bull:blipmade.provision:meta
+    bull:blipmade.provision:id
+
+## 8.2 Supravietuirea sesiunii la repornirea procesului (instanta proprie, port 3133)
+--- instanta proprie PID=928588 pe portul 3133
+    login: {"user":{"id":"cmvlm6sku014gdxm7mp6puua6","email":"admin.check@example.test","firstName":"QA","lastN
+    sesiune inainte de repornire: {"user":{"id":"cmvlm6sku014gdxm7mp6puua6","email":"admin.check@example.test","firstName":"QA","lastName":"Admi
+    cookie: bm_session=Xx9GC8QlyJLo...
+--- se opreste procesul cu SIGTERM si se porneste unul nou cu ACELASI SESSION_SECRET
+    instanta noua PID=928661
+    sesiune dupa repornire: {"user":{"id":"cmvlm6sku014gdxm7mp6puua6","email":"admin.check@example.test","firstName":"QA","lastName":"Admi
+    cookie pastrat in browser: 1 bucati
+
+## 8.3 Dimensiunea cozii BullMQ si concurenta workerului (din cod si din Redis)
+    configuratie coada provisionare (api/src/services/queue.ts):
+    Warning: Identity file /root/.ssh/blipmade_vm103 not accessible: Permission denied.
+    Warning: Permanently added '10.77.0.13' (ED25519) to the list of known hosts.
+    debian@10.77.0.13: Permission denied (publickey).
+
+## 8.4 Descompunerea lui /api/status: cate cereri spre panou (Pterodactyl)
+    Sursa: api/src/routes/health.ts
+      - nodeState()      -> ptero.listNodes()                        [1 cerere]
+      - allocatorState() -> ptero.listNodes() + listAllocations(nod) [1 + N cereri]
+      - ptero.ping()     -> GET /api/application/nodes, timeout 6000ms
+    Timeout implicit al clientului HTTP: 20000 ms (api/src/services/pterodactyl/client.ts:175)
+    Masuratoare pe stiva izolata (panoul inaccesibil):
+    /api/status #1: 3.957689s
+    /api/status #2: 3.971532s
+    /api/status #3: 3.973304s
+    Timpul minim posibil daca panoul raspunde imediat: comparat cu /api/health
+    /api/health #1: 0.005953s
+    /api/health #2: 0.003795s
+    /api/health #3: 0.003509s
+
+## 8.5 Test de adevar al endpoint-urilor de sanatate
+--- /api/health raporteaza 'status':'ok' chiar daca panoul nu raspunde?
+{"status":"ok","service":"blipmade-api","version":"1.0.0","uptimeSeconds":1446,"database":true,"redis":true,"mail":"file","mailDelivery":{"transport":"file","configured":false,"counts":{"queued":0,"delivered":0,"writtenToFile":0,"failed":0}},"stripe":"test","pterodactyl":"configured","panelKeyBridge":"configured"}
+--- /healthz (web) raporteaza 'status':'ok' chiar daca API-ul este oprit?
+    (web/server.mjs:108-116 nu atinge API-ul; masuratoare cu API-ul oprit mai jos)
+--- oprirea temporara a propriei instante si verificarea /healthz a stivei comune:
+    web /healthz inainte: {"status":"ok","fonts":{"family":"Proxima Nova","installed":
+Sfarsit 11.8

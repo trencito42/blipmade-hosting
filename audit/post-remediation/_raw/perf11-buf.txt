@@ -1,0 +1,7 @@
+## 3.5 Blocuri de baza de date citite pe cerere (blks_read + blks_hit)
+Metoda: delta contorului pg_stat_database pe 20 de cereri consecutive.
+  /api/catalog/products              blks_read +0     (  0.0/cerere)   blks_hit +493      (   24.6/cerere)
+  /api/admin/overview                blks_read +0     (  0.0/cerere)   blks_hit +1289     (   64.5/cerere)
+  /api/admin/audit                   blks_read +0     (  0.0/cerere)   blks_hit +2190     (  109.5/cerere)
+  /api/admin/customers               blks_read +0     (  0.0/cerere)   blks_hit +1226     (   61.3/cerere)
+  /api/admin/orders                  blks_read +0     (  0.0/cerere)   blks_hit +911      (   45.5/cerere)
