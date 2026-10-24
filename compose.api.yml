@@ -63,7 +63,9 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/health"]
+      # The liveness of the process: it asks no database and no cache, so a
+      # slow dependency cannot restart the container in a loop.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/health/live"]
       interval: 30s
       timeout: 5s
       start_period: 30s
