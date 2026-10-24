@@ -17,6 +17,7 @@ import {
   type ProvisionJobData,
 } from './services/queue.js';
 import { noteJobCompleted, noteJobFailure } from './services/dead-letter.js';
+import { watchDeadLetterQueue } from './services/dead-letter-monitor.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
   PaymentRequiredError,
@@ -28,6 +29,8 @@ import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscrip
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
 import { audit } from './lib/audit.js';
+import { createMetricsServer } from './lib/perf-metrics.js';
+import { perfConfig } from './lib/perf-config.js';
 
 /**
  * The provisioning worker.
@@ -179,6 +182,30 @@ async function retryWebhooks(): Promise<void> {
   if (recovered) console.info(`[worker] recovered ${recovered} failed webhook event(s)`);
 }
 
+/**
+ * Watches the failures that are waiting for an operator.
+ *
+ * A job that failed for good is a customer whose service was never given,
+ * and the customer must not have to write in to say so: the platform has to
+ * say it itself. The watch counts the open failures, says a word the first
+ * time a failure appears, and gives the number of the queue to the measures
+ * of the process.
+ *
+ * The watch also reads the real state of the running services, when the
+ * module that reads it is there. That module is loaded when the watch runs
+ * and not when the worker starts, because it is written in a branch of its
+ * own: a static import of a file that is not there yet would stop the
+ * worker from starting at all.
+ */
+async function watchDeadLetters(): Promise<void> {
+  const observed = await watchDeadLetterQueue();
+  if (observed.pending > 0) {
+    console.info(
+      `[worker] dead letters waiting for an operator: ${observed.pending} (the highest was ${observed.peakPending})`,
+    );
+  }
+}
+
 const timers: NodeJS.Timeout[] = [];
 
 /**
@@ -215,20 +242,53 @@ const healthServer = createServer((request, response) => {
   })();
 });
 
+/**
+ * The measures of the worker.
+ *
+ * The worker is a process of its own, so the measures of the API are not
+ * the measures of the worker. The gauge of the dead-letter queue lives in
+ * the process that watches the queue, so the worker gives its own measures
+ * away: on the loopback of the container, and only to a collector that
+ * knows the key.
+ */
+const metricsServer = createMetricsServer({
+  enabled: env.METRICS_ENABLED,
+  host: perfConfig.metricsHost,
+  port: perfConfig.metricsPort,
+  token: perfConfig.metricsToken,
+  log: {
+    info: (payload: unknown, message?: string) => console.info('[worker]', message ?? '', payload),
+    warn: (payload: unknown, message?: string) => console.warn('[worker]', message ?? '', payload),
+    error: (payload: unknown, message?: string) => console.error('[worker]', message ?? '', payload),
+  },
+});
+// A port that is taken is a mistake of the address and not a reason to stop
+// the worker, so the failure of the listener is written down and swallowed.
+void metricsServer.ready.catch(() => undefined);
+
 async function main(): Promise<void> {
   console.info(`[worker] starting in ${env.NODE_ENV}`);
   healthServer.listen(healthPort, '0.0.0.0');
   await reconcile();
+  // The failures that are waiting for an operator are looked at right away,
+  // so the queue is known from the first moment of the life of the worker
+  // and not only after the first tick.
+  await watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error));
   timers.push(setInterval(() => void reconcile().catch((error) => console.error('[worker] reconcile failed', error)), 60_000));
   timers.push(setInterval(() => void pruneQueue().catch(() => undefined), 10 * 60_000));
   timers.push(setInterval(() => void pruneSessions().catch(() => undefined), 60 * 60_000));
   timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));
   timers.push(setInterval(() => void retryWebhooks().catch((error) => console.error('[worker] webhook retry failed', error)), 5 * 60_000));
+  // The queue of the failures is watched every three minutes: often enough
+  // that a failure is seen while the customer is still waiting, and rare
+  // enough that the log of the worker stays readable.
+  timers.push(setInterval(() => void watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error)), 3 * 60_000));
 }
 
 const shutdown = async () => {
   for (const timer of timers) clearInterval(timer);
   healthServer.close();
+  await metricsServer.close().catch(() => undefined);
   await worker.close();
   await emailWorker.close();
   await closeQueue();
