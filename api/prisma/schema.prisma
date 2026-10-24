@@ -86,7 +86,7 @@ model MailDelivery {
   lastErrorClass  String?
   lastError       String?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @default(now()) @updatedAt
   deliveredAt     DateTime?
 
   @@index([state])
@@ -151,7 +151,7 @@ model PanelCredential {
   source      String   @default("bridge")
   lastUsedAt  DateTime?
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime @default(now()) @updatedAt
 }
 
 model Session {
