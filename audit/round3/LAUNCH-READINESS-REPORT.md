@@ -199,8 +199,10 @@ Până la punctul 8, verdictul rămâne **NO-GO**.
 
 ## 8. CI
 
-Rularea pe commit-ul `05b5951` al ramurii `fix/audit-round3`:
-**https://github.com/trencito42/blipmade-hosting/actions/runs/40142773601**
+Două rulări verzi pe ramura `fix/audit-round3`:
+
+* commit-ul `05b5951` — **https://github.com/trencito42/blipmade-hosting/actions/runs/40142773601**
+* commit-ul `e6bbc4b` (raportul) — **https://github.com/trencito42/blipmade-hosting/actions/runs/40143149673**
 
 | Job | Rezultat |
 |---|---|
@@ -219,3 +221,6 @@ auditului și tokenul DNS al unui domeniu de test din domeniul rezervat `example
 au fost verificate ca fiind străine platformei (0 rânduri în baza vie) și au fost **redactate**
 din documente; istoricul le păstrează, deci lista de excepții a scanării a crescut cu două
 intrări, fiecare cu valoarea exactă și cu motivul ei. Scanarea raportează orice altceva.
+
+Verificarea locală a istoricului întreg, cu gitleaks 8.30.1 și aceeași configurație:
+**131 commituri, 29,09 MB scanate, 0 scurgeri**.
