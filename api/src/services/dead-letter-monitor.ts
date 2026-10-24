@@ -308,6 +308,27 @@ interface RuntimeStateModule {
  * is not there and a failure of the module are all written down, and none of
  * them stops the worker.
  */
+/**
+ * What the watch says about the state of the running services.
+ *
+ * The module of the running services answers with the numbers of the
+ * services it looked at, of the ones that are not in the state the platform
+ * believes and of the ones it could not ask about. The words are built here,
+ * apart from the watch, so the rule can be proved without a node.
+ */
+export function runtimeStateWarning(result: unknown): string | null {
+  const summary = (result ?? {}) as { observed?: unknown; notRunning?: unknown; unreachable?: unknown };
+  const notRunning = typeof summary.notRunning === 'number' ? summary.notRunning : 0;
+  const unreachable = typeof summary.unreachable === 'number' ? summary.unreachable : 0;
+  if (notRunning > 0) {
+    return `[running-state] ${notRunning} service(s) were not in the state the platform believes`;
+  }
+  if (unreachable > 0) {
+    return `[running-state] ${unreachable} service(s) could not be asked about`;
+  }
+  return null;
+}
+
 async function reconcileRunningServices(log: DeadLetterMonitorLogger): Promise<void> {
   try {
     const module = (await import(RUNTIME_STATE_MODULE)) as RuntimeStateModule;
@@ -316,10 +337,8 @@ async function reconcileRunningServices(log: DeadLetterMonitorLogger): Promise<v
       return;
     }
     const result = await module.reconcileRuntimeState({ limit: 100 });
-    const changed = (result as { changed?: unknown } | null | undefined)?.changed;
-    if (typeof changed === 'number' && changed > 0) {
-      log.warn(`[running-state] ${changed} service(s) were not in the state the platform believes`);
-    }
+    const warning = runtimeStateWarning(result);
+    if (warning) log.warn(warning);
   } catch (error) {
     log.error(`[running-state] the state of the running services could not be read: ${(error as Error).message}`);
   }

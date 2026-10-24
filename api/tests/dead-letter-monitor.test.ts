@@ -4,6 +4,7 @@ import {
   checkDeadLetters,
   deadLetterMonitorState,
   resetDeadLetterMonitor,
+  runtimeStateWarning,
   watchDeadLetterQueue,
 } from '../src/services/dead-letter-monitor.js';
 import { PROVISION_QUEUE } from '../src/services/queue.js';
@@ -182,19 +183,35 @@ describe('the watch over the dead-letter queue', () => {
     }
   });
 
-  it('keeps the worker going when the module of the running services is not there', async () => {
-    // The module that reads the real state of the running services is
-    // written in a branch of its own, so it is not here. The timer of the
-    // worker must go on all the same.
+  it('keeps the worker going whatever the state of the running services is', async () => {
+    // The module that reads the real state of the running services is loaded
+    // while the watch runs. Whatever it answers, the watch goes on: the
+    // failures are still read and the timer of the worker is not interrupted.
     const { lines, spy } = collectConsole('error');
     try {
       const observed = await watchDeadLetterQueue();
       expect(observed.lastCheckedAt).not.toBeNull();
+      expect(observed.pending).toBeGreaterThanOrEqual(0);
 
-      // The missing module is written down, and the watch went on.
-      expect(lines.join('\n')).toContain('running-state');
+      // The watch did not report a failure of the watch itself.
+      expect(lines.join('\n')).not.toContain('the watch could not be read');
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('names the services that are not in the state the platform believes', () => {
+    expect(runtimeStateWarning({ observed: 10, notRunning: 2, unreachable: 0 })).toMatch(
+      /2 service\(s\) were not in the state/,
+    );
+  });
+
+  it('names the services it could not ask about', () => {
+    expect(runtimeStateWarning({ observed: 10, notRunning: 0, unreachable: 3 })).toMatch(/could not be asked about/);
+  });
+
+  it('says nothing when every service is in the state the platform believes', () => {
+    expect(runtimeStateWarning({ observed: 10, notRunning: 0, unreachable: 0 })).toBeNull();
+    expect(runtimeStateWarning(null)).toBeNull();
   });
 });

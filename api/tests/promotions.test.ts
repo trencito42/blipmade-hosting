@@ -5,7 +5,9 @@ import { hashPassword } from '../src/lib/password.js';
 import {
   applyPromotion,
   buildQuote,
+  defaultLimitPerUser,
   promotionCap,
+  promotionRisk,
   releasePromotionReservation,
   reservePromotion,
   resolvePromotion,
@@ -361,6 +363,58 @@ describe('the admin route and the limit per account', () => {
     expect(promotion?.maxPerUser).toBeNull();
   });
 
+  it('gives a campaign that takes the whole order a limit of one use per account', async () => {
+    const { client } = await createAdmin(app, 'admin.promotions.full@example.test');
+
+    const response = await client.request('POST', '/api/admin/promotions', {
+      code: 'FULL100',
+      type: 'PERCENT',
+      value: 10000,
+      maxRedemptions: 25,
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.promotion.maxPerUser).toBe(1);
+
+    const promotion = await prisma.promotion.findUnique({ where: { code: 'FULL100' } });
+    expect(promotion?.maxPerUser).toBe(1);
+  });
+
+  it('keeps the limit of a campaign that takes the whole order when the operator asks for one', async () => {
+    const { client } = await createAdmin(app, 'admin.promotions.full.limit@example.test');
+
+    const response = await client.request('POST', '/api/admin/promotions', {
+      code: 'FULL100LIMITED',
+      type: 'PERCENT',
+      value: 10000,
+      maxRedemptions: 25,
+      maxPerUser: 3,
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.promotion.maxPerUser).toBe(3);
+  });
+
+  it('shows the risk of a campaign that gives the whole order away without a limit per account', async () => {
+    const { client } = await createAdmin(app, 'admin.promotions.risk@example.test');
+    await prisma.promotion.create({
+      data: {
+        code: 'RISKY',
+        type: 'PERCENT',
+        value: 10000,
+        maxRedemptions: 25,
+        maxPerUser: null,
+        active: true,
+      },
+    });
+
+    const list = await client.request('GET', '/api/admin/promotions');
+
+    expect(list.status).toBe(200);
+    const risky = list.body.promotions.find((entry: { code: string }) => entry.code === 'RISKY');
+    expect(risky?.warning).toMatch(/no limit per account/i);
+  });
+
   it('refuses a limit per account that is not a positive whole number', async () => {
     const { client } = await createAdmin(app, 'admin.promotions.invalid@example.test');
 
@@ -459,5 +513,49 @@ describe('the admin route and the limit per account', () => {
     expect(response.status).toBe(201);
     expect(response.body.promotion.value).toBe(500);
     expect(response.body.promotion.maxPerUser).toBe(1);
+  });
+});
+
+describe('the risk of a campaign', () => {
+  it('names the risk of a campaign that gives the whole order away without a limit per account', () => {
+    const risk = promotionRisk({ type: 'PERCENT', value: 10_000, maxRedemptions: 25, maxPerUser: null });
+
+    expect(risk).toBeTruthy();
+    expect(risk).toMatch(/no limit per account/i);
+  });
+
+  it('names the risk of a campaign without a limit per account', () => {
+    const risk = promotionRisk({ type: 'PERCENT', value: 1_000, maxRedemptions: 25, maxPerUser: null });
+
+    expect(risk).toBeTruthy();
+    expect(risk).toMatch(/no limit per account/i);
+  });
+
+  it('says nothing about a campaign that has a limit per account', () => {
+    expect(promotionRisk({ type: 'PERCENT', value: 10_000, maxRedemptions: 25, maxPerUser: 1 })).toBeNull();
+  });
+
+  it('names the risk of a campaign without any limit', () => {
+    // A campaign that gives the whole order away and has neither a total
+    // limit nor a limit per account gives every order away.
+    const risk = promotionRisk({ type: 'PERCENT', value: 10_000, maxRedemptions: null, maxPerUser: null });
+    expect(risk).toMatch(/no limit per account/i);
+  });
+
+  it('says nothing about a campaign that has a limit per account', () => {
+    expect(promotionRisk({ type: 'PERCENT', value: 10_000, maxRedemptions: null, maxPerUser: 1 })).toBeNull();
+  });
+
+  it('gives a campaign that takes the whole order a limit of one use per account', () => {
+    expect(defaultLimitPerUser({ type: 'PERCENT', value: 10_000 })).toBe(1);
+  });
+
+  it('leaves the limit of a campaign that takes something off the order alone', () => {
+    expect(defaultLimitPerUser({ type: 'PERCENT', value: 1_000 })).toBeNull();
+    expect(defaultLimitPerUser({ type: 'FIXED', value: 500 })).toBeNull();
+  });
+
+  it('keeps the limit the operator asked for', () => {
+    expect(defaultLimitPerUser({ type: 'PERCENT', value: 10_000, maxPerUser: 3 })).toBe(3);
   });
 });

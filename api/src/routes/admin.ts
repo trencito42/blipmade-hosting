@@ -26,6 +26,7 @@ import {
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
+import { defaultLimitPerUser, promotionRisk } from '../services/pricing.js';
 import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
 
@@ -959,6 +960,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         maxRedemptions: promotion.maxRedemptions,
         // How many times one account may use the code. Null means no limit.
         maxPerUser: promotion.maxPerUser,
+        // The risk of the campaign, so the operator sees a campaign that
+        // gives the whole order away without a limit per account.
+        warning: promotionRisk(promotion),
         usedCount: promotion.usedCount,
         active: promotion.active,
         startsAt: promotion.startsAt,
@@ -1008,7 +1012,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         type: body.type,
         value: body.value,
         maxRedemptions: body.maxRedemptions ?? null,
-        maxPerUser: body.maxPerUser ?? null,
+        // A campaign that takes the whole order away gets a limit of one use
+        // per account, unless the operator asked for another number or said
+        // that there is no limit at all.
+        maxPerUser: defaultLimitPerUser({ type: body.type, value: body.value, maxPerUser: body.maxPerUser }),
         startsAt: body.startsAt ? new Date(body.startsAt) : null,
         endsAt: body.endsAt ? new Date(body.endsAt) : null,
         active: body.active,

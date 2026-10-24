@@ -371,6 +371,51 @@ export async function releasePromotionReservation(orderId: string): Promise<void
 /**
  * The amount of a promotion: what it takes off an order.
  */
+/**
+ * The risk of a campaign, in words an operator can act on.
+ *
+ * A campaign with a total limit but without a limit per account can be used
+ * by the same account as often as the total limit allows. The limit is
+ * enforced when it is set — this is not a hole in the platform — but the risk
+ * has to be visible to the operator who manages the campaigns, because a
+ * campaign that gives the whole order away is worth a lot of money.
+ */
+export function promotionRisk(promotion: {
+  type: string;
+  value: number;
+  maxRedemptions: number | null;
+  maxPerUser: number | null;
+}): string | null {
+  const givesEverything = promotion.type === 'PERCENT' && promotion.value >= 10_000;
+  if (promotion.maxPerUser === null && promotion.maxRedemptions !== null) {
+    return givesEverything
+      ? 'This campaign gives the whole order away and has no limit per account, so the same account can use it as often as the total limit allows.'
+      : 'This campaign has no limit per account, so the same account can use it as often as the total limit allows.';
+  }
+  if (givesEverything && promotion.maxPerUser === null) {
+    return 'This campaign gives the whole order away and has no limit per account.';
+  }
+  return null;
+}
+
+/**
+ * The limit per account a campaign gets when the operator did not say.
+ *
+ * A campaign that takes the whole order away gets a limit of one use per
+ * account, because a campaign that a customer can use again and again is
+ * never what an operator means when the discount is a hundred percent. The
+ * operator can still ask for another number, and a campaign that takes
+ * something off the order keeps the limit it was given.
+ */
+export function defaultLimitPerUser(promotion: { type: string; value: number; maxPerUser?: number | null }): number | null {
+  // A limit the operator asked for is kept, and so is the explicit decision
+  // that there is no limit at all: only a campaign that says nothing about
+  // the limit gets the default.
+  if (promotion.maxPerUser !== undefined) return promotion.maxPerUser;
+  const givesEverything = promotion.type === 'PERCENT' && promotion.value >= 10_000;
+  return givesEverything ? 1 : null;
+}
+
 export interface PromotionAmount {
   type: 'PERCENT' | 'FIXED';
   value: number;
