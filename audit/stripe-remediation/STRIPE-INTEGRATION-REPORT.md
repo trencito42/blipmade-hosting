@@ -57,7 +57,9 @@ la Stripe.
    lucrate de trei subagenți pe ramuri și worktree-uri proprii, integrate
    apoi prin `cherry-pick`, **fără niciun conflict**.
 4. Nicio modificare nu a fost făcută pentru ca un test existent să treacă.
-   Niciun test existent nu a fost șters sau slăbit.
+   Niciun test existent nu a fost șters sau slăbit. O singură aserțiune
+   preexistentă a fost actualizată, pentru că forma apelului s-a schimbat
+   în mod deliberat, iar aserțiunea nouă este mai strictă (secțiunea E.2).
 
 ---
 
