@@ -107,6 +107,7 @@ Sursă: `02-security-audit.md`. Toate sunt constatări de configurație sau cod,
 | SEC-27 | Info | `CODE-INSPECTED` | `api/src/plugins/csrf.ts` | Rutele scutite de CSRF folosesc comparație cu `!==` | Nu | `api/src/plugins/csrf.ts` |
 | SEC-28 | High | `VERIFIED` | Hipervizor `n7030e1` | `rpcbind` pe `0.0.0.0:111`, deschis public, cu conexiuni din exterior — vector pentru RPC | Nu | `ss -lntp` → `0.0.0.0:111`; 3 conexiuni stabilite din `45.79.207.110` |
 | SEC-29 | Low | `VERIFIED` | Hipervizor `n7030e1` | Cheia API a agentului operatorului, vizibilă în argumentele procesului | Nu | `ps auxww` |
+| SEC-30 | High | `VERIFIED` | Istoricul Git | **Parola unui cont de test al scriptului de verificare a provisionării a rămas în istoric**: valoarea a fost scoasă din sursă în `61111f6`, dar istoricul o păstrează și scanarea de secrete o raportează | Nu | `git log -S VerifyHorseBattery9`; scanarea `gitleaks` |
 
 ### 1.1 Notă obligatorie despre SEC-01
 
@@ -157,6 +158,7 @@ Sursă: `05-commerce-and-billing.md` (ID-urile `B1`–`B12`).
 | COMM-10 | Medium | `CODE-INSPECTED` | Un produs nou creat prin admin pornește cu `baseAmount = 0` ⇒ **gratuit**, până când operatorul intră în ecranul de prețuri | Nu | `api/src/routes/admin.ts:428,460`; `api/prisma/schema.prisma:259-273` |
 | COMM-11 | Medium | `CODE-INSPECTED` | **Nu se poate edita sau dezactiva o promoție**: există doar `GET` și `POST /admin/promotions`; niciun `PATCH`, niciun `DELETE` | Nu | `api/src/routes/admin.ts:610-660`; `web/src/admin/Promotions.tsx` |
 | COMM-12 | Medium | `CODE-INSPECTED` | **Counterul afișat de operator nu e counterul aplicat**: ecranul arată `promotion.usedCount` (doar plăți), plafonul se aplică pe `countEffectiveRedemptions` (rezervări + plăți) | Nu | `web/src/admin/Promotions.tsx:260,302`; `api/src/services/pricing.ts:148-163` |
+| COMM-13 | **Critical** | `VERIFIED` | **Un client care a plătit o dată nu putea plăti a doua oară**: coloana `Payment.stripeCustomerId` era unică, așa că a doua plată a aceluiași client era respinsă de baza de date, comanda rămâne `PAID` și serviciul nu era livrat | Da | `api/prisma/schema.prisma:521`; `api/src/services/stripe.ts:502` |
 
 ---
 
@@ -234,6 +236,7 @@ Sursă: `03-infrastructure.md`, `03-network-and-ip-plan.md`, `03-capacity-model.
 | DR-03 | **Critical** | `VERIFIED` | **Secretele nu au nicio copie**; `SESSION_SECRET` e ireversibil — invalidă toate sesiunile și toate parolele stocate cu el | **Da** | `03-disaster-recovery.md` §3.4 |
 | DR-04 | **P0** | `VERIFIED` | **Nu există backup Pterodactyl** (dezactivat per server) | **Da** | `03-disaster-recovery.md` §3.3 |
 | DR-05 | High | `BLOCKED` | Starea live a backupului panoului și a containerelor pe nod nu poate fi verificată | Nu | VM 100/101 inaccesibile |
+| NET-05 | High | `VERIFIED` | **Contorul de rată nu ajunge la adresa vizitatorului până la reconfigurarea edge-ului**: lanțul `X-Forwarded-For` este citit din dreapta, deci fără un proxy de încredere toți vizitatorii au adresa edge-ului | Nu (blocaj de lansare) | `web/src/lib/client-address.mjs:197`; `deploy/edge/Caddyfile` |
 
 ---
 
@@ -396,6 +399,14 @@ Sursă: `01-backend-audit.md` (1318 de linii, 15 constatări). **Nicio constatar
 | BE-13 | Medium | `VERIFIED` | **Ștergerea unui utilizator cascadează peste istoricul său financiar** | `COMM-08`, `OPS-10` | Nu |
 | BE-14 | Medium | `CODE-INSPECTED` | Numerotarea comenzilor și a facturilor e `count()+1`, nu o secvență | `PROV-07` | Nu |
 | BE-15 | Low | `CODE-INSPECTED` | `WebhookEvent.status` e text liber, fără enum și fără `updatedAt` | — | Nu |
+| BE-16 | High | `VERIFIED` | **Confirmarea unei colectări făcute în afara platformei nu avea garda de cont**: un membru al personalului putea confirma factura unui administrator și îi prelungea gratuit perioada serviciului | `api/src/routes/admin.ts:443` | Nu |
+| BE-17 | Low | `VERIFIED` | **Tabelul joburilor eșuate nu era golit între fișierele de test**: un test putea citi un rând al testului dinaintea lui | `api/tests/setup.ts` | Nu |
+| BE-18 | Low | `VERIFIED` | **Comentariul serverului spunea că lanțul `X-Forwarded-For` se citește din stânga, iar codul îl citește din dreapta**: un întreținător putea readuce codul la forma vulnerabilă | `web/server.mjs:259` | Nu |
+| BE-19 | Low | `CODE-INSPECTED` | **Scrierile dead-letter nu sunt așteptate** (`void noteJobFailure(...)`): o cursă între scrierea de `failed` și cea de `completed` poate lăsa un rând `pending` pentru un job reușit, iar un `SIGKILL` imediat după eșec pierde rândul | `api/src/worker.ts:70` | Nu |
+| BE-20 | Low | `VERIFIED` | **Joburile dead-letter ale e-mailului nu pot fi puse înapoi pe coadă**: `requeueDeadLetter` refuză coada `blipmade.email`, iar starea rămâne `pending` | `api/src/services/dead-letter.ts` | Nu |
+| BE-21 | Medium | `VERIFIED` | **Un atacator poate bloca definitiv un cont cunoscut**: zece parole greșite cu e-mailul victimei aduc un `429` chiar și cu parola corectă, pentru 15 minute | `api/src/plugins/auth.ts` | Nu |
+| BE-22 | Low | `CODE-INSPECTED` | **Plata nu este legată din nou de cont și de comandă la actualizare**: dacă același intent ar fi raportat pentru altă comandă, rândul ar rămâne legat de prima | `api/src/services/stripe.ts:506` | Nu |
+| BE-23 | Medium | `VERIFIED` | **Rambursarea unei plăți sosite pentru o comandă moartă returna suma comenzii, nu suma primită**: o rambursare a unei sume care nu a fost încasată e refuzată de provider, iar banii rămân la platformă | `api/src/routes/webhooks.ts:342` | Nu |
 
 **Concluzia de fond a raportului de backend:** `BE-01` și `BE-04` explică **mecanismul** care stă la baza a trei P0-uri deja înregistrate — o comandă poate ajunge `PAID` fără plată (`OPS-02`), iar provisionarea face zece mutații pe panou fără o tranzacție care să le anuleze (`PROV-02`). `BE-03` explică de ce `COMM-01` produce **mismatch-uri**, nu doar eșecuri. **Backendul nu adaugă nimic nou la lista de blocaje; el arată că mecanismul e mai profund decât părea.**
 
@@ -442,12 +453,12 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 
 | Stare | Constatări |
 |---|---:|
-| FIXED & VERIFIED | 30 |
+| FIXED & VERIFIED | 35 |
 | IMPLEMENTED, NOT VERIFIED | 1 |
 | BLOCKED: EXTERNAL DEPENDENCY | 3 |
-| REQUIRES OPERATOR APPROVAL | 9 |
-| NOT STARTED (BACKLOG) | 139 |
-| **Total** | **182** |
+| REQUIRES OPERATOR APPROVAL | 11 |
+| NOT STARTED (BACKLOG) | 143 |
+| **Total** | **193** |
 
 | ID | Sev. | Cod / infrastructură afectată | Stare | Cauza rădăcină | Reparare | Commit | Test de regresie | Verificare |
 |---|---|---|---|---|---|---|---|---|
@@ -480,6 +491,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `SEC-27` | Info | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-28` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-29` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-30` | High | scripts/verify-provisioning.py, istoricul Git | REQUIRES OPERATOR APPROVAL | Scriptul de verificare a provisionarii scria parola contului de test in sursa, inainte ca parola sa vina din mediu | Parola vine din mediu de la commitul 61111f6, iar arborele nu o mai contine. Restul istoricului nu poate fi curatat fara rescrierea istoricului, ceea ce inseamna force-push si cere autorizatia operatorului. Pana atunci, scanarea de secrete primeste o lista de exceptii cu valoarea exacta, documentata in .gitleaks.toml | 61111f6, .gitleaks.toml | gitleaks 8.30.1 pe intreaga istorie: 0 scurgeri cu lista de exceptii | Baza vie nu are niciun cont cu parola: 3 utilizatori, 0 potriviri la verificarea hash-ului. Valoarea a fost a unui cont de test, pe adresa locala, creat de un script de verificare |
 | `PROV-01` | Critical | api/src/services/provisioning.ts (chooseNode, nodeCapacity, requiredCapacity) | FIXED & VERIFIED | Poarta de capacitate compara disk-ului nodului (MB de la panou) cu disk-ul instantei (GB): factor 1024 | Ambele valori sunt aduse la MB inainte de comparatie; refuzul numeste valorile si unitatea lor | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: refuzul numeste MB si GB; 13 teste de capacitate |
 | `PROV-02` | Critical | api/src/services/provisioning.ts (compensateFailedProvisioning) | FIXED & VERIFIED | La provisionare nereusita serverul, alocarea si suma ramaneau; nu exista compensare | Compensarea sterge containerul, elibereaza alocarea, returneaza banii sau marcheaza refundul de facut, si scrie totul in jurnal; ruleaza doar la ultima incercare | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: fara server, fara alocatie, banii inapoi; nu se ramburseaza de doua ori |
 | `PROV-03` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
@@ -506,6 +518,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `COMM-10` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `COMM-11` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `COMM-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `COMM-13` | Critical | api/prisma/schema.prisma, api/src/services/stripe.ts | FIXED & VERIFIED | Coloana clientului de la provider era unica in tabelul platilor. Un client plateste mai multe ori si platforma refoloseste clientul de la provider, deci a doua plata avea aceeasi valoare si constrangerea respingea scrierea. Comanda era marcata plata inainte de scriere, deci banii erau luati, plata nu era scrisa si serviciul nu era livrat | Coloana pastreaza un index, pentru ca clientul de la provider se cauta prin ea, dar indexul nu mai este o constrangere. Migratia 20261025160000_payment_customer_index renunta la constrangerea din baza vie, deci trebuie aplicata inainte de conectarea providerului | 5bdc92b | api/tests/payment-second-purchase.test.ts | Testul trimite doua evenimente cu acelasi client de la provider, ca platforma. Fara reparare: HTTP 500 si 'Unique constraint failed on the fields: (stripeCustomerId)'. Cu repararea: 200, plata scrisa, comanda plata si doua servicii livrate |
 | `PROMO-01` | Critical (= `COMM-01`) | api/src/services/order-amounts.ts | FIXED & VERIFIED | Acelasi defect ca COMM-01, vazut din pagina de promotii | Reducerea ajunge la furnizorul de plata prin aceeasi impartire a totalului | 3948f7f / remediation/phase-1-payment-safety | api/tests/order-amounts.test.ts | Test: suma incasata este suma cotata |
 | `PROMO-02` | P0 | api/src/routes/admin.ts (POST/PATCH /admin/promotions), web/src/admin/Promotions.tsx | FIXED & VERIFIED | maxPerUser nu putea fi setat, deci fiecare campanie era nelimitata per cont | Administratorul poate fixa, schimba si goli limita per cont, cu validare pe server si in formular | remediation/phase-1-payment-safety | api/tests/promotions.test.ts | Test: limita se poate seta, se schimba, se goleste si se respinge valoarea invalida |
 | `PROMO-03` | High | api/src/services/pricing.ts (reservePromotion, effectiveRedemptions) | FIXED & VERIFIED | Contorul era citit si apoi scris, deci doua comenzi simultane puteau trece de limita | Rezervarea ruleaza intr-o tranzactie care blocheaza randul campaniei si numara in interiorul ei; contorul de rezervari este tabelul de redemptions, nu usedCount | remediation/phase-1-payment-safety | api/tests/promotions.test.ts | Test: doua rezervari simultane nu trec de plafon |
@@ -552,6 +565,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `DR-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-04` | P0 | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `NET-05` | High | web/src/lib/client-address.mjs, deploy/edge/Caddyfile, edge-ul 10.77.0.12 | REQUIRES OPERATOR APPROVAL | Adresa clientului este citita din dreapta lantului X-Forwarded-For, pentru ca ultima pozitie este proxyul cel mai apropiat. Edge-ul de la 10.77.0.12 nu a fost reconfigurat, deci nu rescrie antetul, iar contorul grupeaza dupa adresa edge-ului | deploy/edge/Caddyfile este pregatit cu trusted_proxies si header_up X-Forwarded-For {client_ip}. Aplicarea lui cere acces la edge, pe care operatorul il are | 0928c8a, f8b2051 | web/tests/client-address.test.mjs | Masurare: cu edge-ul care rescrie, adresa reala a vizitatorului; fara el, toate adresele sunt 10.77.0.12. Limita per cont ramane intacta, deci forta bruta a parolei nu e ocolita |
 | `PRICE-01` | P0 | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `PRICE-02` | P0 | api/src/services/availability.ts, web/src/lib/pricing-contract.ts | FIXED & VERIFIED | Produsele fara mapping de egg aveau pret activ si erau vizibile, deci clientul vedea un pret pentru un serviciu care nu putea fi cumparat | Disponibilitatea e derivata (orderable = visible && deployable && eggId != null), serverul trimite cele 4 stari, comanda e refuzata server-side, interfata nu arata CTA pentru un produs indisponibil | 3948f7f / 210a677 | api/tests/catalog-availability.test.ts | Testele trec; WordPress apare "temporarily unavailable" si nu poate fi comandat |
 | `PRICE-03` | P0 | docs/API_CONTRACT.md | FIXED & VERIFIED | Campul price.amount nu spunea ca e in unitati minori; conventia aparea o singura data in tot contractul | Contractul API spune explicit ca toate sumele sunt in unitati minori si descrie cartea de preturi si starea de disponibilitate | 36a75a7 | documentatia contractului | Contractul API descrie acum unitatea, cartea de preturi si cele 4 stari |
@@ -633,5 +647,13 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `BE-13` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `BE-14` | Medium | api/src/services/order-numbers.ts | FIXED & VERIFIED | Numarul comenzilor si al facturilor era numarul de randuri plus unu | Un singur contor atomic pentru comenzi si facturi, folosit de toate caile | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: numerele nu se repeta niciodata |
 | `BE-15` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `BE-16` | High | api/src/routes/admin.ts | FIXED & VERIFIED | Ruta de confirmare a colectarii cerea doar orders.write si requireStaff. Confirmarea marcheaza factura ca plata si prelungeste perioada abonamentului, deci scrie pe contul clientului, iar regula assertMayActOnAccount era aplicata pe celelalte sase rute care ating un cont, nu pe aceasta | Regula este aplicata si aici: un administrator este confirmat doar de alt administrator, iar contul unui client poate fi confirmat de un membru al personalului | b00ffa4 | api/tests/phase2-invoice-collection.test.ts | Fara reparare: un staff cu orders.write confirma factura unui ADMIN si raspunsul este 200. Cu repararea: 403, iar factura ramane OPEN |
+| `BE-17` | Low | api/tests/setup.ts | FIXED & VERIFIED | Tabelul DeadLetterJob a fost adaugat dupa scrierea suitei, iar lista tabelelor golite la inceputul fiecarui fisier de test nu l-a inclus | Tabelul este in lista, deci fiecare fisier de test incepe de la baza goala | 14f7a5f | api/tests/perf-data-dead-letter.test.ts | Verificarea independenta a gasit 3 randuri in loc de 2, dintr-un test anterior. Cu repararea, lista e completa |
+| `BE-18` | Low | web/server.mjs | FIXED & VERIFIED | Comentariul a fost scris pentru forma veche a citirii lantului si nu a fost schimbat cand faza 14 a mutat citirea in dreapta | Comentariul spune acum ce face codul: lantul se citeste din dreapta, pentru ca ultima pozitie este proxyul cel mai apropiat | 14f7a5f | web/tests/client-address.test.mjs | Textul si codul spun acum acelasi lucru |
+| `BE-19` | Low | api/src/worker.ts | NOT STARTED (BACKLOG) | Nota de esec este scrisa fara a fi asteptata, iar scrierea de reusita poate ajunge inaintea ei | Nota de esec se asteapta inainte de a se intoarce din handler, sau se scrie intr-o tranzactie cu starea jobului | — | — | Fereastra e mica. Nu e o pierdere de bani, dar o reproducere poate pierde urma unei esecuri |
+| `BE-20` | Low | api/src/services/dead-letter.ts | NOT STARTED (BACKLOG) | Repunerea pe coada este refuzata pentru coada de e-mail, pentru ca mesajele nu se trimit la fel | Interfata de administrare trebuie sa spuna ca o livrare esuata nu se poate repune pe coada, si sa ofere o trimitere noua | — | — | Proba independenta: starea ramane pending dupa refuz |
+| `BE-21` | Medium | api/src/plugins/auth.ts | NOT STARTED (BACKLOG) | Limita se numara pe adresa, iar atacatorul si victima sunt pe aceeasi adresa in multe cazuri | Limita pe cont poate fi ridicata la o valoare mai mare, sau contorul poate fi tinut separat de contorul pe adresa | — | — | Preexistent: pe main limita numara toate cererile, deci era la fel sau mai rau. Ramura a imbunatatit situatia utilizatorilor legittimi, pentru ca o autentificare reusita reseteaza contorul |
+| `BE-22` | Low | api/src/services/stripe.ts | NOT STARTED (BACKLOG) | Ramura de actualizare schimba suma si starea, dar nu legatura cu contul si cu comanda | Legatura se actualizeaza si ea, sau se verifica ca intentul apartine aceleiasi comenzi inainte de a scrie | — | — | Nu e accesibil atacatorului: client_reference_id este derivat pe server, iar comanda vine din sesiune |
+| `BE-23` | Medium | api/src/routes/webhooks.ts | FIXED & VERIFIED | Verificarea sumei este sarita pentru o comanda moarta, iar rambursarea cerea suma comenzii, nu suma care a sosit | Se ramburseaza suma care a sosit, iar cand cele doua sume difera, diferenta se scrie in jurnal | 14f7a5f | api/tests/webhooks.test.ts | Probabilitatea e mica, pentru ca suma vine din checkout-ul construit pe server, dar rambursarea sumei care a sosit este corecta in orice caz |
 
 <!-- REMEDIATION:END -->

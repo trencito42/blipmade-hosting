@@ -52,7 +52,10 @@
   "commit": "36a75a7, 8d138bb, 1db05a9",
   "test": "api/tests/admin-staff-permissions.test.ts, api/tests/phase2-access-control.test.ts",
   "verification": "Test: staff.write primeste 403 la acordarea rolului ADMIN; ADMIN reuseste. Retest independent al fazei 13: audit/post-remediation/PHASE-13-RETEST.md. Verificarea lead-ului: garda de la admin.ts:1059 bloca doar 21 din 21",
-  "aliases": ["ADM-02", "ADM-P1-01"]
+  "aliases": [
+   "ADM-02",
+   "ADM-P1-01"
+  ]
  },
  "PROV-01": {
   "status": "FIXED & VERIFIED",
@@ -116,6 +119,78 @@
   "commit": "remediation/phase-1-payment-safety",
   "test": "api/tests/provisioning-safety.test.ts",
   "verification": "Test: numerele nu se repeta niciodata"
+ },
+ "BE-16": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/admin.ts",
+  "rootCause": "Ruta de confirmare a colectarii cerea doar orders.write si requireStaff. Confirmarea marcheaza factura ca plata si prelungeste perioada abonamentului, deci scrie pe contul clientului, iar regula assertMayActOnAccount era aplicata pe celelalte sase rute care ating un cont, nu pe aceasta",
+  "fix": "Regula este aplicata si aici: un administrator este confirmat doar de alt administrator, iar contul unui client poate fi confirmat de un membru al personalului",
+  "commit": "b00ffa4",
+  "test": "api/tests/phase2-invoice-collection.test.ts",
+  "verification": "Fara reparare: un staff cu orders.write confirma factura unui ADMIN si raspunsul este 200. Cu repararea: 403, iar factura ramane OPEN"
+ },
+ "BE-17": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/tests/setup.ts",
+  "rootCause": "Tabelul DeadLetterJob a fost adaugat dupa scrierea suitei, iar lista tabelelor golite la inceputul fiecarui fisier de test nu l-a inclus",
+  "fix": "Tabelul este in lista, deci fiecare fisier de test incepe de la baza goala",
+  "commit": "14f7a5f",
+  "test": "api/tests/perf-data-dead-letter.test.ts",
+  "verification": "Verificarea independenta a gasit 3 randuri in loc de 2, dintr-un test anterior. Cu repararea, lista e completa"
+ },
+ "BE-18": {
+  "status": "FIXED & VERIFIED",
+  "area": "web/server.mjs",
+  "rootCause": "Comentariul a fost scris pentru forma veche a citirii lantului si nu a fost schimbat cand faza 14 a mutat citirea in dreapta",
+  "fix": "Comentariul spune acum ce face codul: lantul se citeste din dreapta, pentru ca ultima pozitie este proxyul cel mai apropiat",
+  "commit": "14f7a5f",
+  "test": "web/tests/client-address.test.mjs",
+  "verification": "Textul si codul spun acum acelasi lucru"
+ },
+ "BE-19": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/src/worker.ts",
+  "rootCause": "Nota de esec este scrisa fara a fi asteptata, iar scrierea de reusita poate ajunge inaintea ei",
+  "fix": "Nota de esec se asteapta inainte de a se intoarce din handler, sau se scrie intr-o tranzactie cu starea jobului",
+  "commit": "—",
+  "test": "—",
+  "verification": "Fereastra e mica. Nu e o pierdere de bani, dar o reproducere poate pierde urma unei esecuri"
+ },
+ "BE-20": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/src/services/dead-letter.ts",
+  "rootCause": "Repunerea pe coada este refuzata pentru coada de e-mail, pentru ca mesajele nu se trimit la fel",
+  "fix": "Interfata de administrare trebuie sa spuna ca o livrare esuata nu se poate repune pe coada, si sa ofere o trimitere noua",
+  "commit": "—",
+  "test": "—",
+  "verification": "Proba independenta: starea ramane pending dupa refuz"
+ },
+ "BE-21": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/src/plugins/auth.ts",
+  "rootCause": "Limita se numara pe adresa, iar atacatorul si victima sunt pe aceeasi adresa in multe cazuri",
+  "fix": "Limita pe cont poate fi ridicata la o valoare mai mare, sau contorul poate fi tinut separat de contorul pe adresa",
+  "commit": "—",
+  "test": "—",
+  "verification": "Preexistent: pe main limita numara toate cererile, deci era la fel sau mai rau. Ramura a imbunatatit situatia utilizatorilor legittimi, pentru ca o autentificare reusita reseteaza contorul"
+ },
+ "BE-22": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/src/services/stripe.ts",
+  "rootCause": "Ramura de actualizare schimba suma si starea, dar nu legatura cu contul si cu comanda",
+  "fix": "Legatura se actualizeaza si ea, sau se verifica ca intentul apartine aceleiasi comenzi inainte de a scrie",
+  "commit": "—",
+  "test": "—",
+  "verification": "Nu e accesibil atacatorului: client_reference_id este derivat pe server, iar comanda vine din sesiune"
+ },
+ "BE-23": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/webhooks.ts",
+  "rootCause": "Verificarea sumei este sarita pentru o comanda moarta, iar rambursarea cerea suma comenzii, nu suma care a sosit",
+  "fix": "Se ramburseaza suma care a sosit, iar cand cele doua sume difera, diferenta se scrie in jurnal",
+  "commit": "14f7a5f",
+  "test": "api/tests/webhooks.test.ts",
+  "verification": "Probabilitatea e mica, pentru ca suma vine din checkout-ul construit pe server, dar rambursarea sumei care a sosit este corecta in orice caz"
  },
  "BE-04": {
   "status": "IMPLEMENTED, NOT VERIFIED",
@@ -206,6 +281,15 @@
   "commit": "remediation/phase-1-payment-safety",
   "test": "api/tests/billing-lifecycle.test.ts",
   "verification": "Test: termen de 7 zile, serverul nu se sterge inainte, exportul exista"
+ },
+ "COMM-13": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/prisma/schema.prisma, api/src/services/stripe.ts",
+  "rootCause": "Coloana clientului de la provider era unica in tabelul platilor. Un client plateste mai multe ori si platforma refoloseste clientul de la provider, deci a doua plata avea aceeasi valoare si constrangerea respingea scrierea. Comanda era marcata plata inainte de scriere, deci banii erau luati, plata nu era scrisa si serviciul nu era livrat",
+  "fix": "Coloana pastreaza un index, pentru ca clientul de la provider se cauta prin ea, dar indexul nu mai este o constrangere. Migratia 20261025160000_payment_customer_index renunta la constrangerea din baza vie, deci trebuie aplicata inainte de conectarea providerului",
+  "commit": "5bdc92b",
+  "test": "api/tests/payment-second-purchase.test.ts",
+  "verification": "Testul trimite doua evenimente cu acelasi client de la provider, ca platforma. Fara reparare: HTTP 500 si 'Unique constraint failed on the fields: (stripeCustomerId)'. Cu repararea: 200, plata scrisa, comanda plata si doua servicii livrate"
  },
  "BE-01": {
   "status": "FIXED & VERIFIED",
@@ -333,6 +417,15 @@
   "test": "—",
   "verification": "Nu s-a rulat nimic pe infrastructura"
  },
+ "SEC-30": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "scripts/verify-provisioning.py, istoricul Git",
+  "rootCause": "Scriptul de verificare a provisionarii scria parola contului de test in sursa, inainte ca parola sa vina din mediu",
+  "fix": "Parola vine din mediu de la commitul 61111f6, iar arborele nu o mai contine. Restul istoricului nu poate fi curatat fara rescrierea istoricului, ceea ce inseamna force-push si cere autorizatia operatorului. Pana atunci, scanarea de secrete primeste o lista de exceptii cu valoarea exacta, documentata in .gitleaks.toml",
+  "commit": "61111f6, .gitleaks.toml",
+  "test": "gitleaks 8.30.1 pe intreaga istorie: 0 scurgeri cu lista de exceptii",
+  "verification": "Baza vie nu are niciun cont cu parola: 3 utilizatori, 0 potriviri la verificarea hash-ului. Valoarea a fost a unui cont de test, pe adresa locala, creat de un script de verificare"
+ },
  "INF-04": {
   "status": "REQUIRES OPERATOR APPROVAL",
   "area": "VM 102, VM 103, firewall",
@@ -341,6 +434,15 @@
   "commit": "—",
   "test": "—",
   "verification": "Nu s-a rulat nimic pe infrastructura"
+ },
+ "NET-05": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "web/src/lib/client-address.mjs, deploy/edge/Caddyfile, edge-ul 10.77.0.12",
+  "rootCause": "Adresa clientului este citita din dreapta lantului X-Forwarded-For, pentru ca ultima pozitie este proxyul cel mai apropiat. Edge-ul de la 10.77.0.12 nu a fost reconfigurat, deci nu rescrie antetul, iar contorul grupeaza dupa adresa edge-ului",
+  "fix": "deploy/edge/Caddyfile este pregatit cu trusted_proxies si header_up X-Forwarded-For {client_ip}. Aplicarea lui cere acces la edge, pe care operatorul il are",
+  "commit": "0928c8a, f8b2051",
+  "test": "web/tests/client-address.test.mjs",
+  "verification": "Masurare: cu edge-ul care rescrie, adresa reala a vizitatorului; fara el, toate adresele sunt 10.77.0.12. Limita per cont ramane intacta, deci forta bruta a parolei nu e ocolita"
  },
  "PROV-11": {
   "status": "REQUIRES OPERATOR APPROVAL",
