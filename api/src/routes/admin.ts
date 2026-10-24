@@ -454,9 +454,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { payments: { orderBy: { createdAt: 'desc' } } },
+      include: { payments: { orderBy: { createdAt: 'desc' } }, user: { select: { role: true } } },
     });
     if (!order) throw notFound('Order not found.');
+
+    // The refund touches the account of the customer, so the rule that
+    // protects the accounts of the platform applies here too.
+    assertMayActOnAccount(actor, order.user.role);
 
     // Only a paid order can be refunded. An order that is not paid has nothing
     // to give back, and an order that was refunded already is refused here, so

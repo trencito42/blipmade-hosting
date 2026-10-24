@@ -354,6 +354,9 @@ export function assertMayActOnAccount(actor: AuthUser, targetRole: string): void
   if (targetRole === 'ADMIN') {
     throw forbidden('Only an administrator can act on the account of an administrator.');
   }
+  if (targetRole === 'STAFF') {
+    throw forbidden('Only an administrator can act on the account of a member of the staff.');
+  }
 }
 
 /** Removes expired sessions. Called by the worker on a schedule. */
