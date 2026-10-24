@@ -9,8 +9,9 @@
 | Ce | Valoare |
 |---|---|
 | `main` înainte | `e990776024d641324e24d3fac29fec9dad99d4cd` |
-| `main` după | `65887da80623406aa1e6cb39f5094849de3ea106` |
-| Ramura de origine | `integration/release-candidate-1` @ `65887da` (identică cu `main`) |
+| `main` după | vârful ramurii `integration/release-candidate-1` — `main` și ramura sunt identice |
+| Ramura de origine | `integration/release-candidate-1` (identică cu `main`) |
+| Comitul de integrare al codului | `65887da80623406aa1e6cb39f5094849de3ea106` — peste el a urmat acest document de predare |
 | Commit de fuziune | **nu există** — fuziune rapidă, istoricul rămâne liniar |
 | Push folosit | `git push origin integration/release-candidate-1:main` — normal, **non-force** |
 | Pull request | https://github.com/trencito42/blipmade-hosting/pull/new/integration/release-candidate-1 |
@@ -31,7 +32,7 @@ candidatului — verificat cu `git merge-base --is-ancestor`, nu presupus.
 
 ### Cele șase joburi ale CI-ului
 
-Pe ramura candidat, comitul `65887da` — rularea
+Pe ramura candidat, comitul de integrare al codului `65887da` — rularea
 **https://github.com/trencito42/blipmade-hosting/actions/runs/40117183363**
 
 | Job | Rezultat | |
