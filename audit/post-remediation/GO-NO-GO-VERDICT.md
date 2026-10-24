@@ -2,7 +2,8 @@
 
 **Data:** 2026-10-24
 **Platforma:** Blipmade — găzduire de servere de joc (Pterodactyl + Docker), serviciu găzduit pe `blipmade.com`
-**Cod evaluat:** `main` @ `e990776`, apoi ramura de reparare `remediation/phase-2-critical-fixes`
+**Cod evaluat:** `main` @ `e990776`, apoi ramura de reparare `remediation/phase-2-critical-fixes` @ `3ec6ab8`
+**Cod live in productie:** `remediation/phase-2-critical-fixes` @ `3ec6ab8` (deploy autorizat de operator la 2026-10-24, 02:55 UTC; 5 containere healthy, date neramificate)
 **Producția:** VM 103 (10.77.0.13), containere docker `blipmade-{api,web,worker,postgres,redis}-1`
 **Documentele de bază:** cele 14 rapoarte din `audit/post-remediation/` + dovezile brute din `_raw/`
 
@@ -117,7 +118,10 @@ implementat confirmă fiecare reparare.
 Suita pe ramă, după fazele 14 și 15: **API 380/380 în 38 fișiere, web 89/89**. Fiecare reparare
 nouă are **dovada că testele eșuează fără ea** (`_raw/phase14-proof-unpatched.txt`).
 
-**Retestul independent al fazelor 14 și 15 rulează acum** (alt agent). **G6 nu se închide până
+Ramura reparatoare este **deployată în producție** (autorizare de operator, 2026-10-24 02:55 UTC):
+imaginile reconstruite, 5 containere healthy, codul live verificat conține garda fazei 15, cheia
+limitatorului și contorul de eșecuri; datele de producție sunt neramificate. **Retestul independent al
+fazelor 14 și 15 rulează acum** (alt agent). **G6 nu se închide până
 la verdictul lui**, iar verdictul trebuie să acopere și cele patru constatări pe care le-am
 lăsat **deschise, în mod explicit**: `RT-P2-02` (planul anual nu e accesibil din interfață),
 `RT-P2-05` (fișa unui cont `ADMIN` rămâne lizibilă de un personal), `RT-P2-06` (stiva de revizie

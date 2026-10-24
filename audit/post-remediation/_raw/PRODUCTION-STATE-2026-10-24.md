@@ -1,6 +1,7 @@
 # Starea reală a producției — citire cu privilegii de inspecție
 
-**Data:** 2026-10-24 · **Commit:** `main` @ `e990776` (același cod ca producția)
+**Data:** 2026-10-24 - **Commit masurat inainte de deploy:** `main` @ `e990776`
+**Commit live acum (deploy ulterior, autorizat de operator):** `remediation/phase-2-critical-fixes` @ `3ec6ab8`
 **Metodă:** citire prin SSH pe VM 103. **Nicio valoare de secret nu este reprodusă** — se
 raportează doar dacă variabila există, este goală sau lipsește.
 
@@ -21,8 +22,8 @@ Această pagină este baza documentului `GO-NO-GO-VERDICT.md`.
 | `DOMAIN_BASE` | **EMPTY** | instanțele nu au adresă publică |
 | `CADDY_ADMIN_URL` / `_USER` / `_PASSWORD` | **EMPTY / MISSING** | provisionarea domeniilor nu poate funcționa |
 | `C_node` | **MISSING** | valoarea nodului pentru panou, încă neclară |
-| `TRUSTED_PROXIES` | **MISSING** | implicit `127.0.0.1,::1` — **cauza rădăcină a `SEC-P1-01` și `SEC-P1-02`** |
-| `COOKIE_SECURE` | **MISSING** | se deduce din protocol; cu proxy-ul neîncrezut rezultă `http` → cookie **fără `Secure`** |
+| `TRUSTED_PROXIES` | **SET (dupa deploy)** - `127.0.0.1,::1,172.18.0.0/16` | inainte: **MISSING** (implicit `127.0.0.1,::1` - cauza radacina a `SEC-P1-02`); acum: subreteaua Docker masurata, `172.18.0.0/16` |
+| `COOKIE_SECURE` | **MISSING** | se deduce din protocol; cu proxy-ul neîncrezut rezultă `http` → cookie **fără `Secure`** | - **remis in cod** (faza 13, `3b7e98d`): in productie cookie-ul e `Secure` oricum
 | `PUBLIC_ORIGIN` | **MISSING** | derivat din altă parte; de verificat |
 | `LOGIN_RATE_LIMIT_MAX` | **MISSING** | implicit 10 — valoarea mare e doar pe stiva izolată, **producția nu e afectată** |
 | `PTERODACTYL_URL`, `PANEL_KEYMINT_URL`, `PANEL_KEYMINT_SECRET` | SET | panoul este configurat |
@@ -118,3 +119,24 @@ Verdictul trebuie să spună exact acest lucru: **nu este un GO**, dar nici nu e
 respingerea proiectului. Este un **NO-GO de lansare, cu o listă de blocaje măsurate și
 ordonate**, dintre care cele care țin de cod sunt deja reparate sau sunt în curs de
 reparare în faza 13.
+
+
+---
+
+## 5. Deploy-ul ramurii de reparare (autorizat de operator)
+
+**Autorizatie:** operatorul a raspuns "Da, aplica ramura in productie acum" la intrebarea
+formulata dupa retestul fazei 13 si dupa fazele 14-15.
+
+| Pas | Ce s-a facut | Rezultat |
+|---|---|---|
+| 1 | Copie de siguranta inainte de deploy | `/var/backups/blipmade/pre-deploy-phase15/prod-predeploy-20261024-025438.sql` - **32 tabele**, `sha256 7213e5f4...`; plus `env-predeploy-20261024-025438` |
+| 2 | Lista de proxy-uri pentru API | `TRUSTED_PROXIES=127.0.0.1,::1,172.18.0.0/16` adaugata in `.env` (subreteaua Docker `blipmade_default`, masurata) |
+| 3 | Rebuild al imaginilor | `docker compose ... build` -> **exit 0** (`blipmade-api`, `blipmade-web`, `blipmade-worker`) |
+| 4 | Repornirea stivei | `docker compose ... up -d` -> **exit 0**; 5 containere **healthy** |
+| 5 | Verificarea codului deployat | in imaginea live: `addressRateLimitKey` (5 fisiere), `failedAttempts`, `DEAD_ORDER_STATUSES`, `assertMayActOnAccount` (2), `writeOrderInvoice`, `rateLimitKey` (2) si garda fazei 15 ("cannot be paid: its status is") |
+| 6 | Verificarea serviciului | `http://10.77.0.13:3000/healthz` -> **200**; `http://10.77.0.13:3000/api/health` -> **200**, cu `database: true`, `redis: true` |
+| 7 | Verificarea datelor | **neramificate**: 3 utilizatori, 42 sesiuni, 4 comenzi, 1 bilet, 0 facturi, 0 plati, 0 instante, 561 evenimente de audit - identice cu starea de dinaintea deploy-ului |
+
+**Fara migrari noi** (`git diff main..rama -- api/prisma/migrations` = gol), fara schimbari de
+dependinte si fara alte schimbari de `.env` in afara celei de mai sus.

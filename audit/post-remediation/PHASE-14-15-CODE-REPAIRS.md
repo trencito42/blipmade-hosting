@@ -219,7 +219,16 @@ intră în regresie per-conexiune), dar **nu sunt nici per vizitator**: ele răm
 
 ---
 
-## 6. Fișierele dovezilor
+## 6. Deploy-ul în producție (autorizat de operator)
+
+Ramura `remediation/phase-2-critical-fixes` @ `3ec6ab8` a fost aplicată în producție la
+**2026-10-24, 02:55 UTC**, cu autorizația operatorului: copie de siguranță înainte de deploy
+(`/var/backups/blipmade/pre-deploy-phase15/prod-predeploy-20261024-025438.sql`, 32 tabele),
+`TRUSTED_PROXIES=127.0.0.1,::1,172.18.0.0/16` pus în `.env`, imagini reconstruite, 5 containere
+healthy, codul live verificat (garda fazei 15, cheia limitatorului, contorul de eșecuri) și
+**date neramificate**. Detalii: `_raw/PRODUCTION-STATE-2026-10-24.md` §5.
+
+## 7. Fișierele dovezilor
 
 | Fișier | Ce conține |
 |---|---|
