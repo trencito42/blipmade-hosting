@@ -1,0 +1,168 @@
+== perf-after/lh-apps-1.json
+   url          : http://127.0.0.1:30020/apps
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:41:03.425Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 95
+   FCP          : 1.9 s  (scor 0.86)
+   LCP          : 2.4 s  (scor 0.91)
+   TBT          : 120 ms  (scor 0.97)
+   CLS          : 0.031  (scor 1)
+   SI           : 1.9 s  (scor 1)
+   TTI          : 2.4 s  (scor 0.98)
+   Transfer     : Total size was 159 KiB  (scor 1)
+
+== perf-after/lh-apps-2.json
+   url          : http://127.0.0.1:30020/apps
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:41:21.259Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 96
+   FCP          : 2.2 s  (scor 0.79)
+   LCP          : 2.3 s  (scor 0.93)
+   TBT          : 50 ms  (scor 1)
+   CLS          : 0.031  (scor 1)
+   SI           : 2.2 s  (scor 0.99)
+   TTI          : 2.3 s  (scor 0.99)
+   Transfer     : Total size was 159 KiB  (scor 1)
+
+== perf-after/lh-apps-3.json
+   url          : http://127.0.0.1:30020/apps
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:41:39.011Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 95
+   FCP          : 2.2 s  (scor 0.77)
+   LCP          : 2.4 s  (scor 0.91)
+   TBT          : 90 ms  (scor 0.99)
+   CLS          : 0.031  (scor 1)
+   SI           : 2.2 s  (scor 0.99)
+   TTI          : 2.5 s  (scor 0.98)
+   Transfer     : Total size was 159 KiB  (scor 1)
+
+== perf-after/lh-apps-wordpress-1.json
+   url          : http://127.0.0.1:30020/apps/wordpress
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:41:56.439Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 95
+   FCP          : 2.1 s  (scor 0.82)
+   LCP          : 2.6 s  (scor 0.89)
+   TBT          : 70 ms  (scor 0.99)
+   CLS          : 0  (scor 1)
+   SI           : 2.1 s  (scor 0.99)
+   TTI          : 2.6 s  (scor 0.98)
+   Transfer     : Total size was 158 KiB  (scor 1)
+
+== perf-after/lh-apps-wordpress-2.json
+   url          : http://127.0.0.1:30020/apps/wordpress
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:42:13.553Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 92
+   FCP          : 2.1 s  (scor 0.81)
+   LCP          : 2.6 s  (scor 0.87)
+   TBT          : 180 ms  (scor 0.92)
+   CLS          : 0  (scor 1)
+   SI           : 2.1 s  (scor 0.99)
+   TTI          : 2.7 s  (scor 0.97)
+   Transfer     : Total size was 158 KiB  (scor 1)
+
+== perf-after/lh-apps-wordpress-3.json
+   url          : http://127.0.0.1:30020/apps/wordpress
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:42:31.178Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 95
+   FCP          : 2.1 s  (scor 0.82)
+   LCP          : 2.5 s  (scor 0.89)
+   TBT          : 70 ms  (scor 0.99)
+   CLS          : 0  (scor 1)
+   SI           : 2.1 s  (scor 0.99)
+   TTI          : 2.5 s  (scor 0.98)
+   Transfer     : Total size was 158 KiB  (scor 1)
+
+== perf-after/lh-home-1.json
+   url          : http://127.0.0.1:30020/
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:40:01.829Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 84
+   FCP          : 1.8 s  (scor 0.89)
+   LCP          : 2.8 s  (scor 0.83)
+   TBT          : 410 ms  (scor 0.66)
+   CLS          : 0.003  (scor 1)
+   SI           : 2.0 s  (scor 0.99)
+   TTI          : 3.1 s  (scor 0.95)
+   Transfer     : Total size was 171 KiB  (scor 1)
+
+== perf-after/lh-home-2.json
+   url          : http://127.0.0.1:30020/
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:40:23.080Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 79
+   FCP          : 1.8 s  (scor 0.91)
+   LCP          : 2.8 s  (scor 0.83)
+   TBT          : 610 ms  (scor 0.49)
+   CLS          : 0  (scor 1)
+   SI           : 2.0 s  (scor 0.99)
+   TTI          : 3.2 s  (scor 0.95)
+   Transfer     : Total size was 171 KiB  (scor 1)
+
+== perf-after/lh-home-3.json
+   url          : http://127.0.0.1:30020/
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:40:43.330Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 77
+   FCP          : 1.9 s  (scor 0.86)
+   LCP          : 2.7 s  (scor 0.85)
+   TBT          : 700 ms  (scor 0.42)
+   CLS          : 0  (scor 1)
+   SI           : 2.0 s  (scor 0.99)
+   TTI          : 3.2 s  (scor 0.94)
+   Transfer     : Total size was 171 KiB  (scor 1)
+
+== perf-after/lh-login-1.json
+   url          : http://127.0.0.1:30020/login
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:42:47.989Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 96
+   FCP          : 2.2 s  (scor 0.78)
+   LCP          : 2.3 s  (scor 0.93)
+   TBT          : 30 ms  (scor 1)
+   CLS          : 0  (scor 1)
+   SI           : 2.2 s  (scor 0.99)
+   TTI          : 2.3 s  (scor 0.99)
+   Transfer     : Total size was 158 KiB  (scor 1)
+
+== perf-after/lh-login-2.json
+   url          : http://127.0.0.1:30020/login
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:43:05.295Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 96
+   FCP          : 2.2 s  (scor 0.78)
+   LCP          : 2.3 s  (scor 0.93)
+   TBT          : 70 ms  (scor 0.99)
+   CLS          : 0  (scor 1)
+   SI           : 2.2 s  (scor 0.99)
+   TTI          : 2.3 s  (scor 0.99)
+   Transfer     : Total size was 158 KiB  (scor 1)
+
+== perf-after/lh-login-3.json
+   url          : http://127.0.0.1:30020/login
+   versiune     : 13.5.0  | preluat: 2026-10-24T05:43:22.435Z
+   preset       : formFactor=mobile method=simulate ecran=412x823@1.75
+   throttling   : rtt=150ms throughput=1638.4kbps cpuSlowdown=4x
+   scor perform : 96
+   FCP          : 2.2 s  (scor 0.78)
+   LCP          : 2.3 s  (scor 0.93)
+   TBT          : 10 ms  (scor 1)
+   CLS          : 0  (scor 1)
+   SI           : 2.2 s  (scor 0.99)
+   TTI          : 2.3 s  (scor 0.99)
+   Transfer     : Total size was 158 KiB  (scor 1)
+

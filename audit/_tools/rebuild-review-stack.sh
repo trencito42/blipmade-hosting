@@ -48,7 +48,7 @@ DATABASE_URL="${DATABASE_URL/@postgres:/@localhost:}"
 DATABASE_URL="$(printf '%s' "$DATABASE_URL" | sed -E 's#/[^/?]+$#/blipmade_test#')"
 export DATABASE_URL
 export TEST_DATABASE_URL="$DATABASE_URL"
-export REDIS_URL="${REDIS_URL/redis:\/\/redis:/redis:\/\/localhost:}"
+export REDIS_URL="$(python3 /opt/blipmade/audit/_tools/redis-db-url.py "$REDIS_URL" 127.0.0.1 3)"
 # Stiva de revizie e folosita de mai multi auditori in acelasi timp si toti
 # se autentifica de la aceeasi adresa, deci limita de incercari de autentificare
 # e ridicata aici. Nu atinge mediul de productie.

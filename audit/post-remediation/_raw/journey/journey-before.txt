@@ -1,0 +1,27 @@
+# Retestul fluxurilor, stiva izolata http://127.0.0.1:30020
+# 2026-10-24T04:17:38.299Z -> 2026-10-24T04:17:58.731Z
+
+| Ruta | Sectiune | HTTP | Destinatie | Erori consola | Cereri esuate |
+|---|---|---|---|---|---|
+| / | vizitator | 200 | / | 0 | 0 |
+| /catalog | vizitator | 200 | /catalog | 0 | 0 |
+| /login | vizitator | 200 | /login | 0 | 0 |
+| /app | client | 200 | /app | 2 | 4 |
+| /app/instances | client | 200 | /app/instances | 2 | 4 |
+| /app/billing | client | 200 | /app/billing | 2 | 4 |
+| /app/tickets | client | 200 | /app/tickets | 2 | 4 |
+| /app/settings | client | 200 | /app/settings | 2 | 4 |
+| /admin | admin | 200 | /admin | 2 | 4 |
+| /admin/customers | admin | 200 | /admin/customers | 2 | 4 |
+| /admin/orders | admin | 200 | /admin/orders | 2 | 4 |
+| /admin/services | admin | 200 | /admin/services | 2 | 4 |
+| /admin/products | admin | 200 | /admin/products | 2 | 4 |
+| /admin/pricing | admin | 200 | /admin/pricing | 2 | 4 |
+| /admin/tickets | admin | 200 | /admin/tickets | 2 | 4 |
+
+Autentificare: DA (200)
+
+## Tabele
+- /admin/products: coloane antet 8, coloane date 8, latimi potrivite=DA, derulare orizontala=NU, stare goala=NO
+
+## Pagina de produs: buton de deploy = n/a

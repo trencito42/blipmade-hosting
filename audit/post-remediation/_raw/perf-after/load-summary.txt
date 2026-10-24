@@ -1,0 +1,54 @@
+== perf-after/ac-asset-1.json
+   url        : http://127.0.0.1:30020/assets/index-XBlZAPVd.js
+   conexiuni  : 20 | durata: 12.05s | pipelining: 1
+   2xx        : 16863 | non2xx: 0 | erori: 0 | timeout: 0
+   debit      : 1405.25 req/s
+   latenta    : p50 14 ms | p97,5 28 ms | max 50 ms | medie 13.76 ms
+   debit date : 166273024 bytes/s
+   fereastra  : 2026-10-24T05:43:46.330Z -> 2026-10-24T05:43:58.382Z
+
+== perf-after/ac-asset-2.json
+   url        : http://127.0.0.1:30020/assets/index-XBlZAPVd.js
+   conexiuni  : 20 | durata: 12.09s | pipelining: 1
+   2xx        : 15730 | non2xx: 0 | erori: 0 | timeout: 0
+   debit      : 1310.84 req/s
+   latenta    : p50 14 ms | p97,5 33 ms | max 92 ms | medie 14.82 ms
+   debit date : 155090944 bytes/s
+   fereastra  : 2026-10-24T05:44:11.409Z -> 2026-10-24T05:44:23.502Z
+
+== perf-after/ac-asset-3.json
+   url        : http://127.0.0.1:30020/assets/index-XBlZAPVd.js
+   conexiuni  : 20 | durata: 12.07s | pipelining: 1
+   2xx        : 16682 | non2xx: 0 | erori: 0 | timeout: 0
+   debit      : 1390.25 req/s
+   latenta    : p50 14 ms | p97,5 25 ms | max 43 ms | medie 13.93 ms
+   debit date : 164498090.67 bytes/s
+   fereastra  : 2026-10-24T05:44:36.189Z -> 2026-10-24T05:44:48.259Z
+
+== perf-after/ac-catalog-1.json
+   url        : http://127.0.0.1:3106/api/catalog/products
+   conexiuni  : 10 | durata: 12.03s | pipelining: 1
+   2xx        : 6910 | non2xx: 0 | erori: 0 | timeout: 0
+   debit      : 575.84 req/s
+   latenta    : p50 16 ms | p97,5 31 ms | max 212 ms | medie 16.85 ms
+   debit date : 2929194.67 bytes/s
+   fereastra  : 2026-10-24T05:43:33.996Z -> 2026-10-24T05:43:46.029Z
+
+== perf-after/ac-catalog-2.json
+   url        : http://127.0.0.1:3106/api/catalog/products
+   conexiuni  : 10 | durata: 12.06s | pipelining: 1
+   2xx        : 7414 | non2xx: 0 | erori: 0 | timeout: 0
+   debit      : 617.84 req/s
+   latenta    : p50 15 ms | p97,5 28 ms | max 63 ms | medie 15.68 ms
+   debit date : 3142826.67 bytes/s
+   fereastra  : 2026-10-24T05:43:59.023Z -> 2026-10-24T05:44:11.080Z
+
+== perf-after/ac-catalog-3.json
+   url        : http://127.0.0.1:3106/api/catalog/products
+   conexiuni  : 10 | durata: 12.04s | pipelining: 1
+   2xx        : 7679 | non2xx: 0 | erori: 0 | timeout: 0
+   debit      : 639.92 req/s
+   latenta    : p50 14 ms | p97,5 26 ms | max 47 ms | medie 15.12 ms
+   debit date : 3255466.67 bytes/s
+   fereastra  : 2026-10-24T05:44:23.848Z -> 2026-10-24T05:44:35.883Z
+

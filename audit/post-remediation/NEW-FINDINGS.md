@@ -755,6 +755,22 @@ dintre ele au fost reparate în fazele 14 și 15; patru **rămân deschise** și
 | RT-P3-02 | `POST /api/orders/:id/cancel` suprascrie starea `REFUNDED` | P3 / mică | Da | Nu | măsurat: `status before cancel: REFUNDED` → `POST /cancel` → 204 → `status after cancel: CANCELLED` | **FIXED & VERIFIED** | **da** — `4969f4a` |
 | RT-P3-03 | Două mecanisme paralele pentru `Secure` | P3 / informativă | Nu | Da | `api/src/env.ts:136-141` calculează `env.cookieSecure` din `APP_ORIGIN`, iar repararea folosește `resolveCookieSecure` | **STILL BROKEN** — nu e defect; e o sursă de confuzie pentru operator | nu |
 
+### 3.15 Constatări ale lotului de performanță — `PERF-P*`
+
+Constatările găsite în timpul lucrarilor de **performanță, stabilitate și fiabilizare**
+(`PERFORMANCE-ENGINEERING-REPORT.md`), pe codul integrat din cele trei loturi. Cele cinci de
+mai jos au fost găsite **prin măsurare**, nu prin citirea codului: de aceea două dintre ele
+nu ar fi apărut într-o revizie de cod.
+
+| ID | Titlu | Sev | Money | Sec | Dovadă | Stare | Lot |
+|---|---|---|---|---|---|---|---|
+| PERF-P1-01 | Identificatorul de cerere al clientului ajunge la API și e crezut de proxy | **P1 / High** | Nu | Da | Proxy-ul web copia antetele clientului (`web/server.mjs`), iar API-ul credea `x-request-id` de la orice proxy de încredere (`api/src/lib/perf-request-id.ts`) — un client putea pune același număr pe mai multe cereri sau numărul altei cereri | **FIXED & VERIFIED** | `4a7fc91` — web-ul face identificatorul și îl înlocuiește pe cel primit; **3 teste noi, 2 pică fără reparare** |
+| PERF-P2-01 | Salt de layout de 0,113 pe pagina de produs: subsolul sare când sosește produsul | P2 / Medium | Nu | Nu | Lighthouse 13.5.0: `CLS 0,113` pe `/apps/wordpress` (peste ținta de 0,1); măsurat cu `PerformanceObserver`: subsolul se mută cu ~460 px când conținutul înlocuiește scheletul de încărcare (`web/src/app/ProductPage.tsx:90-98`) | **FIXED & VERIFIED** | `050a478` — conținutul paginii publice ocupă cel puțin o ecrană; **CLS 0** după reparare |
+| PERF-P2-02 | Suita de teste punea joburi în coada Redis **de producție** | P2 / Medium | Nu | Da | `REDIS_URL` fără indice → baza 0, aceeași cu a producției; workerul de producție consuma joburile testelor. Simptom: două teste picau cu „expected 'completed' to be 'failed'" — jobul de test fusese consumat de workerul real | **FIXED** | `audit/_tools/redis-db-url.py` — teste pe indicele 1, măsurători pe 2, revizie pe 3 |
+| PERF-P2-03 | Listele de client sunt plafonate la 200 de rânduri, iar interfața nu are pager | P2 / Medium | Nu | Nu | `api/src/lib/perf-data-pagination.ts` plafonează fiecare listă; răspunsul păstrează numele listelor și `total`, dar interfața web nu citește `pagination.nextCursor` | **STILL OPEN** — decizie de produs: pager sau plafon mai mare | nu |
+| PERF-P3-01 | Logo-ul nu avea dimensiuni explicite, deci lățimea lui depindea de încărcare | P3 / mică | Nu | Nu | `<img className="h-6 w-auto">` în trei locuri (`web/src/ui.tsx:76`, `web/src/ui-app.tsx:200,243`) — `viewBox`-ul logo-ului e 164×148 | **FIXED** | `113f181` — `width`/`height` explicite, din `viewBox` |
+
+
 ---
 
 ## 4. Constatările deja reparate

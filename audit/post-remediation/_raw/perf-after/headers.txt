@@ -1,0 +1,19 @@
+# Antetele livrarii
+-- GET /
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Length: 344
+Cache-Control: no-cache
+ETag: "158-1a16c6c1d62"
+Vary: Accept-Encoding
+Content-Encoding: br
+
+-- GET /assets/index-XBlZAPVd.js
+HTTP/1.1 200 OK
+Content-Type: text/javascript; charset=utf-8
+Content-Length: 26100
+Cache-Control: public, max-age=31536000, immutable
+ETag: "65f4-1a16c6c1b46"
+Vary: Accept-Encoding
+Content-Encoding: br
+

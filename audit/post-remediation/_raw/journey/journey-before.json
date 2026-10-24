@@ -1,0 +1,279 @@
+{
+  "base": "http://127.0.0.1:30020",
+  "startedAt": "2026-10-24T04:17:38.299Z",
+  "routes": [
+    {
+      "route": "/",
+      "section": "vizitator",
+      "status": 200,
+      "finalPath": "/",
+      "tables": []
+    },
+    {
+      "route": "/catalog",
+      "section": "vizitator",
+      "status": 200,
+      "finalPath": "/catalog",
+      "tables": []
+    },
+    {
+      "route": "/login",
+      "section": "vizitator",
+      "status": 200,
+      "finalPath": "/login",
+      "tables": []
+    },
+    {
+      "route": "/app",
+      "section": "client",
+      "status": 200,
+      "finalPath": "/app",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/app/instances",
+      "section": "client",
+      "status": 200,
+      "finalPath": "/app/instances",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/app/billing",
+      "section": "client",
+      "status": 200,
+      "finalPath": "/app/billing",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/app/tickets",
+      "section": "client",
+      "status": 200,
+      "finalPath": "/app/tickets",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/app/settings",
+      "section": "client",
+      "status": 200,
+      "finalPath": "/app/settings",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/admin",
+      "section": "admin",
+      "status": 200,
+      "finalPath": "/admin",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/admin/customers",
+      "section": "admin",
+      "status": 200,
+      "finalPath": "/admin/customers",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/admin/orders",
+      "section": "admin",
+      "status": 200,
+      "finalPath": "/admin/orders",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/admin/services",
+      "section": "admin",
+      "status": 200,
+      "finalPath": "/admin/services",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/admin/products",
+      "section": "admin",
+      "status": 200,
+      "finalPath": "/admin/products",
+      "tables": [
+        {
+          "headColumns": 8,
+          "bodyColumns": 8,
+          "headWidths": [
+            77.9,
+            122.9,
+            133.2,
+            196.6,
+            101.1,
+            130.5,
+            87.6,
+            99.8
+          ],
+          "bodyWidths": [
+            77.9,
+            122.9,
+            133.2,
+            196.6,
+            101.1,
+            130.5,
+            87.6,
+            99.8
+          ],
+          "widthsMatch": true,
+          "hasHorizontalScroll": false,
+          "emptyState": false
+        }
+      ],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/admin/pricing",
+      "section": "admin",
+      "status": 200,
+      "finalPath": "/admin/pricing",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "route": "/admin/tickets",
+      "section": "admin",
+      "status": 200,
+      "finalPath": "/admin/tickets",
+      "tables": [],
+      "newConsoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "Failed to load resource: the server responded with a status of 404 (Not Found)"
+      ],
+      "newFailedRequests": [
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+        "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+        "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+      ]
+    }
+  ],
+  "login": {
+    "ok": true,
+    "status": 200,
+    "path": "/admin"
+  },
+  "productPage": {
+    "catalogStatus": 200,
+    "firstProduct": null
+  },
+  "loginConsoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "loginFailedRequests": [
+    "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-400.woff2",
+    "GET http://127.0.0.1:30020/fonts/proxima-nova-400.woff2 :: net::ERR_ABORTED",
+    "HTTP 404 http://127.0.0.1:30020/fonts/proxima-nova-700.woff2",
+    "GET http://127.0.0.1:30020/fonts/proxima-nova-700.woff2 :: net::ERR_ABORTED"
+  ],
+  "finishedAt": "2026-10-24T04:17:58.731Z"
+}

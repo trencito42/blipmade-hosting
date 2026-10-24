@@ -248,10 +248,30 @@ docker exec blipmade-postgres-1 psql -U blipmade -d blipmade \
   -c "SELECT ip, count(*) FROM \"AuditLog\" GROUP BY ip ORDER BY count(*) DESC LIMIT 5;"
 ```
 
-**Conditie de infrastructura (edge-ul, la 10.77.0.12):** edge-ul trebuie sa trimita
-`X-Forwarded-For` cu adresa vizitatorului. Fara header, web-ul foloseste adresa socketului
-(adresa edge-ului) si toti vizitatorii primesc aceeasi limita. Verificare: cererea de mai sus
-trebuie sa arate adrese de vizitator, nu `10.77.0.12`.
+**Conditie de infrastructura (edge-ul, la 10.77.0.12):** edge-ul trebuie sa **scrie**
+`X-Forwarded-For` cu adresa vizitatorului, nu sa o **adauge** la ce a trimis vizitatorul.
+
+Retestul independent a masurat ca un lanț cu **un singur element** (vizitatorul care trimite
+antetul direct, sau un edge care nu adauga) e în continuare crezut de ambele versiuni ale
+resolverului: API-ul înregistreaza `9.9.9.9` prin web-ul nou, exact ca prin web-ul vechi, iar
+atacatorul evadeaza limita per-adresa si poate bloca un vizitator real. **Lantul cu doua
+elemente** e rezolvat (web-ul nou înregistreaza adresa reala, `8.8.8.8`, nu cea falsificata).
+
+Configuratia de referinta a edge-ului e acum **in repo** (`deploy/edge/Caddyfile`): Caddy cu
+`trusted_proxies` (retelele CDN) si `header_up X-Forwarded-For {client_ip}` — adica edge-ul
+**rescrie** antetul si renunta la valorile trimise de vizitator. Lista trebuie sa fie cat mai
+ingusta: o lista larga inseamna ca adresele altor retele sunt crezute.
+
+Verificarea dupa aplicare (o singura cerere cu antetul falsificat):
+```bash
+curl -s -H 'X-Forwarded-For: 9.9.9.9' https://blipmade.com/api/health
+# apoi in jurnal: adresa scrisa trebuie sa fie a celui care a cerut, nu 9.9.9.9
+docker exec blipmade-postgres-1 psql -U blipmade -d blipmade \
+  -c "SELECT ip, count(*) FROM \"AuditLog\" GROUP BY ip ORDER BY count(*) DESC LIMIT 5;"
+```
+
+Fara aceasta conditie, repararea de cod este corecta **doar pentru conventia pe care edge-ul o
+respecta**, iar acea conventie nu era verificabila din cod (`RT-P2-07`).
 
 **De ce conteaza:** fara lista, limitele per-adresa ale cotarii (120/min), comenzii (30/10 min) si
 setarilor (5-10/15 min) sunt **un contor pentru toata platforma** — masurat de retestul
@@ -282,3 +302,34 @@ independent: 121 cotari au dat HTTP 429, iar un alt vizitator primea tot HTTP 42
 Pentru contrast, lista exacta a ce a fost reparat in cod si verificat in aceasta runda este in
 `audit/12-FULL-FINDINGS-REGISTER.md`, sectiunea „Starea remedierii", si in raportul de implementare
 al rundei. Nimic din lista de mai sus a fost marcat ca reparat.
+
+---
+
+## 14. Ce schimba lotul de performanta la deploy
+
+Lotul de performanta (`ab9b259`, `1831855`, `517b2d5`, `fdb099d`, `4a7fc91`, `113f181`,
+`050a478`) este in ramura de reparare si **nu este in productie**. La deploy, operatorul
+trebuie sa stie ce se schimba:
+
+| Ce | Efect | Ce cere operatorul |
+|---|---|---|
+| Doua migrari noi (`20261025120000_dead_letter_jobs`, `20261025140000_list_page_indexes`) | Tabel nou `DeadLetterJob` si 6 indexuri compuse. Prima este **aditiva si reversibila** (`DROP TABLE` + `DROP TYPE`) | `prisma migrate deploy` inainte de pornirea noii versiuni |
+| Limitele containerelor (`mem_limit`, `cpus`, `pids_limit`) pe toate cele 5 servicii | Un container care pierde memorie nu mai poate lua masina cu el. Suma limitelor (3 840 MB) e sub memoria utilizabila (4,3 GB), ca PostgreSQL sa nu fie ucis cand totul creste | Recomandare: aplicarea limitei pe PostgreSQL se face **odata cu o pauza** |
+| Rotirea logurilor (`json-file`, 10 MB x 3) pe toate cele 5 servicii | Logul API-ului creste cu ~54 GB/zi la incarcarea masurata; discul are 59 GB. Fara rotire, discul se umple in ~1,1 zile si PostgreSQL cade cu el | Nimic — dar verifica ca spatiul pentru `/var/lib/docker` e pe volumul de root |
+| Verificarea de container a API-ului cere acum `/health/live` | O baza de date doar lenta nu mai face containerul sa se reporneasca in buclă | Nimic |
+| Oprire grațioasă la SIGTERM (drenare 8 s, impliciti) | Deploy-ul nu mai taie cereri in curs | Daca se ridica `API_SHUTDOWN_TIMEOUT_MS` peste 10 s, trebuie ridicat si `stop_grace_period` in compose |
+| Timeout-uri mărginite pe API | O cerere care nu vine lasa socketul deschis pana la 45 s, nu la nesfarsit | Valori implicite suficient de restrictive; `0` readuce comportamentul vechi |
+| Paginarea listelor | Listele de admin si de client se citesc in pagini. **Raspunsul pastreaza numele listelor si totalul**, dar lista are cel mult 200 de randuri | Interfata web nu are pager: un client cu peste 100 de servicii vede primele 100 pana cand web-ul citeste `pagination.nextCursor`. **Decizie de produs: se cere pager sau se ridica plafonul** |
+| Ruta noua de admin `/api/admin/dead-letters` | Citirea si reluarea joburilor esuate | Nimic |
+| Endpoint de metrici pe `127.0.0.1:3109` | Nu este publicat de compose, deci nu este accesibil din retea. Fara `METRICS_TOKEN`, endpointul **nu porneste deloc** | Daca se doreste accesul la metrici: se publica portul **si** se pune `METRICS_TOKEN` |
+
+**Variabilele de mediu noi**, toate cu valori implicite care nu cer nimic de la operator:
+`API_REQUEST_TIMEOUT_MS` (30 000), `API_CONNECTION_TIMEOUT_MS` (45 000),
+`API_KEEPALIVE_TIMEOUT_MS` (15 000), `API_SHUTDOWN_TIMEOUT_MS` (8 000), `METRICS_HOST`
+(`127.0.0.1`), `METRICS_PORT` (3109), `METRICS_TOKEN` (gol — metricile nu pornesc fara el).
+
+**Izolarea uneltelor de audit:** suita de teste si stivele de masuratoare folosesc acum baze
+Redis separate (indicele 1 pentru teste, 2 pentru masuratori, 3 pentru revizie). Inainte,
+testele puneau joburi in coada `blipmade.provision` a **productiei**, iar workerul de
+productie le consuma. Meritul izolarii ii revine operatorului: un test nu mai poate atinge
+coada care serveste clientii.

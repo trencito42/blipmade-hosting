@@ -8,9 +8,15 @@ set -euo pipefail
 ROOT="${PERF_ROOT:-/home/debian/bm-phase14}"
 TARGET_DB="${1:?foloseste: perf-db.sh <nume_baza>}"
 
-URL="$(python3 "$ROOT/perf-db-url.py" "$ROOT/.env" "$TARGET_DB")"
+# Unealta poate fi langa script (in worktree) sau in audit/_tools (in arborele
+# de lucru al ramurii).
+HELPER_DIR="$ROOT"
+[ -f "$ROOT/perf-db-url.py" ] || HELPER_DIR="$ROOT/audit/_tools"
+[ -f "$HELPER_DIR/perf-db-url.py" ] || { echo "nu gasesc perf-db-url.py sub $ROOT" >&2; exit 8; }
 
-DB_NAME="$(python3 "$ROOT/perf-db-name.py" "$URL")"
+URL="$(python3 "$HELPER_DIR/perf-db-url.py" "$ROOT/.env" "$TARGET_DB")"
+
+DB_NAME="$(python3 "$HELPER_DIR/perf-db-name.py" "$URL")"
 if [[ "$DB_NAME" != "$TARGET_DB" ]]; then
   echo "REFUZ: URL-ul a dus la baza \"$DB_NAME\", nu la \"$TARGET_DB\"" >&2
   exit 9

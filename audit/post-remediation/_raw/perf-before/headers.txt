@@ -1,0 +1,13 @@
+# Antetele livrarii
+-- GET /
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+Content-Length: 850
+Cache-Control: no-cache
+
+-- GET /assets/index-UJ8DhPQk.js
+HTTP/1.1 200 OK
+Content-Type: text/javascript; charset=utf-8
+Content-Length: 328452
+Cache-Control: public, max-age=31536000, immutable
+
