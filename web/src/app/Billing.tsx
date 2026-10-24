@@ -22,6 +22,10 @@ import {
 /**
  * Billing. Every amount is an integer in minor units returned by the API.
  * No MRR, total or tax is computed on the client.
+ *
+ * The page asks the platform whether a payment can be taken before it offers
+ * one, and it uses the words of the server for everything it says about
+ * payments. An action that cannot work is never shown as if it worked.
  */
 
 interface PaymentMethod {
@@ -38,6 +42,43 @@ interface BillingSummary {
   currentPeriodEnd: string | null;
   paymentMethod: PaymentMethod | null;
   subscriptions: Subscription[];
+}
+
+/**
+ * The state of the payment the customer comes back from.
+ */
+export type CheckoutState = 'idle' | 'confirming' | 'confirmed' | 'failed';
+
+/**
+ * What the platform says about the payments, as GET /billing/payment-state
+ * sends it.
+ *
+ * The platform decides whether a payment can be taken and says why when it
+ * cannot. The page never decides this by itself.
+ */
+export interface PaymentState {
+  /** True when a payment can really be taken. */
+  enabled: boolean;
+  /** True when the local test gateway stands in for the payment provider. */
+  simulated: boolean;
+  /** Why no payment is possible, in the words of the server. */
+  reason: string | null;
+}
+
+/** The answer of the platform about the payments. */
+export interface PaymentStateResponse {
+  payments: PaymentState;
+}
+
+/**
+ * The answer of the billing portal.
+ *
+ * A null address is the normal answer for a customer who has no payment
+ * method on file yet, and the message says what is the matter.
+ */
+export interface PortalResponse {
+  url: string | null;
+  message: string | null;
 }
 
 const INVOICE_STATUS_LABELS: Record<string, string> = {
@@ -76,6 +117,161 @@ function describePaymentMethod(method: PaymentMethod | null | undefined): string
   return 'Payment method on file';
 }
 
+/**
+ * Whether a payment can be taken, in the words of the platform.
+ *
+ * The platform decides it and says why when it cannot. The page never
+ * decides this by itself: it shows the answer of the server, so a customer is
+ * never offered a payment that cannot be made.
+ */
+export function paymentAvailability(state: PaymentState | null): {
+  available: boolean;
+  simulated: boolean;
+  reason: string | null;
+} {
+  if (!state) {
+    // The platform has not answered yet: the page cannot promise a payment,
+    // and it has no reason to give.
+    return { available: false, simulated: false, reason: null };
+  }
+  return { available: state.enabled, simulated: state.simulated, reason: state.reason };
+}
+
+/**
+ * What the answer of the billing portal means for the page.
+ *
+ * `opened` means the customer is taken to the portal of the payment
+ * provider. `notice` is the normal answer for a customer who has no payment
+ * method on file yet: the message of the server says so, and it is a note
+ * and never a failure.
+ */
+export type PortalOutcome =
+  | { kind: 'opened'; url: string }
+  | { kind: 'notice'; message: string };
+
+/**
+ * Opens the billing portal, or returns the note of the server.
+ *
+ * A null address is not an error: it is the answer for a customer who has
+ * never paid. No portal is opened for it, and the message of the server is
+ * returned so that the page shows it as what it is.
+ */
+export async function openPaymentMethod(
+  request: () => Promise<PortalResponse>,
+  open: (url: string) => void,
+): Promise<PortalOutcome> {
+  const result = await request();
+  if (result.url) {
+    open(result.url);
+    return { kind: 'opened', url: result.url };
+  }
+  return { kind: 'notice', message: result.message ?? 'No payment method is on file yet.' };
+}
+
+/**
+ * What the page says about the payment the customer just came back from.
+ *
+ * A payment is only announced as a real one when the platform says that it
+ * was a real one. While the local test gateway is in use, its own sentence
+ * is shown instead, because no money was taken.
+ */
+export function checkoutNotice(options: {
+  cancelled: boolean;
+  succeeded: boolean;
+  state: CheckoutState;
+  payments: PaymentState | null;
+}): { title: string; description: string; body: string } {
+  const { cancelled, succeeded, state, payments } = options;
+  // What the customer reads under the state of the payment.
+  const body = 'You can follow the state of the order and of the services in your dashboard.';
+
+  if (cancelled) {
+    return {
+      title: 'Payment cancelled',
+      description: 'You left the payment page without paying. The order is still waiting for you.',
+      body,
+    };
+  }
+
+  // A payment that could not be confirmed is never good news, whatever the
+  // platform says about the payments.
+  if (state === 'failed') {
+    return {
+      title: 'Payment',
+      description: 'The payment could not be confirmed.',
+      // The local test gateway takes no money, so the customer is not sent
+      // looking for money that never left the account.
+      body:
+        payments?.simulated === true
+          ? 'The order is still waiting for the payment. You can pay again from the order.'
+          : 'The order is still waiting for the payment. You can pay again from the order, or write to us if the money left your account.',
+    };
+  }
+
+  if (state === 'confirming') {
+    return { title: 'Payment', description: 'Confirming your payment…', body };
+  }
+
+  // The platform has not answered yet: the page does not say that money was
+  // taken before the platform says that it was.
+  if (!payments) {
+    return { title: 'Payment', description: 'Checking the state of your payment…', body };
+  }
+
+  // The local test gateway is not a payment: the sentence of the server says
+  // that no real money was taken, and the page shows that sentence.
+  if (payments.simulated) {
+    return {
+      title: 'Test payment',
+      description: payments.reason ?? 'No real payment was taken.',
+      body,
+    };
+  }
+
+  if (succeeded) {
+    return {
+      title: 'Payment received',
+      description: 'Your payment was received. The services are being prepared.',
+      body,
+    };
+  }
+
+  if (state === 'confirmed') {
+    return {
+      title: 'Payment received',
+      description: 'Your payment was confirmed. The services are being prepared.',
+      body,
+    };
+  }
+
+  return { title: 'Payment', description: 'Checking the state of your payment…', body };
+}
+
+/**
+ * The sentence under the name of a subscription.
+ *
+ * A subscription that ends keeps running until the end of the period that
+ * was paid for, so the page says that and never that it is cancelled.
+ */
+export function subscriptionPeriod(subscription: Subscription): string {
+  const date = formatDate(subscription.currentPeriodEnd);
+  if (subscription.cancelAtPeriodEnd) {
+    return `Cancels at the end of the paid period — ${date}. The service keeps running until then.`;
+  }
+  return `Renews ${date}`;
+}
+
+/**
+ * The action the page offers for a subscription.
+ *
+ * A subscription that ends at the close of the paid period can be resumed; a
+ * subscription that renews can be cancelled. Only one of the two is ever
+ * offered, so the page never shows a resume for a subscription that renews.
+ */
+export function subscriptionAction(subscription: Subscription): 'resume' | 'cancel' {
+  return subscription.cancelAtPeriodEnd ? 'resume' : 'cancel';
+}
+
 export default function Billing() {
   const { push } = useToast();
   const { query } = useRouter();
@@ -103,15 +299,48 @@ export default function Billing() {
     (signal) => get<{ subscriptions: Subscription[] }>('/billing/subscriptions', undefined, signal),
     [],
   );
+  // The page asks the platform whether a payment can be taken before it
+  // offers one. The answer of the server says why it cannot, so the page
+  // never writes a reason of its own.
+  const paymentsState = useAsync<PaymentStateResponse>(
+    (signal) => get<PaymentStateResponse>('/billing/payment-state', undefined, signal),
+    [],
+  );
 
   const [pendingCancel, setPendingCancel] = useState<Subscription | null>(null);
-  const [paymentIssue, setPaymentIssue] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
-  const [checkoutState, setCheckoutState] = useState<'idle' | 'confirming' | 'confirmed' | 'failed'>('idle');
+  const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
 
   const summary = summaryState.data;
   const invoices = useMemo(() => invoicesState.data?.invoices ?? [], [invoicesState.data]);
   const subscriptions = useMemo(() => subscriptionsState.data?.subscriptions ?? [], [subscriptionsState.data]);
+
+  // What the platform says about the payments. The page shows that answer
+  // and never decides by itself that a payment is possible.
+  const payments = paymentsState.data?.payments ?? null;
+  const availability = paymentAvailability(payments);
+  // The answer of the platform could not be read: the action stays offered,
+  // because the platform refuses with its own reason when it cannot take a
+  // payment, and that reason is shown.
+  const paymentAvailable = paymentsState.error !== null || availability.available;
+  // The sentence of the server is the sentence the customer reads. The
+  // platform uses the same one when it sends no reason of its own.
+  const unavailableReason =
+    payments !== null && !availability.available
+      ? availability.reason ?? 'Payments are not available at the moment.'
+      : null;
+  // A card is only on file when a payment could really have been taken, so
+  // the claim is only withdrawn when the platform says that no payment is
+  // possible.
+  const cardCanBeManaged = !availability.simulated && (payments === null || availability.available);
+  // What the page says about the payment the customer just came back from.
+  const checkoutCopy = checkoutNotice({
+    cancelled: paymentCancelled,
+    succeeded: paymentSucceeded,
+    state: checkoutState,
+    payments,
+  });
 
   // The payment is confirmed once, when the customer comes back from the
   // local gateway. The confirmation is the answer of the platform, so the
@@ -128,8 +357,9 @@ export default function Billing() {
       })
       .catch(() => {
         if (cancelled) return;
+        // The panel of the payment says that the payment could not be
+        // confirmed and that the order is still waiting for it.
         setCheckoutState('failed');
-        setPaymentIssue('The payment could not be confirmed. The order is still waiting for it.');
       });
     return () => {
       cancelled = true;
@@ -146,7 +376,7 @@ export default function Billing() {
     await post(`/billing/subscriptions/${id}/cancel`);
     refreshAll();
     setPendingCancel(null);
-    push('Subscription will end at the close of the current period.');
+    push('The service keeps running until the end of the paid period.');
   });
 
   const resume = useAction(async (id: string) => {
@@ -156,13 +386,14 @@ export default function Billing() {
   });
 
   const paymentMethodAction = useAction(async () => {
-    setPaymentIssue(null);
-    const result = await post<{ url: string | null }>('/billing/payment-method');
-    if (result.url) {
-      location.assign(result.url);
-      return;
-    }
-    setPaymentIssue('Payment details cannot be changed here: billing is not configured in this environment.');
+    setPaymentNotice(null);
+    const outcome = await openPaymentMethod(
+      () => post<PortalResponse>('/billing/payment-method'),
+      (url) => location.assign(url),
+    );
+    // A null address is not a failure: it is the answer for a customer who
+    // has no payment method on file yet, so it is shown as a note.
+    if (outcome.kind === 'notice') setPaymentNotice(outcome.message);
   });
 
   const summaryError = summaryState.error;
@@ -174,32 +405,8 @@ export default function Billing() {
           this the page shows an empty estimate and the order waits for a
           payment that the browser already made. */}
       {checkout ? (
-        <Panel
-          title={paymentCancelled ? 'Payment cancelled' : paymentSucceeded ? 'Payment received' : 'Payment'}
-          description={
-            paymentCancelled
-              ? 'You left the payment page without paying. The order is still waiting for you.'
-              : paymentSucceeded
-                ? 'Your payment was received. The services are being prepared.'
-                : checkoutState === 'confirming'
-                  ? 'Confirming your payment…'
-                  : checkoutState === 'confirmed'
-                    ? 'Your payment was confirmed. The services are being prepared.'
-                    : checkoutState === 'failed'
-                      ? 'The payment could not be confirmed.'
-                      : 'Checking the state of your payment…'
-          }
-        >
-          {checkoutState === 'failed' ? (
-            <p className="text-ink2">
-              The order is still waiting for the payment. You can pay again from the order, or write to us if
-              the money left your account.
-            </p>
-          ) : (
-            <p className="text-ink2">
-              You can follow the state of the order and of the services in your dashboard.
-            </p>
-          )}
+        <Panel title={checkoutCopy.title} description={checkoutCopy.description}>
+          <p className="text-ink2">{checkoutCopy.body}</p>
         </Panel>
       ) : null}
 
@@ -231,8 +438,14 @@ export default function Billing() {
             />
             <StatTile
               label="Payment method"
-              value={describePaymentMethod(summary.paymentMethod)}
-              hint={summary.paymentMethod ? undefined : 'No payment method on file. Add one to be able to pay your invoices.'}
+              value={cardCanBeManaged ? describePaymentMethod(summary.paymentMethod) : '—'}
+              hint={
+                cardCanBeManaged
+                  ? summary.paymentMethod
+                    ? undefined
+                    : 'No payment method on file. Add one to be able to pay your invoices.'
+                  : (unavailableReason ?? undefined)
+              }
             />
           </>
         ) : null}
@@ -241,22 +454,28 @@ export default function Billing() {
       {/* Payment method action */}
       <Panel title="Payment method">
         <div className="grid gap-3">
-          <p className="text-[14px] text-ink2">
-            Manage the card or payment method used for your subscriptions. You are taken to the secure billing portal.
-          </p>
+          {paymentAvailable && (
+            <p className="text-[14px] text-ink2">
+              Manage the card or payment method used for your subscriptions. You are taken to the secure billing portal.
+            </p>
+          )}
           <div>
             <PrimaryButton
               onClick={() => void paymentMethodAction.run()}
-              disabled={paymentMethodAction.pending}
+              disabled={!paymentAvailable || paymentMethodAction.pending}
               className="w-full sm:w-auto"
             >
               {paymentMethodAction.pending ? 'Working…' : 'Manage payment method'}
             </PrimaryButton>
           </div>
-          {paymentIssue && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14px] text-ink2">
-              <span className="font-bold text-bad">Not available. </span>
-              {paymentIssue}
+          {unavailableReason && (
+            <p role="status" className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">
+              {unavailableReason}
+            </p>
+          )}
+          {paymentNotice && (
+            <p role="status" className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">
+              {paymentNotice}
             </p>
           )}
           {paymentMethodAction.error && (
@@ -300,11 +519,7 @@ export default function Billing() {
                     >
                       {subscription.instanceName ?? 'Subscription'}
                     </p>
-                    <p className="mt-0.5 text-[13px] text-ink3">
-                      {subscription.cancelAtPeriodEnd
-                        ? `Ends ${formatDate(subscription.currentPeriodEnd)}`
-                        : `Renews ${formatDate(subscription.currentPeriodEnd)}`}
-                    </p>
+                    <p className="mt-0.5 text-[13px] text-ink3">{subscriptionPeriod(subscription)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <StatusPill
@@ -317,7 +532,7 @@ export default function Billing() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {subscription.cancelAtPeriodEnd ? (
+                  {subscriptionAction(subscription) === 'resume' ? (
                     <SoftButton
                       onClick={() => {
                         setBusySubscriptionId(subscription.id);
