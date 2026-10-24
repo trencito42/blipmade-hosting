@@ -340,10 +340,26 @@ async function handleCancelledOrderPayment(
   object: Record<string, unknown>,
 ): Promise<void> {
   const paymentIntentId = (object.payment_intent as string) ?? order.stripePaymentIntentId ?? null;
+
+  // The money that arrived is returned, not the sum of the order. A refund of
+  // a sum that was never collected is refused by the provider, and the money
+  // of the customer would stay with the platform. When the two sums differ,
+  // the difference is written down.
+  const collected = typeof object.amount_total === 'number' ? object.amount_total : null;
+  if (collected !== null && collected !== order.total) {
+    await audit({
+      action: 'order.amount_mismatch',
+      targetType: 'order',
+      targetId: order.id,
+      meta: { collected, expected: order.total },
+    });
+  }
+  const amount = collected ?? order.total;
+
   const refunded = await refundPayment({
     orderId: order.id,
     stripePaymentIntentId: paymentIntentId,
-    amount: order.total,
+    amount,
     reason: 'the order was cancelled before the payment arrived',
   });
 
@@ -362,7 +378,7 @@ async function handleCancelledOrderPayment(
     targetId: order.id,
     meta: {
       userId: order.userId,
-      amount: order.total,
+      amount,
       currency: order.currency,
       refunded,
       reason: 'the order was cancelled before the payment arrived',

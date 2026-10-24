@@ -256,10 +256,10 @@ const TRUSTED_PROXIES = parseTrustedProxies(process.env.TRUSTED_PROXY_IPS || '')
 /**
  * The address of the client.
  *
- * The chain of the header is read from the left, because the first element of
- * the chain is the client and the last one is the proxy that is the closest to
- * this server. The address of the proxy is never the address that is written
- * down.
+ * The chain of the header is read from the right, because the last element of
+ * the chain is the proxy that is the closest to this server and the first one
+ * is the client that wrote the request. The address of the proxy is never the
+ * address that is written down.
  */
 function clientAddress(req) {
   return resolveClientAddress(req.socket.remoteAddress, req.headers['x-forwarded-for'], TRUSTED_PROXIES);

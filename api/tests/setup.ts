@@ -21,6 +21,7 @@ assertTestDatabase();
  * the foreign keys.
  */
 const TABLES = [
+  'DeadLetterJob',
   'AuditLog',
   'WebhookEvent',
   'ProvisioningJob',
