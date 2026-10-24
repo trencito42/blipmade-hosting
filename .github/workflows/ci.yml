@@ -145,6 +145,16 @@ jobs:
       STRIPE_WEBHOOK_SECRET: ''
       STRIPE_PUBLISHABLE_KEY: ''
       SMTP_URL: ''
+      # The panel is faked at the network level in the tests, so the suite
+      # never reaches a panel. The code still refuses to work without the
+      # address of the panel, so the value has to be here. It points at the
+      # loopback of the runner, on a port nothing listens on, so a request
+      # that would escape the faking fails at once and stays on the machine.
+      PTERODACTYL_URL: http://127.0.0.1:9
+      PTERODACTYL_APP_KEY: ci-only-panel-key-not-a-real-secret
+      # The gateway of the tests checks the internal token of the platform.
+      # It is a throwaway constant, like the session secret above.
+      BLIPMADE_INTERNAL_API_TOKEN: ci-only-internal-token-not-a-real-secret
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
