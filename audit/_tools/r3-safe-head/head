@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# A head that reads the whole input before it prints anything.
+#
+# The real head closes the pipe as soon as it has printed its lines, so the
+# program that writes into it is killed by SIGPIPE and ends with the status
+# 141. In a script that runs with "set -euo pipefail" that turns a command
+# that worked into a failure of the whole script.
+#
+# scripts/restore.sh has two such lines (50 and 86): the listing of the dump
+# and the listing of the configuration. Both of them stop the script before
+# it says that the restore is complete.
+#
+# This head reads everything and then prints the first lines, so the pipe is
+# never closed under the writer and the script sees the status of the
+# writer.
+#
+# Usage:
+#   PATH="$PWD/audit/_tools/r3-safe-head:$PATH" bash scripts/restore.sh <archive> --yes
+set -u
+
+COUNT=10
+if [[ "${1:-}" == "-n" ]]; then
+  COUNT="${2:-10}"
+  shift 2 || true
+elif [[ "${1:-}" =~ ^-([0-9]+)$ ]]; then
+  COUNT="${BASH_REMATCH[1]}"
+  shift || true
+fi
+
+TMP="$(mktemp)"
+cat > "$TMP" || true
+/usr/bin/head -n "$COUNT" "$TMP"
+rm -f "$TMP"
