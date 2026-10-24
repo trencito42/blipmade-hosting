@@ -1,0 +1,598 @@
+diff --git a/api/src/env.ts b/api/src/env.ts
+index 16b7d0b..c25c795 100644
+--- a/api/src/env.ts
++++ b/api/src/env.ts
+@@ -98,6 +98,14 @@ const schema = z.object({
+    * could set the header and write an address of its own choosing into the
+    * session and into the journal (SEC-05). The operator sets here the
+    * address of the web container, which is the only one that reaches the API.
++   *
++   * An entry is an address or a block of addresses, written as
++   * `172.16.0.0/12`, the same way the web container reads its own list of
++   * proxies. The operator has to set this to the address of the web container
++   * or to the range of the container network, in the environment of the API
++   * container. Without it the API reads the address of the web container for
++   * every request: the session cookie is issued without the Secure attribute
++   * and every visitor of the platform shares one counter of the rate limit.
+    */
+   TRUSTED_PROXIES: z.string().default('127.0.0.1,::1'),
+ 
+diff --git a/api/src/lib/permissions.ts b/api/src/lib/permissions.ts
+index 5ec9900..f9d442b 100644
+--- a/api/src/lib/permissions.ts
++++ b/api/src/lib/permissions.ts
+@@ -39,3 +39,17 @@ export function hasPermission(role: string, granted: string[] | undefined, permi
+   if (role === 'ADMIN') return true;
+   return (granted ?? []).includes(permission);
+ }
++
++/**
++ * The permissions of a wanted list that the actor does not hold.
++ *
++ * An administrator holds every permission, so the list is empty for an
++ * administrator. A staff member only holds the permissions that were granted
++ * to them, so the list names the permissions that they would hand out
++ * without knowing what they do: an account that can grant more than it holds
++ * is an administrator in everything but the name.
++ */
++export function permissionsNotHeld(role: string, granted: string[] | undefined, wanted: string[]): string[] {
++  const held = new Set(staffPermissions(role, granted ?? []));
++  return wanted.filter((permission) => !held.has(permission));
++}
+diff --git a/api/src/plugins/auth.ts b/api/src/plugins/auth.ts
+index b0858e0..ec1a7c9 100644
+--- a/api/src/plugins/auth.ts
++++ b/api/src/plugins/auth.ts
+@@ -46,13 +46,55 @@ declare module 'fastify' {
+  * only takes `x-forwarded-proto` into account when the request came through
+  * one of the trusted proxies (`env.trustProxies`), so a client cannot forge
+  * the header to force a Secure cookie on a plain HTTP request.
++ *
++ * A production environment is served over HTTPS, so the cookie is marked
++ * Secure there even when the request that carries it arrived over plain
++ * HTTP. That happens when the proxy in front of the API is not in the list of
++ * the trusted proxies: the request is then read as plain HTTP even though the
++ * visitor is on HTTPS. A request must never quietly lower the protection of
++ * the cookie, so the production environment marks it Secure and an operator
++ * that really serves the panel over plain HTTP says `COOKIE_SECURE=false`.
+  */
+ export function resolveCookieSecure(request: FastifyRequest): boolean {
+   if (env.COOKIE_SECURE === 'true') return true;
+   if (env.COOKIE_SECURE === 'false') return false;
++  if (env.isProduction) return true;
+   return request.protocol === 'https';
+ }
+ 
++/**
++ * The key the rate limit counts by.
++ *
++ * The address of the caller is the key. Fastify resolves that address out of
++ * the chain of the forwarding header, but only when the request came through
++ * a proxy the API knows. When the request comes from a proxy that is not
++ * trusted, the resolved address is the address of that proxy and every
++ * visitor shares it, so one counter would be the counter of the whole
++ * platform and one visitor could lock every other visitor out of the sign-in.
++ *
++ * The counter is then taken per connection, which is the smallest unit that
++ * can be told apart when the address of the client is not known. The limit of
++ * the account is a counter of its own and is not weakened by this: it is the
++ * limit that protects an account from a guessing of the password.
++ *
++ * A request that carries no chain of the forwarding header comes from a
++ * client that speaks for itself, and it keeps the counter of its address.
++ */
++export function rateLimitKey(request: FastifyRequest): string {
++  const peer = request.socket?.remoteAddress ?? '';
++  const address = request.ip;
++  // The address of the client was resolved out of the chain, so it is known.
++  if (address && address !== peer) return address;
++
++  const forwarded = request.headers['x-forwarded-for'];
++  const chain = typeof forwarded === 'string' ? forwarded.split(',').map((entry) => entry.trim()).filter(Boolean) : [];
++  if (!chain.length) return address;
++
++  // The request came through a proxy that the API does not know, so the
++  // address of the client cannot be told apart from the address of the proxy.
++  return `${address}:${request.socket?.remotePort ?? 0}`;
++}
++
+ /**
+  * How many sessions an account may hold at the same time.
+  *
+@@ -275,6 +317,25 @@ export function requirePermission(permission: Permission) {
+   };
+ }
+ 
++/**
++ * The rule that an administrator is only acted on by an administrator.
++ *
++ * The account that administers the platform may only be suspended, be given
++ * a new panel key or have its services touched by another administrator. A
++ * staff member that could do that would lock the platform out of its own
++ * administration, so the rule lives in the server and not in the interface.
++ *
++ * The rule is about one account that the request names, so it is checked on
++ * the routes that write to the account of a customer. A sweep over the whole
++ * platform is not about one account and is not covered by it.
++ */
++export function assertMayActOnAccount(actor: AuthUser, targetRole: string): void {
++  if (actor.role === 'ADMIN') return;
++  if (targetRole === 'ADMIN') {
++    throw forbidden('Only an administrator can act on the account of an administrator.');
++  }
++}
++
+ /** Removes expired sessions. Called by the worker on a schedule. */
+ export async function pruneSessions(): Promise<number> {
+   const result = await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+diff --git a/api/src/routes/admin.ts b/api/src/routes/admin.ts
+index ae49dc9..e028333 100644
+--- a/api/src/routes/admin.ts
++++ b/api/src/routes/admin.ts
+@@ -3,12 +3,12 @@ import { z } from 'zod';
+ import { Prisma } from '@prisma/client';
+ import { prisma } from '../db.js';
+ import { badRequest, conflict, forbidden, notFound, unavailable, upstream } from '../lib/errors.js';
+-import { requireStaff, requirePermission } from '../plugins/auth.js';
++import { requireStaff, requirePermission, assertMayActOnAccount } from '../plugins/auth.js';
+ import { audit } from '../lib/audit.js';
+ import * as ptero from '../services/pterodactyl/application.js';
+ import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
+ import { refundPayment, stripeLive } from '../services/stripe.js';
+-import { PERMISSIONS } from '../lib/permissions.js';
++import { PERMISSIONS, permissionsNotHeld } from '../lib/permissions.js';
+ import { fullName } from '../lib/people.js';
+ import {
+   forgetCustomerCredential,
+@@ -21,6 +21,37 @@ import { env } from '../env.js';
+ 
+ const money = (amount: number) => amount / 100;
+ 
++/**
++ * The keys of the settings that the settings endpoints never show and never
++ * write.
++ *
++ * The internal counters of the numbers and the record of the retention hold
++ * data that belongs to the platform and not to the operator. The retention
++ * record carries the export of every cancelled customer, with the services,
++ * the orders, the subscriptions, the invoices, the payments, the events, the
++ * domains and the tickets of each of them. A generic endpoint that shows and
++ * writes every key would hand that data to every member of the staff, and a
++ * write to that key would destroy the record that the platform has to keep.
++ *
++ * The ordinary settings of the operator are not affected: the feature stays
++ * exactly as it was for everything that is not internal.
++ */
++const PROTECTED_SETTING_KEYS = new Set(['cancelled_instance_retention']);
++
++/**
++ * The prefix of the keys that belong to the platform itself.
++ *
++ * A key with this prefix is protected by the convention, so a key that is
++ * added later is protected from the first moment and never shows up in the
++ * generic settings endpoints by accident.
++ */
++const INTERNAL_SETTING_PREFIX = 'internal.';
++
++/** Whether the key is one of the settings that the endpoints may not touch. */
++function isProtectedSettingKey(key: string): boolean {
++  return PROTECTED_SETTING_KEYS.has(key) || key.startsWith(INTERNAL_SETTING_PREFIX);
++}
++
+ /**
+  * The check that says whether a deployment really works.
+  *
+@@ -258,9 +289,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+ 
+     const customer = await prisma.user.findUnique({
+       where: { id },
+-      select: { id: true, pterodactylUserId: true, pterodactylExternalId: true },
++      select: { id: true, pterodactylUserId: true, pterodactylExternalId: true, role: true },
+     });
+     if (!customer) throw notFound('Customer not found.');
++    // The key of a customer is written to the account of that customer, so an
++    // administrator is only written to by another administrator.
++    assertMayActOnAccount(actor, customer.role);
+     if (!customer.pterodactylUserId) {
+       throw conflict('This customer has no panel account yet. Provision a service first, so the account is created.');
+     }
+@@ -287,6 +321,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+   app.delete('/admin/customers/:id/panel/credential', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest, reply) => {
+     const actor = await requireStaff(request);
+     const { id } = z.object({ id: z.string() }).parse(request.params);
++    const customer = await prisma.user.findUnique({ where: { id }, select: { role: true } });
++    if (!customer) throw notFound('Customer not found.');
++    // Taking the key away writes to the account of that customer, so an
++    // administrator is only written to by another administrator.
++    assertMayActOnAccount(actor, customer.role);
+     await forgetCustomerCredential(id);
+     await audit({
+       actorId: actor.id,
+@@ -306,6 +345,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+ 
+     const customer = await prisma.user.findUnique({ where: { id } });
+     if (!customer) throw notFound('Customer not found.');
++    // Suspending an account ends its sessions, so it is a write to that
++    // account: an administrator is only suspended by another administrator.
++    assertMayActOnAccount(actor, customer.role);
+ 
+     await prisma.$transaction([
+       prisma.user.update({ where: { id }, data: { suspendedAt: suspended ? new Date() : null } }),
+@@ -1048,16 +1090,38 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+       throw forbidden('Only an administrator can change the role of a staff member.');
+     }
+ 
+-    // The permission list of an administrator is the administrator role written
+-    // down, so only an administrator touches it.
+-    if (body.permissions !== undefined && member.user.role === 'ADMIN' && actor.role !== 'ADMIN') {
+-      throw forbidden('Only an administrator can change the permissions of an administrator.');
+-    }
+-
+-    // The whole list of permissions is the administrator role in all but name,
+-    // so a staff member may not hand it out.
+-    if (body.permissions !== undefined && new Set(body.permissions).size >= PERMISSIONS.length && actor.role !== 'ADMIN') {
+-      throw forbidden('Only an administrator can grant the whole permission list.');
++    /**
++     * The rule of the permission list.
++     *
++     * The permission list is the power of an account inside the platform, so
++     * it is an administrator who changes it. The rule lives in the server and
++     * not in the interface, because the endpoint is called directly as well:
++     *
++     * - a staff member never changes their own list, because that is the way
++     *   to become an administrator;
++     * - a staff member only hands out the permissions they hold themselves, a
++     *   permission they do not hold is one they would hand out without
++     *   knowing what it does, and an account that can grant more than it
++     *   holds is an administrator in all but the name;
++     * - the list of an administrator is the administrator role written down,
++     *   so only an administrator touches it.
++     */
++    if (body.permissions !== undefined && actor.role !== 'ADMIN') {
++      if (actor.id === userId) {
++        throw forbidden('You cannot change your own permissions. Only an administrator can do that.');
++      }
++      if (member.user.role === 'ADMIN') {
++        throw forbidden('Only an administrator can change the permissions of an administrator.');
++      }
++      const beyond = permissionsNotHeld(actor.role, actor.permissions, body.permissions);
++      if (beyond.length) {
++        throw forbidden(`You can only grant permissions that you hold yourself. These are not yours: ${beyond.join(', ')}.`);
++      }
++      // The whole list of permissions is the administrator role in all but name,
++      // so a staff member may not hand it out.
++      if (new Set(body.permissions).size >= PERMISSIONS.length) {
++        throw forbidden('Only an administrator can grant the whole permission list.');
++      }
+     }
+ 
+     await prisma.$transaction([
+@@ -1113,8 +1177,22 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+     };
+   });
+ 
++  /**
++   * The settings of the platform.
++   *
++   * The internal keys are not in the answer: the counters of the numbers and
++   * the record of the retention hold data of the platform, and the retention
++   * record carries the export of every cancelled customer.
++   */
+   app.get('/admin/settings', { preHandler: requirePermission('settings.read') }, async () => {
+-    const settings = await prisma.setting.findMany();
++    const settings = await prisma.setting.findMany({
++      where: {
++        key: {
++          notIn: [...PROTECTED_SETTING_KEYS],
++          not: { startsWith: INTERNAL_SETTING_PREFIX },
++        },
++      },
++    });
+     const result: Record<string, unknown> = {};
+     for (const setting of settings) result[setting.key] = setting.value;
+     return { settings: result };
+@@ -1136,6 +1214,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+   app.put('/admin/settings', { preHandler: requirePermission('settings.write') }, async (request: FastifyRequest) => {
+     const actor = await requireStaff(request);
+     const body = z.record(z.unknown()).parse(request.body);
++    // The internal keys are not written here. The counters of the numbers and
++    // the record of the retention belong to the platform, and a key that is
++    // written by accident destroys a record that has to be kept, so the whole
++    // request is refused and nothing is written.
++    const refused = Object.keys(body).filter(isProtectedSettingKey);
++    if (refused.length) {
++      throw forbidden(`These settings belong to the platform and cannot be changed here: ${refused.join(', ')}.`);
++    }
+     for (const [key, value] of Object.entries(body)) {
+       await prisma.setting.upsert({ where: { key }, create: { key, value: value as never }, update: { value: value as never } });
+     }
+@@ -1149,8 +1235,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+     const { id } = z.object({ id: z.string() }).parse(request.params);
+     const { reason } = z.object({ reason: z.string().trim().max(500).optional() }).parse(request.body ?? {});
+ 
+-    const instance = await prisma.instance.findUnique({ where: { id } });
++    const instance = await prisma.instance.findUnique({ where: { id }, include: { user: { select: { role: true } } } });
+     if (!instance) throw notFound('Instance not found.');
++    // A service belongs to the account that ordered it, so a retry writes to
++    // that account: an administrator is only served by another administrator.
++    assertMayActOnAccount(actor, instance.user.role);
+ 
+     // An instance that is online is not retried. The worker skips it anyway,
+     // and the status of a healthy instance must not be touched: a run that
+@@ -1184,6 +1273,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
+ 
+     const customer = await prisma.user.findUnique({ where: { id: body.userId } });
+     if (!customer) throw notFound('Customer not found.');
++    // The new service is written to the account of that customer, so an
++    // administrator is only written to by another administrator. The route is
++    // administrator-only anyway, but the rule is applied here as well so that
++    // it holds for every route that writes to an account.
++    assertMayActOnAccount(actor, customer.role);
+ 
+     const existing = await prisma.instance.findFirst({ where: { pterodactylServerId: body.pterodactylServerId } });
+     if (existing) throw conflict('That Pterodactyl server is already imported.');
+diff --git a/api/src/routes/auth.ts b/api/src/routes/auth.ts
+index a4fcc92..4667d67 100644
+--- a/api/src/routes/auth.ts
++++ b/api/src/routes/auth.ts
+@@ -16,6 +16,7 @@ import {
+   destroySession,
+   loadSession,
+   pruneSessions,
++  rateLimitKey,
+   requireAuth,
+   type AuthUser,
+ } from '../plugins/auth.js';
+@@ -60,6 +61,21 @@ const tokenSchema = z.object({ token: z.string().min(10, 'This link is not valid
+  */
+ const ACCOUNT_ATTEMPTS_WINDOW = '15 minutes';
+ 
++/**
++ * The key of the counter of an address.
++ *
++ * The address of the caller is the key, and the address of the client is
++ * only known when the request came through a proxy that the API trusts. When
++ * it is not known, the counter is taken per connection, so one visitor can
++ * never lock every other visitor out of the sign-in.
++ */
++function addressKey(request: FastifyRequest): string {
++  const key = rateLimitKey(request);
++  // In the test environment the key carries the run number, so the counters
++  // of one test do not count against the next one.
++  return env.isTest ? `${key}:${rateLimitRun()}` : key;
++}
++
+ /**
+  * The key of the counter of an account: the address of the account, written
+  * the way the accounts are written.
+@@ -70,7 +86,7 @@ const ACCOUNT_ATTEMPTS_WINDOW = '15 minutes';
+ function accountKey(request: FastifyRequest): string {
+   const body = request.body as { email?: unknown } | undefined;
+   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+-  const key = email ? `account:${email}` : `address:${request.ip}`;
++  const key = email ? `account:${email}` : `address:${addressKey(request)}`;
+   // In the test environment the key carries the run number, so the counters
+   // of one test do not count against the next one.
+   return env.isTest ? `${key}:${rateLimitRun()}` : key;
+@@ -185,7 +201,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+   const enrollGuard = accountGuard(app, 5);
+ 
+   app.post('/auth/register', {
+-    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
++    config: { rateLimit: { max: 20, timeWindow: '15 minutes', keyGenerator: addressKey } },
+     preHandler: registerGuard,
+     handler: async (request: FastifyRequest, reply) => {
+       const body = registerSchema.parse(request.body);
+@@ -221,7 +237,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+   });
+ 
+   app.post('/auth/login', {
+-    config: { rateLimit: { max: env.loginRateLimitMax, timeWindow: '15 minutes' } },
++    config: { rateLimit: { max: env.loginRateLimitMax, timeWindow: '15 minutes', keyGenerator: addressKey } },
+     preHandler: loginGuard,
+     handler: async (request: FastifyRequest, reply) => {
+       const body = loginSchema.parse(request.body);
+@@ -286,7 +302,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+   });
+ 
+   app.post('/auth/resend-verification', {
+-    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
++    config: { rateLimit: { max: 5, timeWindow: '15 minutes', keyGenerator: addressKey } },
+     preHandler: mailGuard,
+     handler: async (request: FastifyRequest, reply) => {
+       const { email } = z.object({ email: emailSchema }).parse(request.body ?? {});
+@@ -304,7 +320,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+   });
+ 
+   app.post('/auth/forgot-password', {
+-    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
++    config: { rateLimit: { max: 5, timeWindow: '15 minutes', keyGenerator: addressKey } },
+     preHandler: mailGuard,
+     handler: async (request: FastifyRequest, reply) => {
+       const { email } = z.object({ email: emailSchema }).parse(request.body);
+@@ -323,7 +339,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+   });
+ 
+   app.post('/auth/reset-password', {
+-    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
++    config: { rateLimit: { max: 10, timeWindow: '15 minutes', keyGenerator: addressKey } },
+     handler: async (request: FastifyRequest, reply) => {
+       const body = z.object({ token: z.string().min(10), password: z.string() }).parse(request.body);
+       const problems = passwordProblems(body.password);
+@@ -351,7 +367,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
+    * administrator, and only with the enrollment key from the environment.
+    */
+   app.post('/auth/enroll-admin', {
+-    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
++    config: { rateLimit: { max: 5, timeWindow: '1 hour', keyGenerator: addressKey } },
+     preHandler: enrollGuard,
+     handler: async (request: FastifyRequest, reply) => {
+       if (!env.ADMIN_ENROLLMENT_KEY) {
+diff --git a/api/src/routes/catalog.ts b/api/src/routes/catalog.ts
+index 2c49a29..92d396a 100644
+--- a/api/src/routes/catalog.ts
++++ b/api/src/routes/catalog.ts
+@@ -170,14 +170,22 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
+     config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+     handler: async (request) => {
+       const body = z
+-        .object({ items: z.array(quoteItemSchema).min(1, 'Choose at least one app.'), promotionCode: z.string().trim().optional() })
++        .object({
++          items: z.array(quoteItemSchema).min(1, 'Choose at least one app.'),
++          promotionCode: z.string().trim().optional(),
++          // The period of the price that is quoted. The order that follows
++          // takes the same period, so the sum that was shown is the sum that
++          // is charged.
++          period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
++        })
+         .parse(request.body);
+ 
+       // The customer who is signed in is known here, so the limit of a
+       // campaign per account is checked while the quote is made. A code that
+       // the customer has already used is refused here, not later at the order.
+-      const quote = await buildQuote(body.items, body.promotionCode, request.user?.id ?? null);
++      const quote = await buildQuote(body.items, body.promotionCode, request.user?.id ?? null, body.period);
+       return {
++        period: body.period,
+         items: quote.items.map((item) => ({
+           productSlug: item.productSlug,
+           name: item.name,
+diff --git a/web/src/app/Billing.tsx b/web/src/app/Billing.tsx
+index 7dfe32f..2cc84e8 100644
+--- a/web/src/app/Billing.tsx
++++ b/web/src/app/Billing.tsx
+@@ -1,6 +1,7 @@
+-import { useMemo, useState } from 'react';
++import { useEffect, useMemo, useState } from 'react';
+ import { get, post, type Invoice, type Subscription } from '../lib/api';
+ import { useAction, useAsync } from '../lib/useAsync';
++import { useRouter } from '../router';
+ import {
+   ButtonLink,
+   CardList,
+@@ -77,6 +78,18 @@ function describePaymentMethod(method: PaymentMethod | null | undefined): string
+ 
+ export default function Billing() {
+   const { push } = useToast();
++  const { query } = useRouter();
++
++  // The customer comes back here from the payment provider. The session of
++  // the payment travels in the address, so the page has to read it: without
++  // it the page shows an empty estimate and the order waits forever for a
++  // payment that the browser already made.
++  const checkout = query.checkout ?? null;
++  const paymentCancelled = checkout === 'cancelled';
++  const paymentSucceeded = checkout === 'success';
++  // The local gateway names the session after the order, so the order is
++  // known without asking the provider.
++  const checkoutOrderId = checkout && checkout.startsWith('test_cs_') ? checkout.slice('test_cs_'.length) : null;
+ 
+   const summaryState = useAsync<BillingSummary>(
+     (signal) => get<BillingSummary>('/billing/summary', undefined, signal),
+@@ -94,11 +107,36 @@ export default function Billing() {
+   const [pendingCancel, setPendingCancel] = useState<Subscription | null>(null);
+   const [paymentIssue, setPaymentIssue] = useState<string | null>(null);
+   const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
++  const [checkoutState, setCheckoutState] = useState<'idle' | 'confirming' | 'confirmed' | 'failed'>('idle');
+ 
+   const summary = summaryState.data;
+   const invoices = useMemo(() => invoicesState.data?.invoices ?? [], [invoicesState.data]);
+   const subscriptions = useMemo(() => subscriptionsState.data?.subscriptions ?? [], [subscriptionsState.data]);
+ 
++  // The payment is confirmed once, when the customer comes back from the
++  // local gateway. The confirmation is the answer of the platform, so the
++  // page asks for it and then shows the state of the order.
++  useEffect(() => {
++    if (!checkoutOrderId || checkoutState !== 'idle') return;
++    let cancelled = false;
++    setCheckoutState('confirming');
++    post<{ order: { id: string; status: string; total: number } }>(`/orders/${checkoutOrderId}/confirm`)
++      .then(() => {
++        if (cancelled) return;
++        setCheckoutState('confirmed');
++        refreshAll();
++      })
++      .catch(() => {
++        if (cancelled) return;
++        setCheckoutState('failed');
++        setPaymentIssue('The payment could not be confirmed. The order is still waiting for it.');
++      });
++    return () => {
++      cancelled = true;
++    };
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [checkoutOrderId]);
++
+   const refreshAll = () => {
+     subscriptionsState.reload();
+     summaryState.reload();
+@@ -132,6 +170,39 @@ export default function Billing() {
+ 
+   return (
+     <div className="grid gap-4">
++      {/* The state of the payment the customer just came back from. Without
++          this the page shows an empty estimate and the order waits for a
++          payment that the browser already made. */}
++      {checkout ? (
++        <Panel
++          title={paymentCancelled ? 'Payment cancelled' : paymentSucceeded ? 'Payment received' : 'Payment'}
++          description={
++            paymentCancelled
++              ? 'You left the payment page without paying. The order is still waiting for you.'
++              : paymentSucceeded
++                ? 'Your payment was received. The services are being prepared.'
++                : checkoutState === 'confirming'
++                  ? 'Confirming your payment…'
++                  : checkoutState === 'confirmed'
++                    ? 'Your payment was confirmed. The services are being prepared.'
++                    : checkoutState === 'failed'
++                      ? 'The payment could not be confirmed.'
++                      : 'Checking the state of your payment…'
++          }
++        >
++          {checkoutState === 'failed' ? (
++            <p className="text-ink2">
++              The order is still waiting for the payment. You can pay again from the order, or write to us if
++              the money left your account.
++            </p>
++          ) : (
++            <p className="text-ink2">
++              You can follow the state of the order and of the services in your dashboard.
++            </p>
++          )}
++        </Panel>
++      ) : null}
++
+       {/* Summary */}
+       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+         {summaryState.loading ? (
+diff --git a/web/src/app/Deploy.tsx b/web/src/app/Deploy.tsx
+index e07512e..c5745b4 100644
+--- a/web/src/app/Deploy.tsx
++++ b/web/src/app/Deploy.tsx
+@@ -334,6 +334,9 @@ export default function Deploy() {
+     const created = await post<{ order: Order }>('/orders', {
+       items: [{ productSlug: product.slug, name: name.trim() || product.slug, ram, cpu, disk, optionCodes }],
+       ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
++      // The order is placed with the period of the quote, so the sum that was
++      // shown to the customer is the sum that is charged.
++      ...(quote ? { period: quote.period } : {}),
+     });
+     const createdOrder = created.order;
+     setCheckoutIssue(null);
+diff --git a/web/src/lib/api.ts b/web/src/lib/api.ts
+index 42ac030..8706670 100644
+--- a/web/src/lib/api.ts
++++ b/web/src/lib/api.ts
+@@ -319,6 +319,11 @@ export interface Quote {
+   discount: number;
+   total: number;
+   currency: string;
++  /**
++   * The period of the prices in this quote. The order that follows takes the
++   * same period, so the sum that was shown is the sum that is charged.
++   */
++  period: 'MONTHLY' | 'YEARLY';
+   /**
+    * The promotion of the quote. It is null when the customer did not type a
+    * code: an empty field is not a wrong code, so it never carries an error.

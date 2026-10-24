@@ -435,9 +435,9 @@ arată cât a rămas.
 
 | Stare | Constatări |
 |---|---:|
-| FIXED & VERIFIED | 29 |
+| FIXED & VERIFIED | 30 |
 | IMPLEMENTED, NOT VERIFIED | 1 |
-| BLOCKED: EXTERNAL DEPENDENCY | 4 |
+| BLOCKED: EXTERNAL DEPENDENCY | 3 |
 | REQUIRES OPERATOR APPROVAL | 9 |
 | NOT STARTED (BACKLOG) | 139 |
 | **Total** | **182** |
@@ -525,7 +525,7 @@ arată cât a rămas.
 | `DOC-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DOC-13` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `INF-01` | Critical | VM 101, / (RAID 0) | REQUIRES OPERATOR APPROVAL | RAID 0 pe volumul de root: pierderea unui disc pierde totul | Nu s-a atins: brieful interzice schimbarea RAID fara o procedura aprobata si un plan de rollback testat | — | — | Nu s-a rulat nimic: schimbarea necesita downtime si backup (B-09) si aprobare |
-| `INF-02` | Critical | scripts/backup.sh, scripts/backup-offsite.sh | BLOCKED: EXTERNAL DEPENDENCY | Nu exista o copie a datelor in afara hostului | Scriptele exista; tinta de backup off-host (provider, volum, cost) e decizia D-2 a operatorului | — | — | Nu s-a putut verifica: nu exista tinta |
+| `INF-02` | Critical | scripts/backup.sh, scripts/backup-offsite.sh | BLOCKED: EXTERNAL DEPENDENCY | Nu exista o copie a datelor in afara hostului | Timerul ruleaza si arhiva se verifica, dar OFFSITE_TARGET si OFFSITE_KEY nu sunt setate, deci copia nu paraseste gazda. Decizia (provider, volum, cost, cheie de criptare) este a operatorului | - | scripts/backup-offsite.sh | Executat postup: backupul s-a creat, ExecStartPost a iesit 0, si nu exista nicio copie in afara gazdei. RPO la pierderea gazdei: infinit |
 | `INF-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `INF-04` | High | VM 102, VM 103, firewall | REQUIRES OPERATOR APPROVAL | Porturile de administrare (8006, 111) sunt ascultate public | Nu s-a atins: brieful interzice schimbarea regulilor de firewall care ar putea produce lockout fara procedura aprobata | — | — | Nu s-a rulat nimic pe infrastructura |
 | `INF-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
@@ -541,7 +541,7 @@ arată cât a rămas.
 | `CAP-03` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `CAP-04` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-01` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
-| `DR-02` | P0 | scripts/restore.sh, scripts/restore-drill.sh | BLOCKED: EXTERNAL DEPENDENCY | Procedura de restaurare nu a fost exersata pe o copie reala | Procedura exista in repo; drill-ul cere backupul real (B-09) si o masina goala | — | — | Nu s-a putut verifica: nu exista backup off-host |
+| `DR-02` | P0 | scripts/systemd/blipmade-backup.{service,timer}, scripts/install-backup-timer.sh, scripts/restore-drill.sh | FIXED & VERIFIED | Timerul exista in repository de doua runde, dar nu era instalat pe gazda: programarea nu rula | Timerul si unitatea au fost instalate in /etc/systemd/system, activate cu systemctl enable, si o rulare a produs arhiva cu checksum. Drill-ul de restaurare a fost rulat: copia se restaureaza intr-o baza de gol si se compara cu cea vie | 9e92df7 (scriptul), instalare pe gazda 2026-10-24 | scripts/restore-drill.sh | Rulare: arhiva blipmade-scheduled-20261024T001409Z.tar.gz (59620 B) + .sha256; drill: 32 tabele identice, 3 utilizatori, 5 produse, 11 migrari, RTO 3 s. NOTA: copia nu paraseste inca gazda - vezi INF-02 |
 | `DR-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-04` | P0 | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |

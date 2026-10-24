@@ -176,13 +176,16 @@ explică, cu dovada.
 | `FIN-P2-01` | Afirmația „numerele de factură se calculează cu `count()+1`" | **INVALID** — dar **restul rămâne**, ca rândul 14 | vezi `NEW-FINDINGS.md` §2 C3 |
 
 **Dovada de regresie a fazei 13**, rulată de mine pe arborele **deployed**
-(`/opt/blipmade/api`), pe baza `blipmade_synth_test` (creată de mine, sufix `_test`
-cerut de `api/tests/setup.ts`):
+(`/opt/blipmade/api`), pe o bază `_test` creată de mine (`blipmade_synth_test`, sufix
+cerut de `api/tests/setup.ts`), **ștearsă după rulare** ca să nu adaug reziduu de audit:
 
 ```
 Test Files  3 passed (3)
-     Tests  31 passed (31)
+     Tests  31 passed (31)     ← 01:19
+     Tests  39 passed (39)     ← 01:42, pe același arbore (suite-ul a crescut între timp)
 ```
+
+**Nu am atins baza `blipmade` (producția) și nu am trunchiat `blipmade_test`.**
 
 **Rămân deschise**, pentru că sunt **mecanisme**, nu rânduri de cod:
 `SESS-P1-01` (controlul de release) → **rândul 1**, `SEC-P2-02` / `INFRA-P1-01` (copia
@@ -204,7 +207,7 @@ deci orice altă undă poate fi invalidată de un deploy.
 imagine care nu pornește, iar `restart: unless-stopped` o transformă în crash-loop. Un
 suite de regresie care trece vacuum dă verde fals exact pe garda banilor.
 
-**Efort:** **M** (3 zile-lucrătoare) — 1 cod + 1 cod + 1 operator.
+**Efort:** **M + S + S = 5 zile-lucrătoare** — 2 cod + 1 operator.
 
 **Criteriu de ieșire:**
 > 1. Un build din sursa curentă pornește, toate containerele sunt `healthy`, și niciun
@@ -215,14 +218,13 @@ suite de regresie care trece vacuum dă verde fals exact pe garda banilor.
 
 ### Unda 0 — „Poate platforma să ia banii cuiva?"
 
-**Ce conține:** rândurile **4 – 19** (rândul 20 partial).
+**Ce conține:** rândurile **4 – 19**.
 
 **Ce deblochează:** prima tranzacție reală, prima factură reală, primul bilet real. Toate
 celelalte unde depind de existența unui client care a plătit.
 
-**Efort:** **M + M + M + S + M + M + S + S + S + S + S + S + M + S + S** ≈ **20 zile-lucrătoare**
-(≈ 4 săptămâni calendar cu 2 persoane). **≈ 40% operator** (chei, conținut de ou, decizia
-de TVA), **60% cod**.
+**Efort:** **S×11 + M×5 = 26 zile-lucrătoare** (≈ 4–5 săptămâni calendar cu 2 persoane).
+**≈ 40% operator** (chei, conținut de ou, decizia de TVA), **60% cod**.
 
 **Criteriu de ieșire:**
 > 1. Un client nou plătește **cu card real** și vede factura cu TVA vizibilă pe pagina lui.
@@ -235,12 +237,12 @@ de TVA), **60% cod**.
 
 ### Unda 1 — „Poate clientul să folosească ce a plătit?"
 
-**Ce conține:** rândurile **20 – 23, 40 – 46**.
+**Ce conține:** rândurile **20 – 23** și **40 – 46**.
 
 **Ce deblochează:** primul client care spune „funcționează" în loc de „am plătit și nu
 merge". E exact feedback-ul care decide dacă platforma se repară sau se închide.
 
-**Efort:** **S + M + M + M + S + S + M + M** ≈ **15 zile-lucrătoare** (≈ 3 săptămâni).
+**Efort:** **S×5 + M×6 = 23 zile-lucrătoare** (≈ 3–4 săptămâni calendar cu 2 persoane).
 
 **Criteriu de ieșire:**
 > 1. Un server provisionat primește o **adresă publică reală** care rezolvă DNS și răspunde,
@@ -254,13 +256,14 @@ merge". E exact feedback-ul care decide dacă platforma se repară sau se închi
 
 ### Unda 2 — „Poate operatorul să o știe ruleze, s-o oprească și s-o repornească?"
 
-**Ce conține:** rândurile **24 – 39, 47 – 59**.
+**Ce conține:** rândurile **24 – 39** și **47 – 59**.
 
 **Ce deblochează:** onestitatea față de clientul care plătește lunar; **credibilitatea**
 oricărei promisiuni de uptime. Fiecare euro încasat e altfel o promisiune de încredere fără
 contrapartide.
 
-**Efort:** **S + M + S + M + M + M + M + M + S + S + S + S + S + S + M + M + M + M + S + M + M + S + M + S + M + S + M + M** ≈ **42 zile-lucrătoare** (≈ 8 săptămâni calendar cu 2 persoane). **≈ 60% operator** — efortul e în infrastructură (edge, firewall, backup off-host, RAID), nu în cod.
+**Efort:** **S×14 + M×15 = 59 zile-lucrătoare** (≈ 8–9 săptămâni calendar cu 2 persoane).
+**≈ 60% operator** — efortul e în infrastructură (edge, firewall, backup off-host, RAID), nu în cod.
 
 **Criteriu de ieșire:**
 > 1. Există o copie de backup **în afara gazdei**, criptată, cu drill de restaurare executat.
@@ -274,12 +277,12 @@ contrapartide.
 
 ### Unda 3 — „Poate afacerea să crească?"
 
-**Ce conține:** rândurile **60 – 68, 71 – 73**.
+**Ce conține:** rândurile **60 – 68** și **71 – 73**.
 
 **Ce deblochează:** platforma care nu se rupe la 10 000 de clienți, și integrarea care
 aduce clienți de la distanță.
 
-**Efort:** ≈ **26 zile-lucrătoare**.
+**Efort:** **M×7 + S×5 = 26 zile-lucrătoare** (≈ 4 săptămâni calendar cu 2 persoane).
 
 **Criteriu de ieșire:**
 > 1. Retragerea pe `/` e sub 200 KB.
@@ -290,9 +293,10 @@ aduce clienți de la distanță.
 
 ### Unda 4 — „De ce clientul alege Blipmade și nu un VPS sau un concurent?"
 
-**Ce conține:** rândurile **69, 74, 75, 46, 39** (diferențiatorii și igiena vizibilă).
+**Ce conține:** rândurile **69, 70, 74, 75** (diferențiatorii: localizare, plafon de preț,
+motiv de anulare, optimizările de viteză rămase).
 
-**Efort:** ≈ **12 zile-lucrătoare**.
+**Efort:** **M×3 + S×1 = 10 zile-lucrătoare** (≈ 2 săptămâni calendar).
 
 **Criteriu de ieșire:**
 > 1. Interfața e în română, iar sumele sunt formatate `ro-RO`.
@@ -306,7 +310,7 @@ aduce clienți de la distanță.
 **De ce e separat:** 41 de constatări nu cer o reparare, ci **o metodă de verificare**
 (`NOT VERIFIED`) sau o curățenie. Nu blochează nicio undă.
 
-**Efort:** ≈ **8 zile-lucrătoare**, în total — nu într-o singură fază.
+**Efort:** **M = 3 zile-lucrătoare**, în total — nu într-o singură fază.
 
 **Criteriu de ieșire:** fiecare dintre cele 5 constatări `NOT VERIFIED` (`FN-P1-16`,
 `FN-P1-23`, `INFRA-P1-23`) primește o metodă de verificare documentată și un verdict;
@@ -314,20 +318,30 @@ restul e fie reparat, fie acceptat explicit ca „așa e, prin design".
 
 ### Efort total pe unde
 
-| Unda | Efort | Zile-lucrătoare (S=1, M=3, L=8) | % operator |
+| Unda | Efort | Zile-lucrătoare (S=1, M=3, L=8) | Rânduri |
 |---|---|---|---|
-| −1 — Integritatea procesului | M | 3 | 33 % |
-| 0 — Poate lua banii | M×6 + S×8 | 20 | 40 % |
-| 1 — Poate folosi ce a plătit | M×5 + S×3 | 15 | 20 % |
-| 2 — Poate fi rulată | M×13 + S×15 | 42 | 60 % |
-| 3 — Poate crește | M×6 + S×4 | 26 | 10 % |
-| 4 — Diferențiator | M×4 | 12 | 25 % |
-| — Igienă | M | 8 | 10 % |
-| **Total** | — | **126 zile-lucrătoare** | **≈ 45 %** |
+| −1 — Integritatea procesului | M×1 + S×2 | 5 | 3 |
+| 0 — Poate lua banii | S×11 + M×5 | 26 | 16 |
+| 1 — Poate folosi ce a plătit | S×5 + M×6 | 23 | 11 |
+| 2 — Poate fi rulată | S×14 + M×15 | 59 | 29 |
+| 3 — Poate crește | M×7 + S×5 | 26 | 12 |
+| 4 — Diferențiator | M×3 + S×1 | 10 | 4 |
+| — Igienă | M×1 | 3 | 1 |
+| **Total** | — | **152 zile-lucrătoare** | **76** |
 
-Cu **două persoane** în paralel, pe durate realiste: **≈ 13–16 săptămâni calendar** până
-la ieșirea din unda 2. **Un singur dezvoltator** (fără resurse de operator paralele):
-**≈ 6 luni**.
+**Verificare:** 5 + 26 + 23 + 59 + 26 + 10 + 3 = **152**, iar rândurile 3 + 16 + 11 +
+29 + 12 + 4 + 1 = **76** — toate rândurile tabelului principal sunt repartizate într-o
+singură undă, fără suprapunere.
+
+**Cât de mult depinde de operator:** 20 din cele 76 de rânduri au „operator" în coloana
+Dependență, și însumă **42 din cele 152 de zile-lucrătoare = 28%**. Restul de 72% e
+cod — dar **acele 28% blochează cele mai multe rânduri din față**, deoarece sunt
+exact cheile, conținutul, adresa, e-mailul și backup-ul.
+
+Cu **două persoane** în paralel (1 dezvoltator + 1 operator), pe durate realiste:
+**≈ 15–18 săptămâni calendar** pentru tot backlog-ul, **≈ 8–9 săptămâni** până la
+ieșirea din unda 2. **Un singur dezvoltator**, fără resurse de operator paralele:
+**≈ 7–8 luni**.
 
 ---
 
@@ -354,10 +368,10 @@ la ieșirea din unda 2. **Un singur dezvoltator** (fără resurse de operator pa
 
 | | |
 |---|---|
-| **Efort total al lanțului** | **S + M + S + S + S + M + M = 17 zile-lucrătoare** |
-| **Efort operator** | **5 zile-lucrătoare** (rândurile 1, 3, 4 + decizia de TVA din 7) |
-| **Efort cod** | **12 zile-lucrătoare** (rândurile 2, 5, 6, 7) |
-| **Calendar realist** | **≈ 2 săptămâni cu 2 persoane** (operatorul și dezvoltatorul în paralel) |
+| **Efort total al lanțului** | **S + M + S + S + S + M + M = 13 zile-lucrătoare** |
+| **Efort exclusiv operator** | **3 zile-lucrătoare** (rândurile 1, 3, 4) + decizia de TVA din rândul 7 |
+| **Efort cod** | **10 zile-lucrătoare** (rândurile 2, 5, 6, 7), din care 3 partajate cu operatorul la rândul 7 |
+| **Calendar realist** | **≈ 1,5–2 săptămâni cu 2 persoane** (operatorul și dezvoltatorul în paralel) |
 | **Cel mai lung blocaj** | rândul **2** — imaginea și oul produsului: **conținut, nu cod** |
 
 ### 3.4 De ce acest lanț și nu altul
@@ -368,8 +382,11 @@ la ieșirea din unda 2. **Un singur dezvoltator** (fără resurse de operator pa
 - **Nu conține elemente care pot fi întârziate fără pierdere.** Contrastul, antetul
   lipicios, 2FA, API-ul public, planul free — toate sunt utile, dar niciunul nu stă
   între „nu se poate vinde" și „se poate vinde".
-- **Efortul e dominat de operator, nu de cod.** 5 din 17 zile sunt operator. Asta e
-  constatarea centrală a acestei runde: **nu dezvoltarea e blocajul, e pornirea.**
+- **Efortul nu e dominat de cod.** Din cele 13 zile-lucrătoare, 3 sunt exclusiv
+  operator (cheile Stripe, adresa publică, SMTP), 9 sunt cod, iar 3 sunt **partajate**
+  (imaginea produsului, decizia de TVA). Asta e constatarea centrală a acestei runde:
+  **nu dezvoltarea e blocajul, e pornirea.** Operatorul are nevoie de **3 zile**, nu de
+  3 luni — dar până le face, niciun rând de cod nu produce venit.
 
 ### 3.5 Ce se întâmplă dacă se sare peste un element
 

@@ -309,19 +309,19 @@
   "status": "BLOCKED: EXTERNAL DEPENDENCY",
   "area": "scripts/backup.sh, scripts/backup-offsite.sh",
   "rootCause": "Nu exista o copie a datelor in afara hostului",
-  "fix": "Scriptele exista; tinta de backup off-host (provider, volum, cost) e decizia D-2 a operatorului",
-  "commit": "—",
-  "test": "—",
-  "verification": "Nu s-a putut verifica: nu exista tinta"
+  "fix": "Timerul ruleaza si arhiva se verifica, dar OFFSITE_TARGET si OFFSITE_KEY nu sunt setate, deci copia nu paraseste gazda. Decizia (provider, volum, cost, cheie de criptare) este a operatorului",
+  "commit": "-",
+  "test": "scripts/backup-offsite.sh",
+  "verification": "Executat postup: backupul s-a creat, ExecStartPost a iesit 0, si nu exista nicio copie in afara gazdei. RPO la pierderea gazdei: infinit"
  },
  "DR-02": {
-  "status": "BLOCKED: EXTERNAL DEPENDENCY",
-  "area": "scripts/restore.sh, scripts/restore-drill.sh",
-  "rootCause": "Procedura de restaurare nu a fost exersata pe o copie reala",
-  "fix": "Procedura exista in repo; drill-ul cere backupul real (B-09) si o masina goala",
-  "commit": "—",
-  "test": "—",
-  "verification": "Nu s-a putut verifica: nu exista backup off-host"
+  "status": "FIXED & VERIFIED",
+  "area": "scripts/systemd/blipmade-backup.{service,timer}, scripts/install-backup-timer.sh, scripts/restore-drill.sh",
+  "rootCause": "Timerul exista in repository de doua runde, dar nu era instalat pe gazda: programarea nu rula",
+  "fix": "Timerul si unitatea au fost instalate in /etc/systemd/system, activate cu systemctl enable, si o rulare a produs arhiva cu checksum. Drill-ul de restaurare a fost rulat: copia se restaureaza intr-o baza de gol si se compara cu cea vie",
+  "commit": "9e92df7 (scriptul), instalare pe gazda 2026-10-24",
+  "test": "scripts/restore-drill.sh",
+  "verification": "Rulare: arhiva blipmade-scheduled-20261024T001409Z.tar.gz (59620 B) + .sha256; drill: 32 tabele identice, 3 utilizatori, 5 produse, 11 migrari, RTO 3 s. NOTA: copia nu paraseste inca gazda - vezi INF-02"
  },
  "SEC-01": {
   "status": "REQUIRES OPERATOR APPROVAL",
@@ -385,5 +385,14 @@
   "commit": "remediation/phase-1-payment-safety",
   "test": "api/tests/promotions.test.ts",
   "verification": "Test: limita per cont se aplica la cotatie"
+ },
+ "ADM-02": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/routes/admin.ts, api/src/lib/permissions.ts",
+  "rootCause": "Un angajat cu permisiunea staff.write putea acorda pana la 20 din cele 21 de permisiuni, inclusiv siesi, pentru ca garda verifica doar daca se acorda lista intreaga",
+  "fix": "Un angajat nu mai poate acorda o permisiune pe care nu o are si nu mai poate modifica propria lista; numai un administrator schimba o lista de permisiuni sau un rol. Se aplica un singur helper, in toate rutele care ating un cont",
+  "commit": "8d138bb, 1db05a9",
+  "test": "api/tests/phase2-access-control.test.ts, api/tests/admin-staff-permissions.test.ts",
+  "verification": "Retest independent in curs: audit/post-remediation/PHASE-13-RETEST.md. Verificarea lead-ului: garda de la admin.ts:1059 bloca doar 21 din 21"
  }
 }

@@ -620,7 +620,7 @@ conținea 12 constatări.
 | INFRA-P1-14 | `/api/status` e public și dezvăluie topologia internă | Medium | Nu | Da | `api/src/routes/health.ts` | **STILL BROKEN** | nu |
 | INFRA-P1-15 | Imaginile Docker: tag `latest`, fără registru, fără cale de rollback | Medium | Da | Da | `compose.api.yml` (`build: ./api`), `blipmade-api:latest` | **STILL BROKEN** | nu |
 | INFRA-P1-16 | PostgreSQL nu are vizibilitate pe interogări | Medium | Nu | Da | `log_min_duration_statement = -1`; aceeași cauză ca `PERF-P1-15` | **STILL BROKEN** | nu |
-| INFRA-P1-17 | Resturi de audit în producție: 7 099 e-mailuri nedeliverate și 9 baze de test | Medium | Da | Da | enumerare directă pe `blipmade` | **PARTIALLY FIXED** — incidentul de poluare a fost documentat și curățat (`_raw/PRODUCTION-POLLUTION-INCIDENT.md`); băzile rămase: `blipmade_test`, `blipmade_shadow`, `blipmade_check`, `blipmade_audit_test`, `blipmade_suite_test`, `blipmade_synth_test` | nu |
+| INFRA-P1-17 | Resturi de audit în producție: 7 099 e-mailuri nedeliverate și 9 baze de test | Medium | Da | Da | enumerare directă pe `blipmade` | **PARTIALLY FIXED** — incidentul de poluare a fost documentat și curățat (`_raw/PRODUCTION-POLLUTION-INCIDENT.md`); băzile rămase: `blipmade_test`, `blipmade_shadow`, `blipmade_check`, `blipmade_audit_test`, `blipmade_suite_test` (baza `blipmade_synth_test`, creată de mine pentru testele de regresie, a fost **ștearsă** după rulare) | nu |
 | INFRA-P1-18 | Stack-ul de verificare al auditului e publicat pe `0.0.0.0` | Low | Nu | Da | `ss -ltnp`: `30003`, `30004`, `30005` pe `0.0.0.0` | **STILL BROKEN** — confirmat de mine la 01:16: `LISTEN 0 511 0.0.0.0:3113` etc. | nu |
 | INFRA-P1-19 | LLMNR ascultă pe toate interfețele | Low | Nu | Da | `5355/tcp+udp` pe `0.0.0.0` | **STILL BROKEN** | nu |
 | INFRA-P1-20 | HSTS și CSP lipsesc pe traseul static public | Low | Nu | Da | `web/server.mjs`; aceeași cauză ca `SEC-P4-02` | **STILL BROKEN** | nu |
@@ -739,7 +739,7 @@ documentate pe deplin în §7, cu dovezile brute.
 
 ## 4. Constatările deja reparate
 
-Sunt **9 rânduri** din §3 care au fost închise înainte de această sinteză. Le separ în
+Sunt **12 rânduri** din §3 care au fost închise înainte de această sinteză. Le separ în
 două categorii, pentru că au fost închise prin mecanisme diferite și au grade diferite
 de certitudine.
 
@@ -762,7 +762,7 @@ de certitudine.
 | ID | Ce s-a reparat | Dovegă | Ce **nu** s-a reparat |
 |---|---|---|---|
 | **SESS-P1-01** | Producția rulează un build înainte de remediere | Ramura aplicată: `main` fast-forward `36a75a7` → `2e1e78a`; migrare `20261024110000_session_last_seen` aplicată; `MAX_SESSIONS_PER_USER = 20` prezent în imaginea deployată (`/app/dist/plugins/auth.js:41`) | **Mecanismul**: nu există control de release care să compare migrațiile din ramură cu cele din producție. A rămas ca rând separat în §3.4 |
-| **DR-02** / **FN-P1-09** | Programarea backupului | `blipmade-backup.timer` + `.service` instalate în `/etc/systemd/system/` prin `scripts/install-backup-timer.sh`; timer `enabled`; rulare manuală: `blipmade-scheduled-20261024T001409Z.tar.gz` (59 620 octeți) + `.sha256` | **Ieșirea din gazdă**: `OFFSITE_TARGET` și `OFFSITE_KEY` lipsesc → `INFRA-P1-01` rămâne Critical |
+| **FN-P1-09** *(echivalentul `DR-02` din registrul anterior)* | Programarea backupului | `blipmade-backup.timer` + `.service` instalate în `/etc/systemd/system/` prin `scripts/install-backup-timer.sh`; timer `enabled`; rulare manuală: `blipmade-scheduled-20261024T001409Z.tar.gz` (59 620 octeți) + `.sha256` | **Ieșirea din gazdă**: `OFFSITE_TARGET` și `OFFSITE_KEY` lipsesc → `INFRA-P1-01` rămâne Critical |
 
 ### 4.3 Dovada de regresie a fazei 13
 
@@ -784,6 +784,12 @@ $ TEST_DATABASE_URL=…@localhost:5432/blipmade_synth_test NODE_ENV=test \
 Baza `blipmade_synth_test` a fost creată de mine, cu sufixul `_test` cerut de
 `api/tests/setup.ts:10-16` (care refuză să ruleze pe o bază al cărei nume nu se termină
 în `_test`). **Nu am atins `blipmade` (producția) și nu am trunchiat `blipmade_test`.**
+Baza a fost **ștearsă** după rulare (`DROP DATABASE blipmade_synth_test`), ca să nu
+adaug reziduu de audit — exact constatarea `INFRA-P1-17`.
+
+**Reverificare la 01:42:33**, pe același arbore deployat: `Tests 39 passed (39)`.
+Numărul a crescut de la 31 la 39 între 01:19 și 01:42 — **fișierele de test sunt
+modificate în același timp cu sursa** (vezi `SYN-P1-01`).
 
 Aceasta confirmă și `_raw/phase2-proof-lead.txt` („Rezultatul cu reparatiile în loc:
 10/10 PASS"), dar **doar în condiția de mediu corectă** — vezi `SYN-P1-02` în §7, unde
@@ -878,7 +884,7 @@ fost ușor de adăugat.
 
 | Afirmația respinsă | De ce |
 |---|---|
-| „Producția are 9 baze de test" (`INFRA-P1-17`) | Numărul **crește în timpul auditului**: am găsit `blipmade_test`, `blipmade_shadow`, `blipmade_check`, `blipmade_audit_test`, `blipmade_suite_test` și am creat `blipmade_synth_test`. Un număr de baze „de reziduu" depinde de când e măsurat; l-am păstrat ca **listă**, nu ca număr |
+| „Producția are 9 baze de test" (`INFRA-P1-17`) | Numărul **crește în timpul auditului**: am găsit `blipmade_test`, `blipmade_shadow`, `blipmade_check`, `blipmade_audit_test`, `blipmade_suite_test`; baza pe care am creat-o eu, `blipmade_synth_test`, a fost deja ștearsă la final. Un număr de baze „de reziduu" depinde de când e măsurat; l-am păstrat ca **listă**, nu ca număr |
 | „Testul `phase2-payment-safety` e flaky" | Prima impresie a fost aceasta (o rulare a eșuat, alta a trecut). **Nu e flaky** — e un efect de **mediu**: cu poarta de test Stripe dezactivată, webhook-ul răspunde 404 și 9 din 10 aserțiuni trec **vacuum**. Vezi `SYN-P1-02` |
 
 ---
@@ -1002,6 +1008,15 @@ nou 52 163 octeți, cu un **diff semantic de 80 de linii** față de arborele de
    directorul de producție. O versiune care scoate `assertMayActOnAccount` din importuri
    ar **dezactiva** exact garda care repară `ADM-P1-02` — adică o regresie de
    securitate, aplicată prin același mecanism.
+
+**Starea la momentul scrierii (01:42):** fișierul **nu mai conține** blocul orfan în
+prima linie — `head -2` arată importurile normale, `md5 = 8bae07d3ab51`, 56 921
+octeți, mtime 01:16:27, iar suite-ul de fază 13 trece **39/39**. Așadar: **fereastra de
+corupție s-a închis, dar nu printr-un control, ci fiindcă scrierea s-a terminat.** În
+intervalul 01:13–01:19 am observat **patru** stări distincte ale aceluiași fișier, iar
+numărul de teste din suite a crescut de la 31 la 39 în 23 de minute. Rămâne deschisă
+**cauza**: editarea in-place a arborelui deployat, fără poartă de build și fără control
+de release.
 
 **Ce l-ar închide:** scrierea într-un director separat și un `rsync`/`cp` atomic în
 locul editării in-place; un build care rulează `tsc`/`vitest` **înainte** de a înlocui
@@ -1250,10 +1265,18 @@ Distribuția money-relevant pe domeniu: `PAR` 31 · `FN` 24 · `COMP` 18 · `PER
 
 | | Rânduri |
 |---|---|
-| Reparate prin **cod** (faza 13, `36a75a7..2e1e78a`) | 10 |
-| Reparate prin **acțiune de operator** | 3 (`SESS-P1-01`, `DR-02`, `FN-P1-09`) |
-| **Total închise** | **13** |
-| **Dovadă de regresie** | `31/31` teste de fază 13 verzi pe arborele **deployed** (baza `blipmade_synth_test`) |
+| Reparate prin **cod** (faza 13, `36a75a7..2e1e78a`) | **11** |
+| Reparate prin **acțiune de operator** | **1** (`FN-P1-09` — instalarea timerului de backup) |
+| **Total închise** | **12** |
+
+Cele 11 reparate prin cod: `SEC-P1-01` · `FIN-P1-01` · `FIN-P2-03` · `FIN-P2-04` ·
+`FIN-P2-05` · `SESS-P1-01` · `ADM-P1-01` · `ADM-P1-02` · `PAR-P1-09` · `PAR-P1-11` ·
+`PAR-P1-22`.
+
+**Atenție la numărătoare:** `DR-02` (programarea backupului) este un ID din **registrul
+anterior** de 182, nu un rând al acestui registru. El apare aici doar ca trasabilitate;
+singurul său rând echivalent în runda curentă este `FN-P1-09`.
+| **Dovadă de regresie** | `31/31` teste verzi pe arborele **deployed** la 01:19, `39/39` la 01:42 (suite-ul a crescut între timp) |
 
 Rândurile reparate prin cod: `SEC-P1-01` · `FIN-P1-01` · `FIN-P2-03` · `FIN-P2-04` ·
 `FIN-P2-05` · `ADM-P1-01` · `ADM-P1-02` · `PAR-P1-09` · `PAR-P1-11` · `PAR-P1-22`.
@@ -1271,4 +1294,5 @@ Rândurile reparate prin cod: `SEC-P1-01` · `FIN-P1-01` · `FIN-P2-03` · `FIN-
 
 *Document încheiat la 2026-10-24, faza 12. Sinteza nu modifică niciun cod de aplicație
 și nu scrie în baza `blipmade`. Baza folosită pentru rulările de test a fost
-`blipmade_synth_test`, creată de mine, cu sufixul `_test` cerut de `api/tests/setup.ts`.*
+`blipmade_synth_test`, creată de mine, cu sufixul `_test` cerut de `api/tests/setup.ts`,
+ștearsă după rulare.*

@@ -1,0 +1,253 @@
+diff --git a/api/src/routes/orders.ts b/api/src/routes/orders.ts
+index 16d92d6..89e9628 100644
+--- a/api/src/routes/orders.ts
++++ b/api/src/routes/orders.ts
+@@ -1,7 +1,7 @@
+ import type { FastifyInstance, FastifyRequest } from 'fastify';
+ import { z } from 'zod';
+ import { prisma } from '../db.js';
+-import { badRequest, notFound } from '../lib/errors.js';
++import { badRequest, conflict, notFound } from '../lib/errors.js';
+ import { requireAuth } from '../plugins/auth.js';
+ import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
+ import { nextOrderNumber } from '../services/order-numbers.js';
+@@ -65,10 +65,17 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
+     handler: async (request: FastifyRequest, reply) => {
+       const user = await requireAuth(request);
+       const body = z
+-        .object({ items: z.array(orderItemSchema).min(1, 'Choose at least one app.'), promotionCode: z.string().trim().optional() })
++        .object({
++          items: z.array(orderItemSchema).min(1, 'Choose at least one app.'),
++          promotionCode: z.string().trim().optional(),
++          // The period of the price that is ordered. It has to be the same
++          // period as the one that was quoted, otherwise the order would be
++          // priced with another period than the one the customer was shown.
++          period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
++        })
+         .parse(request.body);
+ 
+-      const quote = await buildQuote(body.items, body.promotionCode, user.id);
++      const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
+ 
+       const order = await prisma.order.create({
+         data: {
+@@ -195,6 +202,52 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
+     return { url: checkout.url, sessionId: checkout.sessionId, message: null, testGateway: stripeTestGateway() };
+   });
+ 
++  /**
++   * Confirms the payment of an order through the local test gateway.
++   *
++   * The local gateway stands in for the payment provider, so the browser
++   * comes back to the billing page with the session in the address and
++   * nothing else happens: the order would wait for a payment that never
++   * arrives. This route is the way back: the customer confirms, the order is
++   * marked as paid through the same function the webhook uses, and the
++   * services are provisioned.
++   *
++   * The route exists only while the local gateway is in use. On a live site
++   * the payment provider confirms the payment through its own webhook, and
++   * this route refuses, so nobody can mark an order paid from the browser.
++   */
++  app.post('/orders/:id/confirm', async (request: FastifyRequest) => {
++    const user = await requireAuth(request);
++    const { id } = z.object({ id: z.string() }).parse(request.params);
++    if (!stripeTestGateway()) {
++      throw notFound('This order cannot be confirmed here.');
++    }
++    const order = await prisma.order.findFirst({ where: { id, userId: user.id } });
++    if (!order) throw notFound('Order not found.');
++    if (order.status === 'PAID' || order.status === 'FULFILLED') {
++      // The order is already paid: the answer is the state of the order, so
++      // the page can show it. Nothing is confirmed twice.
++      return { order: { id: order.id, status: order.status, total: order.total }, alreadyPaid: true };
++    }
++    if (order.status !== 'PENDING' && order.status !== 'AWAITING_PAYMENT') {
++      throw conflict(`This order is ${order.status} and cannot be confirmed.`);
++    }
++
++    await markOrderPaid({ orderId: order.id, amount: order.total });
++    await fulfilOrder(order.id);
++    await audit({
++      actorId: user.id,
++      actorEmail: user.email,
++      action: 'order.checkout_completed',
++      targetType: 'order',
++      targetId: order.id,
++      meta: { total: order.total, testGateway: true },
++    });
++
++    const updated = await prisma.order.findUnique({ where: { id: order.id } });
++    return { order: { id: order.id, status: updated?.status ?? 'PAID', total: order.total }, alreadyPaid: false };
++  });
++
+   app.post('/orders/:id/cancel', async (request: FastifyRequest, reply) => {
+     const user = await requireAuth(request);
+     const { id } = z.object({ id: z.string() }).parse(request.params);
+diff --git a/api/src/routes/webhooks.ts b/api/src/routes/webhooks.ts
+index 2ded279..8c06dab 100644
+--- a/api/src/routes/webhooks.ts
++++ b/api/src/routes/webhooks.ts
+@@ -299,11 +299,18 @@ export async function fulfilOrder(orderId: string): Promise<void> {
+ /**
+  * The amount Stripe collected has to match the order. A mismatch means the
+  * order was not paid as quoted, so nothing is provisioned.
++ *
++ * The check closes when the provider does not send an amount. A payment event
++ * without an amount cannot be compared with the order, and a check that lets
++ * it through is not a check: the order would be provisioned for a sum nobody
++ * confirmed. The order total is in minor units, so the comparison is exact.
+  */
+ async function verifyAmount(orderId: string, amountTotal: unknown): Promise<string | null> {
+-  if (typeof amountTotal !== 'number') return null;
+   const order = await prisma.order.findUnique({ where: { id: orderId } });
+   if (!order) return 'The order does not exist.';
++  if (typeof amountTotal !== 'number' || !Number.isFinite(amountTotal)) {
++    return 'The payment event does not carry the amount that was collected.';
++  }
+   if (amountTotal !== order.total) {
+     return `Stripe collected ${amountTotal} but the order total is ${order.total}.`;
+   }
+diff --git a/api/src/services/pricing.ts b/api/src/services/pricing.ts
+index a6410f1..3af4a12 100644
+--- a/api/src/services/pricing.ts
++++ b/api/src/services/pricing.ts
+@@ -418,8 +418,9 @@ export async function buildQuote(
+   items: { productSlug: string; ram: number; cpu: number; disk: number; optionCodes?: string[]; quantity?: number }[],
+   promotionCode?: string | null,
+   userId?: string | null,
++  period: BillingPeriod = 'MONTHLY',
+ ): Promise<QuoteResult> {
+-  const priced = await priceItems(items);
++  const priced = await priceItems(items, period);
+   const subtotal = priced.reduce((sum, item) => sum + item.total, 0);
+   const currency = priced[0]?.currency ?? 'EUR';
+ 
+diff --git a/api/src/services/stripe.ts b/api/src/services/stripe.ts
+index 9e74e42..38fbfa6 100644
+--- a/api/src/services/stripe.ts
++++ b/api/src/services/stripe.ts
+@@ -1,9 +1,10 @@
+ import Stripe from 'stripe';
+ import { env } from '../env.js';
+ import { prisma } from '../db.js';
+-import { AppError, badRequest, unavailable } from '../lib/errors.js';
++import { AppError, badRequest, conflict, unavailable } from '../lib/errors.js';
+ import { audit } from '../lib/audit.js';
+ import { allocateOrderAmounts, allocateLineTotals } from './order-amounts.js';
++import { nextInvoiceNumber } from './order-numbers.js';
+ import type { Order, OrderItem, Subscription } from '@prisma/client';
+ 
+ let client: Stripe | null = null;
+@@ -268,6 +269,22 @@ export interface MarkOrderPaidParams {
+   currentPeriodEnd?: Date | null;
+ }
+ 
++/**
++ * The states in which an order can never become paid.
++ *
++ * `CANCELLED` means the order was refused and `REFUNDED` means the money was
++ * already given back. An order in one of them states must never become paid
++ * again, because the payment gate of the provisioning would open for an order
++ * that nobody owes anything for.
++ *
++ * Every other state can still be paid. `FAILED` in particular is left out on
++ * purpose: a payment that did not match the order marks the order as failed
++ * so that the money is not applied, and the operator corrects the order and
++ * replays the event. A guard that refused the failed state would close that
++ * way out.
++ */
++const DEAD_ORDER_STATUSES = ['CANCELLED', 'REFUNDED'] as const;
++
+ /**
+  * Marks an order as paid and creates the subscriptions it paid for.
+  *
+@@ -285,6 +302,15 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
+ 
+   const alreadyPaid = order.status === 'PAID' || order.status === 'FULFILLED';
+ 
++  // A cancelled or refunded order is not payable. The state of the order is
++  // the guard: without it a late or replayed payment event would turn a dead
++  // order into a paid one and the provisioning would follow.
++  if (!alreadyPaid && (DEAD_ORDER_STATUSES as readonly string[]).includes(order.status)) {
++    throw conflict(
++      `Order ${order.number} cannot be paid: its status is ${order.status}.`,
++    );
++  }
++
+   // The promotion is consumed here, when the money arrives. Until then it is
+   // only reserved, so an unpaid order cannot exhaust a campaign.
+   if (order.promotionId && !order.promotionRedeemedAt) {
+@@ -371,11 +397,72 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
+       targetId: order.id,
+       meta: { total: order.total, subscriptions: subscriptions.length },
+     });
++    // The customer paid, so the platform owes an invoice. It is written here,
++    // with the sum that was really collected, so the sum that was quoted is
++    // the sum that is invoiced. The invoice of the payment provider, when
++    // there is one, is the reconciliation and not the only document.
++    await writeOrderInvoice(order, subscriptions, params);
+   }
+ 
+   return subscriptions;
+ }
+ 
++/**
++ * One month after a date. The period of an invoice that the provider did not
++ * tell us about is a month, because that is what a monthly price means.
++ */
++function addOneMonth(date: Date): Date {
++  const next = new Date(date);
++  next.setMonth(next.getMonth() + 1);
++  return next;
++}
++
++/**
++ * Writes the invoice of a paid order.
++ *
++ * The invoice carries the sum of the order, which is the sum that was
++ * collected, and the period of the subscription it pays for. An order that
++ * was already invoiced is not invoiced a second time: the function is called
++ * again every time the payment event is replayed.
++ */
++async function writeOrderInvoice(
++  order: Order & { items: OrderItem[] },
++  subscriptions: Subscription[],
++  params: MarkOrderPaidParams,
++): Promise<void> {
++  const existing = await prisma.invoice.findFirst({ where: { orderId: order.id } });
++  if (existing) return;
++
++  const periodStart = params.currentPeriodStart ?? new Date();
++  const periodEnd = params.currentPeriodEnd ?? addOneMonth(periodStart);
++
++  await prisma.invoice.create({
++    data: {
++      number: await nextInvoiceNumber(),
++      userId: order.userId,
++      orderId: order.id,
++      stripeInvoiceId: null,
++      status: 'PAID',
++      amount: order.total,
++      tax: 0,
++      total: order.total,
++      currency: order.currency,
++      paidAt: new Date(),
++      dueDate: periodStart,
++      periodStart,
++      periodEnd,
++    },
++  });
++
++  await audit({
++    actorId: order.userId,
++    action: 'invoice.written',
++    targetType: 'order',
++    targetId: order.id,
++    meta: { total: order.total, subscriptions: subscriptions.length },
++  });
++}
++
+ /**
+  * Writes the payment row for an order. The customer id is stored here, which
+  * is what makes the Stripe billing portal work for an account.
