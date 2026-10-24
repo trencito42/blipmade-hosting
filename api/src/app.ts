@@ -11,6 +11,9 @@ import { addressRateLimitKey, loadSession } from './plugins/auth.js';
 import { csrfGuard, ensureCsrfCookie } from './plugins/csrf.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { MAX_ATTACHMENT_BYTES } from './lib/attachments.js';
+import { perfConfig } from './lib/perf-config.js';
+import { REQUEST_ID_HEADER, resolveRequestId } from './lib/perf-request-id.js';
+import { beginRequest, endAbortedRequest, endRequest } from './lib/perf-metrics.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCatalogRoutes } from './routes/catalog.js';
 import { registerOrderRoutes } from './routes/orders.js';
@@ -49,6 +52,35 @@ export async function buildApp(): Promise<FastifyInstance> {
      */
     trustProxy: env.trustProxies,
     bodyLimit: 2 * 1024 * 1024,
+
+    /**
+     * The limits of the server.
+     *
+     * Without them a client that opens a connection and sends nothing keeps
+     * it open for ever: the server had no limit for the request and no limit
+     * for the silence of the socket. The values are read from the environment
+     * and the value `0` brings back the old behaviour.
+     */
+    requestTimeout: perfConfig.requestTimeoutMs,
+    connectionTimeout: perfConfig.connectionTimeoutMs,
+    keepAliveTimeout: perfConfig.keepAliveTimeoutMs,
+
+    /**
+     * The id of a request.
+     *
+     * The id of the proxy is taken when the request came through a proxy that
+     * is believed and when the id is well formed, so the journal of the web
+     * and the journal of the API speak about the same request. In every other
+     * case the API makes an id of its own.
+     */
+    genReqId: (request) =>
+      resolveRequestId(
+        {
+          headers: request.headers as Record<string, string | string[] | undefined>,
+          socket: request.socket,
+        },
+        env.trustProxies,
+      ),
   });
 
   await app.register(cookie, { secret: env.SESSION_SECRET });
@@ -129,9 +161,26 @@ export async function buildApp(): Promise<FastifyInstance> {
     done(null, body);
   });
 
+  app.addHook('onRequest', async (request, reply) => {
+    /**
+     * The request is measured from the moment it arrives, and the id of the
+     * request is given back, so the interface can show the customer the
+     * number of the request that went wrong.
+     */
+    beginRequest(request);
+    reply.header(REQUEST_ID_HEADER, request.id);
+    // A client may give up before the answer is ready. The request is then
+    // counted once and not twice.
+    reply.raw.once('close', () => endAbortedRequest(request));
+  });
+
   app.addHook('onRequest', async (request) => {
     csrfGuard(request);
     request.user = await loadSession(request);
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    endRequest(request, reply.statusCode);
   });
 
   app.addHook('onSend', async (request, reply, payload) => {

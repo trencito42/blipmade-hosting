@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { redisPing } from '../redis.js';
 import { mailDeliverySummary, mailTransportName } from '../lib/mailer.js';
 import { env } from '../env.js';
+import { isShuttingDown } from '../lib/perf-shutdown.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { getQueue } from '../services/queue.js';
 
@@ -15,6 +16,76 @@ async function databaseOk(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * How long the answer of the readiness may take.
+ *
+ * The answer says whether the API can serve the traffic. A database that
+ * takes longer than this is not usable, and the answer says so instead of
+ * holding the connection of the checker open.
+ */
+const READINESS_TIMEOUT_MS = 2000;
+
+/** Runs a work and gives up when it takes too long. */
+async function withinTime(work: Promise<boolean>, ms: number): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(false), ms);
+        timer.unref();
+      }),
+    ]);
+  } catch {
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * The checks the readiness is made of.
+ *
+ * They are gathered here so that the answer can be tested with checks that
+ * are known to fail, without taking the database away.
+ */
+export interface ReadinessProbes {
+  database: () => Promise<boolean>;
+  redis: () => Promise<boolean>;
+}
+
+const defaultProbes: ReadinessProbes = {
+  database: databaseOk,
+  redis: redisPing,
+};
+
+/**
+ * The checks the readiness is made of.
+ *
+ * The object is exported so that a test can put a check that is known to fail
+ * in it, without taking the database away from the whole suite.
+ */
+export const readinessProbes: ReadinessProbes = {
+  database: defaultProbes.database,
+  redis: defaultProbes.redis,
+};
+
+export interface ReadinessReport {
+  /** Whether the API can serve the traffic. */
+  ready: boolean;
+  /** The checks it was made of. */
+  checks: { database: boolean; redis: boolean };
+}
+
+/** Whether the dependencies of the API can be used. */
+export async function readinessReport(probes: ReadinessProbes = defaultProbes): Promise<ReadinessReport> {
+  const [database, redis] = await Promise.all([
+    withinTime(probes.database(), READINESS_TIMEOUT_MS),
+    withinTime(probes.redis(), READINESS_TIMEOUT_MS),
+  ]);
+  return { ready: database && redis, checks: { database, redis } };
 }
 
 async function healthHandler() {
@@ -34,9 +105,50 @@ async function healthHandler() {
   };
 }
 
+/**
+ * The liveness of the process.
+ *
+ * The answer says that the process is alive and nothing else: it asks no
+ * database and no cache. A checker that asks the database would turn a
+ * moment of slowness of the database into a restart of the container, and a
+ * restart does not make the database any faster.
+ */
+async function livenessHandler() {
+  return {
+    status: 'ok',
+    service: 'blipmade-api',
+    uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+  };
+}
+
+/**
+ * The readiness of the process.
+ *
+ * The answer says that the API can serve the traffic: the database and the
+ * cache have to answer for that. While the process is stopping the answer is
+ * that it is not ready, so the traffic is taken away before the requests that
+ * are running are finished.
+ */
+async function readinessHandler(_request: unknown, reply: { code: (status: number) => unknown }) {
+  if (isShuttingDown()) {
+    reply.code(503);
+    return { status: 'stopping', ready: false, database: false, redis: false };
+  }
+  const report = await readinessReport(readinessProbes);
+  reply.code(report.ready ? 200 : 503);
+  return {
+    status: report.ready ? 'ok' : 'degraded',
+    ready: report.ready,
+    database: report.checks.database,
+    redis: report.checks.redis,
+  };
+}
+
 /** Registered both at the root (container health check) and under /api. */
 export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
   app.get('/health', healthHandler);
+  app.get('/health/live', livenessHandler);
+  app.get('/health/ready', readinessHandler);
 }
 
 type ComponentState = 'operational' | 'degraded' | 'down';
