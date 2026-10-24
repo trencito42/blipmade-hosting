@@ -58,7 +58,7 @@ export REDIS_URL="${REDIS_URL/redis:\/\/redis:/redis:\/\/localhost:}"
 if [[ "$REDIS_URL" =~ ^(.+)/[0-9]+$ ]]; then
   REDIS_URL="${BASH_REMATCH[1]}"
 fi
-export REDIS_URL="${REDIS_URL}/1"
+export REDIS_URL="${REDIS_URL}/${TEST_REDIS_DB:-1}"
 export NODE_ENV=test
 export LOG_LEVEL="${LOG_LEVEL:-silent}"
 # The suite runs against the local gateway of Stripe, so the flows of the
