@@ -294,7 +294,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (!customer) throw notFound('Customer not found.');
     // The key of a customer is written to the account of that customer, so an
     // administrator is only written to by another administrator.
-    assertMayActOnAccount(actor, customer.role);
+    assertMayActOnAccount(actor, customer.role, customer.id);
     if (!customer.pterodactylUserId) {
       throw conflict('This customer has no panel account yet. Provision a service first, so the account is created.');
     }
@@ -321,11 +321,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/admin/customers/:id/panel/credential', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const customer = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+    const customer = await prisma.user.findUnique({ where: { id }, select: { role: true, id: true } });
     if (!customer) throw notFound('Customer not found.');
     // Taking the key away writes to the account of that customer, so an
     // administrator is only written to by another administrator.
-    assertMayActOnAccount(actor, customer.role);
+    assertMayActOnAccount(actor, customer.role, customer.id);
     await forgetCustomerCredential(id);
     await audit({
       actorId: actor.id,
@@ -347,7 +347,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (!customer) throw notFound('Customer not found.');
     // Suspending an account ends its sessions, so it is a write to that
     // account: an administrator is only suspended by another administrator.
-    assertMayActOnAccount(actor, customer.role);
+    assertMayActOnAccount(actor, customer.role, customer.id);
 
     await prisma.$transaction([
       prisma.user.update({ where: { id }, data: { suspendedAt: suspended ? new Date() : null } }),
@@ -460,7 +460,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     // The refund touches the account of the customer, so the rule that
     // protects the accounts of the platform applies here too.
-    assertMayActOnAccount(actor, order.user.role);
+    assertMayActOnAccount(actor, order.user.role, order.userId);
 
     // Only a paid order can be refunded. An order that is not paid has nothing
     // to give back, and an order that was refunded already is refused here, so
@@ -1243,7 +1243,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (!instance) throw notFound('Instance not found.');
     // A service belongs to the account that ordered it, so a retry writes to
     // that account: an administrator is only served by another administrator.
-    assertMayActOnAccount(actor, instance.user.role);
+    assertMayActOnAccount(actor, instance.user.role, instance.userId);
 
     // An instance that is online is not retried. The worker skips it anyway,
     // and the status of a healthy instance must not be touched: a run that
@@ -1281,7 +1281,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     // administrator is only written to by another administrator. The route is
     // administrator-only anyway, but the rule is applied here as well so that
     // it holds for every route that writes to an account.
-    assertMayActOnAccount(actor, customer.role);
+    assertMayActOnAccount(actor, customer.role, customer.id);
 
     const existing = await prisma.instance.findFirst({ where: { pterodactylServerId: body.pterodactylServerId } });
     if (existing) throw conflict('That Pterodactyl server is already imported.');

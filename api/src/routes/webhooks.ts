@@ -332,6 +332,7 @@ async function handleCancelledOrderPayment(
     userId: string;
     total: number;
     currency: string;
+    status: string;
     stripePaymentIntentId: string | null;
     promotionId: string | null;
     promotionRedeemedAt: Date | null;
@@ -349,7 +350,11 @@ async function handleCancelledOrderPayment(
   await releaseCancelledOrderPromotion(order);
   await prisma.order.update({
     where: { id: order.id },
-    data: { status: refunded ? 'REFUNDED' : 'CANCELLED' },
+    // A refunded order keeps the trace of the refund. A payment that arrives
+    // late for an order that was already refunded must not erase it, because
+    // the state that says the money was returned is what the guard of the
+    // dead orders reads.
+    data: { status: refunded || order.status === 'REFUNDED' ? 'REFUNDED' : 'CANCELLED' },
   });
   await audit({
     action: refunded ? 'order.cancelled_payment_refunded' : 'order.cancelled_payment_received',

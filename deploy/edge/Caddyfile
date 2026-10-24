@@ -1,0 +1,91 @@
+# The edge of Blipmade — reference configuration
+#
+# This file is the reference for the reverse proxy that stands in front of the
+# platform. The edge itself runs on another host (10.77.0.12) and its real
+# configuration is not in this repository; this file states the convention the
+# platform depends on, so that the convention is a fact that can be checked
+# and not only a belief.
+#
+# WHY THIS FILE EXISTS
+#
+# The web server resolves the address of the client from the chain of the
+# `X-Forwarded-For` header, reading the chain from the right: the last
+# address of the chain that is not a known proxy is the address of the client.
+#
+# That only works if the edge REPLACES the header. The default behaviour of a
+# reverse proxy is to APPEND the address of the client to whatever the client
+# sent, so a visitor that sends its own `X-Forwarded-For` keeps its forged
+# values at the head of the chain. A chain with a single element — the one
+# the client forged itself — is then indistinguishable from the chain the
+# edge wrote, and the platform believes the forged address.
+#
+# With `trusted_proxies` set, Caddy ignores the header of the visitor and
+# writes the address it resolved from the trusted chain. The forged values
+# are dropped at the edge, so the chain the platform reads is the chain the
+# edge wrote.
+#
+# The verification is in the audit log: the address of the visitor is the one
+# that is written down, and it is never a range of the proxy.
+#
+#     docker exec blipmade-postgres-1 psql -U blipmade -d blipmade \
+#       -c "SELECT ip, count(*) FROM \"AuditLog\" GROUP BY ip ORDER BY count(*) DESC LIMIT 10;"
+#
+# CHECKLIST FOR THE OPERATOR
+#
+#  1. The list of the trusted proxies is the list of the network of the
+#     visitor (below: the ranges of the CDN). It must be as narrow as
+#     possible: a wide list means the addresses of other networks are
+#     believed too.
+#  2. `header_up X-Forwarded-For {client_ip}` writes the resolved address and
+#     nothing else, so the chain that reaches the platform has one element
+#     that the platform can trust.
+#  3. `header_up X-Forwarded-Proto {scheme}` is what makes the cookie of the
+#     session `Secure` behind a TLS edge.
+#  4. After the change, restart the web container and send one request with a
+#     forged header:
+#
+#         curl -s -H 'X-Forwarded-For: 9.9.9.9' https://blipmade.com/api/health
+#
+#     and check that the address written in the audit log is the address of
+#     the caller and not `9.9.9.9`.
+#
+# The ranges below are the published ranges of the CDN. Check them against the
+# current list of the operator before applying them.
+
+blipmade.com {
+	encode zstd gzip
+
+	reverse_proxy 10.77.0.13:3000 {
+		# The visitors arrive through the CDN, so the CDN is the proxy that is
+		# believed. Everything else is a client that writes its own header.
+		trusted_proxies static \
+			173.245.48.0/20 \
+			103.21.244.0/22 \
+			103.22.200.0/22 \
+			103.31.4.0/22 \
+			141.101.64.0/18 \
+			108.162.192.0/18 \
+			190.93.240.0/20 \
+			188.114.96.0/20 \
+			197.234.240.0/22 \
+			198.41.128.0/17 \
+			162.158.0.0/16 \
+			104.16.0.0/13 \
+			104.24.0.0/14 \
+			172.64.0.0/13 \
+			131.0.72.0/22 \
+			2400:cb00::/32 \
+			2606:4700::/32 \
+			2803:f800::/32 \
+			2405:b500::/32 \
+			2405:8100::/32 \
+			2a06:98c0::/29 \
+			2c0f:f248::/32
+
+		# The header is written, not appended: the address the edge resolved
+		# is the only address the platform sees.
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Real-IP {client_ip}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

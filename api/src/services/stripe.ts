@@ -315,13 +315,19 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
   // order is paid the sum it was quoted, never another one. The check is
   // closed, so a caller that reports no sum pays nothing, and a caller that
   // reports another sum does not pay the order either.
-  if (typeof params.amount !== 'number' || !Number.isFinite(params.amount)) {
-    throw conflict(`Order ${order.number} cannot be paid: the payment carries no amount.`);
-  }
-  if (params.amount !== order.total) {
-    throw conflict(
-      `Order ${order.number} cannot be paid: the payment of ${params.amount} is not the ${order.total} that was quoted.`,
-    );
+  //
+  // The check is on the path that changes the state. An order that is already
+  // paid stays paid whatever the caller repeats, so a replay of an event
+  // without a sum does not turn a paid order into an error.
+  if (!alreadyPaid) {
+    if (typeof params.amount !== 'number' || !Number.isFinite(params.amount)) {
+      throw conflict(`Order ${order.number} cannot be paid: the payment carries no amount.`);
+    }
+    if (params.amount !== order.total) {
+      throw conflict(
+        `Order ${order.number} cannot be paid: the payment of ${params.amount} is not the ${order.total} that was quoted.`,
+      );
+    }
   }
 
   // The promotion is consumed here, when the money arrives. Until then it is

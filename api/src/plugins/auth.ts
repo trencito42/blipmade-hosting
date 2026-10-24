@@ -348,9 +348,20 @@ export function requirePermission(permission: Permission) {
  * The rule is about one account that the request names, so it is checked on
  * the routes that write to the account of a customer. A sweep over the whole
  * platform is not about one account and is not covered by it.
+ *
+ * A person may act on their own account. The rule protects the platform from
+ * a member of the staff that acts on the account of another member of the
+ * staff; it does not stop a person from refunding their own order or from
+ * changing their own address.
  */
-export function assertMayActOnAccount(actor: AuthUser, targetRole: string): void {
+export function assertMayActOnAccount(
+  actor: AuthUser,
+  targetRole: string,
+  targetUserId?: string | null,
+): void {
   if (actor.role === 'ADMIN') return;
+  // The account of the caller is their own: they may act on it.
+  if (targetUserId && targetUserId === actor.id) return;
   if (targetRole === 'ADMIN') {
     throw forbidden('Only an administrator can act on the account of an administrator.');
   }
