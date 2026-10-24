@@ -275,6 +275,25 @@ export function requirePermission(permission: Permission) {
   };
 }
 
+/**
+ * The rule that an administrator is only acted on by an administrator.
+ *
+ * The account that administers the platform may only be suspended, be given
+ * a new panel key or have its services touched by another administrator. A
+ * staff member that could do that would lock the platform out of its own
+ * administration, so the rule lives in the server and not in the interface.
+ *
+ * The rule is about one account that the request names, so it is checked on
+ * the routes that write to the account of a customer. A sweep over the whole
+ * platform is not about one account and is not covered by it.
+ */
+export function assertMayActOnAccount(actor: AuthUser, targetRole: string): void {
+  if (actor.role === 'ADMIN') return;
+  if (targetRole === 'ADMIN') {
+    throw forbidden('Only an administrator can act on the account of an administrator.');
+  }
+}
+
 /** Removes expired sessions. Called by the worker on a schedule. */
 export async function pruneSessions(): Promise<number> {
   const result = await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });

@@ -145,3 +145,110 @@ describe('the permission list of a staff member', () => {
     expect(await permissionsOf(targetId)).toEqual(['customers.read', 'settings.write']);
   });
 });
+
+describe('the account of an administrator', () => {
+  beforeAll(async () => {
+    app = await getApp();
+  });
+
+  afterAll(async () => {
+    await closeApp();
+  });
+
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
+  it('refuses to suspend an administrator when the actor is not an administrator', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['customers.write']);
+    const { userId: adminId } = await createAdmin(app, 'admin@blipmade.test');
+
+    const response = await staff.request('POST', `/api/admin/customers/${adminId}/suspend`, { suspended: true });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('forbidden');
+    expect(response.body.error.message).toMatch(/administrator/i);
+
+    // The administrator was not suspended.
+    const admin = await prisma.user.findUnique({ where: { id: adminId } });
+    expect(admin?.suspendedAt).toBeNull();
+  });
+
+  it('lets an administrator suspend another administrator', async () => {
+    const { client: admin } = await createAdmin(app, 'admin@blipmade.test');
+    const { userId: otherAdminId } = await createAdmin(app, 'other-admin@blipmade.test');
+
+    const response = await admin.request('POST', `/api/admin/customers/${otherAdminId}/suspend`, { suspended: true });
+
+    expect(response.status).toBe(200);
+    const other = await prisma.user.findUnique({ where: { id: otherAdminId } });
+    expect(other?.suspendedAt).not.toBeNull();
+  });
+
+  it('refuses to forget the panel key of an administrator', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['services.write']);
+    const { userId: adminId } = await createAdmin(app, 'admin@blipmade.test');
+
+    const response = await staff.request('DELETE', `/api/admin/customers/${adminId}/panel/credential`);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('forbidden');
+  });
+
+  it('refuses to store a panel key for an administrator', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['services.write']);
+    const { userId: adminId } = await createAdmin(app, 'admin@blipmade.test');
+    await prisma.user.update({ where: { id: adminId }, data: { pterodactylUserId: '77' } });
+
+    const response = await staff.request('POST', `/api/admin/customers/${adminId}/panel/credential`, {
+      token: 'panel-key-that-is-long-enough-for-the-test',
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('forbidden');
+  });
+
+  it('refuses to retry a service of an administrator', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['services.write']);
+    const { userId: adminId } = await createAdmin(app, 'admin@blipmade.test');
+    const product = await createProduct('phase2-service-product');
+    const instance = await prisma.instance.create({
+      data: {
+        userId: adminId,
+        productId: product.id,
+        name: 'phase2-service',
+        status: 'FAILED',
+        ram: 512,
+        cpu: 1,
+        disk: 10,
+        price: 500,
+        currency: 'EUR',
+      },
+    });
+
+    const response = await staff.request('POST', `/api/admin/instances/${instance.id}/retry`, { reason: 'test' });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('forbidden');
+  });
+
+  it('lets a staff member act on the account of a customer', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['customers.write']);
+    const customer = await prisma.user.create({
+      data: {
+        email: 'customer@blipmade.test',
+        passwordHash: await hashPassword(VALID_PASSWORD),
+        role: 'CUSTOMER',
+        firstName: 'Test',
+        lastName: 'Customer',
+        emailVerifiedAt: new Date(),
+      },
+    });
+
+    const response = await staff.request('POST', `/api/admin/customers/${customer.id}/suspend`, { suspended: true });
+
+    expect(response.status).toBe(200);
+    const suspended = await prisma.user.findUnique({ where: { id: customer.id } });
+    expect(suspended?.suspendedAt).not.toBeNull();
+  });
+});

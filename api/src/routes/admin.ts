@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { badRequest, conflict, forbidden, notFound, unavailable, upstream } from '../lib/errors.js';
-import { requireStaff, requirePermission } from '../plugins/auth.js';
+import { requireStaff, requirePermission, assertMayActOnAccount } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
@@ -258,9 +258,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const customer = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, pterodactylUserId: true, pterodactylExternalId: true },
+      select: { id: true, pterodactylUserId: true, pterodactylExternalId: true, role: true },
     });
     if (!customer) throw notFound('Customer not found.');
+    // The key of a customer is written to the account of that customer, so an
+    // administrator is only written to by another administrator.
+    assertMayActOnAccount(actor, customer.role);
     if (!customer.pterodactylUserId) {
       throw conflict('This customer has no panel account yet. Provision a service first, so the account is created.');
     }
@@ -287,6 +290,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/admin/customers/:id/panel/credential', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
+    const customer = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+    if (!customer) throw notFound('Customer not found.');
+    // Taking the key away writes to the account of that customer, so an
+    // administrator is only written to by another administrator.
+    assertMayActOnAccount(actor, customer.role);
     await forgetCustomerCredential(id);
     await audit({
       actorId: actor.id,
@@ -306,6 +314,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const customer = await prisma.user.findUnique({ where: { id } });
     if (!customer) throw notFound('Customer not found.');
+    // Suspending an account ends its sessions, so it is a write to that
+    // account: an administrator is only suspended by another administrator.
+    assertMayActOnAccount(actor, customer.role);
 
     await prisma.$transaction([
       prisma.user.update({ where: { id }, data: { suspendedAt: suspended ? new Date() : null } }),
@@ -1171,8 +1182,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { reason } = z.object({ reason: z.string().trim().max(500).optional() }).parse(request.body ?? {});
 
-    const instance = await prisma.instance.findUnique({ where: { id } });
+    const instance = await prisma.instance.findUnique({ where: { id }, include: { user: { select: { role: true } } } });
     if (!instance) throw notFound('Instance not found.');
+    // A service belongs to the account that ordered it, so a retry writes to
+    // that account: an administrator is only served by another administrator.
+    assertMayActOnAccount(actor, instance.user.role);
 
     // An instance that is online is not retried. The worker skips it anyway,
     // and the status of a healthy instance must not be touched: a run that
@@ -1206,6 +1220,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     const customer = await prisma.user.findUnique({ where: { id: body.userId } });
     if (!customer) throw notFound('Customer not found.');
+    // The new service is written to the account of that customer, so an
+    // administrator is only written to by another administrator. The route is
+    // administrator-only anyway, but the rule is applied here as well so that
+    // it holds for every route that writes to an account.
+    assertMayActOnAccount(actor, customer.role);
 
     const existing = await prisma.instance.findFirst({ where: { pterodactylServerId: body.pterodactylServerId } });
     if (existing) throw conflict('That Pterodactyl server is already imported.');
