@@ -333,3 +333,29 @@ Redis separate (indicele 1 pentru teste, 2 pentru masuratori, 3 pentru revizie).
 testele puneau joburi in coada `blipmade.provision` a **productiei**, iar workerul de
 productie le consuma. Meritul izolarii ii revine operatorului: un test nu mai poate atinge
 coada care serveste clientii.
+
+## 15. Ce schimba candidatul de lansare la deploy
+
+Ramura `integration/release-candidate-1` adaugase peste lotul de performanta inca
+cinci reparari, dintre care una schimba schema. La deploy, operatorul trebuie sa
+stie ce se schimba:
+
+| Ce | Efect | Ce cere operatorul |
+|---|---|---|
+| **Tercera migrare noua** (`20261025160000_payment_customer_index`) | Renunta la constrangerea unica pe `Payment.stripeCustomerId`. Pana acum, un client care platise o data nu mai putea plati a doua oară: a doua plata era respinsa de baza de date, comanda ramanea `PAID` si **serviciul nu era livrat**. Banii se luau, serviciul nu venea | **`prisma migrate deploy` inainte de conectarea providerului de plati.** Fara asta, a doua plata a fiecarui client esueaza. Este o conditie de blocare, nu o recomandare |
+| Garda de cont pe confirmarea unei colectari (`b00ffa4`) | Un membru al personalului nu mai poate confirma factura unui administrator si sa ii prelungeasca gratuit perioada serviciului | Nimic |
+| Rambursarea sumei care a sosit, pentru o comanda moarta (`14f7a5f`) | Se ramburseaza suma primita, nu suma comenzii, iar diferenta se scrie in jurnal | Nimic |
+| Default-ul declarat pe `MailDelivery.updatedAt` si `PanelCredential.updatedAt` (`4ea98ee`) | Schema spune acum ce spune deja migrarea. **Nu cere migrare noua**: coloana din baza vie are deja default-ul, doar schema nu-l declara | Nimic — dar verifica ca jobul CI `schema-drift` e verde |
+| Baza 1 de Redis pentru suita de teste (`e35e575`, `0f05ace`) | Testele nu mai ating coada workerului de productie. Indicele e alegibil cu `TEST_REDIS_DB`, ca doua rulari sa nu se loveasca | Nimic |
+| Lista de exceptii a scanarii de secrete (`.gitleaks.toml`, `667dbb2`) | Scanarea de secrete trece peste cinci valori, fiecare numita exact. Una dintre ele e parola moarta a unui cont de test dintr-un script eliminat in `61111f6`. **Baza vie a fost verificata: 3 utilizatori, 0 conturi cu acea parola** | Nimic — sau, daca se doreste istoricul curatat, e nevoie de force-push, ceea ce cere autorizatie |
+| Randatorul registrului se opreste la o intrare fara rand (`1e01fba`) | O constatare reparata nu mai poate ramane invizibila in registrul unic | Nimic |
+
+**Ordinea la deploy:** `prisma migrate deploy` (toate trei migrarile) → repornirea
+containerelor → **numai atunci** cheile Stripe live si `PAYMENTS_ENABLED=true`.
+Inversul acelei ordini activeaza defectul reparat de `5bdc92b` pentru fiecare client
+care a platit deja.
+
+**Verificarea de dupa deploy:** dupa ce providerul e conectat, o plata de proba
+**de doua ori, de la acelasi client**, trebuie sa arate doua randuri in `Payment` si
+doua servicii. Daca arata un singur rand si comanda `PAID` fara plata, constrangerea
+e inca acolo.
