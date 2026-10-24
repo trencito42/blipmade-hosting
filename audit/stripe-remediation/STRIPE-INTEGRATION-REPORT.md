@@ -444,9 +444,14 @@ codul):
 
 Șase joburi, șase reușite. Scanarea secretelor a fost rulată și local, pe
 ramura completă (`gitleaks detect --log-opts="origin/main..HEAD"`): `no leaks
-found`. Commitul următor celui al rulării de mai sus schimbă **doar raportul**
-(nu codul), așa că nu există nicio diferență între codul scanat de CI și cel
-pus în ramură.
+found`.
+
+Commiturile care urmează acestuia schimbă **doar raportul**, nu codul, deci
+codul scanat de CI este cel care se află în ramură. Rularea pe ultimul
+commit al ramurii (`d1e108c`):
+
+**https://github.com/trencito42/blipmade-hosting/actions/runs/40132619823** —
+tot șase joburi, șase reușite.
 
 Verificarea rutei în producție (read-only, înainte de a scrie ceva):
 
