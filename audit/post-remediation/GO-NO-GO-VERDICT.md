@@ -2,7 +2,7 @@
 
 **Data:** 2026-10-24
 **Platforma:** Blipmade — găzduire de servere de joc (Pterodactyl + Docker), serviciu găzduit pe `blipmade.com`
-**Cod evaluat:** `main` @ `e990776`, apoi ramura de reparare `remediation/phase-2-critical-fixes` @ `3ec6ab8`
+**Cod evaluat:** `main` @ `e990776`, apoi ramura candidatului de lansare `integration/release-candidate-1` @ `0879b08` (toate valurile: repararea plății, performanța, verificarea independentă, reparările ei și repararea CI-ului)
 **Cod live in productie:** `remediation/phase-2-critical-fixes` @ `3ec6ab8` (deploy autorizat de operator la 2026-10-24, 02:55 UTC; 5 containere healthy, date neramificate)
 **Producția:** VM 103 (10.77.0.13), containere docker `blipmade-{api,web,worker,postgres,redis}-1`
 **Documentele de bază:** cele 14 rapoarte din `audit/post-remediation/` + dovezile brute din `_raw/`
@@ -35,11 +35,41 @@
 | 5 | **Nu există produsul de joc** | Platforma e dimensionată pentru servere de joc; catalogul nu are niciun produs de joc. Nu e o îmbunătățire, e **o intrare pe piață lipsă**. |
 | 6 | **Hipervizorul e expus** | `root` cu parolă, `*:8006`, `rpcbind` pe `0.0.0.0:111`, firewall dezactivat. Pe gazda Proxmox, nu pe platformă. |
 
+### 1.1 Verdictul la nivel de cod, separat de cel comercial
+
+**Candidatul de lansare este gata de fuziune în `main`.** Nu este o respingere și nu
+este o amânare: cele șase joburi ale CI-ului sunt verzi pe comitul exact, verificarea
+independentă a dat verdict, și toate cele 50 de constatări deschise sunt înregistrate
+cu starea lor.
+
+**Platforma nu este gata de lansare comercială**, și fuziunea nu schimbă nimic în privința
+asta. Cele șase porți de mai sus rămân deschise: chei, produse, releu de e-mail, copie
+în afara gazdei, expunerea hipervizorului și lipsa produsului de joc.
+
+Cele două lucruri nu trebuie confundate: **fuziunea în `main` este o operație de cod**, iar
+**lansarea comercială este o decizie de operare**. O platformă poate fi fuzionată în
+`main` și să nu primească niciun client înainte de să se închidă porțile.
+
+### 1.2 Ce a mai fost reparat după ultimul verdict
+
+| Ce | Commit |
+|---|---|
+| Un client care a plătit o dată putea plăti a doua oară (P0) | `5bdc92b` |
+| Garda de cont lipsea de pe confirmarea unei colectări (P1) | `b00ffa4` |
+| Catalogul și comanda puteau alege rânduri diferite de preț | `b056749` |
+| Treisprezece colecții ale corpului cererii nu aveau limită | `9734b9b` |
+| Fișierul workflow-ului era invalid: GitHub nu crea niciun job la nicio împingere | `6272785` |
+| Jobul de teste nu avea adresa panoului, tokenul intern și dependențele web | `264edf4`, `e53a3a9` |
+| Registrul unic avea o constatare reparată invizibilă | `1e01fba` |
+
 ### De ce nu este un NO-GO definitiv
 
 Măsurătorile arată că **mecanismele funcționează**:
 
 - **329 de teste verzi** pe codul care rulează în producție: **API 325/325**, web **87/87**.
+- **465 de teste verzi** pe candidatul de lansare: **API 465/465**, web **109/109**, iar cele șase
+  joburi ale CI-ului sunt verzi pe comitul exact al candidatului
+  (https://github.com/trencito42/blipmade-hosting/actions/runs/40113378507).
 - **Contractul de preț ține**: configuratorul de deploy afișează **€2.39**, iar
   `POST /api/catalog/quote` pentru aceeași configurație întoarce `total: 239` EUR.
 - **Remedierea tabelelor ține**: **0 px** decalaj antet↔corp în 60 de tabele cu date populate,
