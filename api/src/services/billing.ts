@@ -270,6 +270,130 @@ export function readRenewalMarker(requestedConfig: unknown): RenewalMarker | nul
   };
 }
 
+/**
+ * The keys of the company details that an invoice carries.
+ *
+ * The values are supplied by the operator: the platform never invents a name,
+ * a registration number, a tax identifier, a rate, an address or an address
+ * of support. Every one of them is empty until the operator writes it in the
+ * settings of the platform, and an invoice that misses one of them says that
+ * it misses it instead of carrying something made up.
+ *
+ * The operator writes them with the settings of the admin area:
+ *
+ *   PUT /admin/settings  { "billing.company_name": "..." , ... }
+ */
+export const COMPANY_SETTING_KEYS = {
+  /** The name of the company that sells the service. */
+  name: 'billing.company_name',
+  /** The number under which the company is registered. */
+  registration: 'billing.company_registration',
+  /** The identifier of the company for the tax. */
+  taxId: 'billing.tax_id',
+  /** The rate of the tax, in percent. */
+  taxRate: 'billing.tax_rate',
+  /** The address that is written on the invoice. */
+  address: 'billing.billing_address',
+  /** The address that receives the questions of the customers. */
+  supportEmail: 'billing.support_email',
+} as const;
+
+/** The company details that an invoice carries. */
+export interface CompanyDetails {
+  /** The name of the company. Empty until the operator writes it. */
+  name: string;
+  /** The registration number of the company. Empty until the operator writes it. */
+  registration: string;
+  /** The tax identifier of the company. Empty until the operator writes it. */
+  taxId: string;
+  /** The rate of the tax in percent, or null when the operator wrote none. */
+  taxRate: number | null;
+  /** The billing address of the company. Empty until the operator writes it. */
+  address: string;
+  /** The address that receives the questions of the customers. Empty until the operator writes it. */
+  supportEmail: string;
+  /** True when the invoice carries a tax line. */
+  taxApplies: boolean;
+  /** Why the invoice carries no tax, when it carries none. */
+  taxNote: string | null;
+}
+
+/** Reads a setting of the platform as a text. */
+function settingText(value: unknown): string {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return '';
+}
+
+/**
+ * Reads the rate of the tax.
+ *
+ * The rate is a percentage written as a number: 21 means twenty-one percent.
+ * A value that is not a number is no rate at all, and the invoice says that
+ * it carries no tax instead of guessing a rate.
+ */
+export function parseTaxRate(value: string): number | null {
+  if (!value) return null;
+  const rate = Number(value);
+  if (!Number.isFinite(rate) || rate < 0) return null;
+  return Math.round(rate * 100) / 100;
+}
+
+/**
+ * The tax of an amount.
+ *
+ * The amount is in cents, like every other amount of the platform, and the
+ * rate is a percentage. The tax is never negative.
+ */
+export function taxOf(amount: number, rate: number): number {
+  return Math.max(0, Math.round((amount * rate) / 100));
+}
+
+/**
+ * Reads the company details of the platform.
+ *
+ * Every value comes from the settings of the platform, so the operator is the
+ * one who fills them in. A value that is missing is empty: the platform never
+ * writes a name, a registration number, a tax identifier, a rate, an address
+ * or an address of support of its own.
+ */
+export async function companyDetails(): Promise<CompanyDetails> {
+  const rows = await prisma.setting.findMany({ where: { key: { in: Object.values(COMPANY_SETTING_KEYS) } } });
+  const values = new Map(rows.map((row) => [row.key, row.value]));
+
+  const name = settingText(values.get(COMPANY_SETTING_KEYS.name));
+  const registration = settingText(values.get(COMPANY_SETTING_KEYS.registration));
+  const taxId = settingText(values.get(COMPANY_SETTING_KEYS.taxId));
+  const address = settingText(values.get(COMPANY_SETTING_KEYS.address));
+  const supportEmail = settingText(values.get(COMPANY_SETTING_KEYS.supportEmail));
+  const taxRate = parseTaxRate(settingText(values.get(COMPANY_SETTING_KEYS.taxRate)));
+
+  // A tax without a tax identifier is a tax that nobody can be charged
+  // against, so it is not added to an invoice. The invoice says so instead of
+  // carrying a rate that means nothing.
+  const taxApplies = taxRate !== null && taxId !== '';
+  const taxNote = taxApplies
+    ? null
+    : taxId === ''
+      ? 'No tax identifier is configured, so the invoice carries no tax.'
+      : 'No tax rate is configured, so the invoice carries no tax.';
+
+  return { name, registration, taxId, taxRate, address, supportEmail, taxApplies, taxNote };
+}
+
+/**
+ * The tax of an invoice, and the total it comes to.
+ *
+ * The tax of the platform is only added to the invoices that the platform
+ * writes itself. The invoices of a payment provider carry the amounts of the
+ * provider, so they are left alone.
+ */
+export async function invoiceTax(amount: number): Promise<{ tax: number; total: number; company: CompanyDetails }> {
+  const company = await companyDetails();
+  const tax = company.taxApplies && company.taxRate !== null ? taxOf(amount, company.taxRate) : 0;
+  return { tax, total: amount + tax, company };
+}
+
 
 
 
@@ -630,6 +754,10 @@ async function renew(subscriptionId: string): Promise<{ renewed: boolean; pendin
     return { renewed: false, pending: true, invoiceId: written?.id ?? null, reason: 'The renewal of this period was already written.' };
   }
 
+  // The tax of the platform is added to the invoice of the platform. It is
+  // zero as long as the operator has not written a tax identifier and a rate.
+  const { tax, total } = await invoiceTax(subscription.amount);
+
   const invoice = await prisma.invoice.create({
     data: {
       number: await nextInvoiceNumber(),
@@ -639,8 +767,8 @@ async function renew(subscriptionId: string): Promise<{ renewed: boolean; pendin
       // The invoice is open: nobody paid it yet.
       status: 'OPEN',
       amount: subscription.amount,
-      tax: 0,
-      total: subscription.amount,
+      tax,
+      total,
       currency: subscription.currency,
       dueDate: start,
       periodStart: start,
@@ -660,7 +788,7 @@ async function renew(subscriptionId: string): Promise<{ renewed: boolean; pendin
       data: {
         instanceId: subscription.instance.id,
         type: 'renewal',
-        message: `The renewal invoice ${invoice.number} is open and waits for a payment of ${subscription.amount} ${subscription.currency}.`,
+        message: `The renewal invoice ${invoice.number} is open and waits for a payment of ${invoice.total} ${subscription.currency}.`,
       },
     });
   }
@@ -933,6 +1061,10 @@ export async function createLocalRenewal(
     },
   });
 
+  // The tax of the platform is added to the invoice of the platform. It is
+  // zero as long as the operator has not written a tax identifier and a rate.
+  const { tax, total } = await invoiceTax(amount);
+
   const invoice = await prisma.invoice.create({
     data: {
       number: await nextInvoiceNumber(),
@@ -941,8 +1073,8 @@ export async function createLocalRenewal(
       stripeInvoiceId: null,
       status: 'OPEN',
       amount,
-      tax: 0,
-      total: amount,
+      tax,
+      total,
       currency: subscription.currency,
       dueDate: start,
       periodStart: start,
@@ -954,7 +1086,7 @@ export async function createLocalRenewal(
     data: {
       instanceId: subscription.instance.id,
       type: 'renewal',
-      message: `The renewal invoice ${invoice.number} is open for ${amount} ${subscription.currency}. The service continues once the payment is confirmed.`,
+      message: `The renewal invoice ${invoice.number} is open for ${invoice.total} ${subscription.currency}. The service continues once the payment is confirmed.`,
     },
   });
   // The renewal of this period is written, so the sweep does not write a

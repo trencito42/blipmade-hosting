@@ -7,6 +7,7 @@ import { cancelSubscription, createBillingPortal, paymentState, resumeSubscripti
 import { notFound, unavailable } from '../lib/errors.js';
 import {
   buildInstanceExport,
+  companyDetails,
   createLocalRenewal,
   instanceRetention,
   instanceRetentions,
@@ -170,6 +171,8 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         id: invoice.id,
         number: invoice.number,
         amount: invoice.amount,
+        tax: invoice.tax,
+        total: invoice.total,
         currency: invoice.currency,
         dueDate: invoice.dueDate,
         periodStart: invoice.periodStart,
@@ -336,13 +339,29 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
   app.get('/billing/invoices', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
-    const rows = await prisma.invoice.findMany({
-      where: withCursor({ userId: user.id }, cursor, 'createdAt'),
-      orderBy: pageOrder('createdAt'),
-      take: limit + 1,
-    });
+    const [rows, company] = await Promise.all([
+      prisma.invoice.findMany({
+        where: withCursor({ userId: user.id }, cursor, 'createdAt'),
+        orderBy: pageOrder('createdAt'),
+        take: limit + 1,
+      }),
+      companyDetails(),
+    ]);
     const page = pageOf(rows, limit, 'createdAt');
     return {
+      // The company that issues the invoice. The values are the ones the
+      // operator wrote in the settings of the platform: a value that is
+      // missing is empty, it is never invented.
+      company: {
+        name: company.name,
+        registration: company.registration,
+        taxId: company.taxId,
+        taxRate: company.taxRate,
+        address: company.address,
+        supportEmail: company.supportEmail,
+        taxApplies: company.taxApplies,
+        taxNote: company.taxNote,
+      },
       invoices: page.rows.map((invoice) => ({
         id: invoice.id,
         number: invoice.number,

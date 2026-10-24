@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../env.js';
@@ -142,6 +142,11 @@ export function mailTransportName(): MailTransport {
  * the report of a message is the same everywhere and it survives a restart.
  *
  * The row never holds the body of the message and never holds a token.
+ *
+ * The row of a message that the file transport wrote says `written-to-file`
+ * and names the transport `file`, so the operator reads there that the
+ * message never left the system. The file itself is found by the reference of
+ * the message, which is the middle of its name.
  *
  * A report is a report: a database that cannot be written never breaks the
  * message that triggered it, and the problem is logged without anything
@@ -312,15 +317,249 @@ function uniqueKey(): string {
 }
 
 /**
+ * The bounds of the file transport.
+ *
+ * The file transport stands in for a relay that is not there: it writes the
+ * message on the disk instead of delivering it. Without a bound the directory
+ * grows until the disk is full, so the bound is a part of the transport and
+ * not a thing of the maintenance.
+ *
+ * The bounds come from the environment, so the operator decides them:
+ *
+ *   MAIL_FILE_MAX_FILES      how many files are kept at most
+ *   MAIL_FILE_MAX_AGE_HOURS  how long a file is kept at most
+ *
+ * A value that is not a positive number is ignored and the default is used,
+ * so a mistake in the configuration never removes everything at once.
+ */
+export const DEFAULT_MAIL_FILE_MAX_FILES = 500;
+
+/** How long a file of the file transport is kept, in hours. */
+export const DEFAULT_MAIL_FILE_MAX_AGE_HOURS = 72;
+
+export interface MailFileRetention {
+  /** How many files of the transport are kept at most. */
+  maxFiles: number;
+  /** How long a file of the transport is kept at most, in milliseconds. */
+  maxAgeMs: number;
+}
+
+/** Reads a positive whole number of the environment, or the default. */
+function numberFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return fallback;
+  return Math.floor(value);
+}
+
+/** The bounds of the file transport that are in force right now. */
+export function mailFileRetention(): MailFileRetention {
+  return {
+    maxFiles: numberFromEnv('MAIL_FILE_MAX_FILES', DEFAULT_MAIL_FILE_MAX_FILES),
+    maxAgeMs: numberFromEnv('MAIL_FILE_MAX_AGE_HOURS', DEFAULT_MAIL_FILE_MAX_AGE_HOURS) * 60 * 60 * 1000,
+  };
+}
+
+/** The directory where the file transport writes the messages. */
+export function mailFileDirectory(): string {
+  return join(env.BACKUP_DIR, 'mail');
+}
+
+/**
+ * The name of a file of the transport.
+ *
+ * It holds the moment the file was written and the reference of the message,
+ * so the file of a message can be found from the row of the delivery.
+ */
+const MAIL_FILE_NAME = /^(\d+)-([0-9a-f]{8})\.json$/;
+
+/**
+ * The messages the queue still has to deliver.
+ *
+ * The file of a message that waits on the queue is the copy of the message
+ * that the worker still needs, so it is never removed. The set holds the
+ * reference of every message that is waiting.
+ *
+ * `null` means the state of the queue is unknown. Nothing is removed then: a
+ * file that cannot be checked is never removed.
+ */
+async function pendingMessageReferences(): Promise<Set<string> | null> {
+  try {
+    const { prisma } = await import('../db.js');
+    const rows = await prisma.mailDelivery.findMany({ where: { state: 'queued' }, select: { key: true }, take: 1000 });
+    return new Set(rows.map((row) => tokenReference(row.key)));
+  } catch (error) {
+    console.warn(`[mail] the state of the queue could not be read, so no file is removed: ${errorClass(error)}`);
+    return null;
+  }
+}
+
+/**
+ * The message a file of the transport carries.
+ *
+ * The file holds the reference of its message, so the row of the delivery can
+ * be found when the file is removed.
+ */
+async function messageKeyOf(path: string): Promise<string | null> {
+  try {
+    const raw = await readFile(path, 'utf-8');
+    const parsed = JSON.parse(raw) as { reference?: unknown };
+    return typeof parsed.reference === 'string' ? parsed.reference : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Marks the message of a file that was removed.
+ *
+ * The row of the delivery said that the message was written to a file. The
+ * file is gone, so the row says that the message was not delivered: the
+ * operator reads the truth in the table of the deliveries.
+ */
+async function markPrunedMessage(key: string): Promise<void> {
+  try {
+    const { prisma } = await import('../db.js');
+    await prisma.mailDelivery.updateMany({
+      where: { key, state: 'written-to-file' },
+      data: {
+        state: 'failed',
+        lastErrorClass: 'MailFilePruned',
+        lastError: 'The message was written to a file that was removed by the retention of the file transport.',
+        deliveredAt: null,
+      },
+    });
+  } catch (error) {
+    console.warn(`[mail] the state of a removed message could not be written: ${errorClass(error)}`);
+  }
+}
+
+/** Makes a file of the transport readable by its owner only. */
+async function tightenMode(path: string, mode: number): Promise<void> {
+  if ((mode & 0o777) === 0o600) return;
+  await chmod(path, 0o600).catch(() => undefined);
+}
+
+/** What the pruning of the files did. */
+export interface MailFilePruneReport {
+  /** How many files of the transport were looked at. */
+  scanned: number;
+  /** The names of the files that were removed. */
+  removed: string[];
+  /** How many files were kept. */
+  kept: number;
+  /** How many files were kept because the queue still has to deliver them. */
+  protectedCount: number;
+}
+
+/**
+ * Removes the files of the transport that are not needed any more.
+ *
+ * Two bounds are in force: the number of files and their age. A file whose
+ * message the queue still has to deliver is never removed, whatever its age
+ * is, so the pruning can never take a message away from the worker.
+ *
+ * The state of the queue is read first. When it cannot be read, nothing is
+ * removed: a file that cannot be checked is never removed.
+ */
+export async function pruneMailFiles(): Promise<MailFilePruneReport> {
+  const dir = mailFileDirectory();
+  const retention = mailFileRetention();
+
+  let names: string[];
+  try {
+    names = await readdir(dir);
+  } catch {
+    // The directory does not exist yet: there is nothing to prune.
+    return { scanned: 0, removed: [], kept: 0, protectedCount: 0 };
+  }
+
+  const files = names.filter((name) => MAIL_FILE_NAME.test(name));
+  if (!files.length) return { scanned: 0, removed: [], kept: 0, protectedCount: 0 };
+
+  const pending = await pendingMessageReferences();
+  if (!pending) {
+    return { scanned: files.length, removed: [], kept: files.length, protectedCount: 0 };
+  }
+
+  const entries = await Promise.all(
+    files.map(async (name) => {
+      const path = join(dir, name);
+      const info = await stat(path).catch(() => null);
+      return { name, path, mtimeMs: info?.mtimeMs ?? 0, mode: info?.mode ?? 0 };
+    }),
+  );
+
+  // The newest files are kept: the bound of the number of files removes the
+  // oldest ones first.
+  const newestFirst = [...entries].sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const keptByCount = new Set(newestFirst.slice(0, retention.maxFiles).map((entry) => entry.name));
+
+  const now = Date.now();
+  const removed: string[] = [];
+  let protectedCount = 0;
+  let kept = 0;
+
+  for (const entry of newestFirst) {
+    const reference = MAIL_FILE_NAME.exec(entry.name)?.[2] ?? '';
+    if (pending.has(reference)) {
+      // The queue still has to deliver this message, so its file stays.
+      protectedCount += 1;
+      kept += 1;
+      continue;
+    }
+    const beyondCount = !keptByCount.has(entry.name);
+    const tooOld = now - entry.mtimeMs >= retention.maxAgeMs;
+    if (!beyondCount && !tooOld) {
+      // The file is young enough and it is one of the newest ones. It is only
+      // read by its owner.
+      await tightenMode(entry.path, entry.mode);
+      kept += 1;
+      continue;
+    }
+    const key = await messageKeyOf(entry.path);
+    await rm(entry.path, { force: true }).catch(() => undefined);
+    if (key) await markPrunedMessage(key);
+    removed.push(entry.name);
+  }
+
+  return { scanned: files.length, removed, kept, protectedCount };
+}
+
+/**
+ * Prunes the files of the transport after a message was written.
+ *
+ * A test run does not prune: it can share the host with a deployment, and it
+ * must never remove the files of the deployment. The pruning itself is
+ * called by the tests, on a directory of their own.
+ */
+async function pruneWrittenFiles(): Promise<void> {
+  if (env.isTest) return;
+  const report = await pruneMailFiles();
+  if (report.removed.length) {
+    console.info(`[mail] the retention of the file transport removed ${report.removed.length} file(s)`);
+  }
+}
+
+/**
  * Writes the message to the disk.
  *
  * The name of the file and the file itself never carry a token: the link is
  * kept without it, so the file cannot be replayed. It is the way the flow is
  * verified while no relay is configured.
+ *
+ * The file holds the address of the customer and the text of the message, so
+ * it is written for the owner of the service only, and the directory that
+ * holds it is closed to everybody else.
  */
 async function writeMessageFile(payload: MailJobPayload): Promise<string> {
-  const dir = join(env.BACKUP_DIR, 'mail');
-  await mkdir(dir, { recursive: true });
+  const dir = mailFileDirectory();
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  // The mode of a directory that is already there is not changed by mkdir, so
+  // it is set again: the messages of the customers are not read by everybody
+  // on the host.
+  await chmod(dir, 0o700).catch(() => undefined);
   const name = `${Date.now()}-${tokenReference(payload.key)}.json`;
   const file = {
     state: 'written-to-file',
@@ -337,7 +576,13 @@ async function writeMessageFile(payload: MailJobPayload): Promise<string> {
     date: new Date().toISOString(),
     note: 'The link of this message was removed on purpose: this file cannot be used to sign in. Ask for a new message instead.',
   };
-  await writeFile(join(dir, name), JSON.stringify(file, null, 2), 'utf-8');
+  const path = join(dir, name);
+  // The file is written for the owner of the service only.
+  await writeFile(path, JSON.stringify(file, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  await chmod(path, 0o600).catch(() => undefined);
+  // The directory of the transport is bounded: the files that are not needed
+  // any more are removed.
+  await pruneWrittenFiles();
   return name;
 }
 
@@ -501,6 +746,11 @@ export function mailLogLine(kind: string, result: MailSendResult, to: string, to
  * The text only depends on the transport and never on whether an account
  * exists, so the answer of the API can never be used to find out who has an
  * account.
+ *
+ * The words of a reset never say that a message was sent: the platform asks
+ * for the message and the relay decides whether it leaves the system. The
+ * answer says what the platform did and what the customer can do when
+ * nothing arrives, so it is true whether the message left the system or not.
  */
 export function mailNotice(kind: 'verification' | 'reset'): string {
   if (!mailEnabled()) {
@@ -510,7 +760,7 @@ export function mailNotice(kind: 'verification' | 'reset'): string {
   }
   return kind === 'verification'
     ? 'If an account exists for that address, a confirmation link is on its way.'
-    : 'If an account exists for that address, a reset link is on its way.';
+    : 'If an account exists for that address, a reset link has been asked for. If it does not arrive within a few minutes, contact support and we will reset your password by hand.';
 }
 
 /** The words the API uses right after an account was created. */

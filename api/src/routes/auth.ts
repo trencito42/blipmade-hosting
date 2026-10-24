@@ -241,6 +241,36 @@ export async function sendResetEmail(userId: string, email: string, name: string
   return result;
 }
 
+/**
+ * Records that a reset message did not leave the system.
+ *
+ * The customer is never told: the answer of the reset flow is the same for
+ * every address, so it can never be used to find out whether an account
+ * exists. The operator reads what happened in the table of the deliveries and
+ * in the report of the mail of the admin area.
+ *
+ * A message that waits on the queue has not been sent yet: the worker writes
+ * what really happened in the table of the deliveries, so nothing is written
+ * here for it.
+ */
+async function noteResetDelivery(
+  user: { id: string; email: string },
+  result: MailSendResult,
+  ip: string | undefined,
+): Promise<void> {
+  if (result.delivered) return;
+  if (result.state === 'queued') return;
+  await audit({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: 'auth.reset_not_delivered',
+    targetType: 'user',
+    targetId: user.id,
+    meta: { state: result.state, transport: result.transport, errorClass: result.errorClass },
+    ip,
+  });
+}
+
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   // The counters of the accounts. Every one of them is a counter of its own,
   // so the limit of the address and the limit of the account are two limits.
@@ -387,8 +417,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const { email } = z.object({ email: emailSchema }).parse(request.body);
       const user = await prisma.user.findUnique({ where: { email } });
       if (user && !user.suspendedAt) {
-        await sendResetEmail(user.id, user.email, fullName(user));
+        const result = await sendResetEmail(user.id, user.email, fullName(user));
         await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.reset_requested', ip: request.ip });
+        // What happened to the message is written down for the operator. The
+        // answer below is the same for every address, so it never says that a
+        // message was sent when it was not, and it never says whether an
+        // account exists.
+        await noteResetDelivery(user, result, request.ip);
       }
       // Always the same answer, so this cannot be used to test for accounts.
       // The message says what really happened with the delivery.
