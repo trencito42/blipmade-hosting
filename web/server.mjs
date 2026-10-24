@@ -1,4 +1,5 @@
 import { createServer, request as httpRequest } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { resolve, join, extname, sep } from 'node:path';
 import { createBrotliCompress, createGzip, constants as zlibConstants } from 'node:zlib';
@@ -264,6 +265,20 @@ function clientAddress(req) {
   return resolveClientAddress(req.socket.remoteAddress, req.headers['x-forwarded-for'], TRUSTED_PROXIES);
 }
 
+/**
+ * The identifier of the request.
+ *
+ * The API believes this header only when it comes from a proxy it trusts, and
+ * this server is that proxy. The identifier of the client must therefore never
+ * arrive: a client that chose its own identifier could put the same number on
+ * many requests, or the number of another request, and the journal of an
+ * incident would lie. The identifier is made here instead, and the one that
+ * arrived is replaced.
+ */
+function requestId() {
+  return randomUUID();
+}
+
 /** The scheme the client used, taken from a trusted proxy only. */
 function clientProtocol(req) {
   const peer = req.socket.remoteAddress;
@@ -308,6 +323,9 @@ const server = createServer(async (req, res) => {
     headers['x-forwarded-for'] = address;
     headers['x-real-ip'] = address;
     headers['x-forwarded-proto'] = clientProtocol(req);
+    // The identifier of the request is the one of this server, never the
+    // one the client chose.
+    headers['x-request-id'] = requestId();
 
     const proxy = httpRequest(
       {
@@ -464,6 +482,9 @@ server.on('upgrade', (req, socket, head) => {
   headers['x-forwarded-for'] = address;
   headers['x-real-ip'] = address;
   headers['x-forwarded-proto'] = clientProtocol(req);
+  // The identifier of the request is the one of this server, never the
+  // one the client chose.
+  headers['x-request-id'] = requestId();
 
   const proxy = httpRequest({
     protocol: target.protocol,
