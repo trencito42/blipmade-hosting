@@ -276,6 +276,7 @@ Sursă: `11-support-and-operations.md`, `11-onboarding.md`, `11-compliance-check
 | OPS-11 | Low | `INFERRED` | Cauza probabilă a ieșirii containerului: `npm run start` nu găsește un `package.json`. Două fapte convergente, confirmate cu un `docker logs` pe nod | Nu | `11-onboarding.md` |
 | OPS-12 | High | `VERIFIED` | `.github/workflows/ci.yml:148` | **Fișierul workflow-ului era invalid, deci GitHub nu a creat niciun job la nicio împingere**: contextul `runner` nu există în mediul unui job, așa că `runner.temp` a făcut ca întregul fișier să fie refuzat. 49 de rulări, toate eșuate, niciun job | Da (blocaj de lansare) | `actionlint`: `context "runner" is not allowed here`; https://github.com/trencito42/blipmade-hosting/actions/runs/40109857754 |
 | OPS-13 | High | `VERIFIED` | `.github/workflows/ci.yml` (jobul `test`) | **Jobul de teste nu avea adresa panoului și tokenul intern**: suita simulează panoul la nivel de rețea, dar codul refuză să lucreze fără adresa lui, iar poarta de test cere tokenul intern. Zece erori pe runner, toate din mediu | Da (blocaj de lansare) | rularea 40109857754, adnotările jobului `Unit and integration tests` |
+| OPS-14 | High | `VERIFIED` | `.github/workflows/ci.yml` (jobul `test`) | **Jobul de teste nu instalase dependențele web**, iar runner-ul de teste rulează și testele web: unul dintre ele construiește o pagină cu React și Vite, deci fișierul nu găsea pachetul `react` și pasul cădea | Da (blocaj de lansare) | rularea 40112428500: `Cannot find package 'react' imported from tests/ui-components.test.ts` |
 
 ---
 
@@ -457,12 +458,12 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 
 | Stare | Constatări |
 |---|---:|
-| FIXED & VERIFIED | 38 |
+| FIXED & VERIFIED | 39 |
 | IMPLEMENTED, NOT VERIFIED | 1 |
 | BLOCKED: EXTERNAL DEPENDENCY | 3 |
 | REQUIRES OPERATOR APPROVAL | 11 |
 | NOT STARTED (BACKLOG) | 144 |
-| **Total** | **197** |
+| **Total** | **198** |
 
 | ID | Sev. | Cod / infrastructură afectată | Stare | Cauza rădăcină | Reparare | Commit | Test de regresie | Verificare |
 |---|---|---|---|---|---|---|---|---|
@@ -591,6 +592,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `OPS-11` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `OPS-12` | High | .github/workflows/ci.yml | FIXED & VERIFIED | Contextul runner nu exista in mediul unui job, deci cele doua linii care numeau directorul temporar al runner-ului au facut ca intregul fisier sa fie invalid. GitHub crea rularea, refuza sa creeze joburile si o marca ca esuata, la fiecare impingere, de cand fisierul a fost adaugat | Cele doua directoare sunt facute acum in pasul care ruleaza suita, cu variabila runner-ului, pe care fiecare pas o are. Fisierul a fost verificat cu actionlint, care raporteaza aceeasi eroare ca GitHub pe fisierul de dinainte si nimic pe fisierul de dupa | 6272785 | actionlint 1.7.7 pe ambele fisiere de workflow | Rularea 40109857754 a creat cele sase joburi, dintre care cinci au trecut: API typecheck, Dependency audit, Web typecheck and build, Secret scan, Schema drift |
 | `OPS-13` | High | .github/workflows/ci.yml, jobul test | FIXED & VERIFIED | Suita simuleaza panoul la nivel de retea, dar codul refuza sa lucreze fara adresa panoului, iar poarta de test cere tokenul intern al platformei. Mediul de pe runner nu avea niciuna dintre cele doua valori, pentru ca fisierul .env nu este in depozit | Jobul primeste adresa panoului, care indica bucla runner-ului pe un port pe care nu asculta nimeni, si un token intern de unica folosinta. O cerere care ar scapa de simulare esueaza imediat si ramane pe masina | 264edf4 | rularea completa a suitei intr-o copie a arborelui, cu mediul jobului de pe runner | Zece erori pe runner, toate din mediu: cinci in instance-operations, doua in credential-renewal, una in billing-lifecycle si doua urmari. Cu cele doua valori, suita trece in intregime |
+| `OPS-14` | High | .github/workflows/ci.yml, jobul test | FIXED & VERIFIED | Runner-ul de teste ruleaza si testele web, si unul dintre ele construieste o pagina cu React si Vite, dar jobul instala doar dependintele API. Fisierul de test nu putea gasi pachetul react | Jobul instaleaza si dependintele web, din fisierul de lock file, ca cele ale API | e53a3a9 | rularea completa a suitei, cu si fara dependintele web | Fara dependintele web: 93 verzi si unul rosu, cel care construieste pagina. Cu ele: 109 verzi |
 | `PORT-01` | Critical | cardul de pret din audit/05-commerce-and-billing.md | REQUIRES OPERATOR APPROVAL | Pretul se recalculeaza pe baza floor-ului, nu pe baza pietii | Nu s-a atins: valoarea C_node si decizia asupra cardului de pret sunt D-1 a operatorului | — | — | Nu s-a rulat nimic: pretul nu e o decizie de inginer |
 | `PORT-02` | Critical | documente de conformitate | REQUIRES OPERATOR APPROVAL | Comparatia cu piata si regimul fiscal | Nu s-a atins: e o decizie de operator si o confirmare profesionala | — | — | Nu s-a putut verifica |
 | `PORT-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |

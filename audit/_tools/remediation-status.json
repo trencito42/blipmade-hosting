@@ -399,6 +399,15 @@
   "test": "rularea completa a suitei intr-o copie a arborelui, cu mediul jobului de pe runner",
   "verification": "Zece erori pe runner, toate din mediu: cinci in instance-operations, doua in credential-renewal, una in billing-lifecycle si doua urmari. Cu cele doua valori, suita trece in intregime"
  },
+ "OPS-14": {
+  "status": "FIXED & VERIFIED",
+  "area": ".github/workflows/ci.yml, jobul test",
+  "rootCause": "Runner-ul de teste ruleaza si testele web, si unul dintre ele construieste o pagina cu React si Vite, dar jobul instala doar dependintele API. Fisierul de test nu putea gasi pachetul react",
+  "fix": "Jobul instaleaza si dependintele web, din fisierul de lock file, ca cele ale API",
+  "commit": "e53a3a9",
+  "test": "rularea completa a suitei, cu si fara dependintele web",
+  "verification": "Fara dependintele web: 93 verzi si unul rosu, cel care construieste pagina. Cu ele: 109 verzi"
+ },
  "INF-01": {
   "status": "REQUIRES OPERATOR APPROVAL",
   "area": "VM 101, / (RAID 0)",

@@ -4,7 +4,8 @@
 **Baza:** `origin/main` la `e990776`
 **Link de comparare:** https://github.com/trencito42/blipmade-hosting/compare/main...integration/release-candidate-1
 **Deschiderea PR-ului:** https://github.com/trencito42/blipmade-hosting/pull/new/integration/release-candidate-1
-**Rularea CI pe vârful ramurii:** https://github.com/trencito42/blipmade-hosting/actions/runs/40112290601
+**Rularea CI care a verificat codul (`e53a3a9`):** https://github.com/trencito42/blipmade-hosting/actions/runs/40113089554
+**Toate rulările ramurii:** https://github.com/trencito42/blipmade-hosting/actions/workflows/ci.yml?query=branch%3Aintegration%2Frelease-candidate-1
 
 > `gh` și un token GitHub nu există în acest mediu, deci PR-ul nu poate fi
 > deschis programatic. Ramura e deja pushată; e nevoie de un click.
@@ -54,6 +55,7 @@ făcute:
 | `667dbb2` | Scanarea de secrete raporta cinci valori, dintre care una e o parolă moartă dintr-un script eliminat. Lista de excepții e acum în `.gitleaks.toml`, cu fiecare valoare numită exact | `gitleaks 8.24.3` pe întreaga istorie: 0 scurgeri |
 | `6272785` | **CI** — fișierul workflow-ului era invalid: `runner.temp` în mediul unui job, unde contextul `runner` nu există. GitHub crea rularea, refuza să creeze joburile și o marca eșuată — 49 de rulări, niciun job | `actionlint` raportează aceeași eroare ca GitHub pe fișierul de dinainte și nimic pe cel de după |
 | `264edf4` | **CI** — jobul de teste nu avea adresa panoului și tokenul intern, deci suita pica pe runner cu 10 erori, toate de mediu | rularea completă a suitei într-o copie a arborelui, cu mediul jobului și nimic altceva: 465/465 |
+| `e53a3a9` | **CI** — jobul de teste nu instala dependențele web, iar runner-ul rulează și testele web: unul construiește o pagină cu React și Vite, deci fișierul nu găsea pachetul `react` și pasul cădea | fără ele: 93 verzi și unul roșu; cu ele: 109 verzi |
 | `9734b9b` | **13 colecții din corpul cererii fără limită** (8 tablouri, 5 dicționare) — expunerea la advisory-ul de `zod` | `api/tests/collection-bounds.test.ts` — fără reparare: 4 picate; cu repararea: 5 verzi |
 | `4fcf66f` | Advisory-ul `zod` acceptat temporar, ca celelalte douăsprezece, cu urmărirea în registru ca `SEC-31` | jobul CI `dependency-audit` e verde |
 
@@ -78,7 +80,7 @@ baza de test, baza de Redis și porturi proprii. Producția nu a fost atinsă.
 
 ### Cele șase joburi ale CI-ului, pe rularea reală
 
-Rularea: **https://github.com/trencito42/blipmade-hosting/actions/runs/40112290601**
+Rularea: **https://github.com/trencito42/blipmade-hosting/actions/runs/40113089554** (comitul `e53a3a9`)
 
 | Job | Rezultat |
 |---|---|
@@ -148,7 +150,7 @@ existenți, deci indexul trebuie verificat după aplicare.
 
 ## 8. Documentele
 
-- `audit/12-FULL-FINDINGS-REGISTER.md` — registrul unic, 197 de constatări
+- `audit/12-FULL-FINDINGS-REGISTER.md` — registrul unic, 198 de constatări
 - `audit/post-remediation/GO-NO-GO-VERDICT.md` — verdictul de lansare
 - `audit/post-remediation/PERFORMANCE-ENGINEERING-REPORT.md` — raportul
   performanței, cu măsurătorile
