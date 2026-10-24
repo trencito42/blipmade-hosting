@@ -28,11 +28,41 @@ Pentru fiecare rută s-au verificat patru lucruri, în această ordine:
 | Codul real al stivei izolate | `/opt/blipmade` pe `debian@10.77.0.13`, ramura `audit/post-remediation`, commit `29a86cc` |
 | API testat | `http://127.0.0.1:3101` (proces node, `NODE_ENV=test`) |
 | Interfață web testată | `http://127.0.0.1:30003` |
-| Baza de date scrisă | `blipmade_test` **doar** |
-| Baza de date de producție | `blipmade` — **nu a fost atinsă, citită nici măcar** |
-| Stack de producție | containerele `blipmade-api-1` (3100) și `blipmade-web-1` (3000) — **nu au fost apelate** |
+| Baza de date scrisă | `blipmade_test` (stiva comună a auditorilor) **și** `admfunc_test` (stivă proprie, creată de acest audit) |
+| Baza de date de producție | `blipmade` — **nu a fost atinsă, nici scris, nici citit pentru date** (doar interogări de verificare a curățeniei, cu rol de citire) |
+| Stack de producție | containerele `blipmade-api-1` (3100) și `blipmade-web-1` (3000) — **nu au fost apelate**; portul 30002 — **nu a fost folosit** |
 
-**Regula respectată fără excepție:** s-a scris **exclusiv** pe stiva izolată (`blipmade_test`, portul 3101/30003). Nu s-a apelat niciodată `blipmade.com`, portul 3100 sau interfața de producție de pe `10.77.0.13:3000`. Nu s-a făcut niciun deploy. Nu s-a modificat niciun fișier din repository (verificat prin `md5sum` înainte și după: cele 14 fișiere din `web/src/admin/` și `api/src/routes/admin.ts` au aceleași sume ca pe VM).
+**Regula respectată fără excepție:** s-a scris **exclusiv** pe stiva izolată (`blipmade_test`, portul 3101/30003) și pe o stivă proprie creată pentru acest audit (`admfunc_test`, API propriu pe `127.0.0.1:3121`). Nu s-a apelat niciodată `blipmade.com`, portul 3100, portul 30002 sau interfața de producție de pe `10.77.0.13:3000`. Nu s-a făcut niciun deploy. Nu s-a modificat niciun fișier din repository (verificat prin `md5sum -c` înainte și după: toate cele **17** fișiere verificate — `api/src/routes/admin.ts`, `api/src/lib/permissions.ts`, cele 13 fișiere din `web/src/admin/`, `web/src/admin/permissions.ts`, `web/src/routes.tsx` și `web/src/nav.ts` — au aceleași sume ca pe VM; `md5sum -c` raportează `OK` pentru toate).
+
+### 1.3 Declarare explicită: scrieri în producție
+
+**Acest audit NU a scris niciun rând în baza de date de producție `blipmade` și nu a efectuat niciun apel către producție.** Verificarea a fost făcută prin interogarea bazei de producție cu ajutorul tiparelor distinctive ale acestui audit:
+
+| Interogare pe baza `blipmade` (producție) | Rezultat |
+|---|---|
+| `User` cu id sau e-mail care conține identificatorul de rulare al auditului (`r1792798`) | **0** |
+| `AuditLog` cu `actorEmail`/`actorId` care conține `r1792798` | **0** |
+| `Session` cu `userId` care conține `r1792798` | **0** |
+| `StaffMember` cu `userId` care conține `r1792798` | **0** |
+| `Product` cu slug de tip `probe-%`, `mut-%` sau cu `r1792798` | **0** |
+| `Promotion` cu cod `MUT%`, `PROBE%` sau `DEBUG%` | **0** |
+| `Ticket` cu id `bulk_tkt_%` sau cu subiectele de probă | **0** |
+| `Order` cu id `bulk_ord_%` sau numere `BULK-%` / `AUD-00%` | **0** |
+| `Instance` cu id `inst_audit_%` sau nume `audit-instance%` | **0** |
+| `Invoice` cu id `inv_audit_%` sau numere `AUD-INV%` | **0** |
+
+Toate adresele folosite de acest audit au fost create cu sufix de rulare (`admin.check.<rulare>@example.test`, `esc.staff.<rulare>@example.test`, `bulk.customer.<n>.<rulare>@example.test` etc.), iar căutarea lor în producție nu întoarce niciun rând. Scripturile mele nu conțin niciun alt URL decât `http://127.0.0.1:3101` (API-ul stivei izolate), `http://127.0.0.1:30003` (interfața stivei izolate) și `http://127.0.0.1:3121` (API-ul stivei proprie) (verificat prin căutare în toate scripturile, după toate rulările).
+
+**Ce există în producție și NU îmi aparține** (raportat pentru curățare, găsit în timpul verificării de siguranță, nu creat de acest audit):
+
+| Cont | Rol | Suspendat | Creat | Observație |
+|---|---|---|---|---|
+| `qa.headless.one@example.test` | CUSTOMER | da | 2026-10-23 01:53:56 | rest dintr-o rundă de audit anterioară; 209 intrări în jurnal |
+| `qa.headless.two@example.test` | CUSTOMER | da | 2026-10-23 01:55:17 | rest dintr-o rundă de audit anterioară; 57 intrări în jurnal |
+| `browser-customer@blipmade.test` | CUSTOMER | da | 2026-10-23 07:21:46 | rest dintr-o rundă de audit anterioară |
+| `browser-admin@blipmade.test` | **ADMIN** | da | 2026-10-23 07:21:46 | **contul cu rol ADMIN și parolă cunoscută**, rest dintr-o rundă de audit anterioară |
+
+Toate patru au deja `suspendedAt` setat și **0 sesiuni deschise**. În producție există și `steph@ripboyband.com` cu rolul **ADMIN** și `emailVerified=false`, creat la 2026-10-23 20:08:02 printr-o înregistrare publică (IP de margine `162.158.14.14`), apoi promovat manual: intrarea de jurnal `staff.role_changed` are `meta={"by":"operator","to":"ADMIN","from":"CUSTOMER"}` și un actor **null**, deci promovarea a fost făcută direct în baza de date, nu prin API-ul de administrare. **Nu este un rând creat de acest audit**, dar este o situație pe care conducătorul ar trebui s-o cunoască: un cont self-registrat cu rol ADMIN, încă nesuspendat.
 
 ### 1.3 Cum s-a verificat că stiva testată este codul citit
 
@@ -65,6 +95,8 @@ Scripturile folosite (toate în `/tmp/audit-admin/` pe VM):
 | `05-mutations.mjs` | 18 mutații administrative + verificarea jurnalului |
 | `06-truncation.mjs` | trunchierea listelor, căutare, filtrare, paginare, sortare, operații în masă |
 | `07-escalation.mjs` | raza de acțiune a escaladării |
+| `08-ratelimit.mjs`, `09-ratelimit2.mjs` | măsurarea exactă a limitei de semnare pe cont |
+| `ownapi.sh`, `10-ownverify.mjs` | stivă proprie (`admfunc_test` + API pe 3121) și re-verificarea figurilor distructive |
 | `browser.mjs` … `browser4.mjs` | cele 12 ecrane, 4 identități, dialoguri de confirmare, expunerea escaladării în interfață |
 
 ### 1.5 Limitări (declarate, ascunse și tratate separat)
@@ -78,6 +110,26 @@ Scripturile folosite (toate în `/tmp/audit-admin/` pe VM):
 7. **Nu am verificat infrastructura de pe VM 102/103**, TLS-ul, backup-urile, monitorizarea sau panoul Pterodactyl — obiectul acestui audit este exclusiv interfața și API-ul administrativ.
 
 ---
+
+
+### 1.6 Rezumatul constatărilor
+
+| ID | Severitate | Titlu | Clasă de evidență |
+|---|---|---|---|
+| ADM-P1-01 | High | Escaladare de privilegii: un personal cu `staff.write` își poate acorda 20 din 21 de permisiuni | VERIFIED (două stive) |
+| ADM-P1-02 | High | `customers.write` poate suspenda un cont de administrator sau de personal | VERIFIED (două stive) |
+| ADM-P2-01 | High | Panoul de control cere `customers.read` și expune venit, MRR, comenzi, bilete și servicii | VERIFIED (două stive) |
+| ADM-P2-02 | Medium | Navigația administrativă nu este filtrată pe permisiuni | VERIFIED |
+| ADM-P2-03 | Medium | Nicio căutare în comenzi și bilete, nicio paginare, nicio sortare | VERIFIED |
+| ADM-P2-04 | Medium | Operațiile în masă lipsesc din API și din interfață | VERIFIED |
+| ADM-P2-05 | Medium | 8 funcții administrative existente în API nu sunt expuse în interfață | VERIFIED |
+| ADM-P2-06 | Medium | Contorul de autentificare blochează orice adresă după 10 cereri, inclusiv reușite și inexistente | VERIFIED |
+| ADM-P3-01 | Medium | Atribuirea unui bilet cere `staff.read` în interfață, dar doar `tickets.write` în API | VERIFIED |
+| ADM-P3-02 | Low-Info | Jurnalul modificărilor de permisiuni nu notează ce a fost eliminat | VERIFIED |
+| ADM-P3-03 | Low-Info | Jurnalul nu notează o reconciliere a prețurilor care nu corectează nimic | VERIFIED |
+| ADM-P3-04 | Low | Un personal ne-administrator poate schimba titlul unui administrator | VERIFIED |
+| ADM-P3-05 | Low | Ecranul de personal arată simultan 0 staff members și o eroare de încărcare | VERIFIED |
+| ADM-P3-06 | Low-Info | `GET /admin/money` este un capăt mort | VERIFIED |
 
 ## 2. Metodă
 
@@ -139,6 +191,46 @@ DELETE /api/admin/products/:id                      GET    /api/admin/money
 ### 2.3 Verificarea jurnalului
 
 Jurnalul a fost citit înainte și după fiecare grup de mutații, filtrat pe acțiunile apărute între cele două citiri, și s-a comparat fiecare intrare cu mutația care o producea (acțiune, tipul țintei, id-ul țintei, conținutul câmpului `meta`).
+
+### 2.4 Stiva proprie, pentru figurile distructive
+
+Măsurătorile de escaladare de privilegii, de schimbare de rol, de suspendare de cont și de modificare a prețurilor au fost **repete pe o stivă complet separată**, ca să nu depindă de starea comună `blipmade_test` (care este resetată de alți auditori) și ca figurile distructive să nu fie aplicate peste datele altora:
+
+- baza de date `admfunc_test`, creată de zero, cu migrările aplicate de acest audit (`prisma migrate deploy` cu `DATABASE_URL` către `admfunc_test`; baza `blipmade` și `blipmade_test` nu au fost atinse);
+- un proces API propriu, pornit din același build (`/tmp/api-check/dist/index.js`), pe `127.0.0.1:3121`, cu `REDIS_URL` pe o bază Redis separată (`/8`);
+- scriptul `10-ownverify.mjs`, care repetă cele trei constatări grave și reia matricea de permisiuni pe 16 rute.
+
+Rezultatele re-verificării sunt în secțiunea 2.5 și sunt marcate ca **VERIFIED** în constatările corespunzătoare.
+
+Stiva proprie a fost **oprită și baza `admfunc_test` a fost ștearsă** imediat după măsurători; API-ul propriu nu mai ascultă pe 3121, iar stiva comună (3101/30003) a rămas neatinsă și funcțională.
+
+### 2.5 Rezultatele re-verificării pe stiva proprie
+
+```
+API under test: http://127.0.0.1:3121
+database under test: admfunc_test
+
+### ADM-P1-01
+self-grant 20 of 21 -> 200
+the session now carries 20 permissions
+GET /api/admin/settings with the escalated account -> 200
+GET /api/admin/staff with the escalated account -> 200
+self-grant all 21 -> 403 Only an administrator can grant the whole permission list.
+
+### ADM-P1-02
+STAFF(customers.write) suspends the administrator -> 200
+the administrator can no longer sign in -> 401 This account is suspended.
+undo by another administrator -> 200
+
+### ADM-P2-01
+staff with only customers.read -> 200 {"overview":{"customers":1,"instances":1,"activeInstances":1,
+  "openTickets":0,"ordersToday":1,"revenueMonth":5000,"provisioningFailures":0,"mrr":5000,"currency":"EUR"}}
+the same staff on /api/admin/pricing -> 403 Your role does not allow "pricing.read".
+
+### the permission matrix still holds on the private instance
+a staff with only tickets.read: 1 allowed, 15 refused; unexpected answers: none
+a customer on /api/admin/customers -> 403 Staff access only.
+```
 
 ---
 
@@ -211,7 +303,7 @@ Legendă: **Int.** = ecran în interfață; **API** = rută existentă; **Funcț
 ### ADM-P1-01 — Escaladare de privilegii: un personal cu `staff.write` își poate acorda 20 din cele 21 de permisiuni
 
 **Severitate:** High (Critical dacă `staff.write` este delegată în producție)
-**Clasă de evidență:** **VERIFIED**
+**Clasă de evidență:** **VERIFIED** (măsurat de două ori: pe stiva comună izolată și pe stiva proprie `admfunc_test` — secțiunea 2.5)
 **Rută afectată:** `PUT /api/admin/staff/:userId` — `api/src/routes/admin.ts:1022`
 **Interfață:** `web/src/admin/Staff.tsx:60`
 
@@ -230,6 +322,16 @@ GET /api/admin/staff with the escalated account -> 200
 ### A2.
 self-grant all 21 -> 403 "Only an administrator can grant the whole permission list."
 self-grant 21 + duplicates -> 403 "Only an administrator can grant the whole permission list."
+```
+
+Pe stiva proprie (`admfunc_test`, API propriu pe 3121), rezultatul este identic:
+
+```
+self-grant 20 of 21 -> 200
+the session now carries 20 permissions
+GET /api/admin/settings with the escalated account -> 200
+GET /api/admin/staff with the escalated account -> 200
+self-grant all 21 -> 403 Only an administrator can grant the whole permission list.
 ```
 
 **Comportament așteptat.** Modificarea permisiunilor și a rolului unui membru de personal este o operație de administrator. Interfața spune exact asta — `web/src/admin/Staff.tsx:60` (`const mayEdit = staff?.role === 'ADMIN';`) și textul „Only an administrator can change a role or the permissions of an administrator. You see the list read-only." Măsurarea în interfață a confirmat că toate cele **714** casete de selectare sunt `disabled` pentru un cont cu `staff.read`+`staff.write`. **Serverul nu reproduce această restricție**, iar un apel direct prin API o ocolește.
@@ -271,7 +373,7 @@ Singura poartă pentru un non-administrator este „nu acorda lista întreagă".
 ### ADM-P1-02 — `customers.write` poate suspenda un cont de administrator sau de personal
 
 **Severitate:** High
-**Clasă de evidență:** **VERIFIED**
+**Clasă de evidență:** **VERIFIED** (măsurat de două ori: pe stiva comună izolată și pe stiva proprie `admfunc_test` — secțiunea 2.5)
 **Rută afectată:** `POST /api/admin/customers/:id/suspend` — `api/src/routes/admin.ts:302`
 
 **Comportament observat.** Un cont cu rolul `STAFF` și permisiunile `customers.read`, `customers.write`, `tickets.read`, `tickets.write` a suspendat contul de administrator (`admin.check.<RUN>`) cu `200`:
@@ -279,6 +381,14 @@ Singura poartă pentru un non-administrator este „nu acorda lista întreagă".
 ```
 STAFF(rw) suspends the ADMIN account -> 200 {"customer":{"id":"usr_admin_check_...","suspended":true}}
 the admin session still works: 200 no
+```
+
+Pe stiva proprie, cu un administrator nou la fiecare rulare:
+
+```
+STAFF(customers.write) suspends the administrator -> 200
+the administrator can no longer sign in -> 401 This account is suspended.
+undo by another administrator -> 200
 ```
 
 Contul de administrator a fost blocat: autentificarea a răspuns `403` cu „This account is suspended." și toate sesiunile sale au fost șterse (următoarea cerere pe sesiunea existentă a răspuns `{ user: null }`). Același cont de personal a putut suspenda și un alt membru de personal (`200`).
@@ -321,7 +431,7 @@ Nu există niciun filtru pe rol. Calea este numită „customers", dar identific
 ### ADM-P2-01 — Panoul de control cere `customers.read` și expune cifre de ordine, servicii, bilete, venit și MRR
 
 **Severitate:** High
-**Clasă de evidență:** **VERIFIED**
+**Clasă de evidență:** **VERIFIED** (măsurat de două ori: pe stiva comună izolată și pe stiva proprie `admfunc_test` — secțiunea 2.5)
 **Rută afectată:** `GET /api/admin/overview` — `api/src/routes/admin.ts:50`
 **Interfață:** `web/src/admin/Overview.tsx:340`
 
@@ -339,6 +449,14 @@ Același cont a fost refuzat pe toate listele care stau la originea acestor cifr
 /api/admin/services  -> 403 "Your role does not allow \"services.read\"."
 /api/admin/tickets   -> 403 "Your role does not allow \"tickets.read\"."
 /api/admin/pricing   -> 403 "Your role does not allow \"pricing.read\"."
+```
+
+Pe stiva proprie, cu o comandă plătită și un abonament activ, cifrele nu sunt nule:
+
+```
+staff with only customers.read -> 200 {"overview":{"customers":1,"instances":1,"activeInstances":1,
+  "openTickets":0,"ordersToday":1,"revenueMonth":5000,"provisioningFailures":0,"mrr":5000,"currency":"EUR"}}
+the same staff on /api/admin/pricing -> 403 Your role does not allow "pricing.read".
 ```
 
 Interfața arată exact aceleași cifre aceluiași cont (captură de ecran, Chromium):
@@ -618,6 +736,8 @@ function accountGuard(app: FastifyInstance, max: number) {
 
 ---
 
+### ADM-P3-03 — Jurnalul nu notează o reconciliere a prețurilor care nu corectează nimic
+
 **Severitate:** Low-Info
 **Clasă de evidență:** **VERIFIED**
 **Rută:** `POST /admin/instances/reconcile-prices` — `api/src/routes/admin.ts:367`
@@ -745,7 +865,7 @@ Acestea sunt rezultate măsurate, nu presupuneri:
 |---|---|---|
 | **Calea completă a rambursării** (`POST /admin/orders/:id/refund`) | Furnizorul de plăți nu este activ în stiva izolată; comanda nu are un `paymentIntent` de la Stripe, iar API-ul răspunde corect `409`. Nu s-a putut observa ce scrie în jurnal după o rambursare reală | Rulare cu un furnizor de plăți în modul de test, pe o comandă plătită |
 | **Efectul final al importului de server** (`POST /admin/instances/import`) | Panoul Pterodactyl nu este accesibil; API-ul răspunde `500` pentru administrator și `400` pentru un personal ne-administrator | Verificare pe o stivă cu panoul pornit |
-| **Limita de autentificare în producție** (10 pe cont în 15 minute) | Pe stiva izolată, contorul este în Redis și supraviețuiește resetului bazei de date; de aceea fiecare rulare a folosit adrese noi. **Observație importantă:** brief-ul spune că limita a fost ridicată la 500 pe 15 minute pe stiva izolată; în cod, ridicarea privește doar limita pe adresă (`LOGIN_RATE_LIMIT_MAX`), iar limita **pe cont** este codificată la `10` (`api/src/routes/auth.ts:182`, `accountGuard(app, 10)`). Pe stiva izolată am măsurit `429` la al 11-lea semnare pe cont — deci **limita pe cont nu a fost ridicată** | Măsurare pe stiva de producție, cu cont dedicate |
+| **Limita de autentificare în producție** (10 pe cont în 15 minute) | Pe stiva izolată, contorul este în Redis și supraviețuiește resetului bazei de date; de aceea fiecare rulare a folosit adrese noi. **Observație importantă:** brief-ul spune că limita a fost ridicată la 500 pe 15 minute pe stiva izolată; în cod, ridicarea privește doar limita pe adresă (`LOGIN_RATE_LIMIT_MAX`), iar limita **pe cont** este codificată la `10` (`api/src/routes/auth.ts:182`, `accountGuard(app, 10)`). Pe stiva izolată am **măsurat exact** comportamentul (vezi ADM-P2-06): a 11-a cerere pe aceeași adresă este refuzată cu `429`, chiar dacă cele 10 anterioare au fost autentificări reușite, și chiar dacă adresa nu există — deci **limita pe cont nu a fost ridicată** | Măsurare pe stiva de producție, cu cont dedicate |
 | **Comportamentul în producție al limitelor, al plăților și al e-mailului** | Stiva izolată rulează cu `NODE_ENV=test`, `STRIPE_TEST_MODE=true` | Audit pe o stivă de test identică cu producția |
 | **Firefox și WebKit** | Nu sunt instalate pe VM | Instalare și repetarea verificărilor de interfață |
 | **Randarea pe ecrane mici (telefon, tabletă)** | Scriptul a folosit doar 1440×1000 și 1500×1200 | Verificare cu dimensiuni mici |
@@ -759,6 +879,8 @@ Acestea sunt rezultate măsurate, nu presupuneri:
 
 ## 8. Concluzie
 
+**Siguranța mediului.** Acest audit a scris exclusiv pe baza `blipmade_test` (stiva izolată comună) și pe o stivă proprie, `admfunc_test`, cu un proces API propriu pe `127.0.0.1:3121`. **Nu a scris niciun rând în baza de producție `blipmade` și nu a apelat producția** (nici `blipmade.com`, nici portul 3100, nici portul 30002, nici interfața de pe `10.77.0.13:3000`). Verificarea cu tiparele distinctive ale auditului în baza de producție întoarce zero pe toate cele zece tabele verificate (secțiunea 1.3).
+
 Cadrul de permisiuni al platformei este, în general, **aplicat corect pe server**: toate cele 40 de rute refuză corect un cont fără permisiune, toate mutațiile măsurate sunt journalizate, iar acțiunile distructive sunt confirmate cu motiv. Cele trei probleme grave nu sunt în aplicarea de bază a permisiunilor, ci în **ceea ce o permisiune permisă**:
 
 1. **`staff.write` este o escaladare de privilegii** — un cont de personal cu două permisiuni poate ajunge la 20 din cele 21 de permisiuni, pentru sine sau pentru orice alt personal, în timp ce interfața interzice explicit această operație. (ADM-P1-01)
@@ -766,3 +888,5 @@ Cadrul de permisiuni al platformei este, în general, **aplicat corect pe server
 3. **Panoul de control scurge cifre financiare** către un cont care nu poate citi nici comenzile, nici prețurile — o nepotrivire semnalată înainte și încă ne-remediată. (ADM-P2-01)
 
 În rest, platforma are o acoperire funcțională bună a ariei administrative: 34 de funcții din 34 de rute API funcționează, 8 funcții administrative reale nu sunt expuse în interfață (două dintre ele sunt singura cale prin care un operator poate preda o instanță sau migra una), iar căutarea, paginarea și operațiile în masă lipsesc cu totul din arie.
+
+O a patra problemă de severitate medie merită menționată alături de cele trei grave: **contorul de autentificare** numără și autentificările reușite și se aplică și adreselor inexistente, așa că zece cereri blochează orice adresă timp de 15 minute — inclusiv pe cea a unui administrator (ADM-P2-06).

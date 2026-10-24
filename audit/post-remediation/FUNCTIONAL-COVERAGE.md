@@ -1,7 +1,9 @@
 # Inventar funcțional — Blipmade
 
 **Stare:** audit independent, efectuat pe ramura `audit/post-remediation`.
-**Data efectuării:** 23 octombrie 2026, între orele 23:15 și 00:20 (UTC-4 / ora mașinii de audit).
+**Data efectuării:** 23 octombrie 2026, între **23:22 și 23:56 UTC** (19:22–19:56 ora locală EDT).
+Toate măsurătorile din raport sunt din această fereastră; `/tmp/bm-fn/` de pe VM păstrează scriptele
+și rapoartele brute. (Orele menționate în constatări sunt ore ale ceasului VM, adică UTC.)
 **Autor:** agent de audit (rol `Worker`), fără modificări asupra codului sursă.
 
 ---
@@ -34,7 +36,7 @@ execuție pe stiva izolată:
 
 ### 1.3 Când
 
-23.10.2026, 23:15–00:20 (est. locală). Toate măsurătorile din raport sunt din această fereastră;
+23.10.2026, 23:22–23:56 UTC. Toate măsurătorile din raport sunt din această fereastră;
 `/tmp/bm-fn/` de pe VM păstrează scriptele și rapoartele brute.
 
 ### 1.4 Instrumente
@@ -71,18 +73,67 @@ execuție pe stiva izolată:
    la capăt; s-a verificat până la crearea rândului `Instance` cu starea `pending`.
 6. **SMTP nu este configurat** în stiva izolată (`SMTP_URL` gol): mesageria se scrie în fișiere.
 7. **DNS real nu poate fi exercitat** (nu există un domeniu de test).
-8. **Nu am atins niciodată baza de date de producție** (`blipmade`), containerele de producție
-   (`blipmade-api-1`, `blipmade-worker-1`, `blipmade-postgres-1`) sau domeniul `blipmade.com`.
+8. **Nu am atins niciodată baza de date de producție** (`blipmade`) în scris și nu m-am autentificat
+   niciodată pe `blipmade.com`. Vezi §1.7 — declarația detaliată, cu verificarea făcută în baza de
+   date de producție (doar `SELECT`).
 
 ### 1.6 Regula de izolare
 
 Singura bază de date scrisă a fost `blipmade_test` (baza stivei izolate). Scrierile au fost:
 două conturi de audit (`qa.check@example.test`, `admin.check@example.test`), două rânduri
-`StaffMember`, cinci produse de test (`audit-*`), câteva promoții (`EX3HALF`, `EX4PAID`,
-`AUDIT10`, `AUDITFIX`, `AUDITPCT`), o serie de comenzi și bilete de test. Nu s-a scris niciodată în
-`blipmade` (producție), nu s-a făcut niciun deploy și nu s-a autentificat niciodată pe
-`blipmade.com`. Scripturile de browser au fost scrise **doar** în `/tmp/bm-fn` pe VM, nu în
-repozitoriu.
+`StaffMember`, patru produse de test (`audit-deployable`, `audit-soon`, `audit-temp`,
+`audit-unpub`), trei promoții (`AUDIT10`, `EX3HALF`, `EX4PAID`; `AUDITFIX` și `AUDITPCT` au fost
+respinse cu 400 și nu au creat rânduri), patru comenzi (`BM-00001` … `BM-00004`) și un bilet
+(„Audit ticket"). Nu s-a scris niciodată în `blipmade` (producție), nu s-a făcut niciun deploy și
+nu s-a autentificat niciodată pe `blipmade.com`. Scripturile de browser au fost scrise **doar** în
+`/tmp/bm-fn` pe VM, nu în repozitoriu.
+
+### 1.7 Declarație privind siguranța mediului și scrierile în producție
+
+**Nu am scris nimic în baza de date de producție `blipmade`. Nu am creat niciun rând acolo și nu
+m-am autentificat niciodată pe `blipmade.com` sau pe orice altă adresă publică a platformei.**
+
+Verificare efectuată **după** primirea instrucțiunii de siguranță, prin `SELECT` exclusiv pe baza
+de producție (citire, fără scrieri):
+
+| Interogare pe `blipmade` (producție) | Rezultat |
+|---|---|
+| `User` cu e-mailurile mele de fixture (`qa.check`, `admin.check`, `audit.cust.*`, `audit.admin.*`, `t1.*`, `t2.*`, `dbg*`) | **0 rânduri** |
+| `User` create după 2026-10-23 22:00 | **0 rânduri** |
+| `Product` cu slug-urile mele (`audit*`) | **0 rânduri** |
+| `Promotion` cu codurile mele (`AUDIT10`, `AUDITFIX`, `AUDITPCT`, `EX3HALF`, `EX4PAID`) | **0 rânduri** |
+| `Ticket` cu subiectul meu („Audit…") | **0 rânduri** (singurul „Audit journey probe 2026-10-23" a fost creat la 17:39, înainte de sesiunea mea) |
+| `Order` / `Instance` / `Session` create după 22:00 | **0 / 0 / 0** (singura sesiune din acea fereastră este a clientului real `steph@ripboyband.com`, IP Cloudflare `162.158.14.14`, creată la 20:08) |
+| `AuditLog` după 22:00 | 2 rânduri, ambele cu actorul `stefan@xodo.ro` (administratorul real): `infrastructure.synced` la 22:09 și `settings.session_revoked` la 23:23 (sesiunea revocată nu mai există în tabel). Niciun rând nu are actor din fixture-urile mele |
+
+Cele patru conturi de fixture din producție (`browser-admin@blipmade.test`,
+`browser-customer@blipmade.test`, `qa.headless.one@example.test`, `qa.headless.two@example.test`)
+au fost create la 01:53–07:21 pe 23 octombrie, adică **înainte de sesiunea mea** (care a început
+la 19:22), și aparțin valului de audit anterior. Eu nu le-am creat și nu le-am atins.
+
+**Singura interacțiune cu care aș putea fi acuzat de „atingere a producției"** este o cerere
+`GET` de citire către `http://127.0.0.1:30002/`, făcută la începutul sesiunii, ca parte din
+recunoașterea „ce ascultă pe această mașină". Acea cerere a returnat doar cofura HTML a
+aplicației web (niciun JavaScript nu a fost executat, deci nicio cerere către API nu a fost
+declanșată) și, în acel moment, procesul local de pe 30002 era o instanță web locală. Portul
+30002 nu mai ascultă deloc pe VM. De atunci am folosit exclusiv `127.0.0.1:30003` (web) și
+`127.0.0.1:3101` (API), conform regulilor.
+
+**Reguli pe care le-am aplicat de la primirea instrucțiunii și pe care le voi aplica în continuare:**
+
+1. Web: numai `http://127.0.0.1:30003`. API: numai `http://127.0.0.1:3101`. Bază: numai
+   `blipmade_test`.
+2. Portul **30002** nu mai este folosit — îl declar depășit pentru acest audit.
+3. **Nu** se vizitează `blipmade.com`, `10.77.0.13:3000` sau orice adresă publică/de edge a
+   platformei. Nu am generat și nu voi genera trafic cu IP-uri Cloudflare (`162.158.x.x`,
+   `172.64.x.x`).
+4. **Nu** se scrie în `blipmade`. Citirea configurației de producție peste SSH rămâne permisă
+   (am folosit `docker exec … env` doar pentru a identifica ținta bazei de date a containerelor și a
+   limita de rate).
+5. **Nu** se trunchiază `blipmade_test` (este împărțită cu alți auditori) și **nu** se rulează
+   `scripts/run-tests.sh`. Golirea repetată a bazei `blipmade_test` pe care am observat-o între
+   23:34–23:37 și 23:43 a fost produsă de un proces `vitest` al altui agent, nu de mine.
+6. Scripturile mele de browser rămân în `/tmp/bm-fn` pe VM, în afara repozitorului.
 
 ---
 
@@ -97,7 +148,12 @@ repozitoriu.
    separa implementat de stub.
 3. **Diferență între backend și front-end.** Toate literalele de cale din `web/src` au fost extrase
    și comparate cu rutele backend, segment cu segment, după normalizarea parametrilor. Rezultatul:
-   **30 de endpoint-uri nu au niciun apelant în interfață** (listate în §4, secțiunea D).
+   **30 de endpoint-uri nu au niciun apelant identificabil în interfață** (listate în §3.4,
+   secțiunea D). Două corecții: `DELETE /settings/sessions/:id` este un fals pozitiv al extractorului
+   de literaluri (interfața îl apelează prin `` `/settings/sessions/${encodeURIComponent(id)}` `` —
+   verificat în browser, sesiunea dispare din listă), deci numărul real este **29**; iar trei dintre
+   cele 29 sunt apelate din afara rutelor de pagină — `/health` (monitorizare), `/instances/:id/console/stream`
+   (WebSocket, din fila Console) și `/webhooks/stripe` (Stripe).
 4. **Execuție pe stiva izolată.** Fiecare funcție care putea fi exercitată a fost apelată prin
    HTTP cu rolurile potrivite, cu validarea codurilor de stare, a corpurilor de răspuns și a efectelor
    în baza de date.
@@ -164,13 +220,15 @@ Legendă clase: **F** = `IMPLEMENTED AND WORKING`, **B** = `IMPLEMENTED BUT BROK
 | B17 | Domenii | `/app/domains` → `app/Domains.tsx` | PW | Browser + API | Listă goală, formular de adăugare; `GET /domains` → 200 | FN-P1-19 |
 | B18 | Facturare | `/app/billing` → `app/Billing.tsx` | PW | Browser + API | Sumar, abonamente, facturi, metodă de plată; pagina ignoră parametrul `checkout` | FN-P1-03, FN-P1-26 |
 | B19 | Bilete de suport | `/app/tickets` → `app/Tickets.tsx` | F | Browser + API | Tabel cu 1 rând (#819), buton „New ticket", categorii din API | — |
-| B20 | Detaliu de bilet | `/app/tickets/:id` → `app/TicketDetail.tsx` | PW | Browser + API | Trimitere răspuns → 201; „atașamente" = doar metadate | FN-P1-02 |
+| B20 | Detaliu de bilet | `/app/tickets/:id` → `app/TicketDetail.tsx` | F | Browser + API | Trimitere răspuns → 201; firul, evenimentele și atribuirea se randă corect | FN-P1-02 |
 | B21 | Setări — profil | `/app/settings` | F | Browser | Nume, e-mail, rol, data creării | — |
 | B22 | Setări — parolă | `/app/settings` | F | Browser + API | `POST /settings/password`; invalidează celelalte sesiuni | — |
 | B23 | Setări — lista de sesiuni | `/app/settings` | F | Browser + API | 5 sesiuni listate cu dispozitiv, IP, ultima activitate; „Close session" și „Close all other sessions" funcționează | FN-P1-27 |
 | B24 | Setări — notificări | `/app/settings` | F | Browser + API | 5 preferințe, `PUT /settings/notifications` | — |
 | B25 | Setări — închiderea contului | `/app/settings` | F | Browser + API | `POST /settings/account/closure` + `DELETE` | — |
 | B26 | Comandă de resurse (upgrade) | `app/InstanceDetail.tsx:290-315` | F | Citit + API | `PUT /instances/:id/resources` returnează `requires_payment` + `checkoutUrl` | — |
+| B27 | **Atașamentele de fișiere la bilete** | `web/src/app/TicketDetail.tsx:90,99-103` | MP | Browser + API + SQL | Selectorul de fișiere trimite doar `{name,size,type}`; `Attachment` are **0 rânduri**, deși există un mesaj cu `attachmentMeta` | FN-P1-02 |
+| B28 | **Pagina de metrici a instanței** | promise în `/docs` („Check the metrics") | M | Browser + `grep` pe `web/src` | Niciun tab de metrici între cele 12 taburi; consumul real nu e afișat nicăieri; `GET /instances/:id/metrics` fără apelant | FN-P1-04 |
 
 ### 3.3 Zona de admin (C)
 
@@ -192,6 +250,14 @@ Legendă clase: **F** = `IMPLEMENTED AND WORKING`, **B** = `IMPLEMENTED BUT BROK
 | C14 | Retur manual de comandă | buton „Refund" în `admin/Orders.tsx` | B | API `POST /admin/orders/:id/refund` | 503 „Payments are not configured on this environment" | FN-P1-10 |
 
 ### 3.4 Funcții fără ecran (D) — backend only / moarte / stub-uri
+
+*Notă de reconciliere: lista calculată de 30 de endpoint-uri fără apelant include
+`DELETE /settings/sessions/:id`, care **este** apelat de interfață (fals pozitiv al extractorului de
+literaluri — se construiește cu `encodeURIComponent`), deci cele fără apelant real sunt **29**. Tabelul
+de mai jos conține 29 dintre acestea; în plus conține D30, care nu este un endpoint, ci cod mort
+(notificările de factură duplicate din `billing.ts`). Trei dintre cele 29 sunt accesate din afara
+rutelor de pagină: `/health` (D29, monitorizare), `/instances/:id/console/stream` (D19, WebSocket
+din fila Console) și `/webhooks/stripe` (D27, Stripe).*
 
 | # | Funcție | Unde | Clasă | Cum a fost verificată | Evidență | Constatare |
 |---|---|---|---|---|---|---|
@@ -824,8 +890,8 @@ cod**: există în API, sunt corecte, dar nimeni nu le poate ajunge. Cele mai no
 | Firefox / WebKit | Binarele nu există pe VM | Rulearea matricei pe celelalte două motoare |
 | Istoricul de schimbări | Nu există `.git` în copia de lucru și nu s-a rulat git | Compararea cu ramura de referință |
 | Comportamentul în sarcină | Nu s-a rulat nicio încărcare | Test de sarcină pe cotă, autentificare și cozi |
-| Starea de producție | Interzis explicit; nu s-a citit și nu s-a scris în `blipmade` | — |
-| Comportamentul după `TRUNCATE` | Baza a fost golită de un proces `vitest` concurent în timpul auditului; unele ID-uri de obiect au devenit invalide | Rulare într-o stivă dedicată, fără suita de teste concurentă |
+| Starea de producție | Nu s-a scris și nu s-a autentificat în producție. S-a citit **doar** configurația containerelor peste SSH și, la cerere, s-a rulat `SELECT` pe `blipmade` pentru a dovedi că nu există rânduri create de mine (§1.7) | — |
+| Comportamentul după `TRUNCATE` | Baza `blipmade_test` a fost golită de un proces `vitest` concurent în timpul auditului; unele ID-uri de obiect au devenit invalide | Rulare într-o stivă dedicată, fără suita de teste concurentă |
 
 ---
 
@@ -833,16 +899,16 @@ cod**: există în API, sunt corecte, dar nimeni nu le poate ajunge. Cele mai no
 
 | Clasă | Număr de funcții |
 |---|---|
-| `IMPLEMENTED AND WORKING` (F) | 41 |
-| `IMPLEMENTED BUT BROKEN` (B) | 4 |
+| `IMPLEMENTED AND WORKING` (F) | 58 |
+| `IMPLEMENTED BUT BROKEN` (B) | 2 |
 | `INTERFACE ONLY` (I) | 0 |
 | `BACKEND ONLY` (BA) | 20 |
-| `DEAD OR UNREACHABLE` (D) | 5 |
-| `STUBBED` (S) | 2 |
+| `DEAD OR UNREACHABLE` (D) | 7 |
+| `STUBBED` (S) | 3 |
 | `MISLEADING PLACEHOLDER` (MP) | 1 |
-| `PARTIALLY WIRED` (PW) | 22 |
+| `PARTIALLY WIRED` (PW) | 25 |
 | `MISSING` (M) | 1 |
-| **Total rânduri în matrice** | **96** |
+| **Total rânduri în matrice** | **117** |
 
 | Severitate | Număr de constatări |
 |---|---|
@@ -852,6 +918,17 @@ cod**: există în API, sunt corecte, dar nimeni nu le poate ajunge. Cele mai no
 | Low-Info | 24 (FN-P1-11 … FN-P1-34) |
 | **Total** | **34** |
 
-*Cele 34 de constatări includ și observații de coerență și de igienă (Low-Info); numai cele 10
+*Distribuția pe clase a fost calculată programatic din matrice (117 rânduri, unul pe funcție).
+Cele 34 de constatări includ și observații de coerență și de igienă (Low-Info); numai cele 10
 constatări cu severitate High sau Medium reprezintă un defect de funcționare sau o promisiune
 neîndeplinită.*
+
+---
+
+## 9. Declaratie finală privind producția
+
+**Nu am scris niciodată în baza de date de producție `blipmade`, nu am creat niciun cont, comandă,
+bilet, instanță sau promoție acolo și nu m-am autentificat niciodată pe `blipmade.com`, pe
+`10.77.0.13:3000` sau pe orice altă adresă publică/de edge a platformei.** Singura scriere a fost în
+`blipmade_test`, baza stivei izolate, iar inventarul exact al rândurilor create acolo se află în
+§1.6. Verificarea prin `SELECT` pe producția este în §1.7.

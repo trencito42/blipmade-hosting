@@ -93,31 +93,59 @@ Starea verificată după neutralizare: `0` sesiuni rămase ale conturilor de tes
 
 ---
 
-## 4. Acțiuni care Așteaptă autorizarea operatorului
+## 4. Curățarea permanentă — AUTORIZATĂ ȘI EXECUTATĂ
 
-Următoarele sunt operațiuni destructive pe producție sau pe infrastructură externă.
-**Nu au fost executate.** Conform brief-ului, cer autorizare explicită.
+Operatorul a autorizat curățarea completă, cu condiția unui dump SQL și a unei liste
+de servere făcute înainte. Ambele au fost făcute:
 
-| # | Acțiune | Scope | De ce nu a fost făcută automat |
-|---|---|---|---|
-| A1 | ștergerea celor 4 conturi de test | baza `blipmade` | ștergere pe producție |
-| A2 | ștergerea celor 13 bilete + 13 mesaje ale uneltelor | baza `blipmade` | ștergere pe producție |
-| A3 | ștergerea comenzilor `BM-00002`, `BM-00003` | baza `blipmade` | ștergere pe producție |
-| A4 | ștergerea celor 3 rânduri `Instance` ale uneltelor | baza `blipmade` | ștergere pe producție |
-| A5 | ștergerea celor 5 servere de pe panoul Pterodactyl | infrastructură externă | ștergere pe panoul de producție |
-| A6 | rotirea parolei și a cheilor folosite de unelte | credentiale externe | operațiune pe credentiale |
+- `prod-before-cleanup-20261024-000847.sql` (284 655 octeți) și
+  `prod-predeploy-20261024-001116.sql` (203 664 octeți) în `/var/backups/blipmade/pre-deploy/`
+- `panel-servers-20261024-000847.json` în aceeași locație
 
-**Ordinea recomandată:** A1→A4 într-o singură tranzacție (rândurile legate dispar în
-cascadă), apoi A5 pe panou, apoi A6.
+Executat pe 2026-10-24:
 
-**Notă despre A1–A4:** ștergerea unui cont în cascadă șterge și sesiunile, comenzile,
-biletele și instanțele lui. Comanda trebuie să vizeze **doar** cele patru adrese de
-test. Adresele reale (`admin@blipmade.com`, `stefan@xodo.ro`, `steph@ripboyband.com`)
-și biletul `#46` trebuie să rămână.
+| # | Acțiune | Rezultat |
+|---|---|---|
+| A1 | ștergerea celor 4 conturi de test | `DELETE 4` într-o tranzacție |
+| A2 | ștergerea biletelor și mesajelor | 13 bilete + 13 mesaje, în cascadă |
+| A3 | ștergerea comenzilor `BM-00002`, `BM-00003` | 2 comenzi, în cascadă |
+| A4 | ștergerea rândurilor `Instance` | 3 rânduri, în cascadă |
+| A5 | ștergerea serverelor de pe panoul Pterodactyl | 5 servere, HTTP 204 fiecare |
+| A6 | rotirea parolei/cheilor | **neefectuată** — nu există cheia folosită de unelte; parolele de test au fost create de fixture-uri locale și nu au fost folosite pe nicio infrastructură externă |
+
+**Starea de după curățare:** 3 utilizatori (toți reali), 42 sesiuni (toate reale),
+4 comenzi (toate ale operatorului), 1 bilet (al operatorului), 0 facturi, 0 plăți,
+0 instanțe, **0 servere pe panou**, 561 rânduri în jurnalul de audit (dovada incidentului
+a fost păstrată; `actorId` a devenit `NULL` prin `onDelete: SetNull`, `actorEmail` a rămas).
 
 ---
 
-## 5. Măsuri preventive aplicate
+## 5. Aplicarea ramurii pe producție — AUTORIZATĂ ȘI EXECUTATĂ
+
+Operatorul a autorizat aplicarea ramurii curente pe producție, cu migrare.
+
+| Pas | Rezultat |
+|---|---|
+| `main` actualizat | fast-forward de la `36a75a7` la `2e1e78a` (7 commituri), push la `origin/main` |
+| ramura `audit/post-remediation` | creată și împinsă la `origin` |
+| imagini reconstruite | `blipmade-api`, `blipmade-worker`, `blipmade-web` — build OK |
+| containere recreate | toate 5 `healthy` |
+| migrare aplicată | `20261024110000_session_last_seen` — **singura migrare în așteptare** |
+| coloană nouă | `Session.lastSeenAt timestamp without time zone` |
+| date de producție | intacte după deploy (3 / 42 / 4 / 1 / 561) |
+| site public | `https://blipmade.com` → **HTTP 200** |
+| plafon de sesiuni | `MAX_SESSIONS_PER_USER = 20` prezent în imaginea deployată (`/app/dist/plugins/auth.js:41`) |
+| suita de teste pe codul deployat | API **325/325**, web **87/87** |
+
+**Programarea backupului, acum activă:** `blipmade-backup.timer` a fost instalat în
+`/etc/systemd/system/`, activat (`enabled`), cu prima rulare la `02:23 UTC`. O rulare
+manuală a produs `blipmade-scheduled-20261024T001409Z.tar.gz` (59 620 octeți) plus
+`.sha256`. `ExecStartPost` (copia off-site) ieșire 0, dar **`OFFSITE_TARGET` nu este
+setat**: copia nu părăsește gazda. Backupul nu este încă un backup real.
+
+---
+
+## 6. Măsuri preventive aplicate
 
 - `/root/sync-check.sh`: instanța 30002 indică acum `3101`; gardă care refuză pornirea
   dacă `API_URL` conține portul de producție.
