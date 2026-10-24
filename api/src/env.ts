@@ -98,6 +98,14 @@ const schema = z.object({
    * could set the header and write an address of its own choosing into the
    * session and into the journal (SEC-05). The operator sets here the
    * address of the web container, which is the only one that reaches the API.
+   *
+   * An entry is an address or a block of addresses, written as
+   * `172.16.0.0/12`, the same way the web container reads its own list of
+   * proxies. The operator has to set this to the address of the web container
+   * or to the range of the container network, in the environment of the API
+   * container. Without it the API reads the address of the web container for
+   * every request: the session cookie is issued without the Secure attribute
+   * and every visitor of the platform shares one counter of the rate limit.
    */
   TRUSTED_PROXIES: z.string().default('127.0.0.1,::1'),
 

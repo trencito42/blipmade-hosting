@@ -46,11 +46,53 @@ declare module 'fastify' {
  * only takes `x-forwarded-proto` into account when the request came through
  * one of the trusted proxies (`env.trustProxies`), so a client cannot forge
  * the header to force a Secure cookie on a plain HTTP request.
+ *
+ * A production environment is served over HTTPS, so the cookie is marked
+ * Secure there even when the request that carries it arrived over plain
+ * HTTP. That happens when the proxy in front of the API is not in the list of
+ * the trusted proxies: the request is then read as plain HTTP even though the
+ * visitor is on HTTPS. A request must never quietly lower the protection of
+ * the cookie, so the production environment marks it Secure and an operator
+ * that really serves the panel over plain HTTP says `COOKIE_SECURE=false`.
  */
 export function resolveCookieSecure(request: FastifyRequest): boolean {
   if (env.COOKIE_SECURE === 'true') return true;
   if (env.COOKIE_SECURE === 'false') return false;
+  if (env.isProduction) return true;
   return request.protocol === 'https';
+}
+
+/**
+ * The key the rate limit counts by.
+ *
+ * The address of the caller is the key. Fastify resolves that address out of
+ * the chain of the forwarding header, but only when the request came through
+ * a proxy the API knows. When the request comes from a proxy that is not
+ * trusted, the resolved address is the address of that proxy and every
+ * visitor shares it, so one counter would be the counter of the whole
+ * platform and one visitor could lock every other visitor out of the sign-in.
+ *
+ * The counter is then taken per connection, which is the smallest unit that
+ * can be told apart when the address of the client is not known. The limit of
+ * the account is a counter of its own and is not weakened by this: it is the
+ * limit that protects an account from a guessing of the password.
+ *
+ * A request that carries no chain of the forwarding header comes from a
+ * client that speaks for itself, and it keeps the counter of its address.
+ */
+export function rateLimitKey(request: FastifyRequest): string {
+  const peer = request.socket?.remoteAddress ?? '';
+  const address = request.ip;
+  // The address of the client was resolved out of the chain, so it is known.
+  if (address && address !== peer) return address;
+
+  const forwarded = request.headers['x-forwarded-for'];
+  const chain = typeof forwarded === 'string' ? forwarded.split(',').map((entry) => entry.trim()).filter(Boolean) : [];
+  if (!chain.length) return address;
+
+  // The request came through a proxy that the API does not know, so the
+  // address of the client cannot be told apart from the address of the proxy.
+  return `${address}:${request.socket?.remotePort ?? 0}`;
 }
 
 /**

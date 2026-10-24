@@ -16,6 +16,7 @@ import {
   destroySession,
   loadSession,
   pruneSessions,
+  rateLimitKey,
   requireAuth,
   type AuthUser,
 } from '../plugins/auth.js';
@@ -61,6 +62,21 @@ const tokenSchema = z.object({ token: z.string().min(10, 'This link is not valid
 const ACCOUNT_ATTEMPTS_WINDOW = '15 minutes';
 
 /**
+ * The key of the counter of an address.
+ *
+ * The address of the caller is the key, and the address of the client is
+ * only known when the request came through a proxy that the API trusts. When
+ * it is not known, the counter is taken per connection, so one visitor can
+ * never lock every other visitor out of the sign-in.
+ */
+function addressKey(request: FastifyRequest): string {
+  const key = rateLimitKey(request);
+  // In the test environment the key carries the run number, so the counters
+  // of one test do not count against the next one.
+  return env.isTest ? `${key}:${rateLimitRun()}` : key;
+}
+
+/**
  * The key of the counter of an account: the address of the account, written
  * the way the accounts are written.
  *
@@ -70,7 +86,7 @@ const ACCOUNT_ATTEMPTS_WINDOW = '15 minutes';
 function accountKey(request: FastifyRequest): string {
   const body = request.body as { email?: unknown } | undefined;
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const key = email ? `account:${email}` : `address:${request.ip}`;
+  const key = email ? `account:${email}` : `address:${addressKey(request)}`;
   // In the test environment the key carries the run number, so the counters
   // of one test do not count against the next one.
   return env.isTest ? `${key}:${rateLimitRun()}` : key;
@@ -185,7 +201,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   const enrollGuard = accountGuard(app, 5);
 
   app.post('/auth/register', {
-    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 20, timeWindow: '15 minutes', keyGenerator: addressKey } },
     preHandler: registerGuard,
     handler: async (request: FastifyRequest, reply) => {
       const body = registerSchema.parse(request.body);
@@ -221,7 +237,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/auth/login', {
-    config: { rateLimit: { max: env.loginRateLimitMax, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: env.loginRateLimitMax, timeWindow: '15 minutes', keyGenerator: addressKey } },
     preHandler: loginGuard,
     handler: async (request: FastifyRequest, reply) => {
       const body = loginSchema.parse(request.body);
@@ -286,7 +302,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/auth/resend-verification', {
-    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes', keyGenerator: addressKey } },
     preHandler: mailGuard,
     handler: async (request: FastifyRequest, reply) => {
       const { email } = z.object({ email: emailSchema }).parse(request.body ?? {});
@@ -304,7 +320,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/auth/forgot-password', {
-    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes', keyGenerator: addressKey } },
     preHandler: mailGuard,
     handler: async (request: FastifyRequest, reply) => {
       const { email } = z.object({ email: emailSchema }).parse(request.body);
@@ -323,7 +339,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/auth/reset-password', {
-    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 10, timeWindow: '15 minutes', keyGenerator: addressKey } },
     handler: async (request: FastifyRequest, reply) => {
       const body = z.object({ token: z.string().min(10), password: z.string() }).parse(request.body);
       const problems = passwordProblems(body.password);
@@ -351,7 +367,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
    * administrator, and only with the enrollment key from the environment.
    */
   app.post('/auth/enroll-admin', {
-    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+    config: { rateLimit: { max: 5, timeWindow: '1 hour', keyGenerator: addressKey } },
     preHandler: enrollGuard,
     handler: async (request: FastifyRequest, reply) => {
       if (!env.ADMIN_ENROLLMENT_KEY) {
