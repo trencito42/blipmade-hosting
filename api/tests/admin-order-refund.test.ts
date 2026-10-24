@@ -182,7 +182,13 @@ describe('the administrative refund', () => {
     expect(response.body.order.status).toBe('refunded');
     expect(response.body.order.amount).toBe(2400);
     expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
-    expect(mocks.refundCreate).toHaveBeenCalledWith(expect.objectContaining({ payment_intent: 'pi_test' }));
+    // The refund is asked for with a key that belongs to this order, so a
+    // second refund of the same order is the same request at the provider and
+    // the money is never returned twice.
+    expect(mocks.refundCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_test' }),
+      expect.objectContaining({ idempotencyKey: `blipmade-refund-${orderId}` }),
+    );
 
     // The order is not paid any more.
     const order = await prisma.order.findUnique({ where: { id: orderId } });

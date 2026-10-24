@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import type { SubscriptionStatus } from '@prisma/client';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import {
@@ -8,6 +9,7 @@ import {
   stripeLive,
   stripeTestGateway,
   upsertInvoice,
+  STRIPE_API_VERSION,
 } from '../services/stripe.js';
 import { enqueueProvisioning } from '../services/queue.js';
 import { notifyInvoiceFailed, notifyInvoicePaid } from '../services/notifications.js';
@@ -58,6 +60,70 @@ interface StripeEvent {
   id: string;
   type: string;
   data: { object: Record<string, unknown> };
+}
+
+/**
+ * The states a Stripe subscription can have, and the state of the platform
+ * that belongs to each of them.
+ *
+ * Every state Stripe can send is listed, and nothing else. A state that is
+ * not listed is not known to the platform, and it never becomes ACTIVE: the
+ * subscription keeps the state it had, and the unknown state is written down
+ * for an operator. A subscription that becomes ACTIVE by accident would be
+ * provisioned and billed for a service nobody confirmed.
+ *
+ * The spelling is the one Stripe uses: a cancelled subscription is `canceled`,
+ * with one `l`. The British spelling of the platform is used for the state of
+ * the platform itself.
+ */
+const SUBSCRIPTION_STATUS_BY_STRIPE_STATE: Record<string, SubscriptionStatus> = {
+  ACTIVE: 'ACTIVE',
+  TRIALING: 'TRIALING',
+  PAST_DUE: 'PAST_DUE',
+  UNPAID: 'PAST_DUE',
+  INCOMPLETE: 'INCOMPLETE',
+  // The first payment of the subscription never arrived, so the subscription
+  // is dead. It is cancelled like a subscription that was stopped, so nothing
+  // tries to renew it.
+  INCOMPLETE_EXPIRED: 'CANCELLED',
+  CANCELED: 'CANCELLED',
+  PAUSED: 'PAUSED',
+};
+
+/**
+ * The subscription an invoice pays for.
+ *
+ * Stripe moved the field: in the version of the API the platform pins, the
+ * invoice carries `subscription`, and in the newer ones the subscription is
+ * under `parent.subscription_details.subscription`. Both are read, so an
+ * invoice is still matched with the subscription it pays for whichever
+ * version the account of the operator uses.
+ */
+function readInvoiceSubscriptionId(object: Record<string, unknown>): string | null {
+  const direct = object.subscription;
+  if (typeof direct === 'string' && direct) return direct;
+  const parent = object.parent as { subscription_details?: { subscription?: unknown } } | undefined;
+  const nested = parent?.subscription_details?.subscription;
+  if (typeof nested === 'string' && nested) return nested;
+  return null;
+}
+
+/**
+ * The sum of a checkout session that pays for the order, and the tax that
+ * was charged on top of it.
+ *
+ * With Stripe Tax turned on, the total of the session carries the tax as
+ * well, and the sum of the order is the subtotal. With it turned off, the
+ * two are the same number. The tax is only what the provider really charged:
+ * the platform never invents one.
+ */
+function readSessionAmounts(object: Record<string, unknown>): { amount: number | null; tax: number } {
+  const total = typeof object.amount_total === 'number' ? object.amount_total : null;
+  const subtotal = typeof object.amount_subtotal === 'number' ? object.amount_subtotal : null;
+  if (env.stripeTaxEnabled && subtotal !== null && total !== null) {
+    return { amount: subtotal, tax: Math.max(0, total - subtotal) };
+  }
+  return { amount: total, tax: 0 };
 }
 
 /** Parses a JSON payload without throwing on malformed input. */
@@ -346,34 +412,63 @@ async function handleCancelledOrderPayment(
   // of the customer would stay with the platform. When the two sums differ,
   // the difference is written down.
   const collected = typeof object.amount_total === 'number' ? object.amount_total : null;
-  if (collected !== null && collected !== order.total) {
+  // The sum that pays for the order is the sum of the order. The tax the
+  // provider charged on top of it is part of the money that is returned, but
+  // it is not part of the sum of the order.
+  const { amount: orderAmount } = readSessionAmounts(object);
+  if (orderAmount !== null && orderAmount !== order.total) {
     await audit({
       action: 'order.amount_mismatch',
       targetType: 'order',
       targetId: order.id,
-      meta: { collected, expected: order.total },
+      meta: { collected: orderAmount, expected: order.total },
     });
   }
   const amount = collected ?? order.total;
 
-  const refunded = await refundPayment({
-    orderId: order.id,
-    stripePaymentIntentId: paymentIntentId,
-    amount,
-    reason: 'the order was cancelled before the payment arrived',
+  // The order is claimed before the provider is asked, so two deliveries that
+  // arrive at the same time cannot both return the money. The claim is the
+  // state of the order itself: only the delivery that wins it returns the
+  // money.
+  const claimed = await prisma.order.updateMany({
+    where: { id: order.id, status: 'CANCELLED' },
+    data: { status: 'REFUNDED' },
   });
 
+  let refunded = false;
+  if (claimed.count === 1) {
+    refunded = await refundPayment({
+      orderId: order.id,
+      stripePaymentIntentId: paymentIntentId,
+      amount,
+      reason: 'the order was cancelled before the payment arrived',
+    });
+    if (!refunded) {
+      // The provider could not return the money, so the order is not a
+      // refunded one: the money is still with the platform, and the claim is
+      // given back so the money can be returned later.
+      await prisma.order.updateMany({
+        where: { id: order.id, status: 'REFUNDED' },
+        data: { status: 'CANCELLED' },
+      });
+    }
+  }
+
   await releaseCancelledOrderPromotion(order);
-  await prisma.order.update({
-    where: { id: order.id },
-    // A refunded order keeps the trace of the refund. A payment that arrives
-    // late for an order that was already refunded must not erase it, because
-    // the state that says the money was returned is what the guard of the
-    // dead orders reads.
-    data: { status: refunded || order.status === 'REFUNDED' ? 'REFUNDED' : 'CANCELLED' },
-  });
+  // A refunded order keeps the trace of the refund. A payment that arrives
+  // late for an order that was already refunded must not erase it, because
+  // the state that says the money was returned is what the guard of the
+  // dead orders reads.
+  if (claimed.count === 1) {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { status: refunded ? 'REFUNDED' : 'CANCELLED' },
+    });
+  }
   await audit({
-    action: refunded ? 'order.cancelled_payment_refunded' : 'order.cancelled_payment_received',
+    action: refunded || order.status === 'REFUNDED'
+      ? 'order.cancelled_payment_refunded'
+      : 'order.cancelled_payment_received',
     targetType: 'order',
     targetId: order.id,
     meta: {
@@ -413,14 +508,17 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
         break;
       }
 
-      const amountProblem = await verifyAmount(orderId, object.amount_total);
+      // The sum that pays for the order is the sum of the order, with or
+      // without the tax the provider charged on top of it.
+      const { amount, tax } = readSessionAmounts(object);
+      const amountProblem = await verifyAmount(orderId, amount);
       if (amountProblem) {
         await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
         await audit({
           action: 'order.amount_mismatch',
           targetType: 'order',
           targetId: orderId,
-          meta: { collected: object.amount_total, expected: order.total },
+          meta: { collected: amount, expected: order.total, tax },
         });
         throw new Error(amountProblem);
       }
@@ -430,7 +528,8 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
         stripePaymentIntentId: (object.payment_intent as string) ?? null,
         stripeSubscriptionId: (object.subscription as string) ?? null,
         stripeCustomerId: (object.customer as string) ?? null,
-        amount: typeof object.amount_total === 'number' ? object.amount_total : undefined,
+        amount: amount ?? undefined,
+        tax,
       });
       await fulfilOrder(orderId);
       break;
@@ -442,6 +541,29 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       if (!orderId) break;
       await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
       await prisma.payment.updateMany({ where: { orderId }, data: { status: 'FAILED' } });
+      break;
+    }
+
+    case 'checkout.session.expired': {
+      const orderId =
+        (object.client_reference_id as string) ?? (object.metadata as { orderId?: string })?.orderId;
+      if (!orderId) break;
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) break;
+      // Only an order that is still waiting for its payment is released. An
+      // order that was paid, refused or refunded is left exactly as it is:
+      // the event is late, not the state of the order.
+      if (order.status !== 'PENDING' && order.status !== 'AWAITING_PAYMENT') break;
+      await prisma.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+      // The campaign slot of the abandoned checkout goes back into the pool,
+      // so a checkout nobody finished cannot hold a promotion hostage.
+      await releaseCancelledOrderPromotion(order);
+      await audit({
+        action: 'order.checkout_expired',
+        targetType: 'order',
+        targetId: orderId,
+        meta: { orderNumber: order.number, userId: order.userId },
+      });
       break;
     }
 
@@ -460,7 +582,7 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
 
     case 'invoice.paid': {
       const invoiceId = object.id as string;
-      const subscriptionId = object.subscription as string | undefined;
+      const subscriptionId = readInvoiceSubscriptionId(object) ?? undefined;
       const customerId = object.customer as string | undefined;
 
       const paid = typeof object.amount_paid === 'number' ? object.amount_paid : null;
@@ -542,7 +664,7 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
     }
 
     case 'invoice.payment_failed': {
-      const subscriptionId = object.subscription as string | undefined;
+      const subscriptionId = readInvoiceSubscriptionId(object) ?? undefined;
       const invoiceId = object.id as string;
       if (subscriptionId) {
         await prisma.subscription.updateMany({
@@ -574,22 +696,14 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted': {
       const subscriptionId = object.id as string;
-      const status = String(object.status ?? '').toUpperCase();
+      const stripeState = String(object.status ?? '').toUpperCase();
+      // A state the platform does not know is never ACTIVE: the subscription
+      // keeps the state it had, and the unknown state is written down.
+      const state = SUBSCRIPTION_STATUS_BY_STRIPE_STATE[stripeState] ?? null;
       await prisma.subscription.updateMany({
         where: { stripeSubscriptionId: subscriptionId },
         data: {
-          status:
-            status === 'CANCELLED' || status === 'INCOMPLETE_EXPIRED'
-              ? 'CANCELLED'
-              : status === 'PAST_DUE' || status === 'UNPAID'
-                ? 'PAST_DUE'
-                : status === 'TRIALING'
-                  ? 'TRIALING'
-                  : status === 'INCOMPLETE'
-                    ? 'INCOMPLETE'
-                    : status === 'PAUSED'
-                      ? 'PAUSED'
-                      : 'ACTIVE',
+          ...(state ? { status: state } : {}),
           cancelAtPeriodEnd: Boolean(object.cancel_at_period_end),
           ...(typeof object.current_period_start === 'number'
             ? { currentPeriodStart: new Date(object.current_period_start * 1000) }
@@ -599,6 +713,16 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
             : {}),
         },
       });
+      if (!state) {
+        // The state that the provider sent is not one the platform knows. It
+        // is written down, so an operator can see what the provider says.
+        await audit({
+          action: 'stripe.subscription_state_unknown',
+          targetType: 'subscription',
+          targetId: subscriptionId,
+          meta: { state: stripeState },
+        });
+      }
       break;
     }
 
@@ -634,17 +758,72 @@ async function processEvent(event: StripeEvent): Promise<ProcessOutcome> {
   }
 }
 
-/** Verifies the signature and extracts the event from a raw request. */
-async function readStripeEvent(raw: string): Promise<StripeEvent | { error: string }> {
+/**
+ * The header Stripe sends with every delivery. It carries the timestamp of
+ * the delivery and one or more signatures of the body.
+ */
+const STRIPE_SIGNATURE_HEADER = 'stripe-signature';
+
+/**
+ * The signature of the delivery, read from the header of the request.
+ *
+ * The header is read as the text it is. A header that arrives more than once
+ * is joined, and the provider refuses it as malformed: a delivery that
+ * carries two signatures is not a delivery that can be trusted.
+ */
+function readSignatureHeader(request: FastifyRequest): string | undefined {
+  const header = request.headers[STRIPE_SIGNATURE_HEADER];
+  if (typeof header === 'string') return header;
+  if (Array.isArray(header)) return header.join(',');
+  return undefined;
+}
+
+/**
+ * The reason a signature was refused.
+ *
+ * The three failures are told apart, because they need a different answer
+ * from an operator: a header that is not there is a delivery that was sent
+ * wrongly, an expired signature is a delivery that was replayed, and a
+ * signature that does not match is a delivery that was not signed with our
+ * secret.
+ */
+function signatureErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes('Unable to extract timestamp')) {
+    return 'The Stripe-Signature header is malformed.';
+  }
+  if (message.includes('Timestamp outside the tolerance zone')) {
+    return 'The signature of the delivery has expired.';
+  }
+  if (message.includes('No signatures found matching')) {
+    return 'The signature of the delivery does not match the body.';
+  }
+  return 'Signature verification failed.';
+}
+
+/**
+ * Verifies the signature of a delivery and extracts the event.
+ *
+ * The body is used exactly as it was received, and the signature comes from
+ * the header of the request. The secret is the key that verifies the
+ * signature, never the signature itself: a delivery that carries no valid
+ * signature is refused, and the comparison is made in constant time by the
+ * provider.
+ */
+async function readStripeEvent(
+  raw: string,
+  signatureHeader: string | undefined,
+): Promise<StripeEvent | { error: string }> {
   if (stripeLive()) {
-    const signature = env.STRIPE_WEBHOOK_SECRET;
-    if (!signature) return { error: 'The webhook secret is not configured.' };
+    const secret = env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) return { error: 'The webhook secret is not configured.' };
+    if (!signatureHeader) return { error: 'The Stripe-Signature header is missing.' };
     const Stripe = (await import('stripe')).default;
-    const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+    const stripe = new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION });
     try {
-      return stripe.webhooks.constructEvent(raw, signature, env.STRIPE_WEBHOOK_SECRET) as unknown as StripeEvent;
-    } catch {
-      return { error: 'Signature verification failed.' };
+      return stripe.webhooks.constructEvent(raw, signatureHeader, secret) as unknown as StripeEvent;
+    } catch (error) {
+      return { error: signatureErrorMessage(error) };
     }
   }
   try {
@@ -663,7 +842,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       return reply.code(200).send({ received: false, reason: 'Stripe is not configured.' });
     }
 
-    const parsed = await readStripeEvent(raw);
+    const parsed = await readStripeEvent(raw, readSignatureHeader(request));
     if ('error' in parsed) {
       request.log.warn({ reason: parsed.error }, 'stripe webhook rejected');
       return reply.code(400).send({ received: false, reason: parsed.error });

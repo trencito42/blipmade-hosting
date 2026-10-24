@@ -204,7 +204,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       };
     }
 
-    const checkout = await createCheckout(order);
+    const checkout = await createCheckout(order, user.email);
     if (!checkout.url) {
       return { url: null, sessionId: checkout.sessionId, message: checkout.reason ?? 'Checkout is unavailable.' };
     }
