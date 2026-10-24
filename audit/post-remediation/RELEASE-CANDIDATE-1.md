@@ -2,7 +2,7 @@
 
 **Ramura:** `integration/release-candidate-1` → **`main`**
 **Baza:** `origin/main` la `e990776`
-**Vârful ramurii:** `4fcf66f` · 38 de commituri înainte de `main`, 0 înapoi
+**Vârful ramurii:** ultimul commit al ramurii `integration/release-candidate-1` (hash-ul exact, în linkul de comparare) · 40 de commituri înainte de `main`, 0 înapoi
 **Link de comparare:** https://github.com/trencito42/blipmade-hosting/compare/main...integration/release-candidate-1
 **Deschiderea PR-ului:** https://github.com/trencito42/blipmade-hosting/pull/new/integration/release-candidate-1
 
