@@ -1,0 +1,10 @@
+# Phase 11.3 - Latenta API pe stiva izolata (Fastify, 3101)
+Data: 2026-10-24T00:31:07+00:00
+Metoda: curl -w '%{time_starttransfer} %{time_total}' (SECUNDE -> ms in tabel),
+        5 cereri de incalzire apoi 30 cereri secventiale per endpoint;
+        se raporteaza min / p50 / p95 / max in ms. Raspunsurile HTTP sunt salvate.
+PID API la inceput: n/a
+
+## 3.1 Latenta pe endpoint (ms, direct pe API 3101)
+ENDPOINT                                                  MIN      P50      P95      MAX  HTTP
+/api/health                                             3.189    3.381   12.662   12.870  200

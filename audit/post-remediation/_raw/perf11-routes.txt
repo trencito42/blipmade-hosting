@@ -4,3 +4,555 @@ Base: http://127.0.0.1:30003
 Metoda: context nou per ruta, cache gol la fiecare incarcare (networkidle),
         contorizate toate cererile HTTP (request/response) si transferSize.
 
+## /  [public]
+   cereri: 20 | octeti (body): 507844 B | wall-clock (networkidle): 2444 ms
+   navigation: {"ttfb":7,"domContentLoaded":219,"loadEvent":219,"domInteractive":51,"fcp":628,"transferSize":1150,"resources":19}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=3 (347018B)  font=6 (58340B)  api=8 (34916B)  other=1 (1491B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-600.woff2, 400 http://127.0.0.1:30003/api/catalog/quote
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 400 (Bad Request)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  font           5812 B  /assets/geist-mono-symbols2-wght-normal-CO5SzqOn.woff2
+     200  fetch          5791 B  /api/catalog/products
+     200  fetch          5791 B  /api/catalog/products
+     200  fetch          5791 B  /api/catalog/products
+     200  fetch          5791 B  /api/catalog/products
+     200  fetch          5791 B  /api/catalog/products
+     200  fetch          5791 B  /api/catalog/products
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /
+     400  fetch           157 B  /api/catalog/quote
+     200  fetch            13 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-600.woff2
+
+## /apps  [public]
+   cereri: 14 | octeti (body): 484875 B | wall-clock (networkidle): 1652 ms
+   navigation: {"ttfb":13,"domContentLoaded":256,"loadEvent":256,"domInteractive":107,"fcp":480,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (353182B)  font=4 (52528B)  other=1 (1491B)  api=3 (11595B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         6164 B  /assets/ProductPage-C6W4xZXX.js
+     200  fetch          5791 B  /api/catalog/products
+     200  fetch          5791 B  /api/catalog/products
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /apps
+     200  fetch            13 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /apps/wordpress  [public]
+   cereri: 14 | octeti (body): 479788 B | wall-clock (networkidle): 1688 ms
+   navigation: {"ttfb":12,"domContentLoaded":239,"loadEvent":240,"domInteractive":87,"fcp":544,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (353182B)  font=4 (52528B)  other=1 (1491B)  api=3 (6508B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         6164 B  /assets/ProductPage-C6W4xZXX.js
+     200  fetch          5791 B  /api/catalog/products
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /apps/wordpress
+     200  fetch           704 B  /api/catalog/products/wordpress
+     200  fetch            13 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /docs  [public]
+   cereri: 13 | octeti (body): 552283 B | wall-clock (networkidle): 1812 ms
+   navigation: {"ttfb":12,"domContentLoaded":239,"loadEvent":240,"domInteractive":66,"fcp":704,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (426381B)  font=4 (52528B)  other=1 (1491B)  api=2 (5804B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  script        79363 B  /assets/Docs-BejaFPi-.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  fetch          5791 B  /api/catalog/products
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /docs
+     200  fetch            13 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /status  [public]
+   cereri: 13 | octeti (body): 474819 B | wall-clock (networkidle): 5694 ms
+   navigation: {"ttfb":10,"domContentLoaded":274,"loadEvent":274,"domInteractive":92,"fcp":504,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (353620B)  font=4 (52528B)  api=2 (1101B)  other=1 (1491B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         6602 B  /assets/Status-CEwFkeJL.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  fetch          1088 B  /api/status
+     200  document        850 B  /status
+     200  fetch            13 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /login  [public]
+   cereri: 14 | octeti (body): 479446 B | wall-clock (networkidle): 2112 ms
+   navigation: {"ttfb":13,"domContentLoaded":350,"loadEvent":350,"domInteractive":71,"fcp":960,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (353544B)  font=4 (52528B)  other=1 (1491B)  api=2 (5804B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  fetch          5791 B  /api/catalog/products
+     200  script         4313 B  /assets/Login-DXmGacit.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  script         2213 B  /assets/auth-field-DO-g9R65.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /login
+     200  fetch            13 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /app  [customer]
+   cereri: 15 | octeti (body): 482111 B | wall-clock (networkidle): 1932 ms
+   navigation: {"ttfb":10,"domContentLoaded":236,"loadEvent":237,"domInteractive":80,"fcp":420,"transferSize":1150,"resources":14}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (355170B)  api=4 (6843B)  other=1 (1491B)  font=4 (52528B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         8152 B  /assets/Overview-CTqoslcy.js
+     200  fetch          5791 B  /api/catalog/products
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /app
+     200  fetch           829 B  /api/instances
+     200  fetch           210 B  /api/auth/session
+     200  fetch            13 B  /api/instances/cmvlmabek017ddxm76zn9la7k/events
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /app/instances  [customer]
+   cereri: 13 | octeti (body): 474743 B | wall-clock (networkidle): 2041 ms
+   navigation: {"ttfb":10,"domContentLoaded":260,"loadEvent":261,"domInteractive":71,"fcp":564,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (353606B)  other=1 (1491B)  font=4 (52528B)  api=2 (1039B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         6588 B  /assets/Instances-D6LIPWRc.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /app/instances
+     200  fetch           829 B  /api/instances
+     200  fetch           210 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /app/billing  [customer]
+   cereri: 15 | octeti (body): 476480 B | wall-clock (networkidle): 1938 ms
+   navigation: {"ttfb":7,"domContentLoaded":209,"loadEvent":210,"domInteractive":50,"fcp":424,"transferSize":1150,"resources":14}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (355383B)  api=4 (999B)  font=4 (52528B)  other=1 (1491B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         8365 B  /assets/Billing-DgPMXS7L.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /app/billing
+     200  fetch           542 B  /api/billing/summary
+     200  fetch           232 B  /api/billing/subscriptions
+     200  fetch           210 B  /api/auth/session
+     200  fetch            15 B  /api/billing/invoices
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /app/tickets  [customer]
+   cereri: 13 | octeti (body): 452780 B | wall-clock (networkidle): 1903 ms
+   navigation: {"ttfb":12,"domContentLoaded":255,"loadEvent":255,"domInteractive":72,"fcp":524,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (355392B)  other=1 (1491B)  font=3 (29400B)  api=3 (418B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         8374 B  /assets/Tickets-Dvk12c6e.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /app/tickets
+     200  fetch           210 B  /api/auth/session
+     200  fetch           194 B  /api/tickets/categories
+     200  fetch            14 B  /api/tickets
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /app/domains  [customer]
+   cereri: 13 | octeti (body): 454691 B | wall-clock (networkidle): 1953 ms
+   navigation: {"ttfb":11,"domContentLoaded":296,"loadEvent":296,"domInteractive":79,"fcp":536,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (356668B)  other=1 (1491B)  font=3 (29400B)  api=3 (1053B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9650 B  /assets/Domains-BSyuQu3l.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /app/domains
+     200  fetch           829 B  /api/instances
+     200  fetch           210 B  /api/auth/session
+     200  fetch            14 B  /api/domains
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /app/settings  [customer]
+   cereri: 13 | octeti (body): 485138 B | wall-clock (networkidle): 1986 ms
+   navigation: {"ttfb":24,"domContentLoaded":258,"loadEvent":258,"domInteractive":111,"fcp":472,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (362015B)  font=4 (52528B)  other=1 (1491B)  api=2 (3025B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script        14997 B  /assets/Settings-BQs9IgjV.js
+     200  fetch          2815 B  /api/settings
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /app/settings
+     200  fetch           210 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /app/deploy  [customer]
+   cereri: 13 | octeti (body): 478263 B | wall-clock (networkidle): 2071 ms
+   navigation: {"ttfb":11,"domContentLoaded":248,"loadEvent":249,"domInteractive":78,"fcp":596,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (352164B)  font=4 (52528B)  other=1 (1491B)  api=2 (6001B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  fetch          5791 B  /api/catalog/products
+     200  script         5146 B  /assets/DeployCatalog-DA2fal3I.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /app/deploy
+     200  fetch           210 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin  [admin]
+   cereri: 13 | octeti (body): 477378 B | wall-clock (networkidle): 1859 ms
+   navigation: {"ttfb":24,"domContentLoaded":264,"loadEvent":264,"domInteractive":119,"fcp":448,"transferSize":1150,"resources":12}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=4 (356558B)  font=4 (52528B)  other=1 (1491B)  api=2 (722B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin
+     200  fetch           556 B  /api/auth/session
+     200  fetch           166 B  /api/admin/overview
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/customers  [admin]
+   cereri: 14 | octeti (body): 485146 B | wall-clock (networkidle): 1969 ms
+   navigation: {"ttfb":12,"domContentLoaded":281,"loadEvent":282,"domInteractive":73,"fcp":668,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (361988B)  other=1 (1491B)  api=2 (3060B)  font=4 (52528B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         5430 B  /assets/Customers-BGIEawuC.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  fetch          2504 B  /api/admin/customers
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/customers
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/orders  [admin]
+   cereri: 14 | octeti (body): 484807 B | wall-clock (networkidle): 1913 ms
+   navigation: {"ttfb":18,"domContentLoaded":267,"loadEvent":268,"domInteractive":121,"fcp":492,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (362697B)  other=1 (1491B)  font=4 (52528B)  api=2 (2012B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         6139 B  /assets/Orders-CS39p4Os.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  fetch          1456 B  /api/admin/orders
+     200  document        850 B  /admin/orders
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/services  [admin]
+   cereri: 14 | octeti (body): 485129 B | wall-clock (networkidle): 1850 ms
+   navigation: {"ttfb":13,"domContentLoaded":226,"loadEvent":227,"domInteractive":81,"fcp":452,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (364097B)  font=4 (52528B)  other=1 (1491B)  api=2 (934B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         7539 B  /assets/Services-D2syIvTm.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/services
+     200  fetch           556 B  /api/auth/session
+     200  fetch           378 B  /api/admin/services
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/products  [admin]
+   cereri: 14 | octeti (body): 500348 B | wall-clock (networkidle): 2016 ms
+   navigation: {"ttfb":15,"domContentLoaded":366,"loadEvent":369,"domInteractive":71,"fcp":644,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (373604B)  other=1 (1491B)  font=4 (52528B)  api=2 (6646B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        17046 B  /assets/Products-BB-jB2LX.js
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  fetch          6090 B  /api/admin/products
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/products
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/pricing  [admin]
+   cereri: 14 | octeti (body): 488863 B | wall-clock (networkidle): 1812 ms
+   navigation: {"ttfb":9,"domContentLoaded":207,"loadEvent":207,"domInteractive":60,"fcp":428,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (365386B)  other=1 (1491B)  font=4 (52528B)  api=2 (3379B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         8828 B  /assets/Pricing-Bvzbhp4A.js
+     200  fetch          2823 B  /api/admin/pricing
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/pricing
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/tickets  [admin]
+   cereri: 15 | octeti (body): 504375 B | wall-clock (networkidle): 1977 ms
+   navigation: {"ttfb":14,"domContentLoaded":261,"loadEvent":262,"domInteractive":75,"fcp":640,"transferSize":1150,"resources":14}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (370339B)  font=4 (52528B)  other=1 (1491B)  api=3 (13938B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script        13781 B  /assets/Tickets-Cjv8ZRAh.js
+     200  fetch         13358 B  /api/admin/staff
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/tickets
+     200  fetch           556 B  /api/auth/session
+     200  fetch            24 B  /api/admin/tickets
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/promotions  [admin]
+   cereri: 14 | octeti (body): 494167 B | wall-clock (networkidle): 1856 ms
+   navigation: {"ttfb":8,"domContentLoaded":268,"loadEvent":269,"domInteractive":56,"fcp":504,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (372845B)  other=1 (1491B)  font=4 (52528B)  api=2 (1224B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        16287 B  /assets/Promotions-Bfb8KgGT.js
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/promotions
+     200  fetch           668 B  /api/admin/promotions
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/infrastructure  [admin]
+   cereri: 14 | octeti (body): 491989 B | wall-clock (networkidle): 1849 ms
+   navigation: {"ttfb":15,"domContentLoaded":233,"loadEvent":233,"domInteractive":70,"fcp":440,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (363952B)  api=2 (7939B)  font=4 (52528B)  other=1 (1491B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         7394 B  /assets/Infrastructure-rvKs_ruW.js
+     200  fetch          7383 B  /api/admin/infrastructure
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/infrastructure
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/audit  [admin]
+   cereri: 14 | octeti (body): 558048 B | wall-clock (networkidle): 2016 ms
+   navigation: {"ttfb":13,"domContentLoaded":378,"loadEvent":379,"domInteractive":154,"fcp":588,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (361755B)  other=1 (1491B)  font=4 (52528B)  api=2 (76195B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  fetch         75639 B  /api/admin/audit
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         5197 B  /assets/Audit-BOuUAedn.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/audit
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/staff  [admin]
+   cereri: 14 | octeti (body): 497937 B | wall-clock (networkidle): 1916 ms
+   navigation: {"ttfb":11,"domContentLoaded":252,"loadEvent":253,"domInteractive":85,"fcp":504,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (363925B)  other=1 (1491B)  font=4 (52528B)  api=2 (13914B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  fetch         13358 B  /api/admin/staff
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         7367 B  /assets/Staff-BO-e2QN9.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/staff
+     200  fetch           556 B  /api/auth/session
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+## /admin/settings  [admin]
+   cereri: 14 | octeti (body): 482414 B | wall-clock (networkidle): 2047 ms
+   navigation: {"ttfb":13,"domContentLoaded":425,"loadEvent":426,"domInteractive":129,"fcp":688,"transferSize":1150,"resources":13}
+   pe tip: document=1 (850B)  stylesheet=1 (65229B)  script=5 (361708B)  api=2 (608B)  other=1 (1491B)  font=4 (52528B)
+   raspunsuri >=400: 404 http://127.0.0.1:30003/fonts/proxima-nova-400.woff2, 404 http://127.0.0.1:30003/fonts/proxima-nova-700.woff2
+   erori consola: Failed to load resource: the server responded with a status of 404 (Not Found) | Failed to load resource: the server responded with a status of 404 (Not Found)
+   cereri individuale:
+     200  script       328452 B  /assets/index-CmJkQ0sT.js
+     200  stylesheet    65229 B  /assets/index-B8mkGcfB.css
+     200  font          29400 B  /assets/geist-latin-wght-normal-BgDaEnEv.woff2
+     200  font          23128 B  /assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+     200  script        15803 B  /assets/logo-CHVIDgEH.js
+     200  script         9540 B  /assets/Overview-BaJz-G3s.js
+     200  script         5150 B  /assets/Settings-C28j_s4b.js
+     200  script         2763 B  /assets/api-CGY1ZpEO.js
+     200  other          1491 B  /favicon.svg
+     200  document        850 B  /admin/settings
+     200  fetch           556 B  /api/auth/session
+     200  fetch            52 B  /api/admin/settings
+     404  font              0 B  /fonts/proxima-nova-400.woff2
+     404  font              0 B  /fonts/proxima-nova-700.woff2
+
+Sfarsit 11.2
