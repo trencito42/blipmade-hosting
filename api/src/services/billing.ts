@@ -6,7 +6,7 @@ import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { normalizeAmount } from '../lib/money.js';
 import * as client from './pterodactyl/client.js';
 import { resolveCustomerCredential } from './panel/credentials.js';
-import { stripeLive, upsertInvoice } from './stripe.js';
+import { stripeLive, upsertInvoice, removeStripeSubscriptionItem } from './stripe.js';
 import { loadOptions, priceConfiguration } from './pricing.js';
 import type { BillingPeriod } from '@prisma/client';
 
@@ -1016,8 +1016,11 @@ export async function createLocalRenewal(
   periodStart: Date;
   periodEnd: Date;
 }> {
-  const subscription = await prisma.subscription.findUnique({
-    where: { id: subscriptionId },
+  const subscription = await prisma.subscription.findFirst({
+    // The subscription of the customer is the one that is renewed. The owner
+    // is part of the search, so a renewal can never touch the subscription of
+    // another account, whatever the caller asks for.
+    where: { id: subscriptionId, ...(options.actorId ? { userId: options.actorId } : {}) },
     include: {
       orderItem: { include: { order: true } },
       instance: { include: { product: true } },
@@ -1296,7 +1299,12 @@ export async function sweepSubscriptions(): Promise<{
       status: { in: ['ACTIVE', 'PAST_DUE', 'INCOMPLETE', 'TRIALING'] },
       currentPeriodEnd: { lte: now },
     },
-    select: { id: true, cancelAtPeriodEnd: true },
+    select: {
+      id: true,
+      cancelAtPeriodEnd: true,
+      stripeSubscriptionId: true,
+      stripeSubscriptionItemId: true,
+    },
     take: 100,
   });
 
@@ -1306,6 +1314,19 @@ export async function sweepSubscriptions(): Promise<{
         where: { id: subscription.id },
         data: { status: 'CANCELLED', cancelledAt: new Date() },
       });
+      // The provider is told to stop billing for this line. A cancellation
+      // that takes effect at the end of the paid period leaves the customer
+      // billed for the line until the line is removed, and nothing is
+      // prorated: the period was paid for.
+      const removed = await removeStripeSubscriptionItem(subscription);
+      if (!removed && stripeLive() && subscription.stripeSubscriptionItemId) {
+        await audit({
+          action: 'stripe.subscription_item_not_removed',
+          targetType: 'subscription',
+          targetId: subscription.id,
+          meta: { stripeSubscriptionId: subscription.stripeSubscriptionId },
+        });
+      }
       await withdraw(subscription.id);
       withdrawn += 1;
       continue;

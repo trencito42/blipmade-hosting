@@ -9,9 +9,19 @@ import type { Order, OrderItem, Subscription } from '@prisma/client';
 
 let client: Stripe | null = null;
 
+/**
+ * The version of the Stripe API the platform speaks.
+ *
+ * The version is pinned here, so the shape of the payloads does not change
+ * under the platform when the account of the operator is moved to another
+ * version of the API. The value is the one the installed SDK knows, and the
+ * fields that moved between versions are read defensively.
+ */
+export const STRIPE_API_VERSION: Stripe.LatestApiVersion = '2025-02-24.acacia';
+
 function getClient(): Stripe {
   if (!env.stripeEnabled) throw unavailable('Stripe is not configured on this environment.');
-  if (!client) client = new Stripe(env.STRIPE_SECRET_KEY);
+  if (!client) client = new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION });
   return client;
 }
 
@@ -200,6 +210,12 @@ export async function createCheckout(order: Order & { items: OrderItem[] }): Pro
   const baseUrl = publicOrigin();
   const stripe = getClient();
   const customer = await findStripeCustomerId(order.userId);
+  // The address of the customer is what links a checkout to the account of
+  // Stripe. Without it every checkout creates a customer of its own, and the
+  // billing portal would only ever know the last of them.
+  const customerEmail = customer
+    ? null
+    : (await prisma.user.findUnique({ where: { id: order.userId }, select: { email: true } }))?.email ?? null;
   // An upgrade is paid once, for the difference. The recurring amount of the
   // existing subscription is changed afterwards, when the change is applied.
   const isUpgrade = order.kind === 'UPGRADE';
@@ -222,12 +238,16 @@ export async function createCheckout(order: Order & { items: OrderItem[] }): Pro
 
   const session = await stripe.checkout.sessions.create({
     mode: isUpgrade ? 'payment' : 'subscription',
-    ...(customer ? { customer } : { customer_email: undefined }),
+    ...(customer ? { customer } : customerEmail ? { customer_email: customerEmail } : {}),
     client_reference_id: order.id,
     metadata: { orderId: order.id, orderNumber: order.number, orderKind: order.kind },
     ...(isUpgrade
       ? {}
       : { subscription_data: { metadata: { orderId: order.id, orderNumber: order.number, orderKind: order.kind } } }),
+    // The tax is calculated by the provider only when the operator turned it
+    // on. With it off, the session carries exactly the sum of the order, and
+    // the tax of the platform stays the one of the company settings.
+    ...(env.stripeTaxEnabled ? { automatic_tax: { enabled: true } } : {}),
     line_items: lineItems,
     success_url: `${baseUrl}/app/billing?checkout=success`,
     cancel_url: `${baseUrl}/app/billing?checkout=cancelled`,
@@ -265,6 +285,14 @@ export interface MarkOrderPaidParams {
   stripeSubscriptionItemIds?: Record<string, string>;
   /** The amount Stripe actually collected, in minor units. */
   amount?: number;
+  /**
+   * The tax that was charged on top of the amount.
+   *
+   * It is only what the provider really charged: the platform never invents a
+   * tax. With Stripe Tax turned off, the tax is zero and the amount is the
+   * whole sum that was collected.
+   */
+  tax?: number;
   currentPeriodStart?: Date | null;
   currentPeriodEnd?: Date | null;
 }
@@ -454,6 +482,8 @@ async function writeOrderInvoice(
 
   const periodStart = params.currentPeriodStart ?? new Date();
   const periodEnd = params.currentPeriodEnd ?? addOneMonth(periodStart);
+  // The tax of the invoice is the tax the provider charged, and nothing else.
+  const tax = params.tax ?? 0;
 
   await prisma.invoice.create({
     data: {
@@ -463,8 +493,8 @@ async function writeOrderInvoice(
       stripeInvoiceId: null,
       status: 'PAID',
       amount: order.total,
-      tax: 0,
-      total: order.total,
+      tax,
+      total: order.total + tax,
       currency: order.currency,
       paidAt: new Date(),
       dueDate: periodStart,
@@ -487,7 +517,9 @@ async function writeOrderInvoice(
  * is what makes the Stripe billing portal work for an account.
  */
 async function upsertPayment(order: Order & { items: OrderItem[] }, params: MarkOrderPaidParams): Promise<void> {
-  const amount = params.amount ?? order.total;
+  // The row of the payment carries the whole sum that was collected: the
+  // amount of the order and the tax the provider charged on top of it.
+  const amount = (params.amount ?? order.total) + (params.tax ?? 0);
   const data = {
     userId: order.userId,
     orderId: order.id,
@@ -585,85 +617,261 @@ export async function upsertInvoice(params: {
 }
 
 /**
- * Changes the recurring amount of one subscription line. Stripe needs a new
- * price object for the new amount, so one is created and then attached to the
- * subscription item.
+ * The price of a subscription line, as the provider knows it.
+ *
+ * The price is asked for, so the real cadence of the subscription is known: a
+ * yearly plan stays yearly when its amount changes. The product of the price
+ * is the product of the line, so a new price does not create a new product.
+ */
+async function retrieveStripePriceContext(subscription: Subscription): Promise<{
+  productId: string | null;
+  interval: NonNullable<Stripe.Price['recurring']>['interval'];
+  intervalCount: number;
+  currency: string;
+} | null> {
+  if (!stripeLive()) return null;
+  const stripe = getClient();
+  try {
+    let price: Stripe.Price | null = null;
+    if (subscription.stripePriceId) {
+      price = await stripe.prices.retrieve(subscription.stripePriceId);
+    } else if (subscription.stripeSubscriptionId) {
+      const remote = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
+      const item =
+        remote.items.data.find((entry) => entry.id === subscription.stripeSubscriptionItemId) ??
+        remote.items.data[0];
+      price = item?.price ?? null;
+    }
+    if (!price || !price.recurring) return null;
+    const productId = typeof price.product === 'string' ? price.product : price.product.id;
+    return {
+      productId,
+      interval: price.recurring.interval,
+      intervalCount: price.recurring.interval_count ?? 1,
+      currency: price.currency,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Changes the recurring amount of one subscription line.
+ *
+ * The new amount is charged with the cadence the line already has: a yearly
+ * plan stays yearly. The product of the line is reused, so a change of the
+ * amount does not fill the account of the operator with products that
+ * describe the same service.
+ *
+ * Nothing is prorated. The difference between the old and the new amount was
+ * already collected with the order of the change, so a proration would
+ * collect it a second time.
  */
 export async function updateSubscriptionAmount(subscription: Subscription, amount: number): Promise<void> {
   if (!stripeLive() || !subscription.stripeSubscriptionId) return;
   const stripe = getClient();
   const unitAmount = Math.max(0, Math.round(amount / Math.max(1, subscription.quantity)));
+  const context = await retrieveStripePriceContext(subscription);
+
   const price = await stripe.prices.create({
-    currency: subscription.currency.toLowerCase(),
+    currency: (context?.currency ?? subscription.currency).toLowerCase(),
     unit_amount: unitAmount,
-    recurring: { interval: 'month' },
-    product_data: { name: `Blipmade service ${subscription.id}` },
+    recurring: {
+      interval: context?.interval ?? 'month',
+      interval_count: context?.intervalCount ?? 1,
+    },
+    ...(context?.productId
+      ? { product: context.productId }
+      : { product_data: { name: `Blipmade service ${subscription.id}` } }),
   });
+
   await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
     items: subscription.stripeSubscriptionItemId ? [{ id: subscription.stripeSubscriptionItemId, price: price.id }] : [],
-    proration_behavior: 'create_prorations',
+    proration_behavior: 'none',
   });
 }
 
 /**
- * Refunds a payment. It is used when a paid change cannot be applied, so the
- * customer is not charged for something they did not get.
+ * Refunds a payment.
+ *
+ * The refund is guarded twice, so the money is never returned twice:
+ *
+ *   - the local payment row says whether the money is already back, and
+ *   - the provider receives a key that is the same for every refund of the
+ *     same order, so a second request is answered with the first refund
+ *     instead of a second one.
+ *
+ * The local guard is what makes a redelivery of an event a no-op, and the key
+ * of the provider is what makes two requests that arrive at the same time a
+ * single refund. The key is derived from the order, so it does not change
+ * when the reason of the refund changes.
  */
 export async function refundPayment(params: {
   orderId: string;
   stripePaymentIntentId?: string | null;
   amount?: number;
   reason?: string;
+  /** The key that makes a repeated request the same request at the provider. */
+  idempotencyKey?: string;
 }): Promise<boolean> {
   if (!stripeLive() || !params.stripePaymentIntentId) return false;
+
+  // The money that is already back is not back a second time. The row of the
+  // payment is only written after a refund that the provider accepted, so a
+  // row that says refunded means the refund really happened.
+  const alreadyRefunded = await prisma.payment.findFirst({
+    where: { orderId: params.orderId, status: 'REFUNDED' },
+    select: { id: true },
+  });
+  if (alreadyRefunded) return true;
+
   try {
-    await getClient().refunds.create({
-      payment_intent: params.stripePaymentIntentId,
-      ...(params.amount ? { amount: params.amount } : {}),
-      reason: 'requested_by_customer',
-      metadata: { orderId: params.orderId, reason: params.reason ?? 'change could not be applied' },
-    });
-    await prisma.payment.updateMany({
-      where: { orderId: params.orderId },
+    await getClient().refunds.create(
+      {
+        payment_intent: params.stripePaymentIntentId,
+        ...(params.amount ? { amount: params.amount } : {}),
+        reason: 'requested_by_customer',
+        metadata: { orderId: params.orderId, reason: params.reason ?? 'change could not be applied' },
+      },
+      { idempotencyKey: params.idempotencyKey ?? `blipmade-refund-${params.orderId}` },
+    );
+    // The payment of the order is marked as refunded, so a refund that comes
+    // later finds the money back and does nothing.
+    const marked = await prisma.payment.updateMany({
+      where: { orderId: params.orderId, stripePaymentIntentId: params.stripePaymentIntentId },
       data: { status: 'REFUNDED' },
     });
+    if (marked.count === 0) {
+      await prisma.payment.updateMany({ where: { orderId: params.orderId }, data: { status: 'REFUNDED' } });
+    }
     return true;
   } catch {
     return false;
   }
 }
 
-/** Cancels a subscription at the end of the paid period. */
-export async function cancelSubscription(subscription: Subscription): Promise<Subscription> {
+/**
+ * Cancels a subscription.
+ *
+ * A cancellation takes effect at the end of the period that was paid for: the
+ * service keeps running until then, and the customer is not charged again.
+ *
+ * The subscription of Stripe is only cancelled as a whole when this line is
+ * the only one it carries. When other lines share it, cancelling the whole
+ * subscription would stop the other services of the customer as well, so
+ * nothing is told to the provider now, and the line is removed at the end of
+ * the paid period by the sweep.
+ *
+ * `immediate` is for the case where the service does not exist any more, for
+ * example a provisioning that failed: there is nothing to keep running and
+ * the customer must not be billed for it again.
+ */
+export async function cancelSubscription(
+  subscription: Subscription,
+  options: { immediate?: boolean } = {},
+): Promise<Subscription> {
   if (stripeLive() && subscription.stripeSubscriptionId) {
-    if (subscription.stripeSubscriptionItemId) {
-      // Only this line of the order is removed; the rest keeps running.
-      await getClient().subscriptions.update(subscription.stripeSubscriptionId, {
-        items: [{ id: subscription.stripeSubscriptionItemId, deleted: true }],
-        proration_behavior: 'create_prorations',
-      });
-    } else {
-      await getClient().subscriptions.update(subscription.stripeSubscriptionId, {
+    const stripe = getClient();
+    const remote = await retrieveStripeSubscription(subscription.stripeSubscriptionId);
+    // When the provider cannot be reached, the number of lines is unknown and
+    // the subscription of the provider is left alone: cancelling a shared
+    // subscription would stop services that are still paid for.
+    const onlyLine = remote !== null && remote.items.length <= 1;
+
+    if (options.immediate) {
+      if (subscription.stripeSubscriptionItemId) {
+        // Only this line of the order is removed; the rest keeps running.
+        // Nothing is prorated: the money is given back by the refund of the
+        // compensation, not by a credit of the provider.
+        await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+          items: [{ id: subscription.stripeSubscriptionItemId, deleted: true }],
+          proration_behavior: 'none',
+        });
+      } else if (onlyLine) {
+        // The line of this subscription is not known, so the subscription
+        // itself is stopped: the service does not exist any more and the
+        // customer must not be billed for it again.
+        await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
+      }
+    } else if (onlyLine) {
+      // The line is the only one of its subscription, so the subscription is
+      // stopped at the end of the period that was paid for.
+      await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
         cancel_at_period_end: true,
       });
     }
   }
   return prisma.subscription.update({
-    where: { id: subscription.id },
-    data: { cancelAtPeriodEnd: true },
+    // The owner is part of the search, so a cancellation can never touch the
+    // subscription of another account.
+    where: { id: subscription.id, userId: subscription.userId },
+    data: {
+      cancelAtPeriodEnd: true,
+      ...(options.immediate ? { status: 'CANCELLED' as const, cancelledAt: new Date() } : {}),
+    },
   });
 }
 
+/**
+ * Resumes a subscription that was cancelled for the end of the period.
+ *
+ * Only the mark of the cancellation is taken back. The subscription of Stripe
+ * is told to keep running, and the service continues until the end of the
+ * period that was paid for.
+ *
+ * A subscription that was already ended cannot be resumed: the service has to
+ * be ordered again. The platform says so instead of clearing the mark and
+ * promising a service that does not exist.
+ */
 export async function resumeSubscription(subscription: Subscription): Promise<Subscription> {
+  if (subscription.status === 'CANCELLED') {
+    throw conflict('This subscription was already ended, so it cannot be resumed.');
+  }
   if (stripeLive() && subscription.stripeSubscriptionId) {
-    await getClient().subscriptions.update(subscription.stripeSubscriptionId, {
-      cancel_at_period_end: false,
-    });
+    try {
+      await getClient().subscriptions.update(subscription.stripeSubscriptionId, {
+        cancel_at_period_end: false,
+      });
+    } catch {
+      // The provider ended the subscription already, so the mark of the
+      // cancellation cannot be taken back.
+      throw conflict('The subscription was already ended at the payment provider, so it cannot be resumed.');
+    }
   }
   return prisma.subscription.update({
-    where: { id: subscription.id },
+    // The owner is part of the search, so a resumption can never touch the
+    // subscription of another account.
+    where: { id: subscription.id, userId: subscription.userId },
     data: { cancelAtPeriodEnd: false, cancelledAt: null },
   });
+}
+
+/**
+ * Removes one line of a subscription of Stripe.
+ *
+ * A cancellation that takes effect at the end of the paid period leaves the
+ * customer billed for the line until the provider is told to stop. The line is
+ * removed here, without a proration: the period was paid for and the money
+ * of it is not given back.
+ *
+ * The function answers whether the line was removed. A provider that cannot
+ * be reached is not an error of the sweep: the state of the platform is
+ * already correct, and the failure is left for the operator to see.
+ */
+export async function removeStripeSubscriptionItem(subscription: {
+  stripeSubscriptionId: string | null;
+  stripeSubscriptionItemId: string | null;
+}): Promise<boolean> {
+  if (!stripeLive() || !subscription.stripeSubscriptionId || !subscription.stripeSubscriptionItemId) return false;
+  try {
+    await getClient().subscriptions.update(subscription.stripeSubscriptionId, {
+      items: [{ id: subscription.stripeSubscriptionItemId, deleted: true }],
+      proration_behavior: 'none',
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Opens the Stripe customer portal so a customer can manage payment methods. */

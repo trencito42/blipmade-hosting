@@ -65,6 +65,17 @@ const schema = z.object({
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_PUBLISHABLE_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),
+  /**
+   * Stripe Tax calculates the tax of a checkout at the provider.
+   *
+   * It is off unless the operator turns it on. With it off, a checkout carries
+   * exactly the sum of the order and the tax stays the one of the company
+   * settings of the platform. With it on, the provider calculates the tax and
+   * the platform records the tax that was really charged, next to the sum of
+   * the order. A tax is never invented in either case: the number that is
+   * written down is always the number the provider charged.
+   */
+  STRIPE_TAX_ENABLED: bool(false),
 
   SMTP_URL: z.string().default(''),
   MAIL_FROM: z.string().default('Blipmade <no-reply@blipmade.com>'),
@@ -152,6 +163,11 @@ export const env = {
   // different limit than one where every customer has its own address.
   loginRateLimitMax: raw.LOGIN_RATE_LIMIT_MAX,
   stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
+  /**
+   * True when the tax of a checkout is calculated by Stripe. It is off by
+   * default, so the platform never charges a tax nobody configured.
+   */
+  stripeTaxEnabled: raw.STRIPE_TAX_ENABLED,
   /**
    * The origin every outward link is built from, without a trailing slash.
    */

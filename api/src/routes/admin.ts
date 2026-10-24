@@ -497,7 +497,17 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     // Only a paid order can be refunded. An order that is not paid has nothing
     // to give back, and an order that was refunded already is refused here, so
     // the money is never returned twice.
-    if (order.status !== 'PAID' && order.status !== 'FULFILLED') {
+    //
+    // The state of the order alone is not enough to tell a refunded order
+    // from one that was only claimed: a crash between the claim and the
+    // provider leaves the order as refunded while the money is still with the
+    // platform. The payment row is what says whether the money is really
+    // back, so it is the one that is read here.
+    const alreadyRefunded = order.payments.some((entry) => entry.status === 'REFUNDED');
+    if (alreadyRefunded) {
+      throw conflict('This order was refunded already.');
+    }
+    if (order.status !== 'PAID' && order.status !== 'FULFILLED' && order.status !== 'REFUNDED') {
       throw conflict(`This order is not paid, so there is nothing to refund. Its status is ${order.status.toLowerCase()}.`);
     }
 
@@ -512,9 +522,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // The order is claimed first: the update only touches an order that is
-    // still paid, so two refunds at the same time cannot both go through.
+    // not refunded yet, so two refunds at the same time cannot both go
+    // through. A claim that was left behind by a crash can be claimed again,
+    // because the money of such an order is still with the platform.
     const claimed = await prisma.order.updateMany({
-      where: { id, status: { in: ['PAID', 'FULFILLED'] } },
+      where: { id, status: { in: ['PAID', 'FULFILLED', 'REFUNDED'] } },
       data: { status: 'REFUNDED' },
     });
     if (claimed.count !== 1) {
@@ -525,10 +537,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       orderId: order.id,
       stripePaymentIntentId: paymentIntentId,
       reason: body.reason,
+      // The key is the same for every refund of this order, so two refunds
+      // that arrive at the same time are one refund at the provider.
+      idempotencyKey: `blipmade-refund-${order.id}`,
     });
     if (!refunded) {
       // The provider refused the refund, so the order goes back to what it was.
-      await prisma.order.update({ where: { id }, data: { status: order.status } });
+      // An order that was only claimed is a paid order again: the money is
+      // still with the platform, and the operator can try once more.
+      const restored = order.status === 'REFUNDED' ? 'PAID' : order.status;
+      await prisma.order.update({ where: { id }, data: { status: restored } });
       throw upstream('The payment provider refused the refund. The order was left as it was.');
     }
 

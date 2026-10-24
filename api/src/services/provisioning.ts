@@ -872,7 +872,10 @@ async function stopSubscriptionOfInstance(
   });
   if (!subscription) return;
   try {
-    await cancelSubscription(subscription);
+    // The cancellation is immediate here: the service does not exist, so
+    // there is nothing to keep running until the end of a period, and the
+    // customer must not be billed for it again.
+    await cancelSubscription(subscription, { immediate: true });
     await recordEvent(instance.id, 'compensation', 'The subscription of the instance was cancelled.');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
