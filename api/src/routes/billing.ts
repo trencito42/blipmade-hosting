@@ -2,9 +2,10 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
-import { requireAuth } from '../plugins/auth.js';
+import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { cancelSubscription, createBillingPortal, paymentState, resumeSubscription, stripeLive } from '../services/stripe.js';
 import { notFound, unavailable } from '../lib/errors.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import {
   buildInstanceExport,
   companyDetails,
@@ -23,6 +24,17 @@ import {
 } from '../lib/email-templates.js';
 import { dispatchEmail } from '../services/queue.js';
 import { MAX_OPTION_CODES } from '../lib/bounded.js';
+
+/**
+ * The routes of the billing carry a limit.
+ *
+ * The quote, the renewal and the payment method only write rows in the
+ * database of the platform, so they may be used the most. The
+ * cancellation and the return of a subscription send a message to the
+ * customer, so they carry the limit of the mail: an account that may
+ * send ten messages in a quarter of an hour cannot turn the platform
+ * into a relay.
+ */
 
 /**
  * Sends a message about the billing.
@@ -213,7 +225,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
    * The quote uses the same function that prices an order, so a yearly plan
    * is priced with the yearly prices of the catalogue.
    */
-  app.post('/billing/quote', async (request: FastifyRequest) => {
+  app.post('/billing/quote', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const body = z
       .object({
@@ -276,7 +291,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
    * is only extended when the collection is confirmed. Nothing is paid for
    * here, so nothing is claimed to be paid.
    */
-  app.post('/billing/subscriptions/:id/renew', async (request: FastifyRequest) => {
+  app.post('/billing/subscriptions/:id/renew', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z.object({ period: z.enum(['MONTHLY', 'YEARLY']).optional() }).parse(request.body ?? {});
@@ -401,7 +419,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post('/billing/subscriptions/:id/cancel', async (request: FastifyRequest) => {
+  app.post('/billing/subscriptions/:id/cancel', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const subscription = await prisma.subscription.findFirst({
@@ -429,7 +450,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post('/billing/subscriptions/:id/resume', async (request: FastifyRequest) => {
+  app.post('/billing/subscriptions/:id/resume', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const subscription = await prisma.subscription.findFirst({
@@ -457,7 +481,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post('/billing/payment-method', async (request: FastifyRequest) => {
+  app.post('/billing/payment-method', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const portal = await createBillingPortal(user.id);
     return { url: portal.url, message: portal.reason };

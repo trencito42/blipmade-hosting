@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
@@ -11,6 +12,15 @@ import { fulfilOrder } from './webhooks.js';
 import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
+
+/**
+ * The routes of an order that has no limit of their own.
+ *
+ * The checkout, the confirmation and the cancellation only write rows
+ * in the database of the platform, so they carry the limit of the
+ * account: the limit is counted for the account of the customer and for
+ * the address of the caller.
+ */
 
 const orderItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -160,7 +170,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     return { order: serializeOrder(order) };
   });
 
-  app.post('/orders/:id/checkout', async (request: FastifyRequest) => {
+  app.post('/orders/:id/checkout', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const order = await prisma.order.findFirst({
@@ -229,7 +242,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
    * the payment provider confirms the payment through its own webhook, and
    * this route refuses, so nobody can mark an order paid from the browser.
    */
-  app.post('/orders/:id/confirm', async (request: FastifyRequest) => {
+  app.post('/orders/:id/confirm', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     if (!stripeTestGateway()) {
@@ -261,7 +277,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     return { order: { id: order.id, status: updated?.status ?? 'PAID', total: order.total }, alreadyPaid: false };
   });
 
-  app.post('/orders/:id/cancel', async (request: FastifyRequest, reply) => {
+  app.post('/orders/:id/cancel', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const order = await prisma.order.findFirst({ where: { id, userId: user.id } });

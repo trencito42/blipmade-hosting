@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { AppError, badRequest, conflict, notFound } from '../lib/errors.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { audit } from '../lib/audit.js';
@@ -9,6 +10,14 @@ import { fullName } from '../lib/people.js';
 import { sendMail } from '../lib/mailer.js';
 import { emailChangeTemplate } from '../lib/email-templates.js';
 import { addressRateLimitKey, requireAuth, type AuthUser } from '../plugins/auth.js';
+
+/**
+ * The routes of the settings that have no limit of their own.
+ *
+ * They only write rows in the database of the platform, so they carry
+ * the limit of the account: the limit is counted for the account of the
+ * customer and for the address of the caller.
+ */
 
 /**
  * The settings of the account of a customer.
@@ -274,7 +283,10 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
   });
 
   /** The name of the customer. */
-  app.patch('/settings/profile', async (request: FastifyRequest) => {
+  app.patch('/settings/profile', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const body = parse(profileSchema, request.body ?? {});
 
@@ -486,7 +498,10 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
    * The session of the request stays open, so the customer is not signed out
    * of the page they are on. The answer says how many sessions were closed.
    */
-  app.delete('/settings/sessions', async (request: FastifyRequest) => {
+  app.delete('/settings/sessions', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const closed = await prisma.session.deleteMany({
       where: { userId: user.id, ...(request.sessionId ? { id: { not: request.sessionId } } : {}) },
@@ -505,7 +520,10 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
   });
 
   /** One session is closed. The current one may be closed too. */
-  app.delete('/settings/sessions/:id', async (request: FastifyRequest) => {
+  app.delete('/settings/sessions/:id', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params ?? {});
 
@@ -537,7 +555,10 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  app.put('/settings/notifications', async (request: FastifyRequest) => {
+  app.put('/settings/notifications', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const body = parse(preferenceSchema, request.body ?? {});
 
@@ -618,7 +639,10 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
   });
 
   /** The request can be taken back. */
-  app.delete('/settings/account/closure', async (request: FastifyRequest) => {
+  app.delete('/settings/account/closure', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     await prisma.user.update({
       where: { id: user.id },

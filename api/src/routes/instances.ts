@@ -5,7 +5,8 @@ import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { env } from '../env.js';
 import { badRequest, notFound, unavailable } from '../lib/errors.js';
-import { requireAuth } from '../plugins/auth.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
+import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import { hasCustomerCredential, resolveCustomerCredential } from '../services/panel/credentials.js';
@@ -13,6 +14,15 @@ import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeUpgradeOrder } from '../services/upgrades.js';
 import { createCheckout } from '../services/stripe.js';
+
+/**
+ * The routes of the instances carry a limit.
+ *
+ * The power of a server, the command that is sent to it and the name
+ * it is given reach the panel, so they carry the limit of the panel. The
+ * change of the resources and the cancellation only write rows in the
+ * database of the platform, so they carry the limit of the account.
+ */
 
 function serializeInstance(instance: {
   id: string;
@@ -134,7 +144,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  app.post('/instances/:id/power', async (request: FastifyRequest) => {
+  app.post('/instances/:id/power', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z
@@ -222,7 +235,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
   });
 
   /** Sends a command to the running server. */
-  app.post('/instances/:id/command', async (request: FastifyRequest) => {
+  app.post('/instances/:id/command', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { command } = z.object({ command: z.string().trim().min(1).max(1000) }).parse(request.body);
@@ -271,7 +287,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
    * and a checkout session, and the instance is only changed once the payment
    * is confirmed. A change that costs less is applied immediately.
    */
-  app.put('/instances/:id/resources', async (request: FastifyRequest) => {
+  app.put('/instances/:id/resources', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z
@@ -338,7 +357,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  app.post('/instances/:id/rename', async (request: FastifyRequest) => {
+  app.post('/instances/:id/rename', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { name } = z.object({ name: z.string().trim().min(1).max(80) }).parse(request.body);
@@ -353,7 +375,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     return { instance: serializeInstance(updated) };
   });
 
-  app.post('/instances/:id/cancel', async (request: FastifyRequest, reply) => {
+  app.post('/instances/:id/cancel', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const instance = await loadInstance(user.id, id);

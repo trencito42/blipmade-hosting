@@ -3,12 +3,22 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
-import { requireAuth } from '../plugins/auth.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
+import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { randomToken } from '../lib/tokens.js';
 import * as gateway from '../services/gateway.js';
 import * as dns from '../services/dns.js';
 import * as ptero from '../services/pterodactyl/application.js';
+
+/**
+ * The routes of the hostnames carry the limit of the panel.
+ *
+ * A hostname is claimed, proven and released through the panel and the
+ * gateway of the platform, and every one of those steps spends the
+ * resources of the node of everybody. The limit is counted for the
+ * account of the customer and for the address of the caller.
+ */
 
 /**
  * A hostname is only routed to a customer container when that customer proved
@@ -252,7 +262,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
    * Claims a hostname for an instance. The claim is not a routing decision: it
    * starts a proof of ownership that the customer has to finish.
    */
-  app.post('/instances/:id/domains', async (request: FastifyRequest, reply) => {
+  app.post('/instances/:id/domains', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { hostname: raw } = z.object({ hostname: z.string() }).parse(request.body ?? {});
@@ -359,7 +372,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
    * Checks the proof of ownership of a claimed hostname. Only a TXT record
    * with the token of the hostname counts as a proof.
    */
-  app.post('/domains/:id/verify', async (request: FastifyRequest) => {
+  app.post('/domains/:id/verify', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const domain = await prisma.instanceDomain.findUnique({
@@ -459,7 +475,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
    * release a hostname after they have looked at it, and every release is
    * written to the audit log.
    */
-  app.delete('/domains/:id', async (request: FastifyRequest, reply) => {
+  app.delete('/domains/:id', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const domain = await prisma.instanceDomain.findUnique({
