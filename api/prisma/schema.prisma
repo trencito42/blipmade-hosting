@@ -518,7 +518,7 @@ model Payment {
   stripeChargeId         String?
   // The Stripe customer is what the billing portal needs, so it is stored as
   // soon as a checkout session exposes it.
-  stripeCustomerId       String?       @unique
+  stripeCustomerId       String?
   stripeSubscriptionId   String?
   stripeInvoiceId        String?       @unique
   amount                 Int
@@ -530,6 +530,7 @@ model Payment {
 
   @@index([userId])
   @@index([status])
+  @@index([stripeCustomerId])
 }
 
 enum PromotionType {
