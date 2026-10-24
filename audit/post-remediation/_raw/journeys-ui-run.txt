@@ -1,0 +1,85 @@
+OK     1 [DISCOVERY] B1.1 Pagina de pornire se încarcă :: 6246 caractere vizibile; titlu="Blipmade — Pick an app. Deploy it."
+OK     2 [DISCOVERY] B1.2 Un produs care nu poate fi provisionat este marcat în pagina de pornire :: apare; eticheta de stare prezentă pe pagină=true; cardul produsului: "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress Developer Tools code-server Monitoring Uptime Kuma Bots Discord Bot Databases PostgreSQL 5 APPS AND DATABASES Skip the server setup. Explore apps"
+OK     3 [DISCOVERY] B1.3 Catalogul public listează produsele :: titlu="Blipmade — Pick an app. Deploy it."; "blipmade Apps Databases Pricing Docs Status Log in Get started Web & CMS WordPress Developer Tools code-server Monitoring Uptime Kuma Bots Discord Bot Databases PostgreSQL 5 APPS AND DATABASES Skip th"
+OK     4 [DISCOVERY] B1.4 Pagina de produs arată prețul, resursele minime și un apel la acțiune :: prețuri=["€1.49","€1.72"]; resurse=true; butoane=["blipmade","Apps","Databases","Pricing","Docs","Status","Log in","Get started","Web & CMS\nWordPress","Developer Tools\ncode-server","Monitoring\nUptime Kuma",…
+OK     5 [IDENTITY] B2.1 Înregistrarea din interfață creează contul și cere verificarea adresei :: url=http://127.0.0.1:30006/register; "blipmade ALMOST DONE Check your email. Your account is ready. Confirm your address to finish setting it up. A confirmation link is on its way to your email address. Go to your dash"
+OK     6 [IDENTITY] B2.2 Ecranul de verificare oferă re-trimiterea e-mailului :: buton="Resend the email"
+OK     7 [IDENTITY] B2.3 Autentificarea din interfață intră în zona de client :: url=http://127.0.0.1:30006/app; "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Overview Deploy Deploy your first app Pick an app, choose the resources,"
+OK     8 [IDENTITY] B2.4 Pagina de setări arată profilul, sesiunile și notificările :: sesiuni=true, notificări=true; "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Settings Deploy Profile The details of your Blipmade account. First name Last name Save the name EMAIL ADDRESS c"
+OK     9 [IDENTITY] B2.4 Un URL protejat deschis fără sesiune duce la autentificare :: url=http://127.0.0.1:30006/login?next=%2Fapp%2Fbilling; "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create account Protected s"
+OK    10 [DEPLOYMENT] B3.1 Pagina de comandă se încarcă pentru produsul ales :: "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Deploy Deploy 1 Configure 2 Review 3 Payment 4 Provisioning Configure Instance name Shown in your dashboard. Rec"
+OK    11 [DEPLOYMENT] B3.2 Configuratorul afișează resursele și prețul :: pret initial=null; cursoare=[{"id":"deploy-disk","value":"0","max":"49","text":"1 GB"}]; butoane resurse=["Recommended configuration\n512 MB · 1 vCPU · 5 GB disk\n€1.72/mo","256 MB","512 MB","1 GB","2 GB","4 GB","1","2"]
+WARN  12 [DEPLOYMENT] B3.3 Prețul se recalculează când se schimbă resursele :: pret inainte=null; pret dupa=null; slider=[{"id":"deploy-disk","value":"1","max":"49","text":"2 GB"}]
+OK    13 [DEPLOYMENT] B3.4 Configurația aleasă supraviețuiește reîncărcării paginii :: inainte=["deploy-disk=1","Recommended configuration\n512 MB · 1 vCPU · 5 GB disk\n€1.72/mo=false","256 MB=true","512 MB=false","1 GB=false","2 GB=false","4 GB=false","1…; dupa=["deploy-disk=1","Recommended configuration\n512 MB · 1 vCPU · 5 GB disk\n€1.72/mo=false","256 MB=true","512 MB=false","1 GB=false","2 GB=false","4 GB=false","1…
+WARN  14 [DEPLOYMENT] B3.5 Butonul „înapoi" nu pierde pagina și nici configurația :: url dupa inapoi=http://127.0.0.1:30006/app/instances; pagina=blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Instance
+OK    15 [DEPLOYMENT] B3.6 Comanda poate fi trecută prin toate cele patru etape din interfață :: etape: review -> payment -> plasare; url final=http://127.0.0.1:30006/app/billing?checkout=test_cs_cmvlpdc07000cdxg1wdowbd3j
+OK    16 [DEPLOYMENT] B3.7 După plasarea comenzii, interfața intră în etapa de provisionare :: "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy THIS MONTH (ESTIMATE) €0.00 Estimated from your current subscriptions in EUR. CURRENT PERIOD ENDS — Not available yet"
+FAIL  17 [BILLING] B4.1 Pagina de facturare ignoră parametrul `checkout` (FN-P1-03) :: url=http://127.0.0.1:30006/app/billing?checkout=test_cs_probe; parametrul este in adresa=true; pagina vorbeste despre comanda/plata=false; "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Billing Deploy THIS MONTH (ESTIMATE) €0.00 Estimated from your current subscriptions in EUR. CURRENT PERIOD ENDS — Not available yet"
+OK    18 [BILLING] B4.2 Nicio cerere a paginii de facturare nu încearcă să rezolve parametrul `checkout` :: GET /api/orders -> HTTP 200; nicio cerere catre /webhooks/stripe/test in sesiunea browserului
+OK    19 [SUPPORT] B5.1 Pagina de suport listează biletele și butonul de creare :: buton="New ticket"; "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Your tickets Every conversation with Blipmade support, newest activity first. New ticket No ticke"
+OK    20 [SUPPORT] B5.2 Formularul de bilet cere subiect, categorie și conținut :: subiect=true, continut=true, categorii=["Choose a category","Technical","Billing","Account","Abuse report","Other"]
+OK    21 [SUPPORT] B5.3 Biletul trimis din interfață este creat și apare în listă :: url=http://127.0.0.1:30006/app/tickets; "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Support Deploy Your tickets Every conversation with Blipmade support, newest activity first. New ticket SUBJECT "
+OK    22 [SUPPORT] B5.4 Biletul creat este vizibil în lista clientului :: randuri=["SUBJECT NUMBER CATEGORY STATUS LAST REPLY OPEN","Browser journey ticket #26 Technical Open No replies yet →","Browser journey ticket","→","Browser journey ticket#26 · Technical · No replies yetOpen"…
+OK    23 [DEPLOYMENT] B3.8 Două file deschise simultan pe pagini de client :: tab 2 url=http://127.0.0.1:30006/app/instances; "blipmade Overview Deploy Apps & databases Domains Billing Support Settings Back to site Apps & databases Deploy Instances Your apps and databases, with the limits you bought. Deplo"
+BLK   24 [SERVICE] B6.1 Pagina de detaliu a instanței se încarcă :: Nicio instanță în listă
+OK    25 [IDENTITY] B2.5 Deconectarea din interfață închide sesiunea :: buton găsit=true; url după=http://127.0.0.1:30006/login?next=%2Fapp%2Fsettings; "blipmade SECURE ACCESS Welcome back. Log in to your Blipmade account. Email address Password Log in Forgot password? New to Blipmade? Create"
+OK    26 [IDENTITY] B2.6 După deconectare, o pagină de client duce din nou la autentificare :: url=http://127.0.0.1:30006/login?next=%2Fapp%2Fbilling
+
+=== API CALLS OBSERVED ===
+GET /api/catalog/products
+GET /api/auth/session
+POST /api/catalog/quote
+GET /api/catalog/products/discord-bot
+
+=== SUMMARY ===
+{
+  "DISCOVERY": {
+    "tested": 4,
+    "passed": 4,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 0,
+    "info": 0
+  },
+  "IDENTITY": {
+    "tested": 7,
+    "passed": 7,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 0,
+    "info": 0
+  },
+  "DEPLOYMENT": {
+    "tested": 8,
+    "passed": 6,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 2,
+    "info": 0
+  },
+  "BILLING": {
+    "tested": 2,
+    "passed": 1,
+    "failed": 1,
+    "blocked": 0,
+    "warn": 0,
+    "info": 0
+  },
+  "SUPPORT": {
+    "tested": 4,
+    "passed": 4,
+    "failed": 0,
+    "blocked": 0,
+    "warn": 0,
+    "info": 0
+  },
+  "SERVICE": {
+    "tested": 1,
+    "passed": 0,
+    "failed": 0,
+    "blocked": 1,
+    "warn": 0,
+    "info": 0
+  }
+}
+TOTAL 26
