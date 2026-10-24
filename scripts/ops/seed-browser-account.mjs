@@ -15,11 +15,24 @@
  */
 import { randomBytes, scrypt as scryptCb } from 'node:crypto';
 import { promisify } from 'node:util';
+import { assertDisposableDatabase } from '../lib/assert-disposable-db.mjs';
 
 const scrypt = promisify(scryptCb);
 
 const CUSTOMER_EMAIL = 'browser-customer@blipmade.test';
 const ADMIN_EMAIL = 'browser-admin@blipmade.test';
+
+/**
+ * The script creates accounts and, when it cleans up, deletes them. It is
+ * meant to be run against the production database for the browser checks of
+ * the launch, so it does not refuse that database: it asks the operator to
+ * say out loud that this is what they want, and it prints what it is about
+ * to do.
+ */
+assertDisposableDatabase({
+  label: 'create the browser accounts of the launch',
+  allowProduction: process.env.BM_ALLOW_PRODUCTION === '1',
+});
 
 const N = 16384;
 const R = 8;

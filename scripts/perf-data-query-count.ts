@@ -13,6 +13,15 @@ import { prisma } from '../api/src/db.js';
 import { buildApp } from '../api/src/app.js';
 import { hashPassword } from '../api/src/lib/password.js';
 import { countedCalls, startCounting, stopCounting, totalCalls } from '../api/src/lib/perf-data-query-count.js';
+import { assertDisposableDatabase } from '../api/src/lib/test-target.js';
+
+/**
+ * The measurement empties the tables of the platform, so it may only run
+ * against a disposable database. Without this the script would empty the
+ * production database as soon as it is run with the environment of the
+ * platform.
+ */
+assertDisposableDatabase({ label: 'empty the tables of the platform for the measurement' });
 
 /** The number of the customers and the number of the rows of every customer. */
 const CUSTOMERS = Number(process.env.PERF_CUSTOMERS ?? 20);

@@ -9,6 +9,7 @@
 #   secret-scan       the whole git history is scanned for secrets
 #   dependency-audit  npm audit --audit-level=high for both workspaces
 #   schema-drift      the prisma schema is compared with the migration history
+#   workflow-lint     the workflows themselves are linted with actionlint
 #
 # No secret is stored in this repository and no secret is needed to run it.
 # The only values that are set are throwaway constants for the disposable
@@ -433,3 +434,35 @@ jobs:
             --to-schema-datamodel prisma/schema.prisma \
             --shadow-database-url "postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow" \
             --exit-code
+
+  # ---------------------------------------------------------------------------
+  # The workflows are linted before they run.
+  #
+  # A workflow that does not parse never tells anybody what it would have
+  # done, and a mistake in a condition can silently skip a check that was
+  # believed to be running. The linter reads the workflows of the repository
+  # and says what is wrong with them.
+  # ---------------------------------------------------------------------------
+  workflow-lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install actionlint
+        # The version is pinned and the archive is checked against the sum
+        # that the release publishes, so the binary that runs is the one that
+        # was published and not something that was swapped on the way.
+        run: |
+          version='1.7.7'
+          archive="actionlint_${version}_linux_amd64.tar.gz"
+          expected='023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757'
+          curl -sSfL -o "${archive}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${version}/${archive}"
+          echo "${expected}  ${archive}" | sha256sum --check
+          tar xzf "${archive}" actionlint
+          sudo install actionlint /usr/local/bin/actionlint
+
+      - name: Lint the workflows
+        run: actionlint

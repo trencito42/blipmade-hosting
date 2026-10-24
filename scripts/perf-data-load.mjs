@@ -17,6 +17,7 @@ import { appendFileSync, readFileSync, rmSync, writeFileSync, existsSync } from 
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertDisposableDatabase } from './lib/assert-disposable-db.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -37,6 +38,17 @@ const watchedPid = Number(argument('--pid', '0')) || null;
 function flag(name) {
   return process.argv.includes(name);
 }
+
+/**
+ * The burst sends requests that create orders, so the API it starts writes
+ * into the database of the environment. The burst therefore only runs against
+ * a disposable database, unless the operator says out loud that the target is
+ * the production one.
+ */
+assertDisposableDatabase({
+  label: 'send a burst of write requests to the platform',
+  allowProduction: flag('--allow-production'),
+});
 
 const logFile = path.join(root, 'tmp', `perf-data-api-${port}.log`);
 if (existsSync(logFile)) rmSync(logFile);
