@@ -2,12 +2,25 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { badRequest, notFound, unavailable } from '../lib/errors.js';
-import { requireAuth } from '../plugins/auth.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
+import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import * as operations from '../services/panel/operations.js';
 import { assertBoundedFields, MAX_ENVIRONMENT_VARIABLES, MAX_PAYLOAD_KEYS } from '../lib/bounded.js';
+
+/**
+ * Every route of this file reaches the panel or the node, so every one
+ * of them carries the limit of the panel.
+ *
+ * A file that is written, a database that is created, a backup that is
+ * restored and a server that is reinstalled all spend the memory and
+ * the disk of the node that every customer shares. The limit is
+ * counted for the account of the customer and for the address of the
+ * caller, so neither one customer nor one address can exhaust the node
+ * for everybody.
+ */
 
 /**
  * The operations a customer can run on their own server.
@@ -183,7 +196,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.put('/instances/:id/file', async (request: FastifyRequest, reply) => {
+  app.put('/instances/:id/file', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const body = z
       .object({ path: filePath, content: z.string().max(5_000_000) })
       .parse(request.body);
@@ -200,7 +216,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return reply.code(204).send();
   });
 
-  app.delete('/instances/:id/file', async (request: FastifyRequest, reply) => {
+  app.delete('/instances/:id/file', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const query = z.object({ path: filePath }).parse(request.query ?? {});
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -224,7 +243,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   });
 
   /** Renames a file or a folder inside the same folder. */
-  app.post('/instances/:id/files/rename', async (request: FastifyRequest) => {
+  app.post('/instances/:id/files/rename', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z.object({ path: filePath, to: filePath }).parse(request.body);
     return withInstance(request, async (token, instance) => {
       try {
@@ -238,7 +260,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   });
 
   /** Moves a file or a folder to another folder. */
-  app.post('/instances/:id/files/move', async (request: FastifyRequest) => {
+  app.post('/instances/:id/files/move', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z.object({ path: filePath, to: filePath }).parse(request.body);
     return withInstance(request, async (token, instance) => {
       try {
@@ -252,7 +277,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   });
 
   /** Copies a file or a folder to another folder. */
-  app.post('/instances/:id/files/copy', async (request: FastifyRequest) => {
+  app.post('/instances/:id/files/copy', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z.object({ path: filePath, to: filePath }).parse(request.body);
     return withInstance(request, async (token, instance) => {
       try {
@@ -274,7 +302,11 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    */
   app.post(
     '/instances/:id/files/upload',
-    { bodyLimit: 64 * 1024 * 1024 },
+    {
+      bodyLimit: 64 * 1024 * 1024,
+      config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+      preHandler: customerLimit(app, LIMITS.panel),
+    },
     async (request: FastifyRequest, reply) => {
       const user = await requireAuth(request);
       const { id } = idParam.parse(request.params);
@@ -357,8 +389,14 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   };
 
-  app.post('/instances/:id/files/compress', compress);
-  app.post('/instances/:id/files/archive', compress);
+  app.post('/instances/:id/files/compress', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, compress);
+  app.post('/instances/:id/files/archive', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, compress);
 
   /**
    * Unpacks an archive.
@@ -379,11 +417,20 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   };
 
-  app.post('/instances/:id/files/decompress', decompress);
-  app.post('/instances/:id/files/unarchive', decompress);
+  app.post('/instances/:id/files/decompress', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, decompress);
+  app.post('/instances/:id/files/unarchive', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, decompress);
 
   /** Changes the permissions of a file or a folder. */
-  app.post('/instances/:id/files/chmod', async (request: FastifyRequest) => {
+  app.post('/instances/:id/files/chmod', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z.object({ path: filePath, mode: z.number().int().min(0).max(0o7777) }).parse(request.body);
     return withInstance(request, async (token, instance) => {
       try {
@@ -420,7 +467,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.post('/instances/:id/databases', async (request: FastifyRequest, reply) => {
+  app.post('/instances/:id/databases', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const body = z
       .object({
         database: z.string().trim().min(1).max(64),
@@ -457,7 +507,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    * anything else is refused with the reason, so the customer is never told
    * that something was changed when it was not.
    */
-  app.patch('/instances/:id/databases/:databaseId', async (request: FastifyRequest) => {
+  app.patch('/instances/:id/databases/:databaseId', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
     const body = z.object({ password: z.string().min(1).max(128).optional() }).parse(request.body ?? {});
     if (!body.password) {
@@ -474,7 +527,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.delete('/instances/:id/databases/:databaseId', async (request: FastifyRequest, reply) => {
+  app.delete('/instances/:id/databases/:databaseId', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -552,7 +608,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.post('/instances/:id/backups', async (request: FastifyRequest, reply) => {
+  app.post('/instances/:id/backups', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const body = z
       .object({
         name: z.string().trim().min(1).max(100),
@@ -596,7 +655,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   });
 
   /** Restores a backup. The files of the server are replaced by the archive. */
-  app.post('/instances/:id/backups/:backupId/restore', async (request: FastifyRequest) => {
+  app.post('/instances/:id/backups/:backupId/restore', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const params = z.object({ id: z.string(), backupId: z.string().min(1).max(100) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -619,7 +681,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return { restored: true };
   });
 
-  app.delete('/instances/:id/backups/:backupId', async (request: FastifyRequest, reply) => {
+  app.delete('/instances/:id/backups/:backupId', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const params = z.object({ id: z.string(), backupId: z.string().min(1).max(100) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -669,7 +734,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    * The panel picks the address itself out of the free ones of the node, so
    * the customer does not choose an address and a port.
    */
-  app.post('/instances/:id/allocations', async (request: FastifyRequest, reply) => {
+  app.post('/instances/:id/allocations', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id);
@@ -691,7 +759,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   });
 
   /** Makes an address the primary one of the server. */
-  app.put('/instances/:id/allocations', async (request: FastifyRequest) => {
+  app.put('/instances/:id/allocations', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z.object({ primary: z.coerce.number().int().positive() }).parse(request.body ?? {});
     return withInstance(request, async (token, instance) => {
       try {
@@ -704,7 +775,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.patch('/instances/:id/allocations/:allocationId', async (request: FastifyRequest) => {
+  app.patch('/instances/:id/allocations/:allocationId', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const params = z.object({ id: z.string(), allocationId: z.coerce.number().int().positive() }).parse(request.params);
     const body = z
       .object({ isDefault: z.boolean().optional(), alias: z.string().trim().max(64).nullable().optional() })
@@ -726,7 +800,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.delete('/instances/:id/allocations/:allocationId', async (request: FastifyRequest, reply) => {
+  app.delete('/instances/:id/allocations/:allocationId', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const params = z.object({ id: z.string(), allocationId: z.coerce.number().int().positive() }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -831,8 +908,14 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     };
   };
 
-  app.put('/instances/:id/startup', changeStartup);
-  app.patch('/instances/:id/startup', changeStartup);
+  app.put('/instances/:id/startup', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, changeStartup);
+  app.patch('/instances/:id/startup', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, changeStartup);
 
   // --- schedules -----------------------------------------------------------
 
@@ -858,7 +941,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.post('/instances/:id/schedules', async (request: FastifyRequest, reply) => {
+  app.post('/instances/:id/schedules', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     // The payload is counted before the body is read, so a body with too many
     // keys is refused without the cost of walking them.
     assertBoundedFields(request.body, {
@@ -886,7 +972,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return reply.code(201).send({ created: true });
   });
 
-  app.patch('/instances/:id/schedules/:scheduleId', async (request: FastifyRequest) => {
+  app.patch('/instances/:id/schedules/:scheduleId', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const params = z.object({ id: z.string(), scheduleId: z.coerce.number().int().positive() }).parse(request.params);
     // The payload is counted before the body is read, so a body with too many
     // keys is refused without the cost of walking them.
@@ -912,7 +1001,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     });
   });
 
-  app.delete('/instances/:id/schedules/:scheduleId', async (request: FastifyRequest, reply) => {
+  app.delete('/instances/:id/schedules/:scheduleId', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const params = z.object({ id: z.string(), scheduleId: z.coerce.number().int().positive() }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -936,7 +1028,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   });
 
   /** Runs a schedule right away. */
-  app.post('/instances/:id/schedules/:scheduleId/run', async (request: FastifyRequest) => {
+  app.post('/instances/:id/schedules/:scheduleId/run', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const params = z.object({ id: z.string(), scheduleId: z.coerce.number().int().positive() }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -985,7 +1080,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    * The name is changed in Blipmade and on the panel, so both places show the
    * same thing.
    */
-  app.patch('/instances/:id/settings', async (request: FastifyRequest) => {
+  app.patch('/instances/:id/settings', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z
       .object({ name: z.string().trim().min(1).max(80).optional(), description: z.string().trim().max(200).optional() })
       .parse(request.body ?? {});
@@ -1027,7 +1125,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    * server really goes down. The instance is marked as suspended in Blipmade
    * as well, so it does not show as running.
    */
-  app.post('/instances/:id/suspend', async (request: FastifyRequest) => {
+  app.post('/instances/:id/suspend', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z.object({ suspended: z.boolean() }).parse(request.body ?? {});
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
@@ -1062,7 +1163,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
    * Reinstalls the server. Everything the customer stored in the container is
    * lost, so the route says so out loud and writes a trace of it.
    */
-  app.post('/instances/:id/settings/reinstall', async (request: FastifyRequest) => {
+  app.post('/instances/:id/settings/reinstall', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const body = z.object({ confirm: z.literal(true) }).parse(request.body ?? {});
     if (body.confirm !== true) throw badRequest('The reinstall has to be confirmed.');
 

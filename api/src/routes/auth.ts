@@ -5,7 +5,7 @@ import { env } from '../env.js';
 import { badRequest, conflict, notFound, tooMany, unauthorized } from '../lib/errors.js';
 import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
-import { rateLimitRun } from '../lib/rate-limit.js';
+import { LIMITS, customerLimit, rateLimitRun } from '../lib/rate-limit.js';
 import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/failed-attempts.js';
 import { mailEnabled, mailLogLine, mailNotice, registrationNotice, tokenReference, type MailSendResult } from '../lib/mailer.js';
 import { passwordResetTemplate, verificationTemplate } from '../lib/email-templates.js';
@@ -13,6 +13,7 @@ import { dispatchEmail } from '../services/queue.js';
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import {
+  addressRateLimitKey,
   createSession,
   destroySession,
   loadSession,
@@ -21,6 +22,17 @@ import {
   requireAuth,
   type AuthUser,
 } from '../plugins/auth.js';
+
+/**
+ * The routes of the session that have no limit of their own.
+ *
+ * The sign-out ends the session of the caller, so it only writes a row
+ * in the database of the platform. The confirmation of the address
+ * reads a token of an account, and a token is guessed by trying many
+ * of them, so its limit is the limit of the address. The route that
+ * clears the expired sessions is a route of the back office: it is
+ * called by the worker and it writes in the database of the platform.
+ */
 
 const emailSchema = z.string().trim().toLowerCase().email('Enter a valid email address.');
 const passwordSchema = z.string().min(1, 'Enter your password.');
@@ -355,7 +367,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     },
   });
 
-  app.post('/auth/logout', async (request: FastifyRequest, reply) => {
+  app.post('/auth/logout', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest, reply) => {
     if (request.user) {
       await audit({ actorId: request.user.id, actorEmail: request.user.email, action: 'auth.logout', ip: request.ip });
     }
@@ -378,7 +393,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post('/auth/verify-email', async (request: FastifyRequest, reply) => {
+  app.post('/auth/verify-email', {
+    config: { rateLimit: { max: LIMITS.token.address, timeWindow: LIMITS.token.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.token),
+  }, async (request: FastifyRequest, reply) => {
     const { token } = tokenSchema.parse(request.body);
     const record = await prisma.verificationToken.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!record || record.type !== 'EMAIL_VERIFY' || record.usedAt || record.expiresAt < new Date()) {
@@ -511,7 +529,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /** Used by the worker to clear expired sessions. */
-  app.post('/internal/prune-sessions', async (request: FastifyRequest) => {
+  app.post('/internal/prune-sessions', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.adminWrite),
+  }, async (request: FastifyRequest) => {
     const token = request.headers.authorization?.replace(/^Bearer /i, '');
     if (!env.internalToken || token !== env.internalToken) throw unauthorized();
     return { pruned: await pruneSessions() };

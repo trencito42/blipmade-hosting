@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { AppError, badRequest, forbidden, notFound } from '../lib/errors.js';
-import { requireAuth, requireStaff, type AuthUser } from '../plugins/auth.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
+import { addressRateLimitKey, requireAuth, requireStaff, type AuthUser } from '../plugins/auth.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { audit } from '../lib/audit.js';
 import { sendMail } from '../lib/mailer.js';
@@ -16,6 +17,16 @@ import {
   storeAttachment,
   validateAttachment,
 } from '../lib/attachments.js';
+
+/**
+ * The routes of the tickets carry a limit.
+ *
+ * A ticket that is opened, a reply and a change of the state send a
+ * message, so they carry the limit of the mail: the platform may not
+ * become a relay for the account of one customer. The attachment is
+ * written on the storage of the platform, so it carries the limit of
+ * the panel.
+ */
 
 /**
  * The enums of a ticket, in the shape the Prisma enums have them.
@@ -147,7 +158,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     return { tickets: page.rows.map(serializeTicket), pagination: page.pagination };
   });
 
-  app.post('/tickets', async (request: FastifyRequest, reply) => {
+  app.post('/tickets', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const body = parse(
       z.object({
@@ -250,7 +264,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     };
   });
 
-  app.post('/tickets/:id/replies', async (request: FastifyRequest, reply) => {
+  app.post('/tickets/:id/replies', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
@@ -318,7 +335,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
    * and can only be read through the download route, which checks who is
    * allowed to see it.
    */
-  app.post('/tickets/:id/attachments', async (request: FastifyRequest, reply) => {
+  app.post('/tickets/:id/attachments', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
@@ -408,7 +428,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     return reply.send(content);
   });
 
-  app.post('/tickets/:id/status', async (request: FastifyRequest) => {
+  app.post('/tickets/:id/status', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest) => {
     const user = await requireStaff(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
