@@ -157,13 +157,13 @@
   "verification": "Fereastra e mica. Nu e o pierdere de bani, dar o reproducere poate pierde urma unei esecuri"
  },
  "BE-20": {
-  "status": "NOT STARTED (BACKLOG)",
+  "status": "FIXED & VERIFIED",
   "area": "api/src/services/dead-letter.ts",
-  "rootCause": "Repunerea pe coada este refuzata pentru coada de e-mail, pentru ca mesajele nu se trimit la fel",
-  "fix": "Interfata de administrare trebuie sa spuna ca o livrare esuata nu se poate repune pe coada, si sa ofere o trimitere noua",
-  "commit": "—",
-  "test": "—",
-  "verification": "Proba independenta: starea ramane pending dupa refuz"
+  "rootCause": "Repunerea pe coada era refuzata pentru coada de e-mail, pentru ca mesajele nu se trimit la fel",
+  "fix": "putBackOnQueue accepta acum si coada blipmade.email: mesajul este scos din jobul esuat si pus inapoi pe coada cu enqueueEmail; numarul de incercati se reseteaza la inceputul rularii, iar esecul ramane deschis, cu starea requeued",
+  "commit": "97479ee (in main prin c861ea6)",
+  "test": "api/tests/email-dead-letter-requeue.test.ts",
+  "verification": "3 teste: mesajul ajunge inapoi pe coada, evidenta ramane consistenta, iar o esec repus nu se pierde"
  },
  "BE-21": {
   "status": "NOT STARTED (BACKLOG)",
@@ -419,21 +419,21 @@
  },
  "INF-02": {
   "status": "BLOCKED: EXTERNAL DEPENDENCY",
-  "area": "scripts/backup.sh, scripts/backup-offsite.sh",
+  "area": "scripts/backup.sh, scripts/backup-offsite.sh, scripts/backup-common.sh, scripts/backup-alert.sh, scripts/systemd/blipmade-backup.service",
   "rootCause": "Nu exista o copie a datelor in afara hostului",
-  "fix": "Timerul ruleaza si arhiva se verifica, dar OFFSITE_TARGET si OFFSITE_KEY nu sunt setate, deci copia nu paraseste gazda. Decizia (provider, volum, cost, cheie de criptare) este a operatorului",
-  "commit": "-",
-  "test": "scripts/backup-offsite.sh",
-  "verification": "Executat postup: backupul s-a creat, ExecStartPost a iesit 0, si nu exista nicio copie in afara gazdei. RPO la pierderea gazdei: infinit"
+  "fix": "Lantul de backup nu mai poate declara succes cand nu paraseste hostul: fara tinta, rularea esueaza cu codul 3 si numele setarilor de care are nevoie. Upload-urile clientilor sunt in ambele arhive, baza este dumpata o singura data, iar unitatea apeleaza o alarma la esec. Destinatia, cheia de criptare si decizia raman ale operatorului",
+  "commit": "5dbfa94 (in main)",
+  "test": "scripts/restore-drill.sh, rulat pe gazda",
+  "verification": "Arhiva contine database.dump, config.tar.gz si uploads.tar.gz; drillul compara 33 de tabele, 4 utilizatori, 5 produse si 14 migratii si verifica ca upload-urile si configuratia sunt in arhiva si se pot citi"
  },
  "DR-02": {
   "status": "FIXED & VERIFIED",
-  "area": "scripts/systemd/blipmade-backup.{service,timer}, scripts/install-backup-timer.sh, scripts/restore-drill.sh",
+  "area": "scripts/systemd/blipmade-backup.{service,timer}, scripts/install-backup-timer.sh, scripts/restore-drill.sh, scripts/backup-common.sh",
   "rootCause": "Timerul exista in repository de doua runde, dar nu era instalat pe gazda: programarea nu rula",
-  "fix": "Timerul si unitatea au fost instalate in /etc/systemd/system, activate cu systemctl enable, si o rulare a produs arhiva cu checksum. Drill-ul de restaurare a fost rulat: copia se restaureaza intr-o baza de gol si se compara cu cea vie",
-  "commit": "9e92df7 (scriptul), instalare pe gazda 2026-10-24",
-  "test": "scripts/restore-drill.sh",
-  "verification": "Rulare: arhiva blipmade-scheduled-20261024T001409Z.tar.gz (59620 B) + .sha256; drill: 32 tabele identice, 3 utilizatori, 5 produse, 11 migrari, RTO 3 s. NOTA: copia nu paraseste inca gazda - vezi INF-02"
+  "fix": "Timerul si unitatea au fost instalate in /etc/systemd/system, activate cu systemctl enable, si o rulare a produs arhiva cu checksum. Drillul verifica acum intreaga arhiva, nu doar baza: si upload-urile si configuratia trebuie sa fie in ea si sa se poata citi",
+  "commit": "5dbfa94 (in main, pentru drill si lantul de backup)",
+  "test": "scripts/restore-drill.sh, rulat pe gazda",
+  "verification": "Drillul a trecut: 33 de tabele, 4 utilizatori, 5 produse si 14 migratii identice, uploads.tar.gz si config.tar.gz prezente si citibile, baza temporara eliminata la final"
  },
  "SEC-01": {
   "status": "REQUIRES OPERATOR APPROVAL",
@@ -672,5 +672,23 @@
   "commit": "4969f4a",
   "test": "api/tests/promotions.test.ts",
   "verification": "In baza vie, la 2026-10-24: campania LAUNCH, PERCENT 10000 (100%), active, maxPerUser null, maxRedemptions 25. Pe 24 octombrie a intrat o comanda reala cu total 0"
+ },
+ "SEC-18": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/lib/mailer.ts",
+  "rootCause": "Mesajele scrise pe disc erau lizibile de oricine (0644) si se acumulau fara nicio limita, pentru ca transportul de fisiere nu avea o retentie",
+  "fix": "Directorul de e-mail este 0700, fiecare fisier este scris cu 0600, iar transportul are o retentie: cel mult 500 de fisiere si cel mult 72 de ore, cu MAIL_FILE_MAX_FILES si MAIL_FILE_MAX_AGE_HOURS. Un fisier al unui mesaj care asteapta in coada nu este eliminat niciodata, iar un fisier eliminat este marcat in tabelul livrarilor ca nementinut",
+  "commit": "97479ee (in main prin c861ea6)",
+  "test": "api/tests/mail-file-transport.test.ts",
+  "verification": "8 teste: fisierele sunt doar pentru contul serviciului, numarul lor este limitat, cele vechi sunt eliminate, un mesaj in asteptare nu este eliminat, iar tabelul livrarilor spune ce a facut transportul"
+ },
+ "INF-07": {
+  "status": "FIXED & VERIFIED",
+  "area": "scripts/backup-offsite.sh",
+  "rootCause": "Scriptul folosea rclone, care nu este instalat pe gazda, deci nu ar fi rulat",
+  "fix": "Transportul se deduce din forma tintei si poate fi rclone, ssh sau un director montat; rclone este necesar doar pentru o tinta rclone. Scriptul ruleaza pe aceasta gazda si cere numele setarilor care lipsesc",
+  "commit": "5dbfa94 (in main)",
+  "test": "scripts/backup-offsite.sh rulat pe gazda",
+  "verification": "Fara tinta, scriptul se opreste cu codul 3 si numele setarilor de care are nevoie; cu --allow-no-target se opreste cu codul 0"
  }
 }

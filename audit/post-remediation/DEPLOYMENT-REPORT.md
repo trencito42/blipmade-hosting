@@ -177,10 +177,93 @@ Verdictul separat pe cod (tot verde) și pe platformă (NO-GO) este în `audit/p
 
 | Identificator | Ce | Stare |
 |---|---|---|
-| BE-20 | E-mailurile livrate cu eșec nu pot fi puse înapoi pe coadă | în curs (lucrător API) |
+| BE-20 | E-mailurile livrate cu eșec nu pot fi puse înapoi pe coadă | **reparat** — `putBackOnQueue` acceptă acum coada de e-mail, cu 3 teste noi |
 | BE-04 | Provisionarea face zece mutații pe panou | implementat, neverificat |
 | ADM-12 / PERF-P2-03 | Listele plafonate la 200/300 fără pager | neînceput |
 | SEC-31 | Advisory `zod` `GHSA-mrhx-c7xc-m3w5` | acceptat și urmărit; upgrade la `zod` 4.6.7 cerut ca PR separat |
 | SEC-30 | Cele 5 excepții de scanare de secrete și parola moartă din istoric | acceptate, cere force-push |
 | SEC-06 | 29 de rute de scriere fără limită per rută | neînceput |
-| — | Retenție pentru fișierul de e-mail, limite per utilizator, paginare, limite pentru indicatorii de copii, supravegherea cozii moarte | în curs |
+| — | Retenția fișierului de e-mail | **reparat** — maximum 500 de fișiere și 72 de ore, fișierele `0600`, un fișier în așteptare nu este eliminat niciodată, 8 teste noi |
+| — | Setările de firmă și de taxă | **reparat** — șase chei, toate goale implicit, taxa se aplică doar cu identificator și rată, 8 teste noi |
+| — | Resetul de parolă care promite o livrare imposibilă | **reparat** — răspunsul nu mai promite livrare, eșecul e înregistrat pentru operator, 5 teste noi |
+| — | Limitele per utilizator, paginare, limite pentru indicatorii de copii, supravegherea cozii moarte | neînceput |
+
+---
+
+## G. A doua lansare: corecțiile de cod
+
+După prima lansare, trei corecții au fost aduse pe o ramură de integrare (`release/2026-10-24`) și lansate la rândul lor.
+
+### G.1 Ce a fost adus
+
+| Corecție | Fișiere | Ce face |
+|---|---|---|
+| Lanțul de backup onest | `scripts/backup.sh`, `scripts/backup-offsite.sh`, `scripts/backup-common.sh`, `scripts/backup-alert.sh`, `scripts/restore.sh`, `scripts/restore-drill.sh`, `scripts/systemd/blipmade-backup.service` | Fără țintă offsite, rularea **eșuează** (cod 3) în loc să declare succes; o singură dumpare a bazei în loc de două; upload-urile clienților în ambele arhive și înapoi la restaurare; alarmă la eșec prin webhook, mail sau jurnal |
+| Paginile legale și Error Boundary | `web/src/pages/{Terms,Privacy,Cookies,Aup,RefundPolicy,Sla,ServerError}.tsx`, `web/src/routes.tsx`, `web/src/ui-app.tsx` | Șase pagini legale, un footer care le leagă, o pagină `/500` și un Error Boundary. **35 de marcaje `TODO(operator)`** marchează exact pozițiile care depind de identitatea comercială, fără nicio valoare inventată |
+| Mailul, resetul și setările de firmă | `api/src/lib/mailer.ts`, `api/src/services/dead-letter.ts`, `api/src/routes/auth.ts`, `api/src/services/billing.ts`, `api/src/routes/billing.ts` | Fișierul de e-mail limitat (500 de fișiere, 72 de ore, `0600`) și privat, e-mailurile nereușite pot fi puse înapoi pe coadă, resetul nu mai promite o livrare, facturile pot purta setările de firmă și taxă ale operatorului |
+
+### G.2 Verificările
+
+| Verificare | Rezultat |
+|---|---|
+| Suita API | **491 / 491** în 56 de fișiere (era 467; +24 în 4 fișiere noi) |
+| Suita web | **131 / 131** (era 109; +22 în 2 fișiere noi) |
+| `tsc` (api) | curat |
+| Schemă | **fără schimbare**, deci fără migrări noi |
+| CI pe ramură | **6/6 joburi verzi** — https://github.com/trencito42/blipmade-hosting/actions/runs/40126059727 (`5dbfa94`) |
+| Fuziune în `main` | fast-forward `7a0cce0..5dbfa94`, fără force-push |
+| Drill de restaurare | `uploads.tar.gz` și `config.tar.gz` prezente și citibile; 33 de tabele, 4 utilizatori, 5 produse, 14 migrări identice |
+| Scriptul offsite fără țintă | **cod 3** cu numele setărilor lipsă; cu `--allow-no-target` cod 0 |
+
+### G.3 Starea după a doua lansare
+
+```
+blipmade-api-1      | healthy | imagine e48a50d5ff2a
+blipmade-worker-1   | healthy | imagine 83d9254141c9
+blipmade-web-1      | healthy | imagine 499af94aee0b
+blipmade-postgres-1 | healthy | 2 zile, neatins
+blipmade-redis-1    | healthy | 2 zile, neatins
+```
+
+Marcajele noii versiuni au fost găsite în imaginile care rulează: `mailFileRetention`, `putMessageBackOnQueue` și `companyDetails` în API, `RefundPolicy` și `ServerError` în web. Cele șase pagini legale au fost randate **într-un browser real**: fiecare arată titlul său și conține marcajul `TODO(operator)`, iar toate șase sunt legate în footer.
+
+Observație post-lansare: **0 restarturi**, **0 erori** în jurnalele containerelor, **0 răspunsuri 5xx**, cozile `blipmade.provision` și `blipmade.email` goale, 14 migrări în baza vie, 54 GB liberi pe disc.
+
+### G.4 Reconcilierea registrului
+
+`audit/_tools/remediation-status.json` a fost actualizat cu dovezi, nu cu presupuneri: `BE-20` (repunerea pe coadă), `SEC-18` (fișierele de e-mail), `INF-07` (rularea fără `rclone`), `INF-02` (rămâne blocată de dependența externă, cu nota corectată) și `DR-02` (drillul verifică acum întreaga arhivă).
+
+| Stare | Înainte | După |
+|---|---:|---:|
+| FIXED & VERIFIED | 39 | **42** |
+| IMPLEMENTED, NOT VERIFIED | 1 | 1 |
+| BLOCKED: EXTERNAL DEPENDENCY | 3 | 3 |
+| REQUIRES OPERATOR APPROVAL | 17 | 17 |
+| NOT STARTED (BACKLOG) | 153 | **150** |
+| **Total** | 213 | 213 |
+
+### G.5 Porțile de lansare: ce s-a schimbat și ce a rămas
+
+**Culoarea celor 13 porți nu s-a schimbat: 5 rămân RED** (5, 7, 9, 12, 13). Două blocaje de cod au fost eliminate — lipsa template-ului de mediu al egg-ului 15 (cauza fiecărei provisionări eșuate) și retenția transportului de e-mail — dar condițiile de operare rămân deschise:
+
+| Poartă | Ce a fost rezolvat | Ce a rămas |
+|---:|---|---|
+| 5 | Template-ul egg-ului 15 există; provisionarea nu mai e blocată de lipsa lui | 20 de rulări consecutive comandă → plată → provisionare → activare. Necesită cheile Stripe live |
+| 7 | Produsul vândut are runtime-ul de mediu | Un container care rulează, verificat **de pe nod**, și un panou care raportează o stare, nu `None` (la această lansare panoul raportează `state: None` pentru serverul 16) |
+| 9 | Lanțul de backup eșuează vizibil când nu paraseste gazda; upload-urile sunt în arhivă; alarma există | `OFFSITE_TARGET`, cheia de criptare, o copie în afara gazdei și un drill pe acea copie |
+| 12 | Paginile legale există; resetul nu mai promite o livrare imposibilă; retenția e-mailului există | `SMTP_URL` real și e-mailuri **livrate**. Calea SMTP e dovedită pe o copie izolată, releul nu e configurat |
+| 13 | Nimic | Auditul internelor panoului și nodului, firewall pe hipervisor, confirmarea porturilor de administrare |
+
+Toate cele cinci au acum o cauză **de operare**, nu de cod.
+
+---
+
+## H. Ce a rămas în afara ariei mele
+
+| Element | De ce |
+|---|---|
+| `prisma db seed` nu este legat în `package.json` | Se folosește `npm run seed`. Constatare de o linie, neintrusă în această lansare pentru că nu blochează nimic |
+| Limitele per utilizator, pager în liste, limite pentru indicatorii de copii | Au nevoie de un design de produs și de teste la nivel de API |
+| Supravegherea cozii moarte | `DeadLetterJob` există și acum poate fi repus pe coadă, dar nu există încă un proces care să avertizeze |
+| Facturile emise de furnizor | `api/src/services/stripe.ts` scrie facturile furnizorului; au fost lăsate neatinse |
+| Cele 5 excepții de scanare de secrete, parola moartă din istoric | Cer force-push, deci nu au fost atinse |

@@ -465,6 +465,23 @@ Sursă: `07-release-gates.md`. Fiecare poartă e o întrebare de release, cu ver
 | 12 | Funcțiile de bază ale clientului sunt indisponibile | 🔴 RED |
 | 13 | Securitatea infrastructurii critice nu a fost verificată | 🔴 RED |
 
+<!-- LANSA-RE-DUPĂ-REPARATURI -->
+
+**Notă după lansarea din 24 octombrie 2026 (a doua versiune, `5dbfa94`).** Culoarea porților nu s-a
+schimbat, dar două dintre blocajele de cod au fost eliminate și unul a fost adăugat:
+
+| Poartă | Ce s-a schimbat | Ce lipsește |
+|---:|---|---|
+| 5 | Blocajul era lipsa template-ului de mediu al egg-ului 15: **fiecare** provisionare eșua cu „No environment template is known for egg 15". Template-ul există acum pe panou (serverul 16) și codul platformei îl rezolvă: 11 variabile, fără variabile per-server scurse | O provisionare completă, observată: **20 de rulări** comandă → plată → provisionare → activare. Necesită cheile Stripe live, pe care operatorul nu le-a dat |
+| 7 | Idem. Produsul vândut (`discord-bot`) are acum runtime-ul de mediu | Un container care rulează efectiv, verificat **de pe nod**, și un panou care raportează o stare, nu `None`. La momentul acestei note panoul raportează `state: None` pentru serverul 16 |
+| 12 | Paginile legale există și sunt legate în footer; resetul de parolă nu mai promite o livrare care nu se poate face; retenția transportului de e-mail pe fișiere există (500 de fișiere, 72 de ore, `0600`) | Livrarea e-mailului: `SMTP_URL` real, un e-mail de verificare și unul de resetare **livrate**. Calea SMTP a fost dovedită funcțională pe o copie izolată, dar releul nu e configurat |
+| 9 | Lanțul de backup nu mai poate declara succes când nu paraseste gazda: fără țintă, rularea eșuează (cod 3); upload-urile sunt în arhivă; alarma la eșec există | `OFFSITE_TARGET` + cheia de criptare, o copie în afara gazdei și un drill pe acea copie. **Rămâne RED** |
+| 8 | Retenția pe transportul de e-mail a fost făcută | Rotirea parolei de panou a clientului, reducerea conturilor `root_admin` |
+
+Dintre cele 13 porți, **5 rămân RED** (5, 7, 9, 12, 13). Conform regulii brief-ului, o singură poartă
+RED blochează lansarea. Toate cele cinci au acum o cauză **de operare**, nu de cod, și fiecare are
+condiția de inversare în `07-release-gates.md` §3.
+
 **Cinci porți RED.** Conform regulii brief-ului, o singură poartă RED blochează lansarea. Condițiile complete de inversare NO-GO → GO sunt cele 9 rânduri din `07-release-gates.md` §3.
 
 <!-- REMEDIATION:START -->
@@ -486,11 +503,11 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 
 | Stare | Constatări |
 |---|---:|
-| FIXED & VERIFIED | 39 |
+| FIXED & VERIFIED | 42 |
 | IMPLEMENTED, NOT VERIFIED | 1 |
 | BLOCKED: EXTERNAL DEPENDENCY | 3 |
 | REQUIRES OPERATOR APPROVAL | 17 |
-| NOT STARTED (BACKLOG) | 153 |
+| NOT STARTED (BACKLOG) | 150 |
 | **Total** | **213** |
 
 | ID | Sev. | Cod / infrastructură afectată | Stare | Cauza rădăcină | Reparare | Commit | Test de regresie | Verificare |
@@ -512,7 +529,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `SEC-15` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-16` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-17` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
-| `SEC-18` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `SEC-18` | Low | api/src/lib/mailer.ts | FIXED & VERIFIED | Mesajele scrise pe disc erau lizibile de oricine (0644) si se acumulau fara nicio limita, pentru ca transportul de fisiere nu avea o retentie | Directorul de e-mail este 0700, fiecare fisier este scris cu 0600, iar transportul are o retentie: cel mult 500 de fisiere si cel mult 72 de ore, cu MAIL_FILE_MAX_FILES si MAIL_FILE_MAX_AGE_HOURS. Un fisier al unui mesaj care asteapta in coada nu este eliminat niciodata, iar un fisier eliminat este marcat in tabelul livrarilor ca nementinut | 97479ee (in main prin c861ea6) | api/tests/mail-file-transport.test.ts | 8 teste: fisierele sunt doar pentru contul serviciului, numarul lor este limitat, cele vechi sunt eliminate, un mesaj in asteptare nu este eliminat, iar tabelul livrarilor spune ce a facut transportul |
 | `SEC-19` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-20` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-21` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
@@ -580,12 +597,12 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `DOC-12` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DOC-13` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `INF-01` | Critical | VM 101, / (RAID 0) | REQUIRES OPERATOR APPROVAL | RAID 0 pe volumul de root: pierderea unui disc pierde totul | Nu s-a atins: brieful interzice schimbarea RAID fara o procedura aprobata si un plan de rollback testat | — | — | Nu s-a rulat nimic: schimbarea necesita downtime si backup (B-09) si aprobare |
-| `INF-02` | Critical | scripts/backup.sh, scripts/backup-offsite.sh | BLOCKED: EXTERNAL DEPENDENCY | Nu exista o copie a datelor in afara hostului | Timerul ruleaza si arhiva se verifica, dar OFFSITE_TARGET si OFFSITE_KEY nu sunt setate, deci copia nu paraseste gazda. Decizia (provider, volum, cost, cheie de criptare) este a operatorului | - | scripts/backup-offsite.sh | Executat postup: backupul s-a creat, ExecStartPost a iesit 0, si nu exista nicio copie in afara gazdei. RPO la pierderea gazdei: infinit |
+| `INF-02` | Critical | scripts/backup.sh, scripts/backup-offsite.sh, scripts/backup-common.sh, scripts/backup-alert.sh, scripts/systemd/blipmade-backup.service | BLOCKED: EXTERNAL DEPENDENCY | Nu exista o copie a datelor in afara hostului | Lantul de backup nu mai poate declara succes cand nu paraseste hostul: fara tinta, rularea esueaza cu codul 3 si numele setarilor de care are nevoie. Upload-urile clientilor sunt in ambele arhive, baza este dumpata o singura data, iar unitatea apeleaza o alarma la esec. Destinatia, cheia de criptare si decizia raman ale operatorului | 5dbfa94 (in main) | scripts/restore-drill.sh, rulat pe gazda | Arhiva contine database.dump, config.tar.gz si uploads.tar.gz; drillul compara 33 de tabele, 4 utilizatori, 5 produse si 14 migratii si verifica ca upload-urile si configuratia sunt in arhiva si se pot citi |
 | `INF-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `INF-04` | High | VM 102, VM 103, firewall | REQUIRES OPERATOR APPROVAL | Porturile de administrare (8006, 111) sunt ascultate public | Nu s-a atins: brieful interzice schimbarea regulilor de firewall care ar putea produce lockout fara procedura aprobata | — | — | Nu s-a rulat nimic pe infrastructura |
 | `INF-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `INF-06` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
-| `INF-07` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
+| `INF-07` | Medium | scripts/backup-offsite.sh | FIXED & VERIFIED | Scriptul folosea rclone, care nu este instalat pe gazda, deci nu ar fi rulat | Transportul se deduce din forma tintei si poate fi rclone, ssh sau un director montat; rclone este necesar doar pentru o tinta rclone. Scriptul ruleaza pe aceasta gazda si cere numele setarilor care lipsesc | 5dbfa94 (in main) | scripts/backup-offsite.sh rulat pe gazda | Fara tinta, scriptul se opreste cu codul 3 si numele setarilor de care are nevoie; cu --allow-no-target se opreste cu codul 0 |
 | `INF-08` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `NET-01` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `NET-02` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
@@ -596,7 +613,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `CAP-03` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `CAP-04` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-01` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
-| `DR-02` | P0 | scripts/systemd/blipmade-backup.{service,timer}, scripts/install-backup-timer.sh, scripts/restore-drill.sh | FIXED & VERIFIED | Timerul exista in repository de doua runde, dar nu era instalat pe gazda: programarea nu rula | Timerul si unitatea au fost instalate in /etc/systemd/system, activate cu systemctl enable, si o rulare a produs arhiva cu checksum. Drill-ul de restaurare a fost rulat: copia se restaureaza intr-o baza de gol si se compara cu cea vie | 9e92df7 (scriptul), instalare pe gazda 2026-10-24 | scripts/restore-drill.sh | Rulare: arhiva blipmade-scheduled-20261024T001409Z.tar.gz (59620 B) + .sha256; drill: 32 tabele identice, 3 utilizatori, 5 produse, 11 migrari, RTO 3 s. NOTA: copia nu paraseste inca gazda - vezi INF-02 |
+| `DR-02` | P0 | scripts/systemd/blipmade-backup.{service,timer}, scripts/install-backup-timer.sh, scripts/restore-drill.sh, scripts/backup-common.sh | FIXED & VERIFIED | Timerul exista in repository de doua runde, dar nu era instalat pe gazda: programarea nu rula | Timerul si unitatea au fost instalate in /etc/systemd/system, activate cu systemctl enable, si o rulare a produs arhiva cu checksum. Drillul verifica acum intreaga arhiva, nu doar baza: si upload-urile si configuratia trebuie sa fie in ea si sa se poata citi | 5dbfa94 (in main, pentru drill si lantul de backup) | scripts/restore-drill.sh, rulat pe gazda | Drillul a trecut: 33 de tabele, 4 utilizatori, 5 produse si 14 migratii identice, uploads.tar.gz si config.tar.gz prezente si citibile, baza temporara eliminata la final |
 | `DR-03` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-04` | P0 | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `DR-05` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
@@ -689,7 +706,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `BE-17` | Low | api/tests/setup.ts | FIXED & VERIFIED | Tabelul DeadLetterJob a fost adaugat dupa scrierea suitei, iar lista tabelelor golite la inceputul fiecarui fisier de test nu l-a inclus | Tabelul este in lista, deci fiecare fisier de test incepe de la baza goala | 14f7a5f | api/tests/perf-data-dead-letter.test.ts | Verificarea independenta a gasit 3 randuri in loc de 2, dintr-un test anterior. Cu repararea, lista e completa |
 | `BE-18` | Low | web/server.mjs | FIXED & VERIFIED | Comentariul a fost scris pentru forma veche a citirii lantului si nu a fost schimbat cand faza 14 a mutat citirea in dreapta | Comentariul spune acum ce face codul: lantul se citeste din dreapta, pentru ca ultima pozitie este proxyul cel mai apropiat | 14f7a5f | web/tests/client-address.test.mjs | Textul si codul spun acum acelasi lucru |
 | `BE-19` | Low | api/src/worker.ts | NOT STARTED (BACKLOG) | Nota de esec este scrisa fara a fi asteptata, iar scrierea de reusita poate ajunge inaintea ei | Nota de esec se asteapta inainte de a se intoarce din handler, sau se scrie intr-o tranzactie cu starea jobului | — | — | Fereastra e mica. Nu e o pierdere de bani, dar o reproducere poate pierde urma unei esecuri |
-| `BE-20` | Low | api/src/services/dead-letter.ts | NOT STARTED (BACKLOG) | Repunerea pe coada este refuzata pentru coada de e-mail, pentru ca mesajele nu se trimit la fel | Interfata de administrare trebuie sa spuna ca o livrare esuata nu se poate repune pe coada, si sa ofere o trimitere noua | — | — | Proba independenta: starea ramane pending dupa refuz |
+| `BE-20` | Low | api/src/services/dead-letter.ts | FIXED & VERIFIED | Repunerea pe coada era refuzata pentru coada de e-mail, pentru ca mesajele nu se trimit la fel | putBackOnQueue accepta acum si coada blipmade.email: mesajul este scos din jobul esuat si pus inapoi pe coada cu enqueueEmail; numarul de incercati se reseteaza la inceputul rularii, iar esecul ramane deschis, cu starea requeued | 97479ee (in main prin c861ea6) | api/tests/email-dead-letter-requeue.test.ts | 3 teste: mesajul ajunge inapoi pe coada, evidenta ramane consistenta, iar o esec repus nu se pierde |
 | `BE-21` | Medium | api/src/plugins/auth.ts | NOT STARTED (BACKLOG) | Limita se numara pe adresa, iar atacatorul si victima sunt pe aceeasi adresa in multe cazuri | Limita pe cont poate fi ridicata la o valoare mai mare, sau contorul poate fi tinut separat de contorul pe adresa | — | — | Preexistent: pe main limita numara toate cererile, deci era la fel sau mai rau. Ramura a imbunatatit situatia utilizatorilor legittimi, pentru ca o autentificare reusita reseteaza contorul |
 | `BE-22` | Low | api/src/services/stripe.ts | NOT STARTED (BACKLOG) | Ramura de actualizare schimba suma si starea, dar nu legatura cu contul si cu comanda | Legatura se actualizeaza si ea, sau se verifica ca intentul apartine aceleiasi comenzi inainte de a scrie | — | — | Nu e accesibil atacatorului: client_reference_id este derivat pe server, iar comanda vine din sesiune |
 | `BE-23` | Medium | api/src/routes/webhooks.ts | FIXED & VERIFIED | Verificarea sumei este sarita pentru o comanda moarta, iar rambursarea cerea suma comenzii, nu suma care a sosit | Se ramburseaza suma care a sosit, iar cand cele doua sume difera, diferenta se scrie in jurnal | 14f7a5f | api/tests/webhooks.test.ts | Probabilitatea e mica, pentru ca suma vine din checkout-ul construit pe server, dar rambursarea sumei care a sosit este corecta in orice caz |
