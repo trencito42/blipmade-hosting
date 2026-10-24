@@ -68,8 +68,8 @@
 | Migrare | Ce face | Risc |
 |---|---|---|
 | `20261025120000_dead_letter_jobs` | creează tabela `DeadLetterJob` | aditivă |
-| `20261025140000_list_page_indexes` | recrează patru indexuri existenți | `DROP INDEX` + `CREATE INDEX` pe indexuri existente; **verificați indexul după aplicare** |
-| `20261025160000_payment_customer_index` | renunță la constrangerea unică pe `Payment.stripeCustomerId` | `DROP INDEX` pe o constrangere; eliberează clienții existenți care plătesc de două ori |
+| `20261025140000_list_page_indexes` | creează șase indexuri compuse noi, pe liste care erau parcurse cu o scanare | aditivă; nu șterge nimic |
+| `20261025160000_payment_customer_index` | renunță la constrangerea unică pe `Payment.stripeCustomerId` | `DROP INDEX` pe o constrangere — **singurul `DROP` dintre cele trei**; eliberează clienții care plătesc de două ori |
 
 **Condiție de blocare:** migrarea `20261025160000` trebuie aplicată **înainte**
 de conectarea providerului de plăți. Fără ea, a doua plată a fiecărui client
@@ -77,7 +77,9 @@ eșuează, iar comanda rămâne `PAID` fără plată și fără serviciu.
 
 Toate cele trei sunt verificate de jobul CI `schema-drift`
 (`prisma migrate diff --exit-code` → `No difference detected`) și au fost
-aplicate într-o bază de test de la zero.
+aplicate într-o bază de test de la zero și într-una populată: în cea populată
+toate datele au rămas, cele șase indexuri noi au fost create, iar a doua plată
+a aceluiași client a fost acceptată.
 
 ## 3. Ce trebuie schimbat în configurație
 
@@ -118,7 +120,7 @@ de unică folosință și o adresă de loopback pe care nu ascultă nimeni.
    psql "$DATABASE_URL" -c "DROP INDEX IF EXISTS \"Payment_stripeCustomerId_idx\";"
    psql "$DATABASE_URL" -c "CREATE UNIQUE INDEX \"Payment_stripeCustomerId_key\" ON \"Payment\"(\"stripeCustomerId\");"
    ```
-   Indexurile recreate de `20261025140000` se refac cu `scripts/` sau cu
+   Indexurile creați de `20261025140000` se refac cu `scripts/` sau cu
    `prisma migrate deploy` după ce codul vechi e înapoi.
 3. **Rapoartă codul**: `git revert` al comiturilor de după ultima versiune
    bună, sau punerea la loc a imaginii vechi a containerelor.

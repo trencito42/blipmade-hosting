@@ -451,7 +451,7 @@
   "fix": "Parola vine din mediu de la commitul 61111f6, iar arborele nu o mai contine. Restul istoricului nu poate fi curatat fara rescrierea istoricului, ceea ce inseamna force-push si cere autorizatia operatorului. Pana atunci, scanarea de secrete primeste o lista de exceptii cu valoarea exacta, documentata in .gitleaks.toml",
   "commit": "61111f6, .gitleaks.toml",
   "test": "gitleaks 8.30.1 pe intreaga istorie: 0 scurgeri cu lista de exceptii",
-  "verification": "Baza vie nu are niciun cont cu parola: 3 utilizatori, 0 potriviri la verificarea hash-ului. Valoarea a fost a unui cont de test, pe adresa locala, creat de un script de verificare"
+  "verification": "Baza vie nu are niciun cont cu parola: 4 utilizatori, 0 potriviri la verificarea hash-ului. Valoarea a fost a unui cont de test, pe adresa locala, creat de un script de verificare"
  },
  "SEC-31": {
   "status": "NOT STARTED (BACKLOG)",

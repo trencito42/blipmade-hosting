@@ -74,9 +74,9 @@ Contoarele de mai jos sunt **calculate din tabelele acestui document** (scriptul
 | Navigare și stări goale (`NAV-*`) | 2 | 0 | 0 | 0 | 2 | 0 |
 | **Total** | **65** | **3** | **2** | **15** | **32** | **13** |
 
-reparate:    44 din 65
-partiale:   9
-ramase:     12
+reparate:    51 din 65
+partiale:   5
+ramase:     9
 
 ---
 

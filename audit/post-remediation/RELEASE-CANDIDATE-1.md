@@ -53,7 +53,7 @@ făcute:
 | `e35e575`, `0f05ace` | Suita de teste lua coada workerului de producție: primea acum baza 1 de Redis, iar indicele e alegibil cu `TEST_REDIS_DB` | — |
 | `1e01fba` | O constatare reparată era invizibilă în registrul unic: intrarea `ADM-02` din fișierul de stare nu avea rând în registru și nu era randată niciodată. Randatorul se oprește acum cu o eroare când o intrare nu are rând | `audit/_tools/render-remediation-status.mjs` |
 | `6272785` | **CI** — fișierul workflow-ului era invalid: `runner.temp` în mediul unui job, unde contextul `runner` nu există. GitHub crea rularea, refuza să creeze joburile și o marca eșuată — **49 de rulări, niciun job** | `actionlint` raportează aceeași eroare ca GitHub pe fișierul de dinainte și nimic pe cel de după |
-| `264edf4` | **CI** — jobul de teste nu avea adresa panoului și tokenul intern, deci suita pica pe runner cu 10 erori, toate de mediu | rularea suitei într-o copie a arborelui, cu mediul jobului și nimic altceva: 465/465 |
+| `264edf4` | **CI** — jobul de teste nu avea adresa panoului și tokenul intern, deci suita pica pe runner cu 10 erori, toate de mediu | rularea suitei într-o copie a arborelui, cu mediul jobului și nimic altceva: 465/465 la acel commit |
 | `e53a3a9` | **CI** — jobul de teste nu instala dependențele web, iar runner-ul rulează și testele web: unul construiește o pagină cu React și Vite, deci fișierul nu găsea pachetul `react` și pasul cădea | fără ele: 93 verzi și unul roșu; cu ele: 109 verzi |
 | `667dbb2` | Scanarea de secrete raporta cinci valori, dintre care una e o parolă moartă dintr-un script eliminat. Lista de excepții e acum în `.gitleaks.toml`, cu fiecare valoare numită exact | `gitleaks` 8.24.3 pe întreaga istorie: 0 scurgeri |
 | `4fcf66f` | Advisory-ul `zod` acceptat temporar, ca celelalte douăsprezece, cu urmărirea în registru ca `SEC-31` | jobul CI `dependency-audit` e verde |
@@ -138,11 +138,11 @@ corpului cererii (`9734b9b`, `SEC-32`).
 20261025160000_payment_customer_index
 ```
 
-Prima creează tabela joburilor eșuate, a doua recrează patru indexuri
-existenți, a treia renunță la constrangerea unică pe `Payment.stripeCustomerId`.
-Toate sunt aditive; a doua și a treia fac `DROP INDEX`, deci indexurile trebuie
-verificate după aplicare. **A treia trebuie aplicată înainte de conectarea
-providerului de plăți.**
+Prima creează tabela joburilor eșuate. A doua creează **șase indexuri
+compuse noi**, pe liste care erau parcurse cu o scanare; nu șterge nimic. A
+treia renunță la constrangerea unică pe `Payment.stripeCustomerId` — **singura
+care face `DROP INDEX`**, pe o constrangere, nu pe un index. **A treia trebuie
+aplicată înainte de conectarea providerului de plăți.**
 
 ## 8. Documentele
 
