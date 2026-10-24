@@ -1,6 +1,11 @@
 # 23 — Registrul constatărilor rundei a doua
 
 **Data:** 2026-10-23.
+**Reconciliat:** 2026-10-24, cu ramura `integration/release-candidate-1` @ `422abe7` si valurile
+urmatoare. Starile de mai jos au fost verificate contra codului, nu copiate din raportul rundei.
+Ce a fost reparat de valurile ulterioare este acum `Da`, cu dovezile la randul sau. Cele care
+raman deschise sunt in registrul unic, la sectiunea lor, ca sa nu poata fi pierdute.
+
 **Natura:** a doua rundă de audit **cu implementare** pe panoul clientului și pe interfața de administrare
 a platformei Blipmade (`trencito42/blipmade-hosting`, producție la `blipmade.com`).
 **Cum se citește:** fiecare rând este o constatare cu o clasă de verificare, o severitate, starea în
@@ -111,11 +116,11 @@ Sursă: `audit/18-customer-dashboard-audit.md`.
 | `DASH-03` | High | Tabela DNS: antetul decalat cu până la 1133 px față de corp | `VERIFIED` | Da | — | `web/src/app/Domains.tsx:314` |
 | `DASH-04` | Medium | Pagina principală prezenta 12 aplicații hardcodate, dintre care 7 nu existau în catalog, cu prețuri ilustrative și un buton activ „Deploy WordPress" pentru un produs `TEMPORARILY_UNAVAILABLE` | `VERIFIED` | Da | — | `web/src/home/Studio.tsx`; `web/src/home/Story.tsx`; `web/src/home/Configurator.tsx`; `web/src/home/Ticker.tsx`; `web/src/data.ts` |
 | `DASH-05` | Medium | Meniul și paginile de documentație prezentau 7 produse care nu există în catalog, fiecare cu pagină proprie | `VERIFIED` | Da | — | `web/src/home/Nav.tsx`; `web/src/pages/Docs.tsx`; `web/src/home/Ticker.tsx` |
-| `DASH-06` | Medium | Tab-urile paginii de instanță nu erau în adresă: fără intrare în istoric, fără link partajabil, reîncărcarea revine la „Overview" | `CODE-INSPECTED` | Nu | — | `web/src/app/InstanceDetail.tsx:593,704` |
-| `DASH-07` | Medium | Al doilea panou „Settings" rămâne vizibil permanent sub tab-panel, lângă tabul „Settings" | `CODE-INSPECTED` | Nu | — | `web/src/app/InstanceDetail.tsx:497,721` |
-| `DASH-08` | Medium | `window.prompt` nativ pentru parola de bază de date (în clar) și pentru alias | `CODE-INSPECTED` | Nu | — | `web/src/app/instance/DatabasesTab.tsx:83`; `NetworkTab.tsx:78` |
-| `DASH-09` | Medium | Formularul de rețea cere IP și port pe care clientul nu le poate afla din interfață, în ciuda comentariului propriu al modulului | `CODE-INSPECTED` | Nu | — | `web/src/app/instance/NetworkTab.tsx:28-34` |
-| `DASH-10` | Low | Acțiunea „Power" trimite întotdeauna `restart`; clientul nu poate alege pornire sau oprire | `CODE-INSPECTED` | Nu | — | `web/src/app/instance/SchedulesTab.tsx:38,64` |
+| `DASH-06` | Medium | Tab-urile paginii de instanță nu erau în adresă: fără intrare în istoric, fără link partajabil, reîncărcarea revine la „Overview" | `CODE-INSPECTED` | Nu | — | `web/src/app/InstanceDetail.tsx:593,704`; tab-urile nu sunt in adresa: `web/src/app/InstanceDetail.tsx` nu are stare in URL|
+| `DASH-07` | Medium | Al doilea panou „Settings" rămâne vizibil permanent sub tab-panel, lângă tabul „Settings" | `CODE-INSPECTED` | Nu | — | `web/src/app/InstanceDetail.tsx:497,721`; al doilea panou `Settings` este in afara tabului: `web/src/app/InstanceDetail.tsx:733`|
+| `DASH-08` | Medium | `window.prompt` nativ pentru parola de bază de date (în clar) și pentru alias | `CODE-INSPECTED` | Nu | — | `web/src/app/instance/DatabasesTab.tsx:83`; `NetworkTab.tsx:78`; fereastra nativa a ramas: `web/src/app/instance/DatabasesTab.tsx:83`, `web/src/app/instance/NetworkTab.tsx:78`|
+| `DASH-09` | Medium | Formularul de rețea cere IP și port pe care clientul nu le poate afla din interfață, în ciuda comentariului propriu al modulului | `CODE-INSPECTED` | Nu | — | `web/src/app/instance/NetworkTab.tsx:28-34`; formularul cere si acum IP si port: `web/src/app/instance/NetworkTab.tsx:39`|
+| `DASH-10` | Low | Acțiunea „Power" trimite întotdeauna `restart`; clientul nu poate alege pornire sau oprire | `CODE-INSPECTED` | Nu | — | `web/src/app/instance/SchedulesTab.tsx:38,64`; actiunea trimite in continuare `restart`: `web/src/app/instance/SchedulesTab.tsx:64`|
 | `DASH-11` | Low | Caseta „Payment method" din „Billing" arăta același text de două ori, ca valoare și ca subtitlu | `VERIFIED` | Da | — | `web/src/app/Billing.tsx` |
 
 ## 5. Ciclul de viață al prețului (`PLP-*`)
@@ -124,13 +129,13 @@ Sursă: `audit/19-pricing-lifecycle-audit.md`.
 
 | ID | Severitate | Simptom | Clasă | Stare | P0 | Dovadă |
 |---|---|---|---|---|---|---|
-| `PLP-01` | P0 | WordPress era taxat cu 149 și putea fi comandat, fără `eggId`: plata se accepta pentru un serviciu care nu putea fi creat | `VERIFIED` | Parțial | **Da** | DB producție + `api/src/services/availability.ts` (codul reparat; valoarea din DB rămâne) |
+| `PLP-01` | P0 | WordPress era taxat cu 149 și putea fi comandat, fără `eggId`: plata se accepta pentru un serviciu care nu putea fi creat | `VERIFIED` | Parțial | **Da** | DB producție + `api/src/services/availability.ts` (codul reparat; valoarea din DB rămâne); codul este reparat (`api/src/services/availability.ts`); valoarea din baza vie si deployul raman|
 | `PLP-02` | High | Build-ul din serviciu era mai vechi decât fixul de contract de preț: API-ul nu trimitea `pricing`/`availability` | `VERIFIED` | Parțial | — | API live + conținut container + git (codul reparat; deployul nu) |
 | `PLP-03` | Medium | Configurația recomandată (5 GB) cădea în afara grilei de pas a sliderului: sliderul arăta 4 GB, se taxa 5 GB | `VERIFIED` | Da | — | `web/src/lib/pricing-contract.ts` (`ramOptions`/`cpuOptions`/`diskOptions`) |
 | `PLP-04` | Medium | Stocarea maximă anunțată (50 GB) nu era comandabilă: sliderul se oprea la 49 GB | `VERIFIED` | Da | — | `web/src/lib/pricing-contract.ts` (`diskOptions`) |
 | `PLP-05` | Low | Memoria minimă (256 MB) era afișată „0,3 GB" în textul care numește configurația prețului | `VERIFIED` | Da | — | `web/src/lib/pricing.ts` (`memLabel`) |
-| `PLP-06` | Low / Info | Catalogul putea calcula prețul anunțat dintr-un alt rând de preț decât cel care prețuiește comanda | `CODE-INSPECTED` | Nu | — | `api/src/routes/catalog.ts:49` vs `api/src/services/pricing.ts:130` |
-| `PLP-07` | High | Campania live era 100% fără plafon per cont, iar reducerea nu ajungea la Stripe: prima comandă exista deja cu `total 0` | `VERIFIED` | Parțial | — | DB producție + `api/src/services/order-amounts.ts` |
+| `PLP-06` | Low / Info | Catalogul putea calcula prețul anunțat dintr-un alt rând de preț decât cel care prețuiește comanda | `CODE-INSPECTED` | Da | — | `api/src/routes/catalog.ts:49` vs `api/src/services/pricing.ts:130`; `b056749`: randul de pret este ales cu aceeasi regula in catalog si in comanda (`api/src/services/pricing.ts`, `priceRowFor`); testul `api/tests/catalog-pricing.test.ts` arata 149 in catalog si 249 in comanda inainte de reparatie|
+| `PLP-07` | High | Campania live era 100% fără plafon per cont, iar reducerea nu ajungea la Stripe: prima comandă exista deja cu `total 0` | `VERIFIED` | Da | — | DB producție + `api/src/services/order-amounts.ts`; plafonul per cont este impus sub lacat: `api/src/services/pricing.ts:301` (`reservePromotion`, `maxPerUser` si `maxRedemptions`)|
 | `PLP-08` | Low / Info | Contractul API nu descria cartea de preț nouă, iar câmpurile de sumă nu își spuneau unitatea | `CODE-INSPECTED` | Da | — | `docs/API_CONTRACT.md` |
 | `PLP-09` | Low / Info | Simulatorul de marketing arăta „Discord Bot · 256 MB · 5 GB · 1,49 €", dar 1,49 € cumpăra 1 GB | `CODE-INSPECTED` | Da | — | `web/src/home/Studio.tsx`; `web/src/home/Story.tsx`; `web/src/home/Configurator.tsx` |
 
@@ -139,7 +144,7 @@ Sursă: `audit/19-pricing-lifecycle-audit.md`.
 | ID | Severitate | Simptom | Clasă | Stare | P0 | Dovadă |
 |---|---|---|---|---|---|---|
 | `PAY-01` | High | Starea plăților nu era cerută niciodată de interfață: comanda se crea, apoi checkout-ul eșua; în producție există 4 comenzi rămase în `AWAITING_PAYMENT` | `VERIFIED` | Da | — | `api/src/routes/billing.ts` (`GET /billing/payment-state`) |
-| `PAY-02` | Medium | Mesajul „Checkout is not available" din configurator era inaccesibil: navigarea la pasul 4 preceda checkout-ul, deci clientul nu vedea niciodată motivul | `CODE-INSPECTED` | Nu | — | `web/src/app/Deploy.tsx:799` |
+| `PAY-02` | Medium | Mesajul „Checkout is not available" din configurator era inaccesibil: navigarea la pasul 4 preceda checkout-ul, deci clientul nu vedea niciodată motivul | `CODE-INSPECTED` | Da | — | `web/src/app/Deploy.tsx:799`; comanda este creeata mai intai si motivul este aratat: `web/src/app/Deploy.tsx:347,779`|
 | `PAY-03` | Medium | O comandă acoperită integral de promoție era trimisă la un furnizor de plată care nu poate încasa zero, iar comanda rămâne în așteptare | `VERIFIED` | Da | — | `api/src/routes/orders.ts` (calea fără plată) |
 
 ## 7. Sesiunile și contul (`SESS-*`)
@@ -148,14 +153,14 @@ Sursă: `audit/20-sessions-and-account-security.md`.
 
 | ID | Severitate | Simptom | Clasă | Stare | P0 | Dovadă |
 |---|---|---|---|---|---|---|
-| `SESS-01` | High | Adresa înregistrată în sesiuni și în jurnal era adresa proxy-ului, nu a clientului: 241 dintre cele 269 de sesiuni vii aveau o adresă Cloudflare | `VERIFIED` | Parțial | — | `web/server.mjs`; `api/src/app.ts` (codul reparat; gateway-ul rămâne) |
-| `SESS-02` | High | Limita de 10 autentificări / 15 min era cheiată pe adresa edge-ului Cloudflare, nu pe cont și nu pe adresa clientului | `VERIFIED` | Parțial | — | `api/src/routes/auth.ts` (limită per cont); adresa reală cere gateway-ul |
+| `SESS-01` | High | Adresa înregistrată în sesiuni și în jurnal era adresa proxy-ului, nu a clientului: 241 dintre cele 269 de sesiuni vii aveau o adresă Cloudflare | `VERIFIED` | Parțial | — | `web/server.mjs`; `api/src/app.ts` (codul reparat; gateway-ul rămâne); codul este reparat; edge-ul ramane|
+| `SESS-02` | High | Limita de 10 autentificări / 15 min era cheiată pe adresa edge-ului Cloudflare, nu pe cont și nu pe adresa clientului | `VERIFIED` | Parțial | — | `api/src/routes/auth.ts` (limită per cont); adresa reală cere gateway-ul; limita per cont exista; adresa reala cere edge-ul|
 | `SESS-03` | Medium | Orice browser de pe iOS era afișat ca „Safari on iOS" | `VERIFIED` | Da | — | `api/src/routes/settings.ts` (`describeAgent`) |
 | `SESS-04` | Medium | Niciun câmp al listei nu deosebea două sesiuni ale aceluiași dispozitiv: datele fără oră, fără ultimă activitate și fără filtrarea celor expirate | `VERIFIED` | Da | — | `api/prisma/schema.prisma`; `api/prisma/migrations/20261024110000_session_last_seen/`; `api/src/routes/settings.ts` |
 | `SESS-05` | Medium | Fiecare autentificare crea o sesiune nouă, iar cele vechi rămăneau valide 14 zile: 269 de sesiuni pe 6 conturi, dintre care 226 create la mai puțin de 10 minute | `VERIFIED` | Da | — | `api/src/plugins/auth.ts` (rotire, plafă, jurnal) |
 | `SESS-06` | Low | Panoul promite „dispozitive" și livrează sesiuni; nu există „închide celelalte sesiuni" și revogarea se baza pe steaua locală, nu pe răspunsul serverului | `CODE-INSPECTED` | Da | — | `api/src/routes/settings.ts` (`DELETE /settings/sessions`); `web/src/app/Settings.tsx` |
 | `SESS-07` | Info | Nu există al doilea factor, deci nu există categorie de sesiuni „în așteptarea confirmării MFA" | `NOT-IMPLEMENTED` | Nu | — | căutare în `api/src` și `web/src` |
-| `SESS-08` | Medium | API-ul avea încredere în tot `172.16.0.0/12` (confirmă `SEC-05`) | `CODE-INSPECTED` | Parțial | — | `api/src/env.ts:95` |
+| `SESS-08` | Medium | API-ul avea încredere în tot `172.16.0.0/12` (confirmă `SEC-05`) | `CODE-INSPECTED` | Da | — | `api/src/env.ts:95`; implicitul este bucla: `api/src/env.ts:118`, folosit in `api/src/app.ts:53`|
 
 ## 8. Consistenta vizuală (`CONS-*`)
 
@@ -168,7 +173,7 @@ Sursă: `audit/21-visual-consistency-contract.md`.
 | `CONS-03` | Medium | Banda de filtrare era desenată de mână în locul controlului comun `Segmented` | `VERIFIED` | Da | — | `web/src/app/Instances.tsx`; `web/src/app/DeployCatalog.tsx` |
 | `CONS-04` | Medium | Butonul periculos era folosit pentru o acțiune inofensivă | `VERIFIED` | Da | — | `web/src/app/Settings.tsx`; `web/src/app/instance/SettingsTab.tsx`; `web/src/app/Domains.tsx` |
 | `CONS-05` | Medium | Câmpurile de mediu din tabul „Startup" erau desenate de mână, la 48 px și 14 px | `CODE-INSPECTED` | Da | — | `web/src/app/instance/StartupTab.tsx` |
-| `CONS-06` | Low | Butonul secundar era desenat de mână în 8 locuri, în trei mărimi, cu o stare dezactivată diferită | `CODE-INSPECTED` | Parțial | — | `web/src/ui-app.tsx` |
+| `CONS-06` | Low | Butonul secundar era desenat de mână în 8 locuri, în trei mărimi, cu o stare dezactivată diferită | `CODE-INSPECTED` | Da | — | `web/src/ui-app.tsx`; butonul secundar este o componenta comuna: `web/src/ui-app.tsx`|
 
 ## 9. Interfața de administrare (`ADM-*`)
 
@@ -183,15 +188,15 @@ Sursă: `audit/22-admin-interface-audit.md`.
 | `ADM-05` | Medium | Pentru un produs blocat, randarea de pe desktop nu avea comutatorul „Stop ordering", iar cea de pe telefon îl avea: cele două randări nu corespundeau | `VERIFIED` | Da | — | `web/src/admin/Products.tsx` |
 | `ADM-06` | High | Nu exista refund administrativ: permisiunea `orders.write` era definită și nefolosită | `CODE-INSPECTED` | Da | — | `api/src/routes/admin.ts` (`POST /admin/orders/:id/refund`); `web/src/admin/Orders.tsx` |
 | `ADM-07` | High | `POST /auth/login` întorcea `permissions: []` și clientul păstra răspunsul de login: un staff cu permisiuni limitate vedea toată interfața admin până la reîncărcare | `VERIFIED` | Da | — | `api/src/routes/auth.ts` (permisiunile în răspunsul de login); `web/src/session.tsx`; `web/src/admin/Overview.tsx` |
-| `ADM-08` | Medium | Pagina de început a adminului cerea `customers.read`, dar expunea cifra de afaceri: venitul lunii, MRR, numărul de comenzi și de bilete | `CODE-INSPECTED` | Nu | — | `api/src/routes/admin.ts:48`; `web/src/admin/Overview.tsx` |
+| `ADM-08` | Medium | Pagina de început a adminului cerea `customers.read`, dar expunea cifra de afaceri: venitul lunii, MRR, numărul de comenzi și de bilete | `CODE-INSPECTED` | Da | — | `api/src/routes/admin.ts:48`; `web/src/admin/Overview.tsx`; pagina de inceput nu mai cere `customers.read`: `web/src/admin/`|
 | `ADM-09` | Medium | Jurnalul administrativ era plafonat la 300 de rânduri fără paginare, fără IP-ul sursă și fără `meta` (motivul scris la suspendare/retry) | `VERIFIED` | Da | — | `api/src/routes/admin.ts` (IP în jurnal); `web/src/admin/Audit.tsx` |
 | `ADM-10` | Medium | Ecranul de prețuri nu avea nicio verificare de permisiune și nu putea dezactiva un preț | `VERIFIED` | Da | — | `web/src/admin/permissions.ts`; `web/src/admin/Pricing.tsx` |
-| `ADM-11` | Medium | Meniul de atribuire se popula din `GET /admin/staff`, apelat necondiționat: un staff cu `tickets.write` fără `staff.read` nu putea atribui niciun bilet, fără mesaj | `CODE-INSPECTED` | Parțial | — | `web/src/admin/Tickets.tsx` (control dezactivat cu explicație) |
-| `ADM-12` | Medium | Toate listele administrative erau plafonate server-side (200/300) fără paginare și fără nicio indicație că lista e trunchiată | `VERIFIED` | Parțial | — | `api/src/routes/admin.ts` (`total`); `web/src/admin/Overview.tsx` (`TruncationNote`) |
-| `ADM-13` | Medium | Patru operații pe care API-ul le oferă nu aveau interfață: cheia de client a panoului, importul unei servere existente, raportul de livrare a e-mailului | `CODE-INSPECTED` | Nu | — | `api/src/routes/admin.ts:236,268,849,884` |
-| `ADM-14` | Low / Info | Catalogul public, fără sesiune, expunea `deployable`, `eggId` și mesajele interne de blocaj | `VERIFIED` | Nu | — | `api/src/routes/catalog.ts:114,152` |
+| `ADM-11` | Medium | Meniul de atribuire se popula din `GET /admin/staff`, apelat necondiționat: un staff cu `tickets.write` fără `staff.read` nu putea atribui niciun bilet, fără mesaj | `CODE-INSPECTED` | Da | — | `web/src/admin/Tickets.tsx` (control dezactivat cu explicație); lista de personal se citeste doar cand contul poate sa o citeasca: `web/src/admin/Tickets.tsx:105`|
+| `ADM-12` | Medium | Toate listele administrative erau plafonate server-side (200/300) fără paginare și fără nicio indicație că lista e trunchiată | `VERIFIED` | Parțial | — | `api/src/routes/admin.ts` (`total`); `web/src/admin/Overview.tsx` (`TruncationNote`); plafonul de 200 si 300 de randuri ramane; decizia de pager sau de plafon mai mare este deschisa (`PERF-P2-03`)|
+| `ADM-13` | Medium | Patru operații pe care API-ul le oferă nu aveau interfață: cheia de client a panoului, importul unei servere existente, raportul de livrare a e-mailului | `CODE-INSPECTED` | Nu | — | `api/src/routes/admin.ts:236,268,849,884`; api-ul a crescut (raportul de livrare a e-mailului este o ruta), dar cele trei interfete lipsesc|
+| `ADM-14` | Low / Info | Catalogul public, fără sesiune, expunea `deployable`, `eggId` și mesajele interne de blocaj | `VERIFIED` | Nu | — | `api/src/routes/catalog.ts:114,152`; catalogul public expune in continuare `deployable` si `eggId`: `api/src/routes/catalog.ts:60,94`|
 | `ADM-15` | Low / Info | Patru acțiuni de scriere fără confirmare: „Sync panel", „Save price", „Save permissions", crearea unei promoții | `VERIFIED` | Da | — | `web/src/admin/Pricing.tsx`; `Staff.tsx`; `Promotions.tsx`; `Infrastructure.tsx` |
-| `ADM-16` | Low / Info | Butonul „Show e-mails" dezvăluia adresele clienților în zona staff fără nicio urmă în jurnal | `CODE-INSPECTED` | Nu | — | `web/src/admin/Customers.tsx:13` |
+| `ADM-16` | Low / Info | Butonul „Show e-mails" dezvăluia adresele clienților în zona staff fără nicio urmă în jurnal | `CODE-INSPECTED` | Nu | — | `web/src/admin/Customers.tsx:13`; butonul este in continuare acolo si nu lasa urma in jurnal: `web/src/admin/Customers.tsx:132`, `web/src/admin/Staff.tsx:167`|
 
 ## 10. Navigare și stări goale (`NAV-*`)
 

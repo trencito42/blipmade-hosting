@@ -42,6 +42,7 @@ Identificatorii constatărilor **nu sunt global unice** între rapoarte. Două p
 | `PR-01`–`PR-45` | `00-documentation-drift.md` (afirmații verificate) | `DOC-C01`–`DOC-C45` (citate, nu relistate integral) |
 | `SEC-01`–`SEC-29` | `02-security-audit.md` | `SEC-01`–`SEC-29` (identice) |
 | `B1`–`B12` | `05-commerce-and-billing.md` | `COMM-01`–`COMM-12` |
+| `DASH-*`, `PLP-*`, `SESS-*`, `ADM-*` | `23-ROUND2-FINDINGS-REGISTER.md` | aceleași nume, în `7h` — doar cele care sunt încă deschise |
 | `ADM-02` | `22-admin-interface-audit.md` și `23-ROUND2-FINDINGS-REGISTER.md` (al doilea strat al escaladării de privilegii, văzută și ca `ADM-P1-01` în verificarea lead-ului) | `SEC-04` |
 
 Constatările din rapoartele `03-*` nu au ID-uri numerotate în sursă; aici primesc prefixe noi: `INF-*` (infrastructură), `NET-*` (rețea și IP), `CAP-*` (capacitate), `DR-*` (recuperare la dezastre).
@@ -417,6 +418,32 @@ Sursă: `01-backend-audit.md` (1318 de linii, 15 constatări). **Nicio constatar
 
 ---
 
+## 7h. Constatările deschise din runda a doua de audit — `DASH-*`, `PLP-*`, `SESS-*`, `ADM-*`
+
+A doua rundă de audit are registrul ei, `23-ROUND2-FINDINGS-REGISTER.md`, cu starea proprie
+a fiecărei constatări. Constatările care sunt încă deschise sunt aici și ele, ca să nu poată
+fi pierdute în afara registrului unic. Cele reparate au rămas în registrul rundei, cu
+doveza, și nu mai sunt listate aici.
+
+| ID | Sev. | Clasă | Componentă | Constatare | P0 | Evidență |
+|---|---|---|---|---|---|---|
+| DASH-06 | Medium | `CODE-INSPECTED` | `web/src/app/InstanceDetail.tsx` | **Tab-urile paginii de instanță nu sunt în adresa**: fără intrare în istoric, fără link partajabil, reîncărcarea revine la „Overview" | Nu | `web/src/app/InstanceDetail.tsx` |
+| DASH-07 | Medium | `CODE-INSPECTED` | `web/src/app/InstanceDetail.tsx:733` | **Al doilea panou „Settings" rămâne vizibil permanent sub tab-panel**, lângă tabul „Settings" | Nu | `web/src/app/InstanceDetail.tsx:733` |
+| DASH-08 | Medium | `CODE-INSPECTED` | `web/src/app/instance/DatabasesTab.tsx:83` | **`window.prompt` nativ pentru parola de bază de date (în clar) și pentru alias** | Nu | `web/src/app/instance/DatabasesTab.tsx:83`; `web/src/app/instance/NetworkTab.tsx:78` |
+| DASH-09 | Medium | `CODE-INSPECTED` | `web/src/app/instance/NetworkTab.tsx:39` | **Formularul de rețea cere IP și port pe care clientul nu le poate afla din interfață** | Nu | `web/src/app/instance/NetworkTab.tsx:39` |
+| DASH-10 | Low | `CODE-INSPECTED` | `web/src/app/instance/SchedulesTab.tsx:64` | **Acțiunea „Power" trimite întotdeauna `restart`**: clientul nu poate alege pornire sau oprire | Nu | `web/src/app/instance/SchedulesTab.tsx:64` |
+| PLP-01 | P0 | `VERIFIED` | `api/src/services/availability.ts` | **Codul reparat, valoarea din baza vie rămâne**: WordPress era taxat cu 149 și putea fi comandat fără `eggId`, deci plata se accepta pentru un serviciu care nu putea fi creat | Da (deploy) | `api/src/services/availability.ts`; baza vie |
+| PLP-02 | High | `VERIFIED` | `api/src/routes/catalog.ts` | **Build-ul din serviciu era mai vechi decât fixul de contract de preț**: API-ul nu trimitea `pricing` și `availability`, deci clientul vedea un număr și comanda alta | Da (deploy) | `api/src/routes/catalog.ts` |
+| SESS-01 | High | `VERIFIED` | `web/server.mjs`, `api/src/app.ts` | **Adresa înregistrată în sesiuni și în jurnal era adresa proxy-ului, nu a clientului**: 241 dintre cele 269 de sesiuni vii aveau o adresă Cloudflare | Nu (edge) | `web/server.mjs`; `api/src/app.ts` |
+| SESS-02 | High | `VERIFIED` | `api/src/routes/auth.ts` | **Limita de autentificare era cheiată pe adresa edge-ului Cloudflare**, nu pe cont și nu pe adresa clientului | Nu (edge) | `api/src/routes/auth.ts` |
+| ADM-12 | Medium | `VERIFIED` | `api/src/routes/admin.ts` | **Listele administrative sunt plafonate server-side la 200 și 300 de rânduri, fără pager**: clientul nu poate ajunge la rândurile vechi | Nu (decizie de produs) | `api/src/routes/admin.ts`; `PERF-P2-03` |
+| SESS-07 | Info | `NOT-IMPLEMENTED` | `api/src`, `web/src` | **Nu există al doilea factor**, deci nu există categorie de sesiuni „în așteptarea confirmării MFA" | Nu | căutare în `api/src` și `web/src` |
+| ADM-13 | Medium | `CODE-INSPECTED` | `api/src/routes/admin.ts` | **Patru operații pe care API-ul le oferă nu au interfață**: cheia de client a panoului, importul unei servere existente, raportul de livrare a e-mailului | Nu | `api/src/routes/admin.ts` |
+| ADM-14 | Low | `VERIFIED` | `api/src/routes/catalog.ts:60` | **Catalogul public, fără sesiune, expune `deployable`, `eggId` și mesajele interne de blocaj** | Nu | `api/src/routes/catalog.ts:60,94` |
+| ADM-16 | Low | `CODE-INSPECTED` | `web/src/admin/Customers.tsx:132` | **Butonul „Show e-mails" dezvăluie adresele clienților în zona staff fără nicio urmă în jurnal** | Nu | `web/src/admin/Customers.tsx:132`; `web/src/admin/Staff.tsx:167` |
+
+---
+
 ## 8. Porți de lansare — cele 13 porți
 
 Sursă: `07-release-gates.md`. Fiecare poartă e o întrebare de release, cu verdict și condiții de promovare.
@@ -461,9 +488,9 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | FIXED & VERIFIED | 39 |
 | IMPLEMENTED, NOT VERIFIED | 1 |
 | BLOCKED: EXTERNAL DEPENDENCY | 3 |
-| REQUIRES OPERATOR APPROVAL | 11 |
-| NOT STARTED (BACKLOG) | 144 |
-| **Total** | **198** |
+| REQUIRES OPERATOR APPROVAL | 16 |
+| NOT STARTED (BACKLOG) | 153 |
+| **Total** | **212** |
 
 | ID | Sev. | Cod / infrastructură afectată | Stare | Cauza rădăcină | Reparare | Commit | Test de regresie | Verificare |
 |---|---|---|---|---|---|---|---|---|
@@ -665,5 +692,19 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `BE-21` | Medium | api/src/plugins/auth.ts | NOT STARTED (BACKLOG) | Limita se numara pe adresa, iar atacatorul si victima sunt pe aceeasi adresa in multe cazuri | Limita pe cont poate fi ridicata la o valoare mai mare, sau contorul poate fi tinut separat de contorul pe adresa | — | — | Preexistent: pe main limita numara toate cererile, deci era la fel sau mai rau. Ramura a imbunatatit situatia utilizatorilor legittimi, pentru ca o autentificare reusita reseteaza contorul |
 | `BE-22` | Low | api/src/services/stripe.ts | NOT STARTED (BACKLOG) | Ramura de actualizare schimba suma si starea, dar nu legatura cu contul si cu comanda | Legatura se actualizeaza si ea, sau se verifica ca intentul apartine aceleiasi comenzi inainte de a scrie | — | — | Nu e accesibil atacatorului: client_reference_id este derivat pe server, iar comanda vine din sesiune |
 | `BE-23` | Medium | api/src/routes/webhooks.ts | FIXED & VERIFIED | Verificarea sumei este sarita pentru o comanda moarta, iar rambursarea cerea suma comenzii, nu suma care a sosit | Se ramburseaza suma care a sosit, iar cand cele doua sume difera, diferenta se scrie in jurnal | 14f7a5f | api/tests/webhooks.test.ts | Probabilitatea e mica, pentru ca suma vine din checkout-ul construit pe server, dar rambursarea sumei care a sosit este corecta in orice caz |
+| `DASH-06` | Medium | web/src/app/InstanceDetail.tsx | NOT STARTED (BACKLOG) | Tab-urile paginii de instante nu sunt in adresa | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `DASH-07` | Medium | web/src/app/InstanceDetail.tsx | NOT STARTED (BACKLOG) | Al doilea panou Settings ramane vizibil permanent sub tab-panel | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `DASH-08` | Medium | web/src/app/instance/DatabasesTab.tsx | NOT STARTED (BACKLOG) | Fereastra nativa, cu parola in clar | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `DASH-09` | Medium | web/src/app/instance/NetworkTab.tsx | NOT STARTED (BACKLOG) | Formularul de retea cere IP si port | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `DASH-10` | Low | web/src/app/instance/SchedulesTab.tsx | NOT STARTED (BACKLOG) | Actiunea Power trimite intotdeauna restart | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `PLP-01` | P0 | api/src/services/availability.ts | REQUIRES OPERATOR APPROVAL | Codul reparat; valoarea din baza vie si deployul raman | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `PLP-02` | High | api/src/routes/catalog.ts | REQUIRES OPERATOR APPROVAL | Codul reparat; deployul ramane | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `SESS-01` | High | web/server.mjs | REQUIRES OPERATOR APPROVAL | Codul reparat; edge-ul ramane | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `SESS-02` | High | api/src/routes/auth.ts | REQUIRES OPERATOR APPROVAL | Limita per cont exista; adresa reala cere edge-ul | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `ADM-12` | Medium | api/src/routes/admin.ts | REQUIRES OPERATOR APPROVAL | Plafonul de 200 si 300 de randuri ramane; decizia de pager este deschisa | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `SESS-07` | Info | api/src, web/src | NOT STARTED (BACKLOG) | Al doilea factor nu exista; este o alegere de produs | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `ADM-13` | Medium | api/src/routes/admin.ts | NOT STARTED (BACKLOG) | Patru operatii ale api-ului nu au interfata | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `ADM-14` | Low | api/src/routes/catalog.ts | NOT STARTED (BACKLOG) | Catalogul public expune deployable si eggId | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `ADM-16` | Low | web/src/admin/Customers.tsx | NOT STARTED (BACKLOG) | Butonul dezvaluie adresele fara urma in jurnal | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
 
 <!-- REMEDIATION:END -->

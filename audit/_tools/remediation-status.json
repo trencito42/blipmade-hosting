@@ -537,5 +537,131 @@
  "ADM-02": {
   "aliasOf": "SEC-04",
   "note": "A doua stratra a constatarii SEC-04, vazuta de auditul de admin (22-admin-interface-audit.md) si de verificarea lead-ului (ADM-P1-01): escaladarea pe lista de permisiuni. Reparat in faza 13 (8d138bb, 1db05a9). Starea si dovezile stau la SEC-04, ca una singura constatare, nu de doua ori"
+ },
+ "DASH-06": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "web/src/app/InstanceDetail.tsx",
+  "rootCause": "Tab-urile paginii de instante nu sunt in adresa",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "DASH-07": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "web/src/app/InstanceDetail.tsx",
+  "rootCause": "Al doilea panou Settings ramane vizibil permanent sub tab-panel",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "DASH-08": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "web/src/app/instance/DatabasesTab.tsx",
+  "rootCause": "Fereastra nativa, cu parola in clar",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "DASH-09": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "web/src/app/instance/NetworkTab.tsx",
+  "rootCause": "Formularul de retea cere IP si port",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "DASH-10": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "web/src/app/instance/SchedulesTab.tsx",
+  "rootCause": "Actiunea Power trimite intotdeauna restart",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "PLP-01": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "api/src/services/availability.ts",
+  "rootCause": "Codul reparat; valoarea din baza vie si deployul raman",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "PLP-02": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "api/src/routes/catalog.ts",
+  "rootCause": "Codul reparat; deployul ramane",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "SESS-01": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "web/server.mjs",
+  "rootCause": "Codul reparat; edge-ul ramane",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "SESS-02": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "api/src/routes/auth.ts",
+  "rootCause": "Limita per cont exista; adresa reala cere edge-ul",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "ADM-12": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "api/src/routes/admin.ts",
+  "rootCause": "Plafonul de 200 si 300 de randuri ramane; decizia de pager este deschisa",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "SESS-07": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/src, web/src",
+  "rootCause": "Al doilea factor nu exista; este o alegere de produs",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "ADM-13": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/src/routes/admin.ts",
+  "rootCause": "Patru operatii ale api-ului nu au interfata",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "ADM-14": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/src/routes/catalog.ts",
+  "rootCause": "Catalogul public expune deployable si eggId",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "ADM-16": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "web/src/admin/Customers.tsx",
+  "rootCause": "Butonul dezvaluie adresele fara urma in jurnal",
+  "fix": "—",
+  "commit": "—",
+  "test": "—",
+  "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
  }
 }
