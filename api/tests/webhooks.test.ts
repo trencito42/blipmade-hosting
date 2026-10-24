@@ -42,6 +42,12 @@ async function seedProduct() {
   });
 }
 
+/**
+ * The events of this file carry the sum that was collected.
+ *
+ * A payment event without an amount cannot be compared with the order, so it
+ * is refused: a check that lets the missing amount through is not a check.
+ */
 describe('stripe webhook handling', () => {
   it('marks an order paid and creates exactly one instance', async () => {
     await seedProduct();
@@ -99,6 +105,7 @@ describe('stripe webhook handling', () => {
       orderId,
       subscriptionId: 'sub_multi',
       customerId: 'cus_multi',
+      amount: orderResponse.body.order.total,
     }, internal);
     expect(response.status).toBe(200);
 
@@ -126,6 +133,7 @@ describe('stripe webhook handling', () => {
       id: 'evt_test_quantity',
       type: 'checkout.session.completed',
       orderId,
+      amount: orderResponse.body.order.total,
     }, { headers: { 'x-internal-token': env.internalToken } });
 
     const instances = await prisma.instance.findMany({ where: { orderId } });
@@ -240,7 +248,7 @@ describe('stripe webhook handling', () => {
     const orderId = orderResponse.body.order.id as string;
 
     const webhook = makeClient(app);
-    const event = { id: 'evt_test_duplicate', type: 'checkout.session.completed', orderId, subscriptionId: 'sub_dup' };
+    const event = { id: 'evt_test_duplicate', type: 'checkout.session.completed', orderId, subscriptionId: 'sub_dup', amount: orderResponse.body.order.total };
 
     const internal = { headers: { 'x-internal-token': env.internalToken } };
     const first = await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
@@ -267,7 +275,7 @@ describe('stripe webhook handling', () => {
     const orderId = orderResponse.body.order.id as string;
 
     const webhook = makeClient(app);
-    const event = { id: 'evt_test_payment', type: 'checkout.session.completed', orderId, paymentIntentId: 'pi_once' };
+    const event = { id: 'evt_test_payment', type: 'checkout.session.completed', orderId, paymentIntentId: 'pi_once', amount: orderResponse.body.order.total };
     const internal = { headers: { 'x-internal-token': env.internalToken } };
     await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
     await webhook.request('POST', '/api/webhooks/stripe/test', event, internal);
@@ -302,6 +310,7 @@ describe('stripe webhook handling', () => {
       id: 'evt_test_order',
       type: 'checkout.session.completed',
       orderId,
+      amount: orderResponse.body.order.total,
     }, { headers: { 'x-internal-token': env.internalToken } });
 
     // A different event id for the same order must not create a second instance.
@@ -309,6 +318,7 @@ describe('stripe webhook handling', () => {
       id: 'evt_test_order_2',
       type: 'checkout.session.completed',
       orderId,
+      amount: orderResponse.body.order.total,
     }, { headers: { 'x-internal-token': env.internalToken } });
 
     const instances = await prisma.instance.findMany({ where: { orderId } });

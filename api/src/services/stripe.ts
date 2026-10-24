@@ -270,15 +270,20 @@ export interface MarkOrderPaidParams {
 }
 
 /**
- * The states an order may be in when the money arrives.
+ * The states in which an order can never become paid.
  *
- * `PAID` and `FULFILLED` mean the order was already paid for, so the call is
- * a repetition and nothing has to change. `FAILED`, `CANCELLED` and `REFUNDED`
- * are final: an order in one of them states must never become paid again,
- * because the payment gate of the provisioning would open for an order that
- * the operator refused or that the customer already got the money back for.
+ * `CANCELLED` means the order was refused and `REFUNDED` means the money was
+ * already given back. An order in one of them states must never become paid
+ * again, because the payment gate of the provisioning would open for an order
+ * that nobody owes anything for.
+ *
+ * Every other state can still be paid. `FAILED` in particular is left out on
+ * purpose: a payment that did not match the order marks the order as failed
+ * so that the money is not applied, and the operator corrects the order and
+ * replays the event. A guard that refused the failed state would close that
+ * way out.
  */
-const PAYABLE_ORDER_STATUSES = ['PENDING', 'AWAITING_PAYMENT'] as const;
+const DEAD_ORDER_STATUSES = ['CANCELLED', 'REFUNDED'] as const;
 
 /**
  * Marks an order as paid and creates the subscriptions it paid for.
@@ -297,10 +302,10 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
 
   const alreadyPaid = order.status === 'PAID' || order.status === 'FULFILLED';
 
-  // A refused, cancelled or refunded order is not payable. The state of the
-  // order is the guard: without it a late or replayed payment event would
-  // turn a dead order into a paid one and the provisioning would follow.
-  if (!alreadyPaid && !(PAYABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
+  // A cancelled or refunded order is not payable. The state of the order is
+  // the guard: without it a late or replayed payment event would turn a dead
+  // order into a paid one and the provisioning would follow.
+  if (!alreadyPaid && (DEAD_ORDER_STATUSES as readonly string[]).includes(order.status)) {
     throw conflict(
       `Order ${order.number} cannot be paid: its status is ${order.status}.`,
     );

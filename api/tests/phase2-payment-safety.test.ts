@@ -404,3 +404,46 @@ describe('the customer is invoiced for what they paid', () => {
     expect(invoices.body.invoices).toHaveLength(1);
   });
 });
+
+describe('a payment that did not match can still be applied after a correction', () => {
+  it('lets the operator correct the order and replay the event', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'corrected@example.com');
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+
+    // The provider collected a sum that does not match the order: the money
+    // is not applied and the order is marked as failed.
+    const delivery = await deliverPayment(orderId, MONTHLY + 50);
+    expect(delivery.status).toBeGreaterThanOrEqual(400);
+    const failed = await prisma.order.findUnique({ where: { id: orderId } });
+    expect(failed?.status).toBe('FAILED');
+    expect(failed?.paidAt).toBeFalsy();
+
+    // The operator corrects the order and replays the event. A failed order
+    // is not a dead order: the money was never applied, so the payment still
+    // has to be able to reach it.
+    await prisma.order.update({ where: { id: orderId }, data: { total: MONTHLY + 50 } });
+    const { markOrderPaid } = await import('../src/services/stripe.js');
+    await markOrderPaid({ orderId, amount: MONTHLY + 50 });
+
+    const paid = await prisma.order.findUnique({ where: { id: orderId } });
+    expect(paid?.status).toBe('PAID');
+    expect(paid?.paidAt).toBeTruthy();
+  });
+
+  it('still refuses a cancelled order even when the sum matches', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'still-dead@example.com');
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+    await prisma.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+
+    const { markOrderPaid } = await import('../src/services/stripe.js');
+    await expect(markOrderPaid({ orderId, amount: MONTHLY })).rejects.toThrow(/cannot be paid/i);
+  });
+});
