@@ -193,8 +193,16 @@ export function buildCheckoutLineItems(
  * Creates a Checkout session for an order. Each order item becomes its own
  * recurring line so every instance can be cancelled or scaled on its own, and
  * an upgrade order is charged exactly the price difference.
+ *
+ * The address of the customer is what links the checkout to the account of
+ * Stripe. Without it, every checkout creates a customer of its own, and the
+ * billing portal would only ever know the last of them. The address is
+ * passed in by the caller, which already knows the customer who is paying.
  */
-export async function createCheckout(order: Order & { items: OrderItem[] }): Promise<CheckoutResult> {
+export async function createCheckout(
+  order: Order & { items: OrderItem[] },
+  customerEmail?: string | null,
+): Promise<CheckoutResult> {
   if (stripeTestGateway()) {
     const sessionId = `test_cs_${order.id}`;
     await prisma.order.update({ where: { id: order.id }, data: { stripeCheckoutSessionId: sessionId } });
@@ -210,12 +218,6 @@ export async function createCheckout(order: Order & { items: OrderItem[] }): Pro
   const baseUrl = publicOrigin();
   const stripe = getClient();
   const customer = await findStripeCustomerId(order.userId);
-  // The address of the customer is what links a checkout to the account of
-  // Stripe. Without it every checkout creates a customer of its own, and the
-  // billing portal would only ever know the last of them.
-  const customerEmail = customer
-    ? null
-    : (await prisma.user.findUnique({ where: { id: order.userId }, select: { email: true } }))?.email ?? null;
   // An upgrade is paid once, for the difference. The recurring amount of the
   // existing subscription is changed afterwards, when the change is applied.
   const isUpgrade = order.kind === 'UPGRADE';

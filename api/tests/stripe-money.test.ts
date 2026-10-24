@@ -388,7 +388,7 @@ describe('the checkout', () => {
     const { order } = await seedOrder(user.id);
     const withItems = await prisma.order.findUnique({ where: { id: order.id }, include: { items: true } });
 
-    await createCheckout(withItems!);
+    await createCheckout(withItems!, user.email);
 
     expect(calls.checkouts[0]!.customer_email).toBe(user.email);
   });
