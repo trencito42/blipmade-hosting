@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { AppError, badRequest, conflict, unavailable } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { allocateOrderAmounts, allocateLineTotals } from './order-amounts.js';
+import { nextInvoiceNumber } from './order-numbers.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
 
 let client: Stripe | null = null;
@@ -391,9 +392,70 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
       targetId: order.id,
       meta: { total: order.total, subscriptions: subscriptions.length },
     });
+    // The customer paid, so the platform owes an invoice. It is written here,
+    // with the sum that was really collected, so the sum that was quoted is
+    // the sum that is invoiced. The invoice of the payment provider, when
+    // there is one, is the reconciliation and not the only document.
+    await writeOrderInvoice(order, subscriptions, params);
   }
 
   return subscriptions;
+}
+
+/**
+ * One month after a date. The period of an invoice that the provider did not
+ * tell us about is a month, because that is what a monthly price means.
+ */
+function addOneMonth(date: Date): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + 1);
+  return next;
+}
+
+/**
+ * Writes the invoice of a paid order.
+ *
+ * The invoice carries the sum of the order, which is the sum that was
+ * collected, and the period of the subscription it pays for. An order that
+ * was already invoiced is not invoiced a second time: the function is called
+ * again every time the payment event is replayed.
+ */
+async function writeOrderInvoice(
+  order: Order & { items: OrderItem[] },
+  subscriptions: Subscription[],
+  params: MarkOrderPaidParams,
+): Promise<void> {
+  const existing = await prisma.invoice.findFirst({ where: { orderId: order.id } });
+  if (existing) return;
+
+  const periodStart = params.currentPeriodStart ?? new Date();
+  const periodEnd = params.currentPeriodEnd ?? addOneMonth(periodStart);
+
+  await prisma.invoice.create({
+    data: {
+      number: await nextInvoiceNumber(),
+      userId: order.userId,
+      orderId: order.id,
+      stripeInvoiceId: null,
+      status: 'PAID',
+      amount: order.total,
+      tax: 0,
+      total: order.total,
+      currency: order.currency,
+      paidAt: new Date(),
+      dueDate: periodStart,
+      periodStart,
+      periodEnd,
+    },
+  });
+
+  await audit({
+    actorId: order.userId,
+    action: 'invoice.written',
+    targetType: 'order',
+    targetId: order.id,
+    meta: { total: order.total, subscriptions: subscriptions.length },
+  });
 }
 
 /**

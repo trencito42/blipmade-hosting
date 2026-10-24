@@ -280,3 +280,127 @@ describe('the period of the price travels with the order', () => {
     expect(quote.body.total).toBeUndefined();
   });
 });
+
+describe('the customer comes back from the payment', () => {
+  it('confirms the payment through the local gateway and provisions the order', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'return@example.com');
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+
+    const checkout = await client.request('POST', `/api/orders/${orderId}/checkout`);
+    expect(checkout.status).toBe(200);
+    // The local gateway names the session after the order, so the page can
+    // come back to the order it belongs to.
+    expect(String(checkout.body.sessionId)).toContain(orderId);
+
+    const confirmed = await client.request('POST', `/api/orders/${orderId}/confirm`);
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.order.status).toBe('PAID');
+
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    expect(order?.status).toBe('PAID');
+    expect(order?.paidAt).toBeTruthy();
+    expect(await prisma.instance.count({ where: { orderId } })).toBe(1);
+  });
+
+  it('is safe to confirm a payment twice', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'twice@example.com');
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+
+    const first = await client.request('POST', `/api/orders/${orderId}/confirm`);
+    const second = await client.request('POST', `/api/orders/${orderId}/confirm`);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.alreadyPaid).toBe(true);
+    // One order, one instance: the second confirmation changes nothing.
+    expect(await prisma.instance.count({ where: { orderId } })).toBe(1);
+  });
+
+  it('refuses to confirm an order that is not the customer one', async () => {
+    await seedProduct();
+    const { client: owner } = await registerAndLogin(app, 'owner@example.com');
+    const created = await owner.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+
+    const { client: stranger } = await registerAndLogin(app, 'stranger@example.com');
+    const confirmed = await stranger.request('POST', `/api/orders/${orderId}/confirm`);
+
+    expect(confirmed.status).toBe(404);
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    expect(order?.status).not.toBe('PAID');
+  });
+
+  it('refuses to confirm a cancelled order', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'cancelled-confirm@example.com');
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+    await prisma.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+
+    const confirmed = await client.request('POST', `/api/orders/${orderId}/confirm`);
+
+    expect(confirmed.status).toBeGreaterThanOrEqual(400);
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    expect(order?.status).toBe('CANCELLED');
+    expect(await prisma.instance.count({ where: { orderId } })).toBe(0);
+  });
+});
+
+describe('the customer is invoiced for what they paid', () => {
+  it('writes an invoice with the sum of the order when the payment arrives', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'invoiced@example.com');
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+    const total = created.body.order.total as number;
+
+    const delivery = await deliverPayment(orderId, total);
+    expect(delivery.status).toBe(200);
+
+    const invoices = await client.request('GET', '/api/billing/invoices');
+    expect(invoices.status).toBe(200);
+    expect(invoices.body.invoices).toHaveLength(1);
+    // The sum that was quoted is the sum that is invoiced.
+    expect(invoices.body.invoices[0].total).toBe(total);
+    // The status is written in the upper case in the database and returned in
+    // the lower case by the API, like every other status of the platform.
+    expect(String(invoices.body.invoices[0].status).toUpperCase()).toBe('PAID');
+    expect(invoices.body.invoices[0].number).toMatch(/^BM-INV-/);
+    // The invoice belongs to the order that was paid. The list of the API
+    // does not show the internal id, so the link is checked in the database.
+    const written = await prisma.invoice.findFirst({ where: { userId: (await prisma.user.findUnique({ where: { email: 'invoiced@example.com' } }))!.id } });
+    expect(written?.orderId).toBe(orderId);
+    expect(written?.total).toBe(total);
+  });
+
+  it('writes one invoice when the payment event is replayed', async () => {
+    await seedProduct();
+    const { client } = await registerAndLogin(app, 'replayed@example.com');
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 1024, cpu: 1, disk: 10 }],
+    });
+    const orderId = created.body.order.id as string;
+    const total = created.body.order.total as number;
+
+    await deliverPayment(orderId, total);
+    // The same event, delivered again.
+    await deliverPayment(orderId, total);
+
+    const invoices = await client.request('GET', '/api/billing/invoices');
+    expect(invoices.body.invoices).toHaveLength(1);
+  });
+});

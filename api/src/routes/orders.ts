@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { badRequest, notFound } from '../lib/errors.js';
+import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
@@ -200,6 +200,52 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     await audit({ actorId: user.id, actorEmail: user.email, action: 'order.checkout_started', targetType: 'order', targetId: order.id });
 
     return { url: checkout.url, sessionId: checkout.sessionId, message: null, testGateway: stripeTestGateway() };
+  });
+
+  /**
+   * Confirms the payment of an order through the local test gateway.
+   *
+   * The local gateway stands in for the payment provider, so the browser
+   * comes back to the billing page with the session in the address and
+   * nothing else happens: the order would wait for a payment that never
+   * arrives. This route is the way back: the customer confirms, the order is
+   * marked as paid through the same function the webhook uses, and the
+   * services are provisioned.
+   *
+   * The route exists only while the local gateway is in use. On a live site
+   * the payment provider confirms the payment through its own webhook, and
+   * this route refuses, so nobody can mark an order paid from the browser.
+   */
+  app.post('/orders/:id/confirm', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    if (!stripeTestGateway()) {
+      throw notFound('This order cannot be confirmed here.');
+    }
+    const order = await prisma.order.findFirst({ where: { id, userId: user.id } });
+    if (!order) throw notFound('Order not found.');
+    if (order.status === 'PAID' || order.status === 'FULFILLED') {
+      // The order is already paid: the answer is the state of the order, so
+      // the page can show it. Nothing is confirmed twice.
+      return { order: { id: order.id, status: order.status, total: order.total }, alreadyPaid: true };
+    }
+    if (order.status !== 'PENDING' && order.status !== 'AWAITING_PAYMENT') {
+      throw conflict(`This order is ${order.status} and cannot be confirmed.`);
+    }
+
+    await markOrderPaid({ orderId: order.id, amount: order.total });
+    await fulfilOrder(order.id);
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'order.checkout_completed',
+      targetType: 'order',
+      targetId: order.id,
+      meta: { total: order.total, testGateway: true },
+    });
+
+    const updated = await prisma.order.findUnique({ where: { id: order.id } });
+    return { order: { id: order.id, status: updated?.status ?? 'PAID', total: order.total }, alreadyPaid: false };
   });
 
   app.post('/orders/:id/cancel', async (request: FastifyRequest, reply) => {

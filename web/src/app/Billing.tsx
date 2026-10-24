@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { get, post, type Invoice, type Subscription } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import { useRouter } from '../router';
 import {
   ButtonLink,
   CardList,
@@ -77,6 +78,18 @@ function describePaymentMethod(method: PaymentMethod | null | undefined): string
 
 export default function Billing() {
   const { push } = useToast();
+  const { query } = useRouter();
+
+  // The customer comes back here from the payment provider. The session of
+  // the payment travels in the address, so the page has to read it: without
+  // it the page shows an empty estimate and the order waits forever for a
+  // payment that the browser already made.
+  const checkout = query.checkout ?? null;
+  const paymentCancelled = checkout === 'cancelled';
+  const paymentSucceeded = checkout === 'success';
+  // The local gateway names the session after the order, so the order is
+  // known without asking the provider.
+  const checkoutOrderId = checkout && checkout.startsWith('test_cs_') ? checkout.slice('test_cs_'.length) : null;
 
   const summaryState = useAsync<BillingSummary>(
     (signal) => get<BillingSummary>('/billing/summary', undefined, signal),
@@ -94,10 +107,35 @@ export default function Billing() {
   const [pendingCancel, setPendingCancel] = useState<Subscription | null>(null);
   const [paymentIssue, setPaymentIssue] = useState<string | null>(null);
   const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
+  const [checkoutState, setCheckoutState] = useState<'idle' | 'confirming' | 'confirmed' | 'failed'>('idle');
 
   const summary = summaryState.data;
   const invoices = useMemo(() => invoicesState.data?.invoices ?? [], [invoicesState.data]);
   const subscriptions = useMemo(() => subscriptionsState.data?.subscriptions ?? [], [subscriptionsState.data]);
+
+  // The payment is confirmed once, when the customer comes back from the
+  // local gateway. The confirmation is the answer of the platform, so the
+  // page asks for it and then shows the state of the order.
+  useEffect(() => {
+    if (!checkoutOrderId || checkoutState !== 'idle') return;
+    let cancelled = false;
+    setCheckoutState('confirming');
+    post<{ order: { id: string; status: string; total: number } }>(`/orders/${checkoutOrderId}/confirm`)
+      .then(() => {
+        if (cancelled) return;
+        setCheckoutState('confirmed');
+        refreshAll();
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCheckoutState('failed');
+        setPaymentIssue('The payment could not be confirmed. The order is still waiting for it.');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkoutOrderId]);
 
   const refreshAll = () => {
     subscriptionsState.reload();
@@ -132,6 +170,39 @@ export default function Billing() {
 
   return (
     <div className="grid gap-4">
+      {/* The state of the payment the customer just came back from. Without
+          this the page shows an empty estimate and the order waits for a
+          payment that the browser already made. */}
+      {checkout ? (
+        <Panel
+          title={paymentCancelled ? 'Payment cancelled' : paymentSucceeded ? 'Payment received' : 'Payment'}
+          description={
+            paymentCancelled
+              ? 'You left the payment page without paying. The order is still waiting for you.'
+              : paymentSucceeded
+                ? 'Your payment was received. The services are being prepared.'
+                : checkoutState === 'confirming'
+                  ? 'Confirming your payment…'
+                  : checkoutState === 'confirmed'
+                    ? 'Your payment was confirmed. The services are being prepared.'
+                    : checkoutState === 'failed'
+                      ? 'The payment could not be confirmed.'
+                      : 'Checking the state of your payment…'
+          }
+        >
+          {checkoutState === 'failed' ? (
+            <p className="text-ink2">
+              The order is still waiting for the payment. You can pay again from the order, or write to us if
+              the money left your account.
+            </p>
+          ) : (
+            <p className="text-ink2">
+              You can follow the state of the order and of the services in your dashboard.
+            </p>
+          )}
+        </Panel>
+      ) : null}
+
       {/* Summary */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {summaryState.loading ? (
