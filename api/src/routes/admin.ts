@@ -8,7 +8,7 @@ import { audit } from '../lib/audit.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
 import { refundPayment, stripeLive } from '../services/stripe.js';
-import { PERMISSIONS } from '../lib/permissions.js';
+import { PERMISSIONS, permissionsNotHeld } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
 import {
   forgetCustomerCredential,
@@ -1048,16 +1048,38 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       throw forbidden('Only an administrator can change the role of a staff member.');
     }
 
-    // The permission list of an administrator is the administrator role written
-    // down, so only an administrator touches it.
-    if (body.permissions !== undefined && member.user.role === 'ADMIN' && actor.role !== 'ADMIN') {
-      throw forbidden('Only an administrator can change the permissions of an administrator.');
-    }
-
-    // The whole list of permissions is the administrator role in all but name,
-    // so a staff member may not hand it out.
-    if (body.permissions !== undefined && new Set(body.permissions).size >= PERMISSIONS.length && actor.role !== 'ADMIN') {
-      throw forbidden('Only an administrator can grant the whole permission list.');
+    /**
+     * The rule of the permission list.
+     *
+     * The permission list is the power of an account inside the platform, so
+     * it is an administrator who changes it. The rule lives in the server and
+     * not in the interface, because the endpoint is called directly as well:
+     *
+     * - a staff member never changes their own list, because that is the way
+     *   to become an administrator;
+     * - a staff member only hands out the permissions they hold themselves, a
+     *   permission they do not hold is one they would hand out without
+     *   knowing what it does, and an account that can grant more than it
+     *   holds is an administrator in all but the name;
+     * - the list of an administrator is the administrator role written down,
+     *   so only an administrator touches it.
+     */
+    if (body.permissions !== undefined && actor.role !== 'ADMIN') {
+      if (actor.id === userId) {
+        throw forbidden('You cannot change your own permissions. Only an administrator can do that.');
+      }
+      if (member.user.role === 'ADMIN') {
+        throw forbidden('Only an administrator can change the permissions of an administrator.');
+      }
+      const beyond = permissionsNotHeld(actor.role, actor.permissions, body.permissions);
+      if (beyond.length) {
+        throw forbidden(`You can only grant permissions that you hold yourself. These are not yours: ${beyond.join(', ')}.`);
+      }
+      // The whole list of permissions is the administrator role in all but name,
+      // so a staff member may not hand it out.
+      if (new Set(body.permissions).size >= PERMISSIONS.length) {
+        throw forbidden('Only an administrator can grant the whole permission list.');
+      }
     }
 
     await prisma.$transaction([

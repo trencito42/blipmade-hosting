@@ -123,7 +123,9 @@ describe('the staff editor', () => {
   });
 
   it('lets a staff member with staff.write change the permissions of another staff member', async () => {
-    const { client: staff } = await createStaff('staff@blipmade.test', ['staff.write']);
+    // The staff member may only hand out the permissions that it holds
+    // itself, so it holds the two permissions it hands out.
+    const { client: staff } = await createStaff('staff@blipmade.test', ['staff.write', 'customers.read', 'tickets.read']);
     const { userId: targetId } = await createStaff('target@blipmade.test', ['customers.read']);
 
     const response = await staff.request('PUT', `/api/admin/staff/${targetId}`, { permissions: ['customers.read', 'tickets.read'] });
