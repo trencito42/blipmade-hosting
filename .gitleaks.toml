@@ -1,0 +1,38 @@
+# The configuration of the scan of the secrets.
+#
+# The scan reports the whole history of the repository, not only the last
+# commit, because a secret that was removed in a later commit is still a
+# leaked secret.
+#
+# The rules of the scan are the default ones. The only thing this file adds
+# is the list of the findings that are not secrets. Every entry is listed by
+# its exact value, so the scan still reports everything else.
+#
+# Nothing here is the password of an account of the platform. The entries
+# were checked against the live database on 2026-10-24.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+The findings of the scan that are not secrets.
+
+- The keys of the test of the delivery of a message. The test writes the same
+  key twice, to prove that the same message is not sent twice.
+- The example of a client key of the panel, in the documentation. It shows
+  the format of a key, and the characters of it are the same in a row.
+- The password of the customer that the verification script of the
+  provisioning created on the local machine. The script wrote the password
+  in the source; it was removed in 61111f6, where the password comes from
+  the environment instead. The history keeps the value, so the scan reports
+  it. It is the password of a customer of a test, on a local address, and
+  the live database was checked on 2026-10-24: no account of the platform
+  uses it. The entry goes away when the history is cleaned of it.
+"""
+regexes = [
+  '''verification-12345678''',
+  '''verification-abcdef01''',
+  '''ptlc_0123456789abcdef0123456789abcdef0123456789abcd''',
+  '''VerifyHorseBattery9''',
+]
