@@ -42,8 +42,11 @@ Identificatorii constatărilor **nu sunt global unice** între rapoarte. Două p
 | `PR-01`–`PR-45` | `00-documentation-drift.md` (afirmații verificate) | `DOC-C01`–`DOC-C45` (citate, nu relistate integral) |
 | `SEC-01`–`SEC-29` | `02-security-audit.md` | `SEC-01`–`SEC-29` (identice) |
 | `B1`–`B12` | `05-commerce-and-billing.md` | `COMM-01`–`COMM-12` |
+| `ADM-02` | `22-admin-interface-audit.md` și `23-ROUND2-FINDINGS-REGISTER.md` (al doilea strat al escaladării de privilegii, văzută și ca `ADM-P1-01` în verificarea lead-ului) | `SEC-04` |
 
 Constatările din rapoartele `03-*` nu au ID-uri numerotate în sursă; aici primesc prefixe noi: `INF-*` (infrastructură), `NET-*` (rețea și IP), `CAP-*` (capacitate), `DR-*` (recuperare la dezastre).
+
+`ADM-02` nu e o constatare în plus, ci **al doilea strat al lui `SEC-04`**: primul strat era escaladarea pe rol (reparat în `36a75a7`), al doilea era escaladarea pe lista de permisiuni, pe care verificarea lead-ului a găsit-o încă deschisă după primul strat (reparată în faza 13, `8d138bb` + `1db05a9`). Constatarea e listată o singură dată, la `SEC-04`, iar starea ei include ambele straturi.
 
 ### 0.4 Contoare
 
@@ -433,6 +436,10 @@ Cele cinci stări cerute de brief sunt stările finale. O constatare la care run
 ajuns încă păstrează starea `NOT STARTED (BACKLOG)` — nu este o stare de rezolvare, iar numărul ei
 arată cât a rămas.
 
+O constatare văzută în mai multe rapoarte poartă mai multe nume. Ea este listată o singură dată,
+sub numele din registru, iar celelalte nume apar lângă el după semnul `=`. Așa apare `ADM-02`
+lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiași escaladări de privilegii.
+
 | Stare | Constatări |
 |---|---:|
 | FIXED & VERIFIED | 30 |
@@ -447,7 +454,7 @@ arată cât a rămas.
 | `SEC-01` | Critical | VM 102 / VM 103, sshd | REQUIRES OPERATOR APPROVAL | Parola de root si accesul prin parole | Nu s-a atins: rotatia parolei de root inainte de firewall e lockout, iar brieful cere o procedura aprobata | — | — | Nu s-a rulat nimic pe infrastructura |
 | `SEC-02` | Critical | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-03` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
-| `SEC-04` | High | api/src/routes/admin.ts, web/src/admin/Staff.tsx | FIXED & VERIFIED | PUT /admin/staff/:userId cerea doar staff.write, deci orice staff putea acorda rolul ADMIN; restrictia era doar in interfata | Serverul refuza (403) schimbarea rolului si a permisiunilor unui administrator de catre un non-administrator; schimbarea este scrisa in jurnal | 36a75a7 | api/tests/admin-staff-permissions.test.ts | Test: staff.write primeste 403 la acordarea rolului ADMIN; ADMIN reuseste |
+| `SEC-04` = `ADM-02` | High | api/src/routes/admin.ts, web/src/admin/Staff.tsx, api/src/lib/permissions.ts | FIXED & VERIFIED | PUT /admin/staff/:userId cerea doar staff.write, deci orice staff putea acorda rolul ADMIN; restrictia era doar in interfata. Al doilea strat al defectului: garda de la admin.ts:1059 verifica doar ca lista de 21 de permisiuni nu este acordata integral, si nu compara actorul cu tinta, deci un staff cu staff.write putea sa-si acorde 20 din cele 21 de permisiuni | Serverul refuza (403) schimbarea rolului si a permisiunilor unui administrator de catre un non-administrator; schimbarea este scrisa in jurnal. Faza 13 adauga regula de lista: un staff nu isi modifica propria lista, nu atinge lista unui administrator, acorda numai permisiuni pe care le are el si nu poate acorda lista intreaga; un singur helper, in toate rutele care ating un cont | 36a75a7, 8d138bb, 1db05a9 | api/tests/admin-staff-permissions.test.ts, api/tests/phase2-access-control.test.ts | Test: staff.write primeste 403 la acordarea rolului ADMIN; ADMIN reuseste. Retest independent al fazei 13: audit/post-remediation/PHASE-13-RETEST.md. Verificarea lead-ului: garda de la admin.ts:1059 bloca doar 21 din 21 |
 | `SEC-05` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-06` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-07` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |

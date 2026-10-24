@@ -61,6 +61,43 @@ function cell(value) {
 function render() {
   const findings = readFindings();
   const status = JSON.parse(fs.readFileSync(DATA, 'utf8'));
+  const known = new Set(findings.map((row) => row.id));
+
+  /**
+   * The second names of a finding.
+   *
+   * A finding can be seen in more than one report and it can carry more than
+   * one identifier. The register lists it once, under one identifier, and the
+   * other names point at that identifier. An entry that names another entry
+   * with "aliasOf" is a second name and not a finding of its own.
+   */
+  const aliases = new Map();
+  const unknown = [];
+  for (const [id, entry] of Object.entries(status)) {
+    if (entry && entry.aliasOf) {
+      if (!known.has(entry.aliasOf)) {
+        unknown.push(`${id} -> ${entry.aliasOf}`);
+        continue;
+      }
+      if (!aliases.has(entry.aliasOf)) aliases.set(entry.aliasOf, []);
+      aliases.get(entry.aliasOf).push(id);
+      continue;
+    }
+    if (!known.has(id)) unknown.push(id);
+  }
+
+  /**
+   * A state that the register does not show is a finding that no one can
+   * read. The renderer stops instead of writing a section that hides it, so
+   * the register and the state file cannot drift apart without anyone
+   * noticing.
+   */
+  if (unknown.length) {
+    console.error('These entries of the state file have no row in the register:');
+    for (const id of unknown) console.error(`  ${id}`);
+    console.error('Add the row to the register, or name the finding it belongs to with "aliasOf".');
+    process.exit(1);
+  }
 
   const counts = new Map();
   for (const row of findings) {
@@ -78,7 +115,9 @@ function render() {
   const rows = findings.map((row) => {
     const entry = status[row.id] ?? {};
     const state = entry.status ?? 'NOT STARTED (BACKLOG)';
-    return `| \`${row.id}\` | ${cell(row.sev)} | ${cell(entry.area)} | ${cell(state)} | ${cell(entry.rootCause)} | ${cell(entry.fix)} | ${cell(entry.commit)} | ${cell(entry.test)} | ${cell(entry.verification)} |`;
+    const second = aliases.get(row.id) ?? [];
+    const id = [`\`${row.id}\``, ...second.map((name) => `= \`${name}\``)].join(' ');
+    return `| ${id} | ${cell(row.sev)} | ${cell(entry.area)} | ${cell(state)} | ${cell(entry.rootCause)} | ${cell(entry.fix)} | ${cell(entry.commit)} | ${cell(entry.test)} | ${cell(entry.verification)} |`;
   });
 
   const header = [
@@ -92,6 +131,10 @@ function render() {
     'Cele cinci stări cerute de brief sunt stările finale. O constatare la care runda de remediere nu a',
     'ajuns încă păstrează starea `NOT STARTED (BACKLOG)` — nu este o stare de rezolvare, iar numărul ei',
     'arată cât a rămas.',
+    '',
+    'O constatare văzută în mai multe rapoarte poartă mai multe nume. Ea este listată o singură dată,',
+    'sub numele din registru, iar celelalte nume apar lângă el după semnul `=`. Așa apare `ADM-02`',
+    'lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiași escaladări de privilegii.',
     '',
     summary,
     '',

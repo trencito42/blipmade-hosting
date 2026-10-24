@@ -46,12 +46,13 @@
  },
  "SEC-04": {
   "status": "FIXED & VERIFIED",
-  "area": "api/src/routes/admin.ts, web/src/admin/Staff.tsx",
-  "rootCause": "PUT /admin/staff/:userId cerea doar staff.write, deci orice staff putea acorda rolul ADMIN; restrictia era doar in interfata",
-  "fix": "Serverul refuza (403) schimbarea rolului si a permisiunilor unui administrator de catre un non-administrator; schimbarea este scrisa in jurnal",
-  "commit": "36a75a7",
-  "test": "api/tests/admin-staff-permissions.test.ts",
-  "verification": "Test: staff.write primeste 403 la acordarea rolului ADMIN; ADMIN reuseste"
+  "area": "api/src/routes/admin.ts, web/src/admin/Staff.tsx, api/src/lib/permissions.ts",
+  "rootCause": "PUT /admin/staff/:userId cerea doar staff.write, deci orice staff putea acorda rolul ADMIN; restrictia era doar in interfata. Al doilea strat al defectului: garda de la admin.ts:1059 verifica doar ca lista de 21 de permisiuni nu este acordata integral, si nu compara actorul cu tinta, deci un staff cu staff.write putea sa-si acorde 20 din cele 21 de permisiuni",
+  "fix": "Serverul refuza (403) schimbarea rolului si a permisiunilor unui administrator de catre un non-administrator; schimbarea este scrisa in jurnal. Faza 13 adauga regula de lista: un staff nu isi modifica propria lista, nu atinge lista unui administrator, acorda numai permisiuni pe care le are el si nu poate acorda lista intreaga; un singur helper, in toate rutele care ating un cont",
+  "commit": "36a75a7, 8d138bb, 1db05a9",
+  "test": "api/tests/admin-staff-permissions.test.ts, api/tests/phase2-access-control.test.ts",
+  "verification": "Test: staff.write primeste 403 la acordarea rolului ADMIN; ADMIN reuseste. Retest independent al fazei 13: audit/post-remediation/PHASE-13-RETEST.md. Verificarea lead-ului: garda de la admin.ts:1059 bloca doar 21 din 21",
+  "aliases": ["ADM-02", "ADM-P1-01"]
  },
  "PROV-01": {
   "status": "FIXED & VERIFIED",
@@ -387,12 +388,7 @@
   "verification": "Test: limita per cont se aplica la cotatie"
  },
  "ADM-02": {
-  "status": "FIXED & VERIFIED",
-  "area": "api/src/routes/admin.ts, api/src/lib/permissions.ts",
-  "rootCause": "Un angajat cu permisiunea staff.write putea acorda pana la 20 din cele 21 de permisiuni, inclusiv siesi, pentru ca garda verifica doar daca se acorda lista intreaga",
-  "fix": "Un angajat nu mai poate acorda o permisiune pe care nu o are si nu mai poate modifica propria lista; numai un administrator schimba o lista de permisiuni sau un rol. Se aplica un singur helper, in toate rutele care ating un cont",
-  "commit": "8d138bb, 1db05a9",
-  "test": "api/tests/phase2-access-control.test.ts, api/tests/admin-staff-permissions.test.ts",
-  "verification": "Retest independent in curs: audit/post-remediation/PHASE-13-RETEST.md. Verificarea lead-ului: garda de la admin.ts:1059 bloca doar 21 din 21"
+  "aliasOf": "SEC-04",
+  "note": "A doua stratra a constatarii SEC-04, vazuta de auditul de admin (22-admin-interface-audit.md) si de verificarea lead-ului (ADM-P1-01): escaladarea pe lista de permisiuni. Reparat in faza 13 (8d138bb, 1db05a9). Starea si dovezile stau la SEC-04, ca una singura constatare, nu de doua ori"
  }
 }
