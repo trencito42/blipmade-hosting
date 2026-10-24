@@ -1,12 +1,17 @@
 /**
  * The address of the client.
  *
- * The header `X-Forwarded-For` carries a chain of addresses. By its
- * convention the FIRST element is the address of the client that opened the
- * connection and the LAST element is the address of the proxy that is the
- * closest to this server. The address that is written down is the address of
- * the client, never the address of a proxy, so the chain is read from the
- * left and the first address that is not a known proxy is taken.
+ * The header `X-Forwarded-For` carries a chain of addresses. The edge that
+ * receives the request from the client writes the address of the client at the
+ * END of the chain and keeps the values that were already there, so the chain
+ * is read from the right: the address of the client is the last address of
+ * the chain that is not a known proxy.
+ *
+ * The chain is not read from the left. A client that sends its own
+ * `X-Forwarded-For` puts the values it wants at the head of the chain, and
+ * the edge keeps them: the first address of the chain is whatever the client
+ * wrote in it. Reading the chain from the right is what makes the address of
+ * the client the address of the client.
  *
  * A header is only believed when the request came from a proxy that is known.
  * A client that sends the header itself can therefore never write an address
@@ -175,10 +180,14 @@ export function splitChain(header) {
 /**
  * The address of the client.
  *
- * The chain of the header is read from the left and the first address that is
- * not a known proxy is the address of the client. When every address of the
- * chain is a known proxy, or when there is no chain at all, the address of the
- * socket is used: the header of an unknown peer is never believed.
+ * The chain of the header is read from the right and the last address that is
+ * not a known proxy is the address of the client. The edge writes the address
+ * of the client at the end of the chain, so a client that forges the head of
+ * the chain does not change the answer.
+ *
+ * When every address of the chain is a known proxy, or when there is no chain
+ * at all, the address of the socket is used: the header of an unknown peer is
+ * never believed.
  *
  * @param {string} peer The address of the socket the request came in on.
  * @param {string|string[]|undefined} forwardedFor The header of the chain.
@@ -192,8 +201,12 @@ export function resolveClientAddress(peer, forwardedFor, rules = []) {
   // The header is only read when the request came from a proxy that is known.
   if (!isTrustedAddress(peerAddress, trusted)) return peerAddress;
 
-  for (const candidate of splitChain(forwardedFor)) {
-    const address = normalizeAddress(candidate);
+  const chain = splitChain(forwardedFor);
+
+  // The chain is read from the right: the closest proxy is the last entry and
+  // the address of the client is the last entry that is not a known proxy.
+  for (let index = chain.length - 1; index >= 0; index -= 1) {
+    const address = normalizeAddress(chain[index]);
     if (!isTrustedAddress(address, trusted)) return address;
   }
 

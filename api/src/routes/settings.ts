@@ -8,7 +8,7 @@ import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import { sendMail } from '../lib/mailer.js';
 import { emailChangeTemplate } from '../lib/email-templates.js';
-import { requireAuth, type AuthUser } from '../plugins/auth.js';
+import { addressRateLimitKey, requireAuth, type AuthUser } from '../plugins/auth.js';
 
 /**
  * The settings of the account of a customer.
@@ -301,7 +301,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
    * new address and the change happens when that link is opened.
    */
   app.post('/settings/email', {
-    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes', keyGenerator: addressRateLimitKey } },
     handler: async (request: FastifyRequest) => {
       const user = await requireAuth(request);
       const body = parse(z.object({ email: emailSchema }), request.body ?? {});
@@ -362,7 +362,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
 
   /** The new address is used once the link has been opened. */
   app.post('/settings/email/confirm', {
-    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 10, timeWindow: '15 minutes', keyGenerator: addressRateLimitKey } },
     handler: async (request: FastifyRequest) => {
       const user = await requireAuth(request);
       const body = parse(z.object({ token: z.string().min(10, 'This link is not valid.') }), request.body ?? {});
@@ -410,7 +410,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
 
   /** A new password. The current one is needed, and the other sessions end. */
   app.post('/settings/password', {
-    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 10, timeWindow: '15 minutes', keyGenerator: addressRateLimitKey } },
     handler: async (request: FastifyRequest) => {
       const user = await requireAuth(request);
       const body = parse(
@@ -566,7 +566,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
    * before a person of the team has looked at it.
    */
   app.post('/settings/account/closure', {
-    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
+    config: { rateLimit: { max: 5, timeWindow: '15 minutes', keyGenerator: addressRateLimitKey } },
     handler: async (request: FastifyRequest) => {
       const user = await requireAuth(request);
       const body = parse(

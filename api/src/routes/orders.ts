@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
-import { requireAuth } from '../plugins/auth.js';
+import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
 import { createCheckout, markOrderPaid, stripeTestGateway } from '../services/stripe.js';
@@ -61,7 +61,7 @@ function serializeOrder(order: {
 
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   app.post('/orders', {
-    config: { rateLimit: { max: 30, timeWindow: '10 minutes' } },
+    config: { rateLimit: { max: 30, timeWindow: '10 minutes', keyGenerator: addressRateLimitKey } },
     handler: async (request: FastifyRequest, reply) => {
       const user = await requireAuth(request);
       const body = z
@@ -168,6 +168,15 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       throw badRequest('This order has already been paid.');
     }
 
+    // A cancelled or refunded order is dead: it cannot be sent to a checkout
+    // again, because the checkout would bring it back to life as an order
+    // waiting for a payment, and the payment would make it a paid order with
+    // its infrastructure. The order that failed is not dead: a payment that
+    // failed can be tried again, and that is the way back for the operator.
+    if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
+      throw conflict(`This order cannot be paid: its status is ${order.status.toLowerCase()}.`);
+    }
+
     // An order that a promotion covers completely costs nothing, so there is
     // no amount to collect. The order is confirmed and provisioned without a
     // payment provider, instead of sending the customer to a checkout of zero.
@@ -255,6 +264,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (!order) throw notFound('Order not found.');
     if (order.status === 'FULFILLED') throw badRequest('This order has already been fulfilled.');
     if (order.status === 'PAID') throw badRequest('A paid order cannot be cancelled. Cancel the subscription instead.');
+    // A refunded order keeps the trace of the refund. Cancelling it again
+    // would erase the state that says the money was returned, and the guard
+    // that refuses a dead order reads that state.
+    if (order.status === 'REFUNDED') throw badRequest('This order was refunded and cannot be cancelled.');
 
     await prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
     // The campaign slot goes back into the pool.

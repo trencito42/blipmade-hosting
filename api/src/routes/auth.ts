@@ -6,6 +6,7 @@ import { badRequest, conflict, notFound, tooMany, unauthorized } from '../lib/er
 import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { rateLimitRun } from '../lib/rate-limit.js';
+import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/failed-attempts.js';
 import { mailEnabled, mailLogLine, mailNotice, registrationNotice, tokenReference, type MailSendResult } from '../lib/mailer.js';
 import { passwordResetTemplate, verificationTemplate } from '../lib/email-templates.js';
 import { dispatchEmail } from '../services/queue.js';
@@ -61,16 +62,51 @@ const tokenSchema = z.object({ token: z.string().min(10, 'This link is not valid
  */
 const ACCOUNT_ATTEMPTS_WINDOW = '15 minutes';
 
+/** The same window, in milliseconds, for the counters of the failed attempts. */
+const ACCOUNT_ATTEMPTS_WINDOW_MS = 15 * 60 * 1000;
+
 /**
- * The key of the counter of an address.
+ * The number of sign-in requests one address may send in the window.
+ *
+ * The limit of the failed attempts is the one that protects the account and
+ * the server. This one counts the requests, so the server is protected from a
+ * flood of attempts that come from one address, and it is generous enough
+ * that a customer who signs in several times in a row is never refused.
+ */
+const LOGIN_REQUESTS_MAX = 30;
+
+/**
+ * The key of the counter of an address, without the number of the test run.
  *
  * The address of the caller is the key, and the address of the client is
  * only known when the request came through a proxy that the API trusts. When
  * it is not known, the counter is taken per connection, so one visitor can
  * never lock every other visitor out of the sign-in.
  */
+function rawAddressKey(request: FastifyRequest): string {
+  return rateLimitKey(request);
+}
+
+/**
+ * The key of the counter of an account, without the number of the test run.
+ *
+ * The address of the account is the key, written the way the accounts are
+ * written.
+ *
+ * A request without a readable address falls back on the address of the
+ * caller, so two requests that cannot be read never share a counter.
+ */
+function rawAccountKey(request: FastifyRequest): string {
+  const body = request.body as { email?: unknown } | undefined;
+  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+  return email ? `account:${email}` : `address:${rawAddressKey(request)}`;
+}
+
+/**
+ * The key of the counter of an address.
+ */
 function addressKey(request: FastifyRequest): string {
-  const key = rateLimitKey(request);
+  const key = rawAddressKey(request);
   // In the test environment the key carries the run number, so the counters
   // of one test do not count against the next one.
   return env.isTest ? `${key}:${rateLimitRun()}` : key;
@@ -79,14 +115,9 @@ function addressKey(request: FastifyRequest): string {
 /**
  * The key of the counter of an account: the address of the account, written
  * the way the accounts are written.
- *
- * A request without a readable address falls back on the address of the
- * caller, so two requests that cannot be read never share a counter.
  */
 function accountKey(request: FastifyRequest): string {
-  const body = request.body as { email?: unknown } | undefined;
-  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const key = email ? `account:${email}` : `address:${addressKey(request)}`;
+  const key = rawAccountKey(request);
   // In the test environment the key carries the run number, so the counters
   // of one test do not count against the next one.
   return env.isTest ? `${key}:${rateLimitRun()}` : key;
@@ -111,6 +142,24 @@ function accountGuard(app: FastifyInstance, max: number) {
     if (result.isAllowed) return;
     if (!result.isExceeded) return;
     throw tooMany();
+  };
+}
+
+/**
+ * The guard of the sign-in.
+ *
+ * The counters of the account and of the address count the attempts that
+ * failed. A sign-in that worked does not count, so a customer who signs in
+ * several times in a row is never locked out of their own account, and a
+ * guess of a password is still counted.
+ *
+ * The guard is read before the attempt, so a blocked key is refused without
+ * the cost of the comparison of the password.
+ */
+function loginGuardForAttempts(max: number) {
+  return async (request: FastifyRequest) => {
+    if (isBlocked(rawAccountKey(request), max)) throw tooMany();
+    if (isBlocked(rawAddressKey(request), max)) throw tooMany();
   };
 }
 
@@ -195,7 +244,9 @@ export async function sendResetEmail(userId: string, email: string, name: string
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   // The counters of the accounts. Every one of them is a counter of its own,
   // so the limit of the address and the limit of the account are two limits.
-  const loginGuard = accountGuard(app, 10);
+  // The sign-in counts the attempts that failed, so a customer who signs in
+  // several times in a row is never locked out of their own account.
+  const loginGuard = loginGuardForAttempts(env.loginRateLimitMax);
   const registerGuard = accountGuard(app, 10);
   const mailGuard = accountGuard(app, 5);
   const enrollGuard = accountGuard(app, 5);
@@ -237,7 +288,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/auth/login', {
-    config: { rateLimit: { max: env.loginRateLimitMax, timeWindow: '15 minutes', keyGenerator: addressKey } },
+    config: { rateLimit: { max: LOGIN_REQUESTS_MAX, timeWindow: '15 minutes', keyGenerator: addressKey } },
     preHandler: loginGuard,
     handler: async (request: FastifyRequest, reply) => {
       const body = loginSchema.parse(request.body);
@@ -249,10 +300,20 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const ok = await verifyPassword(body.password, stored);
 
       if (!user || !ok) {
+        // The attempt that failed is counted on the account and on the
+        // address, so a guess of a password is counted from everywhere at
+        // once and never lets a caller try again without a pause.
+        recordFailedAttempt(rawAccountKey(request), ACCOUNT_ATTEMPTS_WINDOW_MS);
+        recordFailedAttempt(rawAddressKey(request), ACCOUNT_ATTEMPTS_WINDOW_MS);
         await audit({ actorEmail: body.email, action: 'auth.login_failed', ip: request.ip });
         throw unauthorized('Email or password is not correct.');
       }
       if (user.suspendedAt) throw unauthorized('This account is suspended.');
+
+      // The sign-in that worked forgets the attempts that failed on this
+      // account: a customer who mistyped the password and then signed in
+      // correctly is not a customer under suspicion.
+      clearFailedAttempts(rawAccountKey(request));
 
       await createSession(request, reply, user.id, user.email);
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.login', targetType: 'user', targetId: user.id, ip: request.ip });

@@ -6,9 +6,10 @@
  *     node --test web/tests/
  *
  * The module under test is pure, so every rule can be checked directly. The
- * rule is the one the chain of `X-Forwarded-For` is built on: the first
- * element is the client and the last one is the proxy that is the closest to
- * the server. The address that is written down is the address of the client.
+ * rule is the one the chain of `X-Forwarded-For` is built on: the edge writes
+ * the address of the client at the END of the chain, so the chain is read from
+ * the right and the address of the client is the last address of the chain
+ * that is not a known proxy.
  */
 
 import test from 'node:test';
@@ -22,13 +23,14 @@ import {
 
 const EDGE = parseTrustedProxies('172.64.0.0/13,162.158.0.0/16');
 
-test('the first address of the chain is the address of the client', () => {
+test('the last address of the chain is the address of the client', () => {
+  // The edge writes the address of the client at the end of the chain.
   const address = resolveClientAddress('172.64.1.2', '203.0.113.5, 198.51.100.7', EDGE);
-  assert.equal(address, '203.0.113.5');
+  assert.equal(address, '198.51.100.7');
 });
 
 test('the address of the proxy is never the address that is written down', () => {
-  // The chain is read from the left, so the closest proxy is not the answer.
+  // The chain is read from the right, so the closest proxy is skipped.
   const address = resolveClientAddress('172.64.1.2', '203.0.113.5, 172.69.155.34', EDGE);
   assert.equal(address, '203.0.113.5');
 });
@@ -89,11 +91,26 @@ test('the address of an IPv4 socket is the address of the client', () => {
   assert.equal(isTrustedAddress('::1', parseTrustedProxies('::1')), true);
 });
 
-test('the chain of the header is read from the left, not from the right', () => {
+test('the chain of the header is read from the right, not from the left', () => {
   const trusted = parseTrustedProxies('10.0.0.7');
-  // The first address of the chain is the client, even when the last one is
-  // an address that is not a proxy: the chain is only read when the peer is
-  // a proxy that is known, and the first address that is not a proxy is taken.
+  // The last address of the chain is the client: the edge writes it there.
   const address = resolveClientAddress('10.0.0.7', '203.0.113.5, 198.51.100.7', trusted);
-  assert.equal(address, '203.0.113.5');
+  assert.equal(address, '198.51.100.7');
+});
+
+test('a client that forges the head of the chain does not choose its address', () => {
+  const trusted = parseTrustedProxies('10.0.0.7');
+  // The client sends its own `X-Forwarded-For` and the edge keeps the value
+  // and writes the real address at the end of the chain. The forged value is
+  // at the head of the chain, so it is not the address of the client.
+  const address = resolveClientAddress('10.0.0.7', '9.9.9.9, 198.51.100.7', trusted);
+  assert.equal(address, '198.51.100.7');
+  assert.notEqual(address, '9.9.9.9');
+});
+
+test('the address the edge writes alone is the address of the client', () => {
+  // The case of the edge that replaces the header of the client.
+  const trusted = parseTrustedProxies('10.0.0.7');
+  const address = resolveClientAddress('10.0.0.7', '198.51.100.7', trusted);
+  assert.equal(address, '198.51.100.7');
 });

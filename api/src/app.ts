@@ -7,11 +7,10 @@ import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import { env } from './env.js';
 import { prisma } from './db.js';
-import { loadSession } from './plugins/auth.js';
+import { addressRateLimitKey, loadSession } from './plugins/auth.js';
 import { csrfGuard, ensureCsrfCookie } from './plugins/csrf.js';
 import { registerErrorHandler } from './plugins/errorHandler.js';
 import { MAX_ATTACHMENT_BYTES } from './lib/attachments.js';
-import { rateLimitRun } from './lib/rate-limit.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCatalogRoutes } from './routes/catalog.js';
 import { registerOrderRoutes } from './routes/orders.js';
@@ -74,10 +73,12 @@ export async function buildApp(): Promise<FastifyInstance> {
      * set that header. Without that list every request would carry the
      * address of the web container and every visitor would share one counter.
      *
-     * In the test environment the key carries the run number, so the counters
-     * of one test do not count against the next one.
+     * The key of the counter is the address of the client when that address is
+     * known, and the connection when it is not, so a limit is never a limit
+     * for the whole platform and one visitor can never lock every other
+     * visitor out of a page or of the sign-in.
      */
-    keyGenerator: (request) => (env.isTest ? `${request.ip}:${rateLimitRun()}` : request.ip),
+    keyGenerator: (request) => addressRateLimitKey(request),
     errorResponseBuilder: (_request, context) => ({
       statusCode: 429,
       error: {

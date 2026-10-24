@@ -2,6 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
+import { rateLimitRun } from '../lib/rate-limit.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
@@ -93,6 +94,22 @@ export function rateLimitKey(request: FastifyRequest): string {
   // The request came through a proxy that the API does not know, so the
   // address of the client cannot be told apart from the address of the proxy.
   return `${address}:${request.socket?.remotePort ?? 0}`;
+}
+
+/**
+ * The key the counters of the addresses are kept under.
+ *
+ * The counter of an address is the counter of the client when the address is
+ * known, and the counter of the connection when it is not. Either way the
+ * counter belongs to one visitor and never to the whole platform, so a limit
+ * can no longer lock every visitor out of a page or of the sign-in.
+ *
+ * In the test environment the key carries the number of the run, so the
+ * counters of one test do not count against the next one.
+ */
+export function addressRateLimitKey(request: FastifyRequest): string {
+  const key = rateLimitKey(request);
+  return env.isTest ? `${key}:${rateLimitRun()}` : key;
 }
 
 /**
@@ -318,12 +335,15 @@ export function requirePermission(permission: Permission) {
 }
 
 /**
- * The rule that an administrator is only acted on by an administrator.
+ * The rule that the accounts of the platform are only acted on by an
+ * administrator.
  *
  * The account that administers the platform may only be suspended, be given
- * a new panel key or have its services touched by another administrator. A
- * staff member that could do that would lock the platform out of its own
- * administration, so the rule lives in the server and not in the interface.
+ * a new panel key or have its services touched by another administrator, and
+ * the same goes for the account of a member of the staff: a member of the
+ * staff that could suspend another member of the staff could lock the
+ * platform out of its own administration. The rule lives in the server and
+ * not in the interface.
  *
  * The rule is about one account that the request names, so it is checked on
  * the routes that write to the account of a customer. A sweep over the whole

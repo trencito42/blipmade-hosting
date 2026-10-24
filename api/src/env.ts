@@ -13,6 +13,14 @@ const bool = (fallback: boolean) =>
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(3100),
+  /**
+   * The number of sign-in attempts that may fail on one account, and on one
+   * address, before the sign-in is refused for a quarter of an hour.
+   *
+   * Only the attempts that failed are counted: a sign-in that worked does not
+   * count, so a customer who signs in several times in a row is never locked
+   * out of their own account.
+   */
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(1000).default(10),
   WORKER_HEALTH_PORT: z.coerce.number().default(3101),
   HOST: z.string().default('0.0.0.0'),

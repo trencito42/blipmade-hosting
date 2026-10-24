@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { BillingPeriod, Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { notFound } from '../lib/errors.js';
+import { addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, priceBook } from '../services/pricing.js';
 import { deploymentAvailability } from '../services/availability.js';
 
@@ -167,7 +168,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
   });
 
   app.post('/catalog/quote', {
-    config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
+    config: { rateLimit: { max: 120, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
     handler: async (request) => {
       const body = z
         .object({
