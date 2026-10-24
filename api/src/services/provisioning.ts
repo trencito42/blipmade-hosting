@@ -17,9 +17,7 @@ import { cancelSubscription, refundPayment } from './stripe.js';
 import { starterFiles } from './starter-apps.js';
 import type { Instance, Product } from '@prisma/client';
 import {
-  isRunningState,
-  isStartingState,
-  normalizeState,
+  judgeContainer,
   type PteroNode,
   type PteroServer,
 } from './pterodactyl/types.js';
@@ -747,33 +745,36 @@ export async function verifyDeployment(
 }
 
 /**
- * The sentence that tells an operator what the node said.
+ * How many times the node is asked to confirm a container that is alive.
  *
- * The state is named, because the operator has to see what the node answered.
- * An answer without a state is named as well: a panel that does not say what
- * the state is has not proved that the container runs.
+ * The node only promotes a container to "running" when the health check of
+ * the egg passes. On a node whose eggs have no health check that matches the
+ * application, the container stays in "starting" for as long as it is up, so
+ * waiting for the confirmation is waiting for something that will not come.
+ * Five checks of three seconds are enough to see the confirmation when it is
+ * going to come, and short enough not to hold a provisioning for a minute.
  */
-function stateSentence(state: string): string {
-  return state
-    ? `The node reported the state "${state}" for the server.`
-    : 'The node reported no state at all for the server.';
-}
+const CONFIRM_ATTEMPTS = 5;
 
 /**
  * Verifies the deployment of a product that does not expose a port.
  *
  * A bot that only talks to another service has nothing to answer on the
  * network, so the check is not "does the app answer" but "is the container
- * really running on the node".
+ * really alive on the node".
  *
- * The panel answers with the state of the server, and that state is the truth
- * about the container: only the state "running" means the container is up and
- * serving. A container that is still "starting" has not passed its health
- * check yet, so the check waits for it and asks again. A container that is
- * "offline", "stopped" or "crashed" will not become healthy by waiting for it,
- * so the check stops at once and names the state. A deployment that was called
- * healthy while the node said anything else would hand a broken container to a
- * customer and would say that the instance is online.
+ * The panel answers with the state of the server and with what the container
+ * uses. A container that the node reports as "running" is serving. A container
+ * that the node still reports as "starting" but that uses memory is alive: the
+ * health check of the egg does not pass, so the node never promotes it, and
+ * the customer would be refunded for a service that works. A container that
+ * uses no memory is not serving yet, and one that the node reports as
+ * "offline", "stopped" or "crashed" will not become healthy by waiting for
+ * it, so the check stops at once and names the state.
+ *
+ * A deployment that was called healthy while the node said anything else
+ * would hand a broken container to a customer and would say that the instance
+ * is online.
  */
 export async function verifyContainerDeployment(
   token: string,
@@ -785,34 +786,54 @@ export async function verifyContainerDeployment(
   const delayMs = options.delayMs ?? 3000;
 
   let lastReason = 'The panel did not answer about the server.';
-  let lastState = '';
+  // A container that is alive but that the node does not confirm: the health
+  // check of the egg does not pass, so the node keeps it in "starting" for as
+  // long as the container is up. The deployment is served, and the doubt is
+  // written down instead of being hidden.
+  let unconfirmed: string | null = null;
+  let aliveChecks = 0;
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       const resources = await pteroClient.getResources(token, uuid);
-      const state = normalizeState(resources.state);
-      lastState = state;
+      const verdict = judgeContainer({
+        state: resources.state,
+        memoryBytes: resources.memory_bytes,
+        suspended: resources.is_suspended,
+      });
+      lastReason = verdict.reason;
 
-      if (isRunningState(state)) {
+      if (verdict.serving && verdict.confirmed) {
         return {
           ok: true,
           status: null,
           reason: null,
-          message: `The container is running on the node (state: ${state}).`,
+          message: verdict.reason,
         };
       }
 
-      if (!isStartingState(state)) {
+      if (!verdict.serving) {
         // A state that will not become healthy by waiting for it.
         return {
           ok: false,
           status: null,
-          reason: `${stateSentence(state)} The container is not running, so the deployment is not healthy.`,
+          reason: verdict.reason,
         };
       }
 
-      // The container is still coming up: wait for it and ask again.
-      lastReason = `${stateSentence(state)} The container is not running yet.`;
+      // The container is alive but the node does not confirm it. The node gets
+      // a few more chances to say so, and the deployment is served afterwards
+      // with the doubt written down.
+      unconfirmed = verdict.reason;
+      aliveChecks += 1;
+      if (aliveChecks >= CONFIRM_ATTEMPTS) {
+        return {
+          ok: true,
+          status: null,
+          reason: null,
+          message: `${unconfirmed} The deployment was served after ${aliveChecks} checks.`,
+        };
+      }
     } catch (error) {
       lastReason = error instanceof Error ? error.message : 'The panel did not answer about the server.';
     }
@@ -820,13 +841,16 @@ export async function verifyContainerDeployment(
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
-  return {
-    ok: false,
-    status: null,
-    reason: lastState
-      ? `${stateSentence(lastState)} The container did not reach the running state after ${attempts} checks.`
-      : lastReason,
-  };
+  if (unconfirmed) {
+    return {
+      ok: true,
+      status: null,
+      reason: null,
+      message: `${unconfirmed} The deployment was served after ${attempts} checks.`,
+    };
+  }
+
+  return { ok: false, status: null, reason: lastReason };
 }
 
 /**

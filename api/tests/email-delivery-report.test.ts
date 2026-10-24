@@ -71,11 +71,11 @@ describe('the report of the deliveries', () => {
 
   it('says that a message was failed when the database says so and the queue says it was written', async () => {
     const jobId = emailJobId(PRUNED);
-    const worker = createEmailWorker(async () => ({ state: 'written-to-file' }));
+    const worker = createEmailWorker(async () => ({ state: 'written-to-file' as const, delivered: false, id: 'report' }));
     try {
       await getEmailQueue().add(
         'send',
-        { key: PRUNED, kind: 'reset', to: 'customer@example.test' },
+        { key: PRUNED, kind: 'reset', to: 'customer@example.test', subject: 'Reset your password', text: 'A link.' },
         { jobId, attempts: 1 },
       );
       expect(await waitForState(jobId, 'completed')).toBe('completed');
@@ -115,11 +115,11 @@ describe('the report of the deliveries', () => {
 
   it('still reports a message that only the queue knows', async () => {
     const jobId = emailJobId(ONLY_QUEUE);
-    const worker = createEmailWorker(async () => ({ state: 'written-to-file' }));
+    const worker = createEmailWorker(async () => ({ state: 'written-to-file' as const, delivered: false, id: 'report' }));
     try {
       await getEmailQueue().add(
         'send',
-        { key: ONLY_QUEUE, kind: 'reset', to: 'customer@example.test' },
+        { key: ONLY_QUEUE, kind: 'reset', to: 'customer@example.test', subject: 'Reset your password', text: 'A link.' },
         { jobId, attempts: 1 },
       );
       expect(await waitForState(jobId, 'completed')).toBe('completed');
@@ -138,7 +138,7 @@ describe('the report of the deliveries', () => {
     const jobId = emailJobId(WAITING);
     await getEmailQueue().add(
       'send',
-      { key: WAITING, kind: 'reset', to: 'customer@example.test' },
+      { key: WAITING, kind: 'reset', to: 'customer@example.test', subject: 'Reset your password', text: 'A link.' },
       { jobId, attempts: 1 },
     );
     expect(await waitForState(jobId, 'waiting')).toBe('waiting');

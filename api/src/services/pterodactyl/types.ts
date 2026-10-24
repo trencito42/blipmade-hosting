@@ -239,3 +239,95 @@ export function isRunningState(state: string | null | undefined): boolean {
 export function isStartingState(state: string | null | undefined): boolean {
   return normalizeState(state) === STARTING_STATE;
 }
+
+/**
+ * The memory a container has to use to be counted as alive.
+ *
+ * A container that is not running has no memory of its own, and a container
+ * that runs always has some. The containers of this platform use tens of
+ * megabytes, so one megabyte is the lowest line that tells the two apart
+ * without being wrong for a small application.
+ */
+export const MEMORY_ALIVE_BYTES = 1024 * 1024;
+
+/** What the node says about a container. */
+export interface ContainerEvidence {
+  /** The state the node reports for the container. */
+  state: string | null | undefined;
+  /** The memory the container uses, in bytes. */
+  memoryBytes: number;
+  /** True when the container is suspended. */
+  suspended: boolean;
+}
+
+/** What the platform concludes from what the node says. */
+export interface ContainerVerdict {
+  /** True when the container serves the customer. */
+  serving: boolean;
+  /** True when the node itself said that the container is running. */
+  confirmed: boolean;
+  /** The reason, in words, for the verdict. */
+  reason: string;
+}
+
+/**
+ * Judges a container by what the node says about it.
+ *
+ * The node only says "running" when the health check of the egg passes. A
+ * product whose egg has no health check, or one whose check does not match
+ * the application, stays in "starting" for as long as the container is up: the
+ * container serves, but the node never says so.
+ *
+ * A check that only accepts "running" refuses those servers, and the customer
+ * gets his money back for a service that works. A check that accepts every
+ * state calls a stopped container healthy. The truth is in between: the
+ * container is alive when the node reports memory in use and the container is
+ * not suspended.
+ *
+ * The doubt is never hidden: a container that is alive but that the node does
+ * not confirm is served, and the reason says so in words.
+ */
+export function judgeContainer(evidence: ContainerEvidence): ContainerVerdict {
+  const state = normalizeState(evidence.state);
+  const memory = Number.isFinite(evidence.memoryBytes) ? evidence.memoryBytes : 0;
+
+  if (isRunningState(state)) {
+    return {
+      serving: true,
+      confirmed: true,
+      reason: `The container is running on the node (state: ${state}).`,
+    };
+  }
+
+  if (isStartingState(state)) {
+    const alive = !evidence.suspended && memory >= MEMORY_ALIVE_BYTES;
+    if (alive) {
+      return {
+        serving: true,
+        confirmed: false,
+        reason:
+          `The node reports the state "${state}" and the container uses ${Math.round(memory / (1024 * 1024))} MB of memory, ` +
+          'so the container is alive; the node does not confirm the running state, because the health check of the egg does not pass.',
+      };
+    }
+    return {
+      serving: false,
+      confirmed: false,
+      reason: `The node reports the state "${state}" and the container shows no memory in use yet, so it is not serving yet.`,
+    };
+  }
+
+  if (!state) {
+    return {
+      serving: false,
+      confirmed: false,
+      reason: 'The node reported no state at all for the server, so the deployment cannot be called healthy.',
+    };
+  }
+
+  return {
+    serving: false,
+    confirmed: false,
+    reason: `The node reports the state "${state}", which is not a state in which the container serves the customer.`,
+  };
+}

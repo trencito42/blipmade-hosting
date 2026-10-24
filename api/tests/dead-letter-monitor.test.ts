@@ -214,4 +214,10 @@ describe('the watch over the dead-letter queue', () => {
     expect(runtimeStateWarning({ observed: 10, notRunning: 0, unreachable: 0 })).toBeNull();
     expect(runtimeStateWarning(null)).toBeNull();
   });
+
+  it('names the services that are alive but that the node does not confirm', () => {
+    expect(runtimeStateWarning({ observed: 10, notRunning: 0, unconfirmed: 4, unreachable: 0 })).toMatch(
+      /4 service\(s\) are alive, but the node does not confirm/,
+    );
+  });
 });

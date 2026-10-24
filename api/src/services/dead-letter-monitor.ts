@@ -317,11 +317,20 @@ interface RuntimeStateModule {
  * apart from the watch, so the rule can be proved without a node.
  */
 export function runtimeStateWarning(result: unknown): string | null {
-  const summary = (result ?? {}) as { observed?: unknown; notRunning?: unknown; unreachable?: unknown };
+  const summary = (result ?? {}) as {
+    observed?: unknown;
+    notRunning?: unknown;
+    unconfirmed?: unknown;
+    unreachable?: unknown;
+  };
   const notRunning = typeof summary.notRunning === 'number' ? summary.notRunning : 0;
+  const unconfirmed = typeof summary.unconfirmed === 'number' ? summary.unconfirmed : 0;
   const unreachable = typeof summary.unreachable === 'number' ? summary.unreachable : 0;
   if (notRunning > 0) {
     return `[running-state] ${notRunning} service(s) were not in the state the platform believes`;
+  }
+  if (unconfirmed > 0) {
+    return `[running-state] ${unconfirmed} service(s) are alive, but the node does not confirm the running state`;
   }
   if (unreachable > 0) {
     return `[running-state] ${unreachable} service(s) could not be asked about`;

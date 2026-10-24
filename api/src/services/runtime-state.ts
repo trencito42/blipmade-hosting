@@ -2,7 +2,7 @@ import { prisma } from '../db.js';
 import { audit } from '../lib/audit.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { withCustomerKey } from './provisioning.js';
-import { isRunningState, normalizeState } from './pterodactyl/types.js';
+import { judgeContainer } from './pterodactyl/types.js';
 
 /**
  * The state of the containers of the customers, compared with what the platform
@@ -29,6 +29,15 @@ export interface RuntimeStateObservation {
   nodeState: string;
   /** True when the node says the container is running. */
   running: boolean;
+  /**
+   * True when the container is alive but the node does not confirm it.
+   *
+   * The node only says "running" when the health check of the egg passes. A
+   * node whose eggs do not have a health check that matches the application
+   * keeps every container in "starting" for as long as it is up, so a
+   * container in that state is alive even though the node does not say so.
+   */
+  unconfirmed: boolean;
   /** True when the node could not be asked at all. */
   unreachable: boolean;
 }
@@ -72,7 +81,7 @@ export async function observeRuntimeState(instanceId: string): Promise<RuntimeSt
   if (!uuid) {
     // The platform shows the instance as online, but there is no server on the
     // panel to ask the node about.
-    return { instanceId, nodeState: '', running: false, unreachable: true };
+    return { instanceId, nodeState: '', running: false, unconfirmed: false, unreachable: true };
   }
 
   try {
@@ -84,17 +93,23 @@ export async function observeRuntimeState(instanceId: string): Promise<RuntimeSt
       { mint: false, renew: false },
     );
     const nodeState = (resources.state ?? '').trim();
+    const verdict = judgeContainer({
+      state: nodeState,
+      memoryBytes: resources.memory_bytes,
+      suspended: resources.is_suspended,
+    });
     return {
       instanceId,
       nodeState,
-      running: isRunningState(nodeState),
+      running: verdict.serving && verdict.confirmed,
+      unconfirmed: verdict.serving && !verdict.confirmed,
       unreachable: false,
     };
   } catch {
     // The panel or the node did not answer. That is not a reason to fail the
     // run: the truth is not known right now, and the run goes on with the
     // next instance.
-    return { instanceId, nodeState: '', running: false, unreachable: true };
+    return { instanceId, nodeState: '', running: false, unconfirmed: false, unreachable: true };
   }
 }
 
@@ -125,7 +140,9 @@ async function recordRuntimeState(observation: RuntimeStateObservation): Promise
   const moment = new Date().toISOString();
   const message = observation.unreachable
     ? `The node could not be asked about this instance at ${moment}. The platform still shows it as online.`
-    : `The node reported the state "${observation.nodeState}" for this instance at ${moment}. The platform still shows it as online.`;
+    : observation.unconfirmed
+      ? `The node reported the state "${observation.nodeState}" for this instance at ${moment}, and the container is alive, but the node does not confirm the running state: the health check of the egg does not pass. The platform still shows it as online.`
+      : `The node reported the state "${observation.nodeState}" for this instance at ${moment}. The platform still shows it as online.`;
 
   // The run repeats every minute, so the same finding is only written once.
   const last = await prisma.instanceEvent.findFirst({
@@ -145,6 +162,7 @@ async function recordRuntimeState(observation: RuntimeStateObservation): Promise
     meta: {
       state: observation.unreachable ? null : observation.nodeState,
       running: false,
+      unconfirmed: observation.unconfirmed,
       unreachable: observation.unreachable,
       observedAt: moment,
     },
@@ -168,12 +186,15 @@ async function recordRuntimeState(observation: RuntimeStateObservation): Promise
  *
  *   - `observed` is the number of instances the run looked at,
  *   - `notRunning` is the number of those the node answered about with a state
- *     that is not "running",
+ *     in which the container does not serve,
+ *   - `unconfirmed` is the number of those whose container is alive but that
+ *     the node does not confirm, because the health check of the egg does not
+ *     pass,
  *   - `unreachable` is the number of those the node could not be asked about.
  */
 export async function reconcileRuntimeState(
   options: { limit?: number } = {},
-): Promise<{ observed: number; notRunning: number; unreachable: number }> {
+): Promise<{ observed: number; notRunning: number; unconfirmed: number; unreachable: number }> {
   const limit = options.limit ?? DEFAULT_LIMIT;
   const instances = await prisma.instance.findMany({
     where: { status: 'ONLINE' },
@@ -184,6 +205,7 @@ export async function reconcileRuntimeState(
 
   let observed = 0;
   let notRunning = 0;
+  let unconfirmed = 0;
   let unreachable = 0;
 
   for (const instance of instances) {
@@ -192,6 +214,7 @@ export async function reconcileRuntimeState(
 
     observed += 1;
     if (observation.unreachable) unreachable += 1;
+    else if (observation.unconfirmed) unconfirmed += 1;
     else if (!observation.running) notRunning += 1;
 
     // A container that runs is what the platform promised, so there is nothing
@@ -201,5 +224,5 @@ export async function reconcileRuntimeState(
     await recordRuntimeState(observation);
   }
 
-  return { observed, notRunning, unreachable };
+  return { observed, notRunning, unconfirmed, unreachable };
 }
