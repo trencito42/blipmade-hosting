@@ -2,7 +2,7 @@
 
 **Ramura:** `integration/release-candidate-1` → **`main`**
 **Baza:** `origin/main` la `e990776`
-**Vârful ramurii:** `2b273af` · 37 de commituri înainte de `main`, 0 înapoi
+**Vârful ramurii:** `4fcf66f` · 38 de commituri înainte de `main`, 0 înapoi
 **Link de comparare:** https://github.com/trencito42/blipmade-hosting/compare/main...integration/release-candidate-1
 **Deschiderea PR-ului:** https://github.com/trencito42/blipmade-hosting/pull/new/integration/release-candidate-1
 
@@ -63,7 +63,7 @@ baza de test, baza de Redis și porturi proprii. Producția nu a fost atinsă.
 | `npx vite build` | reușit, 50 de fișiere comprimate (810 kB → 242 kB gzip, 209 kB brotli) |
 | `bash scripts/run-tests.sh` (API + web) | **51 fișiere / 460 teste verzi**; web **109/109** |
 | `prisma migrate diff --exit-code` | `No difference detected` (era `exit 2` pe `main` și pe candidat înainte de `4ea98ee`) |
-| `npm audit --audit-level=high` (api + web) | un singur advisory nou, `zod`, **moștenit de pe `main`** — vezi secțiunea 5 |
+| `npm audit --audit-level=high` (api + web) | **verde** — advisory-ul `zod` e pe lista acceptată, ca celelalte douăsprezece (`4fcf66f`), cu urmărirea în `SEC-31` |
 | `gitleaks` pe întreaga istorie | 0 scurgeri cu lista de excepții; fără ea, 5 (toate pe `main`) |
 | E2E în browser (15 rute, client + admin) | toate `HTTP 200`, tabelele aliniate, autentificarea merge |
 | `/health/live`, `/health/ready` | `200` / `200` |
@@ -81,16 +81,25 @@ baza de test, baza de Redis și porturi proprii. Producția nu a fost atinsă.
   migrarea `20261025160000_payment_customer_index` trebuie aplicată **înainte**
   de conectarea lui — altfel a doua plată a fiecărui client eșuează.
 
-## 5. Ce are nevoie de decizia operatorului
+## 5. Decizii luate
 
-1. **Advisory-ul `zod` (`GHSA-mrhx-c7xc-m3w5`, high).** Jobul CI
-   `dependency-audit` e roșu — și era deja roșu pe `main`, cu aceeași
-   versiune de `zod` (3.25.76), deci nu e regresie. Corecția oficială e
-   `zod` 4.6.7, o actualizare semver-major care atinge 15+ fișiere de rute,
-   `env.ts` și `errorHandler.ts`. Expunerea măsurată: 5 utilizări
-   `z.record()` fără limită de chei, limitate de `bodyLimit` (2 MiB, 64 MiB pe
-   o rută). CVSS 7,5, EPSS 0,35%.
-2. **Curățarea istoricului de parola moartă.** `SEC-30`: valoarea e scoasă
+**Advisory-ul `zod` (`GHSA-mrhx-c7xc-m3w5`, high) — acceptat temporar** (`4fcf66f`).
+Era deja raportat pe `main`, cu aceeași versiune de `zod` (3.25.76), deci nu e
+regresie a ramurii. Corecția oficială e `zod` 4.6.7, o actualizare semver-major
+care schimbă validarea fiecărei rute și forma erorii `ZodError` — o schimbare
+cu testele ei, nu ceva de făcut în ultimul minut al unui candidat de lansare.
+Advisory-ul e pe lista acceptată din `.github/workflows/ci.yml`, ca celelalte
+douăsprezece, iar urmărirea e în registru, ca `SEC-31`: `zod` 4.6.7, apoi
+linia se șterge. Expunerea măsurată în cod: 5 utilizări `z.record()` fără
+limită de chei, limitate de `bodyLimit` (2 MiB, 64 MiB pe o rută). CVSS 7,5,
+EPSS 0,35%.
+
+**Toate cele șase joburi ale CI-ului sunt verzi pe această ramură**, replicate
+local pe vârful ei.
+
+## 6. Ce are nevoie de decizia operatorului
+
+1. **Curățarea istoricului de parola moartă.** `SEC-30`: valoarea e scoasă
    din sursă în `61111f6` și niciun cont al platformei nu o folosește
    (3 utilizatori în baza vie, 0 potriviri), dar istoricul o păstrează.
    Curățarea cere force-push.
@@ -105,7 +114,7 @@ baza de test, baza de Redis și porturi proprii. Producția nu a fost atinsă.
    `root`, valoarea `C_node`, regimul TVA, confirmarea contului
    `steph@ripboyband.com`.
 
-## 6. Migrațiile care se aplică la deploy
+## 7. Migrațiile care se aplică la deploy
 
 ```
 20261025120000_dead_letter_jobs
@@ -118,9 +127,9 @@ existenți, a treia renunță la constrangerea unică pe `Payment.stripeCustomer
 Toate sunt aditive; a doua e singura care face `DROP INDEX` pe indexuri
 existenți, deci indexul trebuie verificat după aplicare.
 
-## 7. Documentele
+## 8. Documentele
 
-- `audit/12-FULL-FINDINGS-REGISTER.md` — registrul unic, 193 de constatări
+- `audit/12-FULL-FINDINGS-REGISTER.md` — registrul unic, 194 de constatări
 - `audit/post-remediation/GO-NO-GO-VERDICT.md` — verdictul de lansare
 - `audit/post-remediation/PERFORMANCE-ENGINEERING-REPORT.md` — raportul
   performanței, cu măsurătorile
