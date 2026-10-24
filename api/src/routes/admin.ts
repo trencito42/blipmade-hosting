@@ -22,6 +22,37 @@ import { env } from '../env.js';
 const money = (amount: number) => amount / 100;
 
 /**
+ * The keys of the settings that the settings endpoints never show and never
+ * write.
+ *
+ * The internal counters of the numbers and the record of the retention hold
+ * data that belongs to the platform and not to the operator. The retention
+ * record carries the export of every cancelled customer, with the services,
+ * the orders, the subscriptions, the invoices, the payments, the events, the
+ * domains and the tickets of each of them. A generic endpoint that shows and
+ * writes every key would hand that data to every member of the staff, and a
+ * write to that key would destroy the record that the platform has to keep.
+ *
+ * The ordinary settings of the operator are not affected: the feature stays
+ * exactly as it was for everything that is not internal.
+ */
+const PROTECTED_SETTING_KEYS = new Set(['cancelled_instance_retention']);
+
+/**
+ * The prefix of the keys that belong to the platform itself.
+ *
+ * A key with this prefix is protected by the convention, so a key that is
+ * added later is protected from the first moment and never shows up in the
+ * generic settings endpoints by accident.
+ */
+const INTERNAL_SETTING_PREFIX = 'internal.';
+
+/** Whether the key is one of the settings that the endpoints may not touch. */
+function isProtectedSettingKey(key: string): boolean {
+  return PROTECTED_SETTING_KEYS.has(key) || key.startsWith(INTERNAL_SETTING_PREFIX);
+}
+
+/**
  * The check that says whether a deployment really works.
  *
  * "http" and "tcp" ask the application itself, "container" asks the panel
@@ -1146,8 +1177,22 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * The settings of the platform.
+   *
+   * The internal keys are not in the answer: the counters of the numbers and
+   * the record of the retention hold data of the platform, and the retention
+   * record carries the export of every cancelled customer.
+   */
   app.get('/admin/settings', { preHandler: requirePermission('settings.read') }, async () => {
-    const settings = await prisma.setting.findMany();
+    const settings = await prisma.setting.findMany({
+      where: {
+        key: {
+          notIn: [...PROTECTED_SETTING_KEYS],
+          not: { startsWith: INTERNAL_SETTING_PREFIX },
+        },
+      },
+    });
     const result: Record<string, unknown> = {};
     for (const setting of settings) result[setting.key] = setting.value;
     return { settings: result };
@@ -1169,6 +1214,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.put('/admin/settings', { preHandler: requirePermission('settings.write') }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const body = z.record(z.unknown()).parse(request.body);
+    // The internal keys are not written here. The counters of the numbers and
+    // the record of the retention belong to the platform, and a key that is
+    // written by accident destroys a record that has to be kept, so the whole
+    // request is refused and nothing is written.
+    const refused = Object.keys(body).filter(isProtectedSettingKey);
+    if (refused.length) {
+      throw forbidden(`These settings belong to the platform and cannot be changed here: ${refused.join(', ')}.`);
+    }
     for (const [key, value] of Object.entries(body)) {
       await prisma.setting.upsert({ where: { key }, create: { key, value: value as never }, update: { value: value as never } });
     }

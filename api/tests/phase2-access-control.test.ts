@@ -252,3 +252,87 @@ describe('the account of an administrator', () => {
     expect(suspended?.suspendedAt).not.toBeNull();
   });
 });
+
+describe('the settings of the platform', () => {
+  beforeAll(async () => {
+    app = await getApp();
+  });
+
+  afterAll(async () => {
+    await closeApp();
+  });
+
+  beforeEach(async () => {
+    await resetDatabase();
+  });
+
+  /** The three kinds of setting: ordinary, internal and the retention record. */
+  async function seedSettings(): Promise<void> {
+    await prisma.setting.create({
+      data: { key: 'support_email', value: 'help@blipmade.test' },
+    });
+    await prisma.setting.create({
+      data: { key: 'internal.order.sequence', value: 42 },
+    });
+    await prisma.setting.create({
+      data: {
+        key: 'cancelled_instance_retention',
+        value: { customers: [{ email: 'cancelled@blipmade.test', orders: [{ total: 1999 }] }] },
+      },
+    });
+  }
+
+  it('does not show the internal settings', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['settings.read']);
+    await seedSettings();
+
+    const response = await staff.request('GET', '/api/admin/settings');
+
+    expect(response.status).toBe(200);
+    expect(response.body.settings.support_email).toBe('help@blipmade.test');
+    expect(response.body.settings['cancelled_instance_retention']).toBeUndefined();
+    expect(response.body.settings['internal.order.sequence']).toBeUndefined();
+    expect(JSON.stringify(response.body)).not.toMatch(/cancelled@blipmade\.test/);
+  });
+
+  it('refuses to write the retention record', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['settings.write']);
+    await seedSettings();
+
+    const response = await staff.request('PUT', '/api/admin/settings', {
+      cancelled_instance_retention: { customers: [] },
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('forbidden');
+    expect(response.body.error.message).toMatch(/cancelled_instance_retention/);
+
+    // The record of the platform is the one it had.
+    const setting = await prisma.setting.findUnique({ where: { key: 'cancelled_instance_retention' } });
+    expect(setting?.value).toMatchObject({ customers: [{ email: 'cancelled@blipmade.test' }] });
+  });
+
+  it('refuses to write a setting with the internal prefix', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['settings.write']);
+    await seedSettings();
+
+    const response = await staff.request('PUT', '/api/admin/settings', { 'internal.order.sequence': 99 });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('forbidden');
+    expect(response.body.error.message).toMatch(/internal\.order\.sequence/);
+
+    const setting = await prisma.setting.findUnique({ where: { key: 'internal.order.sequence' } });
+    expect(setting?.value).toBe(42);
+  });
+
+  it('writes the ordinary settings', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['settings.write']);
+
+    const response = await staff.request('PUT', '/api/admin/settings', { support_email: 'new@blipmade.test' });
+
+    expect(response.status).toBe(200);
+    const setting = await prisma.setting.findUnique({ where: { key: 'support_email' } });
+    expect(setting?.value).toBe('new@blipmade.test');
+  });
+});
