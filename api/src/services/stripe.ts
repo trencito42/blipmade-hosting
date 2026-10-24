@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { env } from '../env.js';
 import { prisma } from '../db.js';
-import { AppError, badRequest, unavailable } from '../lib/errors.js';
+import { AppError, badRequest, conflict, unavailable } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { allocateOrderAmounts, allocateLineTotals } from './order-amounts.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
@@ -269,6 +269,17 @@ export interface MarkOrderPaidParams {
 }
 
 /**
+ * The states an order may be in when the money arrives.
+ *
+ * `PAID` and `FULFILLED` mean the order was already paid for, so the call is
+ * a repetition and nothing has to change. `FAILED`, `CANCELLED` and `REFUNDED`
+ * are final: an order in one of them states must never become paid again,
+ * because the payment gate of the provisioning would open for an order that
+ * the operator refused or that the customer already got the money back for.
+ */
+const PAYABLE_ORDER_STATUSES = ['PENDING', 'AWAITING_PAYMENT'] as const;
+
+/**
  * Marks an order as paid and creates the subscriptions it paid for.
  *
  * The function is idempotent: running it twice does not create a second
@@ -284,6 +295,15 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
   if (!order) throw badRequest('Order not found.');
 
   const alreadyPaid = order.status === 'PAID' || order.status === 'FULFILLED';
+
+  // A refused, cancelled or refunded order is not payable. The state of the
+  // order is the guard: without it a late or replayed payment event would
+  // turn a dead order into a paid one and the provisioning would follow.
+  if (!alreadyPaid && !(PAYABLE_ORDER_STATUSES as readonly string[]).includes(order.status)) {
+    throw conflict(
+      `Order ${order.number} cannot be paid: its status is ${order.status}.`,
+    );
+  }
 
   // The promotion is consumed here, when the money arrives. Until then it is
   // only reserved, so an unpaid order cannot exhaust a campaign.

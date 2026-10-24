@@ -65,10 +65,17 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     handler: async (request: FastifyRequest, reply) => {
       const user = await requireAuth(request);
       const body = z
-        .object({ items: z.array(orderItemSchema).min(1, 'Choose at least one app.'), promotionCode: z.string().trim().optional() })
+        .object({
+          items: z.array(orderItemSchema).min(1, 'Choose at least one app.'),
+          promotionCode: z.string().trim().optional(),
+          // The period of the price that is ordered. It has to be the same
+          // period as the one that was quoted, otherwise the order would be
+          // priced with another period than the one the customer was shown.
+          period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
+        })
         .parse(request.body);
 
-      const quote = await buildQuote(body.items, body.promotionCode, user.id);
+      const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
 
       const order = await prisma.order.create({
         data: {

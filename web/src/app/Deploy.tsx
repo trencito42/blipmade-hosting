@@ -334,6 +334,9 @@ export default function Deploy() {
     const created = await post<{ order: Order }>('/orders', {
       items: [{ productSlug: product.slug, name: name.trim() || product.slug, ram, cpu, disk, optionCodes }],
       ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
+      // The order is placed with the period of the quote, so the sum that was
+      // shown to the customer is the sum that is charged.
+      ...(quote ? { period: quote.period } : {}),
     });
     const createdOrder = created.order;
     setCheckoutIssue(null);

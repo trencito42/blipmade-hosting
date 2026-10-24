@@ -418,8 +418,9 @@ export async function buildQuote(
   items: { productSlug: string; ram: number; cpu: number; disk: number; optionCodes?: string[]; quantity?: number }[],
   promotionCode?: string | null,
   userId?: string | null,
+  period: BillingPeriod = 'MONTHLY',
 ): Promise<QuoteResult> {
-  const priced = await priceItems(items);
+  const priced = await priceItems(items, period);
   const subtotal = priced.reduce((sum, item) => sum + item.total, 0);
   const currency = priced[0]?.currency ?? 'EUR';
 

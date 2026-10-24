@@ -320,6 +320,11 @@ export interface Quote {
   total: number;
   currency: string;
   /**
+   * The period of the prices in this quote. The order that follows takes the
+   * same period, so the sum that was shown is the sum that is charged.
+   */
+  period: 'MONTHLY' | 'YEARLY';
+  /**
    * The promotion of the quote. It is null when the customer did not type a
    * code: an empty field is not a wrong code, so it never carries an error.
    */

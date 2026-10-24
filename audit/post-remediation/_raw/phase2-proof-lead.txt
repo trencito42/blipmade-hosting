@@ -1,0 +1,53 @@
+   ✓ the state of an order when the money arrives > never pays a cancelled order and provisions nothing 743ms
+   ✓ the state of an order when the money arrives > never pays a refunded order and provisions nothing 541ms
+   × the state of an order when the money arrives > refuses to pay a dead order through the service that pays 617ms
+     → promise resolved "[ { …(18) } ]" instead of rejecting
+   ✓ the state of an order when the money arrives > still pays an order that is waiting for a payment 682ms
+   × the state of an order when the money arrives > keeps a payment event that carries no amount from being applied 609ms
+     → expected 'PAID' not to be 'PAID' // Object.is equality
+   ✓ the state of an order when the money arrives > refuses a payment that collected a different sum than the order 569ms
+   × the period of the price travels with the order > quotes a yearly plan with the yearly price 458ms
+     → expected undefined to be 'YEARLY' // Object.is equality
+   × the period of the price travels with the order > orders the yearly plan with the sum that was quoted 483ms
+     → expected 149 to be 1788 // Object.is equality
+   ✓ the period of the price travels with the order > keeps the monthly sum for a monthly order 410ms
+   × the period of the price travels with the order > refuses a yearly quote for a product that has no yearly price 464ms
+     → expected 200 to be greater than or equal to 400
+AssertionError: promise resolved "[ { …(18) } ]" instead of rejecting
+AssertionError: expected 'PAID' not to be 'PAID' // Object.is equality
+AssertionError: expected undefined to be 'YEARLY' // Object.is equality
+AssertionError: expected 149 to be 1788 // Object.is equality
+AssertionError: expected 200 to be greater than or equal to 400
+ Test Files  1 failed (1)
+      Tests  5 failed | 5 passed (10)
+
+=============================================================================
+DOVADA REGRESIEI — cele trei reparatii implementate de lead
+=============================================================================
+
+Testul: api/tests/phase2-payment-safety.test.ts (10 cazuri)
+Baza: TEST_DB_NAME=blipmade_suite_test
+
+Rezultatul cu reparatiile REVERTITE (codul de dinainte):
+
+  × refuză să plătească o comandă moartă prin serviciul care plătește
+    → promise resolved instead of rejecting
+      (comanda CANCELLED primea plata și infrastructura)
+  × nu aplică un eveniment de plată fără sumă
+    → expected 'PAID' not to be 'PAID'
+      (evenimentul fără sumă trecea drept „sumă corectă")
+  × cotărește planul anual cu prețul anual
+    → expected undefined to be 'YEARLY'
+  × comandă planul anual cu suma cotată
+    → expected 149 to be 1788
+      (comanda anuală era taxată cu suma lunară: 149 în loc de 1788)
+  × refuză o cotare anuală pentru un produs fără preț anual
+    → (eșec)
+
+Rezultatul cu reparatiile în loc: 10/10 PASS.
+
+Observatie importanta: cele doua cazuri „nu plateste o comanda anulata /
+rambursata" trec si fara reparatie, prin calea webhook-ului, care trateaza
+deja o comanda CANCELLED sau REFUNDED: returneaza banii, elibereaza slotul de
+campanie si NU provisioneaza. Garda noua din markOrderPaid nu inlocuieste
+aceasta cale, ci o apara si pe ceilalti apelanti ai serviciului de plata.

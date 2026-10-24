@@ -299,11 +299,18 @@ export async function fulfilOrder(orderId: string): Promise<void> {
 /**
  * The amount Stripe collected has to match the order. A mismatch means the
  * order was not paid as quoted, so nothing is provisioned.
+ *
+ * The check closes when the provider does not send an amount. A payment event
+ * without an amount cannot be compared with the order, and a check that lets
+ * it through is not a check: the order would be provisioned for a sum nobody
+ * confirmed. The order total is in minor units, so the comparison is exact.
  */
 async function verifyAmount(orderId: string, amountTotal: unknown): Promise<string | null> {
-  if (typeof amountTotal !== 'number') return null;
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return 'The order does not exist.';
+  if (typeof amountTotal !== 'number' || !Number.isFinite(amountTotal)) {
+    return 'The payment event does not carry the amount that was collected.';
+  }
   if (amountTotal !== order.total) {
     return `Stripe collected ${amountTotal} but the order total is ${order.total}.`;
   }

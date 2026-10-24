@@ -170,14 +170,22 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
     handler: async (request) => {
       const body = z
-        .object({ items: z.array(quoteItemSchema).min(1, 'Choose at least one app.'), promotionCode: z.string().trim().optional() })
+        .object({
+          items: z.array(quoteItemSchema).min(1, 'Choose at least one app.'),
+          promotionCode: z.string().trim().optional(),
+          // The period of the price that is quoted. The order that follows
+          // takes the same period, so the sum that was shown is the sum that
+          // is charged.
+          period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
+        })
         .parse(request.body);
 
       // The customer who is signed in is known here, so the limit of a
       // campaign per account is checked while the quote is made. A code that
       // the customer has already used is refused here, not later at the order.
-      const quote = await buildQuote(body.items, body.promotionCode, request.user?.id ?? null);
+      const quote = await buildQuote(body.items, body.promotionCode, request.user?.id ?? null, body.period);
       return {
+        period: body.period,
         items: quote.items.map((item) => ({
           productSlug: item.productSlug,
           name: item.name,
