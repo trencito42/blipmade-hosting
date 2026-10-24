@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { badRequest, notFound } from '../lib/errors.js';
-import { EMAIL_QUEUE, PROVISION_QUEUE, enqueueEmail, enqueueProvisioning } from './queue.js';
+import { EMAIL_QUEUE, PROVISION_QUEUE, enqueueEmail, enqueueProvisioning, getEmailQueue } from './queue.js';
 
 /**
  * The failures that are not given up on.
@@ -293,8 +293,18 @@ export type RequeueOutcome =
  * that the failure was already handled. The job itself is put back on the
  * queue under the name it had, so a job that is already waiting is not put on
  * the queue a second time.
+ *
+ * A failure that is put back on the queue is not closed: it stands open
+ * again, and the number of attempts is the one of the run that starts, so the
+ * row never says that a job that is running again was given up on.
  */
 export async function requeueDeadLetter(id: string, options: { requestedBy?: string | null } = {}): Promise<RequeueOutcome> {
+  // The failure is read before it is claimed: the number of attempts belongs
+  // to the run that was given up on, and it is put back if the job does not
+  // go back on the queue.
+  const before = await getDeadLetter(id);
+  if (!before) throw notFound('That failure is not known.');
+
   const claimed = await prisma.$executeRaw(
     Prisma.sql`
       UPDATE "DeadLetterJob"
@@ -302,6 +312,7 @@ export async function requeueDeadLetter(id: string, options: { requestedBy?: str
           "requeuedAt" = ${naiveTimestamp(new Date())}::timestamp,
           "requeuedBy" = ${options.requestedBy ?? null},
           "requeueCount" = "requeueCount" + 1,
+          "attempts" = 0,
           "updatedAt" = ${naiveTimestamp(new Date())}::timestamp
       WHERE "id" = ${id} AND "state" = 'pending'
     `,
@@ -328,6 +339,7 @@ export async function requeueDeadLetter(id: string, options: { requestedBy?: str
             "requeuedAt" = NULL,
             "requeuedBy" = NULL,
             "requeueCount" = GREATEST("requeueCount" - 1, 0),
+            "attempts" = ${before.attempts},
             "updatedAt" = ${naiveTimestamp(new Date())}::timestamp
         WHERE "id" = ${id} AND "state" = 'requeued'
       `,
@@ -343,7 +355,8 @@ export async function requeueDeadLetter(id: string, options: { requestedBy?: str
  *
  * The queue of the provisioning is put back through the same door as every
  * other provisioning, so the job keeps the name it had and cannot be on the
- * queue twice.
+ * queue twice. The queue of the mail is put back through the same door as
+ * every other message, so a message that failed can be sent again.
  */
 async function putBackOnQueue(entry: DeadLetterEntry, requestedBy: string | null): Promise<void> {
   if (entry.queue === PROVISION_QUEUE) {
@@ -355,7 +368,40 @@ async function putBackOnQueue(entry: DeadLetterEntry, requestedBy: string | null
     return;
   }
 
+  if (entry.queue === EMAIL_QUEUE) {
+    await putMessageBackOnQueue(entry);
+    return;
+  }
+
   throw badRequest(`The queue "${entry.queue}" cannot be put back on the queue from here.`);
+}
+
+/**
+ * Puts the message of a failure back on the queue of the mail.
+ *
+ * The body of a message is never written in the table of the failures, so it
+ * is taken from the job itself: a job that failed is kept in the queue for a
+ * week, and the job holds the message that has to be sent. When the job is
+ * not in the queue any more, the message is not in the platform any more and
+ * the failure cannot be put back on the queue.
+ */
+async function putMessageBackOnQueue(entry: DeadLetterEntry): Promise<void> {
+  const job = await getEmailQueue().getJob(entry.jobId).catch(() => null);
+  if (!job) {
+    throw badRequest('The job of this message is not in the queue any more, so the message cannot be sent again.');
+  }
+  const data = job.data as { key?: unknown; kind?: unknown; to?: unknown; subject?: unknown; text?: unknown; html?: unknown };
+  if (typeof data?.key !== 'string' || !data.key || typeof data.to !== 'string' || !data.to) {
+    throw badRequest('The job of this message does not carry a message, so it cannot be sent again.');
+  }
+  await enqueueEmail({
+    key: data.key,
+    kind: typeof data.kind === 'string' ? data.kind : 'message',
+    to: data.to,
+    subject: typeof data.subject === 'string' ? data.subject : '',
+    text: typeof data.text === 'string' ? data.text : '',
+    html: typeof data.html === 'string' ? data.html : undefined,
+  });
 }
 
 /**
