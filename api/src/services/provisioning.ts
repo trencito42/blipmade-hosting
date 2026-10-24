@@ -2,16 +2,27 @@ import { connect } from 'node:net';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
+import { unavailable } from '../lib/errors.js';
 import { fullName } from '../lib/people.js';
 import { notifyInstanceProvisioned } from './notifications.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
-import { renewCustomerCredential, resolveCustomerCredential } from './panel/credentials.js';
+import {
+  hasCustomerCredential,
+  renewCustomerCredential,
+  resolveCustomerCredential,
+} from './panel/credentials.js';
 import { cancelSubscription, refundPayment } from './stripe.js';
 import { starterFiles } from './starter-apps.js';
 import type { Instance, Product } from '@prisma/client';
-import type { PteroNode, PteroServer } from './pterodactyl/types.js';
+import {
+  isRunningState,
+  isStartingState,
+  normalizeState,
+  type PteroNode,
+  type PteroServer,
+} from './pterodactyl/types.js';
 
 /** Steps recorded on the instance so an interrupted job can be reconciled. */
 export const PROVISION_STEPS = [
@@ -216,15 +227,6 @@ function isUnauthenticated(error: unknown): boolean {
 }
 
 /**
- * Runs an operation on the panel with the key of the customer.
- *
- * A key that the panel does not know any more answers 401. That happens when
- * the key was revoked on the panel, for instance because another one was
- * issued for the same account. A new key is asked for and the operation runs a
- * second time, so a deployment does not fail over a key that is not valid any
- * more.
- */
-/**
  * Puts the application of the product into a new container.
  *
  * The audit found a sold product whose container held nothing but `.npm/` and
@@ -252,12 +254,53 @@ async function placeStarterApplication(instance: Instance, server: PteroServer, 
   await recordEvent(instance.id, 'provisioning', `Placed the application of ${product.name} in the container.`);
 }
 
-async function withCustomerKey<T>(userId: string, run: (token: string) => Promise<T>): Promise<T> {
+/**
+ * How the key of a customer may be used.
+ *
+ * The provisioning may ask the panel for a new key, because a customer without
+ * a key cannot receive a service at all. A run that only looks at the panel
+ * may not: it must never mint a credential of its own, so a customer whose key
+ * is gone is reported as unreachable instead of being given a new one without
+ * anybody asking for it.
+ */
+export interface CustomerKeyOptions {
+  /** True when a new key may be asked for when the customer has none. */
+  mint?: boolean;
+  /** True when a key that the panel refuses may be replaced by a new one. */
+  renew?: boolean;
+}
+
+/**
+ * Runs an operation on the panel with the key of the customer.
+ *
+ * A key that the panel does not know any more answers 401. That happens when
+ * the key was revoked on the panel, for instance because another one was
+ * issued for the same account. A new key is asked for and the operation runs a
+ * second time, so a deployment does not fail over a key that is not valid any
+ * more.
+ */
+export async function withCustomerKey<T>(
+  userId: string,
+  run: (token: string) => Promise<T>,
+  options: CustomerKeyOptions = {},
+): Promise<T> {
+  const mint = options.mint ?? true;
+  const renew = options.renew ?? true;
+
+  // A run that may not mint a key needs one that is already stored. When there
+  // is none, the customer is reported instead of being given a new key.
+  if (!mint && !(await hasCustomerCredential(userId))) {
+    throw unavailable('This customer has no client key on the panel.');
+  }
+
   const credential = await resolveCustomerCredential(userId);
   try {
     return await run(pteroClient.clientToken(credential.token));
   } catch (error) {
     if (!isUnauthenticated(error)) throw error;
+    // A run that may not renew a key passes the refusal of the panel on, so
+    // the caller can report that the node could not be asked.
+    if (!renew) throw error;
 
     const fresh = await renewCustomerCredential(userId);
     try {
@@ -704,12 +747,33 @@ export async function verifyDeployment(
 }
 
 /**
+ * The sentence that tells an operator what the node said.
+ *
+ * The state is named, because the operator has to see what the node answered.
+ * An answer without a state is named as well: a panel that does not say what
+ * the state is has not proved that the container runs.
+ */
+function stateSentence(state: string): string {
+  return state
+    ? `The node reported the state "${state}" for the server.`
+    : 'The node reported no state at all for the server.';
+}
+
+/**
  * Verifies the deployment of a product that does not expose a port.
  *
  * A bot that only talks to another service has nothing to answer on the
- * network, so the check is not "does the app answer" but "is the server really
- * on the node and does the panel manage it". The panel answers with the state
- * of the server, so an answer means the deployment reached the node.
+ * network, so the check is not "does the app answer" but "is the container
+ * really running on the node".
+ *
+ * The panel answers with the state of the server, and that state is the truth
+ * about the container: only the state "running" means the container is up and
+ * serving. A container that is still "starting" has not passed its health
+ * check yet, so the check waits for it and asks again. A container that is
+ * "offline", "stopped" or "crashed" will not become healthy by waiting for it,
+ * so the check stops at once and names the state. A deployment that was called
+ * healthy while the node said anything else would hand a broken container to a
+ * customer and would say that the instance is online.
  */
 export async function verifyContainerDeployment(
   token: string,
@@ -721,16 +785,34 @@ export async function verifyContainerDeployment(
   const delayMs = options.delayMs ?? 3000;
 
   let lastReason = 'The panel did not answer about the server.';
+  let lastState = '';
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       const resources = await pteroClient.getResources(token, uuid);
-      return {
-        ok: true,
-        status: null,
-        reason: null,
-        message: `The server is on the node and the panel manages it (state: ${resources.state}).`,
-      };
+      const state = normalizeState(resources.state);
+      lastState = state;
+
+      if (isRunningState(state)) {
+        return {
+          ok: true,
+          status: null,
+          reason: null,
+          message: `The container is running on the node (state: ${state}).`,
+        };
+      }
+
+      if (!isStartingState(state)) {
+        // A state that will not become healthy by waiting for it.
+        return {
+          ok: false,
+          status: null,
+          reason: `${stateSentence(state)} The container is not running, so the deployment is not healthy.`,
+        };
+      }
+
+      // The container is still coming up: wait for it and ask again.
+      lastReason = `${stateSentence(state)} The container is not running yet.`;
     } catch (error) {
       lastReason = error instanceof Error ? error.message : 'The panel did not answer about the server.';
     }
@@ -738,7 +820,13 @@ export async function verifyContainerDeployment(
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
 
-  return { ok: false, status: null, reason: lastReason };
+  return {
+    ok: false,
+    status: null,
+    reason: lastState
+      ? `${stateSentence(lastState)} The container did not reach the running state after ${attempts} checks.`
+      : lastReason,
+  };
 }
 
 /**
