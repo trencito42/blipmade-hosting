@@ -170,6 +170,13 @@ jobs:
         working-directory: api
         run: npm ci
 
+      - name: Install the dependencies of the web from the lock file
+        working-directory: web
+        # The runner of the tests runs the tests of the web too, and one of
+        # them builds a page with React and Vite. Without these two, the file
+        # cannot find React and the step fails.
+        run: npm ci
+
       - name: Generate the Prisma client
         working-directory: api
         run: npx prisma generate
