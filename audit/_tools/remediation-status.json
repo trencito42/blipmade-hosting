@@ -381,6 +381,24 @@
   "test": "api/tests/domains.test.ts",
   "verification": "Verificat: domeniul se rezerva si se elibereaza corect; URL-ul public depinde de gateway"
  },
+ "OPS-12": {
+  "status": "FIXED & VERIFIED",
+  "area": ".github/workflows/ci.yml",
+  "rootCause": "Contextul runner nu exista in mediul unui job, deci cele doua linii care numeau directorul temporar al runner-ului au facut ca intregul fisier sa fie invalid. GitHub crea rularea, refuza sa creeze joburile si o marca ca esuata, la fiecare impingere, de cand fisierul a fost adaugat",
+  "fix": "Cele doua directoare sunt facute acum in pasul care ruleaza suita, cu variabila runner-ului, pe care fiecare pas o are. Fisierul a fost verificat cu actionlint, care raporteaza aceeasi eroare ca GitHub pe fisierul de dinainte si nimic pe fisierul de dupa",
+  "commit": "6272785",
+  "test": "actionlint 1.7.7 pe ambele fisiere de workflow",
+  "verification": "Rularea 40109857754 a creat cele sase joburi, dintre care cinci au trecut: API typecheck, Dependency audit, Web typecheck and build, Secret scan, Schema drift"
+ },
+ "OPS-13": {
+  "status": "FIXED & VERIFIED",
+  "area": ".github/workflows/ci.yml, jobul test",
+  "rootCause": "Suita simuleaza panoul la nivel de retea, dar codul refuza sa lucreze fara adresa panoului, iar poarta de test cere tokenul intern al platformei. Mediul de pe runner nu avea niciuna dintre cele doua valori, pentru ca fisierul .env nu este in depozit",
+  "fix": "Jobul primeste adresa panoului, care indica bucla runner-ului pe un port pe care nu asculta nimeni, si un token intern de unica folosinta. O cerere care ar scapa de simulare esueaza imediat si ramane pe masina",
+  "commit": "264edf4",
+  "test": "rularea completa a suitei intr-o copie a arborelui, cu mediul jobului de pe runner",
+  "verification": "Zece erori pe runner, toate din mediu: cinci in instance-operations, doua in credential-renewal, una in billing-lifecycle si doua urmari. Cu cele doua valori, suita trece in intregime"
+ },
  "INF-01": {
   "status": "REQUIRES OPERATOR APPROVAL",
   "area": "VM 101, / (RAID 0)",
@@ -434,6 +452,15 @@
   "commit": ".github/workflows/ci.yml",
   "test": "npm audit --audit-level=high pentru api si web",
   "verification": "Expunerea masurata in cod: 5 utilizari z.record() fara limita de numar de chei, limitate de bodyLimit (2 MiB, 64 MiB pe o singura ruta). In zod v3 limita lungimii unui z.array().max(n) e verificata inainte de iterarea elementelor, deci vectorul e z.record, nu z.array. CVSS 7,5, EPSS 0,35%"
+ },
+ "SEC-32": {
+  "status": "FIXED & VERIFIED",
+  "area": "api/src/lib/bounded.ts, api/src/routes/catalog.ts, api/src/routes/orders.ts, api/src/routes/billing.ts, api/src/routes/admin.ts, api/src/routes/instance-server.ts",
+  "rootCause": "Niciuna dintre cele treisprezece colectii din corpul cererii nu avea o limita. zod verifica lungimea unui tablou inainte sa parcurga elementele, deci un tablou cu limita nu poate face validarea scumpa, dar o limita nu era pusa. Un dicionar nu are limita in aceasta versiune de zod, deci numarul cheilor era necunoscut pana la citirea valorilor",
+  "fix": "Tablourile au limita maxima, iar numarul cheilor unui dicionar este numarat inainte de citirea valorilor, printr-o functie care arunca aceeasi eroare de validare. Cele 13 colectii sunt limitate acum: 20 de linii de cotatie sau de comanda, 50 de coduri de optiune, 100 de variabile de mediu sau de payload, 200 de setari",
+  "commit": "9734b9b",
+  "test": "api/tests/collection-bounds.test.ts",
+  "verification": "Cele patru teste de refuz picau pe codul de dinaintea reparației si trec pe codul de dupa: 4 picate si 1 verde inainte, 5 verzi dupa. Testul care cere marimile obisnuite trece in ambele, deci nu ascunde o regresie"
  },
  "INF-04": {
   "status": "REQUIRES OPERATOR APPROVAL",
