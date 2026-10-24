@@ -73,7 +73,7 @@ export function Button({ to, href, onClick, variant = 'pri', size = 'md', icon, 
 
 export const Logo = ({ className }: { className?: string }) => (
   <Link to="/" aria-label="Blipmade home" className={cn('flex items-center gap-2.5 rounded-full text-[21px] font-extrabold tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-acc', className)}>
-    <img src={logo} alt="" className="h-6 w-auto" />
+    <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
     blipmade
   </Link>
 );

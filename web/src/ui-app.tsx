@@ -197,7 +197,7 @@ export function AppShell({
         {/* Desktop sidebar */}
         <aside className="sticky top-0 hidden h-[100svh] w-[272px] shrink-0 flex-col bg-s1 p-4 lg:flex">
           <Link to="/" className="mb-6 flex items-center gap-2.5 rounded-full px-2 py-1 text-[21px] font-extrabold tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-acc">
-            <img src={logo} alt="" className="h-6 w-auto" />
+            <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
             blipmade
           </Link>
           <nav aria-label="Main" className="grid gap-1">
@@ -240,7 +240,7 @@ export function AppShell({
               className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-full lg:hidden"
               aria-label="Blipmade home"
             >
-              <img src={logo} alt="" className="h-6 w-auto" />
+              <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
             </Link>
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-[19px] font-extrabold tracking-[-0.04em] text-ink sm:text-[22px]">{title}</h1>
