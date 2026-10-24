@@ -1,0 +1,283 @@
+# Faza 11.1 - Bundle si livrare (build de productie, stiva izolata)
+Data: 2026-10-24T00:23:12+00:00
+DIST: /tmp/web-check/dist
+brotli disponibil: nu
+
+## 1.1 Total pe tip de fisier
+- js      36 fisier(e)      754872 B     737.2 KB
+- css      1 fisier(e)       65229 B      63.7 KB
+- html     1 fisier(e)         850 B       0.8 KB
+- woff2   11 fisier(e)      146868 B     143.4 KB
+- svg      1 fisier(e)        1491 B       1.5 KB
+
+## 1.2 Arborele dist (dimensiune, cale)
+   320.8 KB  assets/index-CmJkQ0sT.js
+    77.5 KB  assets/Docs-BejaFPi-.js
+    67.7 KB  assets/InstanceDetail-Dxphuo_Q.js
+    63.7 KB  assets/index-B8mkGcfB.css
+    28.7 KB  assets/geist-latin-wght-normal-BgDaEnEv.woff2
+    22.6 KB  assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+    19.9 KB  assets/Deploy-D9c36LeY.js
+    16.6 KB  assets/Products-BB-jB2LX.js
+    16.1 KB  assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2
+    15.9 KB  assets/Promotions-Bfb8KgGT.js
+    15.4 KB  assets/logo-CHVIDgEH.js
+    14.7 KB  assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2
+    14.6 KB  assets/Settings-BQs9IgjV.js
+    14.4 KB  assets/geist-mono-latin-ext-wght-normal-Bwz-egvJ.woff2
+    13.5 KB  assets/Tickets-Cjv8ZRAh.js
+    13.2 KB  assets/CustomerDetail-CS5M3Imx.js
+    12.6 KB  assets/geist-mono-cyrillic-wght-normal-DiZS0aHC.woff2
+     9.4 KB  assets/Domains-BSyuQu3l.js
+     9.3 KB  assets/Overview-BaJz-G3s.js
+     8.6 KB  assets/Pricing-Bvzbhp4A.js
+     8.3 KB  assets/TicketDetail-DZHxL_Ib.js
+     8.2 KB  assets/Tickets-Dvk12c6e.js
+     8.2 KB  assets/Billing-DgPMXS7L.js
+     8.0 KB  assets/Overview-CTqoslcy.js
+     7.8 KB  assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2
+     7.5 KB  assets/Register-DJAxGih6.js
+     7.5 KB  assets/geist-mono-vietnamese-wght-normal-DadHysG0.woff2
+     7.4 KB  assets/Services-D2syIvTm.js
+     7.2 KB  assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2
+     7.2 KB  assets/Infrastructure-rvKs_ruW.js
+     7.2 KB  assets/Staff-BO-e2QN9.js
+     6.8 KB  assets/ResetPassword-DZcx91Xe.js
+     6.4 KB  assets/Status-CEwFkeJL.js
+     6.4 KB  assets/Instances-D6LIPWRc.js
+     6.0 KB  assets/geist-mono-cyrillic-ext-wght-normal-X_5orZeX.woff2
+     6.0 KB  assets/ProductPage-C6W4xZXX.js
+     6.0 KB  assets/Orders-CS39p4Os.js
+     5.7 KB  assets/geist-mono-symbols2-wght-normal-CO5SzqOn.woff2
+     5.4 KB  assets/VerifyEmail-BSnAJK2T.js
+     5.3 KB  assets/Customers-BGIEawuC.js
+     5.1 KB  assets/Audit-BOuUAedn.js
+     5.0 KB  assets/Settings-C28j_s4b.js
+     5.0 KB  assets/DeployCatalog-DA2fal3I.js
+     4.7 KB  assets/ForgotPassword-ORXTLzJd.js
+     4.2 KB  assets/Login-DXmGacit.js
+     2.7 KB  assets/api-CGY1ZpEO.js
+     2.2 KB  assets/auth-field-DO-g9R65.js
+     1.5 KB  favicon.svg
+     1.4 KB  assets/NotFound-B0I0fPS7.js
+     0.9 KB  fonts/README.md
+     0.8 KB  index.html
+
+## 1.3 Dimensiunile gzip si brotli pentru FIECARE fisier js/css
+FISIER                                              RAW_B     GZIP_B   BROTLI_B RATIO_BR
+assets/Audit-BOuUAedn.js                             5197       1899        n/a      n/a
+assets/Billing-DgPMXS7L.js                           8365       2752        n/a      n/a
+assets/CustomerDetail-CS5M3Imx.js                   13541       2943        n/a      n/a
+assets/Customers-BGIEawuC.js                         5430       1824        n/a      n/a
+assets/Deploy-D9c36LeY.js                           20370       6091        n/a      n/a
+assets/DeployCatalog-DA2fal3I.js                     5146       1936        n/a      n/a
+assets/Docs-BejaFPi-.js                             79363      22668        n/a      n/a
+assets/Domains-BSyuQu3l.js                           9650       2975        n/a      n/a
+assets/ForgotPassword-ORXTLzJd.js                    4795       1895        n/a      n/a
+assets/Infrastructure-rvKs_ruW.js                    7394       2147        n/a      n/a
+assets/InstanceDetail-Dxphuo_Q.js                   69375      16354        n/a      n/a
+assets/Instances-D6LIPWRc.js                         6588       2272        n/a      n/a
+assets/Login-DXmGacit.js                             4313       1937        n/a      n/a
+assets/NotFound-B0I0fPS7.js                          1391        710        n/a      n/a
+assets/Orders-CS39p4Os.js                            6139       2369        n/a      n/a
+assets/Overview-BaJz-G3s.js                          9540       3602        n/a      n/a
+assets/Overview-CTqoslcy.js                          8152       3028        n/a      n/a
+assets/Pricing-Bvzbhp4A.js                           8828       2595        n/a      n/a
+assets/ProductPage-C6W4xZXX.js                       6164       2089        n/a      n/a
+assets/Products-BB-jB2LX.js                         17046       4488        n/a      n/a
+assets/Promotions-Bfb8KgGT.js                       16287       4123        n/a      n/a
+assets/Register-DJAxGih6.js                          7705       2702        n/a      n/a
+assets/ResetPassword-DZcx91Xe.js                     7010       2279        n/a      n/a
+assets/Services-D2syIvTm.js                          7539       2784        n/a      n/a
+assets/Settings-BQs9IgjV.js                         14997       4406        n/a      n/a
+assets/Settings-C28j_s4b.js                          5150       2008        n/a      n/a
+assets/Staff-BO-e2QN9.js                             7367       2714        n/a      n/a
+assets/Status-CEwFkeJL.js                            6602       2332        n/a      n/a
+assets/TicketDetail-DZHxL_Ib.js                      8473       2980        n/a      n/a
+assets/Tickets-Cjv8ZRAh.js                          13781       3699        n/a      n/a
+assets/Tickets-Dvk12c6e.js                           8374       2989        n/a      n/a
+assets/VerifyEmail-BSnAJK2T.js                       5569       2210        n/a      n/a
+assets/api-CGY1ZpEO.js                               2763       1450        n/a      n/a
+assets/auth-field-DO-g9R65.js                        2213       1034        n/a      n/a
+assets/index-B8mkGcfB.css                           65229      12242        n/a      n/a
+assets/index-CmJkQ0sT.js                           328452      95332        n/a      n/a
+assets/logo-CHVIDgEH.js                             15803       6422        n/a      n/a
+
+## 1.4 index.html complet (ce se cere la primul randament)
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Blipmade — Pick an app. Deploy it.</title>
+    <meta name="description" content="Your favorite apps and databases, ready to run. No VPS setup, no complicated infrastructure. Start small and scale as you grow." />
+    <meta name="theme-color" content="#090A09" />
+    <link rel="icon" href="/favicon.svg" />
+    <script type="module" crossorigin src="/assets/index-CmJkQ0sT.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/logo-CHVIDgEH.js">
+    <link rel="modulepreload" crossorigin href="/assets/api-CGY1ZpEO.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-B8mkGcfB.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+
+## 1.5 Cache-Control / Content-Encoding pe un fisier cu hash si pe index.html
+--- /index.html
+    HTTP/1.1 200 OK
+    Content-Type: text/html; charset=utf-8
+    Content-Length: 850
+    Cache-Control: no-cache
+--- /assets/index-CmJkQ0sT.js
+    HTTP/1.1 200 OK
+    Content-Type: text/javascript; charset=utf-8
+    Content-Length: 328452
+    Cache-Control: public, max-age=31536000, immutable
+
+## 1.6 Ce accepta serverul pentru compresie
+--- cerere cu Accept-Encoding: gzip, br pe index.js
+    HTTP/1.1 200 OK
+    Content-Length: 328452
+    Cache-Control: public, max-age=31536000, immutable
+
+## 1.7 Fonturi: sunt self-hosted? sunt blochante? ce payload?
+--- fisiere font in dist:
+    29400 assets/geist-latin-wght-normal-BgDaEnEv.woff2
+    23128 assets/geist-mono-latin-wght-normal-XN7g48iV.woff2
+    16512 assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2
+    15084 assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2
+    14696 assets/geist-mono-latin-ext-wght-normal-Bwz-egvJ.woff2
+    12940 assets/geist-mono-cyrillic-wght-normal-DiZS0aHC.woff2
+    8004 assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2
+    7696 assets/geist-mono-vietnamese-wght-normal-DadHysG0.woff2
+    7420 assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2
+    6176 assets/geist-mono-cyrillic-ext-wght-normal-X_5orZeX.woff2
+    5812 assets/geist-mono-symbols2-wght-normal-CO5SzqOn.woff2
+--- total payload font:
+    146868 B (11 fonturi)
+--- @font-face in CSS (font-display, preload):
+    [/tmp/web-check/dist/assets/index-B8mkGcfB.css]
+      @font-face{font-family:Geist Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2)format("woff2-variations");unicode-range:U+460-52F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+      @font-face{font-family:Geist Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2)format("woff2-variations");unicode-range:U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116}
+      @font-face{font-family:Geist Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2)format("woff2-variations");unicode-range:U+102-103,U+110-111,U+128-129,U+168-169,U+1A0-1A1,U+1AF-1B0,U+300-301,U+303-304,U+308-309,U+323,U+329,U+1EA0-1EF9,U+20AB}
+      @font-face{font-family:Geist Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2)format("woff2-variations");unicode-range:U+100-2BA,U+2BD-2C5,U+2C7-2CC,U+2CE-2D7,U+2DD-2FF,U+304,U+308,U+329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+      @font-face{font-family:Geist Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-latin-wght-normal-BgDaEnEv.woff2)format("woff2-variations");unicode-range:U+??,U+131,U+152-153,U+2BB-2BC,U+2C6,U+2DA,U+2DC,U+304,U+308,U+329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+      @font-face{font-family:Geist Mono Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-mono-cyrillic-ext-wght-normal-X_5orZeX.woff2)format("woff2-variations");unicode-range:U+460-52F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}
+      @font-face{font-family:Geist Mono Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-mono-cyrillic-wght-normal-DiZS0aHC.woff2)format("woff2-variations");unicode-range:U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116}
+      @font-face{font-family:Geist Mono Variable;font-style:normal;font-display:swap;font-weight:100 900;src:url(/assets/geist-mono-symbols2-wght-normal-CO5SzqOn.woff2)format("woff2-variations");unicode-range:U+2000-2001,U+2004-2008,U+200A,U+23B8-23BD,U+2500-259F}
+--- referinte la fonturi externe (http/https) in CSS si HTML:
+    (gol = niciun font extern)
+--- tag-uri <link rel=preload> in index.html:
+    <link rel="modulepreload" crossorigin href="/assets/logo-CHVIDgEH.js">
+    <link rel="modulepreload" crossorigin href="/assets/api-CGY1ZpEO.js">
+--- tag-uri <link rel=stylesheet> / <script> in index.html:
+    <script type="module" crossorigin src="/assets/index-CmJkQ0sT.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-B8mkGcfB.css">
+
+## 1.8 Fonturi in assets: care sunt cerute de cine (modulepreload vs runtime)
+--- toate referintele de font din bundle-ul JS (runtime):
+          1 proxima-nova-700.woff2
+          1 proxima-nova-600.woff2
+          1 proxima-nova-400.woff2
+          1 geist-vietnamese-wght-normal-6IgcOCM7.woff2
+          1 geist-mono-vietnamese-wght-normal-DadHysG0.woff2
+          1 geist-mono-symbols2-wght-normal-CO5SzqOn.woff2
+          1 geist-mono-latin-wght-normal-XN7g48iV.woff2
+          1 geist-mono-latin-ext-wght-normal-Bwz-egvJ.woff2
+          1 geist-mono-cyrillic-wght-normal-DiZS0aHC.woff2
+          1 geist-mono-cyrillic-ext-wght-normal-X_5orZeX.woff2
+          1 geist-latin-wght-normal-BgDaEnEv.woff2
+          1 geist-latin-ext-wght-normal-DC-KSUi6.woff2
+          1 geist-cyrillic-wght-normal-BEAKL7Jp.woff2
+          1 geist-cyrillic-ext-wght-normal-DjL33-gN.woff2
+
+## 1.9 Chunk-uri: cine este importat din cine (module preload graph)
+--- modulepreload in index.html:
+    /assets/logo-CHVIDgEH.js
+    /assets/api-CGY1ZpEO.js
+    /assets/index-B8mkGcfB.css
+
+--- import-uri dinamice in chunk-urile principale (ruta -> chunk):
+    Audit-BOuUAedn.js                              -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Billing-DgPMXS7L.js                            -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    CustomerDetail-CS5M3Imx.js                     -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Customers-BGIEawuC.js                          -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Deploy-D9c36LeY.js                             -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    DeployCatalog-DA2fal3I.js                      -> index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Docs-BejaFPi-.js                               -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Domains-BSyuQu3l.js                            -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    ForgotPassword-ORXTLzJd.js                     -> api-CGY1ZpEO.js auth-field-DO-g9R65.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Infrastructure-rvKs_ruW.js                     -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    InstanceDetail-Dxphuo_Q.js                     -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Instances-D6LIPWRc.js                          -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Login-DXmGacit.js                              -> api-CGY1ZpEO.js auth-field-DO-g9R65.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    NotFound-B0I0fPS7.js                           -> index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Orders-CS39p4Os.js                             -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Overview-BaJz-G3s.js                           -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Overview-CTqoslcy.js                           -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Pricing-Bvzbhp4A.js                            -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    ProductPage-C6W4xZXX.js                        -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Products-BB-jB2LX.js                           -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Promotions-Bfb8KgGT.js                         -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Register-DJAxGih6.js                           -> api-CGY1ZpEO.js auth-field-DO-g9R65.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    ResetPassword-DZcx91Xe.js                      -> api-CGY1ZpEO.js auth-field-DO-g9R65.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Services-D2syIvTm.js                           -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Settings-BQs9IgjV.js                           -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Settings-C28j_s4b.js                           -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Staff-BO-e2QN9.js                              -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Status-CEwFkeJL.js                             -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    TicketDetail-DZHxL_Ib.js                       -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Tickets-Cjv8ZRAh.js                            -> Overview-BaJz-G3s.js api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    Tickets-Dvk12c6e.js                            -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    VerifyEmail-BSnAJK2T.js                        -> api-CGY1ZpEO.js index-CmJkQ0sT.js logo-CHVIDgEH.js 
+    auth-field-DO-g9R65.js                         -> logo-CHVIDgEH.js 
+    index-CmJkQ0sT.js                              -> api-CGY1ZpEO.js logo-CHVIDgEH.js 
+
+## 1.10 Ce module mari intra in bundle-ul principal (import-uri statice)
+    principal: /tmp/web-check/dist/assets/index-CmJkQ0sT.js (328452 B)
+--- dependinte externe (bare specifiers) din bundle-ul principal:
+
+--- marcaje de biblioteci cunoscute in bundle-ul principal:
+    react: 3 mentiuni
+    react-dom: 1 mentiuni
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+
+--- dimensiunea gzip a bundle-ului principal:
+/tmp/perf11-bundle.sh: line 100: [: 0
+0: integer expression expected
+    raw: 328452 B; gzip: 95332 B
+
+## 1.11 CSS: dimensiune, continut, utilitate
+    /tmp/web-check/dist/assets/index-B8mkGcfB.css  raw=65229 B gzip=12242 B
+--- reguli @font-face / @media / @keyframes (numar):
+    @font-face: 14
+    @media:     19
+    @keyframes: 6
+--- primele 400 de caractere din CSS:
+    /*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+    @layer properties{@supports (((-webkit-hyphens:none)) and (not (margin-trim:inline))) or ((-moz-orient:inline) and (not (color:rgb(from red r g b)))){*,:before,:after,::backdrop{--tw-translate-x:0;--tw-translate-y:0;--tw-translate-z:0;--tw-scale-x:1;--tw-scale-y:1;--tw-scale-z:1;--tw-rotate-x:initial;--tw-rotate-y:initial;--tw-rotat
+
+## 1.12 Sourcemaps in bundle?
+    numar sourcemaps: 0
+
+Sfarsit 1.x

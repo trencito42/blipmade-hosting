@@ -1,0 +1,6 @@
+# Phase 11.2 - Cereri si octeti pe ruta (Chromium, stiva izolata, build de productie)
+Data: 2026-10-24T00:24:19.092Z
+Base: http://127.0.0.1:30003
+Metoda: context nou per ruta, cache gol la fiecare incarcare (networkidle),
+        contorizate toate cererile HTTP (request/response) si transferSize.
+
