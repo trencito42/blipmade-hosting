@@ -5,6 +5,7 @@ import { Link, useRouter } from '../router';
 import { ApiError, post } from '../lib/api';
 import { useSession } from '../session';
 import { LoadingBlock } from '../ui-app';
+import { LegalFooter } from '../legal/LegalFooter';
 
 type State = 'checking' | 'verified' | 'failed';
 type FailReason = 'invalid' | 'network' | 'unknown';
@@ -160,6 +161,7 @@ export default function VerifyEmail() {
           )}
         </div>
         <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
+        <LegalFooter className="mt-6" />
       </main>
       <PromisePanel />
     </div>

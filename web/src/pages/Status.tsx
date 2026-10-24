@@ -4,6 +4,7 @@ import { cn } from '../lib';
 import { Link } from '../router';
 import { Button, Logo } from '../ui';
 import { EmptyState, ErrorState, LoadingBlock } from '../ui-app';
+import { LegalFooter } from '../legal/LegalFooter';
 
 interface StatusComponent {
   id: string;
@@ -262,6 +263,7 @@ export default function Status() {
           </Link>
           .
         </p>
+        <LegalFooter className="mt-6" />
       </footer>
     </div>
   );

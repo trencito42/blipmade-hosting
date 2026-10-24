@@ -7,6 +7,7 @@ import { cn } from '../lib';
 import { Link, scrollToId, useRouter } from '../router';
 import { Logo } from '../ui';
 import { Money, SoftButton } from '../ui-app';
+import { LegalFooter } from '../legal/LegalFooter';
 
 /**
  * The Blipmade documentation.
@@ -2746,6 +2747,10 @@ export default function Docs() {
           />
         </div>
       )}
+
+      <footer className="mx-auto w-full max-w-[1280px] px-4 pb-10 sm:px-6">
+        <LegalFooter />
+      </footer>
     </div>
   );
 }
