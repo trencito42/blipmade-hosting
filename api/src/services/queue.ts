@@ -354,6 +354,15 @@ export async function emailDeliveryReport(): Promise<EmailDeliveryReport> {
       const updated = new Date(finished).toISOString();
       const failedReason = job.failedReason ?? null;
       const lastErrorClass = failedReason ? (failedReason.split(':', 1)[0] ?? null) : null;
+      // The row of the database is what the worker wrote, and it knows more
+      // than the job of the queue: a message whose file was pruned is
+      // `failed` in the database and `written-to-file` in the queue. The row
+      // wins, so the report never says that a message was written when it
+      // was removed. The queue only fills in what the database still knows
+      // as waiting.
+      const known = messages.get(job.data.key);
+      if (known && known.state !== 'queued') continue;
+
       messages.set(job.data.key, {
         key: job.data.key,
         kind: job.data.kind,
