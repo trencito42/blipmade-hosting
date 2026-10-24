@@ -78,30 +78,43 @@ interface AdminCustomerDetail {
   counts: { invoices: number; tickets: number; orders: number; payments: number };
 }
 
-export default function CustomerDetail() {
-  const { id = '' } = useParams();
-  const session = useAdminSession();
-  const staff = session.staff;
+/**
+ * The access of the account: the button that suspends it and the dialog that
+ * asks for the reason.
+ *
+ * The state of the dialog lives here and not in the page. The record of a
+ * customer holds hundreds of rows, and a letter that is typed in the reason
+ * field of the dialog has no business drawing all of them again. The page
+ * only learns that the account changed, and reads it once more.
+ */
+function AccountAccess({
+  customerId,
+  suspended,
+  masked,
+  instanceCount,
+  mayWrite,
+  onChanged,
+}: {
+  customerId: string;
+  suspended: boolean;
+  /** The address of the customer, with the middle hidden. */
+  masked: string;
+  instanceCount: number;
+  mayWrite: boolean;
+  /** The page reads the customer again, because the account changed. */
+  onChanged: () => void;
+}) {
   const toast = useToast();
   const [reason, setReason] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reasonError, setReasonError] = useState<string | null>(null);
 
-  const state = useAsync(
-    (signal) => get<{ customer: AdminCustomerDetail }>(`/admin/customers/${id}`, undefined, signal),
-    [id],
-  );
-
-  const suspend = useAction(async (suspended: boolean) => {
-    return post<{ customer: { id: string; suspended: boolean } }>(`/admin/customers/${id}/suspend`, {
-      suspended,
+  const suspend = useAction(async (next: boolean) => {
+    return post<{ customer: { id: string; suspended: boolean } }>(`/admin/customers/${customerId}/suspend`, {
+      suspended: next,
       reason: reason.trim(),
     });
   });
-
-  const customer = state.data?.customer;
-  const suspended = Boolean(customer?.suspendedAt);
-  const mayWrite = can(staff, 'customers.write');
 
   const openDialog = () => {
     setReason('');
@@ -119,9 +132,92 @@ export default function CustomerDetail() {
     if (!result) return;
     setDialogOpen(false);
     setReason('');
-    state.reload();
+    onChanged();
     toast.push(next ? 'Customer suspended' : 'Customer reinstated', 'ok');
   };
+
+  return (
+    <>
+      <Panel
+        title="Account access"
+        description={
+          mayWrite
+            ? 'Every change is confirmed and recorded in the audit log with your reason.'
+            : 'Your role cannot change the state of this account.'
+        }
+      >
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {mayWrite ? (
+              <button
+                type="button"
+                onClick={openDialog}
+                className={suspended ? denseGhost : denseDanger}
+              >
+                {suspended ? 'Reinstate customer' : 'Suspend customer'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title={'Your role does not allow "customers.write".'}
+                className={denseDanger}
+              >
+                {suspended ? 'Reinstate customer' : 'Suspend customer'}
+              </button>
+            )}
+            {!mayWrite && (
+              <p className="text-[13px] text-ink3">Your role does not allow &quot;customers.write&quot;.</p>
+            )}
+          </div>
+          {suspend.error && (
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+              {suspend.error}
+            </p>
+          )}
+        </div>
+      </Panel>
+
+      <ConfirmWithReason
+        open={dialogOpen}
+        title={suspended ? 'Reinstate this customer' : 'Suspend this customer'}
+        description={
+          suspended
+            ? `Reinstating lets ${masked} sign in again. The change is recorded in the audit log.`
+            : `Suspending ${masked} ends every session of this account now and blocks new sign-ins. Their ${instanceCount} instance${
+                instanceCount === 1 ? '' : 's'
+              } keep running. The change is recorded in the audit log.`
+        }
+        confirmLabel={suspended ? 'Reinstate customer' : 'Suspend customer'}
+        reasonLabel="Reason (required)"
+        reason={reason}
+        onReasonChange={(value) => {
+          setReason(value);
+          if (reasonError) setReasonError(null);
+        }}
+        onConfirm={confirm}
+        onCancel={() => setDialogOpen(false)}
+        busy={suspend.pending}
+        error={reasonError}
+        destructive={!suspended}
+      />
+    </>
+  );
+}
+
+export default function CustomerDetail() {
+  const { id = '' } = useParams();
+  const session = useAdminSession();
+  const staff = session.staff;
+
+  const state = useAsync(
+    (signal) => get<{ customer: AdminCustomerDetail }>(`/admin/customers/${id}`, undefined, signal),
+    [id],
+  );
+
+  const customer = state.data?.customer;
+  const suspended = Boolean(customer?.suspendedAt);
+  const mayWrite = can(staff, 'customers.write');
 
   if (session.loading) {
     return (
@@ -235,45 +331,14 @@ export default function CustomerDetail() {
         </div>
       </Panel>
 
-      <Panel
-        title="Account access"
-        description={
-          mayWrite
-            ? 'Every change is confirmed and recorded in the audit log with your reason.'
-            : 'Your role cannot change the state of this account.'
-        }
-      >
-        <div className="grid gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {mayWrite ? (
-              <button
-                type="button"
-                onClick={openDialog}
-                className={suspended ? denseGhost : denseDanger}
-              >
-                {suspended ? 'Reinstate customer' : 'Suspend customer'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                title={'Your role does not allow "customers.write".'}
-                className={denseDanger}
-              >
-                {suspended ? 'Reinstate customer' : 'Suspend customer'}
-              </button>
-            )}
-            {!mayWrite && (
-              <p className="text-[13px] text-ink3">Your role does not allow &quot;customers.write&quot;.</p>
-            )}
-          </div>
-          {suspend.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
-              {suspend.error}
-            </p>
-          )}
-        </div>
-      </Panel>
+      <AccountAccess
+        customerId={customer.id}
+        suspended={suspended}
+        masked={masked}
+        instanceCount={instanceCount}
+        mayWrite={mayWrite}
+        onChanged={state.reload}
+      />
 
       <Panel title="Instances" description={`${instanceCount} instance${instanceCount === 1 ? '' : 's'} on this account.`}>
         {!customer.instances.length ? (
@@ -570,30 +635,6 @@ export default function CustomerDetail() {
           Back to the customer list
         </Link>
       </p>
-
-      <ConfirmWithReason
-        open={dialogOpen}
-        title={suspended ? 'Reinstate this customer' : 'Suspend this customer'}
-        description={
-          suspended
-            ? `Reinstating lets ${masked} sign in again. The change is recorded in the audit log.`
-            : `Suspending ${masked} ends every session of this account now and blocks new sign-ins. Their ${instanceCount} instance${
-                instanceCount === 1 ? '' : 's'
-              } keep running. The change is recorded in the audit log.`
-        }
-        confirmLabel={suspended ? 'Reinstate customer' : 'Suspend customer'}
-        reasonLabel="Reason (required)"
-        reason={reason}
-        onReasonChange={(value) => {
-          setReason(value);
-          if (reasonError) setReasonError(null);
-        }}
-        onConfirm={confirm}
-        onCancel={() => setDialogOpen(false)}
-        busy={suspend.pending}
-        error={reasonError}
-        destructive={!suspended}
-      />
     </div>
   );
 }

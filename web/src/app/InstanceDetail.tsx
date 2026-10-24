@@ -1,18 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams } from '../router';
-import ActivityTab from './instance/ActivityTab';
-import BackupsTab from './instance/BackupsTab';
-import ConsoleTab from './instance/ConsoleTab';
-import DatabasesTab from './instance/DatabasesTab';
-import FilesTab from './instance/FilesTab';
-import NetworkTab from './instance/NetworkTab';
 import OverviewTab from './instance/OverviewTab';
-import SchedulesTab from './instance/SchedulesTab';
-import SettingsTab from './instance/SettingsTab';
-import StartupTab from './instance/StartupTab';
 import {
   ConfirmDialog,
   DangerButton,
@@ -50,6 +41,25 @@ type Tab =
   | 'resources'
   | 'domains';
 type PowerAction = 'start' | 'restart' | 'stop';
+
+/**
+ * The sections of the instance, one after the other.
+ *
+ * A customer opens the section they came for and nothing else, so the code of
+ * the other sections is only asked for when the section is opened. The page
+ * of the instance was one bundle of seventy kilobytes; it is now the page and
+ * the section that is open, and the other sections travel when they are
+ * needed.
+ */
+const ConsoleTab = lazy(() => import('./instance/ConsoleTab'));
+const FilesTab = lazy(() => import('./instance/FilesTab'));
+const DatabasesTab = lazy(() => import('./instance/DatabasesTab'));
+const BackupsTab = lazy(() => import('./instance/BackupsTab'));
+const NetworkTab = lazy(() => import('./instance/NetworkTab'));
+const StartupTab = lazy(() => import('./instance/StartupTab'));
+const SchedulesTab = lazy(() => import('./instance/SchedulesTab'));
+const SettingsTab = lazy(() => import('./instance/SettingsTab'));
+const ActivityTab = lazy(() => import('./instance/ActivityTab'));
 
 interface InstanceEvent {
   id: string;
@@ -704,18 +714,20 @@ export default function InstanceDetail() {
       <Segmented options={TABS} value={tab} onChange={setTab} ariaLabel="Instance sections" />
 
       <section role="tabpanel" aria-label={TABS.find((entry) => entry.value === tab)?.label ?? 'Instance section'}>
-        {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} />}
-        {tab === 'console' && <ConsoleTab instance={instance} />}
-        {tab === 'files' && <FilesTab instance={instance} />}
-        {tab === 'databases' && <DatabasesTab instance={instance} />}
-        {tab === 'backups' && <BackupsTab instance={instance} />}
-        {tab === 'network' && <NetworkTab instance={instance} />}
-        {tab === 'startup' && <StartupTab instance={instance} />}
-        {tab === 'schedules' && <SchedulesTab instance={instance} />}
-        {tab === 'settings' && <SettingsTab instance={instance} onGoTo={setTab} />}
-        {tab === 'activity' && <ActivityTab instance={instance} />}
-        {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
-        {tab === 'domains' && <DomainsTab instance={instance} />}
+        <Suspense fallback={<LoadingBlock rows={4} label="Loading section" />}>
+          {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} />}
+          {tab === 'console' && <ConsoleTab instance={instance} />}
+          {tab === 'files' && <FilesTab instance={instance} />}
+          {tab === 'databases' && <DatabasesTab instance={instance} />}
+          {tab === 'backups' && <BackupsTab instance={instance} />}
+          {tab === 'network' && <NetworkTab instance={instance} />}
+          {tab === 'startup' && <StartupTab instance={instance} />}
+          {tab === 'schedules' && <SchedulesTab instance={instance} />}
+          {tab === 'settings' && <SettingsTab instance={instance} onGoTo={setTab} />}
+          {tab === 'activity' && <ActivityTab instance={instance} />}
+          {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
+          {tab === 'domains' && <DomainsTab instance={instance} />}
+        </Suspense>
       </section>
 
       <SettingsPanel
