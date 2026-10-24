@@ -72,7 +72,7 @@ Contoarele de mai jos sunt **calculate din tabelele acestui document** (scriptul
 
 ---
 
-## 1. Securitate — `SEC-01` … `SEC-29`
+## 1. Securitate — `SEC-01` … `SEC-31`
 
 Sursă: `02-security-audit.md`. Toate sunt constatări de configurație sau cod, cu excepția notelor marcate.
 
@@ -108,6 +108,7 @@ Sursă: `02-security-audit.md`. Toate sunt constatări de configurație sau cod,
 | SEC-28 | High | `VERIFIED` | Hipervizor `n7030e1` | `rpcbind` pe `0.0.0.0:111`, deschis public, cu conexiuni din exterior — vector pentru RPC | Nu | `ss -lntp` → `0.0.0.0:111`; 3 conexiuni stabilite din `45.79.207.110` |
 | SEC-29 | Low | `VERIFIED` | Hipervizor `n7030e1` | Cheia API a agentului operatorului, vizibilă în argumentele procesului | Nu | `ps auxww` |
 | SEC-30 | High | `VERIFIED` | Istoricul Git | **Parola unui cont de test al scriptului de verificare a provisionării a rămas în istoric**: valoarea a fost scoasă din sursă în `61111f6`, dar istoricul o păstrează și scanarea de secrete o raportează | Nu | `git log -S VerifyHorseBattery9`; scanarea `gitleaks` |
+| SEC-31 | High | `VERIFIED` | `api/package.json` (`zod` 3.25.76) | **`zod` e afectat de `GHSA-mrhx-c7xc-m3w5` (CVE-2023-54404, CWE-770)**: validarea unei colecții prea mari poate epuiza memoria. Versiunea e aceeași pe `main` și pe candidat, deci nu e regresie; corecția oficială e `zod` 4.6.7, o actualizare semver-major care atinge validarea fiecărei rute | Nu (advisory acceptat până la actualizare) | `npm audit --audit-level=high`; lista acceptată din `.github/workflows/ci.yml`; expunerea: 5 utilizări `z.record()` fără limită de chei, limitate de `bodyLimit` |
 
 ### 1.1 Notă obligatorie despre SEC-01
 
@@ -457,8 +458,8 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | IMPLEMENTED, NOT VERIFIED | 1 |
 | BLOCKED: EXTERNAL DEPENDENCY | 3 |
 | REQUIRES OPERATOR APPROVAL | 11 |
-| NOT STARTED (BACKLOG) | 143 |
-| **Total** | **193** |
+| NOT STARTED (BACKLOG) | 144 |
+| **Total** | **194** |
 
 | ID | Sev. | Cod / infrastructură afectată | Stare | Cauza rădăcină | Reparare | Commit | Test de regresie | Verificare |
 |---|---|---|---|---|---|---|---|---|
@@ -492,6 +493,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `SEC-28` | High | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-29` | Low | — | NOT STARTED (BACKLOG) | — | — | — | — | — |
 | `SEC-30` | High | scripts/verify-provisioning.py, istoricul Git | REQUIRES OPERATOR APPROVAL | Scriptul de verificare a provisionarii scria parola contului de test in sursa, inainte ca parola sa vina din mediu | Parola vine din mediu de la commitul 61111f6, iar arborele nu o mai contine. Restul istoricului nu poate fi curatat fara rescrierea istoricului, ceea ce inseamna force-push si cere autorizatia operatorului. Pana atunci, scanarea de secrete primeste o lista de exceptii cu valoarea exacta, documentata in .gitleaks.toml | 61111f6, .gitleaks.toml | gitleaks 8.30.1 pe intreaga istorie: 0 scurgeri cu lista de exceptii | Baza vie nu are niciun cont cu parola: 3 utilizatori, 0 potriviri la verificarea hash-ului. Valoarea a fost a unui cont de test, pe adresa locala, creat de un script de verificare |
+| `SEC-31` | High | api/package.json, .github/workflows/ci.yml | NOT STARTED (BACKLOG) | zod 3.25.76 este afectat de GHSA-mrhx-c7xc-m3w5: validarea unei colectii prea mari poate epuiza memoria. Versiunea e aceeasi pe main si pe candidat, deci nu e regresie a ramurii | Advisory-ul e acceptat in lista din .github/workflows/ci.yml, ca celelalte douasprezece. Corectia oficiala e zod 4.6.7, o actualizare semver-major care schimba validarea fiecarei rute si forma erorii ZodError, deci e o schimbare cu testele ei | .github/workflows/ci.yml | npm audit --audit-level=high pentru api si web | Expunerea masurata in cod: 5 utilizari z.record() fara limita de numar de chei, limitate de bodyLimit (2 MiB, 64 MiB pe o singura ruta). In zod v3 limita lungimii unui z.array().max(n) e verificata inainte de iterarea elementelor, deci vectorul e z.record, nu z.array. CVSS 7,5, EPSS 0,35% |
 | `PROV-01` | Critical | api/src/services/provisioning.ts (chooseNode, nodeCapacity, requiredCapacity) | FIXED & VERIFIED | Poarta de capacitate compara disk-ului nodului (MB de la panou) cu disk-ul instantei (GB): factor 1024 | Ambele valori sunt aduse la MB inainte de comparatie; refuzul numeste valorile si unitatea lor | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: refuzul numeste MB si GB; 13 teste de capacitate |
 | `PROV-02` | Critical | api/src/services/provisioning.ts (compensateFailedProvisioning) | FIXED & VERIFIED | La provisionare nereusita serverul, alocarea si suma ramaneau; nu exista compensare | Compensarea sterge containerul, elibereaza alocarea, returneaza banii sau marcheaza refundul de facut, si scrie totul in jurnal; ruleaza doar la ultima incercare | remediation/phase-1-payment-safety | api/tests/provisioning-safety.test.ts | Test: fara server, fara alocatie, banii inapoi; nu se ramburseaza de doua ori |
 | `PROV-03` | Medium | — | NOT STARTED (BACKLOG) | — | — | — | — | — |

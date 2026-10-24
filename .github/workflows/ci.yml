@@ -320,6 +320,11 @@ jobs:
           GHSA-5gmw-xhrv-c9v3
           GHSA-85c8-ppgw-ccpr
           GHSA-5xrq-8626-4rwp
+          # zod: the fix is the major upgrade to 4.6.7, which changes the
+          # validation of every route. The upgrade is a change of its own, with
+          # its own tests; until then the advisory is accepted like the others.
+          # TO FOLLOW: api upgrade to zod 4.6.7, then remove this line.
+          GHSA-mrhx-c7xc-m3w5
           EOF
 
       - name: Audit the API dependencies

@@ -426,6 +426,15 @@
   "test": "gitleaks 8.30.1 pe intreaga istorie: 0 scurgeri cu lista de exceptii",
   "verification": "Baza vie nu are niciun cont cu parola: 3 utilizatori, 0 potriviri la verificarea hash-ului. Valoarea a fost a unui cont de test, pe adresa locala, creat de un script de verificare"
  },
+ "SEC-31": {
+  "status": "NOT STARTED (BACKLOG)",
+  "area": "api/package.json, .github/workflows/ci.yml",
+  "rootCause": "zod 3.25.76 este afectat de GHSA-mrhx-c7xc-m3w5: validarea unei colectii prea mari poate epuiza memoria. Versiunea e aceeasi pe main si pe candidat, deci nu e regresie a ramurii",
+  "fix": "Advisory-ul e acceptat in lista din .github/workflows/ci.yml, ca celelalte douasprezece. Corectia oficiala e zod 4.6.7, o actualizare semver-major care schimba validarea fiecarei rute si forma erorii ZodError, deci e o schimbare cu testele ei",
+  "commit": ".github/workflows/ci.yml",
+  "test": "npm audit --audit-level=high pentru api si web",
+  "verification": "Expunerea masurata in cod: 5 utilizari z.record() fara limita de numar de chei, limitate de bodyLimit (2 MiB, 64 MiB pe o singura ruta). In zod v3 limita lungimii unui z.array().max(n) e verificata inainte de iterarea elementelor, deci vectorul e z.record, nu z.array. CVSS 7,5, EPSS 0,35%"
+ },
  "INF-04": {
   "status": "REQUIRES OPERATOR APPROVAL",
   "area": "VM 102, VM 103, firewall",
