@@ -32,6 +32,16 @@ Verificări executate, fără efect pe stare: sondaje HTTP de la read-only, `doc
 
 ## 3. Tabelul constatărilor
 
+> Documentul de mai jos consemnează constatările **la data auditului**. Starea curentă a
+> fiecărei constatări, cu repararea, commitul, testul de regresie și metoda de verificare,
+> este în `audit/12-FULL-FINDINGS-REGISTER.md`. Constatările reparate după acest document
+> poartă o notă datată în secțiunea lor. La 2026-10-24, dintre cele 32 de constatări de
+> securitate, 4 sunt reparate și verificate, 1 este acceptată și urmărită (`SEC-31`,
+> advisory-ul `zod`), 2 cer aprobarea operatorului (`SEC-01`, `SEC-30`) și 25 sunt în
+> backlog. Dintre cele din backlog, `SEC-02`, `SEC-03` și `SEC-28` sunt în fapt de
+> realizat de operator (firewall, SSH, `rpcbind`), deci rămân deschise chiar dacă nu au
+> fost atinse.
+
 | ID | Sev. | Clasă | Componentă | Titlu |
 |---|---|---|---|---|
 | SEC-01 | **Critical** | `VERIFIED` | Hipervizor `n7030e1` | Autentificare cu parolă de `root` deschisă public, sub atac automat continuu |
@@ -251,6 +261,19 @@ $ grep -cE "app\.(post|put|patch|delete)\('" api/src/routes/instance-server.ts
 ```
 
 **Remediere (efort: mediu).** Puneti `global: true` cu o limită generoasă (de ex. 120/min per IP) ca plasă de siguranță și adăugați limite specifice, per utilizator, pe rutele costisitoare (creare de backup, scriere de fișiere, creare de alocări). Limitați și numărul de tichete deschise simultan per cont.
+
+> **Starea la 2026-10-24 (runda a treia): reparat și verificat.** Cauza reală a fost mai precisă
+> decât cea descrisă mai sus: pluginul era înregistrat cu `global: false`, deci **12** dintre
+> cele 93 de rute mutante aveau limită, iar celelalte 81 nu aveau niciuna. Repararea a fost
+> făcută **per rută**, nu global, pentru că o limită globală ar fi lovit și rutele de citire.
+> Astăzi 89 din 93 de rute mutante au limită, numărată de două ori: o dată pe clientul
+> autentificat și o dată pe adresa de unde vine cererea, pentru că o singură cheie ar permite
+> fie epuizarea nodului pentru toți clienții, fie rotirea conturilor între adrese.
+> Cele 3 rute fără limită sunt **webhook-urile**, pentru care un 429 ar face furnizorul să
+> reia livrările la nesfârșit. Commit `4cdb73a`, test de regresie
+> `api/tests/rate-limit-coverage.test.ts` (8 teste, care afirmă explicit că o rafală de 50
+> de livrări de webhook trece toate). Starea curentă a tuturor constatărilor este în
+> `audit/12-FULL-FINDINGS-REGISTER.md`.
 
 ---
 

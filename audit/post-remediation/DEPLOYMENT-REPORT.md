@@ -182,11 +182,11 @@ Verdictul separat pe cod (tot verde) și pe platformă (NO-GO) este în `audit/p
 | ADM-12 / PERF-P2-03 | Listele plafonate la 200/300 fără pager | neînceput |
 | SEC-31 | Advisory `zod` `GHSA-mrhx-c7xc-m3w5` | acceptat și urmărit; upgrade la `zod` 4.6.7 cerut ca PR separat |
 | SEC-30 | Cele 5 excepții de scanare de secrete și parola moartă din istoric | acceptate, cere force-push |
-| SEC-06 | 29 de rute de scriere fără limită per rută | neînceput |
+| SEC-06 | 29 de rute de scriere fără limită per rută | **reparat în runda a treia** — 89 din 93 de rute mutante au limită, numărată de două ori (clientul autentificat și adresa de unde vine cererea); cele 3 fără limită sunt webhook-urile, pentru care un 429 ar face providerul să reia la nesfârșit |
 | — | Retenția fișierului de e-mail | **reparat** — maximum 500 de fișiere și 72 de ore, fișierele `0600`, un fișier în așteptare nu este eliminat niciodată, 8 teste noi |
 | — | Setările de firmă și de taxă | **reparat** — șase chei, toate goale implicit, taxa se aplică doar cu identificator și rată, 8 teste noi |
 | — | Resetul de parolă care promite o livrare imposibilă | **reparat** — răspunsul nu mai promite livrare, eșecul e înregistrat pentru operator, 5 teste noi |
-| — | Limitele per utilizator, paginare, limite pentru indicatorii de copii, supravegherea cozii moarte | neînceput |
+| — | Limitele per utilizator, pager în liste, limite pentru indicatorii de copii | **reparat parțial în runda a treia** — limitele per utilizator (campania `LAUNCH` cu 100% reducere) sunt implementate și testate, iar monitorizarea cozii moarte e reparată; pagerul în liste și limitele pentru indicatorii de copii rămân neîncepute |
 
 ---
 
@@ -264,6 +264,6 @@ Toate cele cinci au acum o cauză **de operare**, nu de cod.
 |---|---|
 | `prisma db seed` nu este legat în `package.json` | Se folosește `npm run seed`. Constatare de o linie, neintrusă în această lansare pentru că nu blochează nimic |
 | Limitele per utilizator, pager în liste, limite pentru indicatorii de copii | Au nevoie de un design de produs și de teste la nivel de API |
-| Supravegherea cozii moarte | `DeadLetterJob` există și acum poate fi repus pe coadă, dar nu există încă un proces care să avertizeze |
+| Supravegherea cozii moarte | **Reparat în runda a treia** — `api/src/services/dead-letter-monitor.ts` citește coada moartă, scrie evenimentul și avertismentul în jurnal, și publică indicatorul `bm_dead_letter_pending_jobs`; workerul îl rulează la fiecare 3 minute. Rămâne deschisă doar partea de alertă către om (e-mail sau webhook), care cere o adresă de relay |
 | Facturile emise de furnizor | `api/src/services/stripe.ts` scrie facturile furnizorului; au fost lăsate neatinse |
 | Cele 5 excepții de scanare de secrete, parola moartă din istoric | Cer force-push, deci nu au fost atinse |

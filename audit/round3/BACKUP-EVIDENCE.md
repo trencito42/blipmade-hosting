@@ -14,7 +14,7 @@
 | Question | Answer |
 |---|---|
 | Does the backup produce a real archive, and what is in it? | **Proven.** A database dump, the configuration without the secrets, and the upload storage. |
-| Does a backup restore into a working database? | **Proven.** The restore drill restores it into a scratch database that matches the live one, and `scripts/restore.sh` restores it into a database that answers queries. |
+| Does a backup restore into a working database? | **Proven, after a repair.** The archive itself restores: the restore drill restores it into a scratch database that matches the live one. `scripts/restore.sh` was broken and restored **nothing** (section 8.1); it was repaired on 2026-10-24 and now restores the 28 tables of the dump and answers queries (section 5.1). |
 | Does the off-site path fail loudly when `OFFSITE_TARGET` is missing? | **Proven.** The script ends with the status **3** and says that no copy left the host. |
 | Does a copy on the same host count as a disaster-recovery copy? | **No.** The host runs **RAID 0**; a copy on this host dies with the host. Today every backup stays here. |
 
@@ -229,6 +229,59 @@ $ docker exec blipmade-postgres-1 psql -U blipmade -d blipmade_r3_ops_restore2_t
 The checksum is checked before the restore (`==> Checking the checksum …
 OK`).
 
+### 5.1 The script of the day, run again after the repair
+
+The repair of section 8.1 went into the script itself, so the script no
+longer needs the `r3-safe-head` shim that was put on the path to prove that
+the archive is good. The run below is the script of the repository, with
+nothing else on the path, against a database of its own
+(`blipmade_r3_restore_test`, created for this run and dropped afterwards):
+
+```
+$ cd /home/debian/wt-r3 && DATABASE_URL="${BASE}/blipmade_r3_restore_test" \
+    bash scripts/restore.sh /var/backups/blipmade/blipmade-drill-20261022T232117Z.tar.gz --yes
+==> Checking the checksum
+/var/backups/blipmade/blipmade-drill-20261022T232117Z.tar.gz: OK
+==> Listing the dump
+;
+; Archive created at 2026-10-22 23:21:17 UTC
+...
+==> Restoring
+==> Verifying the restored database
+ tables
+--------
+     28
+(1 row)
+
+==> Restore complete
+EXIT CODE: 0
+```
+
+and the restored database answers queries:
+
+```
+$ docker exec blipmade-postgres-1 psql -U blipmade -d blipmade_r3_restore_test \
+    -c "SELECT count(*) AS tables FROM information_schema.tables WHERE table_schema='public';" \
+    -c "SELECT count(*) AS users FROM \"User\";"
+ tables
+--------
+     28
+(1 row)
+
+ users
+-------
+     2
+(1 row)
+```
+
+The script of the day and the script of today were run side by side, on the
+same archive and against the same database:
+
+| Script | Status of the run | Tables in the target afterwards |
+|---|---:|---:|
+| the script of the day (`\| head -20`) | **141** | **0** — `ERROR: relation "User" does not exist` |
+| the script of today (`\| sed -n '1,20p'`) | **0** | **28**, with 2 users |
+
 ---
 
 ## 6. PROVEN: the off-site path fails visibly when it is not configured
@@ -440,7 +493,7 @@ BACKUP-ALERT: the alarm was only written to the journal of the machine.
 
 ## 8. Defects found on this path
 
-### 8.1 `scripts/restore.sh` can stop before it restores anything — HIGH
+### 8.1 `scripts/restore.sh` can stop before it restores anything — HIGH — **REPARED 2026-10-24**
 
 **Where:** `scripts/restore.sh:50` (and with the same pattern `scripts/restore.sh:86`).
 
@@ -471,6 +524,25 @@ pg_restore --list "$WORK/database.dump" | sed -n '1,20p' || true
 
 (`sed` reads the whole input, so `pg_restore` is never killed.) The same
 change is needed on line 86 (`tar -tzf "$WORK/config.tar.gz" | head -10 | sed …`).
+
+**Repair, 2026-10-24 (commit `26fc2e6`):** the change proposed above went
+into the script, together with the same change on
+`scripts/backup-offsite.sh`, `scripts/smoke-production.sh`,
+`scripts/test-migrations.sh` and `scripts/restore-drill.sh`. The proof is in
+section 5.1: the script of the day answers with the status 141 and restores
+nothing, the script of today answers with the status 0 and restores the 28
+tables of the dump.
+
+The rule is guarded by `api/tests/script-pipe-safety.test.ts`: a script that
+watches the pipes of its commands may not pipe into `head`. The test fails
+on the script of the day and passes on the script of today, and it shows the
+status 141 and the status 0 side by side.
+
+The size of the output decides whether the pipe breaks, so the defect is
+rare and looks like a crash: an output that fits in the buffer of the pipe
+(64 KiB) is written completely before `head` closes it and the script
+continues. A listing of a dump is larger than the buffer, and that is the
+case that stopped the restore.
 
 ### 8.2 The documentation of the off-site behaviour is wrong in three places — MEDIUM
 

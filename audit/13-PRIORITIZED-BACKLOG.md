@@ -135,7 +135,7 @@ Necesare pentru ca platforma să poată fi vândută public fără să mintă ș
 
 | # | Constatări | Ce se repară | Efort | Depinde de | Cum se verifică |
 |---|---|---|---|---|---|
-| B-38 | `SEC-06` | Limită de rată pe cele 29 de rute mutante autentificate | 1 z | — | Un test de sarcină arată 429 la prag |
+| B-38 | `SEC-06` | Limită de rată pe cele 29 de rute mutante autentificate | **1 z** | **4cdb73a** | **Gata: 89 din 93 de rute mutante au limită, numărată pe client și pe adresă; webhook-urile sunt libere; `api/tests/rate-limit-coverage.test.ts` |
 | B-39 | `SEC-07` | Limită de login per cont, nu doar per adresă | 0,5 z | — | 10 încercări pe același cont, de la adrese diferite, se blochează |
 | B-40 | `SEC-19` | Se ascunde existența contului la înregistrare | 0,5 z | — | Răspunsul e identic pentru e-mail existent și inexistent |
 | B-41 | `SEC-16` | Eșecul de autorizare al `/webhooks/stripe/replay` răspunde 401, nu 200 | 0,5 z | — | Un replay neautorizat e refuzat cu cod ne-2xx |

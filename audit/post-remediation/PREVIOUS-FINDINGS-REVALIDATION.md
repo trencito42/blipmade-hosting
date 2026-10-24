@@ -1205,3 +1205,33 @@ Totuși, trei lucruri trebuie spuse limpede:
 (`REGR-01`, `ADM-01`, `BE-03`, `BE-09`) — toate mici, toate localizate, toate cu criteriu de
 verificare clar — plus o **rundă de operator** care să închidă backup-ul, RAID-ul, firewall-ul,
 cheia Stripe și releul SMTP. Fără ultimele cinci, niciun GO comercial nu este defensibil.
+
+---
+
+## 11. Addendum — runda a treia (2026-10-24)
+
+Documentul de mai sus consemnează revalidarea făcută la `9e92df7`. Verdicturile din
+matricea de la §4.1 sunt **ceva de atunci** și nu au fost rescrise. Addendumul de mai jos
+spune ce s-a schimbat între timp, ca documentul să nu fie citit ca o stare curentă.
+
+| ID | Verdict la `9e92df7` | Starea la 2026-10-24 | Ce s-a schimbat |
+|---|---|---|---|
+| `SEC-06` | **STILL BROKEN** — `app.ts:67` → `global: false` | **FIXED & VERIFIED** | 89 din 93 de rute mutante au limită, numărată pe client și pe adresă; cele 3 fără sunt webhook-urile. Commit `4cdb73a`, test `api/tests/rate-limit-coverage.test.ts` |
+| `SEC-31` | advisory `zod` netratat în cod | **ACCEPTED & DOCUMENTED** | Advisory-ul e în lista de exceptii din `.github/workflows/ci.yml`, iar colectiile controlate de utilizator au limite (`api/src/lib/bounded.ts`, commit `9734b9b`) |
+| `PROV-05` | în backlog | **IMPLEMENTED, NOT VERIFIED** | Verificarea de provisionare cere starea `running` și repetă în `starting`; o reconciliere nouă scrie starea reală a fiecărei instanțe în jurnal și în audit, fără să schimbe starea instanței. Commit `646ffce` |
+| `SEC-02`, `SEC-03`, `SEC-28` | **STILL BROKEN** | **neatinse, cer operator** | Firewall, `sshd` și `rpcbind` nu au fost atinse: interzise fără aprobare explicită. Detaliile, cu variabila exactă și metoda de verificare, sunt în `audit/round3/LAUNCH-READINESS-REPORT.md` |
+
+Constatări **noi**, găsite în runda a treia și reparate în aceeași rundă:
+
+* `OPS-15` — `scripts/restore.sh` se oprea la listarea dumpului (SIGPIPE, starea 141) și
+  **nu restaura niciun tabel**, deși jurnalul spunea că restaurarea s-a terminat. Commit
+  `26fc2e6`, test de gardă `api/tests/script-pipe-safety.test.ts`.
+* `OPS-16` — raportul livrărilor lăsa coada să ascundă o livrare eșuată. Commit `a4fa876`,
+  test `api/tests/email-delivery-report.test.ts`.
+* Siguranța datelor — garda canonică `api/src/lib/test-target.ts` refuză implicit orice
+  bază care nu se numește `*_test`; dovada că producția nu a fost ștearsă este în
+  `audit/round3/DATA-SAFETY-EVIDENCE.md`.
+
+Raportul complet al rundei, cu cele patru blocuri cerute (rezolvate și verificate,
+implementate dar neverificate, blocate de acces, chei sau decizie, probleme reale de
+lansare), este în `audit/round3/LAUNCH-READINESS-REPORT.md`.
