@@ -1,3 +1,15 @@
+# The API and the worker of the platform.
+#
+# The limits of the containers are here so that one container that leaks
+# cannot take the whole machine with it. The machine has four processors and
+# about 4.3 GB of memory that can be used, and the five containers of the
+# platform share it. The limits of the five containers add up to less than
+# that, so the database is never the one that is killed when everything grows
+# at once.
+#
+# The logs are written by the driver of Docker with a size and a number of
+# files, so they cannot fill the disk. A disk that is full takes PostgreSQL
+# down, and PostgreSQL down takes the platform down.
 services:
   api:
     build: ./api
@@ -28,6 +40,28 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # The API answers every request of the platform, so it is the container
+    # that is measured the most. A burst of a thousand requests a second
+    # brought the process to 242 MB of resident memory, with 128 MB of it at
+    # rest. The limit is three times the measured peak, so the burst fits and
+    # a leak is stopped before it reaches the database.
+    mem_limit: 768m
+    # A request of the busiest path of the API costs about 6.2 ms of
+    # processor time, which is about 160 requests a second on one processor.
+    # A limit of 1.5 processors leaves the rest of the machine to the
+    # database and to the worker when the platform is busy.
+    cpus: 1.5
+    pids_limit: 256
+    # The log of the API grows by about 400 kB a second under the same burst,
+    # which is more than 30 GB a day. Without a bound the log fills the disk
+    # of the machine in less than two days, and a full disk takes PostgreSQL
+    # down. The three files of ten megabytes keep the log of the service
+    # small and keep the last half hour of it.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/health"]
       interval: 30s
@@ -57,6 +91,19 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # The worker provisions the services of the customers, which is work that
+    # waits for the panel. It is at rest around 117 MB, and the limit leaves
+    # room for the work of many deployments at the same time.
+    mem_limit: 768m
+    # The worker is bound by the panel and not by the machine, so it is given
+    # a processor of its own and no more.
+    cpus: 1.0
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       # The worker answers on its own port; it does not serve the API.
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3101/health"]

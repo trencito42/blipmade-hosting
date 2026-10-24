@@ -62,6 +62,10 @@ model User {
 
   @@index([role])
   @@index([pterodactylUserId])
+  // The list of the customers is ordered by the moment of the account and by
+  // the id, so the page after the first one is read without sorting the whole
+  // table.
+  @@index([createdAt, id])
 }
 
 /// What is known about one message of the platform.
@@ -388,6 +392,9 @@ model Order {
   @@index([status])
   @@index([kind])
   @@index([instanceId])
+  // The list of the orders is ordered by the moment of the order and by the
+  // id.
+  @@index([createdAt, id])
 }
 
 model OrderItem {
@@ -489,6 +496,9 @@ model Invoice {
 
   @@index([userId])
   @@index([status])
+  // The list of the invoices is ordered by the moment of the invoice and by
+  // the id.
+  @@index([createdAt, id])
 }
 
 enum PaymentStatus {
@@ -635,6 +645,9 @@ model Instance {
 
   @@index([userId, status])
   @@index([orderItemId])
+  // The list of the services is ordered by the moment of the service and by
+  // the id.
+  @@index([createdAt, id])
 }
 
 model InstanceEvent {
@@ -729,6 +742,9 @@ model Ticket {
 
   @@index([userId, status])
   @@index([assignedToId])
+  // The list of the tickets is ordered by the moment of the last reply and by
+  // the id.
+  @@index([updatedAt, id])
 }
 
 model TicketMessage {
@@ -780,6 +796,10 @@ model AuditLog {
   @@index([createdAt])
   @@index([actorId])
   @@index([targetType, targetId])
+  // The journal is ordered by the moment of the entry and by the id. The
+  // index that only carries the moment cannot separate two entries of the
+  // same moment, so the page after the first one had to sort them.
+  @@index([createdAt, id])
 }
 
 /// Idempotency ledger for provider webhooks.
@@ -827,6 +847,55 @@ model ProvisioningJob {
 
   @@index([instanceId])
   @@index([status])
+}
+
+/// The state of a job that was given up on.
+enum DeadLetterState {
+  /// The job failed and nobody has touched it yet.
+  pending
+  /// The job was put back on its queue.
+  requeued
+  /// The job was looked at and the failure was closed by hand.
+  resolved
+}
+
+/// A job of a queue that failed for good.
+///
+/// The queue itself forgets a failed job after a while, so the failure is
+/// written here as well: the row survives the end of the job in the queue and
+/// survives a restart of the queue, and it is what an operator reads to know
+/// what is broken and to put the job back on the queue.
+model DeadLetterJob {
+  id        String   @id @default(cuid())
+  /// The name of the queue the job was on.
+  queue     String
+  /// The name the job had on that queue.
+  jobId     String
+  /// The name of the job, which says what it was doing.
+  name      String
+  /// What the job was carrying. It never carries a token: the payload of a
+  /// job is only the identifiers of the rows it works on.
+  payload   Json?
+  /// The message of the failure.
+  error     String
+  /// The class of the failure, so the kind of problem can be told apart.
+  errorClass String?
+  /// How many times the job was tried before it was given up on.
+  attempts  Int      @default(0)
+  /// When the job was given up on.
+  failedAt  DateTime @default(now())
+  /// Where the failure stands.
+  state     DeadLetterState @default(pending)
+  /// When the job was put back on the queue, and by whom.
+  requeuedAt DateTime?
+  requeuedBy String?
+  /// How many times the job was put back on the queue.
+  requeueCount Int        @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([queue, jobId])
+  @@index([state, failedAt])
 }
 
 /// A file uploaded to a support ticket. The bytes live in the attachment

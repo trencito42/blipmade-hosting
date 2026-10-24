@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { env } from '../env.js';
 import { badRequest, notFound, unavailable } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
@@ -100,12 +101,17 @@ async function clientTokenFor(instance: { id: string; userId: string; pterodacty
 export async function registerInstanceRoutes(app: FastifyInstance): Promise<void> {
   app.get('/instances', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const instances = await prisma.instance.findMany({
-      where: { userId: user.id },
+    // The list is read in pages. It was read whole before, so the answer grew
+    // with the number of the services of the customer.
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
+    const rows = await prisma.instance.findMany({
+      where: withCursor({ userId: user.id }, cursor, 'createdAt'),
       include: { product: true, subscription: true, domains: { select: { hostname: true, status: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
     });
-    return { instances: instances.map(serializeInstance) };
+    const page = pageOf(rows, limit, 'createdAt');
+    return { instances: page.rows.map(serializeInstance), pagination: page.pagination };
   });
 
   app.get('/instances/:id', async (request: FastifyRequest) => {

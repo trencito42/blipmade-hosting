@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
@@ -136,13 +137,15 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/orders', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const orders = await prisma.order.findMany({
-      where: { userId: user.id },
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
+    const rows = await prisma.order.findMany({
+      where: withCursor({ userId: user.id }, cursor, 'createdAt'),
       include: { items: { include: { product: { select: { slug: true } } } } },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
     });
-    return { orders: orders.map(serializeOrder) };
+    const page = pageOf(rows, limit, 'createdAt');
+    return { orders: page.rows.map(serializeOrder), pagination: page.pagination };
   });
 
   app.get('/orders/:id', async (request: FastifyRequest) => {

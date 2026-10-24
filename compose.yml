@@ -1,3 +1,14 @@
+# The database and the cache of the platform.
+#
+# The limits of the containers are here so that one container that leaks
+# cannot take the whole machine with it. The machine has four processors and
+# about 4.3 GB of memory that can be used, and the five containers of the
+# platform share it. The limits below add up to less than that, so the
+# database is never the one that is killed when everything grows at once.
+#
+# The logs are written by the driver of Docker with a size and a number of
+# files, so they cannot fill the disk. A disk that is full takes PostgreSQL
+# down, and PostgreSQL down takes the platform down.
 services:
   postgres:
     image: postgres:17-alpine
@@ -12,11 +23,29 @@ services:
     # exposing the database outside the machine.
     ports:
       - "127.0.0.1:5432:5432"
+    # The database is the one service that must not be starved: every other
+    # service waits for it. It gets the biggest share of the memory of the
+    # machine, because the lists of the platform are read from it and a
+    # database that is pushed out of the memory of the machine reads every
+    # page from the disk.
+    mem_limit: 1536m
+    cpus: 1.5
+    # PostgreSQL starts one process for every connection, on top of its own
+    # processes. A hundred connections fit here with room to spare.
+    pids_limit: 512
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U blipmade -d blipmade"]
       interval: 10s
       timeout: 5s
       retries: 5
+      # The first start writes the whole cluster, which takes longer than the
+      # interval. The container is not called unhealthy while it is doing it.
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
@@ -26,11 +55,24 @@ services:
       - redis_data:/data
     ports:
       - "127.0.0.1:6379:6379"
+    # The cache holds the queues and the counters of the rate limit. It is
+    # small, but the file of the append log grows with every write, so it is
+    # given a bound of its own: a cache that eats the memory of the machine
+    # takes the platform down with it.
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:

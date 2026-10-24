@@ -26,6 +26,20 @@ export const PROVISION_QUEUE = 'blipmade.provision';
  */
 export const PROVISION_ATTEMPTS = 5;
 
+/**
+ * How long a failed job is kept in the queue.
+ *
+ * The queue used to forget a failed job a few minutes after it failed, so a
+ * job that was given up on left nothing behind: nothing to read and nothing
+ * to put back on the queue. A failed job is now kept for a week, which is
+ * long enough to look at it and to put it back, and short enough that the
+ * queue does not grow without bound.
+ *
+ * The failure itself is also written in the table of the dead letters, so it
+ * survives even the loss of the queue itself.
+ */
+export const FAILED_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
 export interface ProvisionJobData {
   instanceId: string;
   /** Set when an administrator asks for a retry, so the reason is auditable. */
@@ -63,7 +77,9 @@ export function getQueue(): Queue<ProvisionJobData> {
         attempts: PROVISION_ATTEMPTS,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: { count: 500 },
-        removeOnFail: { count: 500 },
+        // A failed job is kept for a week, so the failure can be read and the
+        // job can be put back on the queue.
+        removeOnFail: { age: FAILED_JOB_RETENTION_MS },
       },
     });
   }
@@ -94,6 +110,20 @@ export function createProvisionWorker(
     concurrency: 2,
     lockDuration: 120_000,
   });
+}
+
+/**
+ * Removes the jobs that are not needed any more.
+ *
+ * The jobs that finished are removed right away. The jobs that failed are kept
+ * for a week: a failure that is forgotten a few minutes after it happened
+ * leaves nothing to read and nothing to put back on the queue, which is the
+ * same as losing it.
+ */
+export async function pruneQueueJobs(): Promise<void> {
+  const queue = getQueue();
+  await queue.clean(0, 1000, 'completed');
+  await queue.clean(FAILED_JOB_RETENTION_MS, 1000, 'failed');
 }
 
 export async function closeQueue(): Promise<void> {
@@ -141,7 +171,7 @@ export function getEmailQueue(): Queue<EmailJobData, EmailJobResult> {
         attempts: 4,
         backoff: { type: 'exponential', delay: 10_000 },
         removeOnComplete: { count: 500 },
-        removeOnFail: { count: 500 },
+        removeOnFail: { age: FAILED_JOB_RETENTION_MS },
       },
     });
   }

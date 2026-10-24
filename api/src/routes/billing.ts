@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { requireAuth } from '../plugins/auth.js';
 import { cancelSubscription, createBillingPortal, paymentState, resumeSubscription, stripeLive } from '../services/stripe.js';
 import { notFound, unavailable } from '../lib/errors.js';
@@ -123,9 +124,22 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
   app.get('/billing/summary', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const [instances, subscriptions, invoices, payments, cancellations] = await Promise.all([
-      prisma.instance.findMany({ where: { userId: user.id, cancelledAt: null }, select: { id: true, name: true, price: true, currency: true, status: true } }),
-      prisma.subscription.findMany({ where: { userId: user.id }, include: { instance: { select: { name: true } } }, orderBy: { createdAt: 'desc' } }),
+    // The lists of the summary are bounded. The two numbers that are read
+    // from them are read from the database with an aggregate, so they stay
+    // the real numbers even when a customer has more rows than the list shows.
+    const [instances, subscriptions, invoices, payments, cancellations, instanceSum, periodEnd] = await Promise.all([
+      prisma.instance.findMany({
+        where: { userId: user.id, cancelledAt: null },
+        select: { id: true, name: true, price: true, currency: true, status: true },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
+      prisma.subscription.findMany({
+        where: { userId: user.id },
+        include: { instance: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
       prisma.invoice.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 50 }),
       prisma.payment.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 1 }),
       prisma.instance.findMany({
@@ -134,14 +148,13 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         orderBy: { cancelledAt: 'desc' },
         take: 50,
       }),
+      prisma.instance.aggregate({ where: { userId: user.id, cancelledAt: null }, _sum: { price: true } }),
+      prisma.subscription.aggregate({ where: { userId: user.id }, _max: { currentPeriodEnd: true } }),
     ]);
 
     const currency = subscriptions[0]?.currency ?? instances[0]?.currency ?? 'EUR';
-    const monthlyEstimate = instances.reduce((sum, instance) => sum + instance.price, 0);
-    const currentPeriodEnd = subscriptions
-      .map((subscription) => subscription.currentPeriodEnd)
-      .filter((date): date is Date => Boolean(date))
-      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const monthlyEstimate = instanceSum._sum.price ?? 0;
+    const currentPeriodEnd = periodEnd._max.currentPeriodEnd ?? null;
 
     const paymentMethod = payments.length
       ? { status: payments[0]!.status, lastPaidAt: payments[0]!.createdAt, currency: payments[0]!.currency }
@@ -321,13 +334,15 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
   app.get('/billing/invoices', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const invoices = await prisma.invoice.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
+    const rows = await prisma.invoice.findMany({
+      where: withCursor({ userId: user.id }, cursor, 'createdAt'),
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
     });
+    const page = pageOf(rows, limit, 'createdAt');
     return {
-      invoices: invoices.map((invoice) => ({
+      invoices: page.rows.map((invoice) => ({
         id: invoice.id,
         number: invoice.number,
         status: invoice.status.toLowerCase(),
@@ -341,6 +356,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         periodStart: invoice.periodStart,
         periodEnd: invoice.periodEnd,
       })),
+      pagination: page.pagination,
     };
   });
 

@@ -1,3 +1,15 @@
+# The web container of the platform.
+#
+# The limits of the containers are here so that one container that leaks
+# cannot take the whole machine with it. The machine has four processors and
+# about 4.3 GB of memory that can be used, and the five containers of the
+# platform share it. The limits of the five containers add up to less than
+# that, so the database is never the one that is killed when everything grows
+# at once.
+#
+# The logs are written by the driver of Docker with a size and a number of
+# files, so they cannot fill the disk. A disk that is full takes PostgreSQL
+# down, and PostgreSQL down takes the platform down.
 services:
   web:
     build:
@@ -25,6 +37,23 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # The web container serves the files of the interface and forwards the
+    # calls of the API. It holds no data of its own, so it is given a small
+    # share of the memory of the machine: the files are read from the disk
+    # and are not kept in the process.
+    mem_limit: 384m
+    # The web container is bound by the network and not by the processor. One
+    # processor is more than it needs for the traffic of the platform.
+    cpus: 1.0
+    pids_limit: 256
+    # The log of the web container records the requests of the visitors, so it
+    # is the log that grows the fastest of the five. It is bounded like the
+    # others.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
       interval: 30s

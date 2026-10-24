@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { AppError, badRequest, forbidden, notFound } from '../lib/errors.js';
 import { requireAuth, requireStaff, type AuthUser } from '../plugins/auth.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
@@ -135,13 +136,15 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
   app.get('/tickets', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const tickets = await prisma.ticket.findMany({
-      where: { userId: user.id },
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
+    const rows = await prisma.ticket.findMany({
+      where: withCursor({ userId: user.id }, cursor, 'updatedAt'),
       include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
-      orderBy: { updatedAt: 'desc' },
-      take: 100,
+      orderBy: pageOrder('updatedAt'),
+      take: limit + 1,
     });
-    return { tickets: tickets.map(serializeTicket) };
+    const page = pageOf(rows, limit, 'updatedAt');
+    return { tickets: page.rows.map(serializeTicket), pagination: page.pagination };
   });
 
   app.post('/tickets', async (request: FastifyRequest, reply) => {

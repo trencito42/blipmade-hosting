@@ -7,6 +7,14 @@ import { requireStaff, requirePermission, assertMayActOnAccount } from '../plugi
 import { audit } from '../lib/audit.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
+import {
+  closeDeadLetter,
+  getDeadLetter,
+  listDeadLetters,
+  pendingDeadLetterCount,
+  requeueDeadLetter,
+} from '../services/dead-letter.js';
+import { encodeCursor, pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { refundPayment, stripeLive } from '../services/stripe.js';
 import { PERMISSIONS, permissionsNotHeld } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
@@ -92,6 +100,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       revenueMonth,
       provisioningFailures,
       subscriptions,
+      deadLetters,
     ] = await Promise.all([
       prisma.user.count({ where: { role: 'CUSTOMER' } }),
       prisma.instance.count(),
@@ -101,6 +110,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       prisma.order.aggregate({ where: { status: { in: ['PAID', 'FULFILLED'] }, createdAt: { gte: startOfMonth } }, _sum: { total: true } }),
       prisma.instance.count({ where: { status: 'FAILED' } }),
       prisma.subscription.findMany({ where: { status: 'ACTIVE', cancelAtPeriodEnd: false }, select: { amount: true } }),
+      // The jobs that failed for good and that nobody has looked at yet.
+      pendingDeadLetterCount(),
     ]);
 
     // MRR is the sum of the active subscriptions that are not cancelled.
@@ -116,6 +127,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         revenueMonth: revenueMonth._sum.total ?? 0,
         provisioningFailures,
         mrr,
+        deadLetters,
         currency: 'EUR',
       },
     };
@@ -123,6 +135,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/customers', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
     const query = z.object({ search: z.string().trim().optional() }).parse(request.query ?? {});
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
     const where: Prisma.UserWhereInput = {
       role: 'CUSTOMER',
       ...(query.search
@@ -135,21 +148,24 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           }
         : {}),
     };
-    const customers = await prisma.user.findMany({
-      where,
+    // The page is read with the cursor of the page before it, so the database
+    // goes straight to the place where the page starts.
+    const rows = await prisma.user.findMany({
+      where: withCursor(where, cursor, 'createdAt'),
       include: {
         instances: { select: { id: true, status: true, price: true, name: true, cancelledAt: true } },
         _count: { select: { orders: true, tickets: true } },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
     });
+    const page = pageOf(rows, limit, 'createdAt');
     // The number of accounts the search really found, so the list can say that
     // it shows only the first rows of them.
     const total = await prisma.user.count({ where });
 
     return {
-      customers: customers.map((customer) => ({
+      customers: page.rows.map((customer) => ({
         id: customer.id,
         email: customer.email,
         name: fullName(customer),
@@ -162,6 +178,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         monthlyValue: customer.instances.filter((instance) => instance.cancelledAt === null).reduce((sum, instance) => sum + instance.price, 0),
       })),
       total,
+      pagination: page.pagination,
     };
   });
 
@@ -369,21 +386,23 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/orders', { preHandler: requirePermission('orders.read') }, async (request: FastifyRequest) => {
     const query = z.object({ status: z.string().optional() }).parse(request.query ?? {});
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
     const where: Prisma.OrderWhereInput = query.status ? { status: query.status as never } : {};
-    const orders = await prisma.order.findMany({
-      where,
+    const rows = await prisma.order.findMany({
+      where: withCursor(where, cursor, 'createdAt'),
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         items: { include: { product: { select: { slug: true } } } },
       },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
     });
+    const page = pageOf(rows, limit, 'createdAt');
     // The number of orders the filter really found, so the list can say that
     // it shows only the first rows of them.
     const total = await prisma.order.count({ where });
     return {
-      orders: orders.map((order) => ({
+      orders: page.rows.map((order) => ({
         id: order.id,
         number: order.number,
         status: order.status.toLowerCase(),
@@ -395,6 +414,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         items: order.items.map((item) => ({ id: item.id, name: item.name, quantity: item.quantity, total: item.total })),
       })),
       total,
+      pagination: page.pagination,
     };
   });
 
@@ -525,21 +545,23 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/services', { preHandler: requirePermission('services.read') }, async (request: FastifyRequest) => {
     const query = z.object({ status: z.string().optional(), search: z.string().trim().optional() }).parse(request.query ?? {});
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 300, maxSize: 300 });
     const where: Prisma.InstanceWhereInput = {
       ...(query.status ? { status: query.status as never } : {}),
       ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
     };
-    const services = await prisma.instance.findMany({
-      where,
+    const rows = await prisma.instance.findMany({
+      where: withCursor(where, cursor, 'createdAt'),
       include: { user: { select: { id: true, email: true } }, product: { select: { name: true, slug: true } } },
-      orderBy: { createdAt: 'desc' },
-      take: 300,
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
     });
+    const page = pageOf(rows, limit, 'createdAt');
     // The number of services the filter really found, so the list can say that
     // it shows only the first rows of them.
     const total = await prisma.instance.count({ where });
     return {
-      services: services.map((service) => ({
+      services: page.rows.map((service) => ({
         id: service.id,
         name: service.name,
         status: service.status.toLowerCase(),
@@ -554,6 +576,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         product: service.product,
       })),
       total,
+      pagination: page.pagination,
     };
   });
 
@@ -775,23 +798,25 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/tickets', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {
     const query = z.object({ status: z.string().optional() }).parse(request.query ?? {});
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
     const where: Prisma.TicketWhereInput = query.status ? { status: query.status as never } : {};
-    const tickets = await prisma.ticket.findMany({
-      where,
+    const rows = await prisma.ticket.findMany({
+      where: withCursor(where, cursor, 'updatedAt'),
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         instance: { select: { id: true, name: true } },
         assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
         _count: { select: { messages: true } },
       },
-      orderBy: { updatedAt: 'desc' },
-      take: 200,
+      orderBy: pageOrder('updatedAt'),
+      take: limit + 1,
     });
+    const page = pageOf(rows, limit, 'updatedAt');
     // The number of tickets the filter really found, so the list can say that
     // it shows only the first rows of them.
     const total = await prisma.ticket.count({ where });
     return {
-      tickets: tickets.map((ticket) => ({
+      tickets: page.rows.map((ticket) => ({
         id: ticket.id,
         number: ticket.number,
         subject: ticket.subject,
@@ -808,6 +833,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           : null,
       })),
       total,
+      pagination: page.pagination,
     };
   });
 
@@ -830,13 +856,19 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { ticket: { id, assignedToId: userId } };
   });
 
-  app.get('/admin/promotions', { preHandler: requirePermission('promotions.read') }, async () => {
-    const promotions = await prisma.promotion.findMany({ orderBy: { createdAt: 'desc' }, take: 200 });
+  app.get('/admin/promotions', { preHandler: requirePermission('promotions.read') }, async (request: FastifyRequest) => {
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
+    const rows = await prisma.promotion.findMany({
+      where: withCursor({}, cursor, 'createdAt'),
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
+    });
+    const page = pageOf(rows, limit, 'createdAt');
     // The number of promotions there really are, so the list can say that it
     // shows only the first rows of them.
     const total = await prisma.promotion.count();
     return {
-      promotions: promotions.map((promotion) => ({
+      promotions: page.rows.map((promotion) => ({
         id: promotion.id,
         code: promotion.code,
         type: promotion.type.toLowerCase(),
@@ -851,6 +883,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         createdAt: promotion.createdAt,
       })),
       total,
+      pagination: page.pagination,
     };
   });
 
@@ -1024,16 +1057,18 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       ...(query.action ? { action: { contains: query.action, mode: 'insensitive' } } : {}),
       ...(query.targetType ? { targetType: query.targetType } : {}),
     };
-    const logs = await prisma.auditLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: 300,
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 300, maxSize: 300 });
+    const rows = await prisma.auditLog.findMany({
+      where: withCursor(where, cursor, 'createdAt'),
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
     });
+    const page = pageOf(rows, limit, 'createdAt');
     // The number of entries the filter really found, so the list can say that
     // it shows only the first rows of them.
     const total = await prisma.auditLog.count({ where });
     return {
-      logs: logs.map((log) => ({
+      logs: page.rows.map((log) => ({
         id: log.id,
         actorId: log.actorId,
         actorEmail: log.actorEmail,
@@ -1045,7 +1080,118 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         createdAt: log.createdAt,
       })),
       total,
+      pagination: page.pagination,
     };
+  });
+
+  /**
+   * The jobs of a queue that failed for good.
+   *
+   * The failures are kept in the table of the dead letters, so they survive
+   * the end of the job in the queue. The list is read in pages: the number of
+   * failures grows with the number of broken services, and a list that answers
+   * with every failure would grow with it.
+   */
+  app.get('/admin/dead-letters', { preHandler: requirePermission('infrastructure.read') }, async (request: FastifyRequest) => {
+    const query = z
+      .object({
+        state: z.enum(['pending', 'requeued', 'resolved', 'all']).optional(),
+        queue: z.string().trim().optional(),
+      })
+      .parse(request.query ?? {});
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 50, maxSize: 200 });
+
+    const { entries, nextCursor, total } = await listDeadLetters({
+      state: query.state,
+      queue: query.queue,
+      limit,
+      cursor,
+    });
+
+    return {
+      failures: entries.map((entry) => ({
+        id: entry.id,
+        queue: entry.queue,
+        jobId: entry.jobId,
+        name: entry.name,
+        payload: entry.payload,
+        error: entry.error,
+        errorClass: entry.errorClass,
+        attempts: entry.attempts,
+        failedAt: entry.failedAt,
+        state: entry.state,
+        requeuedAt: entry.requeuedAt,
+        requeuedBy: entry.requeuedBy,
+        requeueCount: entry.requeueCount,
+      })),
+      total,
+      pagination: {
+        limit,
+        nextCursor: nextCursor ? encodeCursor({ at: nextCursor.at, id: nextCursor.id }) : null,
+      },
+    };
+  });
+
+  /** One failure of the list, with everything that is known about it. */
+  app.get('/admin/dead-letters/:id', { preHandler: requirePermission('infrastructure.read') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const entry = await getDeadLetter(id);
+    if (!entry) throw notFound('That failure is not known.');
+    return { failure: entry };
+  });
+
+  /**
+   * Puts a failed job back on its queue.
+   *
+   * The path is safe to run twice: the failure is claimed with a single
+   * statement, so two calls that arrive at the same time cannot put the same
+   * job on the queue twice, and the second call is told that the failure was
+   * already handled.
+   */
+  app.post('/admin/dead-letters/:id/requeue', { preHandler: requirePermission('infrastructure.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+
+    const outcome = await requeueDeadLetter(id, { requestedBy: actor.email });
+    if (outcome.status === 'requeued') {
+      await audit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'infrastructure.dead_letter_requeued',
+        targetType: 'dead_letter',
+        targetId: id,
+        meta: { queue: outcome.entry.queue, jobId: outcome.entry.jobId },
+        ip: request.ip,
+      });
+      return { requeued: true, failure: outcome.entry };
+    }
+    if (outcome.status === 'already-handled') {
+      return { requeued: false, reason: 'This failure was already handled.', failure: outcome.entry };
+    }
+    return { requeued: false, reason: outcome.reason, failure: outcome.entry };
+  });
+
+  /**
+   * Closes a failure by hand.
+   *
+   * The failure is closed when it is not a failure of the platform any more:
+   * the service was given up on or the customer was answered by hand. The row
+   * is kept, so the moment and the reason of the failure stay readable.
+   */
+  app.post('/admin/dead-letters/:id/close', { preHandler: requirePermission('infrastructure.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const entry = await closeDeadLetter(id, { requestedBy: actor.email });
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'infrastructure.dead_letter_closed',
+      targetType: 'dead_letter',
+      targetId: id,
+      meta: { queue: entry.queue, jobId: entry.jobId },
+      ip: request.ip,
+    });
+    return { closed: true, failure: entry };
   });
 
   app.get('/admin/staff', { preHandler: requirePermission('staff.read') }, async () => {

@@ -8,12 +8,15 @@ import {
   createProvisionWorker,
   closeQueue,
   enqueueProvisioning,
-  getQueue,
   isLastAttempt,
+  pruneQueueJobs,
+  PROVISION_QUEUE,
+  EMAIL_QUEUE,
   type EmailJobData,
   type EmailJobResult,
   type ProvisionJobData,
 } from './services/queue.js';
+import { noteJobCompleted, noteJobFailure } from './services/dead-letter.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
   PaymentRequiredError,
@@ -62,9 +65,19 @@ const worker = createProvisionWorker(async (job: Job<ProvisionJobData>) => {
 
 worker.on('completed', (job) => {
   console.info(`[worker] job ${job.id} completed`);
+  // The job failed and then worked on a later attempt, so the failure that
+  // was written down is not a failure any more.
+  void noteJobCompleted(PROVISION_QUEUE, job).catch((error) =>
+    console.error('[worker] could not close the failure', (error as Error).message),
+  );
 });
 worker.on('failed', (job, error) => {
   console.error(`[worker] job ${job?.id} failed: ${error.message}`);
+  // The failure is written down, so it survives the end of the job in the
+  // queue and can be put back on the queue by hand.
+  void noteJobFailure(PROVISION_QUEUE, job, error).catch((writeError) =>
+    console.error('[worker] could not write the failure down', (writeError as Error).message),
+  );
 });
 
 /**
@@ -88,9 +101,18 @@ const emailWorker = createEmailWorker(async (job: Job<EmailJobData, EmailJobResu
 
 emailWorker.on('completed', (job) => {
   console.info(`[worker] mail job ${job.id} completed`);
+  void noteJobCompleted(EMAIL_QUEUE, job).catch((error) =>
+    console.error('[worker] could not close the failure', (error as Error).message),
+  );
 });
 emailWorker.on('failed', (job, error) => {
   console.error(`[worker] mail job ${job?.id} failed: ${error.message}`);
+  // The body of the message is never written here: only the name of the
+  // message and its kind, so the failure can be read without a message of a
+  // customer ending up in the table of the failures.
+  void noteJobFailure(EMAIL_QUEUE, job, error).catch((writeError) =>
+    console.error('[worker] could not write the failure down', (writeError as Error).message),
+  );
 });
 
 /** Puts instances that were left running mid-flight back into the queue. */
@@ -116,11 +138,14 @@ async function reconcile(): Promise<void> {
   }
 }
 
-/** Removes finished jobs so the queue does not grow without bound. */
+/**
+ * Removes finished jobs so the queue does not grow without bound.
+ *
+ * The jobs that failed are kept for a week, so a failure survives long enough
+ * to be read and to be put back on the queue.
+ */
 async function pruneQueue(): Promise<void> {
-  const queue = getQueue();
-  await queue.clean(0, 1000, 'completed');
-  await queue.clean(0, 1000, 'failed');
+  await pruneQueueJobs();
 }
 
 /**

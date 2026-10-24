@@ -1446,9 +1446,16 @@ export async function reconcileInterruptedInstances(): Promise<number> {
     select: { id: true },
     take: 100,
   });
-  for (const instance of stuck) {
-    await prisma.instanceEvent.create({
-      data: { instanceId: instance.id, type: 'reconcile', message: 'Requeued after an interrupted provisioning run.' },
+  // The journal of every instance is written in one statement. The worker
+  // calls this every minute, and a write per instance would make the cost of
+  // the round grow with the number of the instances that were interrupted.
+  if (stuck.length) {
+    await prisma.instanceEvent.createMany({
+      data: stuck.map((instance) => ({
+        instanceId: instance.id,
+        type: 'reconcile',
+        message: 'Requeued after an interrupted provisioning run.',
+      })),
     });
   }
   return stuck.length;
