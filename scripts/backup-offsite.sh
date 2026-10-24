@@ -355,7 +355,7 @@ remote_size() {
         | tr '{' '\n' \
         | grep -F "\"Path\":\"$NAME\"" \
         | sed -E 's/.*"Size":([0-9]+).*/\1/' \
-        | head -n 1
+        | sed -n '1p'
       ;;
     ssh)
       ssh "$(ssh_host)" "stat -c %s '$(ssh_path)/$NAME'" 2>/dev/null

@@ -115,7 +115,7 @@ echo "  info  certificate: $CERT"
 
 echo
 echo "=== static resources ==="
-ASSET="$(curl -sS -m 20 "$BASE_PUBLIC/" 2>/dev/null | grep -oE '/assets/[A-Za-z0-9._-]+\.js' | head -1)"
+ASSET="$(curl -sS -m 20 "$BASE_PUBLIC/" 2>/dev/null | grep -oE '/assets/[A-Za-z0-9._-]+\.js' | sed -n '1p')"
 if [[ -n "$ASSET" ]]; then
   check "asset $ASSET" 200 "$BASE_PUBLIC$ASSET"
 else

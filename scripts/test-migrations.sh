@@ -90,7 +90,9 @@ echo "===== B. upgrade path over the production dump ====="
 refuse_if_not_test "$UPGRADE_DB"
 ARCHIVE="${1:-}"
 if [[ -z "$ARCHIVE" ]]; then
-  ARCHIVE="$(ls -1t /var/backups/blipmade/blipmade-pre-release-*.tar.gz 2>/dev/null | head -1 || true)"
+  # sed reads the whole list, so the pipe is never closed under the writer.
+  # head closes it and the script ends with the status 141.
+  ARCHIVE="$(ls -1t /var/backups/blipmade/blipmade-pre-release-*.tar.gz 2>/dev/null | sed -n '1p' || true)"
 fi
 if [[ -z "$ARCHIVE" ]]; then
   echo "  no archive found; skipping the upgrade path" >&2

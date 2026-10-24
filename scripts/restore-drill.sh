@@ -33,7 +33,9 @@ SCRATCH_URL="${BASE_URL}/${SCRATCH_DB}"
 
 ARCHIVE="${1:-}"
 if [[ -z "$ARCHIVE" ]]; then
-  ARCHIVE="$(ls -1t "$BACKUP_DIR"/blipmade-*.tar.gz 2>/dev/null | head -1 || true)"
+  # sed reads the whole list, so the pipe is never closed under the writer.
+  # head closes it and the script ends with the status 141.
+  ARCHIVE="$(ls -1t "$BACKUP_DIR"/blipmade-*.tar.gz 2>/dev/null | sed -n '1p' || true)"
 fi
 if [[ -z "$ARCHIVE" || ! -f "$ARCHIVE" ]]; then
   echo "No backup archive found in $BACKUP_DIR. Run scripts/backup.sh first." >&2

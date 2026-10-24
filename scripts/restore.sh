@@ -47,7 +47,10 @@ trap 'rm -rf "$WORK"' EXIT
 tar -xzf "$ARCHIVE" -C "$WORK"
 
 echo "==> Listing the dump"
-pg_restore --list "$WORK/database.dump" | head -20
+# sed reads the whole list, head closes the pipe after twenty lines and
+# pg_restore would die of SIGPIPE, which stops the script before it
+# restores anything.
+pg_restore --list "$WORK/database.dump" | sed -n '1,20p'
 echo "    ... $(pg_restore --list "$WORK/database.dump" | grep -c 'TABLE DATA' || true) tables with data"
 
 if [[ "$ASSUME_YES" != "--yes" ]]; then
@@ -83,7 +86,7 @@ if [[ -f "$WORK/config.tar.gz" ]]; then
   echo "==> The archive also holds the configuration of the platform."
   echo "    It was not applied: the configuration of a live platform is changed"
   echo "    by a human, and the secrets are never part of a backup."
-  tar -tzf "$WORK/config.tar.gz" | head -10 | sed 's/^/      /'
+  tar -tzf "$WORK/config.tar.gz" | sed -n '1,10p' | sed 's/^/      /'
 fi
 
 echo "==> Verifying the restored database"
