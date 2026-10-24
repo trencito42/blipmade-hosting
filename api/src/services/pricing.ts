@@ -127,6 +127,24 @@ export function validateConfiguration(
   check(config.disk, product.minDisk, product.maxDisk, 'Storage');
 }
 
+/**
+ * The price row that prices an order for a period.
+ *
+ * The catalog and the order have to answer with the same row, or the price
+ * that was shown to the customer is not the price that is charged. The newest
+ * active row of the period wins. When the product has no active price for
+ * the period, the newest active row of any period is used, so the catalog
+ * can still show a price.
+ */
+export function priceRowFor<
+  T extends { period: string; active: boolean; createdAt: Date },
+>(prices: T[], period: BillingPeriod = 'MONTHLY'): T | undefined {
+  const active = prices
+    .filter((price) => price.active)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return active.find((price) => price.period === period) ?? active[0];
+}
+
 export async function loadPrice(
   productId: string,
   period: BillingPeriod = 'MONTHLY',

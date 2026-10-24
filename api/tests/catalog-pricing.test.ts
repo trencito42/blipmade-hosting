@@ -120,6 +120,32 @@ describe('the price book of the catalog', () => {
     expect(list.body.products[0].pricing).toEqual(single.body.product.pricing);
   });
 
+  it('gives the same amounts as the quote when the product has two active prices', async () => {
+    await seedWordPress();
+    // A second active price for the same period, newer than the first one.
+    // The catalog and the order have to answer with the newer one.
+    await prisma.productPrice.create({
+      data: {
+        productId: (await prisma.product.findUnique({ where: { slug: 'wordpress' } }))!.id,
+        period: 'MONTHLY',
+        baseAmount: 249,
+        currency: 'EUR',
+        active: true,
+        createdAt: new Date('2030-01-01T00:00:00.000Z'),
+      },
+    });
+
+    const client = makeClient(app);
+    const response = await client.request('GET', '/api/catalog/products/wordpress');
+    const product = response.body.product;
+
+    expect(product.price.amount).toBe(249);
+    expect(product.pricing.minimum.amount).toBe(249);
+
+    const minimum = await quote(client, 512, 1, 5);
+    expect(product.pricing.minimum.amount).toBe(minimum.total);
+  });
+
   it('has no book for a product without a price', async () => {
     await prisma.product.create({
       data: {

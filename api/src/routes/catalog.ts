@@ -6,6 +6,7 @@ import { notFound } from '../lib/errors.js';
 import { addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, priceBook } from '../services/pricing.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 
 const quoteItemSchema = z.object({
@@ -45,10 +46,13 @@ function serializeProduct(product: {
     currency: string;
     period: BillingPeriod;
     active: boolean;
+    createdAt: Date;
   }[];
   options: { code: string; name: string; description: string | null; amount: number; currency: string; active: boolean }[];
 }) {
-  const price = product.prices.find((p) => p.active && p.period === 'MONTHLY') ?? product.prices.find((p) => p.active);
+  // The row is the one that prices the order, so the price that is shown
+  // and the price that is charged cannot be two different numbers.
+  const price = priceRowFor(product.prices);
   // The availability is derived from the product itself, so the catalog, the
   // quote and the order always answer the same way.
   const availability = deploymentAvailability({
