@@ -49,6 +49,16 @@ export DATABASE_URL="$TEST_URL"
 export TEST_DATABASE_URL="$TEST_URL"
 # The compose network hostnames only resolve inside the containers.
 export REDIS_URL="${REDIS_URL/redis:\/\/redis:/redis:\/\/localhost:}"
+# The suite gets a database of Redis of its own. The database 0 belongs to the
+# application on a development machine: the worker of the platform consumes the
+# jobs of the queue from there, so a job of the suite would be taken away before
+# the test could read it. The database 1 is the one of the suite.
+# Any index already written in the URL is removed first, so the URL cannot end
+# up with two paths.
+if [[ "$REDIS_URL" =~ ^(.+)/[0-9]+$ ]]; then
+  REDIS_URL="${BASH_REMATCH[1]}"
+fi
+export REDIS_URL="${REDIS_URL}/1"
 export NODE_ENV=test
 export LOG_LEVEL="${LOG_LEVEL:-silent}"
 # The suite runs against the local gateway of Stripe, so the flows of the
