@@ -434,6 +434,7 @@ doveza, și nu mai sunt listate aici.
 | DASH-10 | Low | `CODE-INSPECTED` | `web/src/app/instance/SchedulesTab.tsx:64` | **Acțiunea „Power" trimite întotdeauna `restart`**: clientul nu poate alege pornire sau oprire | Nu | `web/src/app/instance/SchedulesTab.tsx:64` |
 | PLP-01 | P0 | `VERIFIED` | `api/src/services/availability.ts` | **Codul reparat, valoarea din baza vie rămâne**: WordPress era taxat cu 149 și putea fi comandat fără `eggId`, deci plata se accepta pentru un serviciu care nu putea fi creat | Da (deploy) | `api/src/services/availability.ts`; baza vie |
 | PLP-02 | High | `VERIFIED` | `api/src/routes/catalog.ts` | **Build-ul din serviciu era mai vechi decât fixul de contract de preț**: API-ul nu trimitea `pricing` și `availability`, deci clientul vedea un număr și comanda alta | Da (deploy) | `api/src/routes/catalog.ts` |
+| PLP-07 | High | `VERIFIED` | `api/src/services/pricing.ts`, `Promotion` (campania live) | **Campania live `LAUNCH` este 100% și nu are plafon per cont** (`maxPerUser` este null): codul impune plafonul când campania are unul, dar campania nu are, deci comanda iese cu `total 0` și o plată de zero | Nu (date) | `api/src/services/pricing.ts:301`; campania `LAUNCH` în baza vie |
 | SESS-01 | High | `VERIFIED` | `web/server.mjs`, `api/src/app.ts` | **Adresa înregistrată în sesiuni și în jurnal era adresa proxy-ului, nu a clientului**: 241 dintre cele 269 de sesiuni vii aveau o adresă Cloudflare | Nu (edge) | `web/server.mjs`; `api/src/app.ts` |
 | SESS-02 | High | `VERIFIED` | `api/src/routes/auth.ts` | **Limita de autentificare era cheiată pe adresa edge-ului Cloudflare**, nu pe cont și nu pe adresa clientului | Nu (edge) | `api/src/routes/auth.ts` |
 | ADM-12 | Medium | `VERIFIED` | `api/src/routes/admin.ts` | **Listele administrative sunt plafonate server-side la 200 și 300 de rânduri, fără pager**: clientul nu poate ajunge la rândurile vechi | Nu (decizie de produs) | `api/src/routes/admin.ts`; `PERF-P2-03` |
@@ -488,9 +489,9 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | FIXED & VERIFIED | 39 |
 | IMPLEMENTED, NOT VERIFIED | 1 |
 | BLOCKED: EXTERNAL DEPENDENCY | 3 |
-| REQUIRES OPERATOR APPROVAL | 16 |
+| REQUIRES OPERATOR APPROVAL | 17 |
 | NOT STARTED (BACKLOG) | 153 |
-| **Total** | **212** |
+| **Total** | **213** |
 
 | ID | Sev. | Cod / infrastructură afectată | Stare | Cauza rădăcină | Reparare | Commit | Test de regresie | Verificare |
 |---|---|---|---|---|---|---|---|---|
@@ -699,6 +700,7 @@ lângă `SEC-04`: nu este o constatare în plus, ci al doilea strat al aceleiaș
 | `DASH-10` | Low | web/src/app/instance/SchedulesTab.tsx | NOT STARTED (BACKLOG) | Actiunea Power trimite intotdeauna restart | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
 | `PLP-01` | P0 | api/src/services/availability.ts | REQUIRES OPERATOR APPROVAL | Codul reparat; valoarea din baza vie si deployul raman | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
 | `PLP-02` | High | api/src/routes/catalog.ts | REQUIRES OPERATOR APPROVAL | Codul reparat; deployul ramane | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
+| `PLP-07` | High | api/src/services/pricing.ts, campania LAUNCH din baza vie | REQUIRES OPERATOR APPROVAL | Campania live LAUNCH este 100% si nu are plafon per cont. Codul impune plafonul doar cand campania are unul, deci o comanda poate iesi cu total zero si cu o plata de zero | Operatorul pune plafonul per cont pe campanie sau o inactiveaza. Codul nu poate face asta: plafonul e o decizie de campanie | 4969f4a | api/tests/promotions.test.ts | In baza vie, la 2026-10-24: campania LAUNCH, PERCENT 10000 (100%), active, maxPerUser null, maxRedemptions 25. Pe 24 octombrie a intrat o comanda reala cu total 0 |
 | `SESS-01` | High | web/server.mjs | REQUIRES OPERATOR APPROVAL | Codul reparat; edge-ul ramane | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
 | `SESS-02` | High | api/src/routes/auth.ts | REQUIRES OPERATOR APPROVAL | Limita per cont exista; adresa reala cere edge-ul | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |
 | `ADM-12` | Medium | api/src/routes/admin.ts | REQUIRES OPERATOR APPROVAL | Plafonul de 200 si 300 de randuri ramane; decizia de pager este deschisa | — | — | — | Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md |

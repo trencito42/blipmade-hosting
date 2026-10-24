@@ -663,5 +663,14 @@
   "commit": "—",
   "test": "—",
   "verification": "Constatare deschisa, in registrul runzei a doua: 23-ROUND2-FINDINGS-REGISTER.md"
+ },
+ "PLP-07": {
+  "status": "REQUIRES OPERATOR APPROVAL",
+  "area": "api/src/services/pricing.ts, campania LAUNCH din baza vie",
+  "rootCause": "Campania live LAUNCH este 100% si nu are plafon per cont. Codul impune plafonul doar cand campania are unul, deci o comanda poate iesi cu total zero si cu o plata de zero",
+  "fix": "Operatorul pune plafonul per cont pe campanie sau o inactiveaza. Codul nu poate face asta: plafonul e o decizie de campanie",
+  "commit": "4969f4a",
+  "test": "api/tests/promotions.test.ts",
+  "verification": "In baza vie, la 2026-10-24: campania LAUNCH, PERCENT 10000 (100%), active, maxPerUser null, maxRedemptions 25. Pe 24 octombrie a intrat o comanda reala cu total 0"
  }
 }
