@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../env.js';
@@ -270,6 +271,8 @@ interface SmtpOptions {
   connectionTimeout: number;
   greetingTimeout: number;
   socketTimeout: number;
+  /** The certificates the relay is allowed to be signed by. */
+  tls?: { ca: string };
 }
 
 /**
@@ -279,8 +282,14 @@ interface SmtpOptions {
  * without another setting. The only thing that is added is the implicit
  * encryption of port 465: Nodemailer reads `smtp://` as a plain connection,
  * and the port 465 of Resend only speaks TLS.
+ *
+ * The certificate of the relay is the one that the machine trusts, unless the
+ * operator wrote down another one in `SMTP_CA_FILE`. That file is the
+ * certificate of a relay that is not signed by an authority the machine knows,
+ * which is the case of a mail server of the platform itself before its name
+ * is published in the DNS.
  */
-export function smtpTransportOptions(url: string): SmtpOptions {
+export function smtpTransportOptions(url: string, ca?: string): SmtpOptions {
   const parsed = new URL(url);
   const port = parsed.port ? Number(parsed.port) : parsed.protocol === 'smtps:' ? 465 : 587;
   const options: SmtpOptions = {
@@ -297,7 +306,27 @@ export function smtpTransportOptions(url: string): SmtpOptions {
       pass: decodeURIComponent(parsed.password),
     };
   }
+  if (ca) options.tls = { ca };
   return options;
+}
+
+/**
+ * The certificate that the relay of the platform is allowed to be signed by.
+ *
+ * A file that cannot be read is an error and not a relay without a
+ * certificate: a relay that cannot be verified is a relay that must not be
+ * used.
+ */
+function relayCertificate(): string | undefined {
+  const file = env.SMTP_CA_FILE.trim();
+  if (!file) return undefined;
+  try {
+    return readFileSync(file, 'utf-8');
+  } catch (error) {
+    throw new Error(
+      `The certificate of the relay could not be read from "${file}": ${(error as Error).message}`,
+    );
+  }
 }
 
 let transporter: Transporter | null = null;
@@ -306,7 +335,7 @@ let transporterUrl: string | null = null;
 function getTransporter(): Transporter {
   const url = env.SMTP_URL;
   if (transporter && transporterUrl === url) return transporter;
-  transporter = nodemailer.createTransport(smtpTransportOptions(url));
+  transporter = nodemailer.createTransport(smtpTransportOptions(url, relayCertificate()));
   transporterUrl = url;
   return transporter;
 }

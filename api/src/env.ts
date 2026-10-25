@@ -78,6 +78,19 @@ const schema = z.object({
   STRIPE_TAX_ENABLED: bool(false),
 
   SMTP_URL: z.string().default(''),
+  /**
+   * The certificate that the relay of the platform is allowed to be signed by.
+   *
+   * A relay that is signed by an authority the machine trusts needs nothing:
+   * the empty value is the right value. A relay of the platform itself, whose
+   * name is not published in the DNS yet, is signed by nobody, and the
+   * certificate of the relay is the one that says that it is the right one.
+   *
+   * The value is the path of a file that holds the certificate in the format
+   * of PEM. A file that cannot be read is an error and not a relay without a
+   * certificate.
+   */
+  SMTP_CA_FILE: z.string().default(''),
   MAIL_FROM: z.string().default('Blipmade <no-reply@blipmade.com>'),
   /** The inbox that receives the notifications about new support tickets. */
   MAIL_SUPPORT_EMAIL: z.string().default('support@blipmade.com'),
@@ -116,6 +129,46 @@ const schema = z.object({
   CADDY_APP_SERVER: z.string().default('blipmade'),
   METRICS_ENABLED: bool(true),
   LOG_LEVEL: z.string().default('info'),
+
+  /**
+   * The mail system that holds the mailboxes of the customers.
+   *
+   * The address is the administrative API of the system, over HTTPS. The
+   * certificate of a mail system that is not published in the DNS yet is
+   * signed by nobody, so the fingerprint of the certificate is what the
+   * platform checks: the address alone would not prove anything.
+   */
+  MAILCOW_API_URL: z.string().default(''),
+  MAILCOW_API_KEY: z.string().default(''),
+  /**
+   * The SHA-256 of the certificate of the mail system, in lower case hex.
+   *
+   * It is empty when the certificate of the mail system is signed by an
+   * authority the machine already trusts.
+   */
+  MAILCOW_API_CERT_SHA256: z.string().default(''),
+  /** The name of the machine of the mail system, e.g. "mail.blipmade.com". */
+  MAIL_HOSTNAME: z.string().default('mail.blipmade.com'),
+  /** Where the customer reads the mail of a customer domain. */
+  MAIL_WEBMAIL_URL: z.string().default(''),
+  /**
+   * The mailbox that receives the reports of DMARC.
+   *
+   * It is a bare address and not the `MAIL_FROM` of the platform, which may
+   * carry a display name ("Blipmade <no-reply@blipmade.com>"), and a name
+   * cannot go into a record of DNS.
+   */
+  MAIL_RUA_ADDRESS: z.string().default('postmaster@blipmade.com'),
+  /** How many domains of mail a customer may host. */
+  MAIL_MAX_DOMAINS_PER_CUSTOMER: z.coerce.number().int().min(0).max(1000).default(3),
+  /** How many mailboxes a domain of mail may hold. */
+  MAIL_MAX_MAILBOXES_PER_DOMAIN: z.coerce.number().int().min(0).max(10000).default(10),
+  /** How many aliases a domain of mail may hold. */
+  MAIL_MAX_ALIASES_PER_DOMAIN: z.coerce.number().int().min(0).max(10000).default(100),
+  /** How much mail a mailbox may hold, in megabytes. */
+  MAIL_MAX_QUOTA_MB_PER_MAILBOX: z.coerce.number().int().min(1).max(1024000).default(1024),
+  /** How much mail a domain of mail may hold, in megabytes. */
+  MAIL_MAX_QUOTA_MB_PER_DOMAIN: z.coerce.number().int().min(1).max(1024000).default(10240),
 
   /**
    * The addresses that are allowed to set the forwarding headers. Only these

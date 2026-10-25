@@ -313,4 +313,17 @@ describe('the relay of the platform', () => {
     const options = smtpTransportOptions(url);
     expect(JSON.stringify(options)).not.toContain(url);
   });
+
+  it('uses the certificate of the relay when the operator wrote one down', () => {
+    // A relay that is not signed by an authority the machine trusts needs the
+    // certificate of the operator, and the connection is refused without it.
+    const options = smtpTransportOptions('smtp://login:the-key@mail.blipmade.com:587', '-----BEGIN CERTIFICATE-----');
+    expect(options.tls?.ca).toBe('-----BEGIN CERTIFICATE-----');
+    expect(options.host).toBe('mail.blipmade.com');
+  });
+
+  it('does not touch the certificate of the relay when there is none', () => {
+    const options = smtpTransportOptions('smtp://login:the-key@smtp-relay.brevo.com:587');
+    expect(options.tls).toBeUndefined();
+  });
 });

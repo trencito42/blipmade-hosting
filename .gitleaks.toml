@@ -46,6 +46,12 @@ The findings of the scan that are not secrets.
   for the domain controls it. The value is redacted in the evidence now, but
   the history keeps it, so the scan reports it. The entry goes away when the
   history is cleaned of it.
+- The fingerprint of the certificate of the mail server. A fingerprint is the
+  SHA-256 of a certificate, and a certificate is public: anybody who can see
+  the certificate of the mail server can calculate the fingerprint. The
+  platform uses it to refuse a certificate that is not the one it expects,
+  and not to open a door. The value is in the guide of the operator, because
+  the operator has to write it down in the environment of the platform.
 """
 regexes = [
   '''verification-12345678''',
@@ -54,4 +60,5 @@ regexes = [
   '''VerifyHorseBattery9''',
   '''4W1ILM_lYoNSEM9MoZZqRZfJhtBZAAQdJsPhLEN6_Es''',
   '''tcDcrLSUqsAQgFIhQPLJKmg4F97FgzqV''',
+  '''7c9a7865a7ad3c5a9a05a4f4bb414640d643c85c392bad1ce2c409cbbaca25be''',
 ]

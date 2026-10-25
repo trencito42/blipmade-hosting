@@ -46,6 +46,7 @@ model User {
   sessions       Session[]
   tokens         VerificationToken[]
   staff          StaffMember?
+  mailDomains    MailDomain[]
   orders         Order[]
   instances      Instance[]
   tickets        Ticket[]
@@ -917,4 +918,111 @@ model Attachment {
 
   @@index([ticketMessageId])
   @@index([ticketId])
+}
+
+
+/// The state of a hosted domain of mail.
+enum MailDomainStatus {
+  /// The domain was asked for, but the mail system has not confirmed it yet.
+  PENDING
+  /// The mail system holds the domain and it works.
+  ACTIVE
+  /// The mail system refused the domain or something went wrong with it.
+  ERROR
+  /// The customer or the operator suspended the domain.
+  SUSPENDED
+}
+
+/// A domain of mail that a customer hosts.
+///
+/// The domain is owned by the customer, who proved that it is theirs the same
+/// way they proved a hostname of a server. The mail system holds the domain,
+/// the mailboxes and the aliases; the platform holds the plan limits and the
+/// truth about what the mail system answered.
+model MailDomain {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The domain itself, in lower case, e.g. "acme.ro".
+  name         String
+  status       MailDomainStatus @default(PENDING)
+  /// How much of the quota of the domain is used, in megabytes.
+  quotaMb      Int              @default(10240)
+  usedMb       Int              @default(0)
+  /// How many mailboxes the plan allows on this domain.
+  maxMailboxes Int              @default(10)
+  /// How many aliases the plan allows on this domain.
+  maxAliases   Int              @default(100)
+  /// The public part of the DKIM key of the domain.
+  dkimPublic   String?
+  /// Why the last attempt failed, in words.
+  lastError    String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  mailboxes Mailbox[]
+  aliases   MailAlias[]
+  jobs      MailJob[]
+
+  @@unique([userId, name])
+  @@index([name])
+}
+
+/// A mailbox of a hosted domain.
+model Mailbox {
+  id         String     @id @default(cuid())
+  domainId   String
+  domain     MailDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  /// The part before the "@", in lower case.
+  localPart  String
+  /// The whole address, e.g. "contact@acme.ro".
+  address    String     @unique
+  /// "active" or "disabled".
+  status     String     @default("active")
+  quotaMb    Int        @default(1024)
+  usedMb     Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([domainId, localPart])
+}
+
+/// An alias that forwards to a mailbox.
+model MailAlias {
+  id        String     @id @default(cuid())
+  domainId  String
+  domain    MailDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  /// The alias itself, e.g. "info@acme.ro".
+  alias     String
+  /// The mailbox the alias delivers to, e.g. "contact@acme.ro".
+  target    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([domainId, alias])
+}
+
+/// A piece of work that the platform owes to the mail system.
+///
+/// The mail system is another system: it can refuse, it can be slow, it can
+/// be down. The work is written down before it is done, so a customer always
+/// sees what is pending, and a failed job is never lost.
+model MailJob {
+  id         String      @id @default(cuid())
+  /// What the job does: "domain.create", "domain.delete", "mailbox.create",
+  /// "mailbox.delete", "alias.create", "alias.delete".
+  kind       String
+  domainId   String?
+  domain     MailDomain? @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  /// What the job carries.
+  payload    Json
+  /// "queued", "running", "done" or "failed".
+  status     String      @default("queued")
+  attempts   Int         @default(0)
+  lastError  String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([status])
+  @@index([domainId])
 }
