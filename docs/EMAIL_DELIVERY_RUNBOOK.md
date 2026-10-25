@@ -126,8 +126,9 @@ sudo mkdir -p /opt/blipmade-ca
 sudo cp /opt/blipmade-mail/mailcow-ca.pem /opt/blipmade-ca/mailcow-ca.pem
 sudo chmod 644 /opt/blipmade-ca/mailcow-ca.pem
 
-# In the environment of the platform.
-SMTP_CA_FILE=/etc/blipmade-ca/mailcow-ca.pem
+# In the environment of the platform. The path is the same on the host and
+# in the containers, because the alarm of the backup runs on the host.
+SMTP_CA_FILE=/opt/blipmade-ca/mailcow-ca.pem
 ```
 
 The mount is in `compose.api.yml`. A machine where the certificate is missing

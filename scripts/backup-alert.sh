@@ -46,8 +46,11 @@ fi
 
 if [[ -n "${SMTP_URL:-}" ]] && command -v node >/dev/null 2>&1; then
   # The mail goes through the mailer of the platform, so it uses the same
-  # relay and the same configuration as the rest of the platform.
-  if node -e '
+  # relay and the same configuration as the rest of the platform. The script
+  # runs in the directory of the API, because that is where the mailer and
+  # its packages live.
+  if (cd "$ROOT/api" && node -e '
+const { readFileSync } = require("node:fs");
 const url = process.env.SMTP_URL;
 const message = process.argv[1];
 (async () => {
@@ -68,15 +71,22 @@ const message = process.argv[1];
       pass: decodeURIComponent(parsed.password),
     };
   }
+  // The certificate of the relay is verified and never simply accepted, the
+  // same way the platform verifies it. A relay whose certificate cannot be
+  // read is a relay that must not be used.
+  const caFile = (process.env.SMTP_CA_FILE || "").trim();
+  if (caFile) {
+    options.tls = { ca: readFileSync(caFile, "utf-8") };
+  }
   const transport = nodemailer.createTransport(options);
   await transport.sendMail({
     from: process.env.MAIL_FROM || "no-reply@blipmade.com",
-    to: process.env.BACKUP_ALERT_EMAIL || process.env.MAIL_TO || "admin@blipmade.com",
+    to: process.env.BACKUP_ALERT_EMAIL || process.env.MAIL_TO || "platform@blipmade.com",
     subject: "The Blipmade backup failed",
     text: message,
   });
 })().catch(() => process.exit(1));
-' "$MESSAGE" 2>/dev/null; then
+' "$MESSAGE" 2>/dev/null); then
     echo "BACKUP-ALERT: the alarm was sent by mail." >&2
     SENT=1
   else

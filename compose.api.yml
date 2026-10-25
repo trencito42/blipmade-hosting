@@ -39,7 +39,11 @@ services:
       # directory is mounted and not the file, so a machine where the file is
       # missing gets an empty directory and a clear error from the mailer
       # instead of a file that Docker would replace with a directory.
-      - /opt/blipmade-ca:/etc/blipmade-ca:ro
+      #
+      # The path is the same inside the container and on the host, because the
+      # alarm of the backup runs on the host and sends its mail with the same
+      # configuration.
+      - /opt/blipmade-ca:/opt/blipmade-ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -101,7 +105,11 @@ services:
       # directory is mounted and not the file, so a machine where the file is
       # missing gets an empty directory and a clear error from the mailer
       # instead of a file that Docker would replace with a directory.
-      - /opt/blipmade-ca:/etc/blipmade-ca:ro
+      #
+      # The path is the same inside the container and on the host, because the
+      # alarm of the backup runs on the host and sends its mail with the same
+      # configuration.
+      - /opt/blipmade-ca:/opt/blipmade-ca:ro
     depends_on:
       postgres:
         condition: service_healthy
