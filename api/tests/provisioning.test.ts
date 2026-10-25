@@ -169,8 +169,11 @@ vi.mock('../src/services/pterodactyl/client.js', () => {
     writeFile: vi.fn(async () => undefined),
     // The container holds nothing when the provisioning starts, so the
     // application is not in it yet and the platform writes it.
+    listFiles: vi.fn(async () => []),
+    // A file that is not in the listing must never be read: the panel answers
+    // with an error and not with a "not found" when a file is not there.
     readFile: vi.fn(async () => {
-      throw new ClientApiError(404, 'The file is not in the container.');
+      throw new ClientApiError(500, 'A file that is not in the listing must not be read.');
     }),
     ClientApiError,
   };

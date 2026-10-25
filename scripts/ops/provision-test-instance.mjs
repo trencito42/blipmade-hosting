@@ -35,12 +35,22 @@
  */
 
 import { existsSync } from 'node:fs';
+import dns from 'node:dns/promises';
 import path from 'node:path';
 import https from 'node:https';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const API_ROOT = process.env.BM_API_ROOT ?? path.resolve(HERE, '../../api');
+/**
+ * The built API the script works with.
+ *
+ * Inside the container of the API that is the release itself. On the host it
+ * is the build of the repository, which has to be made before the script is
+ * run: the production runs from the image and never writes to the host.
+ */
+const API_ROOT =
+  process.env.BM_API_ROOT ??
+  (existsSync('/app/dist/db.js') ? '/app' : path.resolve(HERE, '../../api'));
 const EXECUTE = process.argv.includes('--execute');
 const CLEANUP = process.argv.includes('--cleanup');
 const EDGE_ADDRESS = process.env.BM_EDGE_ADDRESS ?? '10.77.0.12';
@@ -53,10 +63,11 @@ const ORDER_PREFIX = 'PROBE-';
  * Loads the configuration of the platform.
  *
  * The database is on the loopback of the host, so the name of the compose
- * network is replaced. The database of the suite is refused: this script
- * creates a real server, and it has to run against the live one.
+ * network is replaced when it does not resolve. The database of the suite is
+ * refused: this script creates a real server, and it has to run against the
+ * live one.
  */
-function loadEnvironment() {
+async function loadEnvironment() {
   const envFile = process.env.BM_ENV_FILE ?? path.resolve(API_ROOT, '../.env');
   if (existsSync(envFile)) process.loadEnvFile(envFile);
 
@@ -69,10 +80,18 @@ function loadEnvironment() {
     console.error('error: this script runs against the live database, not against a test one.');
     process.exit(1);
   }
-  process.env.DATABASE_URL = url.replace('@postgres:', '@127.0.0.1:');
+
+  const host = url.slice(url.lastIndexOf('@') + 1).split(':')[0];
+  try {
+    await dns.lookup(host);
+  } catch {
+    // The name of the compose network does not resolve from the host, so the
+    // database is asked on the loopback of the machine.
+    process.env.DATABASE_URL = url.replace(`@${host}:`, '@127.0.0.1:');
+  }
 }
 
-loadEnvironment();
+await loadEnvironment();
 
 const { prisma } = await import(path.join(API_ROOT, 'dist/db.js'));
 const { fulfilOrder } = await import(path.join(API_ROOT, 'dist/routes/webhooks.js'));
@@ -349,3 +368,7 @@ try {
 } finally {
   await prisma.$disconnect();
 }
+
+// The modules of the platform open connections of their own, so the process
+// would stay alive after the work is done.
+process.exit(0);

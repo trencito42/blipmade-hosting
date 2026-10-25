@@ -23,21 +23,32 @@
  */
 
 import { existsSync } from 'node:fs';
+import dns from 'node:dns/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const API_ROOT = process.env.BM_API_ROOT ?? path.resolve(HERE, '../../api');
+/**
+ * The built API the script works with.
+ *
+ * Inside the container of the API that is the release itself. On the host it
+ * is the build of the repository, which has to be made before the script is
+ * run: the production runs from the image and never writes to the host.
+ */
+const API_ROOT =
+  process.env.BM_API_ROOT ??
+  (existsSync('/app/dist/db.js') ? '/app' : path.resolve(HERE, '../../api'));
 const EXECUTE = process.argv.includes('--execute');
 
 /**
  * Loads the configuration of the platform.
  *
  * The database is on the loopback of the host, so the name of the compose
- * network is replaced. The database of the suite is refused: this script
- * changes containers, not rows, and it has to run against the live one.
+ * network is replaced when it does not resolve. The database of the suite is
+ * refused: this script changes containers, not rows, and it has to run against
+ * the live one.
  */
-function loadEnvironment() {
+async function loadEnvironment() {
   const envFile = process.env.BM_ENV_FILE ?? path.resolve(API_ROOT, '../.env');
   if (existsSync(envFile)) process.loadEnvFile(envFile);
 
@@ -50,28 +61,26 @@ function loadEnvironment() {
     console.error('error: this script runs against the live database, not against a test one.');
     process.exit(1);
   }
-  process.env.DATABASE_URL = url.replace('@postgres:', '@127.0.0.1:');
+
+  const host = url.slice(url.lastIndexOf('@') + 1).split(':')[0];
+  try {
+    await dns.lookup(host);
+  } catch {
+    // The name of the compose network does not resolve from the host, so the
+    // database is asked on the loopback of the machine.
+    process.env.DATABASE_URL = url.replace(`@${host}:`, '@127.0.0.1:');
+  }
 }
 
-loadEnvironment();
+await loadEnvironment();
 
 const { prisma } = await import(path.join(API_ROOT, 'dist/db.js'));
 const { withCustomerKey, probeFor } = await import(path.join(API_ROOT, 'dist/services/provisioning.js'));
-const { readFile, writeFile } = await import(path.join(API_ROOT, 'dist/services/pterodactyl/client.js'));
+const { readFile, writeFile, listFiles } = await import(
+  path.join(API_ROOT, 'dist/services/pterodactyl/client.js')
+);
 const { listAllocations } = await import(path.join(API_ROOT, 'dist/services/pterodactyl/application.js'));
 const { starterFiles, planStarterFiles } = await import(path.join(API_ROOT, 'dist/services/starter-apps.js'));
-
-/** Reads a file of a container, or nothing when the container does not hold it. */
-async function readFileIfPresent(token, uuid, file) {
-  try {
-    const answer = await readFile(token, uuid, file);
-    if (answer.encoding === 'base64') return Buffer.from(answer.content, 'base64').toString('utf-8');
-    return answer.content;
-  } catch (error) {
-    if (error && error.status === 404) return null;
-    throw error;
-  }
-}
 
 /** The line of the port of a file, so the report shows what changed. */
 function portLineOf(content) {
@@ -122,10 +131,22 @@ for (const instance of instances) {
     await withCustomerKey(
       instance.userId,
       async (token) => {
+        // The listing of the container is what says whether a file is there:
+        // the panel answers with an error of the server and not with a "not
+        // found" when a file does not exist.
+        const names = new Set(
+          (await listFiles(token, instance.pterodactylUuid, '/')).map((file) => file.name),
+        );
+
         const existing = new Map();
         for (const file of files) {
-          const content = await readFileIfPresent(token, instance.pterodactylUuid, file.path);
-          if (content !== null) existing.set(file.path, content);
+          if (!names.has(file.path)) continue;
+          const answer = await readFile(token, instance.pterodactylUuid, file.path);
+          const content =
+            answer.encoding === 'base64'
+              ? Buffer.from(answer.content, 'base64').toString('utf-8')
+              : answer.content;
+          existing.set(file.path, content);
         }
 
         const plan = planStarterFiles(files, existing);
@@ -164,3 +185,7 @@ console.log(
 console.log(EXECUTE ? 'The plan was applied.' : 'Nothing was written. Run it with --execute to apply it.');
 
 await prisma.$disconnect();
+
+// The modules of the platform open connections of their own, so the process
+// would stay alive after the work is done.
+process.exit(0);

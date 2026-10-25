@@ -250,23 +250,6 @@ function isUnauthenticated(error: unknown): boolean {
 }
 
 /**
- * Reads a file of a container, or nothing when the container does not hold it.
- *
- * A file that is not there is not an error: the platform writes it in that
- * case. Any other failure of the panel is left alone, so a broken panel is
- * never mistaken for an empty container.
- */
-async function readFileIfPresent(token: string, uuid: string, path: string): Promise<string | null> {
-  try {
-    const file = await pteroClient.readFile(token, uuid, path);
-    return file.content;
-  } catch (error) {
-    if (error instanceof pteroClient.ClientApiError && error.status === 404) return null;
-    throw error;
-  }
-}
-
-/**
  * Puts the application of the product into a new container.
  *
  * The audit found a sold product whose container held nothing but `.npm/` and
@@ -303,10 +286,21 @@ async function placeStarterApplication(
   });
 
   const outcome = await withCustomerKey(instance.userId, async (token) => {
+    // The files of the container are listed first, because that is what says
+    // whether a file is there. The panel answers with an error of the server
+    // and not with a "not found" when a file does not exist, so a file that is
+    // read to find out whether it is there would look like a node that is
+    // broken. A listing that fails is a node that is broken, and it stops the
+    // provisioning instead of writing over the code of a customer.
+    const names = new Set(
+      (await pteroClient.listFiles(token, server.uuid, '/')).map((file) => file.name),
+    );
+
     const existing = new Map<string, string>();
     for (const file of files) {
-      const content = await readFileIfPresent(token, server.uuid, file.path);
-      if (content !== null) existing.set(file.path, content);
+      if (!names.has(file.path)) continue;
+      const content = await pteroClient.readFile(token, server.uuid, file.path);
+      existing.set(file.path, content.content);
     }
 
     const plan = planStarterFiles(files, existing);

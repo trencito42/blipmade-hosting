@@ -167,6 +167,21 @@ vi.mock('../src/services/pterodactyl/client.js', () => {
       if (content === undefined) throw new ClientApiError(404, `The file ${path} is not in the container.`);
       return { content, encoding: 'utf-8' };
     }),
+    // The listing of the container is what says whether a file is there: the
+    // panel answers with an error and not with a "not found" when a file does
+    // not exist.
+    listFiles: vi.fn(async () =>
+      [...containerFiles.keys()].map((name) => ({
+        name,
+        created_at: '',
+        modified_at: '',
+        size: 0,
+        mode: '',
+        is_directory: false,
+        is_file: true,
+        is_symlink: false,
+      })),
+    ),
     writeFile: vi.fn(async (_token: string, _uuid: string, path: string, content: string) => {
       writtenFiles.push({ path, content });
       containerFiles.set(path, content);
@@ -195,6 +210,7 @@ vi.mock('../src/services/panel/credentials.js', () => ({
 const { prisma } = await import('../src/db.js');
 const { provisionInstance } = await import('../src/services/provisioning.js');
 const { starterFiles } = await import('../src/services/starter-apps.js');
+const { readFile: readFileMock } = await import('../src/services/pterodactyl/client.js');
 const { closeApp, getApp, registerAndLogin, resetDatabase } = await import('./helpers.js');
 
 beforeAll(async () => {
@@ -296,6 +312,20 @@ describe('the application of a new container', () => {
 
     const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(updated?.status).toBe('ONLINE');
+  });
+
+  it('never reads a file that is not in the container', async () => {
+    const instance = await seedInstance({ kind: 'http', path: '/' });
+
+    // The panel answers with an error of the server and not with a "not
+    // found" when a file does not exist. Reading a file to find out whether
+    // it is there therefore looks like a node that is broken, and the
+    // provisioning of a new instance would fail on it.
+    await provisionInstance(instance.id);
+
+    expect(vi.mocked(readFileMock)).not.toHaveBeenCalled();
+    const application = writtenFiles.find((file) => file.path === 'index.js');
+    expect(application).toBeDefined();
   });
 
   it('corrects the port of a file of the platform that is already in the container', async () => {
