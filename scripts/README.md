@@ -22,7 +22,8 @@ Two rules hold for every script in this folder:
 
 | Script | What it does | Changes something? | Needs | How to run it safely |
 |---|---|---|---|---|
-| `backup.sh [label]` | Dumps the database, archives the configuration without secrets, writes a SHA-256 checksum, applies the retention policy and copies the archive to `OFFSITE_TARGET` when one is configured. | Writes files in `BACKUP_DIR`. | `OFFSITE_TARGET` (optional). | Read the summary it prints at the end. |
+| `backup.sh [label]` | Dumps the database, archives the configuration without secrets, writes a SHA-256 checksum and applies the retention policy. The encrypted copy that leaves the host is a separate step: `backup-offsite.sh`. | Writes files in `BACKUP_DIR`. | nothing. | Read the summary it prints at the end. |
+| `backup-offsite.sh` | Makes the encrypted copy that leaves the host, reads it back to prove it is whole, sends it to the target and only then releases the local copy. | Writes files in `BACKUP_DIR/offsite` and on the target. | `OFFSITE_TARGET`, and `OFFSITE_AGE_RECIPIENT` + `OFFSITE_AGE_IDENTITY` (or `OFFSITE_ENCRYPTION_KEY` as a fallback). | It fails loudly and keeps the local copy when the copy cannot be made. |
 | `restore.sh <archive> [--yes]` | Checks the checksum, lists the dump, asks for confirmation and restores it. | Yes, it overwrites the database. | the archive path. | It asks before it writes; `--yes` skips the question. |
 | `restore-drill.sh [archive]` | Restores the newest archive into a scratch database, compares it with the live one and drops the scratch database. | No, the live database is never written to. | the archive path. | Safe to run at any time. |
 | `run-tests.sh` | Runs the API test suite against the separate `blipmade_test` database. | Only the test database. | the test database name. | It refuses to run against a database whose name does not end in `_test`. |

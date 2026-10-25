@@ -36,6 +36,13 @@ fi
 # The database is reachable through the compose network from the host too.
 HOST_URL="$(blipmade_host_database_url "$DATABASE_URL")"
 
+# The password is taken out of the url and handed to libpq through the
+# environment, so it never shows up in the process list of the machine while
+# the dump runs.
+CREDENTIALS="$(blipmade_database_credentials "$HOST_URL")"
+HOST_URL="${CREDENTIALS%%$'\n'*}"
+export PGPASSWORD="${CREDENTIALS#*$'\n'}"
+
 echo "==> Dumping the database"
 pg_dump "$HOST_URL" --format=custom --file="$WORK/database.dump"
 

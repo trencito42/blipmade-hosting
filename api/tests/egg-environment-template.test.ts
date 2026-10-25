@@ -270,6 +270,24 @@ describe('the environment of the egg', () => {
     }
   });
 
+  it('carries exactly the variables of the egg and nothing else', async () => {
+    // The check above only proves that the variables of the script are there.
+    // A variable that the platform adds on its own would change the
+    // environment of the server, so the set of variables is compared in both
+    // directions: the egg of the panel carries the variables of the script
+    // and `BRANCH`, and nothing more.
+    const source = await readFile(join(ROOT, 'scripts', 'create-egg-template.py'), 'utf-8');
+    const block = source.match(/ENVIRONMENT\s*=\s*\{([\s\S]*?)\n\}/);
+    expect(block).not.toBeNull();
+    const declared = [...block![1]!.matchAll(/"([A-Z_]+)":\s*"([^"]*)"/g)].map((entry) => entry[1]!);
+
+    // `BRANCH` comes from the egg itself and not from the script.
+    const expected = [...declared, 'BRANCH'].sort();
+
+    const template = await application.eggEnvironmentTemplate(15);
+    expect(Object.keys(template).sort()).toEqual(expected);
+  });
+
   it('makes the create of the first server of the egg succeed', async () => {
     const template = await application.eggEnvironmentTemplate(15);
 

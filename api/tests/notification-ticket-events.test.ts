@@ -10,10 +10,21 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * so the address of the support is the one that receives the messages of the
  * queue. The case in which the operator is the one who is told is covered by
  * `tests/notification-operator-fallback.test.ts`.
+ *
+ * The address of the support is fixed here as well. On a machine that carries
+ * a real configuration the address is different, and the test would then
+ * expect an address that the machine never sends to.
  */
 vi.mock('../src/env.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/env.js')>();
-  return { ...actual, env: { ...actual.env, MAIL_OPERATOR_EMAIL: '' } };
+  return {
+    ...actual,
+    env: {
+      ...actual.env,
+      MAIL_OPERATOR_EMAIL: '',
+      MAIL_SUPPORT_EMAIL: 'support@example.test',
+    },
+  };
 });
 
 import { prisma } from '../src/db.js';
@@ -157,7 +168,7 @@ describe('the events of the support', () => {
     expect(deliveries.length).toBeGreaterThan(0);
     for (const delivery of deliveries) {
       expect(delivery.to).not.toBe('customer@example.com');
-      expect(delivery.to).toBe('support@blipmade.com');
+      expect(delivery.to).toBe('support@example.test');
     }
 
     // Nothing about the reply of the customer waits in the centre of the

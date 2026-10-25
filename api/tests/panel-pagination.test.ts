@@ -39,9 +39,30 @@ vi.mock('../src/env.js', async (importOriginal) => {
 const panel = {
   /** The servers of the panel, one per page. */
   servers: [] as { id: number; egg: number; environment: Record<string, string> }[],
+  /** The nodes of the panel. */
+  nodes: [] as { id: number }[],
   /** The paths the platform asked for. */
   calls: [] as string[],
 };
+
+/** The answer of the panel for a list that has more than one page. */
+function paginated(items: unknown[], perPage: number, page: number) {
+  const totalPages = Math.max(1, Math.ceil(items.length / perPage));
+  const slice = items.slice((page - 1) * perPage, page * perPage);
+  return {
+    object: 'list',
+    data: slice,
+    meta: {
+      pagination: {
+        total: items.length,
+        count: slice.length,
+        per_page: perPage,
+        current_page: page,
+        total_pages: totalPages,
+      },
+    },
+  };
+}
 
 function answerPanel(request: { url?: string; headers: Record<string, unknown> }, response: { writeHead: (code: number, headers: Record<string, string>) => void; end: (body: string) => void }): void {
   const url = new URL(request.url ?? '/', 'http://panel.invalid');
@@ -58,34 +79,36 @@ function answerPanel(request: { url?: string; headers: Record<string, unknown> }
   if (path === '/api/application/servers') {
     const perPage = Number(query.get('per_page') ?? 50);
     const page = Number(query.get('page') ?? 1);
-    const totalPages = Math.max(1, Math.ceil(panel.servers.length / perPage));
-    const slice = panel.servers.slice((page - 1) * perPage, page * perPage);
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(
-      JSON.stringify({
-        object: 'list',
-        data: slice.map((server) => ({
-          object: 'server',
-          attributes: {
-            id: server.id,
-            uuid: `uuid-${server.id}`,
-            egg: server.egg,
-            allocation: 73,
-            node: 1,
-            container: { environment: server.environment },
-          },
-        })),
-        meta: {
-          pagination: {
-            total: panel.servers.length,
-            count: slice.length,
-            per_page: perPage,
-            current_page: page,
-            total_pages: totalPages,
-          },
+    const body = paginated(
+      panel.servers.map((server) => ({
+        object: 'server',
+        attributes: {
+          id: server.id,
+          uuid: `uuid-${server.id}`,
+          egg: server.egg,
+          allocation: 73,
+          node: 1,
+          container: { environment: server.environment },
         },
-      }),
+      })),
+      perPage,
+      page,
     );
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(body));
+    return;
+  }
+
+  if (path === '/api/application/nodes') {
+    const perPage = Number(query.get('per_page') ?? 50);
+    const page = Number(query.get('page') ?? 1);
+    const body = paginated(
+      panel.nodes.map((node) => ({ object: 'node', attributes: { id: node.id } })),
+      perPage,
+      page,
+    );
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(body));
     return;
   }
 
@@ -106,6 +129,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   panel.servers = [];
+  panel.nodes = [];
   panel.calls = [];
 });
 
@@ -143,6 +167,20 @@ describe('the lists of the panel', () => {
 
     expect(servers).toHaveLength(1);
     expect(panel.calls).toHaveLength(1);
+  });
+
+  it('reads every page of the nodes', async () => {
+    // The nodes are read the same way as the servers. A request that does not
+    // ask for the pages sees only the first one, so the capacity of a panel
+    // with more nodes than one page would be counted wrong.
+    panel.nodes = Array.from({ length: 120 }, (_, index) => ({ id: index + 1 }));
+
+    const nodes = await application.listNodes();
+
+    expect(nodes).toHaveLength(120);
+    expect(nodes[119]?.id).toBe(120);
+    expect(panel.calls).toContain('/api/application/nodes?per_page=100');
+    expect(panel.calls).toContain('/api/application/nodes?per_page=100&page=2');
   });
 });
 

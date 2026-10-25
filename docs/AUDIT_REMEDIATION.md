@@ -324,9 +324,13 @@ window, and it verifies the copy before the local copy is released. Without
 `OFFSITE_TARGET` it is a clear no-op and never a silent failure. The
 configuration comes from the environment only, never from the command line.
 
-**Partial:** the destination is not configured yet. The operator has to set
-`OFFSITE_TARGET` and `OFFSITE_ENCRYPTION_KEY` on the host and run the script
-once to confirm the copy.
+**Partial:** the destination is configured since 2026-10-25
+(`OFFSITE_TARGET=blipmade-offsite:/srv/blipmade-backups`, encrypted with
+`age` through `OFFSITE_AGE_RECIPIENT` and `OFFSITE_AGE_IDENTITY`). The copy
+was made, fetched back, decrypted and restored into a scratch database that
+matched the live one exactly. What the operator still has to do is to move the
+target outside of the provider and to keep an offline copy of the age
+identity.
 
 ## BM-AUD-014 — Destructive scripts in a public repository
 
@@ -462,7 +466,8 @@ These need a credential or a decision that is not the code's to make:
    has been charged.
 4. `SMTP_URL` — real mail. Without it the mail is written to a file.
 5. `CADDY_ADMIN_URL`, `CADDY_ADMIN_TOKEN` — real domain routing and TLS.
-6. `OFFSITE_TARGET`, `OFFSITE_ENCRYPTION_KEY` — the off-host copy of the
-   backups.
+6. `OFFSITE_TARGET` **configured 2026-10-25** — the off-host copy of the
+   backups is made, encrypted with `age`, and proven restorable. What is left
+   is a target outside of the provider and an offline copy of the identity.
 7. The node `10.77.0.11` has no shell access for the operator account, so the
    Wings configuration cannot be inspected from here.

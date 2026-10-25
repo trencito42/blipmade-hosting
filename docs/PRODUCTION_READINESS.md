@@ -119,9 +119,24 @@ touched.
 ### 5. The off-host copy stays inside one provider — **operator**
 
 `OFFSITE_TARGET` points to a second virtual machine of the same provider
-(`blipmade-offsite:/srv/blipmade-backups`), the copy is encrypted with `age`
-and it was fetched, decrypted and restored into a scratch database that matched
-the live one exactly. The copy is therefore readable and restorable.
+(`blipmade-offsite:/srv/blipmade-backups`) and the copy is encrypted with
+`age`. The copy is therefore readable and restorable.
+
+**The drill of 2026-10-25.** The copy `blipmade-offsite-20261025T135658Z.tar.gz.enc`
+(88 765 octeți) a fost adusă de pe țintă, verificată prin SHA-256, decriptată
+cu identitatea age și restaurată într-o bază de date scratch pe platformă:
+
+| Număr | Baza de date vie | Baza de date restaurată | |
+|---|---:|---:|---|
+| tabele (schema `public`) | 40 | 40 | MATCH |
+| utilizatori | 4 | 4 | MATCH |
+| produse | 5 | 5 | MATCH |
+| instanțe | 5 | 5 | MATCH |
+| comenzi | 10 | 10 | MATCH |
+| migrări aplicate | 17 | 17 | MATCH |
+
+Baza de date scratch a fost ștearsă după comparație; baza de date vie nu a fost
+scrisă.
 
 Two things are still missing, and only the operator can close them:
 

@@ -266,8 +266,7 @@ export async function deleteServer(serverId: number): Promise<void> {
 }
 
 export async function listNodes(): Promise<PteroNode[]> {
-  const result = await applicationRequest<PteroList<PteroNode>>('GET', '/api/application/nodes');
-  return result.data.map((entry) => entry.attributes as PteroNode);
+  return fetchAllPages<PteroNode>('/api/application/nodes');
 }
 
 export async function listNests(): Promise<{ id: number; name: string }[]> {
@@ -294,10 +293,11 @@ export async function listAllocations(nodeId: number): Promise<PteroAllocation[]
  * 15", and the order could only be fulfilled once a server had been created
  * on that egg by hand.
  *
- * The template of the eggs of the platform is therefore kept here, with the
- * same values that `scripts/create-egg-template.py` gives to the egg when it
- * creates it. The variables of an existing server are still read for an egg
- * that is not known here.
+ * The template of the eggs of the platform is therefore kept here. It holds
+ * the variables that the egg of the panel really has: the ones that
+ * `scripts/create-egg-template.py` gives to the egg when it creates it, plus
+ * the ones the egg itself carries (`BRANCH`). The variables of an existing
+ * server are still read for an egg that is not known here.
  */
 export const EGG_ENVIRONMENT_TEMPLATES: Record<number, Record<string, string>> = {
   15: {

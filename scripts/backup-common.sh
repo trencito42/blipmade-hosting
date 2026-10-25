@@ -51,6 +51,42 @@ blipmade_host_database_url() {
   fi
 }
 
+# The url of the database without the password, and the password itself.
+#
+# The password is handed to libpq through the environment, so it never shows
+# up in the process list of the machine while the dump runs. A password may
+# hold an "@", so the host is the part after the LAST "@" of the authority.
+#
+# Prints the url on the first line and the password on the second one. The
+# password is empty when the url carries none.
+#
+# Usage: blipmade_database_credentials <database url>
+blipmade_database_credentials() {
+  local url="${1:-}"
+  local scheme rest creds host password=""
+
+  if [[ "$url" != *"://"* ]]; then
+    printf '%s\n' "$url"
+    return 0
+  fi
+
+  scheme="${url%%://*}"
+  rest="${url#*://}"
+
+  if [[ "$rest" == *"@"* ]]; then
+    creds="${rest%@*}"
+    host="${rest##*@}"
+    if [[ "$creds" == *":"* ]]; then
+      password="${creds#*:}"
+    fi
+    printf '%s://%s@%s\n' "$scheme" "${creds%%:*}" "$host"
+  else
+    printf '%s\n' "$url"
+  fi
+
+  printf '%s' "$password"
+}
+
 # The directory that holds the files the customers attached.
 #
 # The uploads live in a docker volume. The path inside the container

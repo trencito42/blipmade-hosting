@@ -287,7 +287,7 @@ Each item needs one credential. Nothing else is waiting on them.
 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` | Live checkout, subscriptions, invoices | Stripe dashboard → API keys. `sk_test_…` first. |
 | `SMTP_URL` | Real email (verification, password reset, ticket notifications) | Any SMTP provider. Without it, mail is written to `/var/backups/blipmade/mail/` and logged. |
 | ~~`CADDY_ADMIN_URL` + `CADDY_ADMIN_TOKEN`~~ **configured 2026-10-25** | Customer domain routing | The edge (`10.77.0.12`) runs Caddy 2.11.2 with the administrative API on the loopback interface. The platform reaches it through a gateway that checks the token, on `http://10.77.0.12:2020`, and the firewall lets only the platform (`10.77.0.13`) reach that port. See `docs/DOMAIN_ROUTING.md`. |
-| `OFFSITE_TARGET` | Off-host backups | The host uses **RAID 0**. A local copy is not a backup. |
+| ~~`OFFSITE_TARGET`~~ **configured 2026-10-25** | Off-host backups | The host uses **RAID 0**, so a local copy is not a backup. The copy leaves the host encrypted with `age`, over ssh, to `blipmade-offsite:/srv/blipmade-backups`; it was fetched back and restored into a scratch database that matched the live one. What is left: a target outside of the provider and an offline copy of the age identity. |
 
 ### Blocked by a fault in the panel or on the node
 
@@ -325,7 +325,8 @@ covered by a test that fails without the correction.
 3. Add the Stripe test keys, run a real checkout in test mode, and confirm the
    webhook path.
 4. Add `SMTP_URL` and complete the verification and reset flows with real mail.
-5. Configure `OFFSITE_TARGET` and repeat the restore drill against the off-host copy.
+5. Move the off-host backup target outside of the provider and keep an offline
+   copy of the age identity, then repeat the restore drill.
 6. Review the customer-domain route design with the gateway owner before pointing
    `blipmade.com` at VM 103. **The live domain, the Caddy gateway and the Proxmox
    networking were not changed.**

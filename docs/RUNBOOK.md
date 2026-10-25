@@ -502,15 +502,22 @@ that case: the host uses RAID 0, so a copy that stays here is not a backup.
 The script dumps the database with the host of the platform, and the host of
 the platform is the name of the database service of the compose network. That
 name does not resolve from the host, so the script rewrites it to the loopback
-address of the host before it dumps. A run that cannot reach the database
-fails; it never writes a partial copy.
+address of the host before it dumps. The rewrite covers the hosts of the
+services of the compose network that carry a port (`postgres:5432`,
+`redis:6379`); a url that points somewhere else is left as it is, so a wrong
+host shows in the log of the run instead of being hidden. A run that cannot
+reach the database fails; it never writes a partial copy. The password of the
+database is handed to `pg_dump` through `PGPASSWORD`, so it never shows up in
+the process list of the machine.
 
 **On another machine**, fetch the copy and read it back.
 
 The copy is encrypted with `age` when `age` is installed and
 `OFFSITE_AGE_RECIPIENT` is set, which is the configuration of the platform.
-The key is the identity file of `OFFSITE_AGE_IDENTITY`; it is never written
-into a file that is copied around.
+The key is the identity file of `OFFSITE_AGE_IDENTITY`. It is never written
+into the archive of the backup and never travels with the copy; the identity
+is carried to the machine that does the restore by a path of its own, and a
+copy of it is kept offline, outside of the host.
 
 ```bash
 # fetch it. The target of the platform is an ssh destination, so the alias

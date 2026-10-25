@@ -57,6 +57,61 @@ function hostUrl(url: string): string {
   return result.stdout.trim();
 }
 
+describe('the local backup', () => {
+  it.skipIf(!TOOLS_AVAILABLE)('keeps the password out of the process list', () => {
+    // The nightly unit runs scripts/backup.sh, so the url of the database must
+    // not carry the password there either: the password of the database is
+    // readable by every process of the machine while the dump runs.
+    const workdir = mkdtempSync(join(tmpdir(), 'blipmade-backup-'));
+    const binDir = join(workdir, 'bin');
+    const uploads = join(workdir, 'uploads');
+    mkdirSync(binDir, { recursive: true });
+    mkdirSync(uploads, { recursive: true });
+    cpSync(SCRIPTS_DIR, join(workdir, 'scripts'), { recursive: true });
+
+    const dumpLog = join(workdir, 'pg_dump.argv');
+    const pgDump = join(binDir, 'pg_dump');
+    writeFileSync(
+      pgDump,
+      [
+        '#!/usr/bin/env bash',
+        'printf "%s\\n" "$*" >> "$FAKE_PG_DUMP_LOG"',
+        'target=""',
+        'for argument in "$@"; do',
+        '  case "$argument" in',
+        '    --file=*) target="${argument#--file=}" ;;',
+        '  esac',
+        'done',
+        'if [[ -n "$target" ]]; then printf "FAKE DUMP\\n" > "$target"; fi',
+        'exit 0',
+        '',
+      ].join('\n'),
+    );
+    chmodSync(pgDump, 0o755);
+
+    const result = spawnSync('bash', [join(workdir, 'scripts', 'backup.sh'), 'test'], {
+      cwd: workdir,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        FAKE_PG_DUMP_LOG: dumpLog,
+        DATABASE_URL: 'postgresql://blipmade:secret@postgres:5432/blipmade',
+        BACKUP_DIR: join(workdir, 'backups'),
+        OFFSITE_UPLOAD_DIR: uploads,
+      },
+    });
+
+    expect(result.status, `the script failed:\n${result.stdout}\n${result.stderr}`).toBe(0);
+
+    const argv = readFileSync(dumpLog, 'utf-8').trim();
+    expect(argv).toContain('localhost:5432');
+    expect(argv).not.toContain('postgres:5432');
+    // The password is not in the command line of the dump.
+    expect(argv).not.toContain('secret');
+  });
+});
+
 describe('the url of the database on the host', () => {
   it('points to the loopback address of the host and not to the compose service', () => {
     expect(hostUrl('postgresql://blipmade:secret@postgres:5432/blipmade')).toBe(
@@ -109,15 +164,16 @@ describe('the off-site backup', () => {
 
     // The PostgreSQL tools are faked. The script takes the tool from the
     // PATH when it is there, so the fake wins and the real database is never
-    // touched. The fake writes the url it was given into a log, so the test
-    // can see the host the script used.
+    // touched. The fake writes every argument it was given into a log, so the
+    // test can see the host the script used and can see whether a secret
+    // reached the process list.
     const dumpLog = join(workdir, 'pg_dump.url');
     const pgDump = join(binDir, 'pg_dump');
     writeFileSync(
       pgDump,
       [
         '#!/usr/bin/env bash',
-        'printf "%s\\n" "$1" >> "$FAKE_PG_DUMP_LOG"',
+        'printf "%s\\n" "$*" >> "$FAKE_PG_DUMP_LOG"',
         'target=""',
         'for argument in "$@"; do',
         '  case "$argument" in',
@@ -164,6 +220,11 @@ describe('the off-site backup', () => {
     const usedUrl = readFileSync(dumpLog, 'utf-8').trim();
     expect(usedUrl).toContain('localhost:5432');
     expect(usedUrl).not.toContain('postgres:5432');
+
+    // The password of the database is handed to libpq through the
+    // environment, so it never shows up in the process list of the machine.
+    expect(usedUrl).not.toContain('secret');
+    expect(usedUrl).not.toContain('blipmade:secret');
 
     // The copy is on the target, and it is the only thing that is left: the
     // local copy is removed after the copy on the target was verified.
@@ -240,5 +301,62 @@ describe('the off-site backup', () => {
     const usedUrl = readFileSync(dumpLog, 'utf-8').trim();
     expect(usedUrl).toContain('db.example.com:5432');
     expect(result.stderr).toContain('could not translate host name');
+  });
+
+  it.skipIf(!TOOLS_AVAILABLE)('keeps the local copy when the upload does not work', () => {
+    // A copy that cannot reach the target must not be thrown away: the local
+    // copy is the only one that is left, and it is the one the upload can be
+    // repeated with.
+    const workdir = mkdtempSync(join(tmpdir(), 'blipmade-offsite-'));
+    const binDir = join(workdir, 'bin');
+    const uploads = join(workdir, 'uploads');
+    const target = join(workdir, 'target');
+    mkdirSync(binDir, { recursive: true });
+    mkdirSync(uploads, { recursive: true });
+    cpSync(SCRIPTS_DIR, join(workdir, 'scripts'), { recursive: true });
+
+    const pgDump = join(binDir, 'pg_dump');
+    writeFileSync(
+      pgDump,
+      [
+        '#!/usr/bin/env bash',
+        'target=""',
+        'for argument in "$@"; do',
+        '  case "$argument" in',
+        '    --file=*) target="${argument#--file=}" ;;',
+        '  esac',
+        'done',
+        'if [[ -n "$target" ]]; then printf "FAKE DUMP\\n" > "$target"; fi',
+        'exit 0',
+        '',
+      ].join('\n'),
+    );
+    chmodSync(pgDump, 0o755);
+
+    const result = spawnSync('bash', [join(workdir, 'scripts', 'backup-offsite.sh')], {
+      cwd: workdir,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        DATABASE_URL: 'postgresql://blipmade:secret@postgres:5432/blipmade',
+        // The target cannot be written to, so the upload fails.
+        OFFSITE_TARGET: '/proc/self/cannot-write-here',
+        OFFSITE_TRANSPORT: 'local',
+        OFFSITE_ENCRYPTION_KEY: PASSPHRASE,
+        OFFSITE_PBKDF2_ITER: PBKDF2_ITER,
+        OFFSITE_AGE_RECIPIENT: '',
+        OFFSITE_AGE_IDENTITY: '',
+        BACKUP_DIR: join(workdir, 'backups'),
+        OFFSITE_UPLOAD_DIR: uploads,
+      },
+    });
+
+    expect(result.status, `the run should have failed:\n${result.stdout}\n${result.stderr}`).not.toBe(0);
+
+    // The local copy is still there, so the upload can be repeated.
+    const kept = readdirSync(join(workdir, 'backups', 'offsite'));
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toMatch(/\.tar\.gz\.enc$/);
   });
 });

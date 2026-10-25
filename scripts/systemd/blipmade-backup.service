@@ -19,7 +19,8 @@ ExecStart=/opt/blipmade/scripts/backup.sh scheduled
 # The off-site copy is encrypted with a key that must never appear in the
 # process list, so it is read from the environment of the service. The local
 # backup and the copy that leaves the host are two different steps, so the
-# database is dumped once.
+# database is dumped twice: once for the archive of the host and once for the
+# copy that is encrypted.
 ExecStartPost=/opt/blipmade/scripts/backup-offsite.sh
 # A backup that failed must raise an alarm instead of being noticed days
 # later. The alarm is sent by webhook or by mail when one is configured, and

@@ -37,9 +37,9 @@
 # comparison below provides the integrity check. Install age for the stronger
 # mode.
 #
-# Note: scripts/backup.sh reads OFFSITE_TARGET as well and copies the
-# unencrypted archive to it. That copy must not be used. This script is the
-# one that is allowed to have the target.
+# Note: the local backup (scripts/backup.sh) keeps the archive on the host and
+# does not use the target. This script is the one that sends the copy, and the
+# copy is encrypted before it leaves the machine.
 #
 # Usage: scripts/backup-offsite.sh
 set -euo pipefail
@@ -180,18 +180,15 @@ DB_HOST=""
 # the dump fails with "could not translate host name postgres" and the
 # off-site backup can never run at all.
 DB_URL="$(blipmade_host_database_url "$DATABASE_URL")"
-url_scheme="${DB_URL%%://*}"
+# The password is taken out of the url by the same rule that the local backup
+# uses, so the two scripts can never drift apart.
+CREDENTIALS="$(blipmade_database_credentials "$DB_URL")"
+DB_URL="${CREDENTIALS%%$'\n'*}"
+DB_PASSWORD="${CREDENTIALS#*$'\n'}"
 url_rest="${DB_URL#*://}"
 if [[ "$url_rest" == *"@"* ]]; then
-  url_creds="${url_rest%@*}"
+  DB_USER="${url_rest%@*}"
   DB_HOST="${url_rest##*@}"
-  if [[ "$url_creds" == *":"* ]]; then
-    DB_USER="${url_creds%%:*}"
-    DB_PASSWORD="${url_creds#*:}"
-  else
-    DB_USER="$url_creds"
-  fi
-  DB_URL="${url_scheme}://${DB_USER}@${DB_HOST}"
 fi
 export PGPASSWORD="$DB_PASSWORD"
 
