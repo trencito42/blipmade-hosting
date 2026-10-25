@@ -27,6 +27,10 @@ vi.mock('../src/env.js', async (importOriginal) => {
       ...actual.env,
       PTERODACTYL_URL: 'http://127.0.0.1:23120',
       PTERODACTYL_APP_KEY: TOKEN,
+      // The flag is computed from the raw values when the module is loaded,
+      // so it is set here as well. The test must not depend on the panel of
+      // the machine it runs on.
+      pterodactylEnabled: true,
     },
   };
 });
