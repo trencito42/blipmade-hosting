@@ -14,8 +14,13 @@ import {
 } from '../services/stripe.js';
 import { enqueueProvisioning, enqueueMailProvisioning } from '../services/queue.js';
 import * as mailCommerce from '../services/mail-commerce.js';
-import { notifyInvoiceFailed, notifyInvoicePaid } from '../services/notifications.js';
-import { fullName } from '../lib/people.js';
+import {
+  notifyInvoiceFailed,
+  notifyInvoicePaid,
+  notifyPaymentCanceled,
+  notifyPaymentFailed,
+  notifyPaymentSucceeded,
+} from '../services/notifications.js';
 import { applyUpgradeOrder } from '../services/upgrades.js';
 import { allocateUnitPrices } from '../services/order-amounts.js';
 import { applyRenewalToSubscription, readRenewalMarker, resolveInvoiceUser } from '../services/billing.js';
@@ -735,6 +740,17 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
         tax,
       });
       await fulfilOrder(orderId);
+
+      // The provider confirmed the money, so the customer is told. The id of
+      // the event of the provider is the occurrence: the same payment that
+      // arrives twice is one message.
+      await notifyPaymentSucceeded({
+        userId: order.userId,
+        number: order.number,
+        amount: order.total,
+        currency: order.currency,
+        occurrence: event.id,
+      });
       break;
     }
 
@@ -744,6 +760,20 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       if (!orderId) break;
       await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
       await prisma.payment.updateMany({ where: { orderId }, data: { status: 'FAILED' } });
+
+      // The payment was refused by the provider. The customer is told, with
+      // the reason the provider gave.
+      const failed = await prisma.order.findUnique({ where: { id: orderId } });
+      if (failed) {
+        await notifyPaymentFailed({
+          userId: failed.userId,
+          number: failed.number,
+          amount: failed.total,
+          currency: failed.currency,
+          reason: null,
+          occurrence: event.id,
+        });
+      }
       break;
     }
 
@@ -767,19 +797,44 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
         targetId: orderId,
         meta: { orderNumber: order.number, userId: order.userId },
       });
+      // The checkout was abandoned, so the payment never happened. The
+      // customer is told that the order was released.
+      await notifyPaymentCanceled({
+        userId: order.userId,
+        number: order.number,
+        occurrence: event.id,
+      });
       break;
     }
 
     case 'payment_intent.payment_failed': {
       const intentId = object.id as string | undefined;
       if (!intentId) break;
+      const reason = (object.last_payment_error as { message?: string })?.message ?? null;
       await prisma.payment.updateMany({
         where: { stripePaymentIntentId: intentId },
         data: {
           status: 'FAILED',
-          failureMessage: (object.last_payment_error as { message?: string })?.message ?? null,
+          failureMessage: reason,
         },
       });
+
+      // The payment was refused. The customer is told, with the reason the
+      // provider gave and with the link of the billing page.
+      const refused = await prisma.payment.findFirst({
+        where: { stripePaymentIntentId: intentId },
+        include: { order: true },
+      });
+      if (refused?.order) {
+        await notifyPaymentFailed({
+          userId: refused.order.userId,
+          number: refused.order.number,
+          amount: refused.order.total,
+          currency: refused.order.currency,
+          reason,
+          occurrence: event.id,
+        });
+      }
       break;
     }
 
@@ -838,12 +893,14 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
         if (invoice) {
           await notifyInvoicePaid({
             userId: invoice.userId,
-            email: invoice.user.email,
-            name: fullName(invoice.user),
             number: invoice.number,
             amount: invoice.amount,
             currency: invoice.currency,
             periodEnd: invoice.periodEnd,
+            // The payment of the provider is the occurrence: the same
+            // invoice paid twice is two messages, and the same payment
+            // delivered twice by the provider is one.
+            occurrence: typeof object.id === 'string' ? object.id : invoice.id,
           });
         }
       }
@@ -883,13 +940,12 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
           const failure = object.last_payment_error as { message?: unknown } | undefined;
           await notifyInvoiceFailed({
             userId: customer.id,
-            email: customer.email,
-            name: fullName(customer),
             number: dbInvoice.number,
             amount: dbInvoice.amount,
             currency: dbInvoice.currency,
             reason: typeof failure?.message === 'string' ? failure.message : null,
             periodEnd: dbInvoice.periodEnd,
+            occurrence: typeof object.id === 'string' ? object.id : dbInvoice.id,
           });
         }
       }

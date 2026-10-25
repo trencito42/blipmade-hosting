@@ -43,6 +43,8 @@ const TABLES = [
   'VerificationToken',
   'EmailChangeRequest',
   'NotificationPreference',
+  'Notification',
+  'NotificationEvent',
   'MailDelivery',
   'Session',
   'PanelCredential',

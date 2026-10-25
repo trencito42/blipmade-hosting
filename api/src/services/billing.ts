@@ -1,4 +1,11 @@
 import { prisma } from '../db.js';
+import {
+  notifyInvoiceIssued,
+  notifyInvoiceOverdue,
+  notifyInstanceStopped,
+  notifySubscriptionCanceled,
+  notifySubscriptionRenewed,
+} from './notifications.js';
 import { nextInvoiceNumber, nextOrderNumber } from './order-numbers.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
@@ -1092,6 +1099,17 @@ export async function createLocalRenewal(
       message: `The renewal invoice ${invoice.number} is open for ${invoice.total} ${subscription.currency}. The service continues once the payment is confirmed.`,
     },
   });
+
+  // The invoice of the next period is issued, so the customer is told. The
+  // number of the invoice is the occurrence: the same invoice is one
+  // message, whatever the number of times the sweep runs.
+  await notifyInvoiceIssued({
+    userId: subscription.userId,
+    number: invoice.number,
+    amount: invoice.total,
+    currency: invoice.currency,
+    dueAt: invoice.dueDate,
+  });
   // The renewal of this period is written, so the sweep does not write a
   // second invoice for the same period.
   await prisma.subscription.update({
@@ -1140,7 +1158,7 @@ export async function applyRenewalToSubscription(params: {
 }): Promise<void> {
   const subscription = await prisma.subscription.findUnique({
     where: { id: params.subscriptionId },
-    include: { instance: { select: { id: true } } },
+    include: { instance: { select: { id: true, name: true } } },
   });
   if (!subscription) throw notFound('Subscription not found.');
 
@@ -1156,6 +1174,17 @@ export async function applyRenewalToSubscription(params: {
       currentPeriodEnd: end,
       lastRenewalCheckAt: new Date(),
     },
+  });
+
+  // The period was paid and extended, so the customer is told that the
+  // service continues. The moment of the renewal is the occurrence.
+  await notifySubscriptionRenewed({
+    userId: subscription.userId,
+    service: subscription.instance?.name ?? 'the service',
+    amount: subscription.amount,
+    currency: subscription.currency,
+    periodEnd: end,
+    occurrence: end.toISOString(),
   });
 
   if (subscription.instance) {
@@ -1301,9 +1330,11 @@ export async function sweepSubscriptions(): Promise<{
     },
     select: {
       id: true,
+      userId: true,
       cancelAtPeriodEnd: true,
       stripeSubscriptionId: true,
       stripeSubscriptionItemId: true,
+      instance: { select: { name: true } },
     },
     take: 100,
   });
@@ -1313,6 +1344,15 @@ export async function sweepSubscriptions(): Promise<{
       await prisma.subscription.update({
         where: { id: subscription.id },
         data: { status: 'CANCELLED', cancelledAt: new Date() },
+      });
+
+      // The paid period is over and the line is cancelled, so the customer
+      // is told. The subscription id is the occurrence: the line is
+      // cancelled once.
+      await notifySubscriptionCanceled({
+        userId: subscription.userId,
+        service: subscription.instance?.name ?? 'the service',
+        occurrence: subscription.id,
       });
       // The provider is told to stop billing for this line. A cancellation
       // that takes effect at the end of the paid period leaves the customer
@@ -1336,7 +1376,7 @@ export async function sweepSubscriptions(): Promise<{
     const record = await prisma.subscription.findUnique({
       where: { id: subscription.id },
       include: {
-        instance: { select: { id: true, status: true, pterodactylUuid: true, pterodactylServerId: true, userId: true } },
+        instance: { select: { id: true, name: true, status: true, pterodactylUuid: true, pterodactylServerId: true, userId: true } },
       },
     });
     if (!record) continue;
@@ -1361,6 +1401,16 @@ export async function sweepSubscriptions(): Promise<{
           targetId: record.instance.id,
           meta: { reason: 'payment overdue' },
         });
+
+        // The service was suspended because the invoice was not paid, so the
+        // customer is told. The moment of the suspension is the occurrence,
+        // so a service that is suspended twice has two messages.
+        await notifyInstanceStopped({
+          userId: record.userId,
+          instanceName: record.instance.name,
+          reason: 'the invoice was not paid',
+          occurrence: new Date().toISOString(),
+        });
         suspended += 1;
       }
       await prisma.subscription.update({
@@ -1377,7 +1427,29 @@ export async function sweepSubscriptions(): Promise<{
     if (outcome.pending) pending += 1;
   }
 
-  // 4. The services whose retention term is over are deleted.
+  // 4. The invoices that are late. The invoice is the occurrence, so a late
+  // invoice is one message and not one message per day.
+  const late = await prisma.invoice.findMany({
+    where: { status: 'OPEN', dueDate: { lt: now } },
+    select: { id: true, number: true, userId: true, total: true, currency: true, dueDate: true },
+    take: 100,
+  });
+  for (const invoice of late) {
+    const daysOverdue = Math.max(
+      1,
+      Math.floor((now.getTime() - (invoice.dueDate?.getTime() ?? now.getTime())) / 86_400_000),
+    );
+    await notifyInvoiceOverdue({
+      userId: invoice.userId,
+      number: invoice.number,
+      amount: invoice.total,
+      currency: invoice.currency,
+      daysOverdue,
+      occurrence: invoice.id,
+    });
+  }
+
+  // 5. The services whose retention term is over are deleted.
   const deletions = await processCancelledInstances();
   deleted += deletions.deleted;
 

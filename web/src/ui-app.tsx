@@ -11,9 +11,11 @@ import {
   useState,
   type CSSProperties,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import { cn } from './lib';
 import { cellClass, headerClass, type TableColumn } from './lib/table';
+import { get, relativeTime, type NotificationView } from './lib/api';
 import { Icon, type IconName } from './icons';
 import { Link, useRouter } from './router';
 import logo from './logo.svg';
@@ -140,6 +142,11 @@ export function AppShell({
   const isActive = (entry: NavEntry) =>
     entry.exact ? path === entry.to : path === entry.to || path.startsWith(`${entry.to}/`);
 
+  // The bell of the notifications belongs to the customer area. The staff
+  // area has its own queue and its own log, and a member of the staff does
+  // not wait for the messages of a customer.
+  const inCustomerArea = path === '/app' || path.startsWith('/app/');
+
   const tabs = phoneTabs ?? nav.slice(0, 4);
   const keyboardOpen = useSoftwareKeyboard();
 
@@ -250,6 +257,9 @@ export function AppShell({
             {/* The action of the bar is a touch target on a phone, so it
                 grows to 44px there and keeps its dense look on a desktop. */}
             <div className="flex shrink-0 items-center gap-2 [&_a]:min-h-11 lg:[&_a]:min-h-0">{actions}</div>
+            {/* The bell of the notifications, with the number of the
+                messages that wait to be read. */}
+            {inCustomerArea && <NotificationBell />}
           </header>
 
           {/* The phone tab bar is 71px tall plus the safe area of the phone
@@ -1188,5 +1198,281 @@ export function CardList<T>({ rows, rowKey, children }: { rows: T[]; rowKey: (ro
         </div>
       ))}
     </div>
+  );
+}
+
+// --- notifications --------------------------------------------------------
+
+/**
+ * The bell of the header.
+ *
+ * The number of the messages that wait to be read is read on the server and
+ * it is kept up to date with the stream of the server, so two sessions of
+ * the same account always show the same number. Nothing of it is kept in
+ * the storage of the browser: the state of the notification centre belongs
+ * to the server.
+ *
+ * The stream is the fast way of knowing the number. When the browser does
+ * not have it, or when the stream breaks, a slow poll takes over.
+ */
+export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?: string; limit?: number }) {
+  const { path } = useRouter();
+  const [unread, setUnread] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<NotificationView[]>([]);
+  const [loading, setLoading] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const count = useRef(0);
+  const opened = useRef(false);
+  const showing = useRef(false);
+
+  /** The last messages of the customer, for the menu of the bell. */
+  const readRecent = useCallback(async () => {
+    try {
+      const result = await get<{ notifications: NotificationView[] }>('/notifications', { limit });
+      setItems(result.notifications);
+    } catch {
+      // The server cannot be reached: the menu keeps the messages it has.
+    }
+  }, [limit]);
+
+  /**
+   * The number is only written when it changes.
+   *
+   * A stream that repeats the same number does not move anything on the
+   * screen, and the bell does not become noisy.
+   */
+  const applyCount = useCallback(
+    (next: number) => {
+      if (count.current === next) return;
+      count.current = next;
+      setUnread(next);
+      // The menu is read again, so it shows the messages of the number.
+      if (showing.current) void readRecent();
+    },
+    [readRecent],
+  );
+
+  useEffect(() => {
+    let stopped = false;
+    let timer = 0;
+    let source: EventSource | null = null;
+
+    const poll = async () => {
+      try {
+        const result = await get<{ unread: number }>('/notifications/unread-count');
+        if (!stopped) applyCount(result.unread);
+      } catch {
+        // The server cannot be reached: the number on the screen stays the
+        // last one the server gave.
+      }
+    };
+
+    const startPolling = () => {
+      if (timer) return;
+      timer = window.setInterval(() => void poll(), 60000);
+    };
+
+    void poll();
+
+    if (typeof EventSource !== 'undefined') {
+      try {
+        source = new EventSource('/api/notifications/stream', { withCredentials: true });
+        source.addEventListener('unread', (event) => {
+          const data = JSON.parse((event as MessageEvent<string>).data) as { unread?: number };
+          if (typeof data.unread === 'number') applyCount(data.unread);
+        });
+        // The stream is broken: the slow poll takes over.
+        source.onerror = () => {
+          source?.close();
+          source = null;
+          startPolling();
+        };
+      } catch {
+        startPolling();
+      }
+    } else {
+      startPolling();
+    }
+
+    return () => {
+      stopped = true;
+      source?.close();
+      if (timer) window.clearInterval(timer);
+    };
+  }, [applyCount]);
+
+  // A new page closes the menu.
+  useEffect(() => {
+    showing.current = false;
+    setOpen(false);
+  }, [path]);
+
+  // The menu closes with Escape and when the customer clicks outside of it.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      showing.current = false;
+      setOpen(false);
+      button.current?.focus();
+    };
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (panel.current?.contains(target) || button.current?.contains(target)) return;
+      showing.current = false;
+      setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('click', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('click', onPointer);
+    };
+  }, [open]);
+
+  const toggle = () => {
+    const next = !showing.current;
+    showing.current = next;
+    setOpen(next);
+    if (next && !opened.current) {
+      opened.current = true;
+      setLoading(true);
+      void readRecent().finally(() => setLoading(false));
+    }
+  };
+
+  return (
+    <div className="relative shrink-0">
+      <NotificationBellButton unread={unread} open={open} onToggle={toggle} buttonRef={button} />
+      {open && (
+        <NotificationBellPanel items={items} loading={loading} to={to} panelRef={panel} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The button of the bell, with the number of the messages that wait to be
+ * read.
+ *
+ * The number is a badge on the bell and it is hidden when it is zero. The
+ * name of the button says how many messages wait, so the number is told
+ * without the badge being seen.
+ */
+export function NotificationBellButton({
+  unread,
+  open,
+  onToggle,
+  buttonRef,
+}: {
+  unread: number;
+  open: boolean;
+  onToggle: () => void;
+  buttonRef?: RefObject<HTMLButtonElement | null>;
+}) {
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls="notification-menu"
+      aria-label={
+        unread > 0
+          ? `Notifications, ${unread} unread message${unread === 1 ? '' : 's'}`
+          : 'Notifications, no unread message'
+      }
+      className="relative grid size-11 place-items-center rounded-full text-ink2 transition-colors duration-[180ms] hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+    >
+      <BellIcon />
+      {unread > 0 ? (
+        <span
+          data-unread-badge="true"
+          className="absolute -right-0.5 -top-0.5 min-w-5 rounded-full bg-acc px-1 text-center font-mono text-[11px] font-bold leading-5 text-on-acc"
+        >
+          {unread > 99 ? '99+' : unread}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/**
+ * The menu of the bell: the last messages and the way to the page of the
+ * notification centre.
+ */
+export function NotificationBellPanel({
+  items,
+  loading,
+  to,
+  panelRef,
+}: {
+  items: NotificationView[];
+  loading: boolean;
+  to: string;
+  panelRef?: RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div
+      ref={panelRef}
+      id="notification-menu"
+      className="absolute right-0 top-full z-30 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-2xl bg-s1 p-3"
+    >
+      <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">Notifications</p>
+
+      {loading ? (
+        <p className="px-1 text-[13px] text-ink3" role="status">
+          Loading your notifications…
+        </p>
+      ) : items.length === 0 ? (
+        <p className="px-1 text-[13px] text-ink3">You have no notification yet.</p>
+      ) : (
+        <ul className="grid gap-1">
+          {items.map((item) => (
+            <li key={item.id}>
+              <Link
+                to={to}
+                className="block rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              >
+                <p className="flex items-center gap-2 text-[13.5px] font-bold text-ink">
+                  {item.readAt ? null : <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-acc" />}
+                  <span className="min-w-0 break-words">{item.title}</span>
+                </p>
+                <p className="mt-0.5 text-[12px] text-ink3">{relativeTime(item.createdAt)}</p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Link
+        to={to}
+        className="mt-2 block rounded-full bg-s3 px-4 py-2.5 text-center text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+      >
+        Open the notification centre
+      </Link>
+    </div>
+  );
+}
+
+/** The bell, drawn like the other marks of the design system. */
+function BellIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </svg>
   );
 }

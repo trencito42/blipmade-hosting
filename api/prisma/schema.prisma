@@ -48,6 +48,8 @@ model User {
   staff          StaffMember?
   mailDomains    MailDomain[]
   mailServices   MailService[]
+  notifications        Notification[]
+  notificationEvents   NotificationEvent[]
   orders         Order[]
   instances      Instance[]
   tickets        Ticket[]
@@ -80,6 +82,10 @@ model MailDelivery {
   /// to sign in and it is the same in every process.
   key             String   @id
   kind            String
+  /// The event that caused the message, when the message came from the
+  /// notification engine. It is empty for the messages that the platform
+  /// sends on its own, e.g. the verification of the address.
+  eventId         String?
   to              String
   /// queued, delivered, written-to-file or failed.
   state           String
@@ -93,6 +99,77 @@ model MailDelivery {
 
   @@index([state])
   @@index([createdAt])
+  @@index([eventId])
+}
+
+/// A domain event of the platform, written in the same transaction as the
+/// business change that caused it.
+///
+/// The row is the outbox: the work of turning the event into a message is
+/// done later, by the dispatcher, so a failure of the mail server never
+/// rolls back a payment or a provisioning. The row also keeps the story of
+/// what was done with the event, so the back office can answer "was this
+/// event ever sent?" without guessing.
+model NotificationEvent {
+  id        String @id @default(cuid())
+  /// The kind of the event, e.g. "payment.succeeded".
+  type      String
+  /// The identity of the occurrence.
+  ///
+  /// It is built from the business identity of the thing that happened AND
+  /// from the occurrence itself, so the same service can be suspended and
+  /// reactivated as many times as it happens and every occurrence has its
+  /// own message. A key built only from the name and the state would keep
+  /// every future occurrence of the same state silent.
+  businessKey String @unique
+  /// The customer the event belongs to. It is empty for the events that are
+  /// about the operator, e.g. a backup that failed.
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The facts of the event. They are validated when the event is written.
+  payload   Json
+  /// The state of the event: pending, processed or failed.
+  state     String  @default("pending")
+  /// What was done with the event, per channel: "sent", "skipped", "failed".
+  channels  Json    @default("{}")
+  attempts  Int     @default(0)
+  lastError String?
+  /// When the thing happened, as the business says it.
+  occurredAt DateTime @default(now())
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([state, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+/// One message of the notification centre of a customer.
+///
+/// The row belongs to one customer and to one occurrence of an event, so a
+/// customer can never read the message of another customer, even when the
+/// two are in the same company.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The category of the message: the same categories as the preferences.
+  category  String
+  title     String
+  body      String
+  /// Where the message leads: the service, the invoice, the ticket.
+  actionUrl   String?
+  actionLabel String?
+  /// The occurrence of the event that produced the message. One message per
+  /// occurrence, so the same message is never written twice.
+  eventKey  String   @unique
+  /// When the customer read the message. It is empty while it is unread.
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
 
 /// A change of the address of a customer.
@@ -129,6 +206,25 @@ model NotificationPreference {
   support        Boolean  @default(true)
   incidents      Boolean  @default(true)
   marketing      Boolean  @default(false)
+  /// The group of the messages about the account and its security. It is an
+  /// essential group: the customer cannot switch it off, because these
+  /// messages protect the account itself.
+  accountSecurity Boolean @default(true)
+  /// The group of the messages about the orders and the invoices.
+  ordersBilling Boolean @default(true)
+  /// The group of the messages about the hosting services.
+  hostingServices Boolean @default(true)
+  /// The group of the messages about the domains and the hosted mail.
+  domainsEmail Boolean @default(true)
+  /// The channel of the e-mail as a whole. It never switches off the
+  /// essential messages, whatever it says.
+  emailChannel Boolean @default(true)
+  /// The channel of the notification centre as a whole.
+  inAppChannel Boolean @default(true)
+  /// When the customer agreed to receive the messages of the marketing. The
+  /// agreement is kept with a date, so the back office can answer "did they
+  /// agree?" without guessing.
+  marketingOptInAt DateTime?
   updatedAt      DateTime @updatedAt
 }
 

@@ -16,6 +16,7 @@ const { env } = await import('../src/env.js');
 const { prisma } = await import('../src/db.js');
 const { mailNotice } = await import('../src/lib/mailer.js');
 const { closeApp, createAdmin, getApp, makeClient, resetDatabase } = await import('./helpers.js');
+const { dispatchPendingEvents } = await import('../src/services/notification-dispatch.js');
 
 /**
  * The password reset.
@@ -29,10 +30,18 @@ const { closeApp, createAdmin, getApp, makeClient, resetDatabase } = await impor
 let app: FastifyInstance;
 const originalBackupDir = env.BACKUP_DIR;
 
-/** Waits for the row of a message: the row is written without waiting for it. */
+/**
+ * Waits for the row of a message.
+ *
+ * The message of the platform is written by the worker of the notifications:
+ * the request writes the event in the outbox and stops there. The test
+ * therefore lets the engine do its work before it looks for the row, the
+ * same way the worker does it every few seconds.
+ */
 async function deliveryRows(kind: string) {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
+    await dispatchPendingEvents(10).catch(() => undefined);
     const rows = await prisma.mailDelivery.findMany({ where: { kind } });
     if (rows.length) return rows;
     await new Promise((resolve) => setTimeout(resolve, 25));
@@ -104,16 +113,23 @@ describe('the answer of the password reset', () => {
     expect(response.status).toBe(200);
 
     // The message was written to a file: it never left the system.
-    const rows = await deliveryRows('reset');
+    const rows = await deliveryRows('account.password_reset_requested');
     expect(rows).toHaveLength(1);
     expect(rows[0]?.state).toBe('written-to-file');
     expect(rows[0]?.transport).toBe('file');
     expect(rows[0]?.deliveredAt).toBeNull();
 
-    // The operator reads it in the journal of the platform.
-    const entries = await prisma.auditLog.findMany({ where: { action: 'auth.reset_not_delivered' } });
-    expect(entries).toHaveLength(1);
-    expect(entries[0]?.meta).toMatchObject({ state: 'written-to-file', transport: 'file' });
+    // The operator reads it in the journal of the platform. The journal is
+    // written by the engine, because the engine is the one that tried the
+    // message and knows that it never left the server.
+    const entries = await prisma.auditLog.findMany({
+      where: { action: 'notification.message_not_delivered' },
+    });
+    const resets = entries.filter(
+      (entry) => (entry.meta as { type?: string } | null)?.type === 'account.password_reset_requested',
+    );
+    expect(resets).toHaveLength(1);
+    expect(resets[0]?.meta).toMatchObject({ state: 'written-to-file', transport: 'file' });
   });
 
   it('shows the operator in the admin area that the message never left the system', async () => {
@@ -125,7 +141,7 @@ describe('the answer of the password reset', () => {
       lastName: 'Customer',
     });
     await customer.request('POST', '/api/auth/forgot-password', { email: 'customer@example.com' });
-    const rows = await deliveryRows('reset');
+    const rows = await deliveryRows('account.password_reset_requested');
     expect(rows).toHaveLength(1);
 
     const { client: admin } = await createAdmin(app);

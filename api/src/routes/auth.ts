@@ -7,9 +7,14 @@ import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { LIMITS, customerLimit, rateLimitRun } from '../lib/rate-limit.js';
 import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/failed-attempts.js';
-import { mailEnabled, mailLogLine, mailNotice, registrationNotice, tokenReference, type MailSendResult } from '../lib/mailer.js';
-import { passwordResetTemplate, verificationTemplate } from '../lib/email-templates.js';
-import { dispatchEmail } from '../services/queue.js';
+import { mailEnabled, mailLogLine, mailNotice, mailTransportName, registrationNotice, type MailSendResult } from '../lib/mailer.js';
+import {
+  notifyAccountRegistered,
+  notifyEmailVerified,
+  notifyPasswordChanged,
+  notifyPasswordResetRequested,
+  notifyVerificationRequested,
+} from '../services/notifications.js';
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import {
@@ -219,15 +224,12 @@ async function issueToken(userId: string, type: 'EMAIL_VERIFY' | 'PASSWORD_RESET
  */
 export async function sendVerificationEmail(userId: string, email: string, name: string): Promise<MailSendResult> {
   const token = await issueToken(userId, 'EMAIL_VERIFY', 24);
-  const template = verificationTemplate(name, token);
-  const result = await dispatchEmail({
-    key: `verification-${tokenReference(token)}`,
-    kind: 'verification',
-    to: email,
-    subject: template.subject,
-    text: template.text,
-    html: template.html,
-  });
+  // The message goes through the notification engine: the event is written
+  // in the outbox and the engine builds the message and sends it. The token
+  // is in the event only until the message is on the queue, and the event
+  // is emptied right after.
+  await notifyVerificationRequested({ userId, name, token });
+  const result = queuedMailResult('verification');
   console.info(mailLogLine('verification', result, email, token));
   return result;
 }
@@ -240,47 +242,34 @@ export async function sendVerificationEmail(userId: string, email: string, name:
  */
 export async function sendResetEmail(userId: string, email: string, name: string): Promise<MailSendResult> {
   const token = await issueToken(userId, 'PASSWORD_RESET', 1);
-  const template = passwordResetTemplate(name, token);
-  const result = await dispatchEmail({
-    key: `reset-${tokenReference(token)}`,
-    kind: 'reset',
-    to: email,
-    subject: template.subject,
-    text: template.text,
-    html: template.html,
-  });
+  await notifyPasswordResetRequested({ userId, name, token });
+  const result = queuedMailResult('reset');
   console.info(mailLogLine('reset', result, email, token));
   return result;
 }
 
 /**
- * Records that a reset message did not leave the system.
+ * The state of a message that the engine took.
  *
- * The customer is never told: the answer of the reset flow is the same for
- * every address, so it can never be used to find out whether an account
- * exists. The operator reads what happened in the table of the deliveries and
- * in the report of the mail of the admin area.
- *
- * A message that waits on the queue has not been sent yet: the worker writes
- * what really happened in the table of the deliveries, so nothing is written
- * here for it.
+ * The message is on its way, not sent: the worker writes what really
+ * happened in the table of the deliveries, and the answer of the request
+ * says the truth about what it knows.
  */
-async function noteResetDelivery(
-  user: { id: string; email: string },
-  result: MailSendResult,
-  ip: string | undefined,
-): Promise<void> {
-  if (result.delivered) return;
-  if (result.state === 'queued') return;
-  await audit({
-    actorId: user.id,
-    actorEmail: user.email,
-    action: 'auth.reset_not_delivered',
-    targetType: 'user',
-    targetId: user.id,
-    meta: { state: result.state, transport: result.transport, errorClass: result.errorClass },
-    ip,
-  });
+function queuedMailResult(kind: string): MailSendResult {
+  const now = new Date().toISOString();
+  return {
+    state: 'queued',
+    delivered: false,
+    id: '',
+    attempts: 0,
+    transport: mailTransportName(),
+    kind,
+    errorClass: null,
+    error: null,
+    queuedAt: now,
+    deliveredAt: null,
+    updatedAt: now,
+  };
 }
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
@@ -318,6 +307,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       });
 
       await createSession(request, reply, user.id, user.email);
+      await notifyAccountRegistered({ userId: user.id, name: fullName(user) });
       const mail = await sendVerificationEmail(user.id, user.email, fullName(user));
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.register', targetType: 'user', targetId: user.id, ip: request.ip });
 
@@ -407,6 +397,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       prisma.verificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
     ]);
     await audit({ actorId: record.userId, action: 'auth.email_verified', targetType: 'user', targetId: record.userId, ip: request.ip });
+    const verified = await prisma.user.findUnique({
+      where: { id: record.userId },
+      select: { firstName: true, lastName: true },
+    });
+    await notifyEmailVerified({
+      userId: record.userId,
+      name: verified ? fullName(verified) : null,
+    });
     return reply.code(204).send();
   });
 
@@ -435,13 +433,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const { email } = z.object({ email: emailSchema }).parse(request.body);
       const user = await prisma.user.findUnique({ where: { email } });
       if (user && !user.suspendedAt) {
-        const result = await sendResetEmail(user.id, user.email, fullName(user));
+        await sendResetEmail(user.id, user.email, fullName(user));
         await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.reset_requested', ip: request.ip });
-        // What happened to the message is written down for the operator. The
+        // What happened to the message is written down for the operator by the
+        // engine, because the engine is the one that tries the message. The
         // answer below is the same for every address, so it never says that a
         // message was sent when it was not, and it never says whether an
         // account exists.
-        await noteResetDelivery(user, result, request.ip);
       }
       // Always the same answer, so this cannot be used to test for accounts.
       // The message says what really happened with the delivery.
@@ -472,6 +470,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         prisma.session.deleteMany({ where: { userId: record.userId } }),
       ]);
       await audit({ actorId: record.userId, action: 'auth.password_reset', targetType: 'user', targetId: record.userId, ip: request.ip });
+      const changed = await prisma.user.findUnique({
+        where: { id: record.userId },
+        select: { firstName: true, lastName: true },
+      });
+      await notifyPasswordChanged({
+        userId: record.userId,
+        name: changed ? fullName(changed) : null,
+      });
       return reply.code(204).send();
     },
   });

@@ -31,6 +31,7 @@ import {
 import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
 import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
+import { dispatchPendingEvents } from './services/notification-dispatch.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
 import { audit } from './lib/audit.js';
@@ -241,6 +242,23 @@ async function sweepMail(): Promise<void> {
 }
 
 /**
+ * The sweep of the notifications.
+ *
+ * The business wrote its events in the outbox and stopped. The worker is the
+ * only place that turns an event into a message, so a relay that is down
+ * never breaks the request that caused the event: the event waits here and
+ * is tried again with a longer pause.
+ */
+async function sweepNotifications(): Promise<void> {
+  const report = await dispatchPendingEvents(25);
+  if (report.processed || report.failed) {
+    console.info(
+      `[worker] notifications: ${report.processed} processed, ${report.failed} failed, ${report.sent} sent, ${report.skipped} skipped`,
+    );
+  }
+}
+
+/**
  * The events that the provider could not deliver are retried here, so a
  * failed payment is never lost.
  */
@@ -347,6 +365,9 @@ async function main(): Promise<void> {
   timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));
   timers.push(setInterval(() => void sweepMail().catch((error) => console.error('[worker] mail sweep failed', error)), 30 * 60_000));
   timers.push(setInterval(() => void retryWebhooks().catch((error) => console.error('[worker] webhook retry failed', error)), 5 * 60_000));
+  // The outbox is emptied every five seconds: a message that waits for a
+  // customer does not wait for long.
+  timers.push(setInterval(() => void sweepNotifications().catch((error) => console.error('[worker] the notification sweep failed', error)), 5_000));
   // The queue of the failures is watched every three minutes: often enough
   // that a failure is seen while the customer is still waiting, and rare
   // enough that the log of the worker stays readable.

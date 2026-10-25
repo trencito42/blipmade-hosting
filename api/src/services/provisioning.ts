@@ -3,8 +3,7 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
 import { unavailable } from '../lib/errors.js';
-import { fullName } from '../lib/people.js';
-import { notifyInstanceProvisioned } from './notifications.js';
+import { notifyInstanceProvisioned, notifyProvisioningFailed } from './notifications.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
@@ -206,6 +205,20 @@ export async function failProvisioning(instanceId: string, step: ProvisionStep, 
   });
   await recordEvent(instanceId, 'failed', `Provisioning failed at "${step}": ${message}`);
   await audit({ action: 'instance.provision_failed', targetType: 'instance', targetId: instanceId, meta: { step, message } });
+  // The customer hears that the service could not be built. The occurrence is
+  // the attempt, so a service that is tried again has its own message.
+  const failed = await prisma.instance.findUnique({
+    where: { id: instanceId },
+    select: { userId: true, name: true },
+  });
+  if (failed) {
+    await notifyProvisioningFailed({
+      userId: failed.userId,
+      instanceName: failed.name,
+      reason: `${step}: ${message}`,
+      occurrence: new Date(),
+    });
+  }
 }
 
 export async function completeProvisioning(instanceId: string): Promise<void> {
@@ -1506,15 +1519,13 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     // The customer hears that the service is ready. The message follows the
     // preferences of the account and its state is the one of the mailer: while
     // no relay is configured, it is written to a file and nobody receives it.
-    const owner = await prisma.user.findUnique({ where: { id: instance.userId } });
-    if (owner) {
-      await notifyInstanceProvisioned({
-        userId: owner.id,
-        email: owner.email,
-        name: fullName(owner),
-        instanceName: instance.name,
-      });
-    }
+    await notifyInstanceProvisioned({
+      userId: instance.userId,
+      instanceName: instance.name,
+      // The moment the service became ready is what makes the occurrence
+      // unique: a service that is rebuilt has its own message.
+      occurrence: new Date(),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 

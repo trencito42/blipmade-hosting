@@ -10,6 +10,11 @@ import { randomToken } from '../lib/tokens.js';
 import * as gateway from '../services/gateway.js';
 import * as dns from '../services/dns.js';
 import * as ptero from '../services/pterodactyl/application.js';
+import {
+  notifyDomainDnsIncomplete,
+  notifyDomainVerificationInstructions,
+  notifyDomainVerified,
+} from '../services/notifications.js';
 
 /**
  * The routes of the hostnames carry the limit of the panel.
@@ -382,6 +387,17 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       meta: { hostname },
     });
 
+    // The customer is told how to prove that the hostname is theirs. The
+    // token of the proof travels in this message and in nothing else: the
+    // outbox empties the message as soon as it is on the queue.
+    await notifyDomainVerificationInstructions({
+      userId: user.id,
+      domain: hostname,
+      host: verificationHost,
+      token,
+      occurrence: domain.updatedAt,
+    });
+
     return reply.code(201).send({ domain: serializeDomain(domain) });
   });
 
@@ -424,6 +440,16 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         },
         include: { instance: { select: { name: true } } },
       });
+
+      // The customer is told that the DNS is not ready. The message is tied
+      // to the hostname, so checking the proof ten times does not send ten
+      // messages.
+      await notifyDomainDnsIncomplete({
+        userId: user.id,
+        domain: domain.hostname,
+        missing: [domain.verificationHost],
+      });
+
       return { domain: serializeDomain(updated) };
     }
 
@@ -482,6 +508,14 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       targetType: 'instance_domain',
       targetId: domain.id,
       meta: { hostname: domain.hostname, status },
+    });
+
+    // The hostname is proved. The customer is told that it belongs to them
+    // now, and the moment of the proof is what makes this message its own.
+    await notifyDomainVerified({
+      userId: user.id,
+      domain: domain.hostname,
+      occurrence: updated.updatedAt,
     });
 
     return { domain: serializeDomain(updated) };

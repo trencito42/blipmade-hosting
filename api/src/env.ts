@@ -92,8 +92,52 @@ const schema = z.object({
    */
   SMTP_CA_FILE: z.string().default(''),
   MAIL_FROM: z.string().default('Blipmade <no-reply@blipmade.com>'),
+  /**
+   * The name of the sender, when it is not the one of `MAIL_FROM`.
+   *
+   * The platform sends with one authorized identity: the address of the
+   * platform in Mailcow. The name is only the label that the customer sees
+   * next to the address.
+   */
+  MAIL_SENDER_NAME: z.string().default('Blipmade'),
+  /**
+   * The address the answers go to.
+   *
+   * It is empty by default: an empty value means the answers go back to the
+   * sender, which is the safe choice when the operator has not chosen one.
+   */
+  MAIL_REPLY_TO: z.string().default(''),
   /** The inbox that receives the notifications about new support tickets. */
   MAIL_SUPPORT_EMAIL: z.string().default('support@blipmade.com'),
+  /**
+   * The inbox that receives the alerts about the operation of the platform.
+   *
+   * It is the address of the operator, and it is not the one of the mail
+   * system, so the alert still arrives when the mail system is the thing
+   * that is broken.
+   */
+  MAIL_OPERATOR_EMAIL: z.string().default(''),
+  /**
+   * The address that receives the messages about the payments of the
+   * platform, when the operator wants them apart from the support.
+   */
+  MAIL_BILLING_EMAIL: z.string().default(''),
+  /**
+   * How long the platform waits for the relay, in milliseconds.
+   */
+  SMTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(15000),
+  /**
+   * How many messages the platform sends to the relay in one minute.
+   *
+   * The throttle protects the relay from a flood: a burst of events is
+   * spread over the minute instead of being pushed at once.
+   */
+  SMTP_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(10000).default(120),
+  /**
+   * The address the customer may write to when something is wrong with the
+   * messages of the platform. It is empty when there is none.
+   */
+  MAIL_HELP_EMAIL: z.string().default(''),
   /**
    * The public origin of the site. Every link that leaves the system, in an
    * email or in a checkout, is built from it. Nothing is ever derived from

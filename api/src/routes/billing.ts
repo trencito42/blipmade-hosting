@@ -15,14 +15,9 @@ import {
 } from '../services/billing.js';
 import { applyPromotion, priceItems, resolvePromotion } from '../services/pricing.js';
 import {
-  formatAmount,
-  formatDate,
-  invoiceFailedTemplate,
-  invoicePaidTemplate,
-  subscriptionChangedTemplate,
-  type EmailTemplate,
-} from '../lib/email-templates.js';
-import { dispatchEmail } from '../services/queue.js';
+  notifySubscriptionCancellationScheduled,
+  notifySubscriptionReactivated,
+} from '../services/notifications.js';
 import { MAX_OPTION_CODES } from '../lib/bounded.js';
 
 /**
@@ -35,94 +30,6 @@ import { MAX_OPTION_CODES } from '../lib/bounded.js';
  * send ten messages in a quarter of an hour cannot turn the platform
  * into a relay.
  */
-
-/**
- * Sends a message about the billing.
- *
- * The message goes through the queue, so the request is never held up by the
- * relay. A message that cannot be sent never breaks the request that
- * triggered it.
- */
-async function sendBillingMail(kind: string, key: string, to: string, template: EmailTemplate): Promise<void> {
-  try {
-    await dispatchEmail({
-      key,
-      kind,
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
-  } catch (error) {
-    console.error('[mail] the billing message could not be sent', (error as Error).message);
-  }
-}
-
-/**
- * Tells the customer that an invoice was paid.
- *
- * The function is exported so the webhook of the payment provider can call it
- * when an invoice changes.
- */
-export async function notifyInvoicePaid(input: {
-  key: string;
-  email: string;
-  number: string;
-  /** The amount in the smallest unit, the way the platform stores money. */
-  amount: number;
-  currency: string;
-  periodEnd?: Date | null;
-}): Promise<void> {
-  const template = invoicePaidTemplate({
-    number: input.number,
-    amount: formatAmount(input.amount, input.currency),
-    periodEnd: formatDate(input.periodEnd),
-  });
-  await sendBillingMail('invoice-paid', input.key, input.email, template);
-}
-
-/**
- * Tells the customer that an invoice could not be paid.
- *
- * The function is exported so the webhook of the payment provider can call it
- * when an invoice changes.
- */
-export async function notifyInvoiceFailed(input: {
-  key: string;
-  email: string;
-  number: string;
-  /** The amount in the smallest unit, the way the platform stores money. */
-  amount: number;
-  currency: string;
-  periodEnd?: Date | null;
-  reason?: string | null;
-}): Promise<void> {
-  const template = invoiceFailedTemplate({
-    number: input.number,
-    amount: formatAmount(input.amount, input.currency),
-    periodEnd: formatDate(input.periodEnd),
-    reason: input.reason ?? null,
-  });
-  await sendBillingMail('invoice-failed', input.key, input.email, template);
-}
-
-/** Tells the customer that the subscription of a service changed. */
-export async function notifySubscriptionChange(input: {
-  key: string;
-  email: string;
-  instanceName: string;
-  status: string;
-  periodEnd?: Date | null;
-  cancelAtPeriodEnd: boolean;
-}): Promise<void> {
-  const template = subscriptionChangedTemplate({
-    instanceName: input.instanceName,
-    status: input.status,
-    periodEnd: formatDate(input.periodEnd),
-    cancelAtPeriodEnd: input.cancelAtPeriodEnd,
-  });
-  await sendBillingMail('subscription', input.key, input.email, template);
-}
 
 export async function registerBillingRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -432,13 +339,14 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     if (!subscription) throw notFound('Subscription not found.');
 
     const updated = await cancelSubscription(subscription);
-    await notifySubscriptionChange({
-      key: `subscription-${subscription.id}-${updated.updatedAt.getTime()}`,
-      email: subscription.user.email,
-      instanceName: subscription.instance?.name ?? 'your service',
-      status: 'cancelled at the end of the paid period',
+    await notifySubscriptionCancellationScheduled({
+      userId: subscription.userId,
+      service: subscription.instance?.name ?? 'your service',
       periodEnd: updated.currentPeriodEnd,
-      cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+      // The moment of the change is what makes the occurrence unique: the
+      // same subscription can be canceled and resumed as many times as the
+      // customer wants, and every step has its own message.
+      occurrence: updated.updatedAt,
     });
     return {
       subscription: {
@@ -463,13 +371,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     if (!subscription) throw notFound('Subscription not found.');
 
     const updated = await resumeSubscription(subscription);
-    await notifySubscriptionChange({
-      key: `subscription-${subscription.id}-${updated.updatedAt.getTime()}`,
-      email: subscription.user.email,
-      instanceName: subscription.instance?.name ?? 'your service',
-      status: 'active',
-      periodEnd: updated.currentPeriodEnd,
-      cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+    await notifySubscriptionReactivated({
+      userId: subscription.userId,
+      service: subscription.instance?.name ?? 'your service',
+      occurrence: updated.updatedAt,
     });
     return {
       subscription: {

@@ -883,3 +883,108 @@ export interface MailServiceDnsView {
   /** The records the server has not seen yet. */
   missing?: string[] | boolean;
 }
+
+// --- notification centre ---------------------------------------------------
+
+/**
+ * The groups of the messages of the notification centre.
+ *
+ * The keys are the groups of the preferences: a group of the interface is a
+ * group of the server, so the page never invents a group of its own.
+ */
+export type NotificationGroupKey =
+  | 'accountSecurity'
+  | 'ordersBilling'
+  | 'hostingServices'
+  | 'support'
+  | 'domainsEmail'
+  | 'incidents'
+  | 'productUpdates'
+  | 'marketing';
+
+/**
+ * The channel a message travels on.
+ *
+ * The e-mail goes to the address of the account, the notification centre is
+ * the page of the dashboard.
+ */
+export type NotificationChannel = 'email' | 'in_app';
+
+/**
+ * One message of the notification centre.
+ *
+ * The message belongs to the customer of the session that reads it. The
+ * server never sends the message of another customer, so the interface does
+ * not have to hide anything: there is nothing of another customer to see.
+ */
+export interface NotificationView {
+  id: string;
+  /** The group of the message, one of the keys of the preferences. */
+  category: string;
+  title: string;
+  body: string;
+  /** The page the message leads to: the service, the invoice, the ticket. */
+  actionUrl: string | null;
+  /** The words of the link of the action. */
+  actionLabel: string | null;
+  /** The moment the message was read. Null when it was not read yet. */
+  readAt: string | null;
+  /** The moment the message happened. */
+  createdAt: string;
+}
+
+/**
+ * What the customer chose to hear about.
+ *
+ * The essential group is not a choice: the server keeps it on whatever the
+ * customer sends. `billing` is the switch of the old platform, kept so a
+ * customer who turned it off keeps that choice.
+ */
+export interface NotificationPreferences {
+  accountSecurity: boolean;
+  ordersBilling: boolean;
+  billing: boolean;
+  hostingServices: boolean;
+  support: boolean;
+  domainsEmail: boolean;
+  incidents: boolean;
+  productUpdates: boolean;
+  marketing: boolean;
+  emailChannel: boolean;
+  inAppChannel: boolean;
+}
+
+/**
+ * A group of messages, as the customer reads it.
+ */
+export interface NotificationCategoryView {
+  key: string;
+  label: string;
+  description: string;
+  /** essential | optional | marketing */
+  classification: string;
+  /** True when the customer may not switch the group off. */
+  essential: boolean;
+  /** The channels the group travels on. */
+  channels: NotificationChannel[];
+}
+
+/**
+ * The answer of the list of the notifications.
+ */
+export interface NotificationListResponse {
+  notifications: NotificationView[];
+  /** How many messages of the customer are waiting to be read. */
+  unread: number;
+  /** The cursor of the next page. Null when there is no next page. */
+  nextCursor: string | null;
+}
+
+/**
+ * The answer of the preferences: what the customer chose and the groups of
+ * the messages, in the order the server gives them.
+ */
+export interface NotificationPreferencesResponse {
+  preferences: NotificationPreferences;
+  categories: NotificationCategoryView[];
+}

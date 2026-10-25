@@ -44,6 +44,7 @@ const AppBilling = lazy(() => import('./app/Billing'));
 const AppTickets = lazy(() => import('./app/Tickets'));
 const AppTicketDetail = lazy(() => import('./app/TicketDetail'));
 const AppSettings = lazy(() => import('./app/Settings'));
+const AppNotifications = lazy(() => import('./app/Notifications'));
 
 // The page of a product and the catalog are public: a visitor reads them
 // without an account and only the deploy action asks for one.
@@ -65,6 +66,7 @@ const AdminMailPlans = lazy(() => import('./admin/MailProducts'));
 const AdminAudit = lazy(() => import('./admin/Audit'));
 const AdminStaff = lazy(() => import('./admin/Staff'));
 const AdminSettings = lazy(() => import('./admin/Settings'));
+const AdminEmailNotifications = lazy(() => import('./admin/EmailNotifications'));
 
 interface RouteDef {
   pattern: string;
@@ -140,6 +142,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
+  { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },
 
   { pattern: '/admin', component: AdminOverview, title: 'Dashboard', area: 'admin', exact: true },
   { pattern: '/admin/customers', component: AdminCustomers, title: 'Customers', area: 'admin' },
@@ -156,6 +159,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },
+  { pattern: '/admin/notifications', component: AdminEmailNotifications, title: 'Email & notifications', area: 'admin' },
 ];
 
 function Guard({ area, children }: { area: 'customer' | 'admin'; children: ReactNode }) {

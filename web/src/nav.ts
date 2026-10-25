@@ -31,6 +31,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/promotions', label: 'Promotions', shortLabel: 'Promos', icon: 'shield' },
   { to: '/admin/infrastructure', label: 'Infrastructure', shortLabel: 'Infra', icon: 'globe' },
   { to: '/admin/mail', label: 'Mail', shortLabel: 'Mail', icon: 'mail' },
+  { to: '/admin/notifications', label: 'Email & notifications', shortLabel: 'Notifications', icon: 'bell' },
   { to: '/admin/audit', label: 'Audit log', shortLabel: 'Audit', icon: 'term' },
   { to: '/admin/staff', label: 'Staff', shortLabel: 'Staff', icon: 'bot' },
   { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },
@@ -41,5 +42,5 @@ export const ADMIN_PHONE_TABS: NavEntry[] = [
   ADMIN_NAV[0]!,
   ADMIN_NAV[1]!,
   ADMIN_NAV[6]!,
-  ADMIN_NAV[10]!,
+  ADMIN_NAV[11]!,
 ];

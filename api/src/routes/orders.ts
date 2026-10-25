@@ -11,6 +11,7 @@ import { createCheckout, markOrderPaid, stripeTestGateway } from '../services/st
 import { fulfilOrder } from './webhooks.js';
 import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
+import { notifyOrderCanceled, notifyOrderCreated, notifyPaymentRequired } from '../services/notifications.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 
 /**
@@ -180,6 +181,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       await audit({ actorId: user.id, actorEmail: user.email, action: 'order.created', targetType: 'order', targetId: order.id, meta: { total: order.total } });
+
+      // The customer is told that the order exists. The payment demand is a
+      // second event, published when the customer is really sent to the
+      // checkout, so an order that is never paid is never nagged about.
+      await notifyOrderCreated({
+        userId: user.id,
+        number: order.number,
+        total: order.total,
+        currency: order.currency,
+      });
       return reply.code(201).send({ order: serializeOrder(order) });
     },
   });
@@ -263,6 +274,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     await prisma.order.update({ where: { id: order.id }, data: { status: 'AWAITING_PAYMENT' } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'order.checkout_started', targetType: 'order', targetId: order.id });
 
+    // The customer is sent to the checkout, so the order is really waiting
+    // for its payment. This is the moment the demand for payment belongs
+    // to.
+    await notifyPaymentRequired({
+      userId: user.id,
+      number: order.number,
+      total: order.total,
+      currency: order.currency,
+    });
+
     return { url: checkout.url, sessionId: checkout.sessionId, message: null, testGateway: stripeTestGateway() };
   });
 
@@ -334,6 +355,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // The campaign slot goes back into the pool.
     await releasePromotionReservation(order.id);
     await audit({ actorId: user.id, actorEmail: user.email, action: 'order.cancelled', targetType: 'order', targetId: order.id });
+    await notifyOrderCanceled({ userId: user.id, number: order.number });
     return reply.code(204).send();
   });
 }

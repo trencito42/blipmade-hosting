@@ -5,6 +5,7 @@ import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { randomToken } from '../lib/tokens.js';
 import * as gateway from './gateway.js';
 import * as mailcow from './mailcow.js';
+import { notifyDomainDnsIncomplete, notifyMailboxCreated } from './notifications.js';
 import { checkMailDns, mailDnsRecords, type MailDnsStatus } from './mail-dns.js';
 
 /**
@@ -339,6 +340,22 @@ export async function createMailDomain(
     meta: { domain: name, dkim: true },
   });
 
+  // The mail of the domain arrives only when the customer publishes the
+  // records of DNS. The message names them once, so the customer knows
+  // what the platform expects of them.
+  const records = mailDnsRecords({
+    domain: name,
+    mailHostname: env.MAIL_HOSTNAME,
+    dkimPublic: created.dkimPublic,
+    fromAddress: env.MAIL_RUA_ADDRESS,
+  });
+  await notifyDomainDnsIncomplete({
+    userId: user.id,
+    domain: name,
+    scope: 'mail',
+    missing: records.map((record) => `${record.type} ${record.name}`),
+  });
+
   return viewOf(created);
 }
 
@@ -450,6 +467,15 @@ export async function createMailbox(
     targetType: 'mailbox',
     targetId: created.id,
     meta: { address, domain: domain.name },
+  });
+
+  // The customer is told that the mailbox exists. The password is never part
+  // of the message: it is shown once, in the answer of the request.
+  await notifyMailboxCreated({
+    userId: user.id,
+    mailbox: address,
+    domain: domain.name,
+    occurrence: created.id,
   });
 
   return {

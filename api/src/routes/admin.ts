@@ -27,6 +27,7 @@ import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
 import { defaultLimitPerUser, promotionRisk } from '../services/pricing.js';
+import { notifyPaymentRefunded, notifyTicketAssigned } from '../services/notifications.js';
 import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
 
@@ -595,6 +596,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       ip: request.ip,
     });
 
+    // The money went back to the customer, so the customer is told. The
+    // order is the occurrence: the same refund is one message.
+    await notifyPaymentRefunded({
+      userId: order.userId,
+      number: order.number,
+      amount,
+      currency: order.currency,
+      occurrence: order.id,
+    });
+
     return {
       order: {
         id: order.id,
@@ -945,8 +956,22 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     await prisma.ticket.update({ where: { id }, data: { assignedToId: userId } });
-    await prisma.ticketEvent.create({ data: { ticketId: id, type: 'assigned', message: userId ? 'Ticket assigned.' : 'Ticket unassigned.', actorId: actor.id } });
+    const ticketEvent = await prisma.ticketEvent.create({ data: { ticketId: id, type: 'assigned', message: userId ? 'Ticket assigned.' : 'Ticket unassigned.', actorId: actor.id } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'ticket.assigned', targetType: 'ticket', targetId: id, meta: { userId }, ip: request.ip });
+
+    // The staff member that takes the ticket is told that it is theirs. A
+    // ticket that is taken back is not a message: nobody was given
+    // anything.
+    if (userId) {
+      await notifyTicketAssigned({
+        userId: ticket.userId,
+        ticketId: id,
+        ticketNumber: String(ticket.number),
+        subject: ticket.subject,
+        staffId: userId,
+        occurrence: ticketEvent.id,
+      });
+    }
     return { ticket: { id, assignedToId: userId } };
   });
 
