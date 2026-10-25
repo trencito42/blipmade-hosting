@@ -1,7 +1,9 @@
 .env
 .env.*
 !.env.example
-node_modules/
+# The name without a slash covers a symbolic link as well: a link is not
+# a directory, and it has no business in the history either.
+node_modules
 dist/
 build/
 coverage/
