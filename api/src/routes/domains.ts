@@ -26,6 +26,15 @@ import {
  */
 
 /**
+ * The routes of the hostnames carry the limit of the panel.
+ *
+ * A hostname is claimed, proven and released through the panel and the
+ * gateway of the platform, and every one of those steps spends the
+ * resources of the node of everybody. The limit is counted for the
+ * account of the customer and for the address of the caller.
+ */
+
+/**
  * A hostname is only routed to a customer container when that customer proved
  * that the hostname belongs to them. The proof is a TXT record with a random
  * token that the platform generated for the hostname. An A record that points
