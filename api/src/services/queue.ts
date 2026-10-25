@@ -126,6 +126,86 @@ export async function pruneQueueJobs(): Promise<void> {
   await queue.clean(FAILED_JOB_RETENTION_MS, 1000, 'failed');
 }
 
+/* ------------------------------------------------------------------ *
+ * The queue of the hosted mail.
+ *
+ * The mail of the platform is delivered by its own queue and not by the
+ * queue of the servers. The two are separated on purpose: a mail system
+ * that is slow or that is down must not hold a deployment of a server
+ * hostage, and a deployment that fails must not look like a failure of the
+ * mail.
+ * ------------------------------------------------------------------ */
+
+export const MAIL_PROVISION_QUEUE = 'blipmade.mail.provision';
+
+/** What a job of the mail carries. */
+export interface MailProvisionJobData {
+  /** The mail service the job is about. */
+  serviceId: string;
+  /** Set when an administrator asks for a retry, so the reason is auditable. */
+  reason?: string;
+  requestedBy?: string;
+}
+
+/**
+ * The job id is the id of the service, so the same service never has two
+ * jobs waiting. BullMQ rejects a custom id that contains a colon, so a dash
+ * is used.
+ */
+export function mailProvisionJobId(serviceId: string): string {
+  return `mail-provision-${serviceId}`;
+}
+
+let mailProvisionQueue: Queue<MailProvisionJobData> | null = null;
+
+export function getMailProvisionQueue(): Queue<MailProvisionJobData> {
+  if (!mailProvisionQueue) {
+    mailProvisionQueue = new Queue<MailProvisionJobData>(MAIL_PROVISION_QUEUE, {
+      connection: redis,
+      defaultJobOptions: {
+        attempts: PROVISION_ATTEMPTS,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: { count: 500 },
+        // A failed job is kept for a week, so the failure can be read and the
+        // job can be put back on the queue.
+        removeOnFail: { age: FAILED_JOB_RETENTION_MS },
+      },
+    });
+  }
+  return mailProvisionQueue;
+}
+
+/**
+ * Puts a mail service on the queue of the mail.
+ *
+ * Safe to call repeatedly: a job that is already waiting is not queued a
+ * second time, and a job that failed can be tried again.
+ */
+export async function enqueueMailProvisioning(
+  serviceId: string,
+  options: { reason?: string; requestedBy?: string } = {},
+): Promise<void> {
+  const jobId = mailProvisionJobId(serviceId);
+  const existing = await getMailProvisionQueue().getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state === 'waiting' || state === 'active' || state === 'delayed') return;
+    await existing.remove().catch(() => undefined);
+  }
+  await getMailProvisionQueue().add('provision', { serviceId, ...options }, { jobId });
+}
+
+/** The worker that provisions the mail services. */
+export function createMailProvisionWorker(
+  handler: (job: Job<MailProvisionJobData>) => Promise<void>,
+): Worker<MailProvisionJobData> {
+  return new Worker<MailProvisionJobData>(MAIL_PROVISION_QUEUE, handler, {
+    connection: redis,
+    concurrency: 2,
+    lockDuration: 120_000,
+  });
+}
+
 export async function closeQueue(): Promise<void> {
   if (queue) {
     await queue.close();
@@ -134,6 +214,10 @@ export async function closeQueue(): Promise<void> {
   if (emailQueue) {
     await emailQueue.close();
     emailQueue = null;
+  }
+  if (mailProvisionQueue) {
+    await mailProvisionQueue.close();
+    mailProvisionQueue = null;
   }
 }
 

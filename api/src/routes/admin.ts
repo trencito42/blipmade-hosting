@@ -662,7 +662,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         eggId: product.eggId,
         dockerImage: product.dockerImage,
         // What the catalog and the ordering will answer for this product.
-        availability: deploymentAvailability(product),
+        availability: deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }),
         minRam: product.minRam,
         minCpu: product.minCpu,
         minDisk: product.minDisk,
@@ -705,7 +705,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       .object({
         slug: z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and dashes.'),
         name: z.string().trim().min(2).max(120),
-        category: z.enum(['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES']),
+        category: z.enum(['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES', 'EMAIL_HOSTING']),
         description: z.string().trim().min(10).max(2000),
         icon: z.string().trim().max(40).default('box'),
         eggId: z.number().int().positive().nullable().optional(),
@@ -729,10 +729,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const existing = await prisma.product.findUnique({ where: { slug: body.slug } });
     if (existing) throw conflict('A product with this slug already exists.');
 
+    // A plan of hosted mail is delivered by the mail system and needs no
+    // server, no egg and no node. The limits it carries are the ones of the
+    // plan, and they are empty here when the operator did not write them
+    // down: an empty limit means the ceiling of the platform.
+    const isMail = body.category === 'EMAIL_HOSTING';
+
     // A product can only be opened for ordering when the panel can build it.
     // A product without an egg mapping can never be deployed, so it must not
     // be sellable either.
-    if (body.deployable && (body.eggId === null || body.eggId === undefined)) {
+    if (body.deployable && !isMail && (body.eggId === null || body.eggId === undefined)) {
       throw badRequest('Set the panel egg of the product before it can be ordered. A product without an egg can never be deployed.');
     }
 
@@ -743,7 +749,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         category: body.category,
         description: body.description,
         icon: body.icon,
-        eggId: body.eggId ?? null,
+        eggId: isMail ? null : body.eggId ?? null,
         dockerImage: body.dockerImage ?? null,
         startup: (body.startup ?? undefined) as never,
         startupCommand: body.startupCommand ?? null,
@@ -758,9 +764,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         maxDisk: body.maxDisk,
         visible: body.visible,
         deployable: body.deployable,
+        fulfilment: isMail ? 'EMAIL' : 'SERVER',
         docsUrl: body.docsUrl ?? null,
         healthProbe: (body.healthProbe ?? undefined) as never,
-        prices: { create: { period: 'MONTHLY', baseAmount: body.baseAmount, currency: 'EUR' } },
+        // A plan of mail without a price is a draft: it is listed, it can be
+        // read, and it cannot be bought. The price of the plan is written by
+        // the operator, in the back office of the plans of mail.
+        prices: isMail && body.baseAmount <= 0 ? undefined : { create: { period: 'MONTHLY', baseAmount: body.baseAmount, currency: 'EUR' } },
       },
       include: { prices: true, options: true },
     });

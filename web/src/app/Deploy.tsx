@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { api, get, post, type CatalogProduct, type Instance, type Order, type Quote } from '../lib/api';
+import {
+  api,
+  get,
+  post,
+  type CatalogProduct,
+  type Instance,
+  type MailPlanOrder,
+  type MailPlanView,
+  type Order,
+  type Quote,
+} from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
 import { Icon } from '../icons';
@@ -31,15 +41,94 @@ import {
   Panel,
   PrimaryButton,
   ScrollRow,
+  Select,
   SoftButton,
   StatusPill,
   TextInput,
 } from '../ui-app';
+import { mailPlanOptionLabel, onSaleMailPlans, validateMailDomainName } from './Mail';
 
 /**
  * Deploy flow. Every number that looks like a price comes from
  * POST /catalog/quote. Nothing is priced on the client.
  */
+
+/** The line of a server in an order. */
+export interface DeployServerOrderItem {
+  productSlug: string;
+  name: string;
+  ram: number;
+  cpu: number;
+  disk: number;
+  optionCodes: string[];
+}
+
+/**
+ * The lines of an order of a server.
+ *
+ * The server is one line. The hosted mail, when the customer chose it, is
+ * another line of its own: it names the plan and the domain it brings, and no
+ * resources, because the plan of the line is the whole configuration.
+ */
+export function buildDeployOrderItems(
+  server: DeployServerOrderItem,
+  mail: MailPlanOrder | null,
+): (DeployServerOrderItem | MailPlanOrder)[] {
+  const items: (DeployServerOrderItem | MailPlanOrder)[] = [
+    {
+      productSlug: server.productSlug,
+      name: server.name,
+      ram: server.ram,
+      cpu: server.cpu,
+      disk: server.disk,
+      optionCodes: server.optionCodes,
+    },
+  ];
+  if (mail) {
+    items.push({ productSlug: mail.productSlug, mailDomain: mail.mailDomain });
+  }
+  return items;
+}
+
+/**
+ * The line of the hosted mail in the summary of an order.
+ *
+ * It is a line of its own, under the line of the server, with the price the
+ * platform asks for it.
+ */
+export function DeployMailLine({
+  plan,
+  amount,
+  currency,
+  period,
+  hostname,
+}: {
+  plan: MailPlanView | null;
+  /** The price of the line, as the server priced it. */
+  amount: number | null;
+  currency: string | null;
+  /** The period of the price, as the platform named it. */
+  period: string;
+  /** The hostname the mail will live on. */
+  hostname: string;
+}) {
+  if (!plan) return null;
+  return (
+    <>
+      <Row label={`Hosted mail · ${plan.name}`}>
+        {amount !== null && currency ? (
+          <span className="inline-flex items-baseline gap-1.5">
+            <Money amount={amount} currency={currency} />
+            {period && <span className="text-[12.5px] font-normal text-ink3">{periodSuffix(period)}</span>}
+          </span>
+        ) : (
+          'Not available yet'
+        )}
+      </Row>
+      <Row label="Mail domain">{hostname || 'The hostname is missing.'}</Row>
+    </>
+  );
+}
 
 type DeployStep = 1 | 2 | 3 | 4;
 
@@ -168,7 +257,39 @@ export default function Deploy() {
   const [promotionCode, setPromotionCode] = useState('');
   const [checkoutIssue, setCheckoutIssue] = useState<string | null>(null);
 
+  // The add-on of hosted mail. It is never preselected: the customer chooses
+  // the plan and the domain, and the order carries them as a line of its own.
+  const [mailPlanSlug, setMailPlanSlug] = useState('');
+  const [mailDomain, setMailDomain] = useState('');
+
   const seeded = useRef<string | null>(null);
+
+  // --- hosted mail add-on --------------------------------------------------
+
+  // The plans of hosted mail. The sale of hosted mail can be closed by the
+  // operator, and a plan that is not on sale is never offered.
+  const mailPlansState = useAsync<{ plans: MailPlanView[] }>(
+    (signal) => get<{ plans: MailPlanView[] }>('/mail/plans', undefined, signal),
+    [],
+  );
+  const mailPlans = useMemo(() => onSaleMailPlans(mailPlansState.data?.plans ?? []), [mailPlansState.data]);
+  const mailPlan = useMemo(
+    () => mailPlans.find((plan) => plan.slug === mailPlanSlug) ?? null,
+    [mailPlans, mailPlanSlug],
+  );
+
+  // The line of mail of the order. It is only there when the customer chose a
+  // plan and wrote a hostname that is one.
+  const mailHostname = mailDomain.trim().toLowerCase();
+  const mailDomainProblem = mailPlan ? validateMailDomainName(mailHostname) : null;
+  // An empty field is not a mistake: the customer may still be typing. A name
+  // that is written and is not a hostname is.
+  const mailDomainError = mailHostname === '' ? null : mailDomainProblem;
+  const mailLine = useMemo<MailPlanOrder | null>(() => {
+    if (!mailPlan || mailDomainProblem || !mailHostname) return null;
+    return { productSlug: mailPlan.slug, mailDomain: mailHostname };
+  }, [mailPlan, mailDomainProblem, mailHostname]);
+  const mailLineKey = mailLine ? `${mailLine.productSlug}:${mailLine.mailDomain}` : '';
 
   // --- product ------------------------------------------------------------
 
@@ -264,14 +385,25 @@ export default function Deploy() {
     return api<Quote>('/catalog/quote', {
       method: 'POST',
       body: {
-        items: [{ productSlug: product.slug, ram, cpu, disk, optionCodes }],
+        items: [
+          { productSlug: product.slug, ram, cpu, disk, optionCodes },
+          // The hosted mail is a line of its own in the estimate too, so the
+          // sum that is shown is the sum that is charged.
+          ...(mailLine ? [mailLine] : []),
+        ],
         ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
       },
       signal,
     });
-  }, [product?.slug, ram, cpu, disk, optionKey, trimmedPromo]);
+  }, [product?.slug, ram, cpu, disk, optionKey, trimmedPromo, mailLineKey]);
 
   const quote = quoteState.data ?? null;
+
+  /** The price of the line of mail, as the server priced it. */
+  const mailQuoteItem = mailPlan ? quote?.items.find((item) => item.productSlug === mailPlan.slug) : undefined;
+  const mailAmount = mailQuoteItem?.total ?? mailPlan?.price?.amount ?? null;
+  const mailCurrency = mailQuoteItem?.currency ?? mailPlan?.price?.currency ?? null;
+  const mailPeriod = mailPlan?.price?.period ?? quote?.period ?? '';
 
   // The server sends no promotion when the field is empty. A code is only a
   // mistake when the customer actually typed one, so an empty field is never
@@ -332,7 +464,13 @@ export default function Deploy() {
   const placeOrder = useAction(async () => {
     if (!product) return;
     const created = await post<{ order: Order }>('/orders', {
-      items: [{ productSlug: product.slug, name: name.trim() || product.slug, ram, cpu, disk, optionCodes }],
+      // The server is one line and the hosted mail is another, when the
+      // customer chose one. Nothing is priced here: the server prices the
+      // order.
+      items: buildDeployOrderItems(
+        { productSlug: product.slug, name: name.trim() || product.slug, ram, cpu, disk, optionCodes },
+        mailLine,
+      ),
       ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
       // The order is placed with the period of the quote, so the sum that was
       // shown to the customer is the sum that is charged.
@@ -424,7 +562,10 @@ export default function Deploy() {
     step === 1 ? 'Review order' : step === 2 ? 'Continue to payment' : step === 3 ? 'Pay and deploy' : orderFinished ? 'Open instance' : 'Deploying…';
 
   const primaryDisabled =
-    (step === 3 && (!quote || placeOrder.pending)) || (step === 4 && !orderFinished);
+    (step === 3 && (!quote || placeOrder.pending)) ||
+    (step === 4 && !orderFinished) ||
+    // The order is never sent with a hosted mail add-on that has no hostname.
+    (mailPlan !== null && mailDomainProblem !== null);
 
   const onPrimary = () => {
     if (step === 1) goToStep(2);
@@ -607,6 +748,64 @@ export default function Deploy() {
                   </div>
                 </div>
               )}
+
+              {/* The hosted mail is an add-on of its own. It is never chosen
+                  for the customer: the first choice of the list is the one
+                  without it, and the add-on becomes a line of its own in the
+                  order. */}
+              <div className="rounded-2xl bg-s2 p-3.5">
+                <p className="text-[13.5px] font-bold text-ink">Add hosted mail</p>
+                {mailPlansState.error ? (
+                  <p className="mt-2 text-[13px] leading-relaxed text-ink2">
+                    The plans of hosted mail could not be loaded, so they cannot be added to this order.
+                  </p>
+                ) : mailPlans.length === 0 ? (
+                  <p className="mt-2 text-[13px] leading-relaxed text-ink2">
+                    Hosted mail is not on sale at the moment, so it cannot be added to this order.
+                  </p>
+                ) : (
+                  <div className="mt-3 grid gap-3">
+                    <Select
+                      label="Plan of hosted mail"
+                      value={mailPlanSlug}
+                      onChange={(event) => setMailPlanSlug(event.target.value)}
+                      hint="Optional. The first choice is the one without hosted mail."
+                    >
+                      <option value="">No email hosting</option>
+                      {mailPlans.map((plan) => (
+                        <option key={plan.slug} value={plan.slug}>
+                          {mailPlanOptionLabel(plan)}
+                        </option>
+                      ))}
+                    </Select>
+
+                    {mailPlan && (
+                      <>
+                        <TextInput
+                          label="Mail domain"
+                          value={mailDomain}
+                          onChange={(event) => setMailDomain(event.target.value)}
+                          error={mailDomainError ?? undefined}
+                          hint="The hostname that will carry the mail."
+                          placeholder="acme.ro"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                        <p className="text-[12.5px] leading-relaxed text-ink3">
+                          {mailPlan.name} costs{' '}
+                          {mailPlan.price && (
+                            <span className="font-mono text-ink2">
+                              <Money amount={mailPlan.price.amount} currency={mailPlan.price.currency} />
+                              {periodSuffix(mailPlan.price.period)}
+                            </span>
+                          )}{' '}
+                          and it is a line of its own in the order.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </Panel>
 
@@ -682,6 +881,15 @@ export default function Deploy() {
                   <Money amount={option.amount} currency={option.currency} />
                 </Row>
               ))}
+              {/* The hosted mail is a line of its own, under the line of the
+                  server, with the price the platform asks for it. */}
+              <DeployMailLine
+                plan={mailPlan}
+                amount={mailAmount}
+                currency={mailCurrency}
+                period={mailPeriod}
+                hostname={mailHostname}
+              />
             </dl>
           </Panel>
 
@@ -767,6 +975,15 @@ export default function Deploy() {
                 <Row label="Memory">{memLabel(ram)}</Row>
                 <Row label="vCPU">{cpu}</Row>
                 <Row label="Storage">{disk} GB</Row>
+                {/* The hosted mail is a line of its own, under the line of the
+                    server, with the price the platform asks for it. */}
+                <DeployMailLine
+                  plan={mailPlan}
+                  amount={mailAmount}
+                  currency={mailCurrency}
+                  period={mailPeriod}
+                  hostname={mailHostname}
+                />
                 <Row label="Total per month">
                   {quote ? <Money amount={quote.total} currency={quote.currency} /> : 'Not available yet'}
                 </Row>

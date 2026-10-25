@@ -345,3 +345,153 @@ platform. The two copies are two things and both are needed.
 | An alias is created and removed | The platform creates it and removes it | It works, and it is removed by the address |
 | The platform sends through the relay | The platform sends a message to a mailbox of the mail server | `delivered`, and the message is read back over IMAP with a real signature of DKIM |
 | The certificate is the one that was expected | The client of the mail server compares the fingerprint | A certificate that is not the one is refused |
+
+---
+
+## 7. The sale of hosted mail
+
+The mail of the platform is a product of its own: a customer can buy it alone,
+without a server and without a panel, and can add it to the order of a server
+as an extra line. The plans are in the same catalog as the applications and
+they are managed from the same back office.
+
+### 7.1 How the catalog of the mail works
+
+| Piece | Where |
+|---|---|
+| The category of the plans | `EMAIL_HOSTING`, in `api/prisma/schema.prisma` |
+| What a plan delivers | `Product.fulfilment = EMAIL` — no egg, no node, no instance |
+| The limits of a plan | `mailMaxDomains`, `mailMaxMailboxes`, `mailMaxAliases`, `mailMaxForwarding`, `mailTotalStorageMb`, `mailMailboxQuotaMb`, `mailSendLimit`, `mailSendInterval` |
+| The price of a plan | `ProductPrice` — one row per period, `baseAmount` in minor units |
+| The identity of the mail | `MailService` — it has no instance and it has its own life |
+| The proof of ownership of a domain | `MailDomain.ownershipStatus` + the record `_blipmade-verify.<domain>` |
+| The back office of the plans | `/admin/mail/plans` (the API) and `/admin/mail` (the interface) |
+
+The limits of a plan are the limits of the customer and the `MAIL_MAX_*`
+values of the environment are the ceiling of the platform. The limit that is
+really applied is the smaller of the two, so a plan can never promise more
+than the platform can hold. A plan may be a draft that asks for more than the
+ceiling; what is refused is selling such a plan.
+
+Three plans are written by the seed, as drafts: `email-starter`,
+`email-plus` and `email-business`. They carry the limits that were proposed
+and **no price at all**, so they can be read in the storefront and cannot be
+bought.
+
+### 7.2 The steps that are still in the hands of the operator
+
+The sale of the mail is closed by default. `MAIL_SALES_ENABLED=false` means:
+the plans are listed, the customer can read the limits, and the checkout says
+in words that hosted mail is not on sale at the moment. Every step below is
+checked before that switch is opened.
+
+#### 7.2.1 The price of the plans
+
+**What is missing.** The plans have no price. The seed writes none and the
+platform never invents one.
+
+**Where it goes.** The back office of the plans of mail, at `/admin/mail`
+(the tab of the plans), or the API of the back office:
+`PATCH /admin/mail/plans/:id` with
+`{ "prices": [ { "period": "MONTHLY", "amount": 0, "currency": "EUR" } ] }`.
+
+**The shape of the value.** `amount` is a whole number in **minor units**
+(cents): `1990` is 19.90 EUR. `period` is `MONTHLY` or `YEARLY`. `currency` is
+the ISO code of the money.
+
+**How it is checked.** `GET /mail/plans` answers with `price.amount` and
+`price.period` for the plan, and the storefront shows the same amount. The
+quote of the order answers with the same number:
+`POST /catalog/quote` with `items: [ { "productSlug": "email-plus" } ]`.
+
+#### 7.2.2 The keys of the payment provider
+
+**What is missing.** The platform has no key of the payment provider, so the
+payment of a line of mail cannot be proved.
+
+**Where it goes.** The environment of the API container, in `/opt/blipmade/.env`:
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`.
+
+**The shape of the value.** Three strings that start with the prefix of the
+provider. The secret of the webhooks is the one of the endpoint of the webhooks
+of the provider, not a key of the API.
+
+**How it is checked.** The payment of the test mode of the provider is made
+with a card of the provider and the event of the payment arrives at
+`/webhooks/stripe`. The order of the customer passes from `AWAITING_PAYMENT`
+to `PAID`, and the line of the mail passes to `PROVISIONING` without a second
+payment: the event that arrives twice must not create a second mail service.
+
+#### 7.2.3 The name of the mail server in the DNS
+
+**What is missing.** `mail.blipmade.com` does not resolve, so no client of
+mail can accept the certificate of the mail server and no customer can
+publish an MX that leads to it.
+
+**Where it goes.** The DNS of the zone `blipmade.com`, at the provider of the
+names of the domain: an `A` record for `mail.blipmade.com` that points to the
+public address of the mail server (today `193.34.214.20`, and the address of
+its own once it is allocated).
+
+**How it is checked.** `dig +short mail.blipmade.com` answers with the public
+address of the mail server, and the mail server answers on the port 443 with a
+certificate that carries the name in its `SAN`.
+
+#### 7.2.4 The certificate of the mail server
+
+**What is missing.** The certificate of the mail server is self-signed and has
+no `SAN`, so it is accepted only by the client of the platform, which compares
+the fingerprint by hand.
+
+**Where it goes.** The environment of the platform: `MAILCOW_API_CERT_SHA256`
+(the fingerprint, in lower case hex, of the certificate that is served) and,
+for the clients of mail, `SMTP_CA_FILE` (the path of the file of the
+certificate of the authority).
+
+**How it is checked.** `curl -sS https://mail.blipmade.com/api/v1/get/status/version`
+answers without a warning of the certificate, and a message sent through the
+relay with `SMTP_CA_FILE` is accepted.
+
+#### 7.2.5 The backup of the mail, off the machine
+
+**What is missing.** The backup of the mail is on the machine itself, on a
+RAID 0, and the copy off the machine is not configured.
+
+**Where it goes.** The environment of the machine of the mail:
+`OFFSITE_TARGET` (the target of the copy: a bucket or a machine), and the
+tools `age` and `rclone` on the machine.
+
+**How it is checked.** `sudo bash backup-mail.sh drill` restores the last
+archive on a scratch directory and counts the domains, the mailboxes and the
+messages that came back. The same count has to be the count of the archive.
+
+#### 7.2.6 The proof of ownership of a domain
+
+**What is missing.** Nothing is missing: the customer proves that a domain is
+theirs with a record of DNS of his own.
+
+**Where it goes.** The DNS of the domain of the customer: a record of type
+`TXT` at `_blipmade-verify.<domain>` that holds the token that the platform
+shows in the dashboard.
+
+**How it is checked.** The button "Check the proof" of the dashboard. When the
+proof is good, the domain is hosted by the mail server within a minute, and
+the domain appears in the back office with the mark of the service that owns
+it.
+
+### 7.3 The order of the steps
+
+The order matters. The sale is opened in the last step, and it is opened only
+when every step above has its proof:
+
+1. the name of the mail server in the DNS (7.2.3) and the certificate (7.2.4);
+2. the keys of the payment provider (7.2.2) and the payment proved in the test
+   mode of the provider;
+3. the price of the plans (7.2.1);
+4. the backup off the machine and the drill of the restoration (7.2.5);
+5. `MAIL_SALES_ENABLED=true` in the environment of the API, and a restart of
+   the API and of the worker.
+
+After the restart, `GET /mail/plans` answers with `onSale: true` for the
+plans that have a price, and `GET /catalog/quote` answers with the price of a
+line of mail instead of a refusal.

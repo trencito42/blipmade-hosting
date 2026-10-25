@@ -5,15 +5,19 @@ import { redis } from './redis.js';
 import { env } from './env.js';
 import {
   createEmailWorker,
+  createMailProvisionWorker,
   createProvisionWorker,
   closeQueue,
   enqueueProvisioning,
+  enqueueMailProvisioning,
   isLastAttempt,
   pruneQueueJobs,
   PROVISION_QUEUE,
   EMAIL_QUEUE,
+  MAIL_PROVISION_QUEUE,
   type EmailJobData,
   type EmailJobResult,
+  type MailProvisionJobData,
   type ProvisionJobData,
 } from './services/queue.js';
 import { noteJobCompleted, noteJobFailure } from './services/dead-letter.js';
@@ -26,6 +30,7 @@ import {
 } from './services/provisioning.js';
 import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
+import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
 import { audit } from './lib/audit.js';
@@ -118,6 +123,42 @@ emailWorker.on('failed', (job, error) => {
   );
 });
 
+/**
+ * The worker of the hosted mail.
+ *
+ * The mail has a queue of its own, so a mail system that is slow or that is
+ * down never holds a deployment of a server hostage, and a server that fails
+ * never looks like a failure of the mail.
+ */
+const mailWorker = createMailProvisionWorker(async (job: Job<MailProvisionJobData>) => {
+  const { serviceId } = job.data;
+  const service = await prisma.mailService.findUnique({ where: { id: serviceId } });
+  if (!service) {
+    job.log?.('the mail service no longer exists');
+    return;
+  }
+  const result = await provisionMailService(serviceId);
+  job.log?.(`hosted ${result.provisioned} domain(s), ${result.waiting} waiting for a proof`);
+  // A service whose domains wait for their proof is not a failure: the
+  // customer has to show that the domain is theirs first.
+  if (result.failed > 0) {
+    throw new Error(`${result.failed} domain(s) of the mail service could not be hosted.`);
+  }
+});
+
+mailWorker.on('completed', (job) => {
+  console.info(`[worker] mail job ${job.id} completed`);
+  void noteJobCompleted(MAIL_PROVISION_QUEUE, job).catch((error) =>
+    console.error('[worker] could not close the failure', (error as Error).message),
+  );
+});
+mailWorker.on('failed', (job, error) => {
+  console.error(`[worker] mail job ${job?.id} failed: ${error.message}`);
+  void noteJobFailure(MAIL_PROVISION_QUEUE, job, error).catch((writeError) =>
+    console.error('[worker] could not write the failure down', (writeError as Error).message),
+  );
+});
+
 /** Puts instances that were left running mid-flight back into the queue. */
 async function reconcile(): Promise<void> {
   const count = await reconcileInterruptedInstances();
@@ -136,6 +177,16 @@ async function reconcile(): Promise<void> {
     });
     for (const instance of stuck) {
       await enqueueProvisioning(instance.id, { reason: 'reconciliation' });
+    }
+    // The mail services that were left in the middle of a run are put back on
+    // the queue of the mail, which is a queue of its own.
+    const stuckMail = await prisma.mailService.findMany({
+      where: { status: 'PROVISIONING' },
+      select: { id: true },
+      take: 50,
+    });
+    for (const service of stuckMail) {
+      await enqueueMailProvisioning(service.id, { reason: 'reconciliation' });
     }
     await audit({ action: 'worker.reconciled', meta: { count } });
   }
@@ -171,6 +222,22 @@ async function sweepBilling(): Promise<void> {
     console.info(`[worker] invoice reconciliation: ${invoices.paid} paid, ${invoices.corrected} corrected`);
   }
   await releaseStalePromotionReservations().catch(() => undefined);
+}
+
+/**
+ * The sweep of the life of the mail.
+ *
+ * A mail service that was not paid for goes through a period of grace, then
+ * it is suspended, and its data is deleted only when the retention ends. The
+ * data of a customer is never deleted the moment a payment fails.
+ */
+async function sweepMail(): Promise<void> {
+  const result = await sweepMailServices().catch(() => ({ suspended: 0, deleted: 0 }));
+  if (result.suspended || result.deleted) {
+    console.info(
+      `[worker] mail sweep: ${result.suspended} suspended, ${result.deleted} released after the retention`,
+    );
+  }
 }
 
 /**
@@ -278,6 +345,7 @@ async function main(): Promise<void> {
   timers.push(setInterval(() => void pruneQueue().catch(() => undefined), 10 * 60_000));
   timers.push(setInterval(() => void pruneSessions().catch(() => undefined), 60 * 60_000));
   timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));
+  timers.push(setInterval(() => void sweepMail().catch((error) => console.error('[worker] mail sweep failed', error)), 30 * 60_000));
   timers.push(setInterval(() => void retryWebhooks().catch((error) => console.error('[worker] webhook retry failed', error)), 5 * 60_000));
   // The queue of the failures is watched every three minutes: often enough
   // that a failure is seen while the customer is still waiting, and rare
@@ -291,6 +359,7 @@ const shutdown = async () => {
   await metricsServer.close().catch(() => undefined);
   await worker.close();
   await emailWorker.close();
+  await mailWorker.close();
   await closeQueue();
   await redis.quit().catch(() => undefined);
   await prisma.$disconnect().catch(() => undefined);

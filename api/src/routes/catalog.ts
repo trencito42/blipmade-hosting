@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { BillingPeriod, Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
+import { env } from '../env.js';
 import { notFound } from '../lib/errors.js';
 import { addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, priceBook } from '../services/pricing.js';
@@ -11,11 +12,15 @@ import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
-  ram: z.number().int().positive(),
-  cpu: z.number().int().positive(),
-  disk: z.number().int().positive(),
+  // A line of servers carries its resources. A line of mail carries none:
+  // the plan of the line is the whole configuration.
+  ram: z.number().int().positive().optional(),
+  cpu: z.number().int().positive().optional(),
+  disk: z.number().int().positive().optional(),
   optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
+  // The domain of mail the line brings.
+  mailDomain: z.string().trim().max(253).optional(),
 });
 
 function serializeProduct(product: {
@@ -38,6 +43,15 @@ function serializeProduct(product: {
   deployable: boolean;
   eggId: number | null;
   docsUrl: string | null;
+  fulfilment: string;
+  mailMaxDomains: number | null;
+  mailMaxMailboxes: number | null;
+  mailMaxAliases: number | null;
+  mailMaxForwarding: number | null;
+  mailTotalStorageMb: number | null;
+  mailMailboxQuotaMb: number | null;
+  mailSendLimit: number | null;
+  mailSendInterval: string | null;
   prices: {
     id: string;
     baseAmount: number;
@@ -56,12 +70,16 @@ function serializeProduct(product: {
   const price = priceRowFor(product.prices);
   // The availability is derived from the product itself, so the catalog, the
   // quote and the order always answer the same way.
-  const availability = deploymentAvailability({
-    name: product.name,
-    deployable: product.deployable,
-    eggId: product.eggId,
-    visible: product.visible,
-  });
+  const availability = deploymentAvailability(
+    {
+      name: product.name,
+      deployable: product.deployable,
+      eggId: product.eggId,
+      visible: product.visible,
+      fulfilment: product.fulfilment as never,
+    },
+    { emailSalesEnabled: env.MAIL_SALES_ENABLED },
+  );
   // The price book: what the minimum configuration costs (the starting price
   // of the catalog) and what the recommended one costs. Both are calculated
   // with the function that prices an order.
@@ -95,6 +113,20 @@ function serializeProduct(product: {
     deployable: product.deployable,
     eggId: product.eggId,
     docsUrl: product.docsUrl,
+    // What the platform delivers: a server on a node, or a mail service that
+    // needs no server at all.
+    fulfilment: product.fulfilment,
+    // The limits of a mail plan. They are empty for a product of servers.
+    mail: {
+      maxDomains: product.mailMaxDomains,
+      maxMailboxes: product.mailMaxMailboxes,
+      maxAliases: product.mailMaxAliases,
+      maxForwarding: product.mailMaxForwarding,
+      totalStorageMb: product.mailTotalStorageMb,
+      mailboxQuotaMb: product.mailMailboxQuotaMb,
+      sendLimit: product.mailSendLimit,
+      sendInterval: product.mailSendInterval,
+    },
     price: price ? { amount: price.baseAmount, currency: price.currency, period: price.period } : null,
     pricing: book
       ? {
@@ -133,9 +165,15 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     const where: Prisma.ProductWhereInput = {
       // The public catalog only offers what is listed and what can actually
       // be priced. A product without an active price is not an offer, so it
-      // never reaches the public list. Staff can ask for the hidden ones,
-      // and they see a null price when a product has no price yet.
-      ...(includeHidden ? {} : { visible: true, prices: { some: { active: true } } }),
+      // never reaches the public list. A plan of mail is the exception: it is
+      // shown with its limits even before it is on sale, so a customer can
+      // read what the plan holds and see that it cannot be bought yet.
+      ...(includeHidden
+        ? {}
+        : {
+            visible: true,
+            OR: [{ prices: { some: { active: true } } }, { fulfilment: 'EMAIL' }],
+          }),
       ...(query.category && query.category !== 'All' ? { category: query.category as never } : {}),
       ...(query.search
         ? {
@@ -172,9 +210,13 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     if (!product) throw notFound('This product does not exist.');
     if (!staff) {
       // A hidden product is staff-only, and a product without an active price
-      // is not something the public can look at or order.
+      // is not something the public can look at or order. A plan of mail is
+      // shown even without a price: the customer reads the limits of the plan
+      // and sees that it is not on sale yet.
       if (!product.visible) throw notFound('This product does not exist.');
-      if (!product.prices.length) throw notFound('This product has no active price.');
+      if (!product.prices.length && product.fulfilment !== 'EMAIL') {
+        throw notFound('This product has no active price.');
+      }
     }
     return { product: serializeProduct(product) };
   });
@@ -210,6 +252,8 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           unitAmount: item.unitAmount,
           total: item.total,
           currency: item.currency,
+          fulfilment: item.fulfilment,
+          mailDomain: item.mailDomain ?? null,
         })),
         subtotal: quote.subtotal,
         discount: quote.discount,

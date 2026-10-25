@@ -47,6 +47,7 @@ model User {
   tokens         VerificationToken[]
   staff          StaffMember?
   mailDomains    MailDomain[]
+  mailServices   MailService[]
   orders         Order[]
   instances      Instance[]
   tickets        Ticket[]
@@ -214,11 +215,27 @@ enum Category {
   AUTOMATION
   BOTS
   DATABASES
+  EMAIL_HOSTING
 }
 
 enum BillingPeriod {
   MONTHLY
   YEARLY
+}
+
+/// What the platform delivers when a product is bought.
+enum ProductFulfilment {
+  /// A server on a node of the panel. The product needs an egg.
+  SERVER
+  /// A hosted mail service. The product needs no server and no panel.
+  EMAIL
+}
+
+/// The window in which the limit of sending of a domain is counted.
+enum MailSendingInterval {
+  MINUTELY
+  HOURLY
+  DAILY
 }
 
 model Product {
@@ -249,6 +266,27 @@ model Product {
   visible     Boolean  @default(true)
   // Only genuinely validated products may be ordered.
   deployable  Boolean  @default(false)
+  // What the platform delivers when this product is bought. A product of
+  // category EMAIL_HOSTING is delivered as a mail service, without a server.
+  fulfilment ProductFulfilment @default(SERVER)
+  // The limits of a mail plan. They are empty for a product of servers: the
+  // limits of a server are the ones of the resources it uses.
+  /// How many domains the plan includes.
+  mailMaxDomains Int?
+  /// How many mailboxes a domain of the plan may hold.
+  mailMaxMailboxes Int?
+  /// How many aliases a domain of the plan may hold.
+  mailMaxAliases Int?
+  /// How many forwarding rules a domain of the plan may hold.
+  mailMaxForwarding Int?
+  /// How much space the plan includes, in megabytes.
+  mailTotalStorageMb Int?
+  /// How much space one mailbox of the plan may hold, in megabytes.
+  mailMailboxQuotaMb Int?
+  /// How many messages may be sent in the window of the interval.
+  mailSendLimit Int?
+  /// The window in which the limit of sending is counted.
+  mailSendInterval MailSendingInterval?
   // How the deployment of this product is verified: { kind: 'http' | 'tcp',
   // path, expectStatus, expectBody }.
   healthProbe Json?
@@ -257,10 +295,11 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  prices   ProductPrice[]
-  options  ProductOption[]
-  items    OrderItem[]
-  instances Instance[]
+  prices      ProductPrice[]
+  options     ProductOption[]
+  items       OrderItem[]
+  instances   Instance[]
+  mailServices MailService[]
 
   @@index([visible, deployable])
   @@index([category])
@@ -411,13 +450,21 @@ model OrderItem {
   currency   String   @default("EUR")
   // Frozen resource configuration, so prices never change retroactively.
   config     Json?
+  // The state of the delivery of this line, on its own. A line of mail is
+  // delivered by the mail system and a line of servers by the panel, so the
+  // two progress separately: one of them can fail while the other works.
+  fulfillmentStatus FulfillmentStatus @default(NOT_STARTED)
+  // Why the delivery of this line failed, in words.
+  fulfillmentError String?
 
   // Every order line owns at most one subscription, so a multi-item checkout
   // produces one subscription per item instead of one for the whole order.
   subscription Subscription?
   instances    Instance[]
+  mailService  MailService?
 
   @@index([orderId])
+  @@index([fulfillmentStatus])
 }
 
 enum SubscriptionStatus {
@@ -454,6 +501,10 @@ model Subscription {
   cancelledAt          DateTime?
   /// Last time the renewal sweep looked at this subscription.
   lastRenewalCheckAt   DateTime?
+  // A subscription of a mail service. A mail service has no instance, so the
+  // link is here: the subscription of the mail is the one that is renewed,
+  // suspended and cancelled with the mail and not with a server.
+  mailService          MailService?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -933,6 +984,36 @@ enum MailDomainStatus {
   SUSPENDED
 }
 
+/// Whether the customer proved that a domain of mail is theirs.
+enum MailOwnershipStatus {
+  /// Nobody proved anything yet. The domain is not provisioned.
+  UNVERIFIED
+  /// The customer proved that the domain is theirs. The domain is provisioned.
+  VERIFIED
+  /// The proof was tried and it did not match. The domain is not provisioned.
+  FAILED
+}
+
+/// The state of a mail service, the thing a customer buys.
+///
+/// The mail service has its own life, apart from the server it may have been
+/// bought with: cancelling the server does not cancel the mail, and cancelling
+/// the mail does not cancel the server.
+enum MailServiceStatus {
+  /// The service was paid for and waits for its domains to be proved.
+  PENDING
+  /// The mail system is being asked to host the domains.
+  PROVISIONING
+  /// The service works.
+  ACTIVE
+  /// The period of grace: the service is not suspended yet, but it will be.
+  GRACE
+  /// The service is suspended: the mail is stopped, the data is kept.
+  SUSPENDED
+  /// The service was cancelled. The data is kept until the retention ends.
+  CANCELLED
+}
+
 /// A domain of mail that a customer hosts.
 ///
 /// The domain is owned by the customer, who proved that it is theirs the same
@@ -943,9 +1024,21 @@ model MailDomain {
   id           String           @id @default(cuid())
   userId       String
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // The mail service this domain belongs to. A domain that is not part of a
+  // service is a domain the platform hosts for a customer without a plan.
+  serviceId    String?
+  service      MailService?     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   /// The domain itself, in lower case, e.g. "acme.ro".
   name         String
   status       MailDomainStatus @default(PENDING)
+  /// Whether the customer proved that the domain is theirs.
+  ownershipStatus MailOwnershipStatus @default(UNVERIFIED)
+  /// The token the customer has to publish to prove the domain is theirs.
+  verificationToken String?
+  /// The name of the record that carries the token, e.g. "_blipmade-verify.acme.ro".
+  verificationHost String?
+  /// When the domain was proved.
+  verifiedAt   DateTime?
   /// How much of the quota of the domain is used, in megabytes.
   quotaMb      Int              @default(10240)
   usedMb       Int              @default(0)
@@ -953,6 +1046,8 @@ model MailDomain {
   maxMailboxes Int              @default(10)
   /// How many aliases the plan allows on this domain.
   maxAliases   Int              @default(100)
+  /// How many forwarding rules the plan allows on this domain.
+  maxForwarding Int             @default(0)
   /// The public part of the DKIM key of the domain.
   dkimPublic   String?
   /// Why the last attempt failed, in words.
@@ -966,6 +1061,67 @@ model MailDomain {
 
   @@unique([userId, name])
   @@index([name])
+  @@index([serviceId])
+  @@index([ownershipStatus])
+}
+
+/// A mail service: what a customer buys when they buy hosted mail.
+///
+/// The service is the identity of the mail and it carries the limits of the
+/// plan that was bought. It has no server and no instance: a customer can
+/// buy mail alone, and cancelling the server they bought later does not
+/// touch it.
+model MailService {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // The plan the customer bought.
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  // The order line that paid for it. One line, one service.
+  orderItemId String? @unique
+  orderItem  OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  // The order the service comes from.
+  orderId    String?
+  // The subscription that renews it. It has no instance: the mail is
+  // renewed on its own.
+  subscriptionId String? @unique
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  status     MailServiceStatus @default(PENDING)
+  /// The key that makes the creation of the service safe to repeat: a
+  /// redelivered payment event finds the service instead of making another.
+  provisioningKey String @unique
+  // The limits that were bought. They are a copy, so a change of the plan in
+  // the catalog never changes a service that was already paid for.
+  maxDomains      Int
+  maxMailboxes    Int
+  maxAliases      Int
+  maxForwarding   Int
+  totalStorageMb  Int
+  mailboxQuotaMb  Int
+  sendLimit       Int
+  sendInterval    MailSendingInterval @default(HOURLY)
+  // The use of the service, counted when it is asked for.
+  domainCount     Int @default(0)
+  mailboxCount    Int @default(0)
+  // The life of the service.
+  /// The end of the period of grace: after it, the service is suspended.
+  graceUntil      DateTime?
+  /// When the service was suspended.
+  suspendedAt     DateTime?
+  /// When the service was cancelled.
+  cancelledAt     DateTime?
+  /// The end of the retention: after it, the data of the customer is deleted.
+  retentionUntil  DateTime?
+  /// Why the last attempt failed, in words.
+  lastError       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  domains MailDomain[]
+
+  @@index([userId, status])
+  @@index([status])
 }
 
 /// A mailbox of a hosted domain.

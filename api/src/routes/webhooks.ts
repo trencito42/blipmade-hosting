@@ -9,9 +9,11 @@ import {
   stripeLive,
   stripeTestGateway,
   upsertInvoice,
+  cancelSubscription,
   STRIPE_API_VERSION,
 } from '../services/stripe.js';
-import { enqueueProvisioning } from '../services/queue.js';
+import { enqueueProvisioning, enqueueMailProvisioning } from '../services/queue.js';
+import * as mailCommerce from '../services/mail-commerce.js';
 import { notifyInvoiceFailed, notifyInvoicePaid } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { applyUpgradeOrder } from '../services/upgrades.js';
@@ -302,12 +304,24 @@ export async function fulfilOrder(orderId: string): Promise<void> {
       interval: renewal.interval,
       orderId: order.id,
     });
+    // A mail service that is renewed comes back to work: the payment arrived,
+    // so the mail of the customer starts again.
+    await resumeMailServiceAfterRenewal(renewal.subscriptionId, order.id);
     await prisma.order.update({ where: { id: order.id }, data: { fulfillmentStatus: 'FULFILLED' } });
     return;
   }
 
   if (order.kind === 'UPGRADE') {
     await applyUpgradeOrder(order.id);
+    return;
+  }
+
+  // An order that changes the plan of a mail service does not make a new
+  // service: it changes the limits of the one the customer already has. The
+  // change happens only now, when the money arrived.
+  const planChange = mailCommerce.readMailPlanChange(order.requestedConfig);
+  if (planChange) {
+    await fulfilMailPlanChange(order.id, order.userId, planChange.serviceId);
     return;
   }
 
@@ -321,7 +335,21 @@ export async function fulfilOrder(orderId: string): Promise<void> {
 
   for (const [index, item] of order.items.entries()) {
     const subscription = await prisma.subscription.findUnique({ where: { orderItemId: item.id } });
-    const config = (item.config ?? {}) as { ram?: number; cpu?: number; disk?: number };
+    const config = (item.config ?? {}) as {
+      ram?: number;
+      cpu?: number;
+      disk?: number;
+      fulfilment?: string;
+      mailDomain?: string | null;
+    };
+
+    // A line of mail is delivered by the mail system and not by the panel.
+    // The two kinds of line progress on their own: the failure of one of them
+    // never marks the other one as failed.
+    if (await isMailLine(item.productId)) {
+      await fulfilMailLine(order.id, order.userId, item, subscription?.id ?? null);
+      continue;
+    }
 
     for (let unit = 0; unit < item.quantity; unit++) {
       // The key makes a redelivered webhook reuse the same instance.
@@ -352,14 +380,189 @@ export async function fulfilOrder(orderId: string): Promise<void> {
         await prisma.subscription.update({ where: { id: subscription.id }, data: { instanceId: instance.id } });
       }
 
+      await prisma.orderItem.update({
+        where: { id: item.id },
+        data: { fulfillmentStatus: 'PROVISIONING', fulfillmentError: null },
+      });
+
       await enqueueProvisioning(instance.id, { reason: 'order paid' });
     }
   }
 
+  // The state of the order is the state of its lines: an order whose lines
+  // are all delivered is delivered, an order whose lines all failed failed,
+  // and any other order is on its way.
+  const states = await prisma.orderItem.findMany({
+    where: { orderId: order.id },
+    select: { fulfillmentStatus: true },
+  });
+  const allFulfilled = states.length > 0 && states.every((state) => state.fulfillmentStatus === 'FULFILLED');
+  const allFailed = states.length > 0 && states.every((state) => state.fulfillmentStatus === 'FAILED');
   await prisma.order.update({
     where: { id: order.id },
-    data: { fulfillmentStatus: 'PROVISIONING' },
+    data: { fulfillmentStatus: allFulfilled ? 'FULFILLED' : allFailed ? 'FAILED' : 'PROVISIONING' },
   });
+}
+
+/** True when the product of a line is delivered as a mail service. */
+async function isMailLine(productId: string): Promise<boolean> {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { fulfilment: true },
+  });
+  return product?.fulfilment === 'EMAIL';
+}
+
+/**
+ * Delivers a line of mail.
+ *
+ * The service of the line is created with a key that is built from the order
+ * and the line, so a redelivered payment event finds it instead of making a
+ * second one. The domain of the line waits for its proof, so the mail is
+ * hosted only when the customer has shown that the domain is theirs.
+ *
+ * A failure of the line is written on the line itself and never on the
+ * order, so the server of the same order is not marked as failed.
+ */
+async function fulfilMailLine(
+  orderId: string,
+  userId: string,
+  item: { id: string; productId: string; config: unknown },
+  subscriptionId: string | null,
+): Promise<void> {
+  const config = (item.config ?? {}) as { mailDomain?: string | null };
+  const domain = config.mailDomain;
+  if (!domain) {
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: { fulfillmentStatus: 'FAILED', fulfillmentError: 'This line of mail has no domain.' },
+    });
+    return;
+  }
+
+  try {
+    const { serviceId } = await mailCommerce.createMailServiceForOrderItem({
+      orderId,
+      itemId: item.id,
+      userId,
+      productId: item.productId,
+      domain,
+      subscriptionId,
+    });
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: { fulfillmentStatus: 'PROVISIONING', fulfillmentError: null },
+    });
+    await enqueueMailProvisioning(serviceId, { reason: 'order paid' });
+  } catch (error) {
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: { fulfillmentStatus: 'FAILED', fulfillmentError: (error as Error).message },
+    });
+    await audit({
+      action: 'mail.line_failed',
+      targetType: 'order_item',
+      targetId: item.id,
+      meta: { orderId, error: (error as Error).message },
+    });
+  }
+}
+
+/**
+ * Brings a mail service back to work after a renewal.
+ *
+ * The mail of a customer that paid again is not left suspended, and the
+ * period of grace of the service is cleared.
+ */
+async function resumeMailServiceAfterRenewal(subscriptionId: string, orderId: string): Promise<void> {
+  const service = await prisma.mailService.findFirst({
+    where: { subscriptionId },
+    select: { id: true, status: true },
+  });
+  if (!service) return;
+  if (service.status === 'ACTIVE' || service.status === 'PROVISIONING' || service.status === 'PENDING') return;
+  await mailCommerce.resumeMailService(service.id).catch(() => undefined);
+  await audit({
+    action: 'mail.service_resumed_by_renewal',
+    targetType: 'mail_service',
+    targetId: service.id,
+    meta: { orderId },
+  });
+}
+
+/**
+ * Applies a change of plan to a mail service.
+ *
+ * The limits of the service are the limits of the new plan, the subscription
+ * of the service is the one of the new order line, and the subscription of the
+ * old plan is cancelled at the end of the period that was paid for. Nothing
+ * is deleted: a customer that goes to a smaller plan keeps what it has.
+ */
+async function fulfilMailPlanChange(
+  orderId: string,
+  userId: string,
+  serviceId: string,
+): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
+  const item = order?.items[0];
+  if (!order || !item) {
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus: 'FAILED' },
+    });
+    return;
+  }
+
+  try {
+    const service = await prisma.mailService.findUnique({ where: { id: serviceId } });
+    if (!service || service.userId !== userId) {
+      throw new Error('The mail service of this order does not belong to this customer.');
+    }
+
+    await mailCommerce.applyMailPlanToService(serviceId, item.productId, userId);
+
+    const newSubscription = await prisma.subscription.findUnique({ where: { orderItemId: item.id } });
+    const oldSubscriptionId = service.subscriptionId;
+    if (newSubscription && newSubscription.id !== oldSubscriptionId) {
+      await prisma.mailService.update({
+        where: { id: serviceId },
+        data: { subscriptionId: newSubscription.id },
+      });
+    }
+    if (oldSubscriptionId && oldSubscriptionId !== newSubscription?.id) {
+      const oldSubscription = await prisma.subscription.findUnique({ where: { id: oldSubscriptionId } });
+      if (oldSubscription) {
+        // The old plan is cancelled at the end of the period that was paid
+        // for, so the customer is not charged for it and is not charged for
+        // the new one before the period ends.
+        await cancelSubscription(oldSubscription, { immediate: false });
+      }
+    }
+
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: { fulfillmentStatus: 'FULFILLED', fulfillmentError: null },
+    });
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus: 'FULFILLED' },
+    });
+  } catch (error) {
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: { fulfillmentStatus: 'FAILED', fulfillmentError: (error as Error).message },
+    });
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus: 'FAILED' },
+    });
+    await audit({
+      action: 'mail.plan_change_failed',
+      targetType: 'mail_service',
+      targetId: serviceId,
+      meta: { orderId, error: (error as Error).message },
+    });
+  }
 }
 
 /**

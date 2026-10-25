@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
+  get,
   getAdminMailHealth,
   listAdminMailDomains,
   listAdminMailJobs,
+  post,
   retryAdminMailJob,
   type AdminMailDomain,
   type AdminMailHealth,
@@ -19,19 +21,34 @@ import {
   ErrorState,
   Field,
   LoadingBlock,
+  ButtonLink,
   Panel,
   StatTile,
   StatusPill,
   useToast,
 } from '../ui-app';
-import { DASH, LiveRegion, can, denseGhost, denseInput, denseSelect, denseSoft, fmtDateTime, useAdminSession } from './Overview';
+import {
+  DASH,
+  LiveRegion,
+  can,
+  ConfirmWithReason,
+  denseDanger,
+  denseGhost,
+  denseInput,
+  denseSelect,
+  denseSoft,
+  fmtDateTime,
+  useAdminSession,
+} from './Overview';
+import type { TableColumn } from '../lib/table';
 
 /**
  * The back office of the hosted mail.
  *
- * Three things are shown here: whether the mail system answers, every domain
- * of mail of every customer, and the work the platform still owes to the
- * mail system.
+ * Five things are shown here: whether the mail system answers, every domain
+ * of mail of every customer, the work the platform still owes to the mail
+ * system, every hosted mail service of every customer, and the use of the
+ * platform.
  *
  * Every number comes from the API. When the numbers the platform holds and
  * the numbers the mail system holds are not the same, the difference is
@@ -167,6 +184,518 @@ export function AdminMailHealthPanel({ health }: { health: AdminMailHealth }) {
         {platform.failedJobs} failed job{platform.failedJobs === 1 ? '' : 's'} on the platform. The work that failed is
         listed below.
       </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* the hosted mail services                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** The use of a hosted mail service, as the API sends it. */
+export interface AdminMailServiceUsage {
+  /** How many domains the service holds. */
+  domains: number;
+  /** How many mailboxes the service holds. */
+  mailboxes: number;
+  /** The space the service uses, in megabytes. */
+  storageMb: number;
+  /** The space the service may hold, in megabytes. */
+  storageLimitMb: number;
+}
+
+/** The limits that are applied to a hosted mail service. */
+export interface AdminMailServiceLimits {
+  maxDomains: number;
+  maxMailboxes: number;
+  maxAliases: number;
+  maxForwarding: number;
+  totalStorageMb: number;
+  mailboxQuotaMb: number;
+  sendLimit: number;
+  sendInterval: string;
+}
+
+/** A hosted mail service of a customer, as the API sends it. */
+export interface AdminMailService {
+  id: string;
+  userId: string;
+  /** The address of the customer, when the API names it. */
+  customerEmail?: string | null;
+  plan: { slug: string; name: string };
+  /** PENDING, PROVISIONING, ACTIVE, GRACE, SUSPENDED or CANCELLED. */
+  status: string;
+  usage: AdminMailServiceUsage;
+  limits: AdminMailServiceLimits;
+  /** The end of the grace, when the service is in grace. */
+  graceUntil: string | null;
+  suspendedAt: string | null;
+  cancelledAt: string | null;
+  /** The end of the time the data of the service is kept. */
+  retentionUntil: string | null;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  createdAt: string;
+}
+
+/** The colour of a state of a service, so every state is read the same way. */
+const SERVICE_TONE: Record<string, string> = {
+  PENDING: 'pending',
+  PROVISIONING: 'provisioning',
+  ACTIVE: 'active',
+  GRACE: 'degraded',
+  SUSPENDED: 'suspended',
+  CANCELLED: 'cancelled',
+};
+
+/** What the operator can do with a service of a customer. */
+export type AdminMailServiceAction = 'suspend' | 'resume' | 'cancel' | 'reactivate' | 'reprovision';
+
+/** The name of an action, as the operator reads it. */
+const SERVICE_ACTION_LABEL: Record<AdminMailServiceAction, string> = {
+  suspend: 'Suspend',
+  resume: 'Resume',
+  cancel: 'Cancel',
+  reactivate: 'Reactivate',
+  reprovision: 'Host it again',
+};
+
+/** What an action did, as the operator reads it afterwards. */
+const SERVICE_ACTION_DONE: Record<AdminMailServiceAction, string> = {
+  suspend: 'suspended',
+  resume: 'resumed',
+  cancel: 'cancelled',
+  reactivate: 'reactivated',
+  reprovision: 'hosted again',
+};
+
+/**
+ * The actions the operator may take on a service, in the order they are
+ * offered.
+ *
+ * A service that is cancelled is only brought back: the other actions of a
+ * service that no longer runs would be refused by the server.
+ */
+export function adminMailServiceActions(status: string): AdminMailServiceAction[] {
+  if (status === 'CANCELLED') return ['reactivate'];
+  const actions: AdminMailServiceAction[] = [status === 'SUSPENDED' ? 'resume' : 'suspend'];
+  actions.push('cancel');
+  actions.push('reprovision');
+  return actions;
+}
+
+/**
+ * Acts on a service of a customer.
+ *
+ * Without a service nothing is sent: an action always names the service it
+ * is about.
+ */
+export async function runAdminMailServiceAction(
+  service: AdminMailService | null,
+  action: AdminMailServiceAction,
+  reason?: string,
+): Promise<boolean> {
+  if (!service) return false;
+  await post<{ ok: boolean }>(
+    `/admin/mail/services/${encodeURIComponent(service.id)}/${action}`,
+    action === 'suspend' && reason ? { reason } : undefined,
+  );
+  return true;
+}
+
+/** The use of a service, in one line. */
+function ServiceUsage({ service }: { service: AdminMailService }) {
+  const usage = service.usage;
+  if (!usage) return <span className="text-ink3">{DASH}</span>;
+  const space = Number.isFinite(usage.storageLimitMb)
+    ? `${usage.storageMb} MB of ${usage.storageLimitMb} MB`
+    : `${usage.storageMb} MB`;
+  return (
+    <span className="block font-mono text-[12.5px] text-ink2">
+      {usage.domains} domains · {usage.mailboxes} mailboxes · {space}
+    </span>
+  );
+}
+
+/** The life of a service: when it began and when it will end. */
+function ServiceLife({ service }: { service: AdminMailService }) {
+  const moments: { label: string; value: string | null | undefined }[] = [
+    { label: 'Since', value: service.createdAt },
+    { label: 'Grace until', value: service.graceUntil },
+    { label: 'Suspended at', value: service.suspendedAt },
+    { label: 'Cancelled at', value: service.cancelledAt },
+    { label: 'Kept until', value: service.retentionUntil },
+  ];
+  return (
+    <span className="block min-w-0">
+      {moments.map((moment) => (
+        <span key={moment.label} className="block text-[12.5px] text-ink2">
+          {moment.label}: {moment.value ? fmtDateTime(moment.value) : DASH}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * Every hosted mail service of every customer.
+ *
+ * The customer, the plan, the state, the use and the life of every service
+ * come from the API. The actions the operator may take are the ones the
+ * state of the service allows.
+ */
+export function AdminMailServicesTable({
+  services,
+  mayWrite,
+  onAction,
+}: {
+  services: AdminMailService[];
+  mayWrite: boolean;
+  onAction: (service: AdminMailService, action: AdminMailServiceAction) => void;
+}) {
+  const columns: TableColumn<AdminMailService>[] = [
+    {
+      key: 'customer',
+      header: 'Customer',
+      truncate: true,
+      render: (service: AdminMailService) => (
+        <span className="block min-w-0">
+          <span className="block truncate font-mono text-[12.5px] text-ink" title={service.customerEmail ?? undefined}>
+            {service.customerEmail ?? DASH}
+          </span>
+          <span className="block truncate font-mono text-[11.5px] text-ink3" title={service.id}>
+            {service.id}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'plan',
+      header: 'Plan',
+      truncate: true,
+      render: (service: AdminMailService) => (
+        <span className="block min-w-0">
+          <span className="block truncate text-[13.5px] text-ink" title={service.plan?.name}>
+            {service.plan?.name ?? DASH}
+          </span>
+          <span className="block truncate font-mono text-[11.5px] text-ink3" title={service.plan?.slug}>
+            {service.plan?.slug ?? DASH}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'State',
+      nowrap: true,
+      render: (service: AdminMailService) => (
+        <StatusPill status={SERVICE_TONE[service.status] ?? service.status} label={service.status} />
+      ),
+    },
+    {
+      key: 'usage',
+      header: 'Use',
+      className: 'max-w-[280px]',
+      render: (service: AdminMailService) => <ServiceUsage service={service} />,
+    },
+    {
+      key: 'life',
+      header: 'Life',
+      className: 'max-w-[220px]',
+      render: (service: AdminMailService) => <ServiceLife service={service} />,
+    },
+    {
+      key: 'error',
+      header: 'Last failure',
+      className: 'max-w-[240px]',
+      render: (service: AdminMailService) =>
+        service.lastError ? (
+          <span className="block break-words text-[12.5px] text-bad">{service.lastError}</span>
+        ) : (
+          <span className="text-ink3">{DASH}</span>
+        ),
+    },
+    ...(mayWrite
+      ? ([
+          {
+            key: 'actions',
+            header: 'Action',
+            align: 'right',
+            render: (service: AdminMailService) => (
+              <span className="flex flex-wrap justify-end gap-2">
+                {adminMailServiceActions(service.status).map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    onClick={() => onAction(service, action)}
+                    className={action === 'cancel' ? denseDanger : denseGhost}
+                  >
+                    {SERVICE_ACTION_LABEL[action]}
+                  </button>
+                ))}
+              </span>
+            ),
+          },
+        ] satisfies TableColumn<AdminMailService>[])
+      : []),
+  ];
+
+  return (
+    <>
+      <DataTable<AdminMailService> rows={services} rowKey={(service) => service.id} minWidth="1080px" columns={columns} />
+      <CardList<AdminMailService> rows={services} rowKey={(service) => service.id}>
+        {(service) => (
+          <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="w-0 min-w-0 flex-1">
+                <p className="truncate font-mono text-[13.5px] font-bold text-ink" title={service.customerEmail ?? undefined}>
+                  {service.customerEmail ?? DASH}
+                </p>
+                <p className="truncate text-[12.5px] text-ink3" title={service.plan?.name}>
+                  {service.plan?.name ?? DASH}
+                </p>
+              </div>
+              <StatusPill status={SERVICE_TONE[service.status] ?? service.status} label={service.status} />
+            </div>
+            <dl className="mt-2 grid gap-2 text-[13px]">
+              <div className="min-w-0">
+                <dt className="text-ink3">Use</dt>
+                <dd className="min-w-0">
+                  <ServiceUsage service={service} />
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-ink3">Life</dt>
+                <dd className="min-w-0">
+                  <ServiceLife service={service} />
+                </dd>
+              </div>
+              {service.lastError && (
+                <div className="min-w-0">
+                  <dt className="text-ink3">Last failure</dt>
+                  <dd className="break-words text-bad">{service.lastError}</dd>
+                </div>
+              )}
+            </dl>
+            {mayWrite && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {adminMailServiceActions(service.status).map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    onClick={() => onAction(service, action)}
+                    className={action === 'cancel' ? denseDanger : denseGhost}
+                  >
+                    {SERVICE_ACTION_LABEL[action]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardList>
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* the use of the platform                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** A limit of sending, as the API sends it. */
+export interface AdminMailSendingLimit {
+  /** The domain the limit belongs to, when the API names it. */
+  domain?: string | null;
+  domainName?: string | null;
+  name?: string | null;
+  /** How many messages the window holds. */
+  limit?: number | null;
+  value?: number | null;
+  amount?: number | null;
+  /** How many messages are left in the window. */
+  remaining?: number | null;
+  /** The window in which the limit is counted. */
+  interval?: string | null;
+  window?: string | null;
+  period?: string | null;
+  /** Anything else the API sends. */
+  [key: string]: unknown;
+}
+
+/** The use of the platform, as the API sends it. */
+export interface AdminMailUsage {
+  /** How many hosted mail services the platform holds. */
+  services: number;
+  /** How many domains of mail they hold. */
+  domains: number;
+  /** How many mailboxes they hold. */
+  mailboxes: number;
+  /** The space they use, in megabytes. */
+  storageMb: number;
+  /** How many services there are in every state. */
+  byStatus: Record<string, number>;
+  /** The limits of sending that are applied. */
+  sendingLimits: AdminMailSendingLimit[];
+  /** The health of the mail system. */
+  health: {
+    /** Whether this environment points at a mail system at all. */
+    configured: boolean;
+    /** Whether the mail system answered the request. */
+    reachable: boolean;
+    /** The version the mail system reports. */
+    version: string | null;
+    /** The disk of the mail system. Null when the mail system did not answer. */
+    disk: { used: string; total: string; usedPercent: string } | null;
+    /** The words of the failure, when there is one. */
+    error: string | null;
+  };
+}
+
+/**
+ * The rows of a limit of sending.
+ *
+ * The API is the only one who knows what a limit of sending carries, so the
+ * rows are the fields it sends and nothing else.
+ */
+export function adminMailSendingLimitRows(limit: AdminMailSendingLimit): { label: string; value: string }[] {
+  const rows: { label: string; value: string }[] = [];
+  const text = (value: unknown): string | null => {
+    if (typeof value === 'string') return value.trim() === '' ? null : value;
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    return null;
+  };
+
+  const domain = text(limit.domain ?? limit.domainName ?? limit.name);
+  if (domain) rows.push({ label: 'Domain', value: domain });
+
+  const amount = text(limit.limit ?? limit.value ?? limit.amount);
+  if (amount) rows.push({ label: 'Messages', value: amount });
+
+  const remaining = text(limit.remaining);
+  if (remaining) rows.push({ label: 'Left', value: remaining });
+
+  const interval = text(limit.interval ?? limit.window ?? limit.period);
+  if (interval) rows.push({ label: 'Window', value: interval });
+
+  return rows;
+}
+
+/**
+ * The state of the mail system.
+ *
+ * A mail system that does not answer is a state, not a number of zeros that
+ * looks like a measure.
+ */
+export function AdminMailSystemHealth({ health }: { health: AdminMailUsage['health'] }) {
+  const reachable = Boolean(health?.reachable);
+  const disk = health?.disk;
+
+  return (
+    <section aria-label="The state of the mail system" className="grid gap-3">
+      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">The mail system</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Configured"
+          value={health?.configured ? 'Yes' : 'No'}
+          hint="Whether this environment points at a mail system."
+        />
+        <StatTile label="Answers" value={reachable ? 'Yes' : 'No'} hint="Whether the mail system answered the request." />
+        <StatTile label="Version" value={health?.version ?? DASH} hint="The version the mail system reports." />
+        <StatTile
+          label="Disk used"
+          value={disk ? `${disk.used} of ${disk.total} (${disk.usedPercent})` : DASH}
+          hint="The disk of the mail system."
+        />
+      </div>
+
+      {!reachable && (
+        <div role="status" className="rounded-2xl bg-bad/10 px-4 py-3">
+          <p className="text-[14.5px] font-extrabold text-bad">The mail system cannot be reached.</p>
+          <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">
+            {health?.error ?? 'The mail system did not answer the request.'}
+          </p>
+          <p className="mt-1 text-[13.5px] leading-relaxed text-ink2">
+            The numbers of the platform are the numbers of the platform. The numbers of the mail system are not known, so
+            they are not shown as zeros.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The use of the platform by the hosted mail.
+ *
+ * How many services, domains, mailboxes and megabytes there are, how many
+ * services there are in every state, the limits of sending that are applied
+ * and the health of the mail system. Every number comes from the API.
+ */
+export function AdminMailUsagePanel({ usage }: { usage: AdminMailUsage }) {
+  const reachable = Boolean(usage?.health?.reachable);
+  const byStatus = Object.entries(usage?.byStatus ?? {});
+
+  return (
+    <div className="grid gap-4">
+      <section aria-label="The use of the platform" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Services" value={usage?.services ?? DASH} hint="The hosted mail services the platform holds." />
+        <StatTile label="Domains" value={usage?.domains ?? DASH} hint="The domains of mail of every service." />
+        <StatTile label="Mailboxes" value={usage?.mailboxes ?? DASH} hint="The mailboxes of every service." />
+        <StatTile label="Space used" value={`${usage?.storageMb ?? DASH} MB`} hint="The space the mail holds." />
+      </section>
+
+      <section aria-label="The services by state" className="grid gap-2">
+        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Services by state</p>
+        {byStatus.length ? (
+          <dl className="grid gap-2 sm:grid-cols-3">
+            {byStatus.map(([status, count]) => (
+              <div key={status} className="rounded-2xl bg-s2 p-3">
+                <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
+                  {status.replace(/_/g, ' ')}
+                </dt>
+                <dd className="mt-1 font-mono text-[18px] text-ink">{count}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="px-1 text-[13px] text-ink3">The API holds no state of the services.</p>
+        )}
+      </section>
+
+      <section aria-label="The limits of sending" className="grid gap-2">
+        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Limits of sending</p>
+        {!reachable ? (
+          <p role="status" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] leading-relaxed text-ink2">
+            The limits of sending are not known: the mail system did not answer, so they are not counted here as zeros.
+          </p>
+        ) : usage?.sendingLimits?.length ? (
+          <ul className="grid gap-2">
+            {usage.sendingLimits.map((limit, index) => {
+              const rows = adminMailSendingLimitRows(limit);
+              return (
+                <li key={index} className="rounded-2xl bg-s2 p-3">
+                  {rows.length ? (
+                    <dl className="grid gap-1 sm:grid-cols-2">
+                      {rows.map((row) => (
+                        <div key={row.label} className="min-w-0">
+                          <dt className="text-ink3">{row.label}</dt>
+                          <dd className="font-mono break-words text-ink">{row.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : (
+                    <p className="font-mono text-ink2">{DASH}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="px-1 text-[13px] text-ink3">No limit of sending is applied.</p>
+        )}
+      </section>
+
+      <AdminMailSystemHealth health={usage.health} />
     </div>
   );
 }
@@ -639,6 +1168,60 @@ function useAdminMailPage<T>(
   };
 }
 
+/**
+ * The mail services, walked with the cursor of the API.
+ *
+ * The API sends the cursor of the next page with the page on the screen, so
+ * the next page is the one that follows it. The rows of the pages that were
+ * walked are kept, so "Load more" adds to the list instead of replacing it.
+ */
+function useAdminMailServices() {
+  const first = useAsync<{ services: AdminMailService[]; nextCursor?: string | null }>(
+    (signal) => get<{ services: AdminMailService[]; nextCursor?: string | null }>('/admin/mail/services', undefined, signal),
+    [],
+  );
+
+  const [walked, setWalked] = useState<{
+    rows: AdminMailService[];
+    cursor: string | null;
+    hasMore: boolean;
+  }>({ rows: [], cursor: null, hasMore: false });
+
+  useEffect(() => {
+    const page = first.data;
+    if (!page) return;
+    setWalked({
+      rows: page.services ?? [],
+      cursor: page.nextCursor ?? null,
+      hasMore: Boolean(page.nextCursor),
+    });
+  }, [first.data]);
+
+  const more = useAction(async () => {
+    const cursor = walked.cursor;
+    if (!cursor) return;
+    const page = await get<{ services: AdminMailService[]; nextCursor?: string | null }>('/admin/mail/services', {
+      cursor,
+    });
+    setWalked((current) => ({
+      rows: [...current.rows, ...(page.services ?? [])],
+      cursor: page.nextCursor ?? null,
+      hasMore: Boolean(page.nextCursor),
+    }));
+  });
+
+  return {
+    rows: walked.rows,
+    hasMore: walked.hasMore,
+    loading: first.loading,
+    error: first.error,
+    reload: first.reload,
+    loadMore: more.run,
+    loadingMore: more.pending,
+    errorMore: more.error,
+  };
+}
+
 export default function Mail() {
   const session = useAdminSession();
   const staff = session.staff;
@@ -649,6 +1232,13 @@ export default function Mail() {
   const [domainState, setDomainState] = useState('');
   const [jobState, setJobState] = useState('');
   const [pendingRetry, setPendingRetry] = useState<AdminMailJob | null>(null);
+  // The action the operator asked for on a service, and the reason of a
+  // suspension. The action is only sent once it is confirmed.
+  const [pendingService, setPendingService] = useState<{
+    service: AdminMailService;
+    action: AdminMailServiceAction;
+  } | null>(null);
+  const [suspendReason, setSuspendReason] = useState('');
 
   // The search is sent after a pause, so a word is not a request per letter.
   useEffect(() => {
@@ -657,6 +1247,10 @@ export default function Mail() {
   }, [search]);
 
   const health = useAsync((signal) => getAdminMailHealth(signal), []);
+
+  const services = useAdminMailServices();
+
+  const usage = useAsync((signal) => get<AdminMailUsage>('/admin/mail/usage', undefined, signal), []);
 
   const domains = useAdminMailPage<AdminMailDomain>(
     async (cursor, signal) => {
@@ -686,6 +1280,7 @@ export default function Mail() {
   );
 
   const mayRepeat = can(staff, 'infrastructure.write');
+  const mayWriteService = can(staff, 'mail.write');
 
   const retry = useAction(async (job: AdminMailJob) => {
     const repeated = await runAdminMailRetry(job);
@@ -693,6 +1288,15 @@ export default function Mail() {
     toast.push(`The work ${repeated.kind} was given to the mail system again.`, 'ok');
     jobs.reload();
     return repeated;
+  });
+
+  const serviceAction = useAction(async (service: AdminMailService, action: AdminMailServiceAction, reason?: string) => {
+    const done = await runAdminMailServiceAction(service, action, reason);
+    if (!done) return null;
+    toast.push(`The service was ${SERVICE_ACTION_DONE[action]}.`, 'ok');
+    services.reload();
+    usage.reload();
+    return done;
   });
 
   if (session.loading) {
@@ -713,7 +1317,18 @@ export default function Mail() {
 
   return (
     <div className="grid gap-4">
-      <LiveRegion message={`${domains.rows.length} domains, ${jobs.rows.length} jobs`} />
+      <LiveRegion
+        message={`${domains.rows.length} domains, ${jobs.rows.length} jobs, ${services.rows.length} mail services`}
+      />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <ButtonLink to="/admin/mail/plans" variant="soft">
+          The plans of hosted mail
+        </ButtonLink>
+        <span className="text-sm text-slate-500">
+          The plans, their limits and their prices live on their own page.
+        </span>
+      </div>
 
       <Panel
         title="Mail health"
@@ -844,6 +1459,75 @@ export default function Mail() {
         </div>
       </Panel>
 
+      <Panel
+        title="Mail services"
+        description="Every hosted mail service of every customer: the plan it runs on, the state it is in, the use it makes of the platform and the life it still has."
+      >
+        <div className="grid gap-3">
+          {services.loading ? (
+            <LoadingBlock rows={3} label="Loading the mail services" />
+          ) : services.error ? (
+            <ErrorState
+              title="The mail services could not be loaded"
+              message={services.error.message}
+              onRetry={services.reload}
+            />
+          ) : !services.rows.length ? (
+            <EmptyState title="No customer bought a plan of hosted mail yet." description="The services appear here as they are bought." />
+          ) : (
+            <div className="grid gap-3">
+              <AdminMailServicesTable
+                services={services.rows}
+                mayWrite={mayWriteService}
+                onAction={(service, action) => {
+                  // A suspension asks for a reason and a cancellation is a
+                  // destructive act: both are confirmed before they are sent.
+                  if (action === 'suspend' || action === 'cancel') {
+                    setSuspendReason('');
+                    setPendingService({ service, action });
+                    return;
+                  }
+                  void serviceAction.run(service, action);
+                }}
+              />
+              <AdminMailPager
+                shown={services.rows.length}
+                total={undefined}
+                hasMore={services.hasMore}
+                pending={services.loadingMore}
+                onLoadMore={() => void services.loadMore()}
+              />
+            </div>
+          )}
+
+          {!mayWriteService && (
+            <p className="px-1 text-[13px] text-ink3">
+              Your role does not hold &quot;mail.write&quot;, so a service cannot be acted on from here.
+            </p>
+          )}
+
+          <AdminMailError message={services.errorMore} />
+          <AdminMailError message={serviceAction.error} />
+        </div>
+      </Panel>
+
+      <Panel
+        title="The use of the platform"
+        description="What the hosted mail uses of the platform, how many services there are in every state, the limits of sending that are applied and the state of the mail system."
+      >
+        {usage.loading ? (
+          <LoadingBlock rows={3} label="Loading the use of the platform" />
+        ) : usage.error ? (
+          <ErrorState
+            title="The use of the platform could not be loaded"
+            message={usage.error.message}
+            onRetry={usage.reload}
+          />
+        ) : usage.data ? (
+          <AdminMailUsagePanel usage={usage.data} />
+        ) : null}
+      </Panel>
+
       <AdminMailRetryDialog
         job={pendingRetry}
         busy={retry.pending}
@@ -855,6 +1539,50 @@ export default function Mail() {
           void retry.run(pendingRetry).finally(() => setPendingRetry(null));
         }}
       />
+
+      {pendingService?.action === 'suspend' && (
+        <ConfirmWithReason
+          open
+          title={`Suspend the service of ${pendingService.service.customerEmail ?? pendingService.service.id}`}
+          description={`The service of the plan ${pendingService.service.plan?.name ?? 'of the customer'} is suspended. The mailboxes stop receiving mail and the domain stops sending it. The reason is written in the log of the platform.`}
+          confirmLabel="Suspend the service"
+          reasonLabel="Why the service is suspended"
+          reason={suspendReason}
+          onReasonChange={setSuspendReason}
+          error={serviceAction.error}
+          busy={serviceAction.pending}
+          onCancel={() => setPendingService(null)}
+          onConfirm={() => {
+            void serviceAction.run(pendingService.service, 'suspend', suspendReason.trim() || undefined).then((result) => {
+              // The dialog stays open when the server refused, because the
+              // words of the refusal are written inside it.
+              if (!result) return;
+              setPendingService(null);
+              setSuspendReason('');
+            });
+          }}
+        />
+      )}
+
+      {pendingService?.action === 'cancel' && (
+        <ConfirmDialog
+          open
+          title={`Cancel the service of ${pendingService.service.customerEmail ?? pendingService.service.id}`}
+          description={`The service of the plan ${pendingService.service.plan?.name ?? 'of the customer'} is cancelled. The data of the service is kept until the end of the time the platform holds it, and the service can be brought back until then.`}
+          confirmLabel="Cancel the service"
+          busy={serviceAction.pending}
+          onCancel={() => setPendingService(null)}
+          onConfirm={() => {
+            void serviceAction.run(pendingService.service, 'cancel').then((result) => {
+              // The dialog closes when the service was cancelled and when the
+              // server refused it, so the words of the refusal are read
+              // outside of it.
+              setPendingService(null);
+              return result;
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

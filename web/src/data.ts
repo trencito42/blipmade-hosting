@@ -1,4 +1,4 @@
-export const CATEGORIES = ['All', 'Web & CMS', 'Developer Tools', 'Monitoring', 'Automation', 'Bots', 'Databases'] as const;
+export const CATEGORIES = ['All', 'Web & CMS', 'Developer Tools', 'Monitoring', 'Automation', 'Bots', 'Databases', 'Email Hosting'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const FAQ = [

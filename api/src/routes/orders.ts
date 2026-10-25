@@ -24,11 +24,16 @@ import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 
 const orderItemSchema = z.object({
   productSlug: z.string().min(1),
-  ram: z.number().int().positive(),
-  cpu: z.number().int().positive(),
-  disk: z.number().int().positive(),
+  // A line of servers carries its resources. A line of mail carries the
+  // domain it wants and no resources: the plan of the line is the whole
+  // configuration. What a line means is decided by the product, on the
+  // server, and never by the customer.
+  ram: z.number().int().positive().optional(),
+  cpu: z.number().int().positive().optional(),
+  disk: z.number().int().positive().optional(),
   optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
+  mailDomain: z.string().trim().max(253).optional(),
 });
 
 function serializeOrder(order: {
@@ -46,6 +51,8 @@ function serializeOrder(order: {
     unitAmount: number;
     total: number;
     config: unknown;
+    fulfillmentStatus: string;
+    fulfillmentError: string | null;
     product: { slug: string };
   }[];
 }) {
@@ -64,7 +71,18 @@ function serializeOrder(order: {
       quantity: item.quantity,
       unitAmount: item.unitAmount,
       total: item.total,
-      config: item.config as { ram: number; cpu: number; disk: number; optionCodes: string[] } | null,
+      // The state of the delivery of this line, on its own: a line of mail
+      // and a line of server do not progress together.
+      fulfillmentStatus: item.fulfillmentStatus,
+      fulfillmentError: item.fulfillmentError,
+      config: item.config as {
+        ram: number;
+        cpu: number;
+        disk: number;
+        optionCodes: string[];
+        fulfilment?: string;
+        mailDomain?: string | null;
+      } | null,
     })),
   };
 }
@@ -88,6 +106,21 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         .parse(request.body);
 
       const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
+
+      // A domain that another customer already hosts is refused here, before
+      // the customer is charged for it. The platform would refuse it later
+      // anyway, at the moment of the provisioning, and a customer that paid
+      // for a domain that cannot be hosted would have to be refunded.
+      for (const item of quote.items) {
+        if (item.fulfilment !== 'EMAIL' || !item.mailDomain) continue;
+        const taken = await prisma.mailDomain.findFirst({
+          where: { name: item.mailDomain, userId: { not: user.id } },
+          select: { id: true },
+        });
+        if (taken) {
+          throw conflict('This domain is already hosted for another customer.');
+        }
+      }
 
       const order = await prisma.order.create({
         data: {
@@ -114,6 +147,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 // The period of the price travels with the line, so the
                 // payment provider is asked for the right interval.
                 period: item.price.period,
+                // What the line delivers and the domain it brings. The line
+                // of a mail is delivered by the mail system and not by the
+                // panel, so it has to know which of the two it is.
+                fulfilment: item.fulfilment,
+                mailDomain: item.mailDomain ?? null,
               },
             })),
           },

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { env } from '../env.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import * as mail from '../services/mail.js';
@@ -16,6 +17,18 @@ import * as mail from '../services/mail.js';
  */
 
 export async function registerMailRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Where the customer reads the mail of a domain of mail.
+   *
+   * The address comes from the environment of the platform and not from the
+   * interface: the customer is sent to the webmail of the platform and never
+   * to an address that was written in the source of the page.
+   */
+  app.get('/mail/webmail', async (request: FastifyRequest) => {
+    await requireAuth(request);
+    return { url: env.MAIL_WEBMAIL_URL || null, configured: Boolean(env.MAIL_WEBMAIL_URL) };
+  });
+
   app.get('/mail/domains', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     return { domains: await mail.listMailDomains(user.id) };

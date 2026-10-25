@@ -22,10 +22,12 @@ import { registerInstanceRoutes } from './routes/instances.js';
 import { registerInstanceServerRoutes } from './routes/instance-server.js';
 import { registerDomainRoutes } from './routes/domains.js';
 import { registerMailRoutes } from './routes/mail.js';
+import { registerMailCommerceRoutes } from './routes/mail-commerce.js';
 import { registerTicketRoutes } from './routes/tickets.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAdminMailRoutes } from './routes/admin-mail.js';
+import { registerAdminMailPlansRoutes } from './routes/admin-mail-plans.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerHealthRoutes, registerStatusRoutes } from './routes/health.js';
 
@@ -204,10 +206,12 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerInstanceServerRoutes(api);
       await registerDomainRoutes(api);
       await registerMailRoutes(api);
+      await registerMailCommerceRoutes(api);
       await registerTicketRoutes(api);
       await registerSettingsRoutes(api);
       await registerAdminRoutes(api);
       await registerAdminMailRoutes(api);
+      await registerAdminMailPlansRoutes(api);
       await registerWebhookRoutes(api);
     },
     { prefix: '/api' },

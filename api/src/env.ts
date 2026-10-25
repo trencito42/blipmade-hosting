@@ -171,6 +171,40 @@ const schema = z.object({
   MAIL_MAX_QUOTA_MB_PER_DOMAIN: z.coerce.number().int().min(1).max(1024000).default(10240),
 
   /**
+   * Whether the mail of the platform is on sale.
+   *
+   * It is closed by default: the mail is not sold until the operator has
+   * proved the payment, the mail system, the DNS, the backup and the
+   * delivery from end to end. The switch is closed here and nowhere else,
+   * so the catalog, the quote and the order all refuse the same way.
+   */
+  MAIL_SALES_ENABLED: z
+    .string()
+    .default('false')
+    .transform((value) => value.trim().toLowerCase() === 'true')
+    .pipe(z.boolean()),
+  /**
+   * How many days a mail service keeps working after it stops being paid
+   * for. The period of grace is the time the customer has to pay; the mail
+   * is not suspended before it ends.
+   */
+  MAIL_GRACE_PERIOD_DAYS: z.coerce.number().int().min(0).max(365).default(14),
+  /**
+   * How many days the data of a mail service is kept after it was
+   * suspended. The data is never deleted the moment a payment fails: it is
+   * kept for the whole retention, so it can be recovered.
+   */
+  MAIL_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
+  /** How many forwarding rules a domain of mail may hold. */
+  MAIL_MAX_FORWARDING_PER_DOMAIN: z.coerce.number().int().min(0).max(10000).default(10),
+  /**
+   * The most messages a domain may send in the window of the plan, whatever
+   * the plan says. The limit of the platform is the ceiling of the limit of
+   * the plan.
+   */
+  MAIL_MAX_SEND_LIMIT: z.coerce.number().int().min(1).max(1000000).default(500),
+
+  /**
    * The addresses that are allowed to set the forwarding headers. Only these
    * are trusted, so a client cannot forge its own address and slip past the
    * rate limit.
@@ -206,6 +240,26 @@ const raw = parsed.data;
 
 export const env = {
   ...raw,
+  /**
+   * Whether the sale of the hosted mail is open.
+   *
+   * The value is read at the moment it is asked for, so the operator can
+   * close the sale of the mail without waiting for a restart of the API, and
+   * the tests can open it for the duration of one run. The value that was
+   * parsed when the API started is the fallback for an environment that does
+   * not carry the variable at all.
+   *
+   * Writing to it writes the variable of the environment, so there is one
+   * source of truth and not two.
+   */
+  get MAIL_SALES_ENABLED(): boolean {
+    const live = process.env.MAIL_SALES_ENABLED;
+    if (live === undefined) return raw.MAIL_SALES_ENABLED;
+    return live.trim().toLowerCase() === 'true';
+  },
+  set MAIL_SALES_ENABLED(value: boolean) {
+    process.env.MAIL_SALES_ENABLED = value ? 'true' : 'false';
+  },
   isProduction: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test',
   internalToken: raw.INTERNAL_API_TOKEN || raw.BLIPMADE_INTERNAL_API_TOKEN,
@@ -255,3 +309,14 @@ export const env = {
 } as const;
 
 export type Env = typeof env;
+
+/**
+ * Whether the sale of the hosted mail is open.
+ *
+ * The switch is read at the moment of the check, so the operator can close
+ * the sale of the mail without waiting for a restart of the API, and the
+ * tests can open it for the duration of one run.
+ */
+export function mailSalesEnabled(): boolean {
+  return env.MAIL_SALES_ENABLED;
+}

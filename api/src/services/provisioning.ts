@@ -197,6 +197,13 @@ export async function failProvisioning(instanceId: string, step: ProvisionStep, 
     where: { instanceId, status: 'running' },
     data: { status: 'failed', error: message, attempts: { increment: 1 } },
   });
+  // The line of the order that owns the instance fails with it. The other
+  // lines of the same order are not touched: a line of mail that works is
+  // not marked as failed because a server failed.
+  await prisma.orderItem.updateMany({
+    where: { instances: { some: { id: instanceId } } },
+    data: { fulfillmentStatus: 'FAILED', fulfillmentError: `${step}: ${message}` },
+  });
   await recordEvent(instanceId, 'failed', `Provisioning failed at "${step}": ${message}`);
   await audit({ action: 'instance.provision_failed', targetType: 'instance', targetId: instanceId, meta: { step, message } });
 }
@@ -205,6 +212,11 @@ export async function completeProvisioning(instanceId: string): Promise<void> {
   await prisma.provisioningJob.updateMany({
     where: { instanceId, status: 'running' },
     data: { status: 'completed' },
+  });
+  // The line of the order that owns the instance is delivered with it.
+  await prisma.orderItem.updateMany({
+    where: { instances: { some: { id: instanceId } } },
+    data: { fulfillmentStatus: 'FULFILLED', fulfillmentError: null },
   });
   await recordEvent(instanceId, 'provisioned', 'Instance is online.');
 }

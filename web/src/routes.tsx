@@ -38,6 +38,8 @@ const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
 const AppMail = lazy(() => import('./app/Mail'));
+const EmailStorefront = lazy(() => import('./app/EmailHosting'));
+const EmailCheckout = lazy(() => import('./app/EmailHosting').then((module) => ({ default: module.EmailCheckout })));
 const AppBilling = lazy(() => import('./app/Billing'));
 const AppTickets = lazy(() => import('./app/Tickets'));
 const AppTicketDetail = lazy(() => import('./app/TicketDetail'));
@@ -59,6 +61,7 @@ const AdminTickets = lazy(() => import('./admin/Tickets'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
 const AdminInfrastructure = lazy(() => import('./admin/Infrastructure'));
 const AdminMail = lazy(() => import('./admin/Mail'));
+const AdminMailPlans = lazy(() => import('./admin/MailProducts'));
 const AdminAudit = lazy(() => import('./admin/Audit'));
 const AdminStaff = lazy(() => import('./admin/Staff'));
 const AdminSettings = lazy(() => import('./admin/Settings'));
@@ -104,6 +107,9 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/docs', component: Docs, title: 'Documentation' },
   { pattern: '/status', component: Status, title: 'Service status' },
   { pattern: '/apps', component: CatalogIndex, title: 'Catalog' },
+  // The storefront of the hosted mail. It is public: a visitor reads the
+  // limits of the plans before he makes an account.
+  { pattern: '/email', component: EmailStorefront, title: 'Hosted mail' },
   { pattern: '/apps/:slug', component: ProductPage, title: 'Product' },
   { pattern: '/deploy/:slug', component: DeployRedirect, title: 'Deploy' },
 
@@ -129,6 +135,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
+  { pattern: '/app/email/checkout', component: EmailCheckout, title: 'Hosted mail', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },
@@ -145,6 +152,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
+  { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },

@@ -1,7 +1,7 @@
-# Raport de pregătire pentru lansare — runda a treia și faza găzduirii de e-mail
+# Raport de pregătire pentru lansare — runda a treia, faza găzduirii de e-mail și faza comercială a e-mailului
 
 * **Data:** 2026-10-25
-* **Ramură:** `feature/mail-hosting`, întemeiată pe `fix/audit-round3` = `3bad854`, care întemeiată pe `origin/main` = `106809c`. **Niciun merge în `main`, niciun deploy în producție.**
+* **Ramură:** `feature/email-commerce`, întemeiată pe `feature/mail-hosting` = `6903a04`, care întemeiată pe `fix/audit-round3` = `3bad854`, care întemeiată pe `origin/main` = `106809c`. **Niciun merge în `main`, niciun deploy în producție.**
 * **Gazdă:** `debian@10.77.0.13` (VM 103). Producția a fost neatinsă: arborele este la `106809c`, cele 5 containere sunt healthy, Postgres și Redis nu au fost repornite, `stripe: not_configured`, `PAYMENTS_ENABLED=false`.
 * **Mașina nouă a e-mailului:** VM 104 `blipmade-mail` (`10.77.0.14`), Debian 13, 4 vCPU, 12 GB, 120 GB, cu Mailcow `55982ac` în 18 containere. A fost creată pe hipervizor și este singura mașină nouă adusă în scenariu.
 * **Ce s-a măsurat:** 694 teste API (70 fișiere) + 180 teste web, toate verzi; `tsc` curat pentru API (sursă și teste); suita web verde.
@@ -22,6 +22,8 @@ Cinci lucruri nu au dovezi suficiente, iar patru dintre ele nu se pot închide f
 5. **Platforma nu are o adresă publică.** Edge-ul `10.77.0.12` nu e configurat și `DOMAIN_BASE` e gol.
 
 Pentru găzduirea de e-mail, încă trei lucruri sunt deschise și toate trei sunt ale operatorului: adresa publică dedicată a e-mailului, `PTR` pentru ea și numele `mail.blipmade.com` în DNS. Detaliile, cu variabila exactă, locul și verificarea, sunt în `docs/MAIL_HOSTING.md`.
+
+**Faza comercială a e-mailului** (ramura `feature/email-commerce`) nu schimbă verdictul, ci adaugă un blocaj nou, tot al operatorului: **vânzarea e-mailului este închisă și nu poate fi deschisă înainte de dovezi**. Planurile există, cu limitele lor, sunt vizibile în vitrină și nu sunt cumpărate. Ca să fie deschisă vânzarea, trebuie să se întâmple, în această ordine: `mail.blipmade.com` în DNS și certificatul cu `SAN`; cheile Stripe și o plată de probă cu eveniment real; prețurile finale ale planurilor; copia de rezervă în afara mașinii cu drill de restaurare; și abia apoi `MAIL_SALES_ENABLED=true`. Până atunci, comanda unui plan de e-mail e refuzată **în cuvinte**, în catalog, în cotă și la comandă. Detaliile, cu variabila exactă, locul, formatul și verificarea, sunt în 3.9 și în `docs/MAIL_HOSTING.md` §7.
 
 În plus: consola Proxmox, `rpcbind` și `root` cu parolă sunt expuse public (`SEC-01`, `SEC-02`, `SEC-28`), iar 147 de constatări din registru nu au fost începute.
 
@@ -57,6 +59,20 @@ Toate de mai jos sunt în ramura `fix/audit-round3`, cu test de regresie în sui
 | 17 | **Nu exista o copie a e-mailului care să poată fi citită înapoi.** | `scripts/backup-mail.sh` (dump al bazei, volumele de e-mail, cheile DKIM, certificatele, manifest) și `scripts/restore-mail.sh` (sumă verificată, manifest, număr de domenii/căsuțe/aliasuri/mesaje). | Drill real pe VM 104: arhivă cu 2 domenii, 4 căsuțe, 4 aliasuri, 4 mesaje; suma `OK` |
 | 18 | **Nu existau înregistrări DNS pentru domeniile găzduite.** | Generatoare MX/SPF/DMARC/autodiscover/autoconfig/DKIM și verificare prin căutări reale; comparația e tolerantă la ordinea părților, la punctul final și la etichetele DKIM în plus. | `api/tests/mail-dns.test.ts` (16 teste) |
 
+**Faza comercială a e-mailului (ramura `feature/email-commerce`).** E-mailul a devenit un produs: se vinde singur, se adaugă la comanda unui server, are preț, limite și o viață proprie.
+
+| # | Ce era lipsă | Construcția | Dovezi |
+|---|---|---|---|
+| 19 | **Nu exista un catalog de planuri de e-mail.** | Categoria `EMAIL_HOSTING` și `Product.fulfilment = EMAIL`: un plan de e-mail nu are ou, nu are nod și nu are instanță. Limitele planului sunt pe coloane proprii (`mailMaxDomains`, `mailMaxMailboxes`, `mailMaxAliases`, `mailMaxForwarding`, `mailTotalStorageMb`, `mailMailboxQuotaMb`, `mailSendLimit`, `mailSendInterval`), prețul e în `ProductPrice`, în unități mici. Trei planuri **draft** în seed (`email-starter`, `email-plus`, `email-business`): limitele propuse, **niciun preț**, vânzarea închisă. | `api/tests/mail-commerce-admin.test.ts` (23 teste), `web/tests/email-commerce-admin-ui.test.ts` (17) |
+| 20 | **Platforma nu putea vinde e-mail: orice produs cerea un ou și un nod.** | `deploymentAvailability` știe acum că un produs `EMAIL` nu are nevoie de ou, iar vânzarea e deschisă doar de `MAIL_SALES_ENABLED` (închisă implicit). Refuzul e spus în cuvinte, în același loc, în catalog, în cotă și la comandă. | `api/tests/mail-commerce-routes.test.ts` (24), `api/tests/mail-commerce-flow.test.ts` (10) |
+| 21 | **Nu exista o identitate a e-mailului cu viață proprie.** | `MailService`: fără instanță, cu abonament fără instanță, cu limitele **copiate** din planul plătit (o schimbare de catalog nu schimbă un serviciu deja cumpărat), cu cheie de provisionare idempotentă. Anularea serverului nu o atinge, iar ea nu anulează serverul. | `api/tests/mail-commerce-flow.test.ts` — „keeps the mail when the server of the same customer is cancelled" |
+| 22 | **Progresul era per comandă, nu per linie.** | `OrderItem.fulfillmentStatus` + `fulfillmentError`: o linie de e-mail și o linie de server progresează separat; eșecul uneia nu marchează cealaltă și nu o șterge pe cealaltă. | `api/tests/mail-commerce-flow.test.ts` — „never marks one line as failed because the other one failed" |
+| 23 | **Nu exista verificare de proprietate a domeniului.** | Înregistrare `TXT` la `_blipmade-verify.<domeniu>` cu un token: domeniul e găzduit **numai** după ce clientul a demonstrat că îl are. Marcajul platformei (`blipmade-service:<id>`) pe domeniul din Mailcow ca două conturi să nu se poată suprapune, plus refuzul la comandă al unui domeniu deja găzduit pentru altcineva. | `api/tests/mail-commerce-routes.test.ts`, `api/tests/mail-commerce-flow.test.ts` — „refuses a domain that another customer already hosts" |
+| 24 | **Nu exista o coadă pentru e-mail.** | `blipmade.mail.provision`, cu repetare și reconciliere: un job de e-mail blocat nu blochează serverele și un eșec de server nu arată ca un eșec de e-mail. | `api/src/services/queue.ts`, `api/src/worker.ts` |
+| 25 | **Nu exista o perioadă de grație, de suspendare și de retenție.** | `MAIL_GRACE_PERIOD_DAYS` (implicit 14) și `MAIL_RETENTION_DAYS` (implicit 30): grația → suspendare → ștergere **la finalul retenției**. Ștergerea imediată la expirare e interzisă; o plată eșuată nu distruge date. | `api/tests/mail-commerce-flow.test.ts` — „keeps the data of a cancelled service through the grace and the retention" |
+| 26 | **Nu exista interfața.** | Vitrina publică `/email` (planurile se citesc și când nu sunt pe sale, cu motivul în cuvinte), comanda `/app/email/checkout`, secțiunea „Email hosting" din panoul clientului (servicii, plan, utilizare, domenii, demonstrarea de proprietate, DNS, webmail, suspendare/reactivare/anulare, schimbare de plan), **add-on-ul** la comanda serverului (nepselectat, preț recurent, linie separată în rezumat) și back office-ul (planuri, servicii, utilizare, limite de trimitere, acțiuni). | `web/tests/email-commerce-ui.test.ts` (20), `web/tests/email-commerce-admin-ui.test.ts` (17) |
+| 27 | **Prețul putea fi scris în interfață.** | Interfața citește limitele, prețurile, monedele și perioadele numai din API; testele citește sursa și refută orice preț literal în ea. | `web/tests/email-commerce-ui.test.ts`, `web/tests/email-commerce-admin-ui.test.ts` |
+
 **Runda anterioară, deja predată și îmbinată aici:** `fix/stripe-integration` (10 defecte de plată reparate, 77 de teste noi, CI 6/6 pe https://github.com/trencito42/blipmade-hosting/actions/runs/40133024733). Commit-ul de îmbinare: `6e59944`.
 
 ---
@@ -74,6 +90,10 @@ Nimic din blocul 1 rulează în producție: ramura nu a fost îmbinată și nu a
 | Fluxul plată → provisioning | Verificat cu **poarta locală de test**, nu cu Stripe. Semnătura a fost verificată contra secretului de test, nu contra unui eveniment real de la Stripe. | Chei Stripe în modul test (vezi blocul 3) || Găzduirea de e-mail, în ansamblu | Codul rulează pe o mașină de mail **reală**, dar nu în producție și nu pentru un client real: domeniul de probă e sub `.test` (rezervat, nu rezolvă niciodată) și mesajele de probă au mers într-o căsuță a serverului de mail al platformei. Niciun domeniu și nicio adresă de client nu au fost atinse. | Lansare + `MAILCOW_API_KEY` nou + numele `mail.blipmade.com` în DNS |
 | Calea tranzacțională prin Mailcow | Calea e măsurată cap la cap pe o mașină reală, dar **producția trimite în continuare în fișiere**, pentru că `SMTP_URL` e gol în `/opt/blipmade/.env` și pentru că cheia DKIM a lui `blipmade.com` nu e publicată încă. | Publicarea înregistrării DKIM (3.2.b) + `SMTP_URL` + recrearea containerelor |
 | Cheia API a serverului de e-mail | Cheia folosită a apărut în transcrierea lucrului, deci **trebuie rotită înainte de folosirea în producție**. | Cheie nouă cu `access=rw` și listă de adrese, în `MAILCOW_API_KEY` |
+| **Vânzarea e-mailului, cap la cap** | Codul e nou și e testat, dar **nicio comandă de e-mail nu a fost plătită**: nu există cheie Stripe, deci nu există eveniment real de plată și niciun client real cu un domeniu al lui. | Chei Stripe în modul test → o comandă de e-mail plătită → proba găzduirii pe Mailcow (3.9) |
+| **Provisionarea unui domeniu plătit** | Faza anterioară a creat și a șters un domeniu pe Mailcow prin serviciul platformei, dar nu printr-o comandă plătită și nu cu limita de trimitere a unui plan. | O comandă plătită + proba de găzduire cu plan |
+| **Limita de trimitere scrisă în Mailcow** | `edit/rl-domain` a fost apelat cu valoarea planului în timpul probei, nu prin fluxul de vânzare. | O comandă plătită + citirea limitei înapoi din Mailcow |
+| **Interfața comercială** | Testele rulează fără ecran (redare pe server și citirea sursei); nu s-a verificat într-un browser real, pe un telefon sau cu o tastatură. | Lansare + o parcurgere manuală a vitrinei, a comenzii și a add-on-ului |
 | Copia e-mailului care părăsește mașina | Copia e pe RAID 0, ca restul platformei, și arhiva conține secrete, deci nu poate călători necriptată. | `OFFSITE_TARGET` + `age` (vezi 3.3) |
 
 **Ce nu poate fi verificat cu nicio cheie, fiindcă nu e al platformei:** faptul că aplicația din container servește cu adevărat (nodul nu confirmă starea `running` — blocul 4, punctul 1).
@@ -223,6 +243,21 @@ sau în maparea portului, iar poarta rămâne singurul pas lipsă.
 
 ---
 
+### 3.9 Vânzarea e-mailului (comercializarea găzduirii)
+
+Vânzarea e-mailului e **închisă** (`MAIL_SALES_ENABLED=false`). Planurile se citesc în vitrină, cu limitele lor, dar nu se pot cumpăra. Cinci lucruri sunt întrebarea operatorului; fiecare cu variabila exactă, locul, formatul și verificarea.
+
+| Ce | Variabilă / loc | Formatul așteptat | Verificare |
+|---|---|---|---|
+| **Prețul planurilor** | Back office: `/admin/mail` → pagina planurilor (sau `PATCH /admin/mail/plans/:id`) | `prices: [{ "period": "MONTHLY", "amount": 1990, "currency": "EUR" }]`. `amount` e în **unități mici** (1990 = 19,90 EUR); `period` e `MONTHLY` sau `YEARLY` | `GET /mail/plans` răspunde cu `price.amount` și `price.period`; vitrina arată aceeași sumă |
+| **Cheile plăților** | `/opt/blipmade/.env` (containerul API): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` | Trei șiruri cu prefixul furnizorului; secretul de webhooks e cel al endpointului de webhooks, nu o cheie de API | O plată în modul test al furnizorului: evenimentul ajunge la `/webhooks/stripe`, comanda trece din `AWAITING_PAYMENT` în `PAID`, iar linia de e-mail trece în `PROVISIONING` **fără** o a doua plată |
+| **Numele serverului de e-mail în DNS** | DNS-ul zonei `blipmade.com`, la furnizorul de nume: înregistrare `A` pentru `mail.blipmade.com` → adresa publică a serverului de e-mail (azi `193.34.214.20`) | O adresă IPv4 publică, aceeași pe care o rezolvă și portul 25 | `dig +short mail.blipmade.com` răspunde cu adresa, iar serverul răspunde pe 443 cu un certificat care are numele în `SAN` |
+| **Certificatul serverului de e-mail** | `/opt/blipmade/.env`: `MAILCOW_API_CERT_SHA256` (amprenta SHA-256 a certificatului, hex mic) și `SMTP_CA_FILE` (fișierul CA pentru clienții de mail) | 64 de cifre hex, fără `:` | `curl -sS https://mail.blipmade.com/api/v1/get/status/version` răspunde fără avertisment de certificat |
+| **Copia de rezervă în afara mașinii** | Mediul mașinii de e-mail: `OFFSITE_TARGET` (bucket sau mașină), cu `age` și `rclone` instalate | O destinație de tip `s3:`/`rclone:` cu o cheie deja rotită | `sudo bash backup-mail.sh drill` restaurează ultima arhivă și numără domeniile, căsuțele și mesajele care au revenit; numărul e cel al arhivei |
+| **Deschiderea vânzării** | `/opt/blipmade/.env`: `MAIL_SALES_ENABLED=true`, apoi repornirea containerului API și a workerului | `true` sau `false` | `GET /mail/plans` răspunde cu `onSale: true` pentru planurile care au preț, iar `POST /catalog/quote` cu o linie de e-mail răspunde cu prețul, nu cu un refuz |
+
+**Ordinea**: DNS și certificat (3.9) → cheile plăților și o plată de probă (3.9) → prețurile planurilor (3.9) → copia de rezervă și drill-ul (3.9) → abia apoi `MAIL_SALES_ENABLED=true`. Până la ultimul pas, planurile rămân **draft**: vizibile, cu limitele lor, necomandabile.
+
 ## 4. Blocul 4 — Probleme reale de lansare, încă nerezolvate
 
 Acestea nu sunt blocaje de acces: sunt lucruri care rămân deschise chiar dacă operatorul dă cheile.
@@ -238,7 +273,10 @@ Acestea nu sunt blocaje de acces: sunt lucruri care rămân deschise chiar dacă
 9. **O parolă moartă e în istoricul Git** (`SEC-30`): curățarea cere force-push, deci aprobare.
 10. **147 de constatări din registru nu au fost începute** (`audit/12-FULL-FINDINGS-REGISTER.md`), dintre care `UX-02`, `UX-05`, `UX-06/07`, `UX-08`, `UX-09/10`, `UX-04`, `OPS-06`, `SEC-07`, `SEC-08`, `SEC-09`, `SEC-12`, `SEC-14`.
 11. **Găzduirea de e-mail nu poate fi lansată public încă.** Serverul de e-mail e real și funcționează, dar: (a) e-mailul iese prin adresa platformei, nu prin una dedicată, și e vorba despre o adresă care e și a site-ului, a panoului și a nodului; (b) **nu există `PTR` pentru niciuna dintre cele patru adrese** ale platformei, deci un receptor care caută numele invers al adresei ține sau aruncă mesajul; (c) `mail.blipmade.com` nu e în DNS, deci clienții nu pot publica un `MX` care să ajungă undeva; (d) certificatul serverului e semnat de el însuși (platforma îl acceptă prin pin, dar un client de mail nu îl va accepta). Toate patru sunt ale operatorului (3.2.b).
-12. **E-mailul clienților și e-mailul tranzacțional al platformei sunt două lucruri.** Serverul de e-mail poate găzdui domeniile clienților și poate trimite ca `blipmade.com`, dar `blipmade.com` are MX-ul la `mail.xodo.ro` (providerul actual), iar înregistrarea DKIM a lui `blipmade.com` nu e publicată. Decizia „MX-ul lui `blipmade.com` trece la serverul de e-mail" e a operatorului și schimbă unde se primesc e-mailurile de suport.
+12. **E-mailul clienților și e-mailul tranzacțional al platformei sunt două lucruri.**
+13. **Vânzarea e-mailului nu poate fi deschisă încă.** Codul e complet și testat (blocul 1, punctele 19–27), dar **nicio comandă de e-mail nu a fost plătită**: nu există cheie Stripe, nu există preț, `mail.blipmade.com` nu e în DNS, iar copia de rezervă nu părăsește mașina. Toate patru sunt ale operatorului (3.9). Până când sunt închise, `MAIL_SALES_ENABLED` rămâne `false` și planurile sunt draft-uri vizibile, necomandabile.
+14. **Plafonul platformei taie planurile mari.** `MAIL_MAX_DOMAINS_PER_CUSTOMER=3`, `MAIL_MAX_MAILBOXES_PER_DOMAIN=10`, `MAIL_MAX_QUOTA_MB_PER_DOMAIN=10240` și `MAIL_MAX_SEND_LIMIT=500` sunt plafonul de azi: planul `email-business` cere 10 domenii, 25 căsuțe și 2000 de mesaje pe oră, deci **limita aplicată e cea a plafonului**, nu cea a planului. E comportamentul dorit (o plan nu poate promite mai mult decât platforma poate ține), dar operatorul trebuie să ridice plafonul înainte să vândă planul mare, iar interfața arată ambele numere: cerut și aplicat.
+ Serverul de e-mail poate găzdui domeniile clienților și poate trimite ca `blipmade.com`, dar `blipmade.com` are MX-ul la `mail.xodo.ro` (providerul actual), iar înregistrarea DKIM a lui `blipmade.com` nu e publicată. Decizia „MX-ul lui `blipmade.com` trece la serverul de e-mail" e a operatorului și schimbă unde se primesc e-mailurile de suport.
 
 ---
 
@@ -257,6 +295,10 @@ Acestea nu sunt blocaje de acces: sunt lucruri care rămân deschise chiar dacă
 | Adresa publică a platformei | Nu există `PTR` pe niciuna dintre cele patru adrese; un `PTR` se cere furnizorului |
 | `SMTP_URL` în producție | Calea e dovedită, dar o semnătură DKIM care nu poate fi verificată e mai rea decât lipsa ei, deci activarea așteaptă publicarea cheii |
 | Cheia API a serverului de e-mail | Folosită ca atare în probe; trebuie rotită înainte de producție, pentru că a apărut în transcriere |
+| Prețurile finale ale planurilor de e-mail | Sunt o decizie comercială a operatorului. Seedul scrie **limitele propuse** și **niciun preț**: planurile sunt draft-uri vizibile și necomandabile |
+| Vânzarea e-mailului | `MAIL_SALES_ENABLED` e închisă implicit; nu se deschide până când plățile, mailul, DNS-ul, copia de rezervă și provisionarea nu sunt dovedite cap la cap |
+| DNS-ul domeniilor clienților | Platforma **doar verifică** înregistrările; demonstrația de proprietate se face printr-o înregistrare `TXT` publicată de client, nu scrisă de platformă |
+| Comenzi și abonamente reale | Nicio comandă reală nu a fost plătită sau modificată; toate probele au rulat pe baze de test cu sufix `_test` |
 
 ---
 
@@ -269,7 +311,8 @@ Acestea nu sunt blocaje de acces: sunt lucruri care rămân deschise chiar dacă
 5. **`TRUSTED_PROXIES` + edge-ul Caddy cu blocul `apps` și rută pentru subdomenii** → `DOMAIN_BASE`, `DOMAIN_TARGET`, `CADDY_ADMIN_URL`, `CADDY_ADMIN_TOKEN` → platforma devine accesibilă.
 6. **Health check-ul egg-ului 15 și aplicația din container** → nodul confirmă `running`.
 7. **`maxPerUser = 1` pe campania `LAUNCH`** și starea instanței `RESTARTING`.
-8. **Abia apoi**: merge în `main` și lansare.
+8. **Vânzarea e-mailului**, în ordinea din 3.9: DNS și certificat → cheile Stripe și o plată de probă → prețurile planurilor → copia de rezervă și drill → `MAIL_SALES_ENABLED=true`. Fiecare pas se dovedește înaintea următorului.
+9. **Abia apoi**: merge în `main` și lansare.
 
 Până la punctul 8, verdictul rămâne **NO-GO**.
 
@@ -283,11 +326,16 @@ Până la punctul 8, verdictul rămâne **NO-GO**.
 | Suita API (pe `feature/mail-hosting`) | **694 / 694**, 70 fișiere (baza `blipmade_mail_test`, Redis 9) |
 | Suita web (pe `fix/audit-round3`) | **144 / 144** |
 | Suita web (pe `feature/mail-hosting`) | **180 / 180** (144 + 20 pentru pagina clientului + 16 pentru pagina de back office) |
+| Suita API (pe `feature/email-commerce`) | **751 / 751**, 73 fișiere (baza `blipmade_mail_test`, Redis 9) — 694 + 24 rute client + 23 back office + 10 fluxuri cap la cap |
+| Suita web (pe `feature/email-commerce`) | **217 / 217**, 34 suite-uri (180 + 20 interfață client + 17 back office) |
+| Fluxuri comerciale dovedite cap la cap | `api/tests/mail-commerce-flow.test.ts` (10): cumpărare standalone, add-on la comanda unui server, izolarea eșecului unei linii, eveniment de plată livrat de două ori, anularea serverului cu e-mail activ, izolare între clienți, schimbare de plan după plată, grație și retenție, domeniu deja găzduit pentru altcineva, repetarea unei provisionări eșuate |
+| `gitleaks` 8.30.1 pe fișierele noi | **0 scurgeri** (38 de fișiere, 894 KB) |
 | `tsc` API (sursă) | curat |
 | `tsc` API (teste) | curat |
 | `actionlint` 1.7.7 | curat (local și în CI) |
 | Mutații verificate | 5: `queue.ts` (raportul livrărilor), `judgeContainer` strict, `judgeContainer` permisiv, garda țevii, scriptul de restaurare |
 | Probă pe infrastructură reală | creare/ștergere de domeniu, căsuță și alias pe Mailcow; tranzacțional trimis și citit înapoi peste IMAP; backup și drill de restaurare |
+| `tsc` web (sursă) | curat |
 | CI | vezi secțiunea 8 |
 
 ## 8. CI

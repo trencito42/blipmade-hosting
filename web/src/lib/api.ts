@@ -681,3 +681,205 @@ export const listAdminMailJobs = (query: AdminMailListQuery = {}, signal?: Abort
  */
 export const retryAdminMailJob = (id: string) =>
   post<{ job: AdminMailJob }>(`/admin/mail/jobs/${encodeURIComponent(id)}/retry`);
+
+// --- mail commerce --------------------------------------------------------
+
+/**
+ * The limits of a plan of hosted mail.
+ *
+ * Every limit is a number of the platform: the interface reads them and never
+ * writes one of them down.
+ */
+export interface MailPlanLimits {
+  /** How many domains the plan includes. */
+  maxDomains: number;
+  /** How many mailboxes a domain of the plan may hold. */
+  maxMailboxes: number;
+  /** How many aliases a domain of the plan may hold. */
+  maxAliases: number;
+  /** How many forwarding rules a domain of the plan may hold. */
+  maxForwarding: number;
+  /** The space of the whole plan, in megabytes. */
+  totalStorageMb: number;
+  /** The space of one mailbox, in megabytes. */
+  mailboxQuotaMb: number;
+  /** How many messages may be sent in the window of the interval. */
+  sendLimit: number;
+  /** The window in which the limit of sending is counted. */
+  sendInterval: string;
+}
+
+/**
+ * A price of a plan of hosted mail, in minor units of its currency.
+ *
+ * The period says how often the amount is charged.
+ */
+export interface MailPlanPrice {
+  amount: number;
+  currency: string;
+  period: string;
+}
+
+/**
+ * Whether a plan of hosted mail can be bought, and why not when it cannot.
+ *
+ * The blockers are the words of the platform: they are shown to the customer
+ * as they are.
+ */
+export interface MailPlanAvailability {
+  /** The state of the plan, seen from the outside. */
+  state: string;
+  /** True when the plan can be ordered right now. */
+  orderable: boolean;
+  /** Why the plan cannot be ordered. Empty when it can. */
+  blockers: string[];
+}
+
+/**
+ * A plan of hosted mail, as the public catalog of the platform sends it.
+ *
+ * The price is null when the plan has no price yet, and `onSale` is false
+ * when the operator closed the sale of hosted mail. A plan that is not on sale
+ * can still be read, it cannot be bought.
+ */
+export interface MailPlanView {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon: string;
+  limits: MailPlanLimits;
+  /** The price of the plan, or null when it has none yet. */
+  price: MailPlanPrice | null;
+  /** Every price of the plan, one per period. */
+  prices: MailPlanPrice[];
+  availability: MailPlanAvailability;
+  /** True when the sale of hosted mail is open for this plan. */
+  onSale: boolean;
+}
+
+/**
+ * The state of a mail service.
+ *
+ * A service is what a customer buys when they buy hosted mail. It has its own
+ * life: it waits for its domain, it is set up, it works, it may fall into a
+ * grace period, it may be suspended and it may be cancelled.
+ */
+export type MailServiceStatus =
+  | 'PENDING'
+  | 'PROVISIONING'
+  | 'ACTIVE'
+  | 'GRACE'
+  | 'SUSPENDED'
+  | 'CANCELLED';
+
+/**
+ * The state of the proof of ownership of a domain.
+ *
+ * The proof is a record of DNS that the customer publishes: the platform never
+ * writes the DNS of a customer.
+ */
+export type MailOwnershipStatus = 'UNVERIFIED' | 'VERIFIED' | 'FAILED';
+
+/**
+ * A domain of a mail service, with its state and its proof.
+ */
+export interface MailServiceDomainView {
+  id: string;
+  /** The hostname the customer owns, for example acme.ro. */
+  name: string;
+  status: string;
+  /** The state of the proof of ownership of the domain. */
+  ownershipStatus: MailOwnershipStatus;
+  /** The record of DNS that carries the proof. */
+  verificationHost: string | null;
+  /** The token the customer has to publish. */
+  verificationToken: string | null;
+  /** The moment the proof was accepted. */
+  verifiedAt: string | null;
+  /** The space of the domain, in megabytes. */
+  quotaMb: number;
+  /** The space the domain uses, in megabytes. */
+  usedMb: number;
+  /** How many mailboxes the domain has. */
+  mailboxCount: number;
+  /** How many aliases the domain has. */
+  aliasCount: number;
+  maxMailboxes: number;
+  maxAliases: number;
+  maxForwarding: number;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  /** The webmail of the customer, when the platform gives one. */
+  webmailUrl?: string | null;
+}
+
+/**
+ * A mail service of the customer: the plan that was paid for, the use of it
+ * and the domains it holds.
+ */
+export interface MailServiceView {
+  id: string;
+  status: MailServiceStatus;
+  plan: { slug: string; name: string; category: string };
+  limits: MailPlanLimits;
+  usage: {
+    /** How many domains the service holds. */
+    domains: number;
+    /** How many mailboxes the service holds. */
+    mailboxes: number;
+    /** The space the service uses, in megabytes. */
+    storageMb: number;
+    /** The space of the plan, in megabytes. */
+    storageLimitMb: number;
+  };
+  domains: MailServiceDomainView[];
+  /** The moment the grace period ends. */
+  graceUntil: string | null;
+  /** The moment the service was suspended. */
+  suspendedAt: string | null;
+  /** The moment the service was cancelled. */
+  cancelledAt: string | null;
+  /** The moment the data of the service is deleted. */
+  retentionUntil: string | null;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  createdAt: string;
+  /** The webmail of the customer, when the platform gives one. */
+  webmailUrl?: string | null;
+}
+
+/**
+ * A line of an order that buys hosted mail.
+ *
+ * A line of mail names the domain it brings and no resources: the plan of the
+ * line is the whole configuration.
+ */
+export interface MailPlanOrder {
+  productSlug: string;
+  mailDomain: string;
+}
+
+/** A record of DNS of a domain of a mail service. */
+export interface MailServiceDnsRecordView {
+  name: string;
+  type: string;
+  value: string;
+  priority?: number;
+  /** What the record is for, in words. */
+  purpose?: string;
+}
+
+/**
+ * The records of DNS of a domain of a mail service, and what the server has
+ * seen of them.
+ */
+export interface MailServiceDnsView {
+  id: string;
+  name: string;
+  records: MailServiceDnsRecordView[];
+  /** True when the server has seen the records of the domain. */
+  verified: boolean;
+  /** The records the server has not seen yet. */
+  missing?: string[] | boolean;
+}

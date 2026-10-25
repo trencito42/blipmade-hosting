@@ -295,6 +295,56 @@ export async function mailcowDomains(): Promise<MailcowDomain[]> {
   return asList<MailcowDomain>(answer);
 }
 
+/**
+ * One domain of the mail system, or nothing.
+ *
+ * The mail system holds one domain for the whole platform, so the platform
+ * has to be able to ask who holds it. The description of the domain is where
+ * the platform writes the id of the service that owns it.
+ */
+export async function mailcowDomain(domain: string): Promise<MailcowDomain | null> {
+  const answer = await mailcowRequest<MailcowDomain[] | Record<string, unknown>>('/get/domain/all');
+  const found = asList<MailcowDomain>(answer).find(
+    (row) => (row.domain_name ?? '').toLowerCase() === domain.toLowerCase(),
+  );
+  return found ?? null;
+}
+
+/**
+ * The limit of sending of a domain.
+ *
+ * The mail system counts the messages a domain sends in a window of time:
+ * an hour ("h"), a minute ("m") or a second ("s"). The limit of the plan of
+ * the customer is written here, so the mail system refuses the mass mail that
+ * the plan does not allow.
+ */
+export async function mailcowSetDomainRateLimit(
+  domain: string,
+  value: number,
+  frame: 'h' | 'm' | 's',
+): Promise<void> {
+  await mailcowRequest('/edit/rl-domain/', {
+    method: 'POST',
+    body: {
+      items: [domain],
+      attr: { rl_value: String(Math.max(1, Math.trunc(value))), rl_frame: frame },
+    },
+  });
+}
+
+/**
+ * Turns a domain of the mail system on or off.
+ *
+ * A suspended service is switched off here, so the mail stops at once, and
+ * the data of the customer stays where it is.
+ */
+export async function mailcowSetDomainActive(domain: string, active: boolean): Promise<void> {
+  await mailcowRequest('/edit/domain', {
+    method: 'POST',
+    body: { items: [domain], attr: { active: active ? '1' : '0' } },
+  });
+}
+
 /** Every mailbox of the mail system. */
 export async function mailcowMailboxes(): Promise<MailcowMailbox[]> {
   const answer = await mailcowRequest<MailcowMailbox[] | Record<string, unknown>>('/get/mailbox/all');
