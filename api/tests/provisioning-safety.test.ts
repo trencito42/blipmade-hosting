@@ -159,22 +159,32 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
  * key, so the tests cover both the configured and the missing case.
  */
 const clientState = { available: true };
-vi.mock('../src/services/pterodactyl/client.js', () => ({
-  clientApiAvailable: vi.fn(() => clientState.available),
-  clientToken: vi.fn((token: string) => token),
-  sendPower: vi.fn(async () => undefined),
-  // The application of the product is written into the container before it
-  // starts, so the files of the container are written here as well.
-  writeFile: vi.fn(async () => undefined),
-  // The error the panel raises when the key of the customer is refused.
-  ClientApiError: class ClientApiError extends Error {
+vi.mock('../src/services/pterodactyl/client.js', () => {
+  // The error the panel raises when the key of the customer is refused, and
+  // the one it raises when a file is not in the container.
+  class ClientApiError extends Error {
     status: number;
     constructor(status: number, message: string) {
       super(message);
       this.status = status;
     }
-  },
-}));
+  }
+
+  return {
+    clientApiAvailable: vi.fn(() => clientState.available),
+    clientToken: vi.fn((token: string) => token),
+    sendPower: vi.fn(async () => undefined),
+    // The application of the product is written into the container before it
+    // starts, so the files of the container are written here as well.
+    writeFile: vi.fn(async () => undefined),
+    // The container holds nothing when the provisioning starts, so the
+    // application is not in it yet and the platform writes it.
+    readFile: vi.fn(async () => {
+      throw new ClientApiError(404, 'The file is not in the container.');
+    }),
+    ClientApiError,
+  };
+});
 
 /**
  * The credential of a customer is faked as well. It comes from the bridge of
