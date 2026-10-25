@@ -78,7 +78,26 @@ MIGRATIONS='SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT N
 # have to be readable.
 echo "==> Checking the rest of the archive"
 archive_status=0
+
+# The uploads are in the archive only when the live host has an upload
+# storage. A host without one has nothing to archive, so the absence of the
+# archive of the uploads is not a failure there. The drill failed every night
+# on a host that never had any upload storage, and a signal that cries wolf
+# every night is a signal nobody reads.
+UPLOADS_EXPECTED=0
+if [[ -n "$(blipmade_upload_source "${OFFSITE_UPLOAD_DIR:-${ATTACHMENT_DIR:-}}")" ]]; then
+  UPLOADS_EXPECTED=1
+fi
+
 for member in uploads.tar.gz config.tar.gz; do
+  if [[ "$member" == "uploads.tar.gz" && "$UPLOADS_EXPECTED" != "1" ]]; then
+    if [[ -f "$WORK/$member" ]]; then
+      printf '  %-16s present\n' "$member"
+    else
+      printf '  %-16s not needed: this host has no upload storage\n' "$member"
+    fi
+    continue
+  fi
   if [[ -f "$WORK/$member" ]]; then
     if tar -tzf "$WORK/$member" >/dev/null 2>&1; then
       count="$(tar -tzf "$WORK/$member" 2>/dev/null | grep -cv '/$' || true)"
@@ -121,7 +140,11 @@ elif [[ "$live_tables" != "$restored_tables" || "$live_users" != "$restored_user
   status=1
 else
   echo "  RESULT: the backup restores into a database that matches the live one,"
-  echo "           and it holds the uploads and the configuration."
+  if [[ "$UPLOADS_EXPECTED" == "1" ]]; then
+    echo "           and it holds the uploads and the configuration."
+  else
+    echo "           and it holds the configuration."
+  fi
 fi
 
 exit "$status"
