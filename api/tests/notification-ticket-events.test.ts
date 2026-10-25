@@ -1,4 +1,21 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * The environment of the platform is replaced, so the suite does not depend
+ * on the addresses of the machine it runs on.
+ *
+ * The address of the operator is the inbox of the alarms of the platform, and
+ * it is the one that is told when nobody of the staff may read the queue. The
+ * file of the tests leaves it empty, which is the default of the environment,
+ * so the address of the support is the one that receives the messages of the
+ * queue. The case in which the operator is the one who is told is covered by
+ * `tests/notification-operator-fallback.test.ts`.
+ */
+vi.mock('../src/env.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/env.js')>();
+  return { ...actual, env: { ...actual.env, MAIL_OPERATOR_EMAIL: '' } };
+});
+
 import { prisma } from '../src/db.js';
 import { closeApp, createAdmin, getApp, registerAndLogin, resetDatabase } from './helpers.js';
 import { dispatchPendingEvents } from '../src/services/notification-dispatch.js';
