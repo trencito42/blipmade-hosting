@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { resolve, join, extname, sep } from 'node:path';
 import { createBrotliCompress, createGzip, constants as zlibConstants } from 'node:zlib';
-import { PROXIMA_NOVA_FILES, fontStatus } from './fonts.mjs';
+import { fontStatus } from './fonts.mjs';
 import { isTrustedAddress, parseTrustedProxies, resolveClientAddress } from './src/lib/client-address.mjs';
 
 const root = resolve(process.cwd(), 'dist');
@@ -208,38 +208,13 @@ function send(res, status, message) {
 /**
  * The typefaces of the interface.
  *
- * proxima nova is served from this machine, under `/fonts/`. The files are
- * placed by the operator, because a typeface that is licensed for the
- * desktop is not licensed for the web.
- *
- * The site does not pretend that the typeface is there when it is not: the
- * health of the site names the files that are missing, and the interface
- * keeps Geist as the fallback until the files arrive.
+ * The typeface of the interface is the typeface of the machine of the
+ * visitor, so there is no file of a typeface to wait for and none to be
+ * missing. The health of the site says so, so the operator can see that the
+ * site does not depend on a typeface of its own.
  */
-const fontDirectory = join(root, 'fonts');
-
-/**
- * The state of the typeface, read from the disk.
- *
- * The files are looked at every time the state is asked for, so the answer is
- * true even when a file is put in place while the site is running.
- */
-function currentFontStatus() {
-  const present = PROXIMA_NOVA_FILES.map(({ file }) => file).filter((file) =>
-    existsSync(join(fontDirectory, file)),
-  );
-  return fontStatus(present);
-}
-
-const fonts = currentFontStatus();
-if (fonts.installed) {
-  console.log(`Typeface: ${fonts.family} is served from /fonts (${fonts.files.length} files)`);
-} else {
-  console.warn(
-    `Typeface: the files of ${fonts.family} are not all there, so the interface uses ${fonts.fallback}. ` +
-      `Missing: ${fonts.missing.join(', ')}. See docs/TYPOGRAPHY.md.`,
-  );
-}
+const fonts = fontStatus();
+console.log(`Typeface: ${fonts.family} of the machine of the visitor, no web font for the text.`);
 
 /**
  * The addresses whose forwarding headers are believed. Every other request is
@@ -303,7 +278,7 @@ const server = createServer(async (req, res) => {
     // The health of the site names the typeface of the interface and the
     // files that are still missing, so the operator does not have to look
     // into the container to find out.
-    const body = JSON.stringify({ status: 'ok', fonts: currentFontStatus() });
+    const body = JSON.stringify({ status: 'ok', fonts: fontStatus() });
     return res.end(req.method === 'HEAD' ? undefined : body);
   }
 

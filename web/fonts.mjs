@@ -1,99 +1,113 @@
 /**
  * The typefaces of the interface.
  *
- * proxima nova is served from the machine itself. The files live under
- * `/fonts/` on the site and are named here, so the interface asks the browser
- * for them and the browser finds them on the same origin as the page.
+ * The interface asks for the typeface of the machine and for nothing else.
+ * There is no web font for the text: no file of a typeface is downloaded, no
+ * request goes to a house of typefaces, and the page is painted with the
+ * letters the visitor already has. The interface is therefore the same on
+ * every system, it never shifts while a font arrives, and it never sends the
+ * visitor to a third party to read a page.
  *
- * The files themselves are not part of this project. A typeface that is
- * licensed for the desktop is not licensed for the web, so the desktop files
- * are never converted and never published. The operator places the licensed
- * web files under `web/public/fonts/` and the build puts them next to the
- * page under `/fonts/`.
- *
- * The family of the interface is proxima nova, with Geist as the fallback.
- * The fallback stays in the stack, so the interface is readable before the
- * files arrive and when they are not there at all.
+ * The only font the site fetches is the icon font of Font Awesome, and it
+ * carries no letter of the text.
  */
 
 /** The family the interface asks for first. */
-export const PROXIMA_NOVA_FAMILY = 'Proxima Nova';
-
-/** The families that are always the fallback of the interface. */
-export const FALLBACK_SANS = ['Geist Variable', 'Inter', 'system-ui', 'sans-serif'];
+export const SYSTEM_UI_FAMILY = "system-ui";
 
 /**
- * The web files of proxima nova that the interface needs.
+ * The stack of the text of the interface.
  *
- * The three weights are the ones the interface asks for. A weight that is
- * not there is not invented by the browser: the browser takes the nearest
- * weight it has, so the three of them are named here.
+ * The stack starts with the system font of the visitor and ends with the
+ * generic family, so every browser of every system has something to draw
+ * with, even when none of the named families is there.
  */
-export const PROXIMA_NOVA_FILES = [
-  { file: 'proxima-nova-400.woff2', weight: 400 },
-  { file: 'proxima-nova-600.woff2', weight: 600 },
-  { file: 'proxima-nova-700.woff2', weight: 700 },
+export const SANS_STACK = [
+  "system-ui",
+  "-apple-system",
+  "BlinkMacSystemFont",
+  "Segoe UI",
+  "Roboto",
+  "Helvetica Neue",
+  "Noto Sans",
+  "Arial",
+  "sans-serif",
 ];
 
 /**
- * The stack of the interface.
+ * The stack of the text of the console, of the codes and of the numbers.
  *
- * proxima nova comes first and Geist stays the fallback, so the page is
- * never left without a typeface.
+ * The stack starts with the monospace font of the machine and ends with the
+ * generic family, the same way the stack of the text does.
  */
+export const MONO_STACK = [
+  "ui-monospace",
+  "SFMono-Regular",
+  "SF Mono",
+  "Menlo",
+  "Consolas",
+  "Liberation Mono",
+  "monospace",
+];
+
+/**
+ * The names the browser reads without quotes.
+ *
+ * A generic family and the name of a system family are written as they are.
+ * Every other name is written between quotes, because it has a space in it.
+ */
+const PLAIN = new Set([
+  "system-ui",
+  "-apple-system",
+  "BlinkMacSystemFont",
+  "Roboto",
+  "Arial",
+  "sans-serif",
+  "ui-monospace",
+  "monospace",
+]);
+
+/** The name of a family, the way the browser reads it. */
+export function familyName(name) {
+  return PLAIN.has(name) ? name : `"${name}"`;
+}
+
+/** The stack of the text of the interface. */
 export function sansStack() {
-  return [PROXIMA_NOVA_FAMILY, 'proxima-nova', ...FALLBACK_SANS];
+  return [...SANS_STACK];
+}
+
+/** The stack of the text of the console and of the codes. */
+export function monoStack() {
+  return [...MONO_STACK];
 }
 
 /** The stack of the interface, written the way the browser reads it. */
 export function sansStackValue() {
-  return sansStack()
-    .map((name) => `"${name}"`)
-    .join(', ');
+  return SANS_STACK.map(familyName).join(", ");
 }
 
-/**
- * The faces of proxima nova, as the text of a stylesheet.
- *
- * The paths are absolute and start with a slash, so they point at the files
- * under `/fonts/` on the site and not at a file of the build.
- */
-export function fontFaceRules() {
-  return PROXIMA_NOVA_FILES.map(
-    ({ file, weight }) =>
-      `@font-face{font-family:"${PROXIMA_NOVA_FAMILY}";` +
-      `src:url("/fonts/${file}") format("woff2");` +
-      `font-weight:${weight};font-style:normal;font-display:swap;}`,
-  );
-}
-
-/**
- * The files that are not there.
- *
- * The list is what the operator has to place under `web/public/fonts/`.
- */
-export function missingFiles(present) {
-  const have = new Set(present || []);
-  return PROXIMA_NOVA_FILES.map(({ file }) => file).filter((file) => !have.has(file));
+/** The stack of the console, written the way the browser reads it. */
+export function monoStackValue() {
+  return MONO_STACK.map(familyName).join(", ");
 }
 
 /**
  * What the site knows about the typeface of the interface.
  *
- * The answer is written down in the health of the site, so the operator can
- * see whether the files are there without looking into the container.
+ * There is nothing to install and nothing to be missing: the typeface is the
+ * one of the machine of the visitor. The answer is written down in the
+ * health of the site, so the operator can see that the site does not depend
+ * on a file of a typeface.
  */
-export function fontStatus(present) {
-  const missing = missingFiles(present);
+export function fontStatus() {
   return {
-    family: PROXIMA_NOVA_FAMILY,
-    installed: missing.length === 0,
-    files: PROXIMA_NOVA_FILES.map(({ file, weight }) => ({
-      file: `/fonts/${file}`,
-      weight,
-      present: (present || []).includes(file),
-    })),
-    missing: missing.map((file) => `/fonts/${file}`),
-    fallback: FALLBACK_SANS[0],
+    family: "System UI",
+    installed: true,
+    webfont: false,
+    files: [],
+    missing: [],
+    fallback: "sans-serif",
+    mono: "ui-monospace",
   };
 }

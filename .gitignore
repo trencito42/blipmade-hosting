@@ -13,12 +13,11 @@ tmp/
 *.tsbuildinfo
 # Scratch tooling installed on the server (playwright-core, ws)
 tools/
-# The web files of the typeface are licensed assets of the operator. They are
-# placed on the machine, not in the history. See docs/TYPOGRAPHY.md.
-web/public/fonts/*.woff
-web/public/fonts/*.woff2
-web/public/fonts/*.ttf
-web/public/fonts/*.otf
+# The icon font of Font Awesome Pro is licensed and the repository is
+# public, so the files are placed on the machine by
+# scripts/download-fontawesome-pro.py and are not in the history.
+# See docs/TYPOGRAPHY.md.
+web/public/fontawesome/
 # The before and after screenshots of the interface. They are a review
 # artefact, not source, and they would make the history heavy.
 screenshots/

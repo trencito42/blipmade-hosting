@@ -1,38 +1,13 @@
 @import "tailwindcss";
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
 
-/* proxima nova is served from this machine, under /fonts/.
+/* The typeface of the interface is the typeface of the machine.
  *
- * The files are placed by the operator, because a typeface that is licensed
- * for the desktop is not licensed for the web. The desktop files are never
- * converted and never published here.
- *
- * The paths are absolute, so the browser asks this site for the files and
- * not a third party. A file that is not there answers 404, the face is not
- * used and the interface keeps the Geist fallback of the stack below, so the
- * page is never left without a typeface. */
-@font-face {
-  font-family: "Proxima Nova";
-  src: url("/fonts/proxima-nova-400.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Proxima Nova";
-  src: url("/fonts/proxima-nova-600.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Proxima Nova";
-  src: url("/fonts/proxima-nova-700.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+ * No file of a typeface is downloaded and no house of typefaces is asked for
+ * anything: the interface asks for the system font of the visitor and for
+ * nothing else. The page is painted with the letters it already has, so it
+ * never shifts, it never waits, and it never sends the visitor to a third
+ * party to read a page. The icon font of Font Awesome is the only font that
+ * is fetched, and it carries no letter of the text. */
 
 /* Blipmade tokens. Near-black base, fine borders, one green accent. */
 @theme {
@@ -55,16 +30,17 @@
   /* One shade of red for the alerts of the interface: `bg-bad/10`, the block
      that carries an error message. The danger button keeps `bg-bad/12`,
      because it is a control and not an alert. */
-  /* proxima nova is the typeface of the interface. It is served from this
-     machine under /fonts/, and Geist stays the fallback, so the site never
-     waits for a font that is not there. The name is written twice, because
-     some tools write the family in small letters. */
-  --font-sans: "Proxima Nova", "proxima-nova", "Geist Variable", "Inter", system-ui, sans-serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* The typeface of the interface is the typeface of the machine: the stack
+     starts with the system font of the visitor and ends with the generic
+     family, so every system of every browser has something to draw with.
+     The names are written the way the browser reads them, and the family is
+     written twice because some tools write it in small letters. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
-  /* proxima nova has three weights. The tokens are normalized here, so every
-     place that asks for a weight asks for one the typeface really has and
-     nothing is synthesised by the browser. */
+  /* The system font has the weights the browser can draw. The tokens are
+     normalized here, so every place that asks for a weight asks for one the
+     typeface really has and nothing is synthesised by the browser. */
   --font-weight-normal: 400;
   --font-weight-medium: 400;
   --font-weight-semibold: 600;
@@ -73,6 +49,24 @@
   --font-weight-black: 700;
 
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* The duotone icons of the interface.
+ *
+ * The second layer of a duotone icon is a shade of the ink of the design
+ * system, not a second color of its own, so an icon reads the same in every
+ * theme and the state of a thing is told by its shape and not only by its
+ * color. */
+:root {
+  --fa-secondary-color: var(--color-ink3);
+  --fa-secondary-opacity: 0.4;
+}
+
+/* An icon is a font: the line it stands in keeps the height it had, and the
+   icon is centered in it. */
+.fa-icon {
+  line-height: 1;
+  vertical-align: -0.125em;
 }
 
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }

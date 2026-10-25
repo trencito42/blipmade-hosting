@@ -9,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
   type RefObject,
 } from 'react';
@@ -710,14 +709,8 @@ const inputBase = cn(fieldBase, 'h-14 rounded-full px-5 text-[16px] lg:text-[15p
 const areaBase = cn(fieldBase, 'rounded-2xl p-4 text-[16px] leading-relaxed lg:text-[15px]');
 const selectBase = cn(fieldBase, 'h-14 appearance-none rounded-full pl-5 pr-10 text-[16px] lg:text-[15px]');
 
-/** Chevron of the dropdown, drawn in the muted ink. */
-const selectChevron: CSSProperties = {
-  backgroundImage:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237b827b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
-  backgroundRepeat: 'no-repeat',
-  backgroundPosition: 'right 1.1rem center',
-  backgroundSize: '16px 16px',
-};
+/** The chevron of the dropdown, drawn with the icon font and not with a picture. */
+const selectChevron = "pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink3";
 
 export function TextInput({
   label,
@@ -768,14 +761,16 @@ export function Select({
   const selectId = props.id ?? id;
   return (
     <Field label={label} hint={hint} error={error} htmlFor={selectId}>
-      <select
-        {...props}
-        id={selectId}
-        style={{ ...selectChevron, ...props.style }}
-        className={cn(selectBase, error && errorRing, props.className)}
-      >
-        {children}
-      </select>
+      <div className="relative">
+        <select
+          {...props}
+          id={selectId}
+          className={cn(selectBase, error && errorRing, props.className)}
+        >
+          {children}
+        </select>
+        <Icon name="chevronDown" size={16} className={selectChevron} />
+      </div>
     </Field>
   );
 }
@@ -1386,7 +1381,7 @@ export function NotificationBellButton({
       }
       className="relative grid size-11 place-items-center rounded-full text-ink2 transition-colors duration-[180ms] hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
     >
-      <BellIcon />
+      <Icon name="bell" size={20} />
       {unread > 0 ? (
         <span
           data-unread-badge="true"
@@ -1457,22 +1452,3 @@ export function NotificationBellPanel({
   );
 }
 
-/** The bell, drawn like the other marks of the design system. */
-function BellIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-    </svg>
-  );
-}
