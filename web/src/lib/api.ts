@@ -558,3 +558,126 @@ export const deleteMailAlias = (domainId: string, aliasId: string) =>
  */
 export const getMailDns = (domainId: string, signal?: AbortSignal) =>
   get<{ records: DnsRecordView[]; verified: boolean }>(`/mail/domains/${domainId}/dns`, undefined, signal);
+
+// --- admin mail ------------------------------------------------------------
+
+/** The state of a hosted mail domain, as the API sends it. */
+export type AdminMailDomainStatus = 'pending' | 'active' | 'error' | 'suspended';
+
+/** The state of a job of the mail. */
+export type AdminMailJobStatus = 'queued' | 'running' | 'done' | 'failed';
+
+/**
+ * The health of the mail system and of the platform.
+ *
+ * `consistent` is null when the mail system could not be reached: there is
+ * nothing to compare then, so the page must not say that the two sides hold
+ * the same numbers.
+ */
+export interface AdminMailHealth {
+  service: {
+    /** Whether this environment points at a mail system at all. */
+    configured: boolean;
+    /** Whether the mail system answered the request. */
+    reachable: boolean;
+    /** The version the mail system reports. */
+    version: string | null;
+    /** The disk of the mail system. Null when the mail system did not answer. */
+    disk: { used: string; total: string; usedPercent: string } | null;
+    /** The words of the failure, when there is one. */
+    error: string | null;
+  };
+  /** What the platform believes it holds. */
+  platform: { domains: number; mailboxes: number; aliases: number; failedJobs: number };
+  /** What the mail system holds. Zero when the mail system did not answer. */
+  system: { domains: number; mailboxes: number; aliases: number };
+  /** True when the two sides hold the same numbers, false when they do not. */
+  consistent: boolean | null;
+}
+
+/** A hosted mail domain, with the customer that owns it. */
+export interface AdminMailDomain {
+  id: string;
+  /** The hostname the customer owns, for example acme.ro. */
+  name: string;
+  status: AdminMailDomainStatus;
+  /** The space of the whole domain, in megabytes. */
+  quotaMb: number;
+  /** The space the domain uses, in megabytes. */
+  usedMb: number;
+  /** How many mailboxes the domain has. */
+  mailboxes: number;
+  /** How many aliases the domain has. */
+  aliases: number;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  /** The customer that owns the domain. */
+  customer: { id: string; email: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A job the platform owes to the mail system. */
+export interface AdminMailJob {
+  id: string;
+  /** The work itself, for example mailbox.create. */
+  kind: string;
+  status: AdminMailJobStatus;
+  /** How many times the work was tried. */
+  attempts: number;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  /** True only for a failed job whose kind can be repeated. */
+  retryable: boolean;
+  /** The domain the work belongs to. Null when it belongs to none. */
+  domain: { id: string; name: string } | null;
+  /** What the work carries. */
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The page of a list that is walked with a cursor. */
+export interface AdminMailPagination {
+  limit: number;
+  /** The cursor of the next page. Null when there is no next page. */
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+/** The query of a list of the mail. */
+export interface AdminMailListQuery {
+  limit?: number;
+  cursor?: string;
+  status?: string;
+  search?: string;
+}
+
+/** The health of the mail system and of the platform. */
+export const getAdminMailHealth = (signal?: AbortSignal) =>
+  get<AdminMailHealth>('/admin/mail/health', undefined, signal);
+
+/** Every hosted mail domain of every customer, in pages. */
+export const listAdminMailDomains = (query: AdminMailListQuery = {}, signal?: AbortSignal) =>
+  get<{ domains: AdminMailDomain[]; total: number; pagination: AdminMailPagination }>(
+    '/admin/mail/domains',
+    { limit: query.limit, cursor: query.cursor, status: query.status, search: query.search },
+    signal,
+  );
+
+/** The work the platform owes to the mail system, in pages. */
+export const listAdminMailJobs = (query: AdminMailListQuery = {}, signal?: AbortSignal) =>
+  get<{ jobs: AdminMailJob[]; total: number; pagination: AdminMailPagination }>(
+    '/admin/mail/jobs',
+    { limit: query.limit, cursor: query.cursor, status: query.status },
+    signal,
+  );
+
+/**
+ * Repeats a job of the mail that failed.
+ *
+ * The server refuses the work it cannot repeat, and the words of the refusal
+ * are the ones the page shows.
+ */
+export const retryAdminMailJob = (id: string) =>
+  post<{ job: AdminMailJob }>(`/admin/mail/jobs/${encodeURIComponent(id)}/retry`);
