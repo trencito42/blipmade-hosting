@@ -37,6 +37,7 @@ const AppInstanceDetail = lazy(() => import('./app/InstanceDetail'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
+const AppMail = lazy(() => import('./app/Mail'));
 const AppBilling = lazy(() => import('./app/Billing'));
 const AppTickets = lazy(() => import('./app/Tickets'));
 const AppTicketDetail = lazy(() => import('./app/TicketDetail'));
@@ -126,6 +127,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
+  { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },

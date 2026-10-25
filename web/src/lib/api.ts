@@ -441,3 +441,120 @@ export interface Subscription {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
 }
+
+// --- mail -----------------------------------------------------------------
+
+/**
+ * An email domain of the customer.
+ *
+ * The server sends the whole picture of a domain, so the page never has to
+ * count the mailboxes and the aliases by itself.
+ */
+export interface MailDomainView {
+  id: string;
+  /** The hostname the customer owns, for example acme.ro. */
+  name: string;
+  status: 'pending' | 'active' | 'error' | 'suspended';
+  /** The space of the whole domain, in megabytes. */
+  quotaMb: number;
+  /** The space the domain uses, in megabytes. */
+  usedMb: number;
+  maxMailboxes: number;
+  maxAliases: number;
+  /** How many mailboxes the domain has. */
+  mailboxes: number;
+  /** How many aliases the domain has. */
+  aliases: number;
+  /** The public key of DKIM, when the server has one for the domain. */
+  dkimPublic: string | null;
+  /** The webmail of the customer, when there is one. */
+  webmailUrl: string | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
+/** A mailbox of a domain. */
+export interface MailboxView {
+  id: string;
+  /** The address of the mailbox, for example contact@acme.ro. */
+  address: string;
+  status: 'active' | 'disabled';
+  quotaMb: number;
+  usedMb: number;
+  /**
+   * The password of the mailbox. It is only in the answer that creates the
+   * mailbox, and only when the server made the password itself.
+   */
+  password?: string;
+  createdAt: string;
+}
+
+/** An alias: another address that reaches a mailbox. */
+export interface MailAliasView {
+  id: string;
+  /** The address of the alias, for example info@acme.ro. */
+  alias: string;
+  /** The mailbox that receives the mail of the alias. */
+  target: string;
+  createdAt: string;
+}
+
+/** A DNS record the customer has to publish for the mail to work. */
+export interface DnsRecordView {
+  name: string;
+  type: 'MX' | 'TXT' | 'CNAME';
+  value: string;
+  priority?: number;
+  /** What the record is for, in words: where the mail is delivered. */
+  purpose: string;
+}
+
+/** The email domains of the customer. */
+export const listMailDomains = (signal?: AbortSignal) =>
+  get<{ domains: MailDomainView[] }>('/mail/domains', undefined, signal);
+
+/** One email domain, with its counters. */
+export const getMailDomain = (id: string, signal?: AbortSignal) =>
+  get<{ domain: MailDomainView }>(`/mail/domains/${id}`, undefined, signal);
+
+/** Adds an email domain. The server answers with the domain it created. */
+export const createMailDomain = (name: string) => post<{ domain: MailDomainView }>('/mail/domains', { name });
+
+/** Deletes an email domain with everything it holds. */
+export const deleteMailDomain = (id: string) => del<{ ok: true }>(`/mail/domains/${id}`);
+
+/** The mailboxes of a domain. */
+export const listMailboxes = (domainId: string, signal?: AbortSignal) =>
+  get<{ mailboxes: MailboxView[] }>(`/mail/domains/${domainId}/mailboxes`, undefined, signal);
+
+/**
+ * Adds a mailbox to a domain.
+ *
+ * Without a password the server makes one and sends it back. That answer is
+ * the only time the password is ever seen.
+ */
+export const createMailbox = (domainId: string, body: { localPart: string; password?: string }) =>
+  post<{ mailbox: MailboxView }>(`/mail/domains/${domainId}/mailboxes`, body);
+
+/** Deletes a mailbox of a domain. */
+export const deleteMailbox = (domainId: string, mailboxId: string) =>
+  del<{ ok: true }>(`/mail/domains/${domainId}/mailboxes/${mailboxId}`);
+
+/** The aliases of a domain. */
+export const listMailAliases = (domainId: string, signal?: AbortSignal) =>
+  get<{ aliases: MailAliasView[] }>(`/mail/domains/${domainId}/aliases`, undefined, signal);
+
+/** Adds an alias that reaches a mailbox of the domain. */
+export const createMailAlias = (domainId: string, body: { alias: string; target: string }) =>
+  post<{ alias: MailAliasView }>(`/mail/domains/${domainId}/aliases`, body);
+
+/** Deletes an alias of a domain. */
+export const deleteMailAlias = (domainId: string, aliasId: string) =>
+  del<{ ok: true }>(`/mail/domains/${domainId}/aliases/${aliasId}`);
+
+/**
+ * The DNS records the customer has to publish for a domain, and whether the
+ * server has seen them already.
+ */
+export const getMailDns = (domainId: string, signal?: AbortSignal) =>
+  get<{ records: DnsRecordView[]; verified: boolean }>(`/mail/domains/${domainId}/dns`, undefined, signal);

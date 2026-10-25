@@ -23,6 +23,7 @@ const P = {
   flow: 'M5 5h5v5H5zM14 14h5v5h-5zM10 7.5h3a2 2 0 0 1 2 2V14',
   code: 'm8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14',
   doc: 'M7 3h7l5 5v13H7zM14 3v5h5',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
 } as const;
 export type IconName = keyof typeof P;
 export function Icon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
