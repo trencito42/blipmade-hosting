@@ -146,26 +146,39 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
 /** The files that are written into the container, so the test can read them. */
 const writtenFiles: { path: string; content: string }[] = [];
 
-vi.mock('../src/services/pterodactyl/client.js', () => ({
-  clientApiAvailable: vi.fn(() => true),
-  clientToken: vi.fn((token: string) => token),
-  sendPower: vi.fn(async () => undefined),
-  writeFile: vi.fn(async (_token: string, _uuid: string, path: string, content: string) => {
-    writtenFiles.push({ path, content });
-  }),
-  getResources: vi.fn(async () => ({
-    state: panel.containerState,
-    memory_bytes: 64 * 1024 * 1024,
-    is_suspended: false,
-  })),
-  ClientApiError: class ClientApiError extends Error {
+/** The files that are already in the container when the provisioning starts. */
+const containerFiles = new Map<string, string>();
+
+vi.mock('../src/services/pterodactyl/client.js', () => {
+  class ClientApiError extends Error {
     status: number;
     constructor(status: number, message: string) {
       super(message);
       this.status = status;
     }
-  },
-}));
+  }
+
+  return {
+    clientApiAvailable: vi.fn(() => true),
+    clientToken: vi.fn((token: string) => token),
+    sendPower: vi.fn(async () => undefined),
+    readFile: vi.fn(async (_token: string, _uuid: string, path: string) => {
+      const content = containerFiles.get(path);
+      if (content === undefined) throw new ClientApiError(404, `The file ${path} is not in the container.`);
+      return { content, encoding: 'utf-8' };
+    }),
+    writeFile: vi.fn(async (_token: string, _uuid: string, path: string, content: string) => {
+      writtenFiles.push({ path, content });
+      containerFiles.set(path, content);
+    }),
+    getResources: vi.fn(async () => ({
+      state: panel.containerState,
+      memory_bytes: 64 * 1024 * 1024,
+      is_suspended: false,
+    })),
+    ClientApiError,
+  };
+});
 
 vi.mock('../src/services/panel/credentials.js', () => ({
   resolveCustomerCredential: vi.fn(async () => ({
@@ -181,6 +194,7 @@ vi.mock('../src/services/panel/credentials.js', () => ({
 
 const { prisma } = await import('../src/db.js');
 const { provisionInstance } = await import('../src/services/provisioning.js');
+const { starterFiles } = await import('../src/services/starter-apps.js');
 const { closeApp, getApp, registerAndLogin, resetDatabase } = await import('./helpers.js');
 
 beforeAll(async () => {
@@ -200,6 +214,7 @@ beforeEach(async () => {
   panel.accounts = [];
   panel.containerState = 'running';
   writtenFiles.length = 0;
+  containerFiles.clear();
   vi.stubGlobal('fetch', vi.fn(async () => new Response('ok', { status: 200 })));
 });
 
@@ -248,8 +263,11 @@ describe('the application of a new container', () => {
     const application = writtenFiles.find((file) => file.path === 'index.js');
     expect(application).toBeDefined();
     // The node publishes the port 30000 for this allocation, so the
-    // application has to answer there.
-    expect(application!.content).toContain('const port = Number(process.env.PORT || 30000)');
+    // application has to answer there. The panel gives that port to the
+    // container in `SERVER_PORT`, so the application reads that name first.
+    expect(application!.content).toContain(
+      'const port = Number(process.env.SERVER_PORT || process.env.PORT || 30000)',
+    );
   });
 
   it('is not accepted while the application does not answer on the port of the allocation', async () => {
@@ -276,6 +294,64 @@ describe('the application of a new container', () => {
 
     await provisionInstance(instance.id);
 
+    const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(updated?.status).toBe('ONLINE');
+  });
+
+  it('corrects the port of a file of the platform that is already in the container', async () => {
+    const instance = await seedInstance({ kind: 'http', path: '/' });
+
+    // The container holds the application of the platform, written before the
+    // port was corrected: it listened on a port of its own.
+    const platform = starterFiles({
+      slug: 'discord-bot',
+      name: 'Discord Bot',
+      healthPath: '/',
+      port: 30000,
+    });
+    const code = platform.find((file) => file.path === 'index.js')!;
+    containerFiles.set(
+      'index.js',
+      code.content.replace(
+        'const port = Number(process.env.SERVER_PORT || process.env.PORT || 30000);',
+        'const port = Number(process.env.PORT || 3000);',
+      ),
+    );
+    containerFiles.set('package.json', platform.find((file) => file.path === 'package.json')!.content);
+
+    await provisionInstance(instance.id);
+
+    const application = writtenFiles.find((file) => file.path === 'index.js');
+    expect(application).toBeDefined();
+    expect(application!.content).toContain(
+      'const port = Number(process.env.SERVER_PORT || process.env.PORT || 30000)',
+    );
+    // The package of the platform is already right, so it is not written again.
+    expect(writtenFiles.find((file) => file.path === 'package.json')).toBeUndefined();
+  });
+
+  it('never writes over the code of a customer', async () => {
+    const instance = await seedInstance({ kind: 'http', path: '/' });
+
+    // The customer replaced the application of the platform with their own.
+    const customer = [
+      'const http = require("node:http");',
+      'const port = Number(process.env.SERVER_PORT || process.env.PORT || 30000);',
+      'http.createServer((request, response) => {',
+      '  response.writeHead(200);',
+      '  response.end("the code of the customer");',
+      '}).listen(port);',
+      '',
+    ].join('\n');
+    containerFiles.set('index.js', customer);
+
+    await provisionInstance(instance.id);
+
+    // The file of the customer is not written over.
+    expect(writtenFiles.find((file) => file.path === 'index.js')).toBeUndefined();
+    expect(containerFiles.get('index.js')).toBe(customer);
+
+    // The service is still handed over.
     const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(updated?.status).toBe('ONLINE');
   });

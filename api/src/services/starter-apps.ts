@@ -14,13 +14,27 @@
  * The application here is the smallest one that is real: an HTTP server that
  * answers on the health path of the product and on every other path. The
  * code of a product replaces it by writing its own files over it.
+ *
+ * The port is the one of the allocation, and the application has to listen on
+ * it. The node publishes the port of the allocation for the container and the
+ * route of the domain of the customer points at that same port, so an
+ * application that listens on another port is served by nobody. Pterodactyl
+ * gives the container that port in `SERVER_PORT`; the name `PORT` is the one
+ * the platform used to read, and the panel does not set it. The port of the
+ * allocation is written into the file as well, so the application still lands
+ * on the right port when the panel gives no variable at all.
  */
+
+/** What a file of the platform is. It decides how the file is compared. */
+export type StarterFileKind = 'code' | 'package' | 'readme';
 
 export interface StarterFile {
   /** The path of the file, relative to the home directory of the container. */
   path: string;
   /** The content of the file. */
   content: string;
+  /** What the file is. */
+  kind: StarterFileKind;
 }
 
 export interface StarterAppInput {
@@ -30,8 +44,41 @@ export interface StarterAppInput {
   name: string;
   /** The path the health check of the product uses. */
   healthPath: string;
-  /** The port the application listens on. */
-  port?: number;
+  /**
+   * The port of the allocation the application listens on.
+   *
+   * The port is never left out: an application that was written without one
+   * would fall back to a port of its own, and the node would publish a
+   * different one.
+   */
+  port: number;
+}
+
+/**
+ * The line of the generated code that holds the port.
+ *
+ * The line is recognised by its shape, so a file that is not the application
+ * of the platform is never taken for it.
+ */
+const PORT_LINE = /^const port = .*$/m;
+
+/**
+ * The line of the port of the generated code.
+ *
+ * `SERVER_PORT` is the variable Pterodactyl gives the container, and it holds
+ * the port of the allocation. `PORT` is read as well, because a container of
+ * an operator may be started with it. The port of the allocation is the last
+ * resort.
+ *
+ * A port that is not a number is refused: an application that is written
+ * without a port of its own would listen on a port of its own, and the node
+ * publishes the port of the allocation, so nobody would reach it.
+ */
+function portLine(port: number): string {
+  if (!Number.isFinite(port) || port <= 0) {
+    throw new Error('The application needs the port of the allocation to listen on.');
+  }
+  return `const port = Number(process.env.SERVER_PORT || process.env.PORT || ${port});`;
 }
 
 function packageJson(input: StarterAppInput): string {
@@ -51,7 +98,6 @@ function packageJson(input: StarterAppInput): string {
 }
 
 function indexJs(input: StarterAppInput): string {
-  const port = input.port ?? 3000;
   return `// ${input.name}, deployed by Blipmade.
 //
 // The application that the platform starts in this container. It answers on
@@ -59,7 +105,7 @@ function indexJs(input: StarterAppInput): string {
 // successful when the application really responds.
 const http = require('node:http');
 
-const port = Number(process.env.PORT || ${port});
+${portLine(input.port)}
 const healthPath = ${JSON.stringify(input.healthPath)};
 const startedAt = Date.now();
 
@@ -111,8 +157,109 @@ files over them and the service that starts is yours.
  */
 export function starterFiles(input: StarterAppInput): StarterFile[] {
   return [
-    { path: 'package.json', content: packageJson(input) },
-    { path: 'index.js', content: indexJs(input) },
-    { path: 'README.md', content: readme(input) },
+    { path: 'package.json', content: packageJson(input), kind: 'package' },
+    { path: 'index.js', content: indexJs(input), kind: 'code' },
+    { path: 'README.md', content: readme(input), kind: 'readme' },
   ];
+}
+
+/**
+ * The file of the platform without the line of the port.
+ *
+ * The line of the port is the one that has to be repaired, so it is left out
+ * of the comparison. Everything else has to be the file of the platform, so a
+ * file that a customer wrote is never taken for it.
+ */
+function withoutPortLine(content: string): string {
+  return content.replace(PORT_LINE, '');
+}
+
+/**
+ * True when the file in the container is the application of the platform.
+ *
+ * The comparison is strict: the file has to be the file of the platform, down
+ * to every line but the one of the port. A file that a customer changed is
+ * therefore never the file of the platform, and it is never touched.
+ */
+export function isStarterFile(file: StarterFile, content: string): boolean {
+  if (file.kind === 'code') {
+    return withoutPortLine(content) === withoutPortLine(file.content);
+  }
+  return content === file.content;
+}
+
+/**
+ * The file of the platform, with the line of the port corrected.
+ *
+ * Returns nothing when the file in the container is not the application of the
+ * platform, so the code of a customer is never overwritten. When the file is
+ * the file of the platform and nothing has to be changed, nothing is returned
+ * either, so the file is not written for nothing.
+ */
+export function repairStarterFile(file: StarterFile, content: string): string | null {
+  if (!isStarterFile(file, content)) return null;
+
+  // The package and the readme carry no port, so there is nothing to repair in
+  // them: when they are the files of the platform, they are already right.
+  if (file.kind !== 'code') return null;
+
+  // The line of the port of the file of the platform carries the port of the
+  // allocation, so it is the one that replaces the line of the container.
+  const platformLine = file.content.match(/^const port = .*$/m);
+  if (!platformLine) return null;
+  const repaired = content.replace(PORT_LINE, platformLine[0]);
+  return repaired === content ? null : repaired;
+}
+
+/** What the platform does with a file of the container. */
+export type StarterFileAction = 'write' | 'repair' | 'keep';
+
+export interface StarterFilePlan {
+  /** The path of the file. */
+  path: string;
+  /** What the platform does with the file. */
+  action: StarterFileAction;
+  /** The content that is written, or nothing when the file is left as it is. */
+  content: string | null;
+  /** True when the file in the container is the application of the platform. */
+  platform: boolean;
+}
+
+/**
+ * What has to happen to the files of the application in a container.
+ *
+ * The files that are already there are read first, so the decision is made on
+ * what the container really holds:
+ *
+ * - a file that is not there is written;
+ * - a file that is the application of the platform is repaired, and only the
+ *   line of the port is corrected;
+ * - a file that a customer wrote is left exactly as it is.
+ *
+ * The decision is pure, so it can be checked without a panel.
+ */
+export function planStarterFiles(
+  files: StarterFile[],
+  existing: ReadonlyMap<string, string>,
+): StarterFilePlan[] {
+  return files.map((file) => {
+    const current = existing.get(file.path);
+
+    if (current === undefined) {
+      return { path: file.path, action: 'write', content: file.content, platform: true };
+    }
+
+    if (!isStarterFile(file, current)) {
+      // The container holds the code of a customer here. It is not the file of
+      // the platform, so the platform does not write over it.
+      return { path: file.path, action: 'keep', content: null, platform: false };
+    }
+
+    const repaired = repairStarterFile(file, current);
+    if (repaired === null) {
+      return { path: file.path, action: 'keep', content: null, platform: true };
+    }
+
+    return { path: file.path, action: 'repair', content: repaired, platform: true };
+  });
 }

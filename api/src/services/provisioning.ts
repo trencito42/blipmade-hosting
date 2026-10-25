@@ -13,7 +13,7 @@ import {
   resolveCustomerCredential,
 } from './panel/credentials.js';
 import { cancelSubscription, refundPayment } from './stripe.js';
-import { starterFiles } from './starter-apps.js';
+import { planStarterFiles, starterFiles } from './starter-apps.js';
 import type { Instance, Product } from '@prisma/client';
 import {
   judgeContainer,
@@ -250,6 +250,23 @@ function isUnauthenticated(error: unknown): boolean {
 }
 
 /**
+ * Reads a file of a container, or nothing when the container does not hold it.
+ *
+ * A file that is not there is not an error: the platform writes it in that
+ * case. Any other failure of the panel is left alone, so a broken panel is
+ * never mistaken for an empty container.
+ */
+async function readFileIfPresent(token: string, uuid: string, path: string): Promise<string | null> {
+  try {
+    const file = await pteroClient.readFile(token, uuid, path);
+    return file.content;
+  } catch (error) {
+    if (error instanceof pteroClient.ClientApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/**
  * Puts the application of the product into a new container.
  *
  * The audit found a sold product whose container held nothing but `.npm/` and
@@ -261,9 +278,15 @@ function isUnauthenticated(error: unknown): boolean {
  * The application listens on the port of the allocation, and not on a port of
  * its own: the node publishes the port of the allocation for the container,
  * and the route of the domain of the customer points at that same port. An
- * application that listened on another port would be served by nobody.
+ * application that listened on another port would be served by nobody. The
+ * port of the allocation is written into the file, and the file reads the
+ * `SERVER_PORT` that the panel gives the container first, so the application
+ * follows the port the node really published.
  *
- * The write is safe to repeat: the same files are written again.
+ * The write is safe to repeat and it never takes the code of a customer away:
+ * the files that are already in the container are read first. A file that is
+ * the application of the platform is repaired, and only the line of the port
+ * is corrected. A file that a customer wrote is left exactly as it is.
  */
 async function placeStarterApplication(
   instance: Instance,
@@ -276,16 +299,49 @@ async function placeStarterApplication(
     slug: product.slug,
     name: product.name,
     healthPath: probe.kind === 'http' ? (probe.path ?? '/') : '/',
-    port: port > 0 ? port : undefined,
+    port,
   });
 
-  await withCustomerKey(instance.userId, async (token) => {
+  const outcome = await withCustomerKey(instance.userId, async (token) => {
+    const existing = new Map<string, string>();
     for (const file of files) {
-      await pteroClient.writeFile(token, server.uuid, file.path, file.content);
+      const content = await readFileIfPresent(token, server.uuid, file.path);
+      if (content !== null) existing.set(file.path, content);
     }
+
+    const plan = planStarterFiles(files, existing);
+    for (const entry of plan) {
+      if (entry.content === null) continue;
+      await pteroClient.writeFile(token, server.uuid, entry.path, entry.content);
+    }
+    return plan;
   });
 
-  await recordEvent(instance.id, 'provisioning', `Placed the application of ${product.name} in the container.`);
+  const written = outcome.filter((entry) => entry.action === 'write').length;
+  const repaired = outcome.filter((entry) => entry.action === 'repair').length;
+  const kept = outcome.filter((entry) => entry.action === 'keep' && !entry.platform).length;
+
+  if (written > 0) {
+    await recordEvent(
+      instance.id,
+      'provisioning',
+      `Placed the application of ${product.name} in the container (${written} file(s) written).`,
+    );
+  }
+  if (repaired > 0) {
+    await recordEvent(
+      instance.id,
+      'provisioning',
+      `Corrected the port of the application of ${product.name} in the container, so it listens on the published port.`,
+    );
+  }
+  if (kept > 0) {
+    await recordEvent(
+      instance.id,
+      'provisioning',
+      `Kept the code of the customer in the container (${kept} file(s) left untouched).`,
+    );
+  }
 }
 
 /**
