@@ -40,6 +40,7 @@ them is checked on its own.
 | `/usr/local/sbin/blipmade-firewall.sh` | edge | The rules that close the ports of the gateway. |
 | `/etc/systemd/system/blipmade-firewall.service` | edge | Runs the rules at every boot, before Caddy. |
 | `/etc/systemd/system/caddy.service.d/blipmade.conf` | edge | Puts the token in the environment of the service. |
+| `/var/log/caddy/access.log` | edge, `caddy:caddy` | The requests of the visitors. The cookie of the session and the authorization header are removed before anything is written. |
 
 ### 2.1 The administrative API is not reachable
 
@@ -213,6 +214,8 @@ customer.
 | The routes were written with the API and nothing brought them back | A restart of the edge took every route away | The worker writes the routes again every minute |
 | The token of the platform was sent, but Caddy never checked it | The token was decoration | A gateway in front of the API checks it, and the firewall lets only the platform reach the gateway |
 | The reference of the edge said `trusted_proxies static …` and a block `apps` | The configuration was refused by Caddy 2.11.2 | The reference was corrected, and the edge runs the configuration that works |
+| The list of the proxies that are believed was at the route and not at the server | The address that the edge wrote down was the address of the CDN, and not the address of the visitor | The list is at the server, the chain is read from the right (`trusted_proxies_strict`), and the address of the visitor is the one that is written down |
+| The edge had no journal of the requests | Nothing could be read back about the traffic of the edge | The edge writes `/var/log/caddy/access.log`, without the cookie of the session and without the authorization header |
 | The client of the platform sends `Sec-Fetch-Mode`, and the administrative API refuses a request that carries it and no origin | Every call of the platform was refused with "client is not allowed to access from origin" | The gateway drops the headers of a browser before the call reaches the API |
 
 ---
