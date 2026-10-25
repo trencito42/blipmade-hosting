@@ -79,7 +79,7 @@
 #
 # THE ADDRESS OF THE CLIENT
 #
-# The web server resolves the address of the client from the chain of the
+# The server resolves the address of the client from the chain of the
 # `X-Forwarded-For` header, reading the chain from the right: the last
 # address of the chain that is not a known proxy is the address of the client.
 #
@@ -87,13 +87,18 @@
 # reverse proxy is to APPEND the address of the client to whatever the client
 # sent, so a visitor that sends its own `X-Forwarded-For` keeps its forged
 # values at the head of the chain. A chain with a single element — the one
-# the client forged itself — is then indistinguishable from the chain the
+# the client forged himself — is then indistinguishable from the chain the
 # edge wrote, and the platform believes the forged address.
 #
-# With `trusted_proxies` set, Caddy ignores the header of the visitor and
-# writes the address it resolved from the trusted chain. The forged values
-# are dropped at the edge, so the chain the platform reads is the chain the
-# edge wrote.
+# The list of the proxies that are believed belongs to the SERVER and not to
+# the route: the server is what resolves the address of the client, and the
+# route only writes it down. With the list at the route, the address the
+# edge resolved was the address of the CDN, and the platform wrote that one
+# down instead of the address of the visitor.
+#
+# `trusted_proxies_strict` makes the chain be read from the right. Without
+# it, the chain is read from the left, and the first address of the chain —
+# the one the visitor wrote himself — is the one that is believed.
 #
 # The verification is in the audit log: the address of the visitor is the one
 # that is written down, and it is never a range of the proxy.
@@ -123,10 +128,10 @@
 # The ranges below are the published ranges of the CDN. Check them against
 # the current list of the operator before applying them.
 #
-# NOTE ON THE SYNTAX OF `trusted_proxies`: the ranges are written directly.
-# The name of the module of the source of the ranges (`static`) is not part of
-# the syntax of the `reverse_proxy` in Caddy 2.11.2, and the configuration is
-# refused with "invalid IP address: 'static'" when it is written there.
+# NOTE ON THE SYNTAX OF `trusted_proxies`: the ranges are written directly in
+# the route, and with the name of the module of the source of the ranges
+# (`static`) at the server. The route refuses the name of the module with
+# "invalid IP address: 'static'".
 #
 # ---------------------------------------------------------------------------
 # THE CERTIFICATE OF A CUSTOMER HOSTNAME
@@ -154,6 +159,56 @@
 	# without guessing the name that the adapter would give to it.
 	servers :443 {
 		name blipmade
+
+		# The visitors arrive through the CDN, so the CDN is the proxy that is
+		# believed. Everything else is a client that writes its own header.
+		#
+		# The chain is read from the right, so the address that the visitor
+		# wrote himself is dropped.
+		trusted_proxies static \
+			173.245.48.0/20 \
+			103.21.244.0/22 \
+			103.22.200.0/22 \
+			103.31.4.0/22 \
+			141.101.64.0/18 \
+			108.162.192.0/18 \
+			190.93.240.0/20 \
+			188.114.96.0/20 \
+			197.234.240.0/22 \
+			198.41.128.0/17 \
+			162.158.0.0/16 \
+			104.16.0.0/13 \
+			104.24.0.0/14 \
+			172.64.0.0/13 \
+			131.0.72.0/22 \
+			2400:cb00::/32 \
+			2606:4700::/32 \
+			2803:f800::/32 \
+			2405:b500::/32 \
+			2405:8100::/32 \
+			2a06:98c0::/29 \
+			2c0f:f248::/32
+		trusted_proxies_strict
+	}
+
+	# The requests of the visitors are written down, because the address of
+	# the visitor is only worth something when it can be read back. The
+	# secrets of the session are removed before anything is written: the
+	# cookie of the session and the authorization header never reach the
+	# file.
+	log {
+		output file /var/log/caddy/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		format filter {
+			wrap json
+			fields {
+				request>headers>Cookie delete
+				request>headers>Authorization delete
+				request>headers>Cf-Access-Token delete
+			}
+		}
 	}
 }
 
@@ -187,34 +242,10 @@ blipmade.com {
 	encode zstd gzip
 
 	reverse_proxy 10.77.0.13:3000 {
-		# The visitors arrive through the CDN, so the CDN is the proxy that is
-		# believed. Everything else is a client that writes its own header.
-		trusted_proxies \
-			173.245.48.0/20 \
-			103.21.244.0/22 \
-			103.22.200.0/22 \
-			103.31.4.0/22 \
-			141.101.64.0/18 \
-			108.162.192.0/18 \
-			190.93.240.0/20 \
-			188.114.96.0/20 \
-			197.234.240.0/22 \
-			198.41.128.0/17 \
-			162.158.0.0/16 \
-			104.16.0.0/13 \
-			104.24.0.0/14 \
-			172.64.0.0/13 \
-			131.0.72.0/22 \
-			2400:cb00::/32 \
-			2606:4700::/32 \
-			2803:f800::/32 \
-			2405:b500::/32 \
-			2405:8100::/32 \
-			2a06:98c0::/29 \
-			2c0f:f248::/32
-
-		# The header is written, not appended: the address the edge resolved is
-		# the only address the platform sees.
+		# The header is written, not appended: the address the edge resolved
+		# is the only address the platform sees. The list of the proxies that
+		# are believed is at the server, because that is where Caddy resolves
+		# the address of the client.
 		header_up X-Forwarded-For {client_ip}
 		header_up X-Real-IP {client_ip}
 		header_up X-Forwarded-Proto {scheme}

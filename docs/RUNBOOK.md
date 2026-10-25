@@ -538,3 +538,67 @@ Only then is the off-site copy proven to be restorable.
 **Keep the evidence:** the date of the drill, the name of the copy, the numbers
 and the machine it was restored on. Write it into `docs/PRODUCTION_READINESS.md`
 when the platform goes live.
+
+---
+
+## 10. Putting a release out
+
+A release is a commit of `main`. The platform runs from `/opt/blipmade`, and
+that directory is a clone of the repository, so the release is a pull, a
+build and a restart.
+
+```bash
+cd /opt/blipmade
+
+# the data of the customers comes first
+./scripts/backup.sh
+
+# the release
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+git log --oneline -1
+
+# the images
+DC="docker compose -f compose.yml -f compose.api.yml -f compose.web.yml"
+$DC build --no-cache api worker
+$DC up -d --force-recreate api worker
+
+# the health
+$DC ps
+curl -s http://127.0.0.1:3100/health
+curl -s http://127.0.0.1:3101/health
+```
+
+**Two things go wrong here when they are not known.**
+
+**The API and the worker have an image of their own.** The name of the image
+of the worker is `blipmade-worker` and not `blipmade-api`, so a build of the
+service `api` alone leaves the worker with the release before the last one.
+The build names both.
+
+**The cache of the build of this machine can be stale.** On the 25th of
+October 2026 the layer `COPY src ./src` was taken from the cache even though
+the source had changed, and the image was built with the source of the
+release before the last one. The build with `--no-cache` is the one that
+produces the right image, and the image is checked before it is put out:
+
+```bash
+docker run --rm --entrypoint sh blipmade-api \
+  -c "grep -c <the name of a new function> /app/dist/worker.js"
+```
+
+The number has to be bigger than zero. An image that does not hold the code of
+the release is an image of the release before the last one, and the services
+of it have to be replaced.
+
+**After the restart of the edge** the routes of the customer domains are gone,
+because they live in the configuration of Caddy and not in a file of the
+platform. The worker of the platform writes them again within a minute, and
+this is checked:
+
+```bash
+TOKEN=$(grep '^CADDY_ADMIN_TOKEN=' /opt/blipmade/.env | cut -d= -f2-)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://10.77.0.12:2020/config/apps/http/servers/blipmade/routes | jq .
+```
