@@ -177,8 +177,8 @@ font.
 | Check | Result |
 |---|---|
 | `npm run build` (`tsc --noEmit` and `vite build`) | **passes** |
-| The tests of the web application | **257 pass, 0 fail** (before: 255) |
-| `web/tests/icons.test.ts` (new) | 4 tests: the shape of the table, the classes of an icon, **every icon of the table is an icon the installed font has**, and the table is the only place that names an icon of the font |
+| The tests of the web application | **258 pass, 0 fail** (before: 255) |
+| `web/tests/icons.test.ts` (new) | 5 tests: the shape of the table, the classes of an icon, **every icon of the table is an icon the installed font has**, the table is the only place that names an icon of the font, and an icon can leave the flow of the page |
 | `web/tests/fonts.test.mjs` (rewritten) | 8 tests: the stacks, no `@font-face`, no package of a typeface, no third party |
 | `web/tests/fonts-server.test.mjs` (rewritten) | 3 tests: the health of the site, no file of a typeface is served, the server does not walk out of its directory |
 | The browser, home page | **100 icons, 0 empty, 0 invisible** |
