@@ -69,6 +69,21 @@
   vertical-align: -0.125em;
 }
 
+/* An icon that leaves the flow of the page.
+ *
+ * The stylesheet of the icon font is not layered, and it says that the icon
+ * is in the flow, because the second layer of a duotone icon is drawn with
+ * an absolute pseudo element. The utilities of Tailwind are layered, so the
+ * stylesheet of the font wins over them and an icon that was asked to leave
+ * the flow stays in it. The rules below put the icon back where the page
+ * asks for it. */
+.fa-icon.absolute {
+  position: absolute;
+}
+.fa-icon.fixed {
+  position: fixed;
+}
+
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
 body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 

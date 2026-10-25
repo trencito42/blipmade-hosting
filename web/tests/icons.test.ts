@@ -75,6 +75,16 @@ test("every icon of the table is an icon the installed font has", (t) => {
   assert.ok(css.includes("--fa-primary-color"));
 });
 
+test("an icon can leave the flow of the page", () => {
+  // The stylesheet of the icon font is not layered and says that the icon is
+  // in the flow. The utilities of Tailwind are layered, so the font wins over
+  // them and an icon that was asked to leave the flow stays in it. The
+  // stylesheet of the application has to put it back.
+  const css = readFileSync(join(web, "src", "index.css"), "utf8");
+  assert.match(css, /\.fa-icon\.absolute\s*\{[^}]*position:\s*absolute/);
+  assert.match(css, /\.fa-icon\.fixed\s*\{[^}]*position:\s*fixed/);
+});
+
 test("the table of the icons is the only place that names an icon of the font", () => {
   const offenders: string[] = [];
 
