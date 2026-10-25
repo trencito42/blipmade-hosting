@@ -91,9 +91,35 @@ export async function applicationRequest<T>(
   }
 }
 
+/**
+ * Reads every page of a list of the panel.
+ *
+ * The panel answers with one page and says in the metadata how many pages
+ * there are. A request that does not ask for the pages sees only the first
+ * one, so a panel with more servers than one page hides the rest: the
+ * platform would then believe that a node has more capacity than it has, and
+ * it would reserve an address that is already given to a server.
+ */
+async function fetchAllPages<T>(path: string, perPage = 100): Promise<T[]> {
+  const separator = path.includes('?') ? '&' : '?';
+  const first = await applicationRequest<PteroList<T>>(
+    'GET',
+    `${path}${separator}per_page=${perPage}`,
+  );
+  const items = first.data.map((entry) => entry.attributes);
+  const pages = first.meta?.pagination?.total_pages ?? 1;
+  for (let page = 2; page <= pages; page += 1) {
+    const next = await applicationRequest<PteroList<T>>(
+      'GET',
+      `${path}${separator}per_page=${perPage}&page=${page}`,
+    );
+    items.push(...next.data.map((entry) => entry.attributes));
+  }
+  return items;
+}
+
 export async function listServers(): Promise<PteroServer[]> {
-  const result = await applicationRequest<PteroList<PteroServer>>('GET', '/api/application/servers?per_page=100');
-  return result.data.map((entry) => entry.attributes as PteroServer);
+  return fetchAllPages<PteroServer>('/api/application/servers');
 }
 
 export async function getServer(id: number): Promise<PteroServer> {
@@ -245,35 +271,63 @@ export async function listNodes(): Promise<PteroNode[]> {
 }
 
 export async function listNests(): Promise<{ id: number; name: string }[]> {
-  const result = await applicationRequest<PteroList<{ id: number; name: string }>>('GET', '/api/application/nests');
-  return result.data.map((entry) => entry.attributes);
+  return fetchAllPages<{ id: number; name: string }>('/api/application/nests');
 }
 
 export async function listEggs(nestId: number): Promise<PteroEgg[]> {
-  const result = await applicationRequest<PteroList<PteroEgg>>(
-    'GET',
-    `/api/application/nests/${nestId}/eggs`,
-  );
-  return result.data.map((entry) => entry.attributes as PteroEgg);
+  return fetchAllPages<PteroEgg>(`/api/application/nests/${nestId}/eggs`);
 }
 
 export async function listAllocations(nodeId: number): Promise<PteroAllocation[]> {
-  const result = await applicationRequest<PteroList<PteroAllocation>>(
-    'GET',
-    `/api/application/nodes/${nodeId}/allocations?per_page=500`,
-  );
-  return result.data.map((entry) => entry.attributes as PteroAllocation);
+  return fetchAllPages<PteroAllocation>(`/api/application/nodes/${nodeId}/allocations`, 500);
 }
+
+/**
+ * The environment variables of the eggs the platform uses.
+ *
+ * Pterodactyl does not expose the variables of an egg through the Application
+ * API, and the panel refuses to create a server without them. Reading them
+ * from an existing server on the same egg works only after the first server
+ * of that egg exists, so the very first customer of a product could never be
+ * provisioned. That is what happened to the order BM-00007: the provisioning
+ * failed at "server_created" with "No environment template is known for egg
+ * 15", and the order could only be fulfilled once a server had been created
+ * on that egg by hand.
+ *
+ * The template of the eggs of the platform is therefore kept here, with the
+ * same values that `scripts/create-egg-template.py` gives to the egg when it
+ * creates it. The variables of an existing server are still read for an egg
+ * that is not known here.
+ */
+export const EGG_ENVIRONMENT_TEMPLATES: Record<number, Record<string, string>> = {
+  15: {
+    AUTO_UPDATE: '0',
+    BRANCH: '',
+    GIT_ADDRESS: '',
+    MAIN_FILE: 'index.js',
+    NODE_ARGS: '',
+    NODE_PACKAGES: '',
+    UNNODE_PACKAGES: '',
+    USERNAME: '',
+    ACCESS_TOKEN: '',
+    USER_UPLOAD: '0',
+  },
+};
 
 /**
  * Returns the default environment variables for an egg.
  *
  * Pterodactyl 1.15 does not expose the egg variables through the Application
- * API, but the panel refuses to create a server without them. The variables of
- * an existing server on the same egg are used as the template, minus the
+ * API, but the panel refuses to create a server without them. The template
+ * that the platform knows is used, and for an egg that is not known the
+ * variables of an existing server on the same egg are used, minus the
  * per-server values the panel sets itself.
  */
 export async function eggEnvironmentTemplate(eggId: number): Promise<Record<string, string>> {
+  const known = EGG_ENVIRONMENT_TEMPLATES[eggId];
+  if (known) {
+    return { ...known };
+  }
   const servers = await listServers();
   const sample = servers.find((server) => server.egg === eggId);
   if (!sample) {
@@ -294,8 +348,7 @@ export async function eggEnvironmentTemplate(eggId: number): Promise<Record<stri
 }
 
 export async function listUsers(): Promise<PteroUser[]> {
-  const result = await applicationRequest<PteroList<PteroUser>>('GET', '/api/application/users?per_page=100');
-  return result.data.map((entry) => entry.attributes as PteroUser);
+  return fetchAllPages<PteroUser>('/api/application/users');
 }
 
 /**
