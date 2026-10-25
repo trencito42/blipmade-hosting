@@ -6,7 +6,78 @@
 # platform depends on, so that the convention is a fact that can be checked
 # and not only a belief.
 #
-# WHY THIS FILE EXISTS
+# WHAT CADDY 2.11.2 CAN AND CANNOT DO
+#
+# Everything below was checked against the version of Caddy that runs on the
+# edge (2.11.2), because two things that this file used to say are not true of
+# that version:
+#
+#   1. There is no `apps` block in the Caddyfile. The option is refused with
+#      "unrecognized global option: apps". The server of the platform is
+#      therefore named with the global option `servers`, and the routes of the
+#      customers are written into that server through the administrative API.
+#
+#      Caddy allows only ONE server per listening address. A second server on
+#      the same address is refused with "listener address repeated: tcp/:443
+#      (already claimed by server 'blipmade')". The routes of the customers
+#      therefore live in the same server as the routes of the operator, and
+#      they are told apart by the host name they answer for.
+#
+#   2. The administrative API of Caddy does NOT check a bearer token. The
+#      struct of the configuration (`caddy.AdminConfig`) has `listen`,
+#      `enforce_origin`, `origins`, `config`, `identity` and `remote`, and no
+#      token at all. The token of the platform is therefore checked by a
+#      gateway that stands in front of the administrative API, and that gateway
+#      is the only way in.
+#
+# WHY THE TOKEN IS CHECKED IN A GATEWAY
+#
+# The platform sends the token in the authorization header of every call it
+# makes to the administrative API. Caddy ignores that header, so a gateway
+# that compares it is what turns the token into something that is checked. The
+# gateway is plain HTTP on the private address of the edge, and the firewall
+# lets only the platform (10.77.0.13) reach it. The administrative API itself
+# stays on the loopback interface, so the port 2019 is not reachable at all.
+#
+# The gateway also drops the headers of a browser (`Sec-Fetch-Mode` and the
+# others). Caddy answers a request that carries `Sec-Fetch-Mode` or `Origin`
+# with "client is not allowed to access from origin" when it cannot match the
+# origin, and the client of the platform is not a browser: it sends
+# `Sec-Fetch-Mode` with every request and no origin at all. The
+# administrative API is not a page of a browser, so those headers mean nothing
+# there.
+#
+# THE ROUTES OF THE CUSTOMER DOMAINS
+#
+# The platform creates a route for every customer hostname that proved its
+# ownership. The route is written through the administrative API of Caddy,
+# into the namespace of the server named in `CADDY_APP_SERVER` (the default is
+# `blipmade`):
+#
+#     GET  {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes
+#     POST {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes
+#          { "match": [ { "host": [ "witch.pw" ] } ],
+#            "handle": [ { "handler": "reverse_proxy",
+#                          "upstreams": [ { "dial": "10.77.0.11:30001" } ] } ],
+#            "terminal": true }
+#     PATCH   {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes/{index}
+#     DELETE  {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes/{index}
+#
+# The routes of a server are a LIST, and the administrative API addresses a
+# route by its place in that list. Three things follow from that, and each of
+# them was a defect before it was found:
+#
+#   * A route cannot be asked for by its name. `GET .../routes/blipmade-route-
+#     1234` is refused with "invalid array index". The list is read as a whole
+#     and the route of a host name is found by the host name it answers for.
+#   * The body of a `POST` is ONE route and not a list of routes. The list is
+#     the field the API appends to. A list in the body is refused with
+#     "cannot unmarshal array into Go struct field Server.servers.routes of
+#     type caddyhttp.Route".
+#   * The `PATCH` and the `DELETE` of a route need the index of the route in
+#     the list, and the list is read again before every change.
+#
+# THE ADDRESS OF THE CLIENT
 #
 # The web server resolves the address of the client from the chain of the
 # `X-Forwarded-For` header, reading the chain from the right: the last
@@ -49,75 +120,66 @@
 #     and check that the address written in the audit log is the address of
 #     the caller and not `9.9.9.9`.
 #
-# The ranges below are the published ranges of the CDN. Check them against the
-# current list of the operator before applying them.
+# The ranges below are the published ranges of the CDN. Check them against
+# the current list of the operator before applying them.
+#
+# NOTE ON THE SYNTAX OF `trusted_proxies`: the ranges are written directly.
+# The name of the module of the source of the ranges (`static`) is not part of
+# the syntax of the `reverse_proxy` in Caddy 2.11.2, and the configuration is
+# refused with "invalid IP address: 'static'" when it is written there.
 #
 # ---------------------------------------------------------------------------
-# THE ROUTES OF THE CUSTOMER DOMAINS
+# THE CERTIFICATE OF A CUSTOMER HOSTNAME
+#
+# The host names of the customers are not known in advance, so the certificate
+# is obtained when the route is written. Caddy asks for it on its own, with
+# HTTP-01, and the challenge reaches the edge over the port 80 — which means
+# that the A record of the host name has to point at the address of the edge
+# BEFORE the certificate can be obtained. A host name whose record still
+# points somewhere else never gets a certificate, and the route answers with
+# an error of the certificate.
+#
+# The name of the server of Caddy that holds the routes is `blipmade`, and
+# `CADDY_APP_SERVER` on the platform carries the same name.
 # ---------------------------------------------------------------------------
-#
-# The platform creates a route for every customer hostname that proved its
-# ownership. The route is written through the administrative API of Caddy,
-# into the namespace of the server named in `CADDY_APP_SERVER` (the default is
-# `blipmade`):
-#
-#     POST {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes
-#     { "match": [ { "host": [ "witch.pw" ] } ],
-#       "handle": [ { "handler": "reverse_proxy",
-#                     "upstreams": [ { "dial": "10.77.0.11:30001" } ] } ],
-#       "terminal": true }
-#
-# Three things have to be true on the edge, and none of them can be checked
-# from the server of the platform:
-#
-#  1. The administrative API has to listen on an address the platform can
-#     reach. By default Caddy listens on `localhost:2019` only, and the
-#     platform on 10.77.0.13 cannot reach that. The address has to be given
-#     in the global options (`admin 10.77.0.12:2019`), and the firewall has to
-#     let 10.77.0.13 reach it and nothing else. The token of the
-#     administrative API is `CADDY_ADMIN_TOKEN` on the platform.
-#
-#  2. The namespace has to exist. Without a server named `blipmade` inside
-#     the `apps` block, the answer of the administrative API is 404 and the
-#     platform refuses to route anything. The block below creates it.
-#
-#  3. The server has to reach the container of the customer. The route dials
-#     the address and the port of the allocation on the node (for example
-#     `10.77.0.11:30001`), so the edge has to be able to open a connection to
-#     the node on the ports of the allocations.
-#
-# The certificate of a customer hostname is a decision of the operator: the
-# hostnames are not known in advance, so Caddy cannot ask for a certificate
-# for them on its own. The usual answer is to serve them through a CDN that
-# terminates TLS, and to let the edge answer that CDN over HTTP, or to give
-# the edge a certificate that covers the hostnames.
-#
-# If the Caddy of the operator cannot carry a second server on the same
-# addresses, the platform can be pointed at the server that already exists:
-# set `CADDY_APP_SERVER` to its name, and the platform writes the routes
-# there. The isolation of the routes is then the isolation by the prefix of
-# the route id (`blipmade-route-`), not a server of its own.
 
 {
-	# The administrative API of Caddy. It is not exposed publicly: only the
-	# server of the platform (10.77.0.13) has to reach it.
-	admin 10.77.0.12:2019
+	# The administrative API of Caddy. It is not exposed publicly: it listens
+	# on the loopback interface of the edge, so the port 2019 cannot be
+	# reached from the internet, and not from the private network either.
+	admin 127.0.0.1:2019
 
-	# The routes of the customer domains live in a server of their own, so
-	# the routes of the operator are never read, replaced or removed by the
-	# platform. The routes themselves are added by the platform; the server
-	# only has to exist and to listen.
-	apps {
-		http {
-			servers {
-				blipmade {
-					# The hostnames of the customers arrive here. The address
-					# has to be the one the public DNS of the platform points
-					# at (the A record of the customer domain points at the
-					# same address as the site of the platform).
-				}
-			}
+	# The server that answers the public addresses has a name of its own, so
+	# the platform can write the routes of the customer domains into it
+	# without guessing the name that the adapter would give to it.
+	servers :443 {
+		name blipmade
+	}
+}
+
+# The administrative API of Caddy, for the platform only.
+#
+# The token is read from the environment of the service, so it never appears in
+# this file, nor in the process list, nor in the output of `caddy adapt`.
+http://10.77.0.12:2020 {
+	@gateway header Authorization "Bearer {env.CADDY_ADMIN_TOKEN}"
+	handle @gateway {
+		reverse_proxy 127.0.0.1:2019 {
+			header_up Host 127.0.0.1:2019
+
+			# The headers of a browser are dropped, because the client of the
+			# platform sends them and the administrative API refuses a request
+			# that carries them and no origin.
+			header_up -Origin
+			header_up -Referer
+			header_up -Sec-Fetch-Mode
+			header_up -Sec-Fetch-Site
+			header_up -Sec-Fetch-Dest
+			header_up -Sec-Fetch-User
 		}
+	}
+	handle {
+		respond "The administrative API of the gateway is closed." 403
 	}
 }
 
@@ -127,7 +189,7 @@ blipmade.com {
 	reverse_proxy 10.77.0.13:3000 {
 		# The visitors arrive through the CDN, so the CDN is the proxy that is
 		# believed. Everything else is a client that writes its own header.
-		trusted_proxies static \
+		trusted_proxies \
 			173.245.48.0/20 \
 			103.21.244.0/22 \
 			103.22.200.0/22 \
@@ -151,8 +213,8 @@ blipmade.com {
 			2a06:98c0::/29 \
 			2c0f:f248::/32
 
-		# The header is written, not appended: the address the edge resolved
-		# is the only address the platform sees.
+		# The header is written, not appended: the address the edge resolved is
+		# the only address the platform sees.
 		header_up X-Forwarded-For {client_ip}
 		header_up X-Real-IP {client_ip}
 		header_up X-Forwarded-Proto {scheme}

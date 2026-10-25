@@ -286,7 +286,7 @@ Each item needs one credential. Nothing else is waiting on them.
 | `PANEL_NODE_ADDRESSES` | The console of a server, when the address the panel gives for the node cannot be reached from here | A list of pairs: the address the panel uses and the address that works. On this network the node answers on `10.77.0.11:8080`, while the panel answers with `node1.blipmade.com:8080`. The name of the node is kept for the certificate, so the certificate of the node is still the one that is checked. |
 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` | Live checkout, subscriptions, invoices | Stripe dashboard → API keys. `sk_test_…` first. |
 | `SMTP_URL` | Real email (verification, password reset, ticket notifications) | Any SMTP provider. Without it, mail is written to `/var/backups/blipmade/mail/` and logged. |
-| `CADDY_ADMIN_URL` + `CADDY_ADMIN_TOKEN` | Customer domain routing on VM 102 | Caddy admin API on the gateway. It stays private; the platform calls it from the server. |
+| ~~`CADDY_ADMIN_URL` + `CADDY_ADMIN_TOKEN`~~ **configured 2026-10-25** | Customer domain routing | The edge (`10.77.0.12`) runs Caddy 2.11.2 with the administrative API on the loopback interface. The platform reaches it through a gateway that checks the token, on `http://10.77.0.12:2020`, and the firewall lets only the platform (`10.77.0.13`) reach that port. See `docs/DOMAIN_ROUTING.md`. |
 | `OFFSITE_TARGET` | Off-host backups | The host uses **RAID 0**. A local copy is not a backup. |
 
 ### Blocked by a fault in the panel or on the node
@@ -299,6 +299,20 @@ These are outside the platform and were found by probing the live systems.
 | `PATCH /servers/{id}/build` answered `500` | Reproduced with every payload shape until the validator's own field list was read; the correct payload answers `200`. | Fixed in the platform. |
 | The panel login answers `500` for every account | `POST /auth/login` answers `TypeError` for an unknown address and for a known one, with and without a reCAPTCHA token. The panel has reCAPTCHA enabled. | The panel's own web interface cannot be used. The platform never needed it. |
 | All four panel administrators are `root_admin` | `GET /api/application/users` | Not changed. Every staff account has full administrative rights. |
+
+### The faults of the routing of the domains, found on 2026-10-25
+
+These are the faults of the path between a customer and its container. Every
+one of them was found by measuring the live systems, and each one of them is
+covered by a test that fails without the correction.
+
+| Fault | Evidence | Effect |
+|---|---|---|
+| The route of a hostname could never be created | The platform asked the administrative API of Caddy for a route by its name (`GET …/routes/blipmade-route-…`), which Caddy refuses with `invalid array index`, and it sent a list of routes in the body of the `POST`, which Caddy refuses with `cannot unmarshal array into Go struct field Server.servers.routes of type caddyhttp.Route` | No route of any customer was ever written. The domain of a customer waited for a gateway that was perfectly able to serve it. **Fixed in the platform**: the routes are read as a list, the route of a hostname is found in it, and the body of a `POST` is one route. |
+| The token of the platform was never checked | The configuration of the administrative API of Caddy (`caddy.AdminConfig`) has `listen`, `enforce_origin`, `origins`, `config`, `identity` and `remote`, and no token at all | The token was decoration: anybody who could reach the port 2019 could change the routing of every customer. **Fixed on the edge**: a gateway in front of the API checks the token, the API stays on the loopback interface, and the firewall lets only the platform reach the gateway. |
+| The routes of the customers were lost on every restart of the edge | The routes live in the configuration of Caddy, and the file of the edge replaces that configuration when Caddy is reloaded | A restart of the edge took every route away, and nothing brought them back. **Fixed in the platform**: the worker writes the routes again every minute. The flag `--resume` of Caddy is not used, because it replaces the file of the operator with the last saved configuration. |
+| The application of a new container listened on the port 3000 | `starterFiles` takes a port, but `placeStarterApplication` never gave it one, and the node publishes the port of the allocation (`30000` and above) | Every route of a customer answered with "connection refused". **Fixed in the platform**: the port of the allocation is written into the application. |
+| A product whose probe is the container was accepted while the application listened somewhere else | The provisioning checked the state of the container and never asked the port that the node publishes | The platform said "online" for a service that nobody could reach. **Fixed in the platform**: the port of the allocation is asked over HTTP as well. |
 
 ---
 
