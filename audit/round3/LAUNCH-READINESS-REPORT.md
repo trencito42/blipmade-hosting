@@ -296,6 +296,7 @@ Pe ramura `feature/mail-hosting` (faza găzduirii de e-mail):
 
 * commit-ul `991cf91` („Add the hosted mail") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40158217954**
 * commit-ul `5f88b6c` („Type check the probes of the mail") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40158521149**
+* commit-ul `f1afa88` („Cite the green runs of the mail") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40158745028**
 
 | Job | Rezultat |
 |---|---|
