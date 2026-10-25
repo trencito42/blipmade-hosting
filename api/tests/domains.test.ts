@@ -347,6 +347,10 @@ describe('proving the ownership of a hostname', () => {
     expect(row?.verifiedAt).not.toBeNull();
     expect(row?.status).toBe('PENDING_DNS');
     expect(row?.lastError).toContain('gateway');
+
+    // The customer is told that the hostname waits for the gateway, not for
+    // the records they have already published.
+    expect(response.body.domain.status).toBe('pending_gateway');
   });
 
   it('does not let another account verify a hostname', async () => {
@@ -468,5 +472,33 @@ describe('the gateway', () => {
     expect(first).toBe(second);
     expect(first.startsWith('blipmade-route-')).toBe(true);
     expect(actual.routeIdFor('other.example.com')).not.toBe(first);
+  });
+
+  it('puts its routes in the server of Caddy that is configured', async () => {
+    const actual = await vi.importActual<typeof import('../src/services/gateway.js')>(
+      '../src/services/gateway.js',
+    );
+    const server = env.CADDY_APP_SERVER.trim() || 'blipmade';
+    expect(actual.routesPath()).toContain('/config/apps/http/servers/');
+    expect(actual.routesPath()).toContain(`/${server}/routes`);
+    // The routes never leave the namespace of the platform.
+    expect(actual.routesPath()).not.toContain('/config/apps/http/servers//');
+  });
+
+  it('names the settings that are missing when the gateway is not configured', async () => {    const actual = await vi.importActual<typeof import('../src/services/gateway.js')>(
+      '../src/services/gateway.js',
+    );
+    const problem = actual.gatewayConfigurationProblem();
+
+    // The message says what to write in the environment file, because
+    // "the gateway is not configured" says nothing to anybody.
+    expect(problem).toMatch(/CADDY_ADMIN_URL|CADDY_ADMIN_TOKEN/);
+    // The value of a setting is never part of the message.
+    if (env.CADDY_ADMIN_TOKEN) expect(problem).not.toContain(env.CADDY_ADMIN_TOKEN);
+    if (env.CADDY_ADMIN_URL) expect(problem).not.toContain(env.CADDY_ADMIN_URL);
+
+    // The error carries the same words, so the customer and the operator read
+    // the same thing.
+    expect(new actual.GatewayNotConfiguredError().message).toBe(problem);
   });
 });

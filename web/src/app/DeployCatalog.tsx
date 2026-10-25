@@ -38,6 +38,7 @@ const CATEGORY_ORDER = [
   'AUTOMATION',
   'BOTS',
   'DATABASES',
+  'EMAIL_HOSTING',
 ];
 
 function availability(product: CatalogProduct): { deployable: boolean; label: string; reason: string } {

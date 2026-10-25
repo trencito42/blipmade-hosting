@@ -196,6 +196,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   AUTOMATION: 'Automation',
   BOTS: 'Bots',
   DATABASES: 'Databases',
+  EMAIL_HOSTING: 'Email Hosting',
 };
 
 /** The code of a category of the interface. */

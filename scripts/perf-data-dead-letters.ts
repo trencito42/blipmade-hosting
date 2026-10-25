@@ -20,6 +20,7 @@ import {
   requeueDeadLetter,
 } from '../api/src/services/dead-letter.js';
 import { prisma } from '../api/src/db.js';
+import { assertDisposableDatabase } from '../api/src/lib/test-target.js';
 
 function argument(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -34,6 +35,21 @@ function flag(name: string): boolean {
 async function main(): Promise<void> {
   const databaseName = (process.env.DATABASE_URL ?? '').split('/').pop()?.split('?')[0] ?? '(none)';
   console.log(`database: ${databaseName}`);
+
+  /**
+   * Reading the failures of the platform is always allowed: an operator has
+   * to be able to see the failures of the production database.
+   *
+   * Putting a job back on its queue is not: it claims a row and it starts a
+   * job of the platform, so it only runs against a disposable database unless
+   * the operator asks for it explicitly.
+   */
+  if (flag('--requeue') || flag('--requeue-all')) {
+    assertDisposableDatabase({
+      label: 'put the failed jobs of the platform back on their queue',
+      allowProduction: flag('--allow-production'),
+    });
+  }
 
   if (flag('--list') || (!flag('--requeue') && !flag('--requeue-all'))) {
     const { entries, total } = await listDeadLetters({ state: 'pending', limit: 50, cursor: null });

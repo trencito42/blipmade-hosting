@@ -1,14 +1,35 @@
 import { prisma } from '../db.js';
+import { env } from '../env.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import { normalizeAmount } from '../lib/money.js';
 import { deploymentAvailability, unavailableMessage } from './availability.js';
-import type { BillingPeriod, Prisma, Product, ProductOption, ProductPrice } from '@prisma/client';
+import { assertValidMailDomain } from './mail.js';
+import type { BillingPeriod, Prisma, Product, ProductFulfilment, ProductOption, ProductPrice } from '@prisma/client';
 
 export interface ResourceConfig {
   ram: number;
   cpu: number;
   disk: number;
   optionCodes: string[];
+}
+
+/**
+ * A line of an order, as the customer asks for it.
+ *
+ * A line of servers carries the resources it wants. A line of mail carries
+ * the domain it wants and no resources at all: the plan of the line is the
+ * configuration of the line. The two are told apart by the product, not by
+ * the customer: the platform decides what a line means.
+ */
+export interface OrderLineInput {
+  productSlug: string;
+  ram?: number;
+  cpu?: number;
+  disk?: number;
+  optionCodes?: string[];
+  quantity?: number;
+  /** The domain of mail the line brings. */
+  mailDomain?: string;
 }
 
 export interface PricedItem extends ResourceConfig {
@@ -20,6 +41,10 @@ export interface PricedItem extends ResourceConfig {
   total: number;
   currency: string;
   price: ProductPrice;
+  /** What the platform delivers for this line. */
+  fulfilment: ProductFulfilment;
+  /** The domain of mail the line brings, when the line is a line of mail. */
+  mailDomain?: string;
 }
 
 export interface PromotionResult {
@@ -176,7 +201,7 @@ export async function loadOptions(
 }
 
 export async function priceItems(
-  items: { productSlug: string; ram: number; cpu: number; disk: number; optionCodes?: string[]; quantity?: number }[],
+  items: OrderLineInput[],
   period: BillingPeriod = 'MONTHLY',
 ): Promise<PricedItem[]> {
   const slugs = [...new Set(items.map((item) => item.productSlug))];
@@ -189,11 +214,30 @@ export async function priceItems(
     const product = productBySlug.get(item.productSlug);
     if (!product) throw notFound(`Unknown product: ${item.productSlug}`);
     // The same rule as the catalog: a product that the panel cannot build is
-    // not orderable, whatever the flag of the catalog row says.
-    const availability = deploymentAvailability(product);
+    // not orderable, whatever the flag of the catalog row says. A product of
+    // mail needs no panel, but it needs the sale of the mail to be open.
+    const availability = deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
     if (!availability.orderable) throw badRequest(unavailableMessage(product, availability));
 
-    validateConfiguration(product, { ram: item.ram, cpu: item.cpu, disk: item.disk });
+    // A line of mail has no resources: the plan of the line is the whole
+    // configuration, so the price of the line is the price of the plan.
+    // A line of servers has to fit the limits of its product.
+    const isMail = product.fulfilment === 'EMAIL';
+    const config = isMail
+      ? { ram: product.minRam, cpu: product.minCpu, disk: product.minDisk }
+      : { ram: item.ram ?? product.minRam, cpu: item.cpu ?? product.minCpu, disk: item.disk ?? product.minDisk };
+    if (!isMail) validateConfiguration(product, config);
+
+    // A line of mail names the domain it brings. The domain is checked here,
+    // in the place that prices the order, so a line of mail cannot be created
+    // with a domain that the platform would refuse later.
+    let mailDomain: string | undefined;
+    if (isMail) {
+      if (!item.mailDomain) {
+        throw badRequest('Enter the domain you want to use for hosted mail.', { mailDomain: 'Enter a domain.' });
+      }
+      mailDomain = assertValidMailDomain(item.mailDomain);
+    }
 
     const price = await loadPrice(product.id, period);
     const optionCodes = item.optionCodes ?? [];
@@ -202,21 +246,23 @@ export async function priceItems(
     const missing = optionCodes.filter((code) => !found.has(code));
     if (missing.length) throw badRequest(`Unknown option: ${missing.join(', ')}`);
 
-    const unitAmount = priceConfiguration(price, product, { ram: item.ram, cpu: item.cpu, disk: item.disk }, options);
+    const unitAmount = priceConfiguration(price, product, config, options);
     const quantity = Math.max(1, item.quantity ?? 1);
     priced.push({
       productId: product.id,
       productSlug: product.slug,
       name: product.name,
-      ram: item.ram,
-      cpu: item.cpu,
-      disk: item.disk,
+      ram: config.ram,
+      cpu: config.cpu,
+      disk: config.disk,
       optionCodes,
       quantity,
       unitAmount,
       total: unitAmount * quantity,
       currency: price.currency,
       price,
+      fulfilment: product.fulfilment,
+      mailDomain,
     });
   }
 
@@ -371,6 +417,51 @@ export async function releasePromotionReservation(orderId: string): Promise<void
 /**
  * The amount of a promotion: what it takes off an order.
  */
+/**
+ * The risk of a campaign, in words an operator can act on.
+ *
+ * A campaign with a total limit but without a limit per account can be used
+ * by the same account as often as the total limit allows. The limit is
+ * enforced when it is set — this is not a hole in the platform — but the risk
+ * has to be visible to the operator who manages the campaigns, because a
+ * campaign that gives the whole order away is worth a lot of money.
+ */
+export function promotionRisk(promotion: {
+  type: string;
+  value: number;
+  maxRedemptions: number | null;
+  maxPerUser: number | null;
+}): string | null {
+  const givesEverything = promotion.type === 'PERCENT' && promotion.value >= 10_000;
+  if (promotion.maxPerUser === null && promotion.maxRedemptions !== null) {
+    return givesEverything
+      ? 'This campaign gives the whole order away and has no limit per account, so the same account can use it as often as the total limit allows.'
+      : 'This campaign has no limit per account, so the same account can use it as often as the total limit allows.';
+  }
+  if (givesEverything && promotion.maxPerUser === null) {
+    return 'This campaign gives the whole order away and has no limit per account.';
+  }
+  return null;
+}
+
+/**
+ * The limit per account a campaign gets when the operator did not say.
+ *
+ * A campaign that takes the whole order away gets a limit of one use per
+ * account, because a campaign that a customer can use again and again is
+ * never what an operator means when the discount is a hundred percent. The
+ * operator can still ask for another number, and a campaign that takes
+ * something off the order keeps the limit it was given.
+ */
+export function defaultLimitPerUser(promotion: { type: string; value: number; maxPerUser?: number | null }): number | null {
+  // A limit the operator asked for is kept, and so is the explicit decision
+  // that there is no limit at all: only a campaign that says nothing about
+  // the limit gets the default.
+  if (promotion.maxPerUser !== undefined) return promotion.maxPerUser;
+  const givesEverything = promotion.type === 'PERCENT' && promotion.value >= 10_000;
+  return givesEverything ? 1 : null;
+}
+
 export interface PromotionAmount {
   type: 'PERCENT' | 'FIXED';
   value: number;
@@ -441,7 +532,7 @@ export interface QuoteResult {
  * the client renders the result and never derives an amount itself.
  */
 export async function buildQuote(
-  items: { productSlug: string; ram: number; cpu: number; disk: number; optionCodes?: string[]; quantity?: number }[],
+  items: OrderLineInput[],
   promotionCode?: string | null,
   userId?: string | null,
   period: BillingPeriod = 'MONTHLY',

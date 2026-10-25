@@ -10,11 +10,12 @@ const OVERVIEW: NavEntry = { to: '/app', label: 'Overview', shortLabel: 'Overvie
 const DEPLOY: NavEntry = { to: '/app/deploy', label: 'Deploy', shortLabel: 'Deploy', icon: 'rocket' };
 const INSTANCES: NavEntry = { to: '/app/instances', label: 'Apps & databases', shortLabel: 'Apps', icon: 'box' };
 const DOMAINS: NavEntry = { to: '/app/domains', label: 'Domains', shortLabel: 'Domains', icon: 'globe' };
+const MAIL: NavEntry = { to: '/app/mail', label: 'Email', shortLabel: 'Email', icon: 'mail' };
 const BILLING: NavEntry = { to: '/app/billing', label: 'Billing', shortLabel: 'Billing', icon: 'card' };
 const SUPPORT: NavEntry = { to: '/app/tickets', label: 'Support', shortLabel: 'Support', icon: 'doc' };
 const SETTINGS: NavEntry = { to: '/app/settings', label: 'Settings', shortLabel: 'Settings', icon: 'shield' };
 
-export const CUSTOMER_NAV: NavEntry[] = [OVERVIEW, DEPLOY, INSTANCES, DOMAINS, BILLING, SUPPORT, SETTINGS];
+export const CUSTOMER_NAV: NavEntry[] = [OVERVIEW, DEPLOY, INSTANCES, DOMAINS, MAIL, BILLING, SUPPORT, SETTINGS];
 
 /** Phone bottom bar: Overview, Apps, Billing, Support. */
 export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, INSTANCES, BILLING, SUPPORT];
@@ -29,15 +30,17 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/tickets', label: 'Support queue', shortLabel: 'Tickets', icon: 'doc' },
   { to: '/admin/promotions', label: 'Promotions', shortLabel: 'Promos', icon: 'shield' },
   { to: '/admin/infrastructure', label: 'Infrastructure', shortLabel: 'Infra', icon: 'globe' },
+  { to: '/admin/mail', label: 'Mail', shortLabel: 'Mail', icon: 'mail' },
+  { to: '/admin/notifications', label: 'Email & notifications', shortLabel: 'Notifications', icon: 'bell' },
   { to: '/admin/audit', label: 'Audit log', shortLabel: 'Audit', icon: 'term' },
   { to: '/admin/staff', label: 'Staff', shortLabel: 'Staff', icon: 'bot' },
   { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },
 ];
 
-/** Phone bottom bar: Dashboard, Customers, Promotions, Audit log. */
+/** Phone bottom bar: Dashboard, Customers, Support queue, Audit log. */
 export const ADMIN_PHONE_TABS: NavEntry[] = [
   ADMIN_NAV[0]!,
   ADMIN_NAV[1]!,
   ADMIN_NAV[6]!,
-  ADMIN_NAV[9]!,
+  ADMIN_NAV[11]!,
 ];

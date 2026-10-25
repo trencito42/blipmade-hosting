@@ -64,10 +64,38 @@ export class MetricsRegistry {
   private readonly requests = new Map<string, { route: string; method: string; status: string; value: number }>();
   private readonly durations = new Map<string, { route: string; method: string; histogram: DurationHistogram }>();
   private inFlight = 0;
+  private deadLetterPending: number | null = null;
+  private deadLetterPendingMax = 0;
 
   /** The requests that are running at this moment. */
   get inFlightRequests(): number {
     return this.inFlight;
+  }
+
+  /**
+   * The jobs that failed for good and are waiting for an operator.
+   *
+   * The number is `null` until the queue has been looked at, so a process
+   * that never watched the queue does not publish a zero: a zero says that
+   * no customer is waiting for an operator, and that would not be true.
+   */
+  get deadLetterPendingJobs(): number | null {
+    return this.deadLetterPending;
+  }
+
+  /**
+   * The number of jobs that are waiting for an operator.
+   *
+   * The number is given by the process that watches the dead-letter queue,
+   * so it is the number of that process and not the number of the whole
+   * platform. The highest number that was seen is kept as well, because a
+   * queue that was emptied says nothing about the queue that grew while
+   * nobody was looking.
+   */
+  setDeadLetterPending(count: number): void {
+    const value = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    this.deadLetterPending = value;
+    if (value > this.deadLetterPendingMax) this.deadLetterPendingMax = value;
   }
 
   /** A request has arrived. */
@@ -123,6 +151,18 @@ export class MetricsRegistry {
     lines.push('# HELP bm_http_in_flight_requests The requests that are running at this moment.');
     lines.push('# TYPE bm_http_in_flight_requests gauge');
     lines.push(`bm_http_in_flight_requests ${this.inFlight}`);
+
+    // The gauge of the dead-letter queue is written only after the queue has
+    // been looked at, so a process that never watched it publishes nothing
+    // rather than a zero that says that no customer is waiting.
+    if (this.deadLetterPending !== null) {
+      lines.push('# HELP bm_dead_letter_pending_jobs The jobs that failed for good and are waiting for an operator.');
+      lines.push('# TYPE bm_dead_letter_pending_jobs gauge');
+      lines.push(`bm_dead_letter_pending_jobs ${this.deadLetterPending}`);
+      lines.push('# HELP bm_dead_letter_pending_jobs_max The highest number of jobs that were waiting for an operator since the process started.');
+      lines.push('# TYPE bm_dead_letter_pending_jobs_max gauge');
+      lines.push(`bm_dead_letter_pending_jobs_max ${this.deadLetterPendingMax}`);
+    }
 
     const memory = process.memoryUsage();
     lines.push('# HELP bm_process_resident_memory_bytes The memory of the process that the system holds.');

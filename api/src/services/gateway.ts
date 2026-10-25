@@ -37,10 +37,26 @@ export interface GatewayResult {
 
 /** The gateway is not configured, so no route can be created at all. */
 export class GatewayNotConfiguredError extends Error {
-  constructor(message = 'The gateway is not configured on this environment.') {
-    super(message);
+  constructor(message?: string) {
+    super(message ?? gatewayConfigurationProblem());
     this.name = 'GatewayNotConfiguredError';
   }
+}
+
+/**
+ * What is missing for the gateway to be callable.
+ *
+ * The message names the settings that are not set, because "the gateway is
+ * not configured" does not tell anybody what to write in the environment file
+ * of the platform. The values of the settings are never part of the message.
+ */
+export function gatewayConfigurationProblem(): string {
+  const missing: string[] = [];
+  if (!env.CADDY_ADMIN_URL.trim()) missing.push('CADDY_ADMIN_URL');
+  if (!env.CADDY_ADMIN_TOKEN.trim()) missing.push('CADDY_ADMIN_TOKEN');
+  if (!missing.length) return 'The gateway is not configured on this environment.';
+  const verb = missing.length > 1 ? 'are' : 'is';
+  return `The gateway is not configured on this environment: ${missing.join(' and ')} ${verb} not set, so the hostname cannot be routed yet.`;
 }
 
 /** The route was refused because the hostname or the target is not allowed. */
@@ -61,6 +77,18 @@ export class GatewayNotVerifiedError extends Error {
 
 /** The dedicated Caddy app server that holds the customer routes. */
 const CADDY_SERVER = 'blipmade';
+
+/**
+ * The server of Caddy that holds the routes of the customer domains.
+ *
+ * The name is configurable, because a Caddy that serves the platform on the
+ * same addresses may already have a server of its own. The default keeps the
+ * routes in a namespace that belongs to the platform alone.
+ */
+function caddyServer(): string {
+  const name = env.CADDY_APP_SERVER.trim();
+  return name || CADDY_SERVER;
+}
 
 /** Every route id starts with this, so our routes are recognisable inside Caddy. */
 const ROUTE_ID_PREFIX = 'blipmade-route-';
@@ -177,10 +205,15 @@ export function gatewayConfigured(): boolean {
   return Boolean(env.CADDY_ADMIN_URL && env.CADDY_ADMIN_TOKEN);
 }
 
-/** The path of the routes of our own app server inside the Caddy configuration. */
-function routesPath(): string {
+/**
+ * The path of the routes of our own app server inside the Caddy configuration.
+ *
+ * It is exported so the test can hold the contract of the namespace without
+ * calling the gateway.
+ */
+export function routesPath(): string {
   const base = env.CADDY_ADMIN_URL.trim().replace(/\/$/, '');
-  return `${base}/config/apps/http/servers/${CADDY_SERVER}/routes`;
+  return `${base}/config/apps/http/servers/${caddyServer()}/routes`;
 }
 
 /**

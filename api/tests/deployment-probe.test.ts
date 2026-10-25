@@ -26,7 +26,7 @@ describe('the check of a deployment', () => {
     expect(probe.kind).toBe('container');
   });
 
-  it('accepts a server that the panel manages', async () => {
+  it('refuses a server that the node does not report as running', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
@@ -41,10 +41,33 @@ describe('the check of a deployment', () => {
       ),
     );
 
+    const result = await verifyContainerDeployment('ptlc_key', 'server-uuid', { kind: 'container' }, { attempts: 2, delayMs: 1 });
+
+    // A container that the node does not report as running is not a service,
+    // so the deployment cannot be called healthy.
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain('offline');
+  });
+
+  it('accepts a server that the node reports as running', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              object: 'stats',
+              attributes: { state: 'running', is_suspended: false, disk: { used: 4096 }, uptime: 12_000 },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
     const result = await verifyContainerDeployment('ptlc_key', 'server-uuid', { kind: 'container' });
 
     expect(result.ok).toBe(true);
-    expect(result.message).toContain('offline');
+    expect(result.message).toContain('running');
   });
 
   it('refuses a server the panel does not answer about', async () => {

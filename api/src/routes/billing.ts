@@ -2,9 +2,10 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
-import { requireAuth } from '../plugins/auth.js';
+import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { cancelSubscription, createBillingPortal, paymentState, resumeSubscription, stripeLive } from '../services/stripe.js';
 import { notFound, unavailable } from '../lib/errors.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import {
   buildInstanceExport,
   companyDetails,
@@ -14,103 +15,21 @@ import {
 } from '../services/billing.js';
 import { applyPromotion, priceItems, resolvePromotion } from '../services/pricing.js';
 import {
-  formatAmount,
-  formatDate,
-  invoiceFailedTemplate,
-  invoicePaidTemplate,
-  subscriptionChangedTemplate,
-  type EmailTemplate,
-} from '../lib/email-templates.js';
-import { dispatchEmail } from '../services/queue.js';
+  notifySubscriptionCancellationScheduled,
+  notifySubscriptionReactivated,
+} from '../services/notifications.js';
 import { MAX_OPTION_CODES } from '../lib/bounded.js';
 
 /**
- * Sends a message about the billing.
+ * The routes of the billing carry a limit.
  *
- * The message goes through the queue, so the request is never held up by the
- * relay. A message that cannot be sent never breaks the request that
- * triggered it.
+ * The quote, the renewal and the payment method only write rows in the
+ * database of the platform, so they may be used the most. The
+ * cancellation and the return of a subscription send a message to the
+ * customer, so they carry the limit of the mail: an account that may
+ * send ten messages in a quarter of an hour cannot turn the platform
+ * into a relay.
  */
-async function sendBillingMail(kind: string, key: string, to: string, template: EmailTemplate): Promise<void> {
-  try {
-    await dispatchEmail({
-      key,
-      kind,
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
-  } catch (error) {
-    console.error('[mail] the billing message could not be sent', (error as Error).message);
-  }
-}
-
-/**
- * Tells the customer that an invoice was paid.
- *
- * The function is exported so the webhook of the payment provider can call it
- * when an invoice changes.
- */
-export async function notifyInvoicePaid(input: {
-  key: string;
-  email: string;
-  number: string;
-  /** The amount in the smallest unit, the way the platform stores money. */
-  amount: number;
-  currency: string;
-  periodEnd?: Date | null;
-}): Promise<void> {
-  const template = invoicePaidTemplate({
-    number: input.number,
-    amount: formatAmount(input.amount, input.currency),
-    periodEnd: formatDate(input.periodEnd),
-  });
-  await sendBillingMail('invoice-paid', input.key, input.email, template);
-}
-
-/**
- * Tells the customer that an invoice could not be paid.
- *
- * The function is exported so the webhook of the payment provider can call it
- * when an invoice changes.
- */
-export async function notifyInvoiceFailed(input: {
-  key: string;
-  email: string;
-  number: string;
-  /** The amount in the smallest unit, the way the platform stores money. */
-  amount: number;
-  currency: string;
-  periodEnd?: Date | null;
-  reason?: string | null;
-}): Promise<void> {
-  const template = invoiceFailedTemplate({
-    number: input.number,
-    amount: formatAmount(input.amount, input.currency),
-    periodEnd: formatDate(input.periodEnd),
-    reason: input.reason ?? null,
-  });
-  await sendBillingMail('invoice-failed', input.key, input.email, template);
-}
-
-/** Tells the customer that the subscription of a service changed. */
-export async function notifySubscriptionChange(input: {
-  key: string;
-  email: string;
-  instanceName: string;
-  status: string;
-  periodEnd?: Date | null;
-  cancelAtPeriodEnd: boolean;
-}): Promise<void> {
-  const template = subscriptionChangedTemplate({
-    instanceName: input.instanceName,
-    status: input.status,
-    periodEnd: formatDate(input.periodEnd),
-    cancelAtPeriodEnd: input.cancelAtPeriodEnd,
-  });
-  await sendBillingMail('subscription', input.key, input.email, template);
-}
 
 export async function registerBillingRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -213,7 +132,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
    * The quote uses the same function that prices an order, so a yearly plan
    * is priced with the yearly prices of the catalogue.
    */
-  app.post('/billing/quote', async (request: FastifyRequest) => {
+  app.post('/billing/quote', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const body = z
       .object({
@@ -276,7 +198,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
    * is only extended when the collection is confirmed. Nothing is paid for
    * here, so nothing is claimed to be paid.
    */
-  app.post('/billing/subscriptions/:id/renew', async (request: FastifyRequest) => {
+  app.post('/billing/subscriptions/:id/renew', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z.object({ period: z.enum(['MONTHLY', 'YEARLY']).optional() }).parse(request.body ?? {});
@@ -401,7 +326,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post('/billing/subscriptions/:id/cancel', async (request: FastifyRequest) => {
+  app.post('/billing/subscriptions/:id/cancel', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const subscription = await prisma.subscription.findFirst({
@@ -411,13 +339,14 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     if (!subscription) throw notFound('Subscription not found.');
 
     const updated = await cancelSubscription(subscription);
-    await notifySubscriptionChange({
-      key: `subscription-${subscription.id}-${updated.updatedAt.getTime()}`,
-      email: subscription.user.email,
-      instanceName: subscription.instance?.name ?? 'your service',
-      status: 'cancelled at the end of the paid period',
+    await notifySubscriptionCancellationScheduled({
+      userId: subscription.userId,
+      service: subscription.instance?.name ?? 'your service',
       periodEnd: updated.currentPeriodEnd,
-      cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+      // The moment of the change is what makes the occurrence unique: the
+      // same subscription can be canceled and resumed as many times as the
+      // customer wants, and every step has its own message.
+      occurrence: updated.updatedAt,
     });
     return {
       subscription: {
@@ -429,7 +358,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post('/billing/subscriptions/:id/resume', async (request: FastifyRequest) => {
+  app.post('/billing/subscriptions/:id/resume', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const subscription = await prisma.subscription.findFirst({
@@ -439,13 +371,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     if (!subscription) throw notFound('Subscription not found.');
 
     const updated = await resumeSubscription(subscription);
-    await notifySubscriptionChange({
-      key: `subscription-${subscription.id}-${updated.updatedAt.getTime()}`,
-      email: subscription.user.email,
-      instanceName: subscription.instance?.name ?? 'your service',
-      status: 'active',
-      periodEnd: updated.currentPeriodEnd,
-      cancelAtPeriodEnd: updated.cancelAtPeriodEnd,
+    await notifySubscriptionReactivated({
+      userId: subscription.userId,
+      service: subscription.instance?.name ?? 'your service',
+      occurrence: updated.updatedAt,
     });
     return {
       subscription: {
@@ -457,7 +386,10 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  app.post('/billing/payment-method', async (request: FastifyRequest) => {
+  app.post('/billing/payment-method', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const portal = await createBillingPortal(user.id);
     return { url: portal.url, message: portal.reason };

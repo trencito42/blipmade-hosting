@@ -1,26 +1,23 @@
 import { prisma } from '../src/db.js';
+import { assertDisposableDatabase } from '../src/lib/test-target.js';
 
 /**
  * Safety net. The suite truncates every table, so it must never be pointed at
- * a database that holds real data.
+ * a database that holds real data. The guard is the one of the platform, so
+ * the rule is written once and the same rule applies to the scripts that
+ * change data.
  */
-function assertTestDatabase(): void {
-  const url = process.env.DATABASE_URL ?? '';
-  const name = url.split('/').pop()?.split('?')[0] ?? '';
-  if (!name.endsWith('_test')) {
-    throw new Error(
-      `Refusing to run the tests against "${name || 'an unknown database'}". The test database name must end with "_test".`,
-    );
-  }
-}
-
-assertTestDatabase();
+assertDisposableDatabase({ label: 'run the tests' });
 
 /**
  * Every test file starts from an empty database. The order matters because of
  * the foreign keys.
  */
 const TABLES = [
+  'MailJob',
+  'MailAlias',
+  'Mailbox',
+  'MailDomain',
   'DeadLetterJob',
   'AuditLog',
   'WebhookEvent',
@@ -46,6 +43,8 @@ const TABLES = [
   'VerificationToken',
   'EmailChangeRequest',
   'NotificationPreference',
+  'Notification',
+  'NotificationEvent',
   'MailDelivery',
   'Session',
   'PanelCredential',

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { badRequest, conflict, forbidden, notFound, unavailable, upstream } from '../lib/errors.js';
-import { requireStaff, requirePermission, assertMayActOnAccount } from '../plugins/auth.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
+import { addressRateLimitKey, requireStaff, requirePermission, assertMayActOnAccount } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
@@ -25,8 +26,29 @@ import {
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
+import { defaultLimitPerUser, promotionRisk } from '../services/pricing.js';
+import {
+  notifyAccountReinstated,
+  notifyAccountSuspended,
+  notifyPaymentRefunded,
+  notifyTicketAssigned,
+} from '../services/notifications.js';
 import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
+
+/**
+ * Every route of the back office carries a limit.
+ *
+ * A member of the staff does the work of many customers at once, so the
+ * limit of the back office that only writes in the database is more
+ * generous than the limit of a customer. The route that reaches the
+ * panel, the node or the queue of the mail is as strict as the route of
+ * a customer, because the work it does is the same.
+ *
+ * The limit is counted twice: once for the account of the member of the
+ * staff and once for the address of the caller, so neither a stolen
+ * account nor one address that opens many accounts can walk around it.
+ */
 
 const money = (amount: number) => amount / 100;
 
@@ -300,7 +322,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * operation works from that moment on. The key is stored encrypted and is
    * never sent back to the browser.
    */
-  app.post('/admin/customers/:id/panel/credential', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/customers/:id/panel/credential', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('services.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z.object({ token: z.string().trim().min(20) }).parse(request.body);
@@ -336,7 +361,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /** Forgets the client key of a customer. The next operation asks for a new one. */
-  app.delete('/admin/customers/:id/panel/credential', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest, reply) => {
+  app.delete('/admin/customers/:id/panel/credential', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('services.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const customer = await prisma.user.findUnique({ where: { id }, select: { role: true, id: true } });
@@ -356,7 +384,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(204).send();
   });
 
-  app.post('/admin/customers/:id/suspend', { preHandler: requirePermission('customers.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/customers/:id/suspend', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('customers.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { suspended, reason } = z.object({ suspended: z.boolean(), reason: z.string().trim().max(500).optional() }).parse(request.body);
@@ -369,8 +400,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     await prisma.$transaction([
       prisma.user.update({ where: { id }, data: { suspendedAt: suspended ? new Date() : null } }),
-      // Suspending an account ends its sessions immediately.
-      ...(suspended ? [prisma.session.deleteMany({ where: { userId: id } })] : []),
+      // The sessions of a suspended account stop working at once, because
+      // every request of that account is refused while it is suspended. The
+      // rows stay in the table until the account is put back, so the
+      // platform can tell the customer that the account was suspended
+      // instead of losing the session without a word. The sessions are
+      // removed when the account is reinstated, so the customer signs in
+      // again.
+      ...(suspended ? [] : [prisma.session.deleteMany({ where: { userId: id } })]),
     ]);
     await audit({
       actorId: actor.id,
@@ -381,6 +418,24 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       meta: { reason },
       ip: request.ip,
     });
+
+    // The customer is told. A customer who is only disconnected thinks the
+    // account is lost, and writes to the support before anybody looks at it.
+    const moment = new Date().toISOString();
+    if (suspended) {
+      await notifyAccountSuspended({
+        userId: id,
+        name: fullName(customer),
+        reason: reason ?? null,
+        occurrence: moment,
+      });
+    } else {
+      await notifyAccountReinstated({
+        userId: id,
+        name: fullName(customer),
+        occurrence: moment,
+      });
+    }
 
     return { customer: { id, suspended } };
   });
@@ -427,7 +482,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * called: a second call finds the order already refunded and stops, so the
    * customer is never charged back twice.
    */
-  app.post('/admin/instances/reconcile-prices', { preHandler: requirePermission('pricing.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/instances/reconcile-prices', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('pricing.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
 
     // The price of an instance is the price of the configuration it runs. The
@@ -441,7 +499,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post('/admin/invoices/:id/confirm-collection', { preHandler: requirePermission('orders.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/invoices/:id/confirm-collection', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('orders.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z
@@ -479,7 +540,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { invoice };
   });
 
-  app.post('/admin/orders/:id/refund', { preHandler: requirePermission('orders.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/orders/:id/refund', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('orders.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z.object({ reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
@@ -497,7 +561,17 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     // Only a paid order can be refunded. An order that is not paid has nothing
     // to give back, and an order that was refunded already is refused here, so
     // the money is never returned twice.
-    if (order.status !== 'PAID' && order.status !== 'FULFILLED') {
+    //
+    // The state of the order alone is not enough to tell a refunded order
+    // from one that was only claimed: a crash between the claim and the
+    // provider leaves the order as refunded while the money is still with the
+    // platform. The payment row is what says whether the money is really
+    // back, so it is the one that is read here.
+    const alreadyRefunded = order.payments.some((entry) => entry.status === 'REFUNDED');
+    if (alreadyRefunded) {
+      throw conflict('This order was refunded already.');
+    }
+    if (order.status !== 'PAID' && order.status !== 'FULFILLED' && order.status !== 'REFUNDED') {
       throw conflict(`This order is not paid, so there is nothing to refund. Its status is ${order.status.toLowerCase()}.`);
     }
 
@@ -512,9 +586,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // The order is claimed first: the update only touches an order that is
-    // still paid, so two refunds at the same time cannot both go through.
+    // not refunded yet, so two refunds at the same time cannot both go
+    // through. A claim that was left behind by a crash can be claimed again,
+    // because the money of such an order is still with the platform.
     const claimed = await prisma.order.updateMany({
-      where: { id, status: { in: ['PAID', 'FULFILLED'] } },
+      where: { id, status: { in: ['PAID', 'FULFILLED', 'REFUNDED'] } },
       data: { status: 'REFUNDED' },
     });
     if (claimed.count !== 1) {
@@ -525,10 +601,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       orderId: order.id,
       stripePaymentIntentId: paymentIntentId,
       reason: body.reason,
+      // The key is the same for every refund of this order, so two refunds
+      // that arrive at the same time are one refund at the provider.
+      idempotencyKey: `blipmade-refund-${order.id}`,
     });
     if (!refunded) {
       // The provider refused the refund, so the order goes back to what it was.
-      await prisma.order.update({ where: { id }, data: { status: order.status } });
+      // An order that was only claimed is a paid order again: the money is
+      // still with the platform, and the operator can try once more.
+      const restored = order.status === 'REFUNDED' ? 'PAID' : order.status;
+      await prisma.order.update({ where: { id }, data: { status: restored } });
       throw upstream('The payment provider refused the refund. The order was left as it was.');
     }
 
@@ -541,6 +623,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       targetId: order.id,
       meta: { reason: body.reason, amount, currency: order.currency, number: order.number },
       ip: request.ip,
+    });
+
+    // The money went back to the customer, so the customer is told. The
+    // order is the occurrence: the same refund is one message.
+    await notifyPaymentRefunded({
+      userId: order.userId,
+      number: order.number,
+      amount,
+      currency: order.currency,
+      occurrence: order.id,
     });
 
     return {
@@ -610,7 +702,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         eggId: product.eggId,
         dockerImage: product.dockerImage,
         // What the catalog and the ordering will answer for this product.
-        availability: deploymentAvailability(product),
+        availability: deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }),
         minRam: product.minRam,
         minCpu: product.minCpu,
         minDisk: product.minDisk,
@@ -639,7 +731,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post('/admin/products', { preHandler: requirePermission('products.write') }, async (request: FastifyRequest, reply) => {
+  app.post('/admin/products', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     // The startup variables are counted before the body is read, so a body
     // with too many of them is refused without the cost of walking them.
@@ -650,7 +745,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       .object({
         slug: z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and dashes.'),
         name: z.string().trim().min(2).max(120),
-        category: z.enum(['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES']),
+        category: z.enum(['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES', 'EMAIL_HOSTING']),
         description: z.string().trim().min(10).max(2000),
         icon: z.string().trim().max(40).default('box'),
         eggId: z.number().int().positive().nullable().optional(),
@@ -674,10 +769,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const existing = await prisma.product.findUnique({ where: { slug: body.slug } });
     if (existing) throw conflict('A product with this slug already exists.');
 
+    // A plan of hosted mail is delivered by the mail system and needs no
+    // server, no egg and no node. The limits it carries are the ones of the
+    // plan, and they are empty here when the operator did not write them
+    // down: an empty limit means the ceiling of the platform.
+    const isMail = body.category === 'EMAIL_HOSTING';
+
     // A product can only be opened for ordering when the panel can build it.
     // A product without an egg mapping can never be deployed, so it must not
     // be sellable either.
-    if (body.deployable && (body.eggId === null || body.eggId === undefined)) {
+    if (body.deployable && !isMail && (body.eggId === null || body.eggId === undefined)) {
       throw badRequest('Set the panel egg of the product before it can be ordered. A product without an egg can never be deployed.');
     }
 
@@ -688,7 +789,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         category: body.category,
         description: body.description,
         icon: body.icon,
-        eggId: body.eggId ?? null,
+        eggId: isMail ? null : body.eggId ?? null,
         dockerImage: body.dockerImage ?? null,
         startup: (body.startup ?? undefined) as never,
         startupCommand: body.startupCommand ?? null,
@@ -703,9 +804,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         maxDisk: body.maxDisk,
         visible: body.visible,
         deployable: body.deployable,
+        fulfilment: isMail ? 'EMAIL' : 'SERVER',
         docsUrl: body.docsUrl ?? null,
         healthProbe: (body.healthProbe ?? undefined) as never,
-        prices: { create: { period: 'MONTHLY', baseAmount: body.baseAmount, currency: 'EUR' } },
+        // A plan of mail without a price is a draft: it is listed, it can be
+        // read, and it cannot be bought. The price of the plan is written by
+        // the operator, in the back office of the plans of mail.
+        prices: isMail && body.baseAmount <= 0 ? undefined : { create: { period: 'MONTHLY', baseAmount: body.baseAmount, currency: 'EUR' } },
       },
       include: { prices: true, options: true },
     });
@@ -714,7 +819,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(201).send({ product: { id: product.id, slug: product.slug, name: product.name } });
   });
 
-  app.patch('/admin/products/:id', { preHandler: requirePermission('products.write') }, async (request: FastifyRequest) => {
+  app.patch('/admin/products/:id', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z
@@ -759,7 +867,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { product: updated };
   });
 
-  app.delete('/admin/products/:id', { preHandler: requirePermission('products.write') }, async (request: FastifyRequest, reply) => {
+  app.delete('/admin/products/:id', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const product = await prisma.product.findUnique({ where: { id }, include: { _count: { select: { instances: true } } } });
@@ -792,7 +903,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.put('/admin/pricing/:id', { preHandler: requirePermission('pricing.write') }, async (request: FastifyRequest) => {
+  app.put('/admin/pricing/:id', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('pricing.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z
@@ -854,7 +968,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post('/admin/tickets/:id/assign', { preHandler: requirePermission('tickets.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/tickets/:id/assign', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('tickets.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { userId } = z.object({ userId: z.string().nullable() }).parse(request.body);
@@ -868,8 +985,22 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     await prisma.ticket.update({ where: { id }, data: { assignedToId: userId } });
-    await prisma.ticketEvent.create({ data: { ticketId: id, type: 'assigned', message: userId ? 'Ticket assigned.' : 'Ticket unassigned.', actorId: actor.id } });
+    const ticketEvent = await prisma.ticketEvent.create({ data: { ticketId: id, type: 'assigned', message: userId ? 'Ticket assigned.' : 'Ticket unassigned.', actorId: actor.id } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'ticket.assigned', targetType: 'ticket', targetId: id, meta: { userId }, ip: request.ip });
+
+    // The staff member that takes the ticket is told that it is theirs. A
+    // ticket that is taken back is not a message: nobody was given
+    // anything.
+    if (userId) {
+      await notifyTicketAssigned({
+        userId: ticket.userId,
+        ticketId: id,
+        ticketNumber: String(ticket.number),
+        subject: ticket.subject,
+        staffId: userId,
+        occurrence: ticketEvent.id,
+      });
+    }
     return { ticket: { id, assignedToId: userId } };
   });
 
@@ -893,6 +1024,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         maxRedemptions: promotion.maxRedemptions,
         // How many times one account may use the code. Null means no limit.
         maxPerUser: promotion.maxPerUser,
+        // The risk of the campaign, so the operator sees a campaign that
+        // gives the whole order away without a limit per account.
+        warning: promotionRisk(promotion),
         usedCount: promotion.usedCount,
         active: promotion.active,
         startsAt: promotion.startsAt,
@@ -904,7 +1038,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post('/admin/promotions', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest, reply) => {
+  app.post('/admin/promotions', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('promotions.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const body = z
       .object({
@@ -939,7 +1076,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         type: body.type,
         value: body.value,
         maxRedemptions: body.maxRedemptions ?? null,
-        maxPerUser: body.maxPerUser ?? null,
+        // A campaign that takes the whole order away gets a limit of one use
+        // per account, unless the operator asked for another number or said
+        // that there is no limit at all.
+        maxPerUser: defaultLimitPerUser({ type: body.type, value: body.value, maxPerUser: body.maxPerUser }),
         startsAt: body.startsAt ? new Date(body.startsAt) : null,
         endsAt: body.endsAt ? new Date(body.endsAt) : null,
         active: body.active,
@@ -950,7 +1090,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(201).send({ promotion });
   });
 
-  app.patch('/admin/promotions/:id', { preHandler: requirePermission('promotions.write') }, async (request: FastifyRequest) => {
+  app.patch('/admin/promotions/:id', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('promotions.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z
@@ -1011,7 +1154,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.post('/admin/infrastructure/sync', { preHandler: requirePermission('infrastructure.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/infrastructure/sync', {
+    config: { rateLimit: { max: LIMITS.adminService.address, timeWindow: LIMITS.adminService.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('infrastructure.write'), customerLimit(app, LIMITS.adminService)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const [panelNodes, nests] = await Promise.all([ptero.listNodes(), ptero.listNests()]);
 
@@ -1165,7 +1311,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * job on the queue twice, and the second call is told that the failure was
    * already handled.
    */
-  app.post('/admin/dead-letters/:id/requeue', { preHandler: requirePermission('infrastructure.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/dead-letters/:id/requeue', {
+    config: { rateLimit: { max: LIMITS.adminService.address, timeWindow: LIMITS.adminService.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('infrastructure.write'), customerLimit(app, LIMITS.adminService)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
 
@@ -1195,7 +1344,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * the service was given up on or the customer was answered by hand. The row
    * is kept, so the moment and the reason of the failure stay readable.
    */
-  app.post('/admin/dead-letters/:id/close', { preHandler: requirePermission('infrastructure.write') }, async (request: FastifyRequest) => {
+  app.post('/admin/dead-letters/:id/close', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('infrastructure.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const entry = await closeDeadLetter(id, { requestedBy: actor.email });
@@ -1228,7 +1380,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.put('/admin/staff/:userId', { preHandler: requirePermission('staff.write') }, async (request: FastifyRequest) => {
+  app.put('/admin/staff/:userId', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('staff.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { userId } = z.object({ userId: z.string() }).parse(request.params);
     const body = z
@@ -1378,7 +1533,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return { email: report };
   });
 
-  app.put('/admin/settings', { preHandler: requirePermission('settings.write') }, async (request: FastifyRequest) => {
+  app.put('/admin/settings', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('settings.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const body = boundedRecord(z.record(z.unknown()), MAX_SETTINGS, 'The settings').parse(request.body);
     // The internal keys are not written here. The counters of the numbers and
@@ -1397,7 +1555,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /** Retries a failed or stuck provisioning run. The worker is idempotent. */
-  app.post('/admin/instances/:id/retry', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest, reply) => {
+  app.post('/admin/instances/:id/retry', {
+    config: { rateLimit: { max: LIMITS.adminService.address, timeWindow: LIMITS.adminService.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('services.write'), customerLimit(app, LIMITS.adminService)],
+  }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { reason } = z.object({ reason: z.string().trim().max(500).optional() }).parse(request.body ?? {});
@@ -1426,7 +1587,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * Imports an existing Pterodactyl server and assigns it to a customer.
    * Only an administrator can do this.
    */
-  app.post('/admin/instances/import', { preHandler: requirePermission('services.write') }, async (request: FastifyRequest, reply) => {
+  app.post('/admin/instances/import', {
+    config: { rateLimit: { max: LIMITS.adminService.address, timeWindow: LIMITS.adminService.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('services.write'), customerLimit(app, LIMITS.adminService)],
+  }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     if (actor.role !== 'ADMIN') throw badRequest('Only an administrator can import a server.');
     const body = z

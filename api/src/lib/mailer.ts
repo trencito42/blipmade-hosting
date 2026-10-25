@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../env.js';
@@ -24,6 +25,12 @@ export interface MailMessage {
   kind?: string;
   /** The key that makes a retry of the same message idempotent. */
   idempotencyKey?: string;
+  /**
+   * The event of the notification engine that caused the message, when the
+   * message came from there. It is empty for the messages that the platform
+   * sends on its own.
+   */
+  eventId?: string;
 }
 
 /** What a queued message carries. It holds everything the worker needs. */
@@ -34,6 +41,8 @@ export interface MailJobPayload {
   subject: string;
   text: string;
   html?: string;
+  /** The event of the notification engine that caused the message. */
+  eventId?: string;
 }
 
 export interface MailSendResult {
@@ -56,6 +65,8 @@ export interface MailDeliveryRecord extends MailSendResult {
   key: string;
   to: string;
   createdAt: string;
+  /** The event of the notification engine that caused the message. */
+  eventId?: string | null;
 }
 
 /** The failure of an attempt, without anything secret in it. */
@@ -114,6 +125,7 @@ export function noteQueued(payload: MailJobPayload, jobId: string): void {
     key: payload.key,
     kind: payload.kind,
     to: payload.to,
+    eventId: payload.eventId ?? null,
     state: 'queued',
     delivered: false,
     id: jobId,
@@ -161,6 +173,7 @@ async function persistRecord(record: MailDeliveryRecord): Promise<void> {
         key: record.key,
         kind: record.kind,
         to: record.to,
+        eventId: record.eventId ?? null,
         state: record.state,
         transport: record.transport,
         attempts: record.attempts,
@@ -173,6 +186,7 @@ async function persistRecord(record: MailDeliveryRecord): Promise<void> {
       update: {
         kind: record.kind,
         to: record.to,
+        ...(record.eventId ? { eventId: record.eventId } : {}),
         state: record.state,
         transport: record.transport,
         attempts: record.attempts,
@@ -270,6 +284,8 @@ interface SmtpOptions {
   connectionTimeout: number;
   greetingTimeout: number;
   socketTimeout: number;
+  /** The certificates the relay is allowed to be signed by. */
+  tls?: { ca: string };
 }
 
 /**
@@ -279,17 +295,27 @@ interface SmtpOptions {
  * without another setting. The only thing that is added is the implicit
  * encryption of port 465: Nodemailer reads `smtp://` as a plain connection,
  * and the port 465 of Resend only speaks TLS.
+ *
+ * The certificate of the relay is the one that the machine trusts, unless the
+ * operator wrote down another one in `SMTP_CA_FILE`. That file is the
+ * certificate of a relay that is not signed by an authority the machine knows,
+ * which is the case of a mail server of the platform itself before its name
+ * is published in the DNS.
  */
-export function smtpTransportOptions(url: string): SmtpOptions {
+export function smtpTransportOptions(url: string, ca?: string): SmtpOptions {
   const parsed = new URL(url);
   const port = parsed.port ? Number(parsed.port) : parsed.protocol === 'smtps:' ? 465 : 587;
+  // The timeout is the one the operator wrote down. A relay that does not
+  // answer in that time is a relay that is not there, and the message has to
+  // be failed so it can be tried again.
+  const timeout = env.SMTP_TIMEOUT_MS;
   const options: SmtpOptions = {
     host: parsed.hostname,
     port,
     secure: parsed.protocol === 'smtps:' || port === 465,
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 20_000,
+    connectionTimeout: timeout,
+    greetingTimeout: timeout,
+    socketTimeout: timeout,
   };
   if (parsed.username) {
     options.auth = {
@@ -297,7 +323,27 @@ export function smtpTransportOptions(url: string): SmtpOptions {
       pass: decodeURIComponent(parsed.password),
     };
   }
+  if (ca) options.tls = { ca };
   return options;
+}
+
+/**
+ * The certificate that the relay of the platform is allowed to be signed by.
+ *
+ * A file that cannot be read is an error and not a relay without a
+ * certificate: a relay that cannot be verified is a relay that must not be
+ * used.
+ */
+function relayCertificate(): string | undefined {
+  const file = env.SMTP_CA_FILE.trim();
+  if (!file) return undefined;
+  try {
+    return readFileSync(file, 'utf-8');
+  } catch (error) {
+    throw new Error(
+      `The certificate of the relay could not be read from "${file}": ${(error as Error).message}`,
+    );
+  }
 }
 
 let transporter: Transporter | null = null;
@@ -306,9 +352,35 @@ let transporterUrl: string | null = null;
 function getTransporter(): Transporter {
   const url = env.SMTP_URL;
   if (transporter && transporterUrl === url) return transporter;
-  transporter = nodemailer.createTransport(smtpTransportOptions(url));
+  transporter = nodemailer.createTransport(smtpTransportOptions(url, relayCertificate()));
   transporterUrl = url;
   return transporter;
+}
+
+/**
+ * The moments of the last minute in which a message was handed to the relay.
+ *
+ * The throttle is what the operator asked for: the platform does not send
+ * more than `SMTP_RATE_LIMIT_PER_MINUTE` messages a minute, so it does not
+ * look like a spammer to the relay and does not overload it when a whole
+ * campaign goes out at once. The file transport is not throttled, because
+ * writing a file on the disk costs nothing to the relay.
+ */
+const relayMoments: number[] = [];
+
+async function throttleRelay(): Promise<void> {
+  const limit = env.SMTP_RATE_LIMIT_PER_MINUTE;
+  const now = Date.now();
+  while (relayMoments.length > 0 && now - relayMoments[0]! >= 60_000) relayMoments.shift();
+  if (relayMoments.length < limit) {
+    relayMoments.push(now);
+    return;
+  }
+  // The limit is reached: the message waits until the oldest one of the
+  // window leaves it.
+  const wait = Math.max(250, 60_000 - (now - relayMoments[0]!) + 250);
+  await new Promise((resolve) => setTimeout(resolve, wait));
+  relayMoments.push(Date.now());
 }
 
 /** A key for a message that has none of its own. */
@@ -614,13 +686,19 @@ async function attempt(payload: MailJobPayload): Promise<MailSendResult> {
     deliveredAt: null,
     createdAt: now,
     updatedAt: now,
+    // The event of the engine that caused the message. The back office
+    // joins the delivery with the event through it, so the operator can
+    // answer "was this event ever sent?".
+    eventId: payload.eventId ?? null,
   };
   record.attempts += 1;
   record.updatedAt = now;
   record.transport = mailTransportName();
+  if (payload.eventId) record.eventId = payload.eventId;
 
   if (env.SMTP_URL) {
     try {
+      await throttleRelay();
       const info = await getTransporter().sendMail({
         from: env.MAIL_FROM,
         to: record.to,
@@ -682,6 +760,7 @@ export async function sendMail(message: MailMessage): Promise<MailSendResult> {
       subject: message.subject,
       text: message.text,
       html: message.html,
+      ...(message.eventId ? { eventId: message.eventId } : {}),
     });
   } catch (error) {
     console.error(

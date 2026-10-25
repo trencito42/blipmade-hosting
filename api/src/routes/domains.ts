@@ -3,12 +3,36 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
-import { requireAuth } from '../plugins/auth.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
+import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { randomToken } from '../lib/tokens.js';
 import * as gateway from '../services/gateway.js';
 import * as dns from '../services/dns.js';
 import * as ptero from '../services/pterodactyl/application.js';
+import {
+  notifyDomainDnsIncomplete,
+  notifyDomainVerificationInstructions,
+  notifyDomainVerified,
+} from '../services/notifications.js';
+
+/**
+ * The routes of the hostnames carry the limit of the panel.
+ *
+ * A hostname is claimed, proven and released through the panel and the
+ * gateway of the platform, and every one of those steps spends the
+ * resources of the node of everybody. The limit is counted for the
+ * account of the customer and for the address of the caller.
+ */
+
+/**
+ * The routes of the hostnames carry the limit of the panel.
+ *
+ * A hostname is claimed, proven and released through the panel and the
+ * gateway of the platform, and every one of those steps spends the
+ * resources of the node of everybody. The limit is counted for the
+ * account of the customer and for the address of the caller.
+ */
 
 /**
  * A hostname is only routed to a customer container when that customer proved
@@ -204,6 +228,23 @@ async function resolveTarget(instance: { pterodactylServerId: number | null }): 
   }
 }
 
+/**
+ * The status of a hostname, as the customer is shown it.
+ *
+ * The status that is stored says "pending dns" for a hostname that waits for
+ * the proof of ownership and for one that waits for the gateway. The two are
+ * not the same thing: a hostname whose proof was accepted waits for the
+ * gateway, and telling the customer that it is waiting for the DNS sends them
+ * to publish records they have already published.
+ *
+ * The stored status is not changed, so the schema does not move; only the
+ * answer of the API is more precise than the row.
+ */
+function statusFor(domain: DomainRow): string {
+  if (domain.status === 'PENDING_DNS' && domain.verifiedAt) return 'pending_gateway';
+  return domain.status.toLowerCase();
+}
+
 function serializeDomain(domain: DomainRow) {
   const target = process.env.DOMAIN_TARGET ?? '193.34.214.143';
   const records = gateway.dnsRecordsFor(domain.hostname, target);
@@ -215,7 +256,7 @@ function serializeDomain(domain: DomainRow) {
     instanceId: domain.instanceId,
     instanceName: domain.instance.name,
     hostname: domain.hostname,
-    status: domain.status.toLowerCase(),
+    status: statusFor(domain),
     targetPort: domain.targetPort,
     dnsRecords: records,
     lastError: domain.lastError,
@@ -252,7 +293,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
    * Claims a hostname for an instance. The claim is not a routing decision: it
    * starts a proof of ownership that the customer has to finish.
    */
-  app.post('/instances/:id/domains', async (request: FastifyRequest, reply) => {
+  app.post('/instances/:id/domains', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const { hostname: raw } = z.object({ hostname: z.string() }).parse(request.body ?? {});
@@ -352,6 +396,17 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       meta: { hostname },
     });
 
+    // The customer is told how to prove that the hostname is theirs. The
+    // token of the proof travels in this message and in nothing else: the
+    // outbox empties the message as soon as it is on the queue.
+    await notifyDomainVerificationInstructions({
+      userId: user.id,
+      domain: hostname,
+      host: verificationHost,
+      token,
+      occurrence: domain.updatedAt,
+    });
+
     return reply.code(201).send({ domain: serializeDomain(domain) });
   });
 
@@ -359,7 +414,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
    * Checks the proof of ownership of a claimed hostname. Only a TXT record
    * with the token of the hostname counts as a proof.
    */
-  app.post('/domains/:id/verify', async (request: FastifyRequest) => {
+  app.post('/domains/:id/verify', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const domain = await prisma.instanceDomain.findUnique({
@@ -391,6 +449,16 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         },
         include: { instance: { select: { name: true } } },
       });
+
+      // The customer is told that the DNS is not ready. The message is tied
+      // to the hostname, so checking the proof ten times does not send ten
+      // messages.
+      await notifyDomainDnsIncomplete({
+        userId: user.id,
+        domain: domain.hostname,
+        missing: [domain.verificationHost],
+      });
+
       return { domain: serializeDomain(updated) };
     }
 
@@ -451,6 +519,14 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       meta: { hostname: domain.hostname, status },
     });
 
+    // The hostname is proved. The customer is told that it belongs to them
+    // now, and the moment of the proof is what makes this message its own.
+    await notifyDomainVerified({
+      userId: user.id,
+      domain: domain.hostname,
+      occurrence: updated.updatedAt,
+    });
+
     return { domain: serializeDomain(updated) };
   });
 
@@ -459,7 +535,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
    * release a hostname after they have looked at it, and every release is
    * written to the audit log.
    */
-  app.delete('/domains/:id', async (request: FastifyRequest, reply) => {
+  app.delete('/domains/:id', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const domain = await prisma.instanceDomain.findUnique({

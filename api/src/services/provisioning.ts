@@ -2,16 +2,24 @@ import { connect } from 'node:net';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
-import { fullName } from '../lib/people.js';
-import { notifyInstanceProvisioned } from './notifications.js';
+import { unavailable } from '../lib/errors.js';
+import { notifyInstanceProvisioned, notifyProvisioningFailed } from './notifications.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
-import { renewCustomerCredential, resolveCustomerCredential } from './panel/credentials.js';
+import {
+  hasCustomerCredential,
+  renewCustomerCredential,
+  resolveCustomerCredential,
+} from './panel/credentials.js';
 import { cancelSubscription, refundPayment } from './stripe.js';
 import { starterFiles } from './starter-apps.js';
 import type { Instance, Product } from '@prisma/client';
-import type { PteroNode, PteroServer } from './pterodactyl/types.js';
+import {
+  judgeContainer,
+  type PteroNode,
+  type PteroServer,
+} from './pterodactyl/types.js';
 
 /** Steps recorded on the instance so an interrupted job can be reconciled. */
 export const PROVISION_STEPS = [
@@ -188,14 +196,40 @@ export async function failProvisioning(instanceId: string, step: ProvisionStep, 
     where: { instanceId, status: 'running' },
     data: { status: 'failed', error: message, attempts: { increment: 1 } },
   });
+  // The line of the order that owns the instance fails with it. The other
+  // lines of the same order are not touched: a line of mail that works is
+  // not marked as failed because a server failed.
+  await prisma.orderItem.updateMany({
+    where: { instances: { some: { id: instanceId } } },
+    data: { fulfillmentStatus: 'FAILED', fulfillmentError: `${step}: ${message}` },
+  });
   await recordEvent(instanceId, 'failed', `Provisioning failed at "${step}": ${message}`);
   await audit({ action: 'instance.provision_failed', targetType: 'instance', targetId: instanceId, meta: { step, message } });
+  // The customer hears that the service could not be built. The occurrence is
+  // the attempt, so a service that is tried again has its own message.
+  const failed = await prisma.instance.findUnique({
+    where: { id: instanceId },
+    select: { userId: true, name: true },
+  });
+  if (failed) {
+    await notifyProvisioningFailed({
+      userId: failed.userId,
+      instanceName: failed.name,
+      reason: `${step}: ${message}`,
+      occurrence: new Date(),
+    });
+  }
 }
 
 export async function completeProvisioning(instanceId: string): Promise<void> {
   await prisma.provisioningJob.updateMany({
     where: { instanceId, status: 'running' },
     data: { status: 'completed' },
+  });
+  // The line of the order that owns the instance is delivered with it.
+  await prisma.orderItem.updateMany({
+    where: { instances: { some: { id: instanceId } } },
+    data: { fulfillmentStatus: 'FULFILLED', fulfillmentError: null },
   });
   await recordEvent(instanceId, 'provisioned', 'Instance is online.');
 }
@@ -215,15 +249,6 @@ function isUnauthenticated(error: unknown): boolean {
   return error instanceof pteroClient.ClientApiError && error.status === 401;
 }
 
-/**
- * Runs an operation on the panel with the key of the customer.
- *
- * A key that the panel does not know any more answers 401. That happens when
- * the key was revoked on the panel, for instance because another one was
- * issued for the same account. A new key is asked for and the operation runs a
- * second time, so a deployment does not fail over a key that is not valid any
- * more.
- */
 /**
  * Puts the application of the product into a new container.
  *
@@ -252,12 +277,53 @@ async function placeStarterApplication(instance: Instance, server: PteroServer, 
   await recordEvent(instance.id, 'provisioning', `Placed the application of ${product.name} in the container.`);
 }
 
-async function withCustomerKey<T>(userId: string, run: (token: string) => Promise<T>): Promise<T> {
+/**
+ * How the key of a customer may be used.
+ *
+ * The provisioning may ask the panel for a new key, because a customer without
+ * a key cannot receive a service at all. A run that only looks at the panel
+ * may not: it must never mint a credential of its own, so a customer whose key
+ * is gone is reported as unreachable instead of being given a new one without
+ * anybody asking for it.
+ */
+export interface CustomerKeyOptions {
+  /** True when a new key may be asked for when the customer has none. */
+  mint?: boolean;
+  /** True when a key that the panel refuses may be replaced by a new one. */
+  renew?: boolean;
+}
+
+/**
+ * Runs an operation on the panel with the key of the customer.
+ *
+ * A key that the panel does not know any more answers 401. That happens when
+ * the key was revoked on the panel, for instance because another one was
+ * issued for the same account. A new key is asked for and the operation runs a
+ * second time, so a deployment does not fail over a key that is not valid any
+ * more.
+ */
+export async function withCustomerKey<T>(
+  userId: string,
+  run: (token: string) => Promise<T>,
+  options: CustomerKeyOptions = {},
+): Promise<T> {
+  const mint = options.mint ?? true;
+  const renew = options.renew ?? true;
+
+  // A run that may not mint a key needs one that is already stored. When there
+  // is none, the customer is reported instead of being given a new key.
+  if (!mint && !(await hasCustomerCredential(userId))) {
+    throw unavailable('This customer has no client key on the panel.');
+  }
+
   const credential = await resolveCustomerCredential(userId);
   try {
     return await run(pteroClient.clientToken(credential.token));
   } catch (error) {
     if (!isUnauthenticated(error)) throw error;
+    // A run that may not renew a key passes the refusal of the panel on, so
+    // the caller can report that the node could not be asked.
+    if (!renew) throw error;
 
     const fresh = await renewCustomerCredential(userId);
     try {
@@ -704,12 +770,36 @@ export async function verifyDeployment(
 }
 
 /**
+ * How many times the node is asked to confirm a container that is alive.
+ *
+ * The node only promotes a container to "running" when the health check of
+ * the egg passes. On a node whose eggs have no health check that matches the
+ * application, the container stays in "starting" for as long as it is up, so
+ * waiting for the confirmation is waiting for something that will not come.
+ * Five checks of three seconds are enough to see the confirmation when it is
+ * going to come, and short enough not to hold a provisioning for a minute.
+ */
+const CONFIRM_ATTEMPTS = 5;
+
+/**
  * Verifies the deployment of a product that does not expose a port.
  *
  * A bot that only talks to another service has nothing to answer on the
- * network, so the check is not "does the app answer" but "is the server really
- * on the node and does the panel manage it". The panel answers with the state
- * of the server, so an answer means the deployment reached the node.
+ * network, so the check is not "does the app answer" but "is the container
+ * really alive on the node".
+ *
+ * The panel answers with the state of the server and with what the container
+ * uses. A container that the node reports as "running" is serving. A container
+ * that the node still reports as "starting" but that uses memory is alive: the
+ * health check of the egg does not pass, so the node never promotes it, and
+ * the customer would be refunded for a service that works. A container that
+ * uses no memory is not serving yet, and one that the node reports as
+ * "offline", "stopped" or "crashed" will not become healthy by waiting for
+ * it, so the check stops at once and names the state.
+ *
+ * A deployment that was called healthy while the node said anything else
+ * would hand a broken container to a customer and would say that the instance
+ * is online.
  */
 export async function verifyContainerDeployment(
   token: string,
@@ -721,21 +811,68 @@ export async function verifyContainerDeployment(
   const delayMs = options.delayMs ?? 3000;
 
   let lastReason = 'The panel did not answer about the server.';
+  // A container that is alive but that the node does not confirm: the health
+  // check of the egg does not pass, so the node keeps it in "starting" for as
+  // long as the container is up. The deployment is served, and the doubt is
+  // written down instead of being hidden.
+  let unconfirmed: string | null = null;
+  let aliveChecks = 0;
 
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       const resources = await pteroClient.getResources(token, uuid);
-      return {
-        ok: true,
-        status: null,
-        reason: null,
-        message: `The server is on the node and the panel manages it (state: ${resources.state}).`,
-      };
+      const verdict = judgeContainer({
+        state: resources.state,
+        memoryBytes: resources.memory_bytes,
+        suspended: resources.is_suspended,
+      });
+      lastReason = verdict.reason;
+
+      if (verdict.serving && verdict.confirmed) {
+        return {
+          ok: true,
+          status: null,
+          reason: null,
+          message: verdict.reason,
+        };
+      }
+
+      if (!verdict.serving) {
+        // A state that will not become healthy by waiting for it.
+        return {
+          ok: false,
+          status: null,
+          reason: verdict.reason,
+        };
+      }
+
+      // The container is alive but the node does not confirm it. The node gets
+      // a few more chances to say so, and the deployment is served afterwards
+      // with the doubt written down.
+      unconfirmed = verdict.reason;
+      aliveChecks += 1;
+      if (aliveChecks >= CONFIRM_ATTEMPTS) {
+        return {
+          ok: true,
+          status: null,
+          reason: null,
+          message: `${unconfirmed} The deployment was served after ${aliveChecks} checks.`,
+        };
+      }
     } catch (error) {
       lastReason = error instanceof Error ? error.message : 'The panel did not answer about the server.';
     }
 
     await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  if (unconfirmed) {
+    return {
+      ok: true,
+      status: null,
+      reason: null,
+      message: `${unconfirmed} The deployment was served after ${attempts} checks.`,
+    };
   }
 
   return { ok: false, status: null, reason: lastReason };
@@ -872,7 +1009,10 @@ async function stopSubscriptionOfInstance(
   });
   if (!subscription) return;
   try {
-    await cancelSubscription(subscription);
+    // The cancellation is immediate here: the service does not exist, so
+    // there is nothing to keep running until the end of a period, and the
+    // customer must not be billed for it again.
+    await cancelSubscription(subscription, { immediate: true });
     await recordEvent(instance.id, 'compensation', 'The subscription of the instance was cancelled.');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -1379,15 +1519,13 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     // The customer hears that the service is ready. The message follows the
     // preferences of the account and its state is the one of the mailer: while
     // no relay is configured, it is written to a file and nobody receives it.
-    const owner = await prisma.user.findUnique({ where: { id: instance.userId } });
-    if (owner) {
-      await notifyInstanceProvisioned({
-        userId: owner.id,
-        email: owner.email,
-        name: fullName(owner),
-        instanceName: instance.name,
-      });
-    }
+    await notifyInstanceProvisioned({
+      userId: instance.userId,
+      instanceName: instance.name,
+      // The moment the service became ready is what makes the occurrence
+      // unique: a service that is rebuilt has its own message.
+      occurrence: new Date(),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 

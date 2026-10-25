@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
@@ -10,15 +11,30 @@ import { createCheckout, markOrderPaid, stripeTestGateway } from '../services/st
 import { fulfilOrder } from './webhooks.js';
 import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
+import { notifyOrderCanceled, notifyOrderCreated, notifyPaymentRequired } from '../services/notifications.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
+
+/**
+ * The routes of an order that has no limit of their own.
+ *
+ * The checkout, the confirmation and the cancellation only write rows
+ * in the database of the platform, so they carry the limit of the
+ * account: the limit is counted for the account of the customer and for
+ * the address of the caller.
+ */
 
 const orderItemSchema = z.object({
   productSlug: z.string().min(1),
-  ram: z.number().int().positive(),
-  cpu: z.number().int().positive(),
-  disk: z.number().int().positive(),
+  // A line of servers carries its resources. A line of mail carries the
+  // domain it wants and no resources: the plan of the line is the whole
+  // configuration. What a line means is decided by the product, on the
+  // server, and never by the customer.
+  ram: z.number().int().positive().optional(),
+  cpu: z.number().int().positive().optional(),
+  disk: z.number().int().positive().optional(),
   optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
+  mailDomain: z.string().trim().max(253).optional(),
 });
 
 function serializeOrder(order: {
@@ -36,6 +52,8 @@ function serializeOrder(order: {
     unitAmount: number;
     total: number;
     config: unknown;
+    fulfillmentStatus: string;
+    fulfillmentError: string | null;
     product: { slug: string };
   }[];
 }) {
@@ -54,7 +72,18 @@ function serializeOrder(order: {
       quantity: item.quantity,
       unitAmount: item.unitAmount,
       total: item.total,
-      config: item.config as { ram: number; cpu: number; disk: number; optionCodes: string[] } | null,
+      // The state of the delivery of this line, on its own: a line of mail
+      // and a line of server do not progress together.
+      fulfillmentStatus: item.fulfillmentStatus,
+      fulfillmentError: item.fulfillmentError,
+      config: item.config as {
+        ram: number;
+        cpu: number;
+        disk: number;
+        optionCodes: string[];
+        fulfilment?: string;
+        mailDomain?: string | null;
+      } | null,
     })),
   };
 }
@@ -78,6 +107,21 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         .parse(request.body);
 
       const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
+
+      // A domain that another customer already hosts is refused here, before
+      // the customer is charged for it. The platform would refuse it later
+      // anyway, at the moment of the provisioning, and a customer that paid
+      // for a domain that cannot be hosted would have to be refunded.
+      for (const item of quote.items) {
+        if (item.fulfilment !== 'EMAIL' || !item.mailDomain) continue;
+        const taken = await prisma.mailDomain.findFirst({
+          where: { name: item.mailDomain, userId: { not: user.id } },
+          select: { id: true },
+        });
+        if (taken) {
+          throw conflict('This domain is already hosted for another customer.');
+        }
+      }
 
       const order = await prisma.order.create({
         data: {
@@ -104,6 +148,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 // The period of the price travels with the line, so the
                 // payment provider is asked for the right interval.
                 period: item.price.period,
+                // What the line delivers and the domain it brings. The line
+                // of a mail is delivered by the mail system and not by the
+                // panel, so it has to know which of the two it is.
+                fulfilment: item.fulfilment,
+                mailDomain: item.mailDomain ?? null,
               },
             })),
           },
@@ -132,6 +181,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
 
       await audit({ actorId: user.id, actorEmail: user.email, action: 'order.created', targetType: 'order', targetId: order.id, meta: { total: order.total } });
+
+      // The customer is told that the order exists. The payment demand is a
+      // second event, published when the customer is really sent to the
+      // checkout, so an order that is never paid is never nagged about.
+      await notifyOrderCreated({
+        userId: user.id,
+        number: order.number,
+        total: order.total,
+        currency: order.currency,
+      });
       return reply.code(201).send({ order: serializeOrder(order) });
     },
   });
@@ -160,7 +219,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     return { order: serializeOrder(order) };
   });
 
-  app.post('/orders/:id/checkout', async (request: FastifyRequest) => {
+  app.post('/orders/:id/checkout', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const order = await prisma.order.findFirst({
@@ -204,13 +266,23 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       };
     }
 
-    const checkout = await createCheckout(order);
+    const checkout = await createCheckout(order, user.email);
     if (!checkout.url) {
       return { url: null, sessionId: checkout.sessionId, message: checkout.reason ?? 'Checkout is unavailable.' };
     }
 
     await prisma.order.update({ where: { id: order.id }, data: { status: 'AWAITING_PAYMENT' } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'order.checkout_started', targetType: 'order', targetId: order.id });
+
+    // The customer is sent to the checkout, so the order is really waiting
+    // for its payment. This is the moment the demand for payment belongs
+    // to.
+    await notifyPaymentRequired({
+      userId: user.id,
+      number: order.number,
+      total: order.total,
+      currency: order.currency,
+    });
 
     return { url: checkout.url, sessionId: checkout.sessionId, message: null, testGateway: stripeTestGateway() };
   });
@@ -229,7 +301,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
    * the payment provider confirms the payment through its own webhook, and
    * this route refuses, so nobody can mark an order paid from the browser.
    */
-  app.post('/orders/:id/confirm', async (request: FastifyRequest) => {
+  app.post('/orders/:id/confirm', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     if (!stripeTestGateway()) {
@@ -261,7 +336,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     return { order: { id: order.id, status: updated?.status ?? 'PAID', total: order.total }, alreadyPaid: false };
   });
 
-  app.post('/orders/:id/cancel', async (request: FastifyRequest, reply) => {
+  app.post('/orders/:id/cancel', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const order = await prisma.order.findFirst({ where: { id, userId: user.id } });
@@ -277,6 +355,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // The campaign slot goes back into the pool.
     await releasePromotionReservation(order.id);
     await audit({ actorId: user.id, actorEmail: user.email, action: 'order.cancelled', targetType: 'order', targetId: order.id });
+    await notifyOrderCanceled({ userId: user.id, number: order.number });
     return reply.code(204).send();
   });
 }

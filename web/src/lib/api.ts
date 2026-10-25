@@ -36,8 +36,13 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * is suspended, or the session is revoked from another device. The pages that
  * need a session have to know about it, so the handler clears the session and
  * the guard sends the visitor to the login.
+ *
+ * The code of the answer tells the two cases apart: a session that ended and
+ * an account that was suspended. The customer is told which one it is,
+ * because "you were disconnected" and "your account was suspended" are two
+ * very different things.
  */
-type UnauthorizedHandler = () => void;
+type UnauthorizedHandler = (code: string) => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 
 export function onUnauthorized(handler: UnauthorizedHandler | null): void {
@@ -94,11 +99,6 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
   const requestId = response.headers.get('x-request-id') ?? undefined;
 
   if (!response.ok) {
-    if (response.status === 401 && !UNAUTHORIZED_IS_ANSWER.some((p) => path === p || path.startsWith(`${p}?`))) {
-      // The session is gone. The page that needs it will send the visitor to
-      // the login, with the page they wanted.
-      unauthorizedHandler?.();
-    }
     let code = 'request_failed';
     let message = `Request failed (${response.status}).`;
     let fields: Record<string, string> | undefined;
@@ -112,6 +112,13 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
       } else if (typeof detail === 'string') {
         message = detail;
       }
+    }
+    if (response.status === 401 && !UNAUTHORIZED_IS_ANSWER.some((p) => path === p || path.startsWith(`${p}?`))) {
+      // The session is gone. The page that needs it will send the visitor to
+      // the login, with the page they wanted. The code is read first, so the
+      // handler can tell an account that was suspended from a session that
+      // simply ended.
+      unauthorizedHandler?.(code);
     }
     throw new ApiError(response.status, code, message, fields, requestId);
   }
@@ -373,7 +380,7 @@ export interface Domain {
   instanceId: string;
   instanceName: string;
   hostname: string;
-  status: 'pending_dns' | 'verifying' | 'active' | 'error';
+  status: 'pending_dns' | 'pending_gateway' | 'verifying' | 'active' | 'error';
   targetPort: number;
   dnsRecords: { name: string; type: string; value: string }[];
   lastError: string | null;
@@ -440,4 +447,551 @@ export interface Subscription {
   currency: string;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+}
+
+// --- mail -----------------------------------------------------------------
+
+/**
+ * An email domain of the customer.
+ *
+ * The server sends the whole picture of a domain, so the page never has to
+ * count the mailboxes and the aliases by itself.
+ */
+export interface MailDomainView {
+  id: string;
+  /** The hostname the customer owns, for example acme.ro. */
+  name: string;
+  status: 'pending' | 'active' | 'error' | 'suspended';
+  /** The space of the whole domain, in megabytes. */
+  quotaMb: number;
+  /** The space the domain uses, in megabytes. */
+  usedMb: number;
+  maxMailboxes: number;
+  maxAliases: number;
+  /** How many mailboxes the domain has. */
+  mailboxes: number;
+  /** How many aliases the domain has. */
+  aliases: number;
+  /** The public key of DKIM, when the server has one for the domain. */
+  dkimPublic: string | null;
+  /** The webmail of the customer, when there is one. */
+  webmailUrl: string | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
+/** A mailbox of a domain. */
+export interface MailboxView {
+  id: string;
+  /** The address of the mailbox, for example contact@acme.ro. */
+  address: string;
+  status: 'active' | 'disabled';
+  quotaMb: number;
+  usedMb: number;
+  /**
+   * The password of the mailbox. It is only in the answer that creates the
+   * mailbox, and only when the server made the password itself.
+   */
+  password?: string;
+  createdAt: string;
+}
+
+/** An alias: another address that reaches a mailbox. */
+export interface MailAliasView {
+  id: string;
+  /** The address of the alias, for example info@acme.ro. */
+  alias: string;
+  /** The mailbox that receives the mail of the alias. */
+  target: string;
+  createdAt: string;
+}
+
+/** A DNS record the customer has to publish for the mail to work. */
+export interface DnsRecordView {
+  name: string;
+  type: 'MX' | 'TXT' | 'CNAME';
+  value: string;
+  priority?: number;
+  /** What the record is for, in words: where the mail is delivered. */
+  purpose: string;
+}
+
+/** The email domains of the customer. */
+export const listMailDomains = (signal?: AbortSignal) =>
+  get<{ domains: MailDomainView[] }>('/mail/domains', undefined, signal);
+
+/** One email domain, with its counters. */
+export const getMailDomain = (id: string, signal?: AbortSignal) =>
+  get<{ domain: MailDomainView }>(`/mail/domains/${id}`, undefined, signal);
+
+/** Adds an email domain. The server answers with the domain it created. */
+export const createMailDomain = (name: string) => post<{ domain: MailDomainView }>('/mail/domains', { name });
+
+/** Deletes an email domain with everything it holds. */
+export const deleteMailDomain = (id: string) => del<{ ok: true }>(`/mail/domains/${id}`);
+
+/** The mailboxes of a domain. */
+export const listMailboxes = (domainId: string, signal?: AbortSignal) =>
+  get<{ mailboxes: MailboxView[] }>(`/mail/domains/${domainId}/mailboxes`, undefined, signal);
+
+/**
+ * Adds a mailbox to a domain.
+ *
+ * Without a password the server makes one and sends it back. That answer is
+ * the only time the password is ever seen.
+ */
+export const createMailbox = (domainId: string, body: { localPart: string; password?: string }) =>
+  post<{ mailbox: MailboxView }>(`/mail/domains/${domainId}/mailboxes`, body);
+
+/** Deletes a mailbox of a domain. */
+export const deleteMailbox = (domainId: string, mailboxId: string) =>
+  del<{ ok: true }>(`/mail/domains/${domainId}/mailboxes/${mailboxId}`);
+
+/** The aliases of a domain. */
+export const listMailAliases = (domainId: string, signal?: AbortSignal) =>
+  get<{ aliases: MailAliasView[] }>(`/mail/domains/${domainId}/aliases`, undefined, signal);
+
+/** Adds an alias that reaches a mailbox of the domain. */
+export const createMailAlias = (domainId: string, body: { alias: string; target: string }) =>
+  post<{ alias: MailAliasView }>(`/mail/domains/${domainId}/aliases`, body);
+
+/** Deletes an alias of a domain. */
+export const deleteMailAlias = (domainId: string, aliasId: string) =>
+  del<{ ok: true }>(`/mail/domains/${domainId}/aliases/${aliasId}`);
+
+/**
+ * The DNS records the customer has to publish for a domain, and whether the
+ * server has seen them already.
+ */
+export const getMailDns = (domainId: string, signal?: AbortSignal) =>
+  get<{ records: DnsRecordView[]; verified: boolean }>(`/mail/domains/${domainId}/dns`, undefined, signal);
+
+// --- admin mail ------------------------------------------------------------
+
+/** The state of a hosted mail domain, as the API sends it. */
+export type AdminMailDomainStatus = 'pending' | 'active' | 'error' | 'suspended';
+
+/** The state of a job of the mail. */
+export type AdminMailJobStatus = 'queued' | 'running' | 'done' | 'failed';
+
+/**
+ * The health of the mail system and of the platform.
+ *
+ * `consistent` is null when the mail system could not be reached: there is
+ * nothing to compare then, so the page must not say that the two sides hold
+ * the same numbers.
+ */
+export interface AdminMailHealth {
+  service: {
+    /** Whether this environment points at a mail system at all. */
+    configured: boolean;
+    /** Whether the mail system answered the request. */
+    reachable: boolean;
+    /** The version the mail system reports. */
+    version: string | null;
+    /** The disk of the mail system. Null when the mail system did not answer. */
+    disk: { used: string; total: string; usedPercent: string } | null;
+    /** The words of the failure, when there is one. */
+    error: string | null;
+  };
+  /** What the platform believes it holds. */
+  platform: { domains: number; mailboxes: number; aliases: number; failedJobs: number };
+  /** What the mail system holds. Zero when the mail system did not answer. */
+  system: { domains: number; mailboxes: number; aliases: number };
+  /** True when the two sides hold the same numbers, false when they do not. */
+  consistent: boolean | null;
+}
+
+/** A hosted mail domain, with the customer that owns it. */
+export interface AdminMailDomain {
+  id: string;
+  /** The hostname the customer owns, for example acme.ro. */
+  name: string;
+  status: AdminMailDomainStatus;
+  /** The space of the whole domain, in megabytes. */
+  quotaMb: number;
+  /** The space the domain uses, in megabytes. */
+  usedMb: number;
+  /** How many mailboxes the domain has. */
+  mailboxes: number;
+  /** How many aliases the domain has. */
+  aliases: number;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  /** The customer that owns the domain. */
+  customer: { id: string; email: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A job the platform owes to the mail system. */
+export interface AdminMailJob {
+  id: string;
+  /** The work itself, for example mailbox.create. */
+  kind: string;
+  status: AdminMailJobStatus;
+  /** How many times the work was tried. */
+  attempts: number;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  /** True only for a failed job whose kind can be repeated. */
+  retryable: boolean;
+  /** The domain the work belongs to. Null when it belongs to none. */
+  domain: { id: string; name: string } | null;
+  /** What the work carries. */
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The page of a list that is walked with a cursor. */
+export interface AdminMailPagination {
+  limit: number;
+  /** The cursor of the next page. Null when there is no next page. */
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
+/** The query of a list of the mail. */
+export interface AdminMailListQuery {
+  limit?: number;
+  cursor?: string;
+  status?: string;
+  search?: string;
+}
+
+/** The health of the mail system and of the platform. */
+export const getAdminMailHealth = (signal?: AbortSignal) =>
+  get<AdminMailHealth>('/admin/mail/health', undefined, signal);
+
+/** Every hosted mail domain of every customer, in pages. */
+export const listAdminMailDomains = (query: AdminMailListQuery = {}, signal?: AbortSignal) =>
+  get<{ domains: AdminMailDomain[]; total: number; pagination: AdminMailPagination }>(
+    '/admin/mail/domains',
+    { limit: query.limit, cursor: query.cursor, status: query.status, search: query.search },
+    signal,
+  );
+
+/** The work the platform owes to the mail system, in pages. */
+export const listAdminMailJobs = (query: AdminMailListQuery = {}, signal?: AbortSignal) =>
+  get<{ jobs: AdminMailJob[]; total: number; pagination: AdminMailPagination }>(
+    '/admin/mail/jobs',
+    { limit: query.limit, cursor: query.cursor, status: query.status },
+    signal,
+  );
+
+/**
+ * Repeats a job of the mail that failed.
+ *
+ * The server refuses the work it cannot repeat, and the words of the refusal
+ * are the ones the page shows.
+ */
+export const retryAdminMailJob = (id: string) =>
+  post<{ job: AdminMailJob }>(`/admin/mail/jobs/${encodeURIComponent(id)}/retry`);
+
+// --- mail commerce --------------------------------------------------------
+
+/**
+ * The limits of a plan of hosted mail.
+ *
+ * Every limit is a number of the platform: the interface reads them and never
+ * writes one of them down.
+ */
+export interface MailPlanLimits {
+  /** How many domains the plan includes. */
+  maxDomains: number;
+  /** How many mailboxes a domain of the plan may hold. */
+  maxMailboxes: number;
+  /** How many aliases a domain of the plan may hold. */
+  maxAliases: number;
+  /** How many forwarding rules a domain of the plan may hold. */
+  maxForwarding: number;
+  /** The space of the whole plan, in megabytes. */
+  totalStorageMb: number;
+  /** The space of one mailbox, in megabytes. */
+  mailboxQuotaMb: number;
+  /** How many messages may be sent in the window of the interval. */
+  sendLimit: number;
+  /** The window in which the limit of sending is counted. */
+  sendInterval: string;
+}
+
+/**
+ * A price of a plan of hosted mail, in minor units of its currency.
+ *
+ * The period says how often the amount is charged.
+ */
+export interface MailPlanPrice {
+  amount: number;
+  currency: string;
+  period: string;
+}
+
+/**
+ * Whether a plan of hosted mail can be bought, and why not when it cannot.
+ *
+ * The blockers are the words of the platform: they are shown to the customer
+ * as they are.
+ */
+export interface MailPlanAvailability {
+  /** The state of the plan, seen from the outside. */
+  state: string;
+  /** True when the plan can be ordered right now. */
+  orderable: boolean;
+  /** Why the plan cannot be ordered. Empty when it can. */
+  blockers: string[];
+}
+
+/**
+ * A plan of hosted mail, as the public catalog of the platform sends it.
+ *
+ * The price is null when the plan has no price yet, and `onSale` is false
+ * when the operator closed the sale of hosted mail. A plan that is not on sale
+ * can still be read, it cannot be bought.
+ */
+export interface MailPlanView {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon: string;
+  limits: MailPlanLimits;
+  /** The price of the plan, or null when it has none yet. */
+  price: MailPlanPrice | null;
+  /** Every price of the plan, one per period. */
+  prices: MailPlanPrice[];
+  availability: MailPlanAvailability;
+  /** True when the sale of hosted mail is open for this plan. */
+  onSale: boolean;
+}
+
+/**
+ * The state of a mail service.
+ *
+ * A service is what a customer buys when they buy hosted mail. It has its own
+ * life: it waits for its domain, it is set up, it works, it may fall into a
+ * grace period, it may be suspended and it may be cancelled.
+ */
+export type MailServiceStatus =
+  | 'PENDING'
+  | 'PROVISIONING'
+  | 'ACTIVE'
+  | 'GRACE'
+  | 'SUSPENDED'
+  | 'CANCELLED';
+
+/**
+ * The state of the proof of ownership of a domain.
+ *
+ * The proof is a record of DNS that the customer publishes: the platform never
+ * writes the DNS of a customer.
+ */
+export type MailOwnershipStatus = 'UNVERIFIED' | 'VERIFIED' | 'FAILED';
+
+/**
+ * A domain of a mail service, with its state and its proof.
+ */
+export interface MailServiceDomainView {
+  id: string;
+  /** The hostname the customer owns, for example acme.ro. */
+  name: string;
+  status: string;
+  /** The state of the proof of ownership of the domain. */
+  ownershipStatus: MailOwnershipStatus;
+  /** The record of DNS that carries the proof. */
+  verificationHost: string | null;
+  /** The token the customer has to publish. */
+  verificationToken: string | null;
+  /** The moment the proof was accepted. */
+  verifiedAt: string | null;
+  /** The space of the domain, in megabytes. */
+  quotaMb: number;
+  /** The space the domain uses, in megabytes. */
+  usedMb: number;
+  /** How many mailboxes the domain has. */
+  mailboxCount: number;
+  /** How many aliases the domain has. */
+  aliasCount: number;
+  maxMailboxes: number;
+  maxAliases: number;
+  maxForwarding: number;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  /** The webmail of the customer, when the platform gives one. */
+  webmailUrl?: string | null;
+}
+
+/**
+ * A mail service of the customer: the plan that was paid for, the use of it
+ * and the domains it holds.
+ */
+export interface MailServiceView {
+  id: string;
+  status: MailServiceStatus;
+  plan: { slug: string; name: string; category: string };
+  limits: MailPlanLimits;
+  usage: {
+    /** How many domains the service holds. */
+    domains: number;
+    /** How many mailboxes the service holds. */
+    mailboxes: number;
+    /** The space the service uses, in megabytes. */
+    storageMb: number;
+    /** The space of the plan, in megabytes. */
+    storageLimitMb: number;
+  };
+  domains: MailServiceDomainView[];
+  /** The moment the grace period ends. */
+  graceUntil: string | null;
+  /** The moment the service was suspended. */
+  suspendedAt: string | null;
+  /** The moment the service was cancelled. */
+  cancelledAt: string | null;
+  /** The moment the data of the service is deleted. */
+  retentionUntil: string | null;
+  /** The words of the last failure, when there is one. */
+  lastError: string | null;
+  createdAt: string;
+  /** The webmail of the customer, when the platform gives one. */
+  webmailUrl?: string | null;
+}
+
+/**
+ * A line of an order that buys hosted mail.
+ *
+ * A line of mail names the domain it brings and no resources: the plan of the
+ * line is the whole configuration.
+ */
+export interface MailPlanOrder {
+  productSlug: string;
+  mailDomain: string;
+}
+
+/** A record of DNS of a domain of a mail service. */
+export interface MailServiceDnsRecordView {
+  name: string;
+  type: string;
+  value: string;
+  priority?: number;
+  /** What the record is for, in words. */
+  purpose?: string;
+}
+
+/**
+ * The records of DNS of a domain of a mail service, and what the server has
+ * seen of them.
+ */
+export interface MailServiceDnsView {
+  id: string;
+  name: string;
+  records: MailServiceDnsRecordView[];
+  /** True when the server has seen the records of the domain. */
+  verified: boolean;
+  /** The records the server has not seen yet. */
+  missing?: string[] | boolean;
+}
+
+// --- notification centre ---------------------------------------------------
+
+/**
+ * The groups of the messages of the notification centre.
+ *
+ * The keys are the groups of the preferences: a group of the interface is a
+ * group of the server, so the page never invents a group of its own.
+ */
+export type NotificationGroupKey =
+  | 'accountSecurity'
+  | 'ordersBilling'
+  | 'hostingServices'
+  | 'support'
+  | 'domainsEmail'
+  | 'incidents'
+  | 'productUpdates'
+  | 'marketing';
+
+/**
+ * The channel a message travels on.
+ *
+ * The e-mail goes to the address of the account, the notification centre is
+ * the page of the dashboard.
+ */
+export type NotificationChannel = 'email' | 'in_app';
+
+/**
+ * One message of the notification centre.
+ *
+ * The message belongs to the customer of the session that reads it. The
+ * server never sends the message of another customer, so the interface does
+ * not have to hide anything: there is nothing of another customer to see.
+ */
+export interface NotificationView {
+  id: string;
+  /** The group of the message, one of the keys of the preferences. */
+  category: string;
+  title: string;
+  body: string;
+  /** The page the message leads to: the service, the invoice, the ticket. */
+  actionUrl: string | null;
+  /** The words of the link of the action. */
+  actionLabel: string | null;
+  /** The moment the message was read. Null when it was not read yet. */
+  readAt: string | null;
+  /** The moment the message happened. */
+  createdAt: string;
+}
+
+/**
+ * What the customer chose to hear about.
+ *
+ * The essential group is not a choice: the server keeps it on whatever the
+ * customer sends. `billing` is the switch of the old platform, kept so a
+ * customer who turned it off keeps that choice.
+ */
+export interface NotificationPreferences {
+  accountSecurity: boolean;
+  ordersBilling: boolean;
+  billing: boolean;
+  hostingServices: boolean;
+  support: boolean;
+  domainsEmail: boolean;
+  incidents: boolean;
+  productUpdates: boolean;
+  marketing: boolean;
+  emailChannel: boolean;
+  inAppChannel: boolean;
+}
+
+/**
+ * A group of messages, as the customer reads it.
+ */
+export interface NotificationCategoryView {
+  key: string;
+  label: string;
+  description: string;
+  /** essential | optional | marketing */
+  classification: string;
+  /** True when the customer may not switch the group off. */
+  essential: boolean;
+  /** The channels the group travels on. */
+  channels: NotificationChannel[];
+}
+
+/**
+ * The answer of the list of the notifications.
+ */
+export interface NotificationListResponse {
+  notifications: NotificationView[];
+  /** How many messages of the customer are waiting to be read. */
+  unread: number;
+  /** The cursor of the next page. Null when there is no next page. */
+  nextCursor: string | null;
+}
+
+/**
+ * The answer of the preferences: what the customer chose and the groups of
+ * the messages, in the order the server gives them.
+ */
+export interface NotificationPreferencesResponse {
+  preferences: NotificationPreferences;
+  categories: NotificationCategoryView[];
 }

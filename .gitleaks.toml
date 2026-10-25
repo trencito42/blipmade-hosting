@@ -29,10 +29,42 @@ The findings of the scan that are not secrets.
   it. It is the password of a customer of a test, on a local address, and
   the live database was checked on 2026-10-24: no account of the platform
   uses it. The entry goes away when the history is cleaned of it.
+- The token of the verification message that the audit captured on the
+  local sink of the audit (127.0.0.1:3013), for the account
+  r3-audit-customer@blipmade.test. The token was written in the evidence of
+  the mail, and it is redacted there now, but the history keeps the value,
+  so the scan reports it. It is a throwaway token of a local sink for a
+  test account, and the live database was checked on 2026-10-24: the token
+  is not in the table of the verification tokens (0 rows) and the account
+  does not exist in production either (0 rows). The entry goes away when
+  the history is cleaned of it.
+- The token of the DNS verification of a domain that the audit created on the
+  isolated stack, for the hostname r3-probe.example.test. The host name is
+  in the reserved test domain example.test, the domain was never registered
+  and the token grants access to nothing: it is the random value that the
+  platform writes in a TXT record and reads back to prove that whoever asked
+  for the domain controls it. The value is redacted in the evidence now, but
+  the history keeps it, so the scan reports it. The entry goes away when the
+  history is cleaned of it.
+- The fingerprint of the certificate of the mail server. A fingerprint is the
+  SHA-256 of a certificate, and a certificate is public: anybody who can see
+  the certificate of the mail server can calculate the fingerprint. The
+  platform uses it to refuse a certificate that is not the one it expects,
+  and not to open a door. The value is in the guide of the operator, because
+  the operator has to write it down in the environment of the platform.
+- The password that the test of the page of the hosted mail gives to a
+  mailbox. The value is a fixture of the test: the word "secret" followed by
+  a number, it is never sent anywhere and it grants access to nothing. The
+  test proves that the platform shows the password of a new mailbox once and
+  never again.
 """
 regexes = [
   '''verification-12345678''',
   '''verification-abcdef01''',
   '''ptlc_0123456789abcdef0123456789abcdef0123456789abcd''',
   '''VerifyHorseBattery9''',
+  '''4W1ILM_lYoNSEM9MoZZqRZfJhtBZAAQdJsPhLEN6_Es''',
+  '''tcDcrLSUqsAQgFIhQPLJKmg4F97FgzqV''',
+  '''7c9a7865a7ad3c5a9a05a4f4bb414640d643c85c392bad1ce2c409cbbaca25be''',
+  '''k7-Generated-Secret-42''',
 ]

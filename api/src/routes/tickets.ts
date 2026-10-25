@@ -3,10 +3,19 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { AppError, badRequest, forbidden, notFound } from '../lib/errors.js';
-import { requireAuth, requireStaff, type AuthUser } from '../plugins/auth.js';
+import { LIMITS, customerLimit } from '../lib/rate-limit.js';
+import { addressRateLimitKey, requireAuth, requireStaff, type AuthUser } from '../plugins/auth.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { audit } from '../lib/audit.js';
-import { sendMail } from '../lib/mailer.js';
+import {
+  notifyTicketClosed,
+  notifyTicketCreated,
+  notifyTicketCustomerReplied,
+  notifyTicketOpenedForStaff,
+  notifyTicketReopened,
+  notifyTicketReplyCreated,
+  notifyTicketStatusChanged,
+} from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import {
   readAttachment,
@@ -16,6 +25,16 @@ import {
   storeAttachment,
   validateAttachment,
 } from '../lib/attachments.js';
+
+/**
+ * The routes of the tickets carry a limit.
+ *
+ * A ticket that is opened, a reply and a change of the state send a
+ * message, so they carry the limit of the mail: the platform may not
+ * become a relay for the account of one customer. The attachment is
+ * written on the storage of the platform, so it carries the limit of
+ * the panel.
+ */
 
 /**
  * The enums of a ticket, in the shape the Prisma enums have them.
@@ -147,7 +166,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     return { tickets: page.rows.map(serializeTicket), pagination: page.pagination };
   });
 
-  app.post('/tickets', async (request: FastifyRequest, reply) => {
+  app.post('/tickets', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const body = parse(
       z.object({
@@ -188,7 +210,25 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
     await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'created', message: 'Ticket opened.', actorId: user.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.created', targetType: 'ticket', targetId: ticket.id });
-    await notifyStaff(ticket.id, ticket.subject);
+
+    // The customer is told that the ticket is in the queue, and the staff
+    // that works the queue is told that a new ticket arrived. The two
+    // messages are two events: one event has one audience.
+    await notifyTicketCreated({
+      userId: user.id,
+      ticketId: ticket.id,
+      ticketNumber: String(ticket.number),
+      subject: ticket.subject,
+      occurrence: ticket.id,
+    });
+    await notifyTicketOpenedForStaff({
+      userId: user.id,
+      ticketId: ticket.id,
+      ticketNumber: String(ticket.number),
+      subject: ticket.subject,
+      customer: fullName(user) || user.email,
+      occurrence: ticket.id,
+    });
 
     return reply.code(201).send({ ticket: serializeTicket(ticket) });
   });
@@ -250,7 +290,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     };
   });
 
-  app.post('/tickets/:id/replies', async (request: FastifyRequest, reply) => {
+  app.post('/tickets/:id/replies', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
@@ -298,7 +341,31 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.replied', targetType: 'ticket', targetId: ticket.id, meta: { internal: Boolean(body.internal) } });
 
     if (!body.internal) {
-      await notifyReply(ticket.id, ticket.subject, ticket.userId, user.id);
+      // The author of a reply is never told about their own reply: the
+      // answer of the staff goes to the customer, and the answer of the
+      // customer goes to the staff. The two are two events, because an
+      // event has one audience.
+      const excerpt = body.body.trim().slice(0, 300);
+      if (isStaff) {
+        await notifyTicketReplyCreated({
+          userId: ticket.userId,
+          ticketId: ticket.id,
+          ticketNumber: String(ticket.number),
+          subject: ticket.subject,
+          excerpt,
+          occurrence: message.id,
+        });
+      } else {
+        await notifyTicketCustomerReplied({
+          userId: ticket.userId,
+          ticketId: ticket.id,
+          ticketNumber: String(ticket.number),
+          subject: ticket.subject,
+          excerpt,
+          staffId: ticket.assignedToId,
+          occurrence: message.id,
+        });
+      }
     }
 
     return reply.code(201).send({
@@ -318,7 +385,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
    * and can only be read through the download route, which checks who is
    * allowed to see it.
    */
-  app.post('/tickets/:id/attachments', async (request: FastifyRequest, reply) => {
+  app.post('/tickets/:id/attachments', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
@@ -408,7 +478,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     return reply.send(content);
   });
 
-  app.post('/tickets/:id/status', async (request: FastifyRequest) => {
+  app.post('/tickets/:id/status', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest) => {
     const user = await requireStaff(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
@@ -417,12 +490,31 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
 
+    const previousStatus = ticket.status;
     await prisma.ticket.update({
       where: { id: ticket.id },
       data: { status, closedAt: status === 'CLOSED' ? new Date() : null },
     });
-    await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'status', message: `Status changed to ${status}.`, actorId: user.id } });
+    const ticketEvent = await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'status', message: `Status changed to ${status}.`, actorId: user.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.status_changed', targetType: 'ticket', targetId: ticket.id, meta: { status } });
+
+    // The state of a ticket travels in words. The closing, the reopening and
+    // the other changes are three different messages, so the customer reads
+    // what actually happened.
+    const common = {
+      userId: ticket.userId,
+      ticketId: ticket.id,
+      ticketNumber: String(ticket.number),
+      subject: ticket.subject,
+      occurrence: ticketEvent.id,
+    };
+    if (status === 'CLOSED') {
+      await notifyTicketClosed(common);
+    } else if (previousStatus === 'CLOSED') {
+      await notifyTicketReopened(common);
+    } else {
+      await notifyTicketStatusChanged({ ...common, status });
+    }
 
     const updated = await prisma.ticket.findUnique({
       where: { id: ticket.id },
@@ -446,34 +538,3 @@ function requireTicketPermission(user: AuthUser, permission: Permission): void {
   }
 }
 
-/** Notifies the staff team that a ticket was opened. */
-async function notifyStaff(ticketId: string, subject: string): Promise<void> {
-  const staff = await prisma.user.findMany({
-    where: { role: { in: ['STAFF', 'ADMIN'] } },
-    select: { email: true },
-    take: 20,
-  });
-  if (!staff.length) return;
-  const recipients = staff.map((member) => member.email).join(', ');
-  const result = await sendMail({
-    to: recipients,
-    subject: `[Blipmade] New ticket: ${subject}`,
-    text: `A new support ticket was opened.\n\nSubject: ${subject}\nReference: ${ticketId}\n`,
-  });
-  if (!result.delivered) console.info(`[mail:file] ticket notification for ${recipients}`);
-}
-
-/** Notifies the other party about a reply. */
-async function notifyReply(ticketId: string, subject: string, customerId: string, authorId: string): Promise<void> {
-  const customer = await prisma.user.findUnique({
-    where: { id: customerId },
-    select: { email: true, firstName: true, lastName: true },
-  });
-  if (!customer) return;
-  const result = await sendMail({
-    to: customer.email,
-    subject: `[Blipmade] Re: ${subject}`,
-    text: `Your support ticket has a new reply.\n\nReference: ${ticketId}\n`,
-  });
-  if (!result.delivered) console.info(`[mail:file] ticket reply notification for ${customer.email}`);
-}

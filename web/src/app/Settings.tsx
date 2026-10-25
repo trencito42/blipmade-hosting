@@ -1,5 +1,19 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ApiError, del, get, patch, post, put, sessionSummary, type AccountSession } from '../lib/api';
+import {
+  ApiError,
+  del,
+  get,
+  patch,
+  post,
+  put,
+  sessionSummary,
+  type AccountSession,
+  type NotificationCategoryView,
+  type NotificationChannel,
+  type NotificationGroupKey,
+  type NotificationPreferences,
+  type NotificationPreferencesResponse,
+} from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useRouter } from '../router';
 import { useSession } from '../session';
@@ -34,14 +48,6 @@ interface SettingsResponse {
   };
   pendingEmail: string | null;
   pendingEmailExpiresAt: string | null;
-  preferences: {
-    productUpdates: boolean;
-    billing: boolean;
-    support: boolean;
-    incidents: boolean;
-    marketing: boolean;
-    updatedAt: string;
-  };
   sessions: AccountSession[];
   account: {
     deletionRequestedAt: string | null;
@@ -149,7 +155,7 @@ export default function Settings() {
       />
       <PasswordPanel />
       <SessionsPanel sessions={data.sessions} onChanged={state.reload} />
-      <NotificationsPanel preferences={data.preferences} />
+      <NotificationsPanel />
       <AccountPanel account={data.account} />
     </div>
   );
@@ -544,83 +550,268 @@ function SessionsPanel({
   );
 }
 
-/** The preferences that can be switched on and off. */
-type PreferenceKey = 'productUpdates' | 'billing' | 'support' | 'incidents' | 'marketing';
-
-/** What the customer wants to hear about. */
-function NotificationsPanel({ preferences }: { preferences: SettingsResponse['preferences'] }) {
+/**
+ * The preferences of the notifications.
+ *
+ * The groups of the messages come from the server, in the order the server
+ * gives them and with the words the server uses. Every switch is saved with
+ * the preferences of the account, and the answer of the server is what the
+ * page shows afterwards: a refusal is written in words and the switches go
+ * back to what the server holds.
+ */
+function NotificationsPanel() {
   const toast = useToast();
-  const [values, setValues] = useState<Record<PreferenceKey, boolean>>({
-    productUpdates: preferences.productUpdates,
-    billing: preferences.billing,
-    support: preferences.support,
-    incidents: preferences.incidents,
-    marketing: preferences.marketing,
-  });
+  const state = useAsync(
+    (signal) => get<NotificationPreferencesResponse>('/notifications/preferences', undefined, signal),
+    [],
+  );
 
-  const save = useAction(async () => {
-    const result = await put<{ preferences: SettingsResponse['preferences'] }>('/settings/notifications', {
-      productUpdates: values.productUpdates,
-      billing: values.billing,
-      support: values.support,
-      incidents: values.incidents,
-      marketing: values.marketing,
+  // The switches show the answer of the server until the customer touches
+  // one. After that the answer of the last save is what the page shows.
+  const [values, setValues] = useState<NotificationPreferences | null>(null);
+  const preferences = values ?? state.data?.preferences ?? null;
+  const categories = state.data?.categories ?? [];
+
+  const save = useAction(async (next: NotificationPreferences) => {
+    const result = await put<{ preferences: NotificationPreferences }>('/notifications/preferences', {
+      preferences: {
+        // The essential group is not sent: the server keeps it on whatever
+        // the customer sends.
+        ordersBilling: next.ordersBilling,
+        billing: next.billing,
+        hostingServices: next.hostingServices,
+        support: next.support,
+        domainsEmail: next.domainsEmail,
+        incidents: next.incidents,
+        productUpdates: next.productUpdates,
+        marketing: next.marketing,
+        emailChannel: next.emailChannel,
+        inAppChannel: next.inAppChannel,
+      },
     });
     return result.preferences;
   });
 
-  const onSave = async () => {
-    const saved = await save.run();
-    if (!saved) return;
+  const onToggle = async (group: NotificationGroupKey, channel: NotificationChannel, next: boolean) => {
+    if (!preferences) return;
+    const updated: NotificationPreferences = { ...preferences, [group]: next };
+    // The channel has to be on for the switch of a group to mean anything.
+    if (channel === 'email') updated.emailChannel = true;
+    else updated.inAppChannel = true;
+    setValues(updated);
+    const saved = await save.run(updated);
+    if (!saved) {
+      // The server refused: the switches go back to what the server holds.
+      setValues(null);
+      return;
+    }
     setValues(saved);
     toast.push('Preferences saved', 'ok');
   };
 
-  const rows: { key: PreferenceKey; label: string; hint: string }[] = [
-    { key: 'productUpdates', label: 'Product news', hint: 'New products and changes to the ones you use.' },
-    { key: 'billing', label: 'Billing', hint: 'Invoices, payments and changes to your subscription.' },
-    { key: 'support', label: 'Support', hint: 'Replies to your tickets and changes to them.' },
-    { key: 'incidents', label: 'Service incidents', hint: 'Problems that affect your apps or databases.' },
-    { key: 'marketing', label: 'Offers', hint: 'News about discounts and campaigns.' },
-  ];
+  const onRestoreLegacyBilling = async () => {
+    if (!preferences) return;
+    const updated: NotificationPreferences = { ...preferences, billing: true };
+    setValues(updated);
+    const saved = await save.run(updated);
+    if (!saved) {
+      setValues(null);
+      return;
+    }
+    setValues(saved);
+    toast.push('The billing switch of the old platform is on again', 'ok');
+  };
 
   return (
-    <Panel title="Notifications" description="What you want to hear about.">
-      <div className="grid gap-2">
-        {rows.map((row) => (
-          <label key={row.key} className="flex items-start gap-3 rounded-2xl bg-s2 p-3.5">
-            <input
-              type="checkbox"
-              checked={values[row.key]}
-              onChange={(event) => setValues((current) => ({ ...current, [row.key]: event.target.checked }))}
-              className="mt-0.5 size-6 shrink-0 accent-acc"
-            />
-            <span className="min-w-0">
-              <span className="block text-[15px] font-bold text-ink">{row.label}</span>
-              <span className="mt-0.5 block text-[13px] leading-relaxed text-ink3">{row.hint}</span>
-            </span>
-          </label>
-        ))}
-      </div>
+    <Panel title="Notifications" description="The groups of the messages, and where they reach you.">
+      {state.loading ? (
+        <LoadingBlock rows={3} label="Loading your preferences" />
+      ) : state.error ? (
+        <ErrorState
+          title="Your preferences could not be loaded"
+          message={state.error.message}
+          onRetry={state.reload}
+        />
+      ) : !preferences ? (
+        <ErrorState
+          title="Your preferences could not be loaded"
+          message="Try again in a moment."
+          onRetry={state.reload}
+        />
+      ) : (
+        <div className="grid gap-3">
+          {save.error && (
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+              {save.error}
+            </p>
+          )}
 
-      {save.error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
-          {save.error}
-        </p>
+          <NotificationPreferencesPanel
+            preferences={preferences}
+            categories={categories}
+            pending={save.pending}
+            onToggle={onToggle}
+            onRestoreLegacyBilling={onRestoreLegacyBilling}
+          />
+
+          <p className="text-[12.5px] leading-relaxed text-ink3">
+            These are your preferences. They say what you want to hear about; they do not promise that a message has been
+            sent. The messages themselves need a mail relay, and the address they come from has to be accepted by the
+            provider.
+          </p>
+        </div>
       )}
-
-      <p className="mt-3 text-[12.5px] leading-relaxed text-ink3">
-        These are your preferences. They say what you want to hear about; they do not promise that a message has been
-        sent. The messages themselves need a mail relay, and the address they come from has to be accepted by the
-        provider.
-      </p>
-
-      <div className="mt-3 flex justify-end">
-        <PrimaryButton onClick={onSave} disabled={save.pending}>
-          {save.pending ? 'Saving…' : 'Save the preferences'}
-        </PrimaryButton>
-      </div>
     </Panel>
+  );
+}
+
+/** The groups of the messages, as the customer reads them. */
+const GROUP_KEYS: NotificationGroupKey[] = [
+  'accountSecurity',
+  'ordersBilling',
+  'hostingServices',
+  'support',
+  'domainsEmail',
+  'incidents',
+  'productUpdates',
+  'marketing',
+];
+
+/** True when the key is a group of the preferences of the server. */
+function isGroupKey(key: string): key is NotificationGroupKey {
+  return (GROUP_KEYS as string[]).includes(key);
+}
+
+/** The words of a channel, as the customer reads them. */
+const CHANNEL_LABEL: Record<NotificationChannel, string> = {
+  email: 'E-mail',
+  in_app: 'Notification centre',
+};
+
+/**
+ * The groups of the messages with their switches.
+ *
+ * The essential group is written as "always on": there is no switch that
+ * would do nothing. The marketing carries the agreement of the customer, so
+ * it says in words that it is off until it is turned on.
+ */
+export function NotificationPreferencesPanel({
+  preferences,
+  categories,
+  pending,
+  onToggle,
+  onRestoreLegacyBilling,
+}: {
+  preferences: NotificationPreferences;
+  categories: NotificationCategoryView[];
+  pending?: boolean;
+  onToggle: (group: NotificationGroupKey, channel: NotificationChannel, next: boolean) => void;
+  onRestoreLegacyBilling?: () => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      {categories.map((category) => (
+        <NotificationPreferenceGroup
+          key={category.key}
+          category={category}
+          preferences={preferences}
+          pending={Boolean(pending)}
+          onToggle={onToggle}
+          onRestoreLegacyBilling={onRestoreLegacyBilling}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** One group of messages and its switches. */
+function NotificationPreferenceGroup({
+  category,
+  preferences,
+  pending,
+  onToggle,
+  onRestoreLegacyBilling,
+}: {
+  category: NotificationCategoryView;
+  preferences: NotificationPreferences;
+  pending: boolean;
+  onToggle: (group: NotificationGroupKey, channel: NotificationChannel, next: boolean) => void;
+  onRestoreLegacyBilling?: () => void;
+}) {
+  const group = isGroupKey(category.key) ? category.key : null;
+  const groupOn = group ? preferences[group] : false;
+  const channels = category.channels ?? [];
+
+  return (
+    <div className="rounded-2xl bg-s2 p-3.5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[15px] font-bold text-ink">{category.label}</p>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-ink3">{category.description}</p>
+        </div>
+        {category.essential ? (
+          <span className="shrink-0 rounded-full bg-acc-bg px-2.5 py-1 text-[12px] font-bold text-acc">Always on</span>
+        ) : null}
+      </div>
+
+      {category.essential ? (
+        <p className="mt-2 text-[12.5px] leading-relaxed text-ink2">
+          These messages protect the account and the contract of the platform. They are always sent, so there is no switch
+          that could turn them off.
+        </p>
+      ) : group ? (
+        <>
+          <div className="mt-2 grid gap-2">
+            {channels.map((channel) => {
+              const channelOn = channel === 'email' ? preferences.emailChannel : preferences.inAppChannel;
+              return (
+                <label key={channel} className="flex items-center gap-3">
+                  <input
+                    id={`preference-${group}-${channel}`}
+                    name={`preference-${group}-${channel}`}
+                    type="checkbox"
+                    checked={groupOn && channelOn}
+                    disabled={pending}
+                    onChange={(event) => onToggle(group, channel, event.target.checked)}
+                    aria-label={`${category.label}: ${CHANNEL_LABEL[channel]}`}
+                    className="size-6 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc disabled:cursor-not-allowed"
+                  />
+                  <span className="text-[14px] font-bold text-ink">{CHANNEL_LABEL[channel]}</span>
+                </label>
+              );
+            })}
+          </div>
+          {channels.length > 1 ? (
+            <p className="mt-2 text-[12.5px] leading-relaxed text-ink3">
+              The two switches are one setting on the server: switching one of them off stops the whole group.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+
+      {category.classification === 'marketing' ? (
+        <p className="mt-2 text-[12.5px] leading-relaxed text-ink2">
+          It is off until you agree to it. Turning it on is your agreement to receive the offers of the platform by
+          e-mail, and every one of them carries a way to stop them.
+        </p>
+      ) : null}
+
+      {category.key === 'ordersBilling' && preferences.billing === false ? (
+        <div className="mt-2 rounded-2xl bg-s3 p-3">
+          <p className="text-[12.5px] leading-relaxed text-ink2">
+            The billing switch of the old platform is off, so the optional billing messages stay off even with the group
+            on.
+          </p>
+          {onRestoreLegacyBilling ? (
+            <div className="mt-2">
+              <SoftButton onClick={onRestoreLegacyBilling} disabled={pending}>
+                Turn the old billing switch back on
+              </SoftButton>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

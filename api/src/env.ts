@@ -65,11 +65,79 @@ const schema = z.object({
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_PUBLISHABLE_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),
+  /**
+   * Stripe Tax calculates the tax of a checkout at the provider.
+   *
+   * It is off unless the operator turns it on. With it off, a checkout carries
+   * exactly the sum of the order and the tax stays the one of the company
+   * settings of the platform. With it on, the provider calculates the tax and
+   * the platform records the tax that was really charged, next to the sum of
+   * the order. A tax is never invented in either case: the number that is
+   * written down is always the number the provider charged.
+   */
+  STRIPE_TAX_ENABLED: bool(false),
 
   SMTP_URL: z.string().default(''),
+  /**
+   * The certificate that the relay of the platform is allowed to be signed by.
+   *
+   * A relay that is signed by an authority the machine trusts needs nothing:
+   * the empty value is the right value. A relay of the platform itself, whose
+   * name is not published in the DNS yet, is signed by nobody, and the
+   * certificate of the relay is the one that says that it is the right one.
+   *
+   * The value is the path of a file that holds the certificate in the format
+   * of PEM. A file that cannot be read is an error and not a relay without a
+   * certificate.
+   */
+  SMTP_CA_FILE: z.string().default(''),
   MAIL_FROM: z.string().default('Blipmade <no-reply@blipmade.com>'),
+  /**
+   * The name of the sender, when it is not the one of `MAIL_FROM`.
+   *
+   * The platform sends with one authorized identity: the address of the
+   * platform in Mailcow. The name is only the label that the customer sees
+   * next to the address.
+   */
+  MAIL_SENDER_NAME: z.string().default('Blipmade'),
+  /**
+   * The address the answers go to.
+   *
+   * It is empty by default: an empty value means the answers go back to the
+   * sender, which is the safe choice when the operator has not chosen one.
+   */
+  MAIL_REPLY_TO: z.string().default(''),
   /** The inbox that receives the notifications about new support tickets. */
   MAIL_SUPPORT_EMAIL: z.string().default('support@blipmade.com'),
+  /**
+   * The inbox that receives the alerts about the operation of the platform.
+   *
+   * It is the address of the operator, and it is not the one of the mail
+   * system, so the alert still arrives when the mail system is the thing
+   * that is broken.
+   */
+  MAIL_OPERATOR_EMAIL: z.string().default(''),
+  /**
+   * The address that receives the messages about the payments of the
+   * platform, when the operator wants them apart from the support.
+   */
+  MAIL_BILLING_EMAIL: z.string().default(''),
+  /**
+   * How long the platform waits for the relay, in milliseconds.
+   */
+  SMTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(15000),
+  /**
+   * How many messages the platform sends to the relay in one minute.
+   *
+   * The throttle protects the relay from a flood: a burst of events is
+   * spread over the minute instead of being pushed at once.
+   */
+  SMTP_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(10000).default(120),
+  /**
+   * The address the customer may write to when something is wrong with the
+   * messages of the platform. It is empty when there is none.
+   */
+  MAIL_HELP_EMAIL: z.string().default(''),
   /**
    * The public origin of the site. Every link that leaves the system, in an
    * email or in a checkout, is built from it. Nothing is ever derived from
@@ -93,8 +161,92 @@ const schema = z.object({
   DOMAIN_BASE: z.string().default(''),
   CADDY_ADMIN_URL: z.string().default(''),
   CADDY_ADMIN_TOKEN: z.string().default(''),
+  /**
+   * The server of Caddy that holds the routes of the customer domains.
+   *
+   * The routes live in a namespace of their own, so the routes of the
+   * operator are never read, replaced or removed. The name of that server is
+   * configurable, because a Caddy that serves the platform on the same
+   * addresses may already have a server of its own, and a server that cannot
+   * listen on the same address is easier to point at than to create.
+   */
+  CADDY_APP_SERVER: z.string().default('blipmade'),
   METRICS_ENABLED: bool(true),
   LOG_LEVEL: z.string().default('info'),
+
+  /**
+   * The mail system that holds the mailboxes of the customers.
+   *
+   * The address is the administrative API of the system, over HTTPS. The
+   * certificate of a mail system that is not published in the DNS yet is
+   * signed by nobody, so the fingerprint of the certificate is what the
+   * platform checks: the address alone would not prove anything.
+   */
+  MAILCOW_API_URL: z.string().default(''),
+  MAILCOW_API_KEY: z.string().default(''),
+  /**
+   * The SHA-256 of the certificate of the mail system, in lower case hex.
+   *
+   * It is empty when the certificate of the mail system is signed by an
+   * authority the machine already trusts.
+   */
+  MAILCOW_API_CERT_SHA256: z.string().default(''),
+  /** The name of the machine of the mail system, e.g. "mail.blipmade.com". */
+  MAIL_HOSTNAME: z.string().default('mail.blipmade.com'),
+  /** Where the customer reads the mail of a customer domain. */
+  MAIL_WEBMAIL_URL: z.string().default(''),
+  /**
+   * The mailbox that receives the reports of DMARC.
+   *
+   * It is a bare address and not the `MAIL_FROM` of the platform, which may
+   * carry a display name ("Blipmade <no-reply@blipmade.com>"), and a name
+   * cannot go into a record of DNS.
+   */
+  MAIL_RUA_ADDRESS: z.string().default('postmaster@blipmade.com'),
+  /** How many domains of mail a customer may host. */
+  MAIL_MAX_DOMAINS_PER_CUSTOMER: z.coerce.number().int().min(0).max(1000).default(3),
+  /** How many mailboxes a domain of mail may hold. */
+  MAIL_MAX_MAILBOXES_PER_DOMAIN: z.coerce.number().int().min(0).max(10000).default(10),
+  /** How many aliases a domain of mail may hold. */
+  MAIL_MAX_ALIASES_PER_DOMAIN: z.coerce.number().int().min(0).max(10000).default(100),
+  /** How much mail a mailbox may hold, in megabytes. */
+  MAIL_MAX_QUOTA_MB_PER_MAILBOX: z.coerce.number().int().min(1).max(1024000).default(1024),
+  /** How much mail a domain of mail may hold, in megabytes. */
+  MAIL_MAX_QUOTA_MB_PER_DOMAIN: z.coerce.number().int().min(1).max(1024000).default(10240),
+
+  /**
+   * Whether the mail of the platform is on sale.
+   *
+   * It is closed by default: the mail is not sold until the operator has
+   * proved the payment, the mail system, the DNS, the backup and the
+   * delivery from end to end. The switch is closed here and nowhere else,
+   * so the catalog, the quote and the order all refuse the same way.
+   */
+  MAIL_SALES_ENABLED: z
+    .string()
+    .default('false')
+    .transform((value) => value.trim().toLowerCase() === 'true')
+    .pipe(z.boolean()),
+  /**
+   * How many days a mail service keeps working after it stops being paid
+   * for. The period of grace is the time the customer has to pay; the mail
+   * is not suspended before it ends.
+   */
+  MAIL_GRACE_PERIOD_DAYS: z.coerce.number().int().min(0).max(365).default(14),
+  /**
+   * How many days the data of a mail service is kept after it was
+   * suspended. The data is never deleted the moment a payment fails: it is
+   * kept for the whole retention, so it can be recovered.
+   */
+  MAIL_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
+  /** How many forwarding rules a domain of mail may hold. */
+  MAIL_MAX_FORWARDING_PER_DOMAIN: z.coerce.number().int().min(0).max(10000).default(10),
+  /**
+   * The most messages a domain may send in the window of the plan, whatever
+   * the plan says. The limit of the platform is the ceiling of the limit of
+   * the plan.
+   */
+  MAIL_MAX_SEND_LIMIT: z.coerce.number().int().min(1).max(1000000).default(500),
 
   /**
    * The addresses that are allowed to set the forwarding headers. Only these
@@ -132,6 +284,26 @@ const raw = parsed.data;
 
 export const env = {
   ...raw,
+  /**
+   * Whether the sale of the hosted mail is open.
+   *
+   * The value is read at the moment it is asked for, so the operator can
+   * close the sale of the mail without waiting for a restart of the API, and
+   * the tests can open it for the duration of one run. The value that was
+   * parsed when the API started is the fallback for an environment that does
+   * not carry the variable at all.
+   *
+   * Writing to it writes the variable of the environment, so there is one
+   * source of truth and not two.
+   */
+  get MAIL_SALES_ENABLED(): boolean {
+    const live = process.env.MAIL_SALES_ENABLED;
+    if (live === undefined) return raw.MAIL_SALES_ENABLED;
+    return live.trim().toLowerCase() === 'true';
+  },
+  set MAIL_SALES_ENABLED(value: boolean) {
+    process.env.MAIL_SALES_ENABLED = value ? 'true' : 'false';
+  },
   isProduction: raw.NODE_ENV === 'production',
   isTest: raw.NODE_ENV === 'test',
   internalToken: raw.INTERNAL_API_TOKEN || raw.BLIPMADE_INTERNAL_API_TOKEN,
@@ -152,6 +324,11 @@ export const env = {
   // different limit than one where every customer has its own address.
   loginRateLimitMax: raw.LOGIN_RATE_LIMIT_MAX,
   stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
+  /**
+   * True when the tax of a checkout is calculated by Stripe. It is off by
+   * default, so the platform never charges a tax nobody configured.
+   */
+  stripeTaxEnabled: raw.STRIPE_TAX_ENABLED,
   /**
    * The origin every outward link is built from, without a trailing slash.
    */
@@ -176,3 +353,14 @@ export const env = {
 } as const;
 
 export type Env = typeof env;
+
+/**
+ * Whether the sale of the hosted mail is open.
+ *
+ * The switch is read at the moment of the check, so the operator can close
+ * the sale of the mail without waiting for a restart of the API, and the
+ * tests can open it for the duration of one run.
+ */
+export function mailSalesEnabled(): boolean {
+  return env.MAIL_SALES_ENABLED;
+}

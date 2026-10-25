@@ -18,6 +18,19 @@ export const badRequest = (message: string, fields?: Record<string, string>) =>
 
 export const unauthorized = (message = 'Authentication required.') => new AppError(401, 'unauthorized', message);
 
+/**
+ * The account is suspended.
+ *
+ * The code is its own, so the interface can tell a suspended account from a
+ * wrong password. The two answers are not the same: the wrong password and
+ * the address that does not exist still answer the same way as each other,
+ * because a guess must never find out whether an account exists. The account
+ * that is suspended is only told so when the owner has already proved that
+ * they have the password.
+ */
+export const accountSuspended = (message = 'This account is suspended.') =>
+  new AppError(401, 'account_suspended', message);
+
 export const forbidden = (message = 'You do not have access to this resource.') =>
   new AppError(403, 'forbidden', message);
 

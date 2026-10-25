@@ -5,18 +5,23 @@ import { redis } from './redis.js';
 import { env } from './env.js';
 import {
   createEmailWorker,
+  createMailProvisionWorker,
   createProvisionWorker,
   closeQueue,
   enqueueProvisioning,
+  enqueueMailProvisioning,
   isLastAttempt,
   pruneQueueJobs,
   PROVISION_QUEUE,
   EMAIL_QUEUE,
+  MAIL_PROVISION_QUEUE,
   type EmailJobData,
   type EmailJobResult,
+  type MailProvisionJobData,
   type ProvisionJobData,
 } from './services/queue.js';
 import { noteJobCompleted, noteJobFailure } from './services/dead-letter.js';
+import { watchDeadLetterQueue } from './services/dead-letter-monitor.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
   PaymentRequiredError,
@@ -25,9 +30,13 @@ import {
 } from './services/provisioning.js';
 import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
+import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
+import { dispatchPendingEvents } from './services/notification-dispatch.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
 import { audit } from './lib/audit.js';
+import { createMetricsServer } from './lib/perf-metrics.js';
+import { perfConfig } from './lib/perf-config.js';
 
 /**
  * The provisioning worker.
@@ -115,6 +124,42 @@ emailWorker.on('failed', (job, error) => {
   );
 });
 
+/**
+ * The worker of the hosted mail.
+ *
+ * The mail has a queue of its own, so a mail system that is slow or that is
+ * down never holds a deployment of a server hostage, and a server that fails
+ * never looks like a failure of the mail.
+ */
+const mailWorker = createMailProvisionWorker(async (job: Job<MailProvisionJobData>) => {
+  const { serviceId } = job.data;
+  const service = await prisma.mailService.findUnique({ where: { id: serviceId } });
+  if (!service) {
+    job.log?.('the mail service no longer exists');
+    return;
+  }
+  const result = await provisionMailService(serviceId);
+  job.log?.(`hosted ${result.provisioned} domain(s), ${result.waiting} waiting for a proof`);
+  // A service whose domains wait for their proof is not a failure: the
+  // customer has to show that the domain is theirs first.
+  if (result.failed > 0) {
+    throw new Error(`${result.failed} domain(s) of the mail service could not be hosted.`);
+  }
+});
+
+mailWorker.on('completed', (job) => {
+  console.info(`[worker] mail job ${job.id} completed`);
+  void noteJobCompleted(MAIL_PROVISION_QUEUE, job).catch((error) =>
+    console.error('[worker] could not close the failure', (error as Error).message),
+  );
+});
+mailWorker.on('failed', (job, error) => {
+  console.error(`[worker] mail job ${job?.id} failed: ${error.message}`);
+  void noteJobFailure(MAIL_PROVISION_QUEUE, job, error).catch((writeError) =>
+    console.error('[worker] could not write the failure down', (writeError as Error).message),
+  );
+});
+
 /** Puts instances that were left running mid-flight back into the queue. */
 async function reconcile(): Promise<void> {
   const count = await reconcileInterruptedInstances();
@@ -133,6 +178,16 @@ async function reconcile(): Promise<void> {
     });
     for (const instance of stuck) {
       await enqueueProvisioning(instance.id, { reason: 'reconciliation' });
+    }
+    // The mail services that were left in the middle of a run are put back on
+    // the queue of the mail, which is a queue of its own.
+    const stuckMail = await prisma.mailService.findMany({
+      where: { status: 'PROVISIONING' },
+      select: { id: true },
+      take: 50,
+    });
+    for (const service of stuckMail) {
+      await enqueueMailProvisioning(service.id, { reason: 'reconciliation' });
     }
     await audit({ action: 'worker.reconciled', meta: { count } });
   }
@@ -171,12 +226,69 @@ async function sweepBilling(): Promise<void> {
 }
 
 /**
+ * The sweep of the life of the mail.
+ *
+ * A mail service that was not paid for goes through a period of grace, then
+ * it is suspended, and its data is deleted only when the retention ends. The
+ * data of a customer is never deleted the moment a payment fails.
+ */
+async function sweepMail(): Promise<void> {
+  const result = await sweepMailServices().catch(() => ({ suspended: 0, deleted: 0 }));
+  if (result.suspended || result.deleted) {
+    console.info(
+      `[worker] mail sweep: ${result.suspended} suspended, ${result.deleted} released after the retention`,
+    );
+  }
+}
+
+/**
+ * The sweep of the notifications.
+ *
+ * The business wrote its events in the outbox and stopped. The worker is the
+ * only place that turns an event into a message, so a relay that is down
+ * never breaks the request that caused the event: the event waits here and
+ * is tried again with a longer pause.
+ */
+async function sweepNotifications(): Promise<void> {
+  const report = await dispatchPendingEvents(25);
+  if (report.processed || report.failed) {
+    console.info(
+      `[worker] notifications: ${report.processed} processed, ${report.failed} failed, ${report.sent} sent, ${report.skipped} skipped`,
+    );
+  }
+}
+
+/**
  * The events that the provider could not deliver are retried here, so a
  * failed payment is never lost.
  */
 async function retryWebhooks(): Promise<void> {
   const recovered = await retryFailedWebhookEvents().catch(() => 0);
   if (recovered) console.info(`[worker] recovered ${recovered} failed webhook event(s)`);
+}
+
+/**
+ * Watches the failures that are waiting for an operator.
+ *
+ * A job that failed for good is a customer whose service was never given,
+ * and the customer must not have to write in to say so: the platform has to
+ * say it itself. The watch counts the open failures, says a word the first
+ * time a failure appears, and gives the number of the queue to the measures
+ * of the process.
+ *
+ * The watch also reads the real state of the running services, when the
+ * module that reads it is there. That module is loaded when the watch runs
+ * and not when the worker starts, because it is written in a branch of its
+ * own: a static import of a file that is not there yet would stop the
+ * worker from starting at all.
+ */
+async function watchDeadLetters(): Promise<void> {
+  const observed = await watchDeadLetterQueue();
+  if (observed.pending > 0) {
+    console.info(
+      `[worker] dead letters waiting for an operator: ${observed.pending} (the highest was ${observed.peakPending})`,
+    );
+  }
 }
 
 const timers: NodeJS.Timeout[] = [];
@@ -215,22 +327,60 @@ const healthServer = createServer((request, response) => {
   })();
 });
 
+/**
+ * The measures of the worker.
+ *
+ * The worker is a process of its own, so the measures of the API are not
+ * the measures of the worker. The gauge of the dead-letter queue lives in
+ * the process that watches the queue, so the worker gives its own measures
+ * away: on the loopback of the container, and only to a collector that
+ * knows the key.
+ */
+const metricsServer = createMetricsServer({
+  enabled: env.METRICS_ENABLED,
+  host: perfConfig.metricsHost,
+  port: perfConfig.metricsPort,
+  token: perfConfig.metricsToken,
+  log: {
+    info: (payload: unknown, message?: string) => console.info('[worker]', message ?? '', payload),
+    warn: (payload: unknown, message?: string) => console.warn('[worker]', message ?? '', payload),
+    error: (payload: unknown, message?: string) => console.error('[worker]', message ?? '', payload),
+  },
+});
+// A port that is taken is a mistake of the address and not a reason to stop
+// the worker, so the failure of the listener is written down and swallowed.
+void metricsServer.ready.catch(() => undefined);
+
 async function main(): Promise<void> {
   console.info(`[worker] starting in ${env.NODE_ENV}`);
   healthServer.listen(healthPort, '0.0.0.0');
   await reconcile();
+  // The failures that are waiting for an operator are looked at right away,
+  // so the queue is known from the first moment of the life of the worker
+  // and not only after the first tick.
+  await watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error));
   timers.push(setInterval(() => void reconcile().catch((error) => console.error('[worker] reconcile failed', error)), 60_000));
   timers.push(setInterval(() => void pruneQueue().catch(() => undefined), 10 * 60_000));
   timers.push(setInterval(() => void pruneSessions().catch(() => undefined), 60 * 60_000));
   timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));
+  timers.push(setInterval(() => void sweepMail().catch((error) => console.error('[worker] mail sweep failed', error)), 30 * 60_000));
   timers.push(setInterval(() => void retryWebhooks().catch((error) => console.error('[worker] webhook retry failed', error)), 5 * 60_000));
+  // The outbox is emptied every five seconds: a message that waits for a
+  // customer does not wait for long.
+  timers.push(setInterval(() => void sweepNotifications().catch((error) => console.error('[worker] the notification sweep failed', error)), 5_000));
+  // The queue of the failures is watched every three minutes: often enough
+  // that a failure is seen while the customer is still waiting, and rare
+  // enough that the log of the worker stays readable.
+  timers.push(setInterval(() => void watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error)), 3 * 60_000));
 }
 
 const shutdown = async () => {
   for (const timer of timers) clearInterval(timer);
   healthServer.close();
+  await metricsServer.close().catch(() => undefined);
   await worker.close();
   await emailWorker.close();
+  await mailWorker.close();
   await closeQueue();
   await redis.quit().catch(() => undefined);
   await prisma.$disconnect().catch(() => undefined);

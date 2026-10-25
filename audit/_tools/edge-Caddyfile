@@ -51,6 +51,75 @@
 #
 # The ranges below are the published ranges of the CDN. Check them against the
 # current list of the operator before applying them.
+#
+# ---------------------------------------------------------------------------
+# THE ROUTES OF THE CUSTOMER DOMAINS
+# ---------------------------------------------------------------------------
+#
+# The platform creates a route for every customer hostname that proved its
+# ownership. The route is written through the administrative API of Caddy,
+# into the namespace of the server named in `CADDY_APP_SERVER` (the default is
+# `blipmade`):
+#
+#     POST {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes
+#     { "match": [ { "host": [ "witch.pw" ] } ],
+#       "handle": [ { "handler": "reverse_proxy",
+#                     "upstreams": [ { "dial": "10.77.0.11:30001" } ] } ],
+#       "terminal": true }
+#
+# Three things have to be true on the edge, and none of them can be checked
+# from the server of the platform:
+#
+#  1. The administrative API has to listen on an address the platform can
+#     reach. By default Caddy listens on `localhost:2019` only, and the
+#     platform on 10.77.0.13 cannot reach that. The address has to be given
+#     in the global options (`admin 10.77.0.12:2019`), and the firewall has to
+#     let 10.77.0.13 reach it and nothing else. The token of the
+#     administrative API is `CADDY_ADMIN_TOKEN` on the platform.
+#
+#  2. The namespace has to exist. Without a server named `blipmade` inside
+#     the `apps` block, the answer of the administrative API is 404 and the
+#     platform refuses to route anything. The block below creates it.
+#
+#  3. The server has to reach the container of the customer. The route dials
+#     the address and the port of the allocation on the node (for example
+#     `10.77.0.11:30001`), so the edge has to be able to open a connection to
+#     the node on the ports of the allocations.
+#
+# The certificate of a customer hostname is a decision of the operator: the
+# hostnames are not known in advance, so Caddy cannot ask for a certificate
+# for them on its own. The usual answer is to serve them through a CDN that
+# terminates TLS, and to let the edge answer that CDN over HTTP, or to give
+# the edge a certificate that covers the hostnames.
+#
+# If the Caddy of the operator cannot carry a second server on the same
+# addresses, the platform can be pointed at the server that already exists:
+# set `CADDY_APP_SERVER` to its name, and the platform writes the routes
+# there. The isolation of the routes is then the isolation by the prefix of
+# the route id (`blipmade-route-`), not a server of its own.
+
+{
+	# The administrative API of Caddy. It is not exposed publicly: only the
+	# server of the platform (10.77.0.13) has to reach it.
+	admin 10.77.0.12:2019
+
+	# The routes of the customer domains live in a server of their own, so
+	# the routes of the operator are never read, replaced or removed by the
+	# platform. The routes themselves are added by the platform; the server
+	# only has to exist and to listen.
+	apps {
+		http {
+			servers {
+				blipmade {
+					# The hostnames of the customers arrive here. The address
+					# has to be the one the public DNS of the platform points
+					# at (the A record of the customer domain points at the
+					# same address as the site of the platform).
+				}
+			}
+		}
+	}
+}
 
 blipmade.com {
 	encode zstd gzip

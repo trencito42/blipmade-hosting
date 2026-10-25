@@ -16,6 +16,8 @@ export const PERMISSIONS = [
   'promotions.write',
   'infrastructure.read',
   'infrastructure.write',
+  'mail.read',
+  'mail.write',
   'audit.read',
   'staff.read',
   'staff.write',
