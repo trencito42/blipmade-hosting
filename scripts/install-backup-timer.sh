@@ -30,7 +30,9 @@ if [[ "$(id -u)" != "0" ]]; then
   exit 1
 fi
 
-for unit in blipmade-backup.service blipmade-backup.timer; do
+# The unit of the alarm is installed together with the unit of the backup,
+# because the unit of the backup asks for it by its name when it fails.
+for unit in blipmade-backup.service blipmade-backup-alert.service blipmade-backup.timer; do
   if [[ ! -f "$UNIT_DIR/$unit" ]]; then
     echo "Missing unit: $UNIT_DIR/$unit" >&2
     exit 1
@@ -40,6 +42,34 @@ for unit in blipmade-backup.service blipmade-backup.timer; do
 done
 
 systemctl daemon-reload
+
+# systemd prints the keys it does not understand, and it keeps running without
+# them. A unit that systemd reads half of is a unit that does not do what the
+# repository says. The installation stops here instead of leaving a quiet
+# failure for 02:15 in the morning.
+VERIFY_OUT="$(systemd-analyze verify \
+  /etc/systemd/system/blipmade-backup.service \
+  /etc/systemd/system/blipmade-backup-alert.service 2>&1 || true)"
+if [[ -n "$VERIFY_OUT" ]]; then
+  echo "$VERIFY_OUT" >&2
+  echo "systemd did not accept the units as they are installed." >&2
+  exit 1
+fi
+
+# The alarm of a failed backup is wired in the OnFailure of the unit of the
+# backup. OnFailure belongs to the section Unit of systemd: when it is read as
+# an unknown key, systemd ignores it, and the alarm of a failed backup is
+# never sent. The property is empty in that case, so the installation fails
+# here instead of failing silently in the middle of the night.
+ON_FAILURE="$(systemctl show -p OnFailure --value blipmade-backup.service)"
+if [[ -z "$ON_FAILURE" ]]; then
+  echo "The unit of the backup does not ask for the alarm of a failure." >&2
+  echo "Check the OnFailure of /etc/systemd/system/blipmade-backup.service:" >&2
+  echo "it belongs to the section Unit of systemd." >&2
+  exit 1
+fi
+echo "the alarm of a failed backup is wired: OnFailure=$ON_FAILURE"
+
 systemctl enable --now blipmade-backup.timer
 echo "enabled blipmade-backup.timer"
 

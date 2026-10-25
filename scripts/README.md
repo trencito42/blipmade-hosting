@@ -24,6 +24,7 @@ Two rules hold for every script in this folder:
 |---|---|---|---|---|
 | `backup.sh [label]` | Dumps the database, archives the configuration without secrets, writes a SHA-256 checksum and applies the retention policy. The encrypted copy that leaves the host is a separate step: `backup-offsite.sh`. | Writes files in `BACKUP_DIR`. | nothing. | Read the summary it prints at the end. |
 | `backup-offsite.sh` | Makes the encrypted copy that leaves the host, reads it back to prove it is whole, sends it to the target and only then releases the local copy. | Writes files in `BACKUP_DIR/offsite` and on the target. | `OFFSITE_TARGET`, and `OFFSITE_AGE_RECIPIENT` + `OFFSITE_AGE_IDENTITY` (or `OFFSITE_ENCRYPTION_KEY` as a fallback). | It fails loudly and keeps the local copy when the copy cannot be made. |
+| `backup-alert.sh [reason]` | Sends the alarm of a failed backup by webhook or by mail, and writes it to the journal of the machine when neither is configured. | No. | `BACKUP_ALERT_WEBHOOK_URL` or `SMTP_URL` (with `SMTP_CA_FILE` when the relay has its own certificate). | It never fails itself: a missing webhook must not turn a failed backup into a failed alarm. systemd starts it through `blipmade-backup-alert.service` when the backup fails. |
 | `restore.sh <archive> [--yes]` | Checks the checksum, lists the dump, asks for confirmation and restores it. | Yes, it overwrites the database. | the archive path. | It asks before it writes; `--yes` skips the question. |
 | `restore-drill.sh [archive]` | Restores the newest archive into a scratch database, compares it with the live one and drops the scratch database. | No, the live database is never written to. | the archive path. | Safe to run at any time. |
 | `run-tests.sh` | Runs the API test suite against the separate `blipmade_test` database. | Only the test database. | the test database name. | It refuses to run against a database whose name does not end in `_test`. |
@@ -32,6 +33,24 @@ Two rules hold for every script in this folder:
 | `cleanup-panel.py` | Removes the verification servers and accounts from the Pterodactyl panel. | Yes, it deletes panel objects. | `PTERODACTYL_URL`, `PTERODACTYL_APP_KEY`, `CLEANUP_DRY_RUN=0` and `--confirm` for a real run. | It only prints its plan by default. See below. |
 | `cleanup-data.sh` | Removes the rows the verification runs created from the platform database. | Yes, it deletes database rows. | Docker Compose and the postgres service. | It only prints its plan by default. See below. |
 | `verify-provisioning.py` | Creates a product, a customer and an order, pays it through the local test gateway and waits for the worker to provision a real server. | Yes, it creates rows and a real panel server. | `BM_ADMIN_EMAIL`, `BM_ADMIN_PASSWORD`, `BM_INTERNAL_TOKEN`, optionally `BM_BASE_URL`. | It only prints its plan by default; `--execute` runs it. |
+
+## The systemd units of the backup
+
+```bash
+sudo scripts/install-backup-timer.sh            # install the units and the schedule
+sudo scripts/install-backup-timer.sh --run-now  # and run the backup once
+```
+
+| Unit | What it does |
+|---|---|
+| `blipmade-backup.service` | Runs the local backup and then the encrypted copy that leaves the host. It asks for the alarm in its `OnFailure`, in the section `Unit` of systemd: in the section `Service` the key is read as unknown and ignored, so the alarm of a failed backup would never be sent. |
+| `blipmade-backup-alert.service` | The alarm itself. It reads the environment of the platform, so the mail leaves by the same relay as the rest of the mail of the platform. |
+| `blipmade-backup.timer` | Runs the backup every night at 02:15, with a random delay of up to fifteen minutes, and runs it after a reboot that happened during that hour. |
+
+The installer is idempotent: it installs the units, reloads systemd, refuses to
+finish when systemd did not accept a unit (`systemd-analyze verify`), refuses to
+finish when the alarm is not wired (`OnFailure` is empty), and then enables the
+timer.
 
 ## The cleanup tools
 

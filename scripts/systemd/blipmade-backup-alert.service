@@ -1,0 +1,17 @@
+[Unit]
+# The alarm of a failed backup.
+#
+# The unit of the backup names this unit in its OnFailure, so systemd starts
+# it when the backup fails. The alarm is sent by webhook or by mail when one
+# of them is configured, and is written to the journal of the machine when
+# neither is.
+Description=Alarm of a failed Blipmade platform backup
+Documentation=file:///opt/blipmade/scripts/README.md
+
+[Service]
+Type=oneshot
+User=debian
+Group=debian
+WorkingDirectory=/opt/blipmade
+EnvironmentFile=-/opt/blipmade/.env
+ExecStart=/opt/blipmade/scripts/backup-alert.sh

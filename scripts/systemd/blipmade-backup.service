@@ -8,6 +8,14 @@ Description=Blipmade platform backup
 Documentation=file:///opt/blipmade/scripts/README.md
 After=network-online.target
 Wants=network-online.target
+# A backup that failed must raise an alarm instead of being noticed days
+# later. The alarm is sent by webhook or by mail when one is configured, and
+# is written to the journal of the machine when neither is.
+#
+# OnFailure belongs to the section Unit of systemd. In the section Service it
+# is read as an unknown key and is ignored, so the alarm of a failed backup
+# was never sent.
+OnFailure=blipmade-backup-alert.service
 
 [Service]
 Type=oneshot
@@ -22,10 +30,6 @@ ExecStart=/opt/blipmade/scripts/backup.sh scheduled
 # database is dumped twice: once for the archive of the host and once for the
 # copy that is encrypted.
 ExecStartPost=/opt/blipmade/scripts/backup-offsite.sh
-# A backup that failed must raise an alarm instead of being noticed days
-# later. The alarm is sent by webhook or by mail when one is configured, and
-# is written to the journal of the machine when neither is.
-OnFailure=/opt/blipmade/scripts/backup-alert.sh
 TimeoutStartSec=3600
 Nice=10
 IOSchedulingClass=idle
