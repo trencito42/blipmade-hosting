@@ -292,6 +292,26 @@ Până la punctul 8, verdictul rămâne **NO-GO**.
 
 ## 8. CI
 
+Pe ramura `feature/mail-hosting` (faza găzduirii de e-mail):
+
+* commit-ul `991cf91` („Add the hosted mail") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40158217954**
+* commit-ul `5f88b6c` („Type check the probes of the mail") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40158521149**
+
+| Job | Rezultat |
+|---|---|
+| API typecheck | **success** |
+| Web typecheck and build | **success** |
+| Unit and integration tests | **success** (694 teste API + 180 web) |
+| Secret scan | **success** |
+| Dependency audit | **success** |
+| Schema drift | **success** |
+| Workflow lint | **success** |
+
+**7/7 joburi verzi pe ambele rulări.** Scanarea secretelor a raportat o singură
+constentare nouă: amprenta certificatului serverului de e-mail, care e `SHA-256` al unui
+certificat public, nu o cheie. Ea e în lista de excepții cu valoarea exactă și cu motivul
+ei, ca în runda a treia.
+
 Două rulări verzi pe ramura `fix/audit-round3`:
 
 * commit-ul `05b5951` — **https://github.com/trencito42/blipmade-hosting/actions/runs/40142773601**
