@@ -27,7 +27,12 @@ import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
 import { defaultLimitPerUser, promotionRisk } from '../services/pricing.js';
-import { notifyPaymentRefunded, notifyTicketAssigned } from '../services/notifications.js';
+import {
+  notifyAccountReinstated,
+  notifyAccountSuspended,
+  notifyPaymentRefunded,
+  notifyTicketAssigned,
+} from '../services/notifications.js';
 import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
 
@@ -395,8 +400,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     await prisma.$transaction([
       prisma.user.update({ where: { id }, data: { suspendedAt: suspended ? new Date() : null } }),
-      // Suspending an account ends its sessions immediately.
-      ...(suspended ? [prisma.session.deleteMany({ where: { userId: id } })] : []),
+      // The sessions of a suspended account stop working at once, because
+      // every request of that account is refused while it is suspended. The
+      // rows stay in the table until the account is put back, so the
+      // platform can tell the customer that the account was suspended
+      // instead of losing the session without a word. The sessions are
+      // removed when the account is reinstated, so the customer signs in
+      // again.
+      ...(suspended ? [] : [prisma.session.deleteMany({ where: { userId: id } })]),
     ]);
     await audit({
       actorId: actor.id,
@@ -407,6 +418,24 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       meta: { reason },
       ip: request.ip,
     });
+
+    // The customer is told. A customer who is only disconnected thinks the
+    // account is lost, and writes to the support before anybody looks at it.
+    const moment = new Date().toISOString();
+    if (suspended) {
+      await notifyAccountSuspended({
+        userId: id,
+        name: fullName(customer),
+        reason: reason ?? null,
+        occurrence: moment,
+      });
+    } else {
+      await notifyAccountReinstated({
+        userId: id,
+        name: fullName(customer),
+        occurrence: moment,
+      });
+    }
 
     return { customer: { id, suspended } };
   });

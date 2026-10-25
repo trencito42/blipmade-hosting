@@ -66,6 +66,41 @@ export async function notifyAccountRegistered(input: Recipient & { name: string 
   await publish('account.registered', input.userId, input.userId, { name: input.name });
 }
 
+/**
+ * The account of a customer was suspended.
+ *
+ * The customer is told, because a customer who is only disconnected thinks
+ * the account is lost. The moment of the suspension is the occurrence, so an
+ * account that is suspended twice has two messages.
+ */
+export async function notifyAccountSuspended(input: Recipient & {
+  name: string | null;
+  reason?: string | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'account.suspended',
+    input.userId,
+    input.userId,
+    { name: input.name, reason: input.reason ?? null },
+    input.occurrence ?? null,
+  );
+}
+
+/** The account of a customer was put back. */
+export async function notifyAccountReinstated(input: Recipient & {
+  name: string | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'account.reinstated',
+    input.userId,
+    input.userId,
+    { name: input.name },
+    input.occurrence ?? null,
+  );
+}
+
 /** The confirmation of the address was asked for again. */
 export async function notifyVerificationRequested(input: Recipient & {
   name: string | null;

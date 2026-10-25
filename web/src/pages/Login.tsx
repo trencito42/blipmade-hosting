@@ -6,6 +6,7 @@ import { Link, useRouter } from '../router';
 import { postLoginTarget } from '../auth-guard';
 import { useSession } from '../session';
 import { ApiError } from '../lib/api';
+import { loginFailureMessage } from '../lib/login-message';
 import { AuthField } from './auth-field';
 import { LegalFooter } from '../legal/LegalFooter';
 
@@ -14,7 +15,7 @@ const EMAIL_RE = /^\S+@\S+\.\S+$/;
 export default function Login() {
   const catalog = useCatalogSummary();
   const { query, navigate } = useRouter();
-  const { login } = useSession();
+  const { login, suspensionNotice } = useSession();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [msg, setMsg] = useState<{ kind: 'err' | 'info'; text: string } | null>(null);
@@ -43,19 +44,14 @@ export default function Login() {
       navigate(postLoginTarget(session.role, query.next), { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 429 || err.code === 'rate_limited') {
-          setMsg({ kind: 'err', text: 'Too many attempts. Try again in 5 minutes.' });
-        } else if (err.fields?.email) {
+        if (err.fields?.email) {
           setEmailErr(err.fields.email);
         } else if (err.fields?.password) {
           setPwErr(err.fields.password);
-        } else if (err.status === 401) {
-          // Never say whether the address exists.
-          setMsg({ kind: 'err', text: 'Email or password is incorrect.' });
-        } else if (err.status === 0) {
-          setMsg({ kind: 'err', text: 'Cannot reach the Blipmade API. Check your connection and try again.' });
         } else {
-          setMsg({ kind: 'err', text: err.message });
+          // The message is chosen in one place, so the answer of a suspended
+          // account and the answer of a wrong password never drift apart.
+          setMsg({ kind: 'err', text: loginFailureMessage(err) });
         }
       } else {
         setMsg({ kind: 'err', text: 'Something went wrong. Try again.' });
@@ -73,7 +69,17 @@ export default function Login() {
           <Eyebrow>Secure access</Eyebrow>
           <Headline as="h1" lines={['Welcome', 'back.']} className="text-[clamp(52px,12vw,76px)] leading-[0.9]" />
           <p className="text-[17px] text-ink2">Log in to your Blipmade account.</p>
-          {msg && <div role="alert" className={cn('rounded-2xl px-4 py-3 text-[14.5px] font-bold', msg.kind === 'err' ? 'bg-bad/10 text-bad' : 'bg-acc-bg text-acc')}>{msg.text}</div>}
+          {(msg || suspensionNotice) && (
+        <div
+          role="alert"
+          className={cn(
+            'rounded-2xl px-4 py-3 text-[14.5px] font-bold',
+            msg?.kind === 'info' ? 'bg-acc-bg text-acc' : 'bg-bad/10 text-bad',
+          )}
+        >
+          {msg?.text ?? suspensionNotice}
+        </div>
+      )}
           <form onSubmit={submit} noValidate aria-busy={pending} className="grid gap-4">
             <AuthField
               id="email"

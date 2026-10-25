@@ -35,7 +35,7 @@ operator when something does not arrive is in
 | The dispatcher | `api/src/services/notification-dispatch.ts` | Reads the outbox, resolves the recipient, applies the preferences, renders and sends |
 | The worker | `api/src/worker.ts` | Runs the dispatcher every five seconds |
 | The mailer | `api/src/lib/mailer.ts` | The only thing that talks to the relay. It writes down what really happened |
-| The templates | `api/src/lib/email-design.ts` | The wording of the seventy messages, with the text, the HTML, the subject and the preheader |
+| The templates | `api/src/lib/email-design.ts` | The wording of the seventy-two messages, with the text, the HTML, the subject and the preheader |
 | The centre of the customer | `api/src/routes/notifications.ts`, `web/src/app/Notifications.tsx` | The bell, the count, the list, the filters, the reading |
 | The back office | `api/src/routes/admin-notifications.ts`, `web/src/admin/EmailNotifications.tsx` | The overview, the queues, the events, the catalogue, the test message |
 

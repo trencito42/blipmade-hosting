@@ -8,6 +8,7 @@ import { hashToken, randomToken } from '../lib/tokens.js';
 import { LIMITS, customerLimit, rateLimitRun } from '../lib/rate-limit.js';
 import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/failed-attempts.js';
 import { mailEnabled, mailLogLine, mailNotice, mailTransportName, registrationNotice, type MailSendResult } from '../lib/mailer.js';
+import { suspendedAccountError } from '../lib/suspension.js';
 import {
   notifyAccountRegistered,
   notifyEmailVerified,
@@ -340,7 +341,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         await audit({ actorEmail: body.email, action: 'auth.login_failed', ip: request.ip });
         throw unauthorized('Email or password is not correct.');
       }
-      if (user.suspendedAt) throw unauthorized('This account is suspended.');
+      // The password is right and the account is suspended. The customer is
+      // told what happened and where to write, because a customer who is
+      // only told that the password is wrong will think the account is lost.
+      if (user.suspendedAt) throw suspendedAccountError();
 
       // The sign-in that worked forgets the attempts that failed on this
       // account: a customer who mistyped the password and then signed in
@@ -369,6 +373,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/auth/session', async (request: FastifyRequest) => {
+    // The session of a suspended account is not a session any more. The
+    // answer says what happened, so the interface explains it instead of
+    // sending the customer to a login that would refuse them.
+    if (request.accountSuspended) throw suspendedAccountError();
     if (!request.user) return { user: null };
     const user = await prisma.user.findUnique({
       where: { id: request.user.id },

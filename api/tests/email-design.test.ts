@@ -45,6 +45,8 @@ const EVENT_EXAMPLES = {
   'account.email_verified': { name: 'Ada Lovelace' },
   'account.password_reset_requested': { name: 'Ada Lovelace', token: TOKEN },
   'account.password_changed': { name: 'Ada Lovelace' },
+  'account.suspended': { name: 'Ada Lovelace', reason: 'The invoice was not paid.' },
+  'account.reinstated': { name: 'Ada Lovelace' },
   'account.email_change_requested': {
     name: 'Ada Lovelace',
     token: TOKEN,
@@ -240,6 +242,8 @@ const REQUIRED_IDS = [
   'account-email-verified',
   'account-password-reset',
   'account-password-changed',
+  'account-suspended',
+  'account-reinstated',
   'account-email-change-requested',
   'account-email-changed',
   'account-deletion-requested',
@@ -315,15 +319,15 @@ afterEach(() => {
 
 describe('the catalogue of the templates', () => {
   it('holds exactly the templates the events of the platform expect', () => {
-    expect(REQUIRED_IDS).toHaveLength(70);
+    expect(REQUIRED_IDS).toHaveLength(72);
     expect([...emailTemplateIds()].sort()).toEqual([...REQUIRED_IDS].sort());
     expect(emailTemplateCatalog().map((entry) => entry.id).sort()).toEqual([...REQUIRED_IDS].sort());
-    expect(emailTemplateCatalog()).toHaveLength(70);
+    expect(emailTemplateCatalog()).toHaveLength(72);
   });
 
   it('holds the same templates as the registry of the events', () => {
     const expected = Object.values(EVENT_DEFINITIONS).map((definition) => definition.template);
-    expect(expected).toHaveLength(70);
+    expect(expected).toHaveLength(72);
     expect([...emailTemplateIds()].sort()).toEqual([...expected].sort());
   });
 

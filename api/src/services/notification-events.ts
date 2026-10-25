@@ -74,6 +74,8 @@ export interface EventPayloadMap {
   'account.email_change_requested': { name: string | null; token: string; email: string };
   'account.email_changed': { name: string | null; email: string };
   'account.deletion_requested': { name: string | null };
+  'account.suspended': { name: string | null; reason?: string | null };
+  'account.reinstated': { name: string | null };
 
   'order.created': { number: string; total: string; currency: string };
   'order.payment_required': { number: string; total: string; currency: string };
@@ -284,6 +286,27 @@ export const EVENT_DEFINITIONS: EventRegistry = {
     title: () => 'Your address was changed',
     body: () => 'The address of your account was changed.',
     link: () => ({ url: '/app/settings', label: 'Open the settings' }),
+  }),
+  'account.suspended': definition({
+    type: 'account.suspended',
+    template: 'account-suspended',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: () => 'Your account was suspended',
+    body: () =>
+      'The account was suspended, so you cannot sign in at the moment. Contact the support to have it restored.',
+  }),
+  'account.reinstated': definition({
+    type: 'account.reinstated',
+    template: 'account-reinstated',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: () => 'Your account was put back',
+    body: () => 'The suspension was lifted and you can sign in again.',
   }),
   'account.deletion_requested': definition({
     type: 'account.deletion_requested',

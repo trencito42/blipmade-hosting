@@ -4,6 +4,7 @@ import { env } from '../env.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { rateLimitRun } from '../lib/rate-limit.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
+import { suspendedAccountError } from '../lib/suspension.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
 import { audit } from '../lib/audit.js';
@@ -30,6 +31,14 @@ declare module 'fastify' {
   interface FastifyRequest {
     user?: AuthUser;
     sessionId?: string;
+    /**
+     * The session exists but the account was suspended.
+     *
+     * The flag is what lets the answer of the platform say "the account is
+     * suspended" instead of "the session is gone". The two are told apart
+     * for the customer, who has to know why they were disconnected.
+     */
+    accountSuspended?: boolean;
   }
 }
 
@@ -284,7 +293,12 @@ export async function loadSession(request: FastifyRequest): Promise<AuthUser | u
     await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
     return undefined;
   }
-  if (session.user.suspendedAt) return undefined;
+  if (session.user.suspendedAt) {
+    // The session exists and the account is suspended. The request carries
+    // the fact, so the answer can say what happened.
+    request.accountSuspended = true;
+    return undefined;
+  }
 
   request.sessionId = session.id;
 
@@ -314,7 +328,12 @@ export async function loadSession(request: FastifyRequest): Promise<AuthUser | u
 }
 
 export async function requireAuth(request: FastifyRequest): Promise<AuthUser> {
-  if (!request.user) throw unauthorized();
+  if (!request.user) {
+    // The account was suspended while the page was open. The customer is
+    // told what happened, and not that the session simply ended.
+    if (request.accountSuspended) throw suspendedAccountError();
+    throw unauthorized();
+  }
   return request.user;
 }
 

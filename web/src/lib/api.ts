@@ -36,8 +36,13 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * is suspended, or the session is revoked from another device. The pages that
  * need a session have to know about it, so the handler clears the session and
  * the guard sends the visitor to the login.
+ *
+ * The code of the answer tells the two cases apart: a session that ended and
+ * an account that was suspended. The customer is told which one it is,
+ * because "you were disconnected" and "your account was suspended" are two
+ * very different things.
  */
-type UnauthorizedHandler = () => void;
+type UnauthorizedHandler = (code: string) => void;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 
 export function onUnauthorized(handler: UnauthorizedHandler | null): void {
@@ -94,11 +99,6 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
   const requestId = response.headers.get('x-request-id') ?? undefined;
 
   if (!response.ok) {
-    if (response.status === 401 && !UNAUTHORIZED_IS_ANSWER.some((p) => path === p || path.startsWith(`${p}?`))) {
-      // The session is gone. The page that needs it will send the visitor to
-      // the login, with the page they wanted.
-      unauthorizedHandler?.();
-    }
     let code = 'request_failed';
     let message = `Request failed (${response.status}).`;
     let fields: Record<string, string> | undefined;
@@ -112,6 +112,13 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
       } else if (typeof detail === 'string') {
         message = detail;
       }
+    }
+    if (response.status === 401 && !UNAUTHORIZED_IS_ANSWER.some((p) => path === p || path.startsWith(`${p}?`))) {
+      // The session is gone. The page that needs it will send the visitor to
+      // the login, with the page they wanted. The code is read first, so the
+      // handler can tell an account that was suspended from a session that
+      // simply ended.
+      unauthorizedHandler?.(code);
     }
     throw new ApiError(response.status, code, message, fields, requestId);
   }

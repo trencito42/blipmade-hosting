@@ -36,7 +36,7 @@ suspended twice has two keys, and therefore two messages.
 
 ## 2. The events that are published
 
-**37 of the 70 events of the registry have a trigger.**
+**39 of the 72 events of the registry have a trigger.**
 
 | Event | Template | Group | Kind | Audience | Channels | Secret | Trigger | Where |
 |---|---|---|---|---|---|---|---|---|
@@ -47,6 +47,8 @@ suspended twice has two keys, and therefore two messages.
 | `account.password_changed` | `account-password-changed` | Account and security | essential | customer | email+in_app | — | POST /api/auth/reset-password | notifications.ts → notifyPasswordChanged |
 | `account.email_change_requested` | `account-email-change-requested` | Account and security | essential | customer | email | yes | POST /api/settings/email-change/request | notifications.ts → notifyEmailChangeRequested (secret) |
 | `account.email_changed` | `account-email-changed` | Account and security | essential | customer | email+in_app | — | POST /api/settings/email-change/confirm | notifications.ts → notifyEmailChanged |
+| `account.suspended` | `account-suspended` | Account and security | essential | customer | email+in_app | — | POST /api/admin/customers/:id/suspend | routes/admin.ts → notifyAccountSuspended |
+| `account.reinstated` | `account-reinstated` | Account and security | essential | customer | email+in_app | — | POST /api/admin/customers/:id/suspend (put back) | routes/admin.ts → notifyAccountReinstated |
 | `order.created` | `order-created` | Orders and billing | optional | customer | email+in_app | — | POST /api/orders | notifications.ts → notifyOrderCreated |
 | `order.payment_required` | `order-payment-required` | Orders and billing | essential | customer | email+in_app | — | POST /api/orders/:id/checkout | notifications.ts → notifyPaymentRequired |
 | `order.canceled` | `order-canceled` | Orders and billing | optional | customer | email+in_app | — | POST /api/orders/:id/cancel | notifications.ts → notifyOrderCanceled |
@@ -122,6 +124,7 @@ gap is visible and not hidden behind a claim of coverage.
 | `ops.capacity_critical` | `ops-capacity-critical` | Incidents and maintenance | essential | operator | email | — | — | — |
 | `ops.dns_certificate_failure` | `ops-dns-certificate-failure` | Incidents and maintenance | essential | operator | email | — | — | — |
 | `ops.security_change` | `ops-security-change` | Incidents and maintenance | essential | operator | email | — | — | — |
+
 
 ### Why they are not published
 

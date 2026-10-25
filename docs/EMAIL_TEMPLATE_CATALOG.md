@@ -65,10 +65,8 @@ A template is a **template id**, a **version**, a **group**, a **subject**, a
 
 ## 2. The catalogue
 
-**70 templates, one for every event of the registry.**
+**72 templates, one for every event of the registry.**
 
-| Template | Version | Group | Subject | Facts it reads |
-|---|---|---|---|---|
 | `account-welcome` | v1 | Account and security | Welcome to Blipmade | `{{customer.firstName}}` |
 | `account-verify-email` | v1 | Account and security | Confirm your email address | `{{customer.firstName}}`, `{{action.url}}`, `{{action.label}}` |
 | `account-email-verified` | v1 | Account and security | Your email address is confirmed | `{{customer.firstName}}` |
@@ -76,6 +74,8 @@ A template is a **template id**, a **version**, a **group**, a **subject**, a
 | `account-password-changed` | v1 | Account and security | Your password was changed | `{{customer.firstName}}` |
 | `account-email-change-requested` | v1 | Account and security | Confirm your new email address | `{{customer.firstName}}`, `{{customer.email}}`, `{{action.url}}`, `{{action.label}}` |
 | `account-email-changed` | v1 | Account and security | Your email address was changed | `{{customer.firstName}}`, `{{customer.email}}` |
+| `account-suspended` | v1 | Account and security | Your account was suspended | `{{customer.firstName}}`, `{{account.reason}}` |
+| `account-reinstated` | v1 | Account and security | Your account was put back | `{{customer.firstName}}` |
 | `account-deletion-requested` | v1 | Account and security | We received the request to close your account | `{{customer.firstName}}` |
 | `order-created` | v1 | Orders and billing | Your order {{order.number}} was created | `{{order.number}}`, `{{order.total.formatted}}`, `{{order.currency}}` |
 | `order-payment-required` | v1 | Orders and billing | Your order {{order.number}} waits for its payment | `{{order.number}}`, `{{order.total.formatted}}`, `{{order.currency}}` |
