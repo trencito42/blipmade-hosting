@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { request as httpsRequest } from 'node:https';
+import { Agent as HttpsAgent, request as httpsRequest } from 'node:https';
 import { URL } from 'node:url';
 import { env } from '../env.js';
 
@@ -21,6 +21,24 @@ import { env } from '../env.js';
 
 /** How long a call to the mail system may take. */
 const DEFAULT_TIMEOUT_MS = 15_000;
+
+/**
+ * The agent of the mail system.
+ *
+ * Two things are wanted from every connection to the mail system:
+ *
+ *   - the handshake is complete every time, because a session that is taken
+ *     up again is a session in which the server does not send its certificate
+ *     again, and a certificate that is not there cannot be compared with the
+ *     fingerprint that the operator wrote down;
+ *   - the connection is not kept between the calls, because the check of the
+ *     certificate belongs to the connection that was opened, and a connection
+ *     that is taken from the pool is a connection that is not checked again.
+ *
+ * The agent belongs to the mail system alone: the connections of the rest of
+ * the platform are not touched by it.
+ */
+const mailcowAgent = new HttpsAgent({ keepAlive: false, maxCachedSessions: 0 });
 
 /** The body of every answer of the mail system that carries a verdict. */
 export interface MailcowEnvelope {
@@ -182,6 +200,7 @@ export async function mailcowRequest<T>(path: string, options: MailcowCallOption
         path: `${url.pathname}${url.search}`,
         method,
         servername: env.MAIL_HOSTNAME.trim() || url.hostname,
+        agent: mailcowAgent,
         headers: {
           'X-API-Key': env.MAILCOW_API_KEY.trim(),
           Accept: 'application/json',
@@ -210,10 +229,12 @@ export async function mailcowRequest<T>(path: string, options: MailcowCallOption
 
     if (wanted) {
       req.on('socket', (socket) => {
-        // A socket that is already open was checked when it was opened: the
-        // certificate of a connection cannot change while the connection
-        // lives. The listener is added only to a socket that is being opened,
-        // so a socket that is kept alive does not gather listeners.
+        // Every connection to the mail system is a connection of its own: the
+        // agent of the mail system does not keep the connections alive and does
+        // not take up a session again, so the certificate of every connection is
+        // there to be checked. The listener is added only to a socket that is
+        // being opened, so a socket that is already open does not gather
+        // listeners.
         if (!(socket as { connecting?: boolean }).connecting) return;
         socket.once('secureConnect', () => {
           const peer = (socket as import('node:tls').TLSSocket).getPeerCertificate();

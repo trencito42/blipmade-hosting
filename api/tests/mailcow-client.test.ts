@@ -47,7 +47,7 @@ async function startServer(
   handler: (
     body: string,
     headers: Record<string, unknown>,
-  ) => { status: number; body: string; type?: string; hang?: boolean },
+  ) => { status: number; body: string; type?: string; hang?: boolean; close?: boolean },
 ): Promise<TestServer> {
   const dir = mkdtempSync(join(tmpdir(), 'mailcow-test-'));
   const keyPath = join(dir, 'key.pem');
@@ -72,7 +72,15 @@ async function startServer(
       // once would arrive before the timeout of the client, and the test
       // would depend on the speed of the machine instead of on the code.
       if (answer.hang) return;
-      response.writeHead(answer.status, { 'Content-Type': 'application/json' });
+      response.writeHead(answer.status, {
+        'Content-Type': 'application/json',
+        // A server that closes the connection after every answer makes the
+        // client open a connection of its own for the next call. That is what
+        // the test of the session that is taken up again needs: the session of
+        // the last connection can be taken up again, and in a session that is
+        // taken up again the server does not send its certificate again.
+        ...(answer.close ? { Connection: 'close' } : {}),
+      });
       response.end(answer.body);
     });
   });
@@ -202,6 +210,23 @@ describe('the client of the mail system', () => {
     const server = await startServer(() => ({ status: 200, body: '{"version":"abc"}' }));
     try {
       configure({ url: server.url, key: 'a-key', fingerprint: server.fingerprint.toUpperCase() });
+      await expect(mailcowRequest('/get/status/version')).resolves.toEqual({ version: 'abc' });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('checks the certificate of every call, also when the session of the last one is taken up again', async () => {
+    // The server closes the connection after every answer, so every call opens
+    // a connection of its own. A session that is taken up again is a session in
+    // which the server does not send its certificate again, and a client that
+    // keeps its sessions would have no certificate to compare with the
+    // fingerprint that the operator wrote down.
+    const server = await startServer(() => ({ status: 200, body: '{"version":"abc"}', close: true }));
+    try {
+      configure({ url: server.url, key: 'a-key', fingerprint: server.fingerprint });
+      await expect(mailcowRequest('/get/status/version')).resolves.toEqual({ version: 'abc' });
+      await expect(mailcowRequest('/get/status/version')).resolves.toEqual({ version: 'abc' });
       await expect(mailcowRequest('/get/status/version')).resolves.toEqual({ version: 'abc' });
     } finally {
       await server.close();
