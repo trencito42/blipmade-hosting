@@ -44,7 +44,10 @@ function fingerprintOf(pem: string): string {
  * travelled with the request.
  */
 async function startServer(
-  handler: (body: string, headers: Record<string, unknown>) => { status: number; body: string; type?: string },
+  handler: (
+    body: string,
+    headers: Record<string, unknown>,
+  ) => { status: number; body: string; type?: string; hang?: boolean },
 ): Promise<TestServer> {
   const dir = mkdtempSync(join(tmpdir(), 'mailcow-test-'));
   const keyPath = join(dir, 'key.pem');
@@ -64,6 +67,11 @@ async function startServer(
     request.on('data', (chunk: Buffer) => chunks.push(chunk));
     request.on('end', () => {
       const answer = handler(Buffer.concat(chunks).toString('utf-8'), request.headers as Record<string, unknown>);
+      // A server that keeps the request open never answers. It is what the
+      // test of the timeout needs: the answer of a server that replies at
+      // once would arrive before the timeout of the client, and the test
+      // would depend on the speed of the machine instead of on the code.
+      if (answer.hang) return;
       response.writeHead(answer.status, { 'Content-Type': 'application/json' });
       response.end(answer.body);
     });
@@ -242,10 +250,13 @@ describe('the client of the mail system', () => {
   });
 
   it('gives up when the mail system does not answer in time', async () => {
-    const server = await startServer(() => ({ status: 200, body: '{"version":"abc"}' }));
+    // The server keeps the request open and never answers, so the wait ends
+    // because of the timeout of the client and not because the answer was
+    // quick.
+    const server = await startServer(() => ({ status: 200, body: '', hang: true }));
     try {
       configure({ url: server.url, key: 'a-key', fingerprint: server.fingerprint });
-      await expect(mailcowRequest('/get/status/version', { timeoutMs: 1 })).rejects.toThrow();
+      await expect(mailcowRequest('/get/status/version', { timeoutMs: 250 })).rejects.toThrow();
     } finally {
       await server.close();
     }
