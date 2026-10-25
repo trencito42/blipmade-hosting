@@ -340,6 +340,11 @@ Până la punctul 8, verdictul rămâne **NO-GO**.
 
 ## 8. CI
 
+Pe ramura `feature/email-commerce` (faza comercială a e-mailului), **7/7 joburi verzi**:
+
+* commit-ul `9ba38f2` („Sell the hosted mail") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40165122396** — prima rulare: 6/7, cu `API typecheck` picând pe faptul că tipul funcției de checkout cerea rândul întreg al unei linii de comandă. Repararea e în tipul funcției, nu în test: `f9f4407`.
+* commit-ul `f9f4407` („Ask the checkout only for the fields it reads") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40165612598** — **7/7 joburi verzi**.
+
 Pe ramura `feature/mail-hosting` (faza găzduirii de e-mail):
 
 * commit-ul `991cf91` („Add the hosted mail") — **https://github.com/trencito42/blipmade-hosting/actions/runs/40158217954**
