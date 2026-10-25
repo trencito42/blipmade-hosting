@@ -161,8 +161,75 @@ describe('the outbox', () => {
   });
 });
 
-describe('the centre of the notifications', () => {
-  it('shows a message only to the customer it belongs to', async () => {
+describe('when the worker is not the only one', () => {
+  it('never sends the same message twice, even when two workers take it at the same time', async () => {
+    const { userId } = await registerAndLogin(app, 'twice-at-once@example.com');
+
+    const event = await publishEvent({
+      type: 'invoice.issued',
+      subject: 'BM-00003',
+      userId,
+      payload: { number: 'BM-00003', amount: '10.00 EUR', currency: 'EUR', dueAt: null },
+    });
+
+    // Two workers read the outbox at the same time. The event is claimed
+    // before it is delivered, so the message goes out once.
+    await Promise.all([dispatchPendingEvents(10), dispatchPendingEvents(10)]);
+
+    const deliveries = await prisma.mailDelivery.findMany({ where: { eventId: event.eventId } });
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]?.to).toBe('twice-at-once@example.com');
+  });
+
+  it('takes back an event that a worker claimed and never finished', async () => {
+    const { userId } = await registerAndLogin(app, 'crashed@example.com');
+
+    const event = await publishEvent({
+      type: 'invoice.issued',
+      subject: 'BM-00004',
+      userId,
+      payload: { number: 'BM-00004', amount: '10.00 EUR', currency: 'EUR', dueAt: null },
+    });
+
+    // The worker took the event and died before it could deliver it.
+    await prisma.notificationEvent.update({
+      where: { id: event.eventId },
+      data: { state: 'processing', updatedAt: new Date(Date.now() - 10 * 60_000) },
+    });
+
+    await dispatchPendingEvents(10);
+
+    const stored = await prisma.notificationEvent.findUnique({ where: { id: event.eventId } });
+    expect(stored?.state).toBe('processed');
+    const deliveries = await prisma.mailDelivery.findMany({ where: { eventId: event.eventId } });
+    expect(deliveries).toHaveLength(1);
+  });
+
+  it('gives up on an event that failed too many times and leaves it for the operator', async () => {
+    const { userId } = await registerAndLogin(app, 'dead-letter@example.com');
+
+    const event = await publishEvent({
+      type: 'invoice.issued',
+      subject: 'BM-00005',
+      userId,
+      payload: { number: 'BM-00005', amount: '10.00 EUR', currency: 'EUR', dueAt: null },
+    });
+
+    // The event has already been tried five times and failed every time.
+    await prisma.notificationEvent.update({
+      where: { id: event.eventId },
+      data: { state: 'pending', attempts: 5 },
+    });
+
+    await dispatchPendingEvents(10);
+
+    const stored = await prisma.notificationEvent.findUnique({ where: { id: event.eventId } });
+    expect(stored?.state).toBe('pending');
+    expect(stored?.attempts).toBe(5);
+  });
+});
+
+describe('the centre of the notifications', () => {  it('shows a message only to the customer it belongs to', async () => {
     const { client, userId } = await registerAndLogin(app, 'mine@example.com');
     const { client: other } = await registerAndLogin(app, 'theirs@example.com');
 
