@@ -23,6 +23,7 @@ import {
 
 const DOMAIN_STATUS_LABELS: Record<Domain['status'], string> = {
   pending_dns: 'Pending DNS',
+  pending_gateway: 'Pending gateway',
   verifying: 'Verifying',
   active: 'Active',
   error: 'Error',
@@ -31,6 +32,7 @@ const DOMAIN_STATUS_LABELS: Record<Domain['status'], string> = {
 /** Maps the domain status onto a status the pill can colour, keeping the real label. */
 const DOMAIN_TONES: Record<Domain['status'], string> = {
   pending_dns: 'pending',
+  pending_gateway: 'pending',
   verifying: 'provisioning',
   active: 'active',
   error: 'error',

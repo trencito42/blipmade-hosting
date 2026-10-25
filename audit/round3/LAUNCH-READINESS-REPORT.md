@@ -101,8 +101,50 @@ Pentru fiecare: variabila exactă, locul configurării, formatul așteptat (**ni
 | `DOMAIN_TARGET` | `/opt/blipmade/.env` | adresa IP a gazdei web (`10.77.0.13`) | `curl -sS -o /dev/null -w '%{http_code}' "https://<subdomeniu>.${DOMAIN_BASE}/"` → 200 |
 | `CADDY_ADMIN_URL` | `/opt/blipmade/.env` | `http://10.77.0.12:2019` | `curl -sS "$CADDY_ADMIN_URL/config/"` → JSON al configurației |
 | `CADDY_ADMIN_TOKEN` | `/opt/blipmade/.env` | tokenul admin al lui Caddy | `curl -sS -H "Authorization: Bearer $CADDY_ADMIN_TOKEN" "$CADDY_ADMIN_URL/config/"` → 200 |
-| Blocul `apps` | Fișierul Caddy al edge-ului | `audit/_tools/edge-Caddyfile` **nu** are bloc `apps`; fără el, namespace-ul `servers/blipmade` dă 404 | `curl -sS -H "Authorization: Bearer $CADDY_ADMIN_TOKEN" "$CADDY_ADMIN_URL/config/apps/"` → obiect, nu 404 |
-| Rută pentru hostname-urile clienților | Fișierul Caddy al edge-ului | o rută care înlocuiește `*.${DOMAIN_BASE}` cu ținta web | Un subdomeniu real rezolvă și încape TLS |
+| `CADDY_APP_SERVER` | `/opt/blipmade/.env` | numele serverului Caddy care ține rutele clienților; implicit `blipmade` | `GET $CADDY_ADMIN_URL/config/apps/http/servers/<nume>/routes` → 200 |
+| Blocul `apps` | Fișierul Caddy al edge-ului | un server numit `blipmade` (sau numele de mai sus) în `apps { http { servers { … } } }`; **fișierul de referință are acum blocul** | `GET $CADDY_ADMIN_URL/config/apps/http/servers/blipmade/routes` → 200, nu 404 |
+| API-ul admin al lui Caddy | Opțiunile globale ale edge-ului | `admin 10.77.0.12:2019` — implicit Caddy ascultă doar pe `localhost:2019`, **la care VM 103 nu ajunge** (port 2019 filtrat) | `curl -sS -H "Authorization: Bearer $CADDY_ADMIN_TOKEN" "$CADDY_ADMIN_URL/config/"` de pe 10.77.0.13 → 200 |
+| Rută pentru hostname-urile clienților | Fișierul Caddy al edge-ului | o rută care dă containerul: `reverse_proxy` → `10.77.0.11:<port>` (portul alocării) | Un hostname real rezolvă și încape TLS; `curl -H "Host: witch.pw" http://10.77.0.12/` răspunde din container |
+
+### 3.4.b Cazul `witch.pw` — pașii exacți, în ordine
+
+Starea reală, citită astăzi din producție (read-only):
+
+| Fapt | Valoare |
+|---|---|
+| Instanța | `1` (`cmvmuropo0017ns01rl6essbo`), server 18, alocarea 74 → **`10.77.0.11:30001`** |
+| Dovada de ownership | **deja acceptată** la 2026-10-24 20:34:56 (`verifiedAt` setat) |
+| TXT publicat | `_blipmade-verify.witch.pw` → `MOSUh_viwgyl4IqziLzUx7pLibRxQ0VL` — **corect și public** |
+| A / CNAME | `witch.pw` și `www.witch.pw` răspund cu IP-urile Cloudflare (188.114.96.11 / 188.114.97.11) — deci domeniul e deja în spatele Cloudflare |
+| Ce lipsește pe platformă | `CADDY_ADMIN_URL` și `CADDY_ADMIN_TOKEN` sunt **goale** în `/opt/blipmade/.env` |
+| Ce lipsește pe edge | Caddy nu are blocul `apps` (fișierul de referință îl are acum) și API-ul admin nu e accesibil de pe VM 103 |
+| Ce lipsește la DNS | Origin-ul Cloudflare pentru `witch.pw` trebuie să fie `193.34.214.143` (aceeași adresă ca pentru `blipmade.com`) |
+
+Pașii:
+
+1. Pe edge (10.77.0.12): aplică blocul `apps` din `audit/_tools/edge-Caddyfile`, leagă `admin 10.77.0.12:2019` și lasă firewall-ul să permită doar 10.77.0.13 către 2019.
+2. Pe VM 103: în `/opt/blipmade/.env`, pune `CADDY_ADMIN_URL=http://10.77.0.12:2019` și `CADDY_ADMIN_TOKEN=<tokenul din Caddy>` (dacă serverul Caddy existent nu poate avea al doilea server pe aceleași adrese, pune `CADDY_APP_SERVER=<numele serverului existent>`).
+3. În Cloudflare: origin-ul pentru `witch.pw` → `193.34.214.143`.
+4. Verifică: `GET $CADDY_ADMIN_URL/config/apps/http/servers/blipmade/routes` → 200, apoi în interfață apasă **Verifică** pe domeniu. Ruta care trebuie să apară: `host: witch.pw` → `dial: 10.77.0.11:30001`.
+5. Certificate: pentru hostname-uri necunoscute în avans, Caddy nu cere certificat singur — deciziile sunt ale operatorului (CDN care termină TLS, sau un certificat care acoperă hostname-urile).
+
+**Atenție: pasul 4 nu este suficient.** Citire read-only de azi: porturile de alocare
+`30000`, `30001`, `30002` și `30003` de pe nod (`10.77.0.11`) sunt **închise** din rețeaua
+internă, iar nodul raportează `starting` pentru toate cele trei containere. Așadar, chiar cu
+gateway-ul complet configurat, `witch.pw` ar ajunge la un container care nu răspunde pe
+30001. Cauza nu se poate afla de pe VM 103: comanda trimisă în consolă nu întoarce ieșirea
+prin API-ul panoului, iar nodul `10.77.0.11` refuză cheia (`Permission denied (publickey)`).
+Verificarea trebuie făcută **pe nod**, în interiorul containerului:
+
+```
+# pe 10.77.0.11, in containerul serverului 18
+cat /proc/net/tcp | awk 'NR>1 {print $2}'        # porturile in ascultare (0BB8 = 3000)
+ps aux                                          # procesul node
+```
+
+Dacă `0BB8` nu apare, aplicația nu ascultă pe 3000 și cauza este în produs sau în egg
+(`OPS-01`, `OPS-17`), nu în poartă. Dacă apare, cauza este în health check-ul egg-ului
+sau în maparea portului, iar poarta rămâne singurul pas lipsă.
 
 ### 3.5 Adresa reală a clientului (proxy de încredere)
 

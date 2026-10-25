@@ -214,6 +214,23 @@ async function resolveTarget(instance: { pterodactylServerId: number | null }): 
   }
 }
 
+/**
+ * The status of a hostname, as the customer is shown it.
+ *
+ * The status that is stored says "pending dns" for a hostname that waits for
+ * the proof of ownership and for one that waits for the gateway. The two are
+ * not the same thing: a hostname whose proof was accepted waits for the
+ * gateway, and telling the customer that it is waiting for the DNS sends them
+ * to publish records they have already published.
+ *
+ * The stored status is not changed, so the schema does not move; only the
+ * answer of the API is more precise than the row.
+ */
+function statusFor(domain: DomainRow): string {
+  if (domain.status === 'PENDING_DNS' && domain.verifiedAt) return 'pending_gateway';
+  return domain.status.toLowerCase();
+}
+
 function serializeDomain(domain: DomainRow) {
   const target = process.env.DOMAIN_TARGET ?? '193.34.214.143';
   const records = gateway.dnsRecordsFor(domain.hostname, target);
@@ -225,7 +242,7 @@ function serializeDomain(domain: DomainRow) {
     instanceId: domain.instanceId,
     instanceName: domain.instance.name,
     hostname: domain.hostname,
-    status: domain.status.toLowerCase(),
+    status: statusFor(domain),
     targetPort: domain.targetPort,
     dnsRecords: records,
     lastError: domain.lastError,

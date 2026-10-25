@@ -104,6 +104,16 @@ const schema = z.object({
   DOMAIN_BASE: z.string().default(''),
   CADDY_ADMIN_URL: z.string().default(''),
   CADDY_ADMIN_TOKEN: z.string().default(''),
+  /**
+   * The server of Caddy that holds the routes of the customer domains.
+   *
+   * The routes live in a namespace of their own, so the routes of the
+   * operator are never read, replaced or removed. The name of that server is
+   * configurable, because a Caddy that serves the platform on the same
+   * addresses may already have a server of its own, and a server that cannot
+   * listen on the same address is easier to point at than to create.
+   */
+  CADDY_APP_SERVER: z.string().default('blipmade'),
   METRICS_ENABLED: bool(true),
   LOG_LEVEL: z.string().default('info'),
 

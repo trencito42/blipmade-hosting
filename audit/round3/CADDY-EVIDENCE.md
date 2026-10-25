@@ -11,6 +11,18 @@
   Redis). No customer hostname was claimed, no DNS record was published and
   no Caddy of the platform was touched.
 
+> **Later reading, 2026-10-24 23:50.** The production database has one customer
+> hostname since then: `witch.pw`, on the instance `1`, with the alocarea
+> `10.77.0.11:30001`. Its proof of ownership was **accepted** at 20:34:56 and
+> the TXT record is published, so the hostname waits for the gateway and for
+> nothing else. The platform still answers `status: pending_dns` with
+> `lastError: "The gateway is not configured on this environment."`, because
+> `CADDY_ADMIN_URL` and `CADDY_ADMIN_TOKEN` are still empty. The repair of
+> the round names the missing settings in the message and says
+> `pending_gateway` instead of `pending_dns`, so the customer is not sent to
+> publish records he has already published. The steps for this hostname are
+> in `audit/round3/LAUNCH-READINESS-REPORT.md`, section 3.4.b.
+
 ---
 
 ## 1. The short answer

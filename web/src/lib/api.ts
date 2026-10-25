@@ -373,7 +373,7 @@ export interface Domain {
   instanceId: string;
   instanceName: string;
   hostname: string;
-  status: 'pending_dns' | 'verifying' | 'active' | 'error';
+  status: 'pending_dns' | 'pending_gateway' | 'verifying' | 'active' | 'error';
   targetPort: number;
   dnsRecords: { name: string; type: string; value: string }[];
   lastError: string | null;
