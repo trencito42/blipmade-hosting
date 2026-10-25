@@ -154,8 +154,28 @@ export async function findStripeCustomerId(userId: string): Promise<string | nul
  * line, so without this split the customer would be charged the catalogue
  * price and the amount collected would not match the amount quoted.
  */
+/**
+ * The fields of an order line that the checkout needs.
+ *
+ * The function reads the name, the sum and the period of a line and nothing
+ * else, so it asks for exactly that. A line of an order carries more — the
+ * state of its delivery, for one — and a change of the model must not break
+ * a caller that only needs the sum.
+ */
+export interface CheckoutLineItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unitAmount: number;
+  total: number;
+  currency: string;
+  config: unknown;
+  orderId?: string;
+  productId?: string;
+}
+
 export function buildCheckoutLineItems(
-  items: OrderItem[],
+  items: CheckoutLineItem[],
   orderTotal: number,
 ): Stripe.Checkout.SessionCreateParams.LineItem[] {
   const chunks = allocateOrderAmounts(
