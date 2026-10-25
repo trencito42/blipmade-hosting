@@ -177,8 +177,9 @@ async function ensureProduct() {
       visible: false,
       deployable: true,
       // The check of the deployment asks the application over HTTP, so a
-      // service that listens on another port is not accepted.
-      healthProbe: { kind: 'http', path: '/', expectStatus: 200 },
+      // service that listens on another port is not accepted. The statuses
+      // that are accepted are the ones the platform accepts by itself.
+      healthProbe: { kind: 'http', path: '/' },
       prices: { create: { period: 'MONTHLY', baseAmount: 149, currency: 'EUR' } },
     },
   });
