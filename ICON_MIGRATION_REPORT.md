@@ -191,6 +191,35 @@ The test that checks the font is skipped on a machine where the font is not
 installed, because the font is not part of the project. It is strict on a
 machine where it is installed.
 
+## 9. One thing the font did that the page did not expect
+
+The stylesheet of Font Awesome is **not layered**, and the utilities of
+Tailwind are. In the cascade, a rule that is not in a layer wins over a rule
+that is in one, whatever the order of the two files is. The stylesheet of the
+font says that an icon is in the flow of the page, because the second layer
+of a duotone icon is drawn with an absolute pseudo element:
+
+```css
+.fa-sharp-duotone { --fa-family: var(--fa-family-sharp-duotone); position: relative; }
+```
+
+So `absolute` of Tailwind, which is in the layer of the utilities, was
+beaten by the font: the chevron of the dropdown was drawn **before** the
+text of the field instead of at its end, and it added a line to the field.
+The stylesheet of the application puts it back:
+
+```css
+.fa-icon.absolute { position: absolute; }
+.fa-icon.fixed { position: fixed; }
+```
+
+The rule is not in a layer either, and it has more weight than the one of the
+font, so the icon goes where the page asks for it. The test reads the two
+rules, so the same surprise cannot come back.
+
+This was found in the browser, by measuring the place of the icon and not
+only by looking at the page.
+
 ## 9. What is left
 
 1. **The icon font has to be placed on the machine** before the site is
