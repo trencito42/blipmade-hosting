@@ -104,6 +104,49 @@ export function certificateMismatch(actual: string, wanted: string): Error {
   );
 }
 
+/**
+ * The error of a mail system that never showed its certificate.
+ */
+export function certificateMissing(): Error {
+  return new Error('The mail system did not show a certificate.');
+}
+
+/**
+ * Waits for the certificate of the mail system and compares it with the
+ * fingerprint the operator wrote down.
+ *
+ * The certificate is not always on the socket the moment the handshake is
+ * declared finished: with TLS 1.3 the certificate of the server travels after
+ * the handshake that the client considers done, so the socket can be "secure"
+ * a moment before the certificate is there. A check that reads the
+ * certificate once would refuse a mail system that answered correctly, and
+ * the refusal would look like a broken mail system.
+ *
+ * The certificate is therefore waited for, and the request is only refused
+ * when the certificate that arrives is not the one that was expected, or when
+ * no certificate arrives at all. The rule stays the same: a certificate that
+ * is not the one that was written down is never accepted.
+ */
+export async function waitForPeerCertificate(
+  read: () => Buffer | undefined,
+  wanted: string,
+  delay: (resolve: () => void, ms: number) => void = (resolve, ms) => {
+    setTimeout(resolve, ms);
+  },
+  attempts = 20,
+): Promise<void> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const raw = read();
+    if (raw) {
+      const actual = createHash('sha256').update(raw).digest('hex');
+      if (actual !== wanted) throw certificateMismatch(actual, wanted);
+      return;
+    }
+    await new Promise<void>((resolve) => delay(resolve, 25));
+  }
+  throw certificateMissing();
+}
+
 export interface MailcowCallOptions {
   method?: 'GET' | 'POST';
   body?: unknown;
@@ -174,14 +217,25 @@ export async function mailcowRequest<T>(path: string, options: MailcowCallOption
         if (!(socket as { connecting?: boolean }).connecting) return;
         socket.once('secureConnect', () => {
           const peer = (socket as import('node:tls').TLSSocket).getPeerCertificate();
-          if (!peer?.raw) {
-            req.destroy(new Error('The mail system did not show a certificate.'));
+          const raw = peer?.raw;
+          if (raw) {
+            const actual = createHash('sha256').update(raw).digest('hex');
+            if (actual !== wanted) {
+              req.destroy(certificateMismatch(actual, wanted));
+            }
             return;
           }
-          const actual = createHash('sha256').update(peer.raw).digest('hex');
-          if (actual !== wanted) {
-            req.destroy(certificateMismatch(actual, wanted));
-          }
+          // The certificate is not on the socket yet. The answer of the mail
+          // system is held back until the certificate arrives, so a certificate
+          // that is not the one that was expected is never read.
+          socket.pause();
+          waitForPeerCertificate(
+            () => (socket as import('node:tls').TLSSocket).getPeerCertificate()?.raw,
+            wanted,
+          ).then(
+            () => socket.resume(),
+            (error: Error) => req.destroy(error),
+          );
         });
       });
     }

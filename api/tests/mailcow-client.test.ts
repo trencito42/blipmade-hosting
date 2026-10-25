@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import https from 'node:https';
-import { MailcowError, mailcowConfigured, mailcowRequest } from '../src/services/mailcow.js';
+import { MailcowError, mailcowConfigured, mailcowRequest, waitForPeerCertificate } from '../src/services/mailcow.js';
 import { env } from '../src/env.js';
 
 /**
@@ -288,5 +288,58 @@ describe('the client of the mail system', () => {
     } finally {
       await server.close();
     }
+  });
+});
+
+/**
+ * The certificate of the mail system.
+ *
+ * With TLS 1.3 the certificate of the server travels after the handshake that
+ * the client considers done, so the socket can be "secure" a moment before
+ * the certificate is on it. A check that reads the certificate once refuses
+ * a mail system that answered correctly, and the refusal looks like a broken
+ * mail system.
+ */
+describe('the certificate of the mail system', () => {
+  const raw = Buffer.from('the-certificate-of-the-mail-system');
+  const fingerprint = createHash('sha256').update(raw).digest('hex');
+
+  it('waits for the certificate when it does not arrive with the handshake', async () => {
+    let reads = 0;
+    let waits = 0;
+    const read = () => (reads++ < 2 ? undefined : raw);
+    await expect(
+      waitForPeerCertificate(read, fingerprint, (resolve) => {
+        waits += 1;
+        resolve();
+      }),
+    ).resolves.toBeUndefined();
+    expect(reads).toBe(3);
+    expect(waits).toBe(2);
+  });
+
+  it('refuses a certificate that is not the one that was expected, even when it arrives late', async () => {
+    let reads = 0;
+    const read = () => (reads++ < 1 ? undefined : raw);
+    await expect(
+      waitForPeerCertificate(read, 'f'.repeat(64), (resolve) => resolve()),
+    ).rejects.toThrow(/certificate/i);
+  });
+
+  it('refuses the mail system when no certificate ever arrives', async () => {
+    await expect(
+      waitForPeerCertificate(() => undefined, fingerprint, (resolve) => resolve(), 3),
+    ).rejects.toThrow(/did not show a certificate/i);
+  });
+
+  it('does not wait when the certificate is there when the handshake ends', async () => {
+    let waits = 0;
+    await expect(
+      waitForPeerCertificate(() => raw, fingerprint, (resolve) => {
+        waits += 1;
+        resolve();
+      }),
+    ).resolves.toBeUndefined();
+    expect(waits).toBe(0);
   });
 });
