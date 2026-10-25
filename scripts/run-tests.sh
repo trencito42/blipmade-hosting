@@ -69,6 +69,14 @@ export STRIPE_SECRET_KEY=""
 export STRIPE_WEBHOOK_SECRET=""
 export STRIPE_PUBLISHABLE_KEY=""
 export SMTP_URL=""
+# The mail of a fixture of a test is written to the file transport, and the
+# file transport writes into the directory of the mail of the platform. The
+# retention of that directory then removes the mail of the customers as if it
+# were old, and the operator reads thousands of fixtures instead of the
+# messages of the platform. The suite gets a directory of its own, so a
+# fixture of a test never touches the mail of the platform.
+export BACKUP_DIR="${TEST_BACKUP_DIR:-/var/tmp/blipmade-test-backup}"
+mkdir -p "$BACKUP_DIR/mail"
 export COOKIE_SECURE=false
 
 # The gateway of the platform is never called by the suite. The routes of the
