@@ -34,8 +34,7 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
 fi
 
 # The database is reachable through the compose network from the host too.
-HOST_URL="${DATABASE_URL/@postgres:/@localhost:}"
-HOST_URL="${HOST_URL/@redis:/@localhost:}"
+HOST_URL="$(blipmade_host_database_url "$DATABASE_URL")"
 
 echo "==> Dumping the database"
 pg_dump "$HOST_URL" --format=custom --file="$WORK/database.dump"

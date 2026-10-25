@@ -1,6 +1,23 @@
 # Blipmade — production readiness report
 
-Date: 2026-10-23 · Target: VM 103 (`10.77.0.13`), `/opt/blipmade` · Staging entry point: `http://10.77.0.13:3000`
+Date: 2026-10-23 · Revised: 2026-10-25 · Target: VM 103 (`10.77.0.13`), `/opt/blipmade` · Staging entry point: `http://10.77.0.13:3000`
+
+## Revision of 2026-10-25
+
+The report below is the one of 2026-10-23 and it is kept as it was written,
+so the state of that day stays readable. The entries that the remediation
+campaign changed are corrected here, and the rest of the changes are listed
+in the report of the campaign.
+
+* **Backups** — the off-host copy is now configured, produced and proven
+  restorable. See the section below and §5 of this document.
+* **Domains** — the Caddy gateway of the edge is configured and a hostname is
+  routed and answered with a valid certificate. The blocking issue 4 of this
+  report is closed.
+* **The off-host copy is still inside one provider.** The target of the copy is
+  a second virtual machine of the same provider, so a failure of the provider
+  takes both the host and the copy with it. A copy outside of the provider is
+  still required before a commercial launch.
 
 ## Verdict
 
@@ -19,8 +36,8 @@ make.
 | Email | Code complete, mail is written to a file instead of being delivered. |
 | Hosting (Pterodactyl) | The node publishes its ports. The provisioning now waits for the install, starts the container and verifies the application before it says online. |
 | Customer power control, files, console | **Blocked** by the missing client API key. |
-| Domains | The proof of ownership is implemented. **Blocked** for real routing by the missing Caddy admin credentials. |
-| Backups | Works. The off-host copy is implemented but the destination is not set. |
+| Domains | The proof of ownership is implemented. The gateway is configured since 2026-10-25, and a hostname is routed and answered with a valid certificate. |
+| Backups | The local backup and the encrypted off-host copy work and are proven restorable. The off-host copy is still inside one provider. |
 
 ## What was verified, and how
 
@@ -99,11 +116,30 @@ proof of ownership was not accepted, but no real hostname has been routed and
 no certificate has been issued. The Caddy configuration on VM 102 was not
 touched.
 
-### 5. The backups stay on a RAID 0 host — **operator**
+### 5. The off-host copy stays inside one provider — **operator**
 
-`OFFSITE_TARGET` is unset. The offsite script is written, encrypted and
-verified, and it refuses to run without a key, but the destination is missing.
-A local copy on a RAID 0 host is not a backup.
+`OFFSITE_TARGET` points to a second virtual machine of the same provider
+(`blipmade-offsite:/srv/blipmade-backups`), the copy is encrypted with `age`
+and it was fetched, decrypted and restored into a scratch database that matched
+the live one exactly. The copy is therefore readable and restorable.
+
+Two things are still missing, and only the operator can close them:
+
+* A copy **outside of the provider**. A failure of the provider takes the host
+  and the copy with it, so the copy does not cover that case yet. An rclone
+  remote of a bucket of another provider closes it; the script already supports
+  that transport.
+* An **offline copy of the age identity** (`OFFSITE_AGE_IDENTITY`). The copy on
+  the target cannot be read without it. The identity lives on the platform
+  host only, so a lost host would mean lost backups.
+
+> The off-host script itself had a defect that was found and fixed on
+> 2026-10-25: it dumped the database with the host of the platform, and that
+> host is the name of the compose network service, which does not resolve from
+> the host. Every run ended with "could not translate host name postgres", so
+> the copy could never be made. The host of the url is rewritten now, and
+> `api/tests/backup-offsite-database-host.test.ts` runs the whole script and
+> keeps it that way.
 
 ## Required before go-live
 
@@ -111,10 +147,12 @@ A local copy on a RAID 0 host is not a backup.
    the instance is online and answers on its own port.
 2. Add the Stripe test keys, run a real checkout and confirm the webhook.
 3. Add `SMTP_URL` and confirm a verification and a reset email arrive.
-4. Set `OFFSITE_TARGET` and `OFFSITE_ENCRYPTION_KEY`, then repeat the restore
-   drill against the off-host copy.
+4. Keep an offline copy of the age identity of the backups, and set an
+   `OFFSITE_TARGET` of a bucket outside of the provider. The off-host copy
+   inside the provider is done and proven.
 5. Set `CADDY_ADMIN_URL` and `CADDY_ADMIN_TOKEN`, then claim a test hostname,
-   publish the TXT record and confirm the route and the certificate.
+   publish the TXT record and confirm the route and the certificate. (Done on
+   2026-10-25 for the edge of the platform.)
 6. Review the four `root_admin` panel accounts and reduce them to the accounts
    that need them.
 7. Decide how the panel password of a customer is handled. It is encrypted at

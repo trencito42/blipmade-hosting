@@ -174,9 +174,14 @@ fi
 DB_USER=""
 DB_PASSWORD=""
 DB_HOST=""
-DB_URL="$DATABASE_URL"
-url_scheme="${DATABASE_URL%%://*}"
-url_rest="${DATABASE_URL#*://}"
+# The name of the database service only resolves inside the compose network.
+# The host publishes the port of the database on its own loopback address, so
+# the host of the url is rewritten before the url is taken apart. Without this
+# the dump fails with "could not translate host name postgres" and the
+# off-site backup can never run at all.
+DB_URL="$(blipmade_host_database_url "$DATABASE_URL")"
+url_scheme="${DB_URL%%://*}"
+url_rest="${DB_URL#*://}"
 if [[ "$url_rest" == *"@"* ]]; then
   url_creds="${url_rest%@*}"
   DB_HOST="${url_rest##*@}"

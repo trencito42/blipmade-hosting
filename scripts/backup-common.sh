@@ -6,6 +6,51 @@
 #
 # Usage: source scripts/backup-common.sh
 
+# The url of the database, rewritten for the host.
+#
+# The name of a service of the compose network ("postgres", "redis") does not
+# resolve from the host, because the resolver of docker is only reachable
+# inside the network. The host publishes the port of the database on its own
+# loopback address, so the host part of the url is rewritten to localhost.
+#
+# The password of the database may hold an "@", so the host is the part after
+# the LAST "@" of the authority and not the first one.
+#
+# Prints the rewritten url.
+#
+# Usage: blipmade_host_database_url <database url>
+blipmade_host_database_url() {
+  local url="${1:-}"
+  local scheme rest creds host
+
+  if [[ "$url" != *"://"* ]]; then
+    printf '%s' "$url"
+    return 0
+  fi
+
+  scheme="${url%%://*}"
+  rest="${url#*://}"
+
+  if [[ "$rest" == *"@"* ]]; then
+    creds="${rest%@*}"
+    host="${rest##*@}"
+  else
+    creds=""
+    host="$rest"
+  fi
+
+  case "$host" in
+    postgres:*) host="localhost:${host#postgres:}" ;;
+    redis:*)    host="localhost:${host#redis:}" ;;
+  esac
+
+  if [[ -n "$creds" ]]; then
+    printf '%s://%s@%s' "$scheme" "$creds" "$host"
+  else
+    printf '%s://%s' "$scheme" "$host"
+  fi
+}
+
 # The directory that holds the files the customers attached.
 #
 # The uploads live in a docker volume. The path inside the container

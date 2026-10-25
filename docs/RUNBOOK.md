@@ -496,27 +496,54 @@ bash scripts/backup-offsite.sh
 ```
 
 The script prints the name, the size and the target of the copy. It also says
-that it made no copy when `OFFSITE_TARGET` is not set.
+that it made no copy when `OFFSITE_TARGET` is not set, and it fails the run in
+that case: the host uses RAID 0, so a copy that stays here is not a backup.
 
-**On another machine**, fetch the copy and read it back. The key is the same
-`OFFSITE_ENCRYPTION_KEY`; it is never written into a file that is copied
-around.
+The script dumps the database with the host of the platform, and the host of
+the platform is the name of the database service of the compose network. That
+name does not resolve from the host, so the script rewrites it to the loopback
+address of the host before it dumps. A run that cannot reach the database
+fails; it never writes a partial copy.
+
+**On another machine**, fetch the copy and read it back.
+
+The copy is encrypted with `age` when `age` is installed and
+`OFFSITE_AGE_RECIPIENT` is set, which is the configuration of the platform.
+The key is the identity file of `OFFSITE_AGE_IDENTITY`; it is never written
+into a file that is copied around.
 
 ```bash
-# fetch it (rclone, scp or a mounted volume, depending on the target)
-rclone copy blipmade-backups:/srv/blipmade-offsite-<stamp>.tar.gz.enc ./blipmade-offsite.tar.gz.enc
+# fetch it. The target of the platform is an ssh destination, so the alias
+# of ~/.ssh/config is used. An rclone remote or a mounted volume works the
+# same way, with the tool that matches the target.
+scp blipmade-offsite:/srv/blipmade-backups/blipmade-offsite-<stamp>.tar.gz.enc ./blipmade-offsite.tar.gz.enc
 
 # decrypt it
-export OFFSITE_ENCRYPTION_KEY='<the key, typed here, never stored in a file>'
-openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 \
-  -pass env:OFFSITE_ENCRYPTION_KEY \
-  -in ./blipmade-offsite.tar.gz.enc -out ./payload.tar.gz
-unset OFFSITE_ENCRYPTION_KEY
+age --decrypt --identity /path/to/the/identity.age \
+  --output ./payload.tar.gz ./blipmade-offsite.tar.gz.enc
 
 # the dump has to be readable
 mkdir -p ./payload && tar -xzf ./payload.tar.gz -C ./payload
 pg_restore --list ./payload/database.dump | head -20
 ```
+
+When the platform has no `age` and only the fallback of the script is
+available, the copy is opened with `openssl` instead:
+
+```bash
+export OFFSITE_ENCRYPTION_KEY='<the key, typed here, never stored in a file>'
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 \
+  -pass env:OFFSITE_ENCRYPTION_KEY \
+  -in ./blipmade-offsite.tar.gz.enc -out ./payload.tar.gz
+unset OFFSITE_ENCRYPTION_KEY
+```
+
+> The `openssl` fallback has no authenticated cipher. It is only a fallback;
+> the platform runs `age`, which encrypts with ChaCha20-Poly1305.
+
+> **The identity file of `age` is the key of the backups.** The copy on the
+> target cannot be read without it. A copy of the identity file has to be kept
+> offline, outside of the host, or a lost host means lost backups.
 
 **Restore it into a scratch database on that machine** and compare it with the
 numbers of the source host. This is the "restore onto another host" evidence:
@@ -533,7 +560,8 @@ psql postgresql://<user>:<password>@localhost:5432/blipmade_restore_check \
 ```
 
 The numbers have to be the ones the drill on the control-plane host reported.
-Only then is the off-site copy proven to be restorable.
+Only then is the off-site copy proven to be restorable. The scratch database
+is dropped afterwards; the live database is never written to.
 
 **Keep the evidence:** the date of the drill, the name of the copy, the numbers
 and the machine it was restored on. Write it into `docs/PRODUCTION_READINESS.md`
