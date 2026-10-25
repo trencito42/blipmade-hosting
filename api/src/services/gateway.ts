@@ -206,6 +206,24 @@ export function gatewayConfigured(): boolean {
 }
 
 /**
+ * True when the gateway answers.
+ *
+ * The gateway is a machine of its own, and it can be down while the platform
+ * is up. A run that repairs the routes asks the gateway first, so a gateway
+ * that is down does not turn into one call that waits for the timeout, for
+ * every hostname of every customer.
+ */
+export async function gatewayReachable(): Promise<boolean> {
+  if (!gatewayConfigured()) return false;
+  try {
+    const response = await adminFetch(routesPath(), { method: 'GET' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The path of the routes of our own app server inside the Caddy configuration.
  *
  * It is exported so the test can hold the contract of the namespace without

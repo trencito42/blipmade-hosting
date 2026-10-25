@@ -28,6 +28,8 @@ const state = {
   routes: [] as FakeRoute[],
   /** Every path the platform asked for, so the shape of the calls is checked. */
   calls: [] as { method: string; path: string; token: string | null }[],
+  /** True when the gateway is down and answers nothing. */
+  offline: false,
 };
 
 const TOKEN = 'test-token-for-the-gateway';
@@ -64,6 +66,14 @@ function handleAdminApi(request: IncomingMessage, response: ServerResponse): voi
   const token = request.headers.authorization ?? null;
 
   state.calls.push({ method: request.method ?? 'GET', path, token });
+
+  // A gateway that is down answers with an error, and the platform has to
+  // stop there instead of waiting for the timeout once per hostname.
+  if (state.offline) {
+    response.writeHead(503, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ error: 'the gateway is down' }));
+    return;
+  }
 
   if (token !== `Bearer ${TOKEN}`) {
     response.writeHead(401, { 'content-type': 'application/json' });
@@ -205,6 +215,7 @@ beforeEach(async () => {
   await resetDatabase();
   state.routes = [];
   state.calls = [];
+  state.offline = false;
 });
 
 const gateway = await import('../src/services/gateway.js');
@@ -409,6 +420,17 @@ describe('the repair of the routes', () => {
     const updated = await prisma.instanceDomain.findUnique({ where: { id: domain.id } });
     expect(updated?.status).toBe('ACTIVE');
     expect(updated?.lastError).toBeNull();
+  });
+
+  it('does not wait for the gateway when it is down', async () => {
+    const { reconcileDomainRoutes } = await import('../src/services/domain-routing.js');
+    await seedDomain('witch.pw', true);
+    state.offline = true;
+
+    const outcomes = await reconcileDomainRoutes();
+
+    expect(outcomes).toHaveLength(0);
+    expect(state.routes).toHaveLength(0);
   });
 
   it('never routes a hostname that was not proven', async () => {

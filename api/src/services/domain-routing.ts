@@ -37,16 +37,25 @@ export interface DomainRouteOutcome {
  * that node published for it. When the panel cannot say, the address of the
  * node of the platform is used, so the route points at the network of the
  * platform and never at an address of the internet.
+ *
+ * The allocations of a node are read once for a whole run: a platform with
+ * many customers would ask the panel for the same list of allocations once
+ * per customer.
  */
-export async function resolveTarget(instance: {
-  pterodactylServerId: number | null;
-}): Promise<{ host: string; port: number }> {
+export async function resolveTarget(
+  instance: { pterodactylServerId: number | null },
+  allocationsByNode?: Map<number, Awaited<ReturnType<typeof ptero.listAllocations>>>,
+): Promise<{ host: string; port: number }> {
   if (!instance.pterodactylServerId) {
     return { host: FALLBACK_TARGET_HOST, port: gateway.TARGET_PORT_MIN };
   }
   try {
     const server = await ptero.getServer(instance.pterodactylServerId);
-    const allocations = await ptero.listAllocations(server.node);
+    let allocations = allocationsByNode?.get(server.node);
+    if (!allocations) {
+      allocations = await ptero.listAllocations(server.node);
+      allocationsByNode?.set(server.node, allocations);
+    }
     const allocation = allocations.find((candidate) => candidate.id === server.allocation);
     return {
       host: allocation?.ip ?? FALLBACK_TARGET_HOST,
@@ -66,6 +75,9 @@ export async function resolveTarget(instance: {
  */
 export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
   if (!gateway.gatewayConfigured()) return [];
+  // The gateway is asked once. A gateway that is down would otherwise cost
+  // one call that waits for the timeout, for every hostname.
+  if (!(await gateway.gatewayReachable())) return [];
 
   const domains = await prisma.instanceDomain.findMany({
     where: { verifiedAt: { not: null } },
@@ -75,6 +87,7 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
   });
 
   const outcomes: DomainRouteOutcome[] = [];
+  const allocationsByNode = new Map<number, Awaited<ReturnType<typeof ptero.listAllocations>>>();
 
   for (const domain of domains) {
     // A route to an instance that is not served any more is a route to
@@ -82,7 +95,7 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
     // is gone.
     if (!SERVED_STATES.includes(domain.instance.status)) continue;
 
-    const target = await resolveTarget(domain.instance);
+    const target = await resolveTarget(domain.instance, allocationsByNode);
     try {
       const result = await gateway.applyCaddyRoute({
         hostname: domain.hostname,
