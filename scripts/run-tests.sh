@@ -71,6 +71,13 @@ export STRIPE_PUBLISHABLE_KEY=""
 export SMTP_URL=""
 export COOKIE_SECURE=false
 
+# The gateway of the platform is never called by the suite. The routes of the
+# customers are written into the configuration of a real Caddy, and the suite
+# must not touch the configuration of the edge of the production. The tests
+# that exercise the gateway bring their own address and their own token.
+export CADDY_ADMIN_URL=""
+export CADDY_ADMIN_TOKEN=""
+
 # The Prisma client is generated from the schema, so it is generated again
 # before the suite runs. A client of an older schema would fail at runtime
 # with an error that has nothing to do with the test.

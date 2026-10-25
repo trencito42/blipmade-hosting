@@ -9,7 +9,7 @@ import { audit } from '../lib/audit.js';
 import { randomToken } from '../lib/tokens.js';
 import * as gateway from '../services/gateway.js';
 import * as dns from '../services/dns.js';
-import * as ptero from '../services/pterodactyl/application.js';
+import { resolveTarget } from '../services/domain-routing.js';
 import {
   notifyDomainDnsIncomplete,
   notifyDomainVerificationInstructions,
@@ -112,9 +112,6 @@ const RESERVED_MACHINE_NAMES = [
   'backup',
 ];
 
-/** The address the container is reached at when the panel does not answer. */
-const FALLBACK_TARGET_HOST = '10.77.0.11';
-
 interface DomainRow {
   id: string;
   instanceId: string;
@@ -204,28 +201,6 @@ function isClaimExpired(domain: {
   if (!domain.claimedByUserId) return false;
   if (domain.verifiedAt) return false;
   return Date.now() - domain.createdAt.getTime() > CLAIM_TTL_MS;
-}
-
-/**
- * Reads the address and the port of the container from the panel. When the
- * panel does not answer the fallback address is used, so a claim is never
- * lost because the panel is down.
- */
-async function resolveTarget(instance: { pterodactylServerId: number | null }): Promise<{ host: string; port: number }> {
-  if (!instance.pterodactylServerId) {
-    return { host: FALLBACK_TARGET_HOST, port: gateway.TARGET_PORT_MIN };
-  }
-  try {
-    const server = await ptero.getServer(instance.pterodactylServerId);
-    const allocations = await ptero.listAllocations(server.node);
-    const allocation = allocations.find((candidate) => candidate.id === server.allocation);
-    return {
-      host: allocation?.ip ?? FALLBACK_TARGET_HOST,
-      port: allocation?.port ?? gateway.TARGET_PORT_MIN,
-    };
-  } catch {
-    return { host: FALLBACK_TARGET_HOST, port: gateway.TARGET_PORT_MIN };
-  }
 }
 
 /**

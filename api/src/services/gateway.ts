@@ -253,6 +253,34 @@ function dialOf(route: unknown): string | null {
   return typeof dial === 'string' ? dial : null;
 }
 
+/** The host names a route of Caddy answers for. */
+function hostsOf(route: unknown): string[] {
+  const match = (route as { match?: { host?: string[] }[] } | null)?.match;
+  if (!Array.isArray(match)) return [];
+  return match.flatMap((entry) => (Array.isArray(entry?.host) ? entry.host : []));
+}
+
+/**
+ * The routes of our own server, as Caddy has them.
+ *
+ * The administrative API of Caddy does not know the names of the routes: the
+ * routes of a server are a list, and the API addresses them by their place in
+ * that list. A path that ends with anything else than a number is refused
+ * with "invalid array index", and a body that is a list is refused as well,
+ * because the list is the field and the body is one entry of it.
+ *
+ * The routes are therefore read as a whole, and the route of a hostname is
+ * found by the host name it answers for.
+ */
+async function fetchRoutes(): Promise<unknown[]> {
+  const response = await adminFetch(routesPath(), { method: 'GET' });
+  if (!response.ok) {
+    throw new Error(`The gateway answered with HTTP ${response.status}.`);
+  }
+  const body = await response.json().catch(() => null);
+  return Array.isArray(body) ? body : [];
+}
+
 /**
  * Registers a hostname with Caddy so requests reach the customer container.
  *
@@ -279,16 +307,18 @@ export async function applyCaddyRoute(route: CaddyRoute): Promise<GatewayResult>
   const dial = `${route.target}:${route.targetPort}`;
 
   try {
-    // The route is looked up first, so a second call never creates a second
-    // route for the same hostname.
-    const existing = await adminFetch(`${routesPath()}/${routeId}`, { method: 'GET' });
-    if (existing.ok) {
-      const current = await existing.json().catch(() => null);
-      if (dialOf(current) === dial) {
+    // The route of the hostname is looked up first, so a second call never
+    // creates a second route for the same hostname.
+    const routes = await fetchRoutes();
+    const index = routes.findIndex((candidate) => hostsOf(candidate).includes(route.hostname));
+    if (index >= 0) {
+      if (dialOf(routes[index]) === dial) {
         return { applied: true, reason: null, routeId };
       }
-      // The container moved to another port, so the route is replaced.
-      const replaced = await adminFetch(`${routesPath()}/${routeId}`, {
+      // The container moved to another port, so the route is replaced. The
+      // route of a hostname has a fixed place in the list, so it is replaced
+      // there and not appended a second time.
+      const replaced = await adminFetch(`${routesPath()}/${index}`, {
         method: 'PATCH',
         body: JSON.stringify(routeBody(route)),
       });
@@ -298,9 +328,11 @@ export async function applyCaddyRoute(route: CaddyRoute): Promise<GatewayResult>
       return { applied: true, reason: null, routeId };
     }
 
+    // The body of a route is one route, not a list of routes: the list is the
+    // field that the administrative API appends to.
     const created = await adminFetch(routesPath(), {
       method: 'POST',
-      body: JSON.stringify([routeBody(route)]),
+      body: JSON.stringify(routeBody(route)),
     });
     if (!created.ok) {
       return { applied: false, reason: `The gateway answered with HTTP ${created.status}.`, routeId };
@@ -324,7 +356,16 @@ export async function removeCaddyRoute(hostname: string): Promise<GatewayResult>
 
   const routeId = routeIdFor(hostname);
   try {
-    const response = await adminFetch(`${routesPath()}/${routeId}`, { method: 'DELETE' });
+    // The route of the hostname is found in the list of the routes of the
+    // server, because the administrative API addresses a route by its place
+    // in that list and not by a name.
+    const routes = await fetchRoutes();
+    const index = routes.findIndex((candidate) => hostsOf(candidate).includes(hostname));
+    if (index < 0) {
+      // There is no route for this hostname: nothing has to be removed.
+      return { applied: true, reason: null, routeId };
+    }
+    const response = await adminFetch(`${routesPath()}/${index}`, { method: 'DELETE' });
     if (!response.ok && response.status !== 404) {
       return { applied: false, reason: `The gateway answered with HTTP ${response.status}.`, routeId };
     }

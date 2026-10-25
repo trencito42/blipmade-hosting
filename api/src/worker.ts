@@ -31,6 +31,7 @@ import {
 import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
 import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
+import { reconcileDomainRoutes } from './services/domain-routing.js';
 import { dispatchPendingEvents } from './services/notification-dispatch.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
@@ -190,6 +191,26 @@ async function reconcile(): Promise<void> {
       await enqueueMailProvisioning(service.id, { reason: 'reconciliation' });
     }
     await audit({ action: 'worker.reconciled', meta: { count } });
+  }
+}
+
+/**
+ * Puts back the routes of the hostnames that were proven.
+ *
+ * The routes of the customers live in the configuration of the gateway, and
+ * that configuration is replaced whenever the gateway is restarted or its file
+ * is reloaded. The worker writes the routes again, so a domain that was
+ * working keeps working after a change on the edge.
+ */
+async function reconcileRoutes(): Promise<void> {
+  const outcomes = await reconcileDomainRoutes();
+  const broken = outcomes.filter((outcome) => !outcome.applied);
+  if (broken.length) {
+    console.error(
+      `[worker] ${broken.length} domain route(s) could not be applied: ${broken
+        .map((outcome) => `${outcome.hostname} (${outcome.reason ?? 'unknown reason'})`)
+        .join(', ')}`,
+    );
   }
 }
 
@@ -355,11 +376,19 @@ async function main(): Promise<void> {
   console.info(`[worker] starting in ${env.NODE_ENV}`);
   healthServer.listen(healthPort, '0.0.0.0');
   await reconcile();
+  // The routes of the hostnames are put back right away, so a gateway that
+  // was restarted while the worker was down serves the customers again
+  // without waiting for the first tick.
+  await reconcileRoutes().catch((error) => console.error('[worker] the route repair failed', error));
   // The failures that are waiting for an operator are looked at right away,
   // so the queue is known from the first moment of the life of the worker
   // and not only after the first tick.
   await watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error));
   timers.push(setInterval(() => void reconcile().catch((error) => console.error('[worker] reconcile failed', error)), 60_000));
+  // The routes of the customers are checked every minute: the configuration of
+  // the gateway is not a file of the platform, so a change on the edge takes
+  // the routes away and this is what brings them back.
+  timers.push(setInterval(() => void reconcileRoutes().catch((error) => console.error('[worker] the route repair failed', error)), 60_000));
   timers.push(setInterval(() => void pruneQueue().catch(() => undefined), 10 * 60_000));
   timers.push(setInterval(() => void pruneSessions().catch(() => undefined), 60 * 60_000));
   timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));
