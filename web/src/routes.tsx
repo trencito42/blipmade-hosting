@@ -58,6 +58,7 @@ const AdminPricing = lazy(() => import('./admin/Pricing'));
 const AdminTickets = lazy(() => import('./admin/Tickets'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
 const AdminInfrastructure = lazy(() => import('./admin/Infrastructure'));
+const AdminMail = lazy(() => import('./admin/Mail'));
 const AdminAudit = lazy(() => import('./admin/Audit'));
 const AdminStaff = lazy(() => import('./admin/Staff'));
 const AdminSettings = lazy(() => import('./admin/Settings'));
@@ -143,6 +144,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
+  { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },
