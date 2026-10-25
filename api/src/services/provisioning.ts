@@ -258,14 +258,25 @@ function isUnauthenticated(error: unknown): boolean {
  * application to run, and the health check of the deployment has something to
  * answer.
  *
+ * The application listens on the port of the allocation, and not on a port of
+ * its own: the node publishes the port of the allocation for the container,
+ * and the route of the domain of the customer points at that same port. An
+ * application that listened on another port would be served by nobody.
+ *
  * The write is safe to repeat: the same files are written again.
  */
-async function placeStarterApplication(instance: Instance, server: PteroServer, product: Product): Promise<void> {
+async function placeStarterApplication(
+  instance: Instance,
+  server: PteroServer,
+  product: Product,
+  port: number,
+): Promise<void> {
   const probe = probeFor(product);
   const files = starterFiles({
     slug: product.slug,
     name: product.name,
     healthPath: probe.kind === 'http' ? (probe.path ?? '/') : '/',
+    port: port > 0 ? port : undefined,
   });
 
   await withCustomerKey(instance.userId, async (token) => {
@@ -696,6 +707,25 @@ export function probeFor(product: Pick<Product, 'healthProbe'>): DeploymentProbe
     expectStatus: configured?.expectStatus ?? [200, 201, 204, 301, 302, 307, 308],
     expectBody: configured?.expectBody,
     timeoutMs: configured?.timeoutMs ?? 8000,
+  };
+}
+
+/**
+ * The HTTP probe that belongs to a probe of a product that does not answer on
+ * the network by itself.
+ *
+ * The container of such a product is checked as well, but the port that the
+ * node publishes for it is asked over HTTP too: the route of the domain of the
+ * customer points at that port, so an application that does not answer there
+ * is not served to anybody.
+ */
+export function httpProbeOf(probe: DeploymentProbe): DeploymentProbe {
+  return {
+    kind: 'http',
+    path: probe.path ?? '/',
+    expectStatus: probe.expectStatus ?? [200, 201, 204, 301, 302, 307, 308],
+    expectBody: probe.expectBody,
+    timeoutMs: probe.timeoutMs ?? 8000,
   };
 }
 
@@ -1405,7 +1435,9 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     // A container that holds no application is not a product. The files of
     // the application are written once the container is installed and before
     // it starts, so the start-up command of the egg finds something to run.
-    await placeStarterApplication(instance, server, product);
+    // The application listens on the port of the allocation, because that is
+    // the port the node publishes and the port the route of the domain uses.
+    await placeStarterApplication(instance, server, product, port);
 
     if (!done('started')) {
       await beginProvisioning(instance, 'started');
@@ -1448,6 +1480,29 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
               error instanceof Error ? error.message : 'the client key of the customer is not available.'
             }`,
           );
+        }
+
+        // A container can be alive while the application inside it does not
+        // answer on the port that the node publishes for it. The node does
+        // publish that port only when the container was built with the
+        // allocation, and the route of the domain of the customer points at
+        // that same port. A deployment whose application does not answer
+        // there is not a deployment that works, whatever the panel says about
+        // the container, so the port is asked as well.
+        if (health.ok) {
+          const answer = await verifyDeployment(ip, port, httpProbeOf(probe), {
+            attempts: 6,
+            delayMs: 2000,
+          });
+          if (!answer.ok) {
+            health = {
+              ok: false,
+              status: null,
+              reason: `The container is running, but the application does not answer on ${ip}:${port}: ${
+                answer.reason ?? 'there was no answer.'
+              }`,
+            };
+          }
         }
       } else {
         health = await verifyDeployment(ip, port, probe);
