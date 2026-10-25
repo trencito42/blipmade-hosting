@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db.js';
+import { hashToken } from '../src/lib/tokens.js';
 import { closeApp, getApp, makeClient, registerAndLogin, resetDatabase, VALID_PASSWORD } from './helpers.js';
 import type { FastifyInstance } from 'fastify';
 
@@ -92,6 +93,34 @@ describe('a change of the email address', () => {
     expect(response.body.delivered).toBe(false);
     expect(response.body.delivery).not.toBe('delivered');
     expect(String(response.body.message).toLowerCase()).not.toContain('is on its way');
+  });
+
+  it('tells the customer that the address of the account changed', async () => {
+    const { client, userId } = await registerAndLogin(app, 'changed@example.com');
+
+    // The request of the change is written directly, because the token is
+    // only sent to the new address and the test has no mail box.
+    const token = 'a'.repeat(40);
+    await prisma.emailChangeRequest.create({
+      data: {
+        userId,
+        email: 'new@example.com',
+        tokenHash: hashToken(token),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const response = await client.request('POST', '/api/settings/email/confirm', { token });
+    expect(response.status).toBe(200);
+    expect(response.body.email).toBe('new@example.com');
+
+    // The customer is told that the address changed: the message is the proof
+    // that the change happened.
+    const event = await prisma.notificationEvent.findFirst({
+      where: { type: 'account.email_changed', userId },
+    });
+    expect(event).not.toBeNull();
+    expect(event?.state).toBe('pending');
   });
 });
 

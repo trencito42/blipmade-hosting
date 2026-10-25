@@ -5,6 +5,7 @@ import { AppError, badRequest, conflict, unavailable } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { allocateOrderAmounts, allocateLineTotals } from './order-amounts.js';
 import { nextInvoiceNumber } from './order-numbers.js';
+import { notifySubscriptionActivated } from './notifications.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
 
 let client: Stripe | null = null;
@@ -424,6 +425,16 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
     order.items.map((item) => ({ unitAmount: item.unitAmount, quantity: item.quantity, total: item.total })),
     order.total,
   );
+  // The name of the plan of every line, so the message that says the
+  // subscription started can name the plan the customer bought.
+  const planNames = new Map(
+    (
+      await prisma.product.findMany({
+        where: { id: { in: order.items.map((item) => item.productId) } },
+        select: { id: true, name: true },
+      })
+    ).map((product) => [product.id, product.name]),
+  );
   for (const [index, item] of order.items.entries()) {
     const lineTotal = lineTotals[index] ?? item.total;
     const stripeItemId =
@@ -456,6 +467,17 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
       },
     });
     subscriptions.push(subscription);
+
+    // The money arrived, so the subscription of the line started and the
+    // customer is told. The subscription itself is the occurrence: the same
+    // payment that is reported twice does not produce a second message, and a
+    // new order of the same service produces its own.
+    await notifySubscriptionActivated({
+      userId: order.userId,
+      service: item.name,
+      plan: planNames.get(item.productId) ?? item.name,
+      occurrence: subscription.id,
+    });
   }
 
   if (!alreadyPaid) {

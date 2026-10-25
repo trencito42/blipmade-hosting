@@ -31,6 +31,15 @@ services:
     volumes:
       - backup_data:/var/backups/blipmade
       - upload_data:/data
+      # The certificate of the mail relay.
+      #
+      # The relay of the platform is the mail server of the operator, and it
+      # has a certificate of its own. The platform verifies it against the
+      # certificate that is mounted here, and the file is read only. The
+      # directory is mounted and not the file, so a machine where the file is
+      # missing gets an empty directory and a clear error from the mailer
+      # instead of a file that Docker would replace with a directory.
+      - /opt/blipmade-ca:/etc/blipmade-ca:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,6 +93,15 @@ services:
     volumes:
       - backup_data:/var/backups/blipmade
       - upload_data:/data
+      # The certificate of the mail relay.
+      #
+      # The relay of the platform is the mail server of the operator, and it
+      # has a certificate of its own. The platform verifies it against the
+      # certificate that is mounted here, and the file is read only. The
+      # directory is mounted and not the file, so a machine where the file is
+      # missing gets an empty directory and a clear error from the mailer
+      # instead of a file that Docker would replace with a directory.
+      - /opt/blipmade-ca:/etc/blipmade-ca:ro
     depends_on:
       postgres:
         condition: service_healthy

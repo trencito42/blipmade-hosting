@@ -158,6 +158,33 @@ describe('the life of an order', () => {
     await expect(markOrderPaid({ orderId, amount: MONTHLY })).resolves.toBeDefined();
     expect(await statusOf(orderId)).toBe('PAID');
   });
+
+  it('tells the customer that the subscription started', async () => {
+    await seedProduct();
+    const { orderId } = await placeOrder('activated@example.com');
+
+    await markOrderPaid({ orderId, amount: MONTHLY });
+
+    // The subscription of the line started, so the customer is told, with the
+    // name of the plan they bought.
+    const event = await prisma.notificationEvent.findFirst({ where: { type: 'subscription.activated' } });
+    expect(event).not.toBeNull();
+    expect(event?.state).toBe('pending');
+    expect(event?.payload).toMatchObject({ plan: 'WordPress' });
+  });
+
+  it('does not tell the customer twice when the same payment is reported twice', async () => {
+    await seedProduct();
+    const { orderId } = await placeOrder('twice@example.com');
+
+    // The provider can report the same payment more than once. The customer
+    // has to hear about it once.
+    await markOrderPaid({ orderId, amount: MONTHLY });
+    await markOrderPaid({ orderId, amount: MONTHLY });
+
+    const events = await prisma.notificationEvent.count({ where: { type: 'subscription.activated' } });
+    expect(events).toBe(1);
+  });
 });
 
 describe('the accounts of the platform', () => {

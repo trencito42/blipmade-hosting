@@ -9,6 +9,7 @@ import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import { sendMail } from '../lib/mailer.js';
 import { emailChangeTemplate } from '../lib/email-templates.js';
+import { notifyEmailChanged } from '../services/notifications.js';
 import { addressRateLimitKey, requireAuth, type AuthUser } from '../plugins/auth.js';
 
 /**
@@ -414,6 +415,15 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
         targetType: 'user',
         targetId: user.id,
         ip: request.ip,
+      });
+
+      // The address of the account changed, so the customer is told. The
+      // message is the proof that the change happened: a customer who never
+      // asked for it can see it in the message and in the journal.
+      await notifyEmailChanged({
+        userId: user.id,
+        name: fullName({ firstName: user.firstName, lastName: user.lastName }),
+        email: request_.email,
       });
 
       return { email: request_.email };

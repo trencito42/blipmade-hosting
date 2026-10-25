@@ -114,11 +114,39 @@ To configure the relay:
 SMTP_URL=smtp://user:password@mail.blipmade.com:587
 ```
 
+**The relay of the platform is the mail server of the operator, and it has a
+certificate of its own.** The platform refuses a relay whose certificate it
+cannot verify, so the certificate is mounted into the API and the worker and
+its path is written in the environment:
+
+```bash
+# The certificate is on the host, outside the repository, and it is mounted
+# read only into the two containers that talk to the relay.
+sudo mkdir -p /opt/blipmade-ca
+sudo cp /opt/blipmade-mail/mailcow-ca.pem /opt/blipmade-ca/mailcow-ca.pem
+sudo chmod 644 /opt/blipmade-ca/mailcow-ca.pem
+
+# In the environment of the platform.
+SMTP_CA_FILE=/etc/blipmade-ca/mailcow-ca.pem
+```
+
+The mount is in `compose.api.yml`. A machine where the certificate is missing
+gets an empty directory and a clear error from the mailer, and never a relay
+that is used without a check.
+
 Then restart the API and the worker, and check:
 
 ```bash
 docker compose restart api worker
 docker compose logs --tail=50 worker | grep notifications
+```
+
+The health of the platform says what the mail is doing: `mail` is `smtp` when
+the messages are really sent, and `file` when they are only written to a
+disk.
+
+```bash
+curl -s http://127.0.0.1:3100/health | grep -o '"mail":"[a-z]*"'
 ```
 
 The messages that were written to a file are **not** sent again by the
