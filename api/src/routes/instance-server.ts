@@ -8,6 +8,7 @@ import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import * as operations from '../services/panel/operations.js';
+import { reinstallInstance } from '../services/reinstall.js';
 import { assertBoundedFields, MAX_ENVIRONMENT_VARIABLES, MAX_PAYLOAD_KEYS } from '../lib/bounded.js';
 
 /**
@@ -1162,31 +1163,41 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   /**
    * Reinstalls the server. Everything the customer stored in the container is
    * lost, so the route says so out loud and writes a trace of it.
+   *
+   * The reinstall is not only the request to the panel: the platform brings
+   * the container back. The application is put in it again, it is started and
+   * the platform waits for it to serve, so the customer does not find a
+   * service that is dark because the panel left the container stopped.
    */
   app.post('/instances/:id/settings/reinstall', {
     config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
     preHandler: customerLimit(app, LIMITS.panel),
-  }, async (request: FastifyRequest) => {
+  }, async (request: FastifyRequest, reply) => {
     const body = z.object({ confirm: z.literal(true) }).parse(request.body ?? {});
     if (body.confirm !== true) throw badRequest('The reinstall has to be confirmed.');
 
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id);
-    const token = await operations.customerToken(instance);
+    let outcome;
     try {
-      await operations.reinstallServer(token, instance);
+      outcome = await reinstallInstance(instance.id, { requestedBy: user.id });
     } catch (error) {
       return translatePanelError(error);
     }
-    await note(instance.id, 'settings', 'The server was reinstalled. The files of the container were erased.');
+    await note(
+      instance.id,
+      'settings',
+      'The server was reinstalled. The files of the container were erased and the service is being rebuilt.',
+    );
     await audit({
       actorId: user.id,
       actorEmail: user.email,
       action: 'instance.reinstalled',
       targetType: 'instance',
       targetId: instance.id,
+      meta: { asked: outcome.asked },
     });
-    return { reinstalled: true };
+    return reply.code(202).send({ reinstalled: true, status: 'reinstalling' });
   });
 }

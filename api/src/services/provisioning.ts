@@ -158,8 +158,17 @@ export async function beginProvisioning(instance: Instance, step: ProvisionStep)
     where: { id: instance.id },
     data: { status: 'PROVISIONING', provisionError: null },
   });
+  // The rows of an earlier attempt of this step are closed before the new
+  // attempt starts. A row that says "running" for a step that is being tried
+  // again is a row of an attempt that never finished, and it would be
+  // closed by the step that comes after it, with the name of a step that
+  // never ran.
+  await prisma.provisioningJob.updateMany({
+    where: { instanceId: instance.id, step, status: 'running' },
+    data: { status: 'failed', error: 'The step was tried again.' },
+  });
   await prisma.provisioningJob.create({
-    data: { instanceId: instance.id, step, status: 'running' },
+    data: { instanceId: instance.id, step, status: 'running', attempts: 1 },
   });
   await recordEvent(instance.id, 'provisioning', `Started at step "${step}".`);
 }
@@ -185,8 +194,11 @@ export async function completeStep(instanceId: string, step: ProvisionStep): Pro
     },
     data: { provisionStep: step },
   });
+  // Only the rows of this step are closed. The rows of the other steps
+  // belong to another step of another attempt, and closing them would say
+  // that a step finished that never finished.
   await prisma.provisioningJob.updateMany({
-    where: { instanceId, status: 'running' },
+    where: { instanceId, step, status: 'running' },
     data: { status: 'completed' },
   });
 }
@@ -204,9 +216,12 @@ export async function failProvisioning(instanceId: string, step: ProvisionStep, 
     where: { id: instanceId },
     data: { status: 'FAILED', provisionError: `${step}: ${message}` },
   });
+  // Only the rows of the step that failed are closed. A row of another step
+  // says that the step it belongs to is still running, and the failure of
+  // this step is not the failure of that one.
   await prisma.provisioningJob.updateMany({
-    where: { instanceId, status: 'running' },
-    data: { status: 'failed', error: message, attempts: { increment: 1 } },
+    where: { instanceId, step, status: 'running' },
+    data: { status: 'failed', error: message },
   });
   // The line of the order that owns the instance fails with it. The other
   // lines of the same order are not touched: a line of mail that works is
