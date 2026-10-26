@@ -310,7 +310,8 @@ export function parseResources(payload: unknown): ClientResources {
     disk: {
       used: disk.used ?? nested.disk_bytes ?? 0,
     },
-    uptime: attributes.uptime ?? 0,
+    // The panel nests the counters below "resources".
+    uptime: attributes.uptime ?? nested.uptime ?? 0,
   };
 }
 

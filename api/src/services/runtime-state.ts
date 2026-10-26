@@ -30,6 +30,14 @@ export interface RuntimeStateObservation {
   /** True when the node says the container is running. */
   running: boolean;
   /**
+   * True when the container serves.
+   *
+   * The node only says "running" when the health check of the egg passes. An
+   * egg without a health check is never confirmed, but the container of it
+   * still serves, and that is what the customer paid for.
+   */
+  serving: boolean;
+  /**
    * True when the container is alive but the node does not confirm it.
    *
    * The node only says "running" when the health check of the egg passes. A
@@ -81,7 +89,7 @@ export async function observeRuntimeState(instanceId: string): Promise<RuntimeSt
   if (!uuid) {
     // The platform shows the instance as online, but there is no server on the
     // panel to ask the node about.
-    return { instanceId, nodeState: '', running: false, unconfirmed: false, unreachable: true };
+    return { instanceId, nodeState: '', running: false, serving: false, unconfirmed: false, unreachable: true };
   }
 
   try {
@@ -102,6 +110,7 @@ export async function observeRuntimeState(instanceId: string): Promise<RuntimeSt
       instanceId,
       nodeState,
       running: verdict.serving && verdict.confirmed,
+      serving: verdict.serving,
       unconfirmed: verdict.serving && !verdict.confirmed,
       unreachable: false,
     };
@@ -109,7 +118,7 @@ export async function observeRuntimeState(instanceId: string): Promise<RuntimeSt
     // The panel or the node did not answer. That is not a reason to fail the
     // run: the truth is not known right now, and the run goes on with the
     // next instance.
-    return { instanceId, nodeState: '', running: false, unconfirmed: false, unreachable: true };
+    return { instanceId, nodeState: '', running: false, serving: false, unconfirmed: false, unreachable: true };
   }
 }
 
@@ -194,11 +203,22 @@ async function recordRuntimeState(observation: RuntimeStateObservation): Promise
  */
 export async function reconcileRuntimeState(
   options: { limit?: number } = {},
-): Promise<{ observed: number; notRunning: number; unconfirmed: number; unreachable: number }> {
+): Promise<{
+  observed: number;
+  notRunning: number;
+  unconfirmed: number;
+  unreachable: number;
+  reconciled: number;
+}> {
   const limit = options.limit ?? DEFAULT_LIMIT;
   const instances = await prisma.instance.findMany({
-    where: { status: 'ONLINE' },
-    select: { id: true },
+    // The instances the platform promised to the customers are the ones that
+    // have to be true. An instance that the platform shows as restarting or
+    // as degraded is one of them: the state is transitional, and nothing else
+    // in the platform moves it, so it has to be resolved by what the node
+    // says.
+    where: { status: { in: ['ONLINE', 'RESTARTING', 'DEGRADED'] } },
+    select: { id: true, status: true },
     orderBy: { createdAt: 'asc' },
     take: limit,
   });
@@ -207,6 +227,7 @@ export async function reconcileRuntimeState(
   let notRunning = 0;
   let unconfirmed = 0;
   let unreachable = 0;
+  let reconciled = 0;
 
   for (const instance of instances) {
     const observation = await observeRuntimeState(instance.id);
@@ -221,8 +242,62 @@ export async function reconcileRuntimeState(
     // to write down.
     if (observation.running) continue;
 
+    // A state that is transitional is resolved by what the node says: an
+    // instance the platform shows as restarting, whose container serves, is
+    // online again. Before, the state stayed "restarting" for good when the
+    // egg of the product has no health check, and the customer saw a service
+    // that was up and running as broken.
+    if (observation.serving && instance.status === 'RESTARTING') {
+      await resolveRestartingInstance(instance.id, observation);
+      reconciled += 1;
+      continue;
+    }
+
     await recordRuntimeState(observation);
   }
 
-  return { observed, notRunning, unconfirmed, unreachable };
+  return { observed, notRunning, unconfirmed, unreachable, reconciled };
+}
+
+/**
+ * Shows an instance as online again, and says why.
+ *
+ * The change is written in the journal of the instance and in the audit
+ * journal, so an operator sees that the state was moved and what the node
+ * said about it. The instance is only moved when it is still in the state it
+ * was observed in, so a change that happened in the meantime is not undone.
+ */
+async function resolveRestartingInstance(
+  instanceId: string,
+  observation: RuntimeStateObservation,
+): Promise<void> {
+  const moment = new Date().toISOString();
+  const changed = await prisma.instance.updateMany({
+    where: { id: instanceId, status: 'RESTARTING' },
+    data: { status: 'ONLINE' },
+  });
+  if (changed.count === 0) return;
+
+  await prisma.instanceEvent.create({
+    data: {
+      instanceId,
+      type: RUNTIME_STATE_EVENT,
+      message:
+        `The node reported the state "${observation.nodeState}" for this instance at ${moment}, ` +
+        'and the container serves. The platform shows it as online again.',
+    },
+  });
+  await audit({
+    action: RUNTIME_STATE_AUDIT,
+    targetType: 'instance',
+    targetId: instanceId,
+    meta: {
+      state: observation.nodeState,
+      running: true,
+      unconfirmed: observation.unconfirmed,
+      unreachable: false,
+      observedAt: moment,
+      reconciled: true,
+    },
+  });
 }

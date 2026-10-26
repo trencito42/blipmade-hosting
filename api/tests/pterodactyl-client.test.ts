@@ -110,6 +110,28 @@ describe('pterodactyl client adapters', () => {
     expect(files[1]?.is_directory).toBe(true);
   });
 
+  it('reads the uptime of a container from the place the panel puts it', () => {
+    // The panel of the production nests the counters below "resources".
+    const resources = parseResources({
+      object: 'stats',
+      attributes: {
+        current_state: 'starting',
+        is_suspended: false,
+        resources: {
+          memory_bytes: 37318656,
+          cpu_absolute: 0.005,
+          disk_bytes: 3692,
+          network_rx_bytes: 64281,
+          network_tx_bytes: 28412,
+          uptime: 89565736,
+        },
+      },
+    });
+
+    expect(resources.uptime).toBe(89565736);
+    expect(resources.memory_bytes).toBe(37318656);
+  });
+
   it('reads the resource usage from the attributes', () => {
     const resources = parseResources({
       object: 'stats',

@@ -31,6 +31,7 @@ const CLIENT_KEY = `ptlc_${'b'.repeat(44)}`;
 const panel = {
   states: new Map<string, string>(),
   memory: new Map<string, number>(),
+  uptime: new Map<string, number>(),
   suspended: new Set<string>(),
   silent: new Set<string>(),
 };
@@ -44,14 +45,19 @@ function fakePanel(): void {
       if (panel.silent.has(uuid)) {
         throw new Error('The node did not answer.');
       }
+      // The panel of the production nests the counters below "resources".
       const attributes: Record<string, unknown> = {
         is_suspended: panel.suspended.has(uuid),
-        uptime: 0,
+        current_state: panel.states.get(uuid),
+        resources: {
+          memory_bytes: panel.memory.get(uuid) ?? 0,
+          cpu_absolute: 0,
+          disk_bytes: 0,
+          network_rx_bytes: 0,
+          network_tx_bytes: 0,
+          uptime: panel.uptime.get(uuid) ?? 0,
+        },
       };
-      const state = panel.states.get(uuid);
-      if (state !== undefined) attributes.current_state = state;
-      const memory = panel.memory.get(uuid);
-      if (memory !== undefined) attributes.memory_bytes = memory;
       return new Response(JSON.stringify({ object: 'stats', attributes }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -64,6 +70,7 @@ beforeEach(async () => {
   await resetDatabase();
   panel.states.clear();
   panel.memory.clear();
+  panel.uptime.clear();
   panel.suspended.clear();
   panel.silent.clear();
 });
@@ -76,7 +83,9 @@ afterEach(() => {
  * An instance that the platform believes is running, with the key of its
  * customer stored on the platform.
  */
-async function seedOnlineInstance(options: { uuid?: string; withKey?: boolean } = {}) {
+async function seedOnlineInstance(
+  options: { uuid?: string; withKey?: boolean; status?: string } = {},
+) {
   const user = await prisma.user.create({
     data: {
       email: `owner-${randomUUID()}@example.com`,
@@ -99,7 +108,7 @@ async function seedOnlineInstance(options: { uuid?: string; withKey?: boolean } 
       userId: user.id,
       productId: product.id,
       name: 'wordpress',
-      status: 'ONLINE',
+      status: options.status ?? 'ONLINE',
       ram: 1024,
       cpu: 1,
       disk: 10,
