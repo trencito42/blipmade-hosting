@@ -13,6 +13,7 @@ import { hasCustomerCredential, resolveCustomerCredential } from '../services/pa
 import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeUpgradeOrder } from '../services/upgrades.js';
+import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
 import { createCheckout } from '../services/stripe.js';
 
 /**
@@ -162,6 +163,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const instance = await loadInstance(user.id, id);
     if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
 
+    // The service was suspended and the customer starts it again, so the
+    // customer is told that it works again.
+    const wasSuspended = instance.status === 'SUSPENDED';
+
     const token = await clientTokenFor(instance);
     await client.sendPower(token, instance.pterodactylUuid, action);
 
@@ -169,6 +174,16 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     await prisma.instance.update({ where: { id: instance.id }, data: { status } });
     await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'power', message: `Power action: ${action}.` } });
     await audit({ actorId: user.id, actorEmail: user.email, action: `instance.power.${action}`, targetType: 'instance', targetId: instance.id });
+
+    if (wasSuspended && action === 'start') {
+      // The moment of the start is the occurrence, so a service that is
+      // suspended again and started again has a message of its own.
+      await notifyInstanceUnsuspended({
+        userId: user.id,
+        instanceName: instance.name,
+        occurrence: new Date().toISOString(),
+      });
+    }
 
     return reply202(instance.id);
   });
@@ -382,13 +397,27 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const instance = await loadInstance(user.id, id);
+    // A service that is cancelled twice is one message: the customer has
+    // been told already, and the service does not change.
+    const wasCancelled = instance.status === 'CANCELLED';
+    const cancelledAt = new Date();
 
     await prisma.$transaction([
-      prisma.instance.update({ where: { id: instance.id }, data: { cancelledAt: new Date(), status: 'CANCELLED' } }),
+      prisma.instance.update({ where: { id: instance.id }, data: { cancelledAt, status: 'CANCELLED' } }),
       prisma.subscription.updateMany({ where: { instanceId: instance.id }, data: { cancelAtPeriodEnd: true } }),
     ]);
     await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'cancelled', message: 'Cancellation requested. The service runs until the end of the paid period.' } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.cancelled', targetType: 'instance', targetId: instance.id });
+
+    if (!wasCancelled) {
+      // The moment of the cancellation is the occurrence, so a service that is
+      // cancelled again after a new period has a message of its own.
+      await notifyInstanceCanceled({
+        userId: user.id,
+        instanceName: instance.name,
+        occurrence: cancelledAt.toISOString(),
+      });
+    }
     return reply.code(204).send();
   });
 }

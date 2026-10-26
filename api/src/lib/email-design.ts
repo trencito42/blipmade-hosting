@@ -990,6 +990,29 @@ const CATALOGUE: TemplateDefinition[] = [
     ],
   },
   {
+    id: 'service-renewal-reminder',
+    version: 1,
+    category: 'hostingServices',
+    heading: '{{service.name}} renews soon',
+    subject: '{{service.name}} renews soon',
+    preheader: 'The service {{service.name}} renews at the end of its term.',
+    facts: [
+      ['service.name', 'service'],
+      ['service.renewsAt', 'renewsAt'],
+    ],
+    status: { tone: 'caution', label: 'Renews soon' },
+    paragraphs: [
+      'The service {{service.name}} renews at the end of its term.',
+      { when: 'service.renewsAt', text: 'It renews on {{service.renewsAt}}.' },
+      { unless: 'service.renewsAt', text: 'The exact date is on the billing page of your account.' },
+    ],
+    action: { label: 'Open the billing', path: '/app/billing' },
+    details: [
+      { label: 'Service', value: '{{service.name}}' },
+      { when: 'service.renewsAt', label: 'Renews on', value: '{{service.renewsAt}}' },
+    ],
+  },
+  {
     id: 'service-expired',
     version: 1,
     category: 'hostingServices',

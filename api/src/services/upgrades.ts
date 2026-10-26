@@ -4,6 +4,7 @@ import { badRequest } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { priceConfiguration, validateConfiguration } from './pricing.js';
 import { refundPayment, updateSubscriptionAmount } from './stripe.js';
+import { notifyUpgradeCompleted, notifyUpgradeFailed } from './notifications.js';
 import * as pteroApp from './pterodactyl/application.js';
 import type {
   FulfillmentStatus,
@@ -370,6 +371,16 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
         return { applied: false, reason };
       }
 
+      // The change did not happen, so the customer is told. The order and
+      // the reason are the occurrence, so two failures of the same order are
+      // two messages and the same failure is one.
+      await notifyUpgradeFailed({
+        userId: instance.userId,
+        instanceName: instance.name,
+        reason,
+        occurrence: `${order.id}:${reason}`,
+      });
+
       // The change was paid for and it did not happen, so the money of the
       // customer goes back. The decision is taken from the local state of the
       // order, so it is the same answer every time and the same money is
@@ -523,6 +534,16 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
     targetType: 'order',
     targetId: order.id,
     meta: { instanceId: instance.id, ...request, price: newPrice },
+  });
+
+  // The change of the resources went through, so the customer is told. The
+  // order is the occurrence, so an order that is applied again is one
+  // message.
+  await notifyUpgradeCompleted({
+    userId: instance.userId,
+    instanceName: instance.name,
+    change: `Resources changed to ${request.ram} MB, ${request.cpu} vCPU, ${request.disk} GB.`,
+    occurrence: order.id,
   });
 
   return { applied: true, reason: null };

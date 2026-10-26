@@ -20,6 +20,7 @@ import {
   notifyPaymentCanceled,
   notifyPaymentFailed,
   notifyPaymentSucceeded,
+  notifySubscriptionChanged,
 } from '../services/notifications.js';
 import { applyUpgradeOrder } from '../services/upgrades.js';
 import { allocateUnitPrices } from '../services/order-amounts.js';
@@ -980,6 +981,30 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
           targetType: 'subscription',
           targetId: subscriptionId,
           meta: { state: stripeState },
+        });
+      }
+
+      // The customer changed the subscription in the portal of the provider,
+      // so the customer is told what the platform knows about it now. The
+      // state of the provider and the plan of the cancellation are the
+      // occurrence, so a delivery that comes twice is one message.
+      const lines = await prisma.subscription.findMany({
+        where: { stripeSubscriptionId: subscriptionId },
+        select: {
+          userId: true,
+          cancelAtPeriodEnd: true,
+          currentPeriodEnd: true,
+          instance: { select: { name: true } },
+        },
+      });
+      for (const line of lines) {
+        await notifySubscriptionChanged({
+          userId: line.userId,
+          instanceName: line.instance?.name ?? 'the service',
+          status: state ?? stripeState,
+          periodEnd: line.currentPeriodEnd,
+          cancelAtPeriodEnd: line.cancelAtPeriodEnd,
+          occurrence: `${subscriptionId}:${stripeState}:${Boolean(object.cancel_at_period_end)}`,
         });
       }
       break;

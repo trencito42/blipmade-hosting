@@ -119,6 +119,7 @@ const EVENT_EXAMPLES = {
   'service.suspended': { service: 'blog', reason: 'The invoice was not paid.' },
   'service.unsuspended': { service: 'blog' },
   'service.expiring': { service: 'blog', expiresAt: '2026-11-01' },
+  'service.renewal_reminder': { service: 'blog', renewsAt: '2026-11-01' },
   'service.expired': { service: 'blog' },
   'service.canceled': { service: 'blog' },
   'service.deleted': { service: 'blog' },
@@ -273,6 +274,7 @@ const REQUIRED_IDS = [
   'service-suspended',
   'service-unsuspended',
   'service-expiring',
+  'service-renewal-reminder',
   'service-expired',
   'service-canceled',
   'service-deleted',
@@ -319,15 +321,15 @@ afterEach(() => {
 
 describe('the catalogue of the templates', () => {
   it('holds exactly the templates the events of the platform expect', () => {
-    expect(REQUIRED_IDS).toHaveLength(72);
+    expect(REQUIRED_IDS).toHaveLength(73);
     expect([...emailTemplateIds()].sort()).toEqual([...REQUIRED_IDS].sort());
     expect(emailTemplateCatalog().map((entry) => entry.id).sort()).toEqual([...REQUIRED_IDS].sort());
-    expect(emailTemplateCatalog()).toHaveLength(72);
+    expect(emailTemplateCatalog()).toHaveLength(73);
   });
 
   it('holds the same templates as the registry of the events', () => {
     const expected = Object.values(EVENT_DEFINITIONS).map((definition) => definition.template);
-    expect(expected).toHaveLength(72);
+    expect(expected).toHaveLength(73);
     expect([...emailTemplateIds()].sort()).toEqual([...expected].sort());
   });
 

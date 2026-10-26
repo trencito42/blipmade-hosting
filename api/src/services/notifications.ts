@@ -157,6 +157,27 @@ export async function notifyEmailChanged(input: Recipient & {
   });
 }
 
+/**
+ * The customer asked for the closing of the account.
+ *
+ * A request is not a deletion: the services keep running until the team has
+ * looked at it. The moment of the request is the occurrence, because a
+ * customer can ask for the closing, take the request back and ask again, and
+ * every request is a message of its own.
+ */
+export async function notifyAccountDeletionRequested(input: Recipient & {
+  name: string | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'account.deletion_requested',
+    input.userId,
+    input.userId,
+    { name: input.name },
+    input.occurrence ?? null,
+  );
+}
+
 /* ------------------------------------------------------- orders and payments */
 
 /** An order was created and waits for its payment. */
@@ -351,6 +372,33 @@ export async function notifyInvoiceOverdue(input: Recipient & {
   );
 }
 
+/**
+ * The invoice of a customer is due and the term of the service is close.
+ *
+ * The invoice is the occurrence, so a reminder is one message per invoice
+ * and not one message per day of the week that is left.
+ */
+export async function notifyInvoiceReminderDue(input: Recipient & {
+  number: string;
+  amount: number;
+  currency: string;
+  dueAt?: Date | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'invoice.reminder_due',
+    input.number,
+    input.userId,
+    {
+      number: input.number,
+      amount: amount(input.amount, input.currency),
+      currency: input.currency,
+      dueAt: formatDate(input.dueAt),
+    },
+    input.occurrence ?? null,
+  );
+}
+
 /* ------------------------------------------------------------- subscriptions */
 
 /** The subscription of a customer started. */
@@ -458,6 +506,49 @@ export async function notifySubscriptionReactivated(input: Recipient & {
   );
 }
 
+/**
+ * The paid period of a subscription is over and the service still works.
+ *
+ * The customer has the grace to pay before the service is suspended. The
+ * period and the moment of the grace are the occurrence, so a subscription
+ * that falls into the grace again after a renewal has a message of its own.
+ */
+export async function notifySubscriptionGracePeriod(input: Recipient & {
+  service: string;
+  graceUntil?: Date | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'subscription.grace_period',
+    input.service,
+    input.userId,
+    { service: input.service, graceUntil: formatDate(input.graceUntil) },
+    input.occurrence ?? null,
+  );
+}
+
+/**
+ * The grace of a subscription is close to its end and the service is going
+ * to be suspended.
+ *
+ * The moment of the end of the grace is the occurrence. The window of this
+ * message is shorter than the grace itself, so the message of the grace and
+ * this one do not fall on the same day.
+ */
+export async function notifySubscriptionSuspensionWarning(input: Recipient & {
+  service: string;
+  graceUntil?: Date | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'subscription.suspension_warning',
+    input.service,
+    input.userId,
+    { service: input.service, graceUntil: formatDate(input.graceUntil) },
+    input.occurrence ?? null,
+  );
+}
+
 /* ----------------------------------------------------------------- services */
 
 /** A service of a customer is ready and it answers. */
@@ -502,6 +593,162 @@ export async function notifyProvisioningFailed(input: Recipient & {
     input.userId,
     { service: input.instanceName, reason: input.reason },
     input.occurrence ?? new Date(),
+  );
+}
+
+/**
+ * The building of a service has started.
+ *
+ * The key of the provisioning is the occurrence: a run that is repeated does
+ * not write a second message about the same service.
+ */
+export async function notifyProvisioningStarted(input: Recipient & {
+  instanceName: string;
+  plan: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.provisioning_started',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName, plan: input.plan },
+    input.occurrence ?? new Date(),
+  );
+}
+
+/**
+ * The paid term of a service is over and the service does not go on.
+ *
+ * The end of the term is the occurrence, so a term that is paid again has a
+ * message of its own.
+ */
+export async function notifyInstanceExpiring(input: Recipient & {
+  instanceName: string;
+  expiresAt?: Date | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.expiring',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName, expiresAt: formatDate(input.expiresAt) },
+    input.occurrence ?? null,
+  );
+}
+
+/**
+ * The paid term of a service is over and the service goes on.
+ *
+ * The end of the term is the occurrence, so a term that is paid again has a
+ * message of its own.
+ */
+export async function notifyInstanceRenewalReminder(input: Recipient & {
+  instanceName: string;
+  renewsAt?: Date | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.renewal_reminder',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName, renewsAt: formatDate(input.renewsAt) },
+    input.occurrence ?? null,
+  );
+}
+
+/**
+ * The paid term of a service is over.
+ *
+ * The end of the term is the occurrence, so the term of a service that is
+ * paid again is a message of its own.
+ */
+export async function notifyInstanceExpired(input: Recipient & {
+  instanceName: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.expired',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName },
+    input.occurrence ?? null,
+  );
+}
+
+/** A service of a customer was canceled. */
+export async function notifyInstanceCanceled(input: Recipient & {
+  instanceName: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.canceled',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName },
+    input.occurrence ?? null,
+  );
+}
+
+/**
+ * The data of a service was deleted at the end of the retention.
+ *
+ * The moment of the deletion is the occurrence: a service that is deleted
+ * again after a new retention has a message of its own.
+ */
+export async function notifyInstanceDeleted(input: Recipient & {
+  instanceName: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.deleted',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName },
+    input.occurrence ?? null,
+  );
+}
+
+/** A service of a customer was unsuspended. */
+export async function notifyInstanceUnsuspended(input: Recipient & {
+  instanceName: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.unsuspended',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName },
+    input.occurrence ?? null,
+  );
+}
+
+/** The change of the resources of a service went through. */
+export async function notifyUpgradeCompleted(input: Recipient & {
+  instanceName: string;
+  change: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.upgrade_completed',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName, change: input.change },
+    input.occurrence ?? null,
+  );
+}
+
+/** The change of the resources of a service did not go through. */
+export async function notifyUpgradeFailed(input: Recipient & {
+  instanceName: string;
+  reason: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'service.upgrade_failed',
+    input.instanceName,
+    input.userId,
+    { service: input.instanceName, reason: input.reason },
+    input.occurrence ?? null,
   );
 }
 
@@ -723,6 +970,88 @@ export async function notifyDomainDnsIncomplete(input: Recipient & {
     `${input.scope ?? 'instance'}:${input.domain}`,
     input.userId,
     { domain: input.domain, missing: input.missing },
+  );
+}
+
+/**
+ * A mailbox of a customer could not be created.
+ *
+ * The row of the journal of the mail system is the occurrence: the failure of
+ * one attempt is one message, and a new attempt is a message of its own.
+ */
+export async function notifyMailboxProvisioningFailed(input: Recipient & {
+  mailbox: string;
+  domain: string;
+  reason: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'mailbox.provisioning_failed',
+    input.mailbox,
+    input.userId,
+    { mailbox: input.mailbox, domain: input.domain, reason: input.reason },
+    input.occurrence ?? null,
+  );
+}
+
+/**
+ * The hosted mail of a customer started.
+ *
+ * The service and the domain are the occurrence: a service that hosts more
+ * than one domain tells the customer about every domain of its own.
+ */
+export async function notifyMailhostingActivated(input: Recipient & {
+  service: string;
+  plan: string;
+  domain: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'mailhosting.activated',
+    input.service,
+    input.userId,
+    { service: input.service, plan: input.plan, domain: input.domain },
+    input.occurrence ?? null,
+  );
+}
+
+/**
+ * The hosted mail of a customer was canceled.
+ *
+ * The end of the retention is the occurrence, so the same service canceled
+ * twice has one message.
+ */
+export async function notifyMailhostingCanceled(input: Recipient & {
+  service: string;
+  retentionUntil?: Date | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'mailhosting.canceled',
+    input.service,
+    input.userId,
+    { service: input.service, retentionUntil: formatDate(input.retentionUntil) },
+    input.occurrence ?? null,
+  );
+}
+
+/**
+ * The hosted mail of a customer renews soon.
+ *
+ * The service and the end of the term are the occurrence, so a term that is
+ * paid again has a message of its own.
+ */
+export async function notifyMailhostingRenewalReminder(input: Recipient & {
+  service: string;
+  renewsAt?: Date | null;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'mailhosting.renewal_reminder',
+    input.service,
+    input.userId,
+    { service: input.service, renewsAt: formatDate(input.renewsAt) },
+    input.occurrence ?? null,
   );
 }
 
