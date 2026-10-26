@@ -1,0 +1,107 @@
+# The health of the platform
+
+The platform sends the messages of the customers and takes their money on a
+machine that nobody is watching. This document says what watches it, what the
+operator sees, and how an alarm reaches the operator when the mail server is
+down.
+
+## What is watched
+
+The sweep of the health of the platform runs in the worker every five
+minutes. It answers eleven questions, and every question has a state and a
+sentence that can be read in the back office.
+
+| Check | What it answers | When it is a problem |
+|---|---|---|
+| `provisioning` | Is a service being built for longer than it should be? | A service that has been building for more than `OPS_STUCK_MINUTES` (20 by default). |
+| `webhooks` | Did the events of the payment provider fail? | An event of the provider that failed or was deferred in the last 24 hours. |
+| `delivery` | Did the messages of the platform fail? | A message that failed four times and waits in the failed queue. |
+| `backup` | Did the backup of the night happen? | A backup that failed, or a backup that is older than `OPS_BACKUP_MAX_AGE_HOURS` (30 by default). |
+| `offsite` | Is the copy that leaves the host there? | A copy that failed, a copy that was not read back on the target, or a copy that is older than `OPS_OFFSITE_MAX_AGE_HOURS`. |
+| `restore` | Does the backup still restore? | A drill of the restore that failed. |
+| `mailcow` | Does the mail server answer? | A relay that does not take the session. The certificate of the relay is verified against the certificate of the operator, and the verification is never turned off. |
+| `capacity` | Is there room on the machine? | A disk over `OPS_DISK_MAX_PERCENT` (85), a memory over `OPS_MEMORY_MAX_PERCENT` (90). |
+| `certificate` | Do the certificates of the platform expire soon? | A certificate with less than `OPS_CERT_MIN_DAYS` (21) days left. |
+| `incident` | Did the operator declare an incident? | An incident that is open. |
+| `security` | Did something that touches the security change? | A new administrator, changed rights, a new key of a customer or a changed setting in the last hour. |
+
+## Where the state of the operations lives
+
+`OPS_STATUS_DIR` is the directory of the state of the operations. On the host
+it is `/var/backups/blipmade/status`, and inside the containers it is
+`/var/backups/blipmade-status`, which is the same directory, mounted.
+
+| File | Who writes it | What it holds |
+|---|---|---|
+| `backup.json` | `scripts/backup.sh` | The moment of the last local backup, its result, its name, its size. |
+| `offsite.json` | `scripts/backup-offsite.sh` | The moment of the last copy that left the host, its result, whether it was read back on the target. |
+| `restore-drill.json` | `scripts/restore-drill.sh` | The moment of the last drill, its result, the checks it made. |
+| `incident.json` | The API, when an operator declares an incident | The text of the incident and the moment it ends. |
+| `ops-alerts.ndjson` | The API, when it sends an alarm | One line per alarm: the moment, the check, the severity, the text and the channels that carried it. |
+
+The receipts hold no secret: only moments, names, sizes and the words
+`success` and `failed`. A receipt is written even when the step failed,
+because a failure that leaves no trace cannot be seen by anybody.
+
+## How an alarm reaches the operator
+
+An alarm travels by three channels, and the back office shows the state of
+each one.
+
+1. **The journal of the alerts** — `ops-alerts.ndjson` on the host. It is
+   written first, before anything else is tried, because it is the channel
+   that needs nothing else to work. It is read by the back office over the
+   ordinary web address of the platform.
+2. **The webhook of the operator** — `OPS_ALERT_WEBHOOK_URL`. A chat room, a
+   service of incidents, a script of the operator. It has nothing to do with
+   the mail of the platform, so an alarm about the mail server can still
+   leave the host. The body is signed with `OPS_ALERT_WEBHOOK_SECRET` in the
+   header `X-Blipmade-Signature`.
+3. **The mail of the platform** — the event of the catalogue that carries the
+   alarm, sent to `MAIL_OPERATOR_EMAIL` (or `MAIL_SUPPORT_EMAIL`).
+
+**The channel of the operator is the one that matters.** Without
+`OPS_ALERT_WEBHOOK_URL`, every alarm of the platform travels by the mail of
+the platform, and an alarm about the mail server cannot leave the host. The
+dashboard says so in plain words, on the page of the channels.
+
+## Why the platform does not flood the operator
+
+A platform that watches itself badly is worse than one that does not watch
+itself: a problem that repeats every five minutes fills the mailbox with the
+same message and teaches the operator to ignore the messages of the platform.
+
+- A finding is reported once. The next alarm waits half an hour, then two
+  hours, then eight hours, then a day. A problem that is not fixed by a human
+  is still talked about every day.
+- At most `OPS_ALERT_MAX_PER_HOUR` alarms (5 by default) leave the platform in
+  an hour. The ones that do not fit are counted and shown in the dashboard.
+- An alarm that an operator has acknowledged is not sent again until the
+  finding itself changes. The person who is working on a problem is not
+  buried under it.
+
+The rule is in `api/src/lib/ops-alert-policy.ts`, away from everything else,
+because it is the part that has to be right and the part that has to be
+checked without a database and without a cache.
+
+## The back office
+
+The page is `/admin/ops`. It shows the state of the platform, the eleven
+checks, the alarms that were sent, the channels, and it lets an operator
+acknowledge a finding and declare an incident.
+
+The routes are under `/api/ops`, and they carry the permission
+`infrastructure.read` (and `infrastructure.write` for the three that write).
+Every route carries a rate limit, like every other route of the back office.
+
+## What the operator still has to do
+
+The checks of the backup, of the copy that leaves the host and of the drill
+of the restore depend on the receipts of the scripts of the host. Until
+those scripts write them, those three checks have nothing to read and they
+say so.
+
+The certificate that the mail server presents is checked by the mailer of the
+platform on every message it sends. The certificate of the *public* address
+is checked by the sweep, but the name `mail.blipmade.com` has to be in the
+DNS before the relay of the platform can be reached from outside.

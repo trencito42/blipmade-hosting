@@ -228,7 +228,19 @@ fi
 # The payload.
 # ---------------------------------------------------------------------------
 WORK="$(mktemp -d)"
-cleanup() { rm -rf "$WORK"; }
+# The receipt of the copy that leaves the host. It is written when the copy
+# is finished, and it is written when the copy fails, because a failure that
+# leaves no trace cannot be seen by the operator.
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+STARTED_TS="$(date +%s)"
+RECEIPT_VERIFIED="false"
+cleanup() {
+  local code=$?
+  if [[ "$code" -ne 0 ]]; then
+    blipmade_write_receipt "offsite.json" "{\"runAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"result\":\"failed\",\"file\":\"$NAME\",\"bytes\":0,\"target\":\"$OFFSITE_TARGET\",\"keptCopies\":$KEEP_COPIES,\"verified\":false,\"reason\":\"the copy that leaves the host exited with the code $code\"}"
+  fi
+  rm -rf "$WORK"
+}
 trap cleanup EXIT
 
 LOCAL_DIR="$BACKUP_DIR/offsite"
@@ -434,6 +446,13 @@ echo "    size      : $LOCAL_SIZE bytes"
 echo "    target    : $TRANSPORT \"$ALIAS\""
 echo "    kept      : $KEEP_COPIES copies on the target"
 echo "    local copy: removed after the copy on the target was verified"
+
+# The receipt of the copy that leaves the host, for the platform. It says
+# that the copy was read back on the target, which is the only thing that
+# makes a copy that travels worth something.
+RECEIPT_VERIFIED="true"
+blipmade_write_receipt "offsite.json" "{\"runAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"result\":\"success\",\"file\":\"$NAME\",\"bytes\":$LOCAL_SIZE,\"target\":\"$ALIAS\",\"keptCopies\":$KEEP_COPIES,\"verified\":$RECEIPT_VERIFIED,\"reason\":\"\"}"
+echo "    The receipt of the copy was written for the platform."
 
 # The local copy is only removed now, after the copy on the target was
 # verified. If anything failed above, it is still there and the upload can be

@@ -33,6 +33,7 @@ import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscrip
 import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
 import { reconcileDomainRoutes } from './services/domain-routing.js';
 import { dispatchPendingEvents } from './services/notification-dispatch.js';
+import { runOpsSweep } from './services/ops-health.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
 import { pruneSessions } from './plugins/auth.js';
 import { audit } from './lib/audit.js';
@@ -280,6 +281,28 @@ async function sweepNotifications(): Promise<void> {
 }
 
 /**
+ * The sweep of the health of the platform.
+ *
+ * The worker is the only thing of the platform that runs when nothing
+ * happens, so it is the only thing that can notice that the machine is
+ * running out of room, that the mail server is gone or that a backup did
+ * not happen.
+ *
+ * The sweep does not send an alarm every time it runs. The alarm of a
+ * finding that was already reported waits for a pause that grows with every
+ * report, so a platform that is broken in one place does not send a hundred
+ * mails a day about it.
+ */
+async function sweepOpsHealth(): Promise<void> {
+  const result = await runOpsSweep();
+  if (result.sent || result.suppressed) {
+    console.info(
+      `[worker] the health of the platform: ${result.checks} check(s), ${result.findings} finding(s), ${result.sent} alarm(s) sent, ${result.suppressed} held back`,
+    );
+  }
+}
+
+/**
  * The events that the provider could not deliver are retried here, so a
  * failed payment is never lost.
  */
@@ -394,6 +417,10 @@ async function main(): Promise<void> {
   timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));
   timers.push(setInterval(() => void sweepMail().catch((error) => console.error('[worker] mail sweep failed', error)), 30 * 60_000));
   timers.push(setInterval(() => void retryWebhooks().catch((error) => console.error('[worker] webhook retry failed', error)), 5 * 60_000));
+  // The health of the platform is looked at every five minutes: often enough
+  // that a problem is seen while it is still small, and rare enough that the
+  // machine is not asked the same questions all day.
+  timers.push(setInterval(() => void sweepOpsHealth().catch((error) => console.error('[worker] the health sweep failed', error)), 5 * 60_000));
   // The outbox is emptied every five seconds: a message that waits for a
   // customer does not wait for long.
   timers.push(setInterval(() => void sweepNotifications().catch((error) => console.error('[worker] the notification sweep failed', error)), 5_000));

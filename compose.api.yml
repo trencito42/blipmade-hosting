@@ -20,6 +20,13 @@ services:
       HOST: 0.0.0.0
       PORT: 3100
       RUN_MIGRATIONS: "true"
+      # The directory of the state of the operations: the receipts of the
+      # backups, the incident of the operator and the journal of the alarms.
+      # The scripts of the host write the receipts there, and the platform
+      # reads them, so both have to see the same directory. The path inside
+      # the container is not the path on the host, because the directory of
+      # the host is mounted into it.
+      OPS_STATUS_DIR: /var/backups/blipmade-status
       # The addresses whose forwarding headers are believed. The web container
       # is the only one that reaches the API, so this is the scope that is
       # narrowed in the .env of the operator (SEC-05).
@@ -31,6 +38,11 @@ services:
     volumes:
       - backup_data:/var/backups/blipmade
       - upload_data:/data
+      # The directory of the state of the operations. The scripts of the
+      # backups write their receipts there and the platform reads them, so
+      # the platform knows whether the backup of the night happened and
+      # whether the copy that leaves the host is there.
+      - /var/backups/blipmade/status:/var/backups/blipmade-status:rw
       # The certificate of the mail relay.
       #
       # The relay of the platform is the mail server of the operator, and it
@@ -92,11 +104,20 @@ services:
     environment:
       NODE_ENV: production
       TRUSTED_PROXIES: "${TRUSTED_PROXIES:-127.0.0.1,::1,172.16.0.0/12}"
+      # The same directory of the state of the operations as the one of the
+      # API, because the worker is the one that sweeps the health of the
+      # platform.
+      OPS_STATUS_DIR: /var/backups/blipmade-status
     extra_hosts:
       - "panel.blipmade.com:10.77.0.10"
     volumes:
       - backup_data:/var/backups/blipmade
       - upload_data:/data
+      # The directory of the state of the operations. The scripts of the
+      # backups write their receipts there and the platform reads them, so
+      # the platform knows whether the backup of the night happened and
+      # whether the copy that leaves the host is there.
+      - /var/backups/blipmade/status:/var/backups/blipmade-status:rw
       # The certificate of the mail relay.
       #
       # The relay of the platform is the mail server of the operator, and it

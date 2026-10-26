@@ -195,3 +195,50 @@ blipmade_archive_dir() {
   echo "root. The archive cannot hold it." >&2
   return 1
 }
+
+
+# ---------------------------------------------------------------------------
+# The receipts of the operations.
+#
+# The platform watches the backups through these files: it asks the scripts
+# of the host what they did and when, and it says so in the dashboard of the
+# operations. A backup that leaves no trace cannot be seen by anybody, so a
+# receipt is written even when the step failed.
+#
+# The receipts hold no secret: only a moment, a name, a size, a number and
+# the words "success" and "failed". They are written in a temporary file and
+# then moved, so a reader never sees half of one.
+# ---------------------------------------------------------------------------
+
+# The directory in which the state of the operations is written.
+#
+# The path is the same on the host and inside the containers, where it is
+# mounted, so the platform reads what these scripts have written.
+blipmade_ops_status_dir() {
+  printf '%s' "${OPS_STATUS_DIR:-/var/backups/blipmade/status}"
+}
+
+# Writes a receipt of what a step did.
+#
+# The function never fails the step that called it: the backup matters more
+# than its receipt, so a receipt that cannot be written is a warning and not
+# an error.
+#
+# Usage: blipmade_write_receipt <file name> <json body>
+blipmade_write_receipt() {
+  local name="$1" body="$2" dir
+  dir="$(blipmade_ops_status_dir)"
+  if ! mkdir -p "$dir" 2>/dev/null; then
+    echo "    The receipt of this step could not be written: $dir could not be created." >&2
+    return 0
+  fi
+  if ! printf '%s\n' "$body" > "$dir/.receipt.tmp" 2>/dev/null; then
+    echo "    The receipt of this step could not be written." >&2
+    return 0
+  fi
+  chmod 0644 "$dir/.receipt.tmp" 2>/dev/null || true
+  if ! mv -f "$dir/.receipt.tmp" "$dir/$name" 2>/dev/null; then
+    echo "    The receipt of this step could not be written." >&2
+    return 0
+  fi
+}

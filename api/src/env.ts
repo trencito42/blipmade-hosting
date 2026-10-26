@@ -271,6 +271,79 @@ const schema = z.object({
 
   /** Where the worker serves its own health endpoint. */
   WORKER_URL: z.string().default('http://worker:3101'),
+
+  /**
+   * The directory in which the state of the operations is written: the
+   * receipts of the backups, the incident that the operator declares and the
+   * journal of the alarms.
+   *
+   * The path is the same on the host and inside the containers, so the
+   * platform reads what the scripts of the host have written and the
+   * operator reads what the platform has written. The path of the host is
+   * the default; the containers get theirs from the compose file, because
+   * the directory is mounted into them.
+   */
+  OPS_STATUS_DIR: z.string().default('/var/backups/blipmade/status'),
+  /**
+   * Where the journal of the alarms is written.
+   *
+   * It is empty by default, and then the journal lives next to the other
+   * state of the operations. The journal is the channel that does not depend
+   * on the mail server: it is a file on the host, and it is read by the
+   * dashboard of the operations.
+   */
+  OPS_ALERT_LOG: z.string().default(''),
+  /**
+   * The address that receives the alarms of the platform on a channel that
+   * has nothing to do with the mail of the platform: a chat room, a service
+   * of incidents, a script of the operator.
+   *
+   * It is empty when the operator did not write one down. The platform then
+   * says so in the dashboard, because an alarm that can only leave the host
+   * by the mail of the platform cannot tell anybody that the mail of the
+   * platform is down.
+   */
+  OPS_ALERT_WEBHOOK_URL: z.string().default(''),
+  /**
+   * The key with which the alarm is signed before it is pushed to the
+   * address of the operator, so the operator can tell that it comes from
+   * the platform.
+   */
+  OPS_ALERT_WEBHOOK_SECRET: z.string().default(''),
+  /**
+   * How many minutes a provisioning may last before the service is said to
+   * be stuck.
+   */
+  OPS_STUCK_MINUTES: z.coerce.number().int().min(1).max(10080).default(20),
+  /**
+   * How old a backup may be before it is a failure. The backup of the night
+   * is 26 hours old when the next one runs, so the limit leaves room for
+   * one night to be missed.
+   */
+  OPS_BACKUP_MAX_AGE_HOURS: z.coerce.number().int().min(1).max(8760).default(30),
+  /**
+   * How old the copy that leaves the host may be before it is said to be
+   * missing.
+   */
+  OPS_OFFSITE_MAX_AGE_HOURS: z.coerce.number().int().min(1).max(8760).default(30),
+  /**
+   * How many days a certificate may still have before it is said to be a
+   * problem.
+   */
+  OPS_CERT_MIN_DAYS: z.coerce.number().int().min(1).max(365).default(21),
+  /**
+   * The share of the disk that is a problem.
+   */
+  OPS_DISK_MAX_PERCENT: z.coerce.number().int().min(1).max(100).default(85),
+  /**
+   * The share of the memory that is a problem.
+   */
+  OPS_MEMORY_MAX_PERCENT: z.coerce.number().int().min(1).max(100).default(90),
+  /**
+   * How many alarms may leave the platform in an hour. A platform that breaks
+   * in many places at once must not become a flood of alarms.
+   */
+  OPS_ALERT_MAX_PER_HOUR: z.coerce.number().int().min(1).max(200).default(5),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -350,6 +423,17 @@ export const env = {
   trustProxies: raw.TRUSTED_PROXIES.split(',')
     .map((value) => value.trim())
     .filter(Boolean),
+  /**
+   * The journal of the alarms of the platform.
+   *
+   * It lives next to the other state of the operations when the operator did
+   * not write a path of its own.
+   */
+  opsAlertLog: raw.OPS_ALERT_LOG.trim() || `${raw.OPS_STATUS_DIR}/ops-alerts.ndjson`,
+  /**
+   * The directory of the state of the operations.
+   */
+  opsStatusDir: raw.OPS_STATUS_DIR,
 } as const;
 
 export type Env = typeof env;

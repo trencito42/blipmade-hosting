@@ -74,8 +74,22 @@ if [[ -f "$WORK/uploads.tar.gz" ]]; then
     echo "    The database was restored, the uploads were not." >&2
   else
     echo "==> Restoring the customer uploads into $UPLOAD_TARGET"
-    mkdir -p "$UPLOAD_TARGET"
-    tar -xzf "$WORK/uploads.tar.gz" -C "$UPLOAD_TARGET"
+    # The mount point of a docker volume lives under a directory that only
+    # root can enter, so the service account cannot create it and cannot
+    # write into it. The files of the customers are read by the container,
+    # which runs as another user again, so the rights of the files are set
+    # to what that container expects.
+    if mkdir -p "$UPLOAD_TARGET" 2>/dev/null && [[ -w "$UPLOAD_TARGET" ]]; then
+      tar -xzf "$WORK/uploads.tar.gz" --no-same-owner -C "$UPLOAD_TARGET"
+    elif sudo -n true 2>/dev/null; then
+      sudo -n mkdir -p "$UPLOAD_TARGET"
+      sudo -n tar -xzf "$WORK/uploads.tar.gz" --no-same-owner -C "$UPLOAD_TARGET"
+      sudo -n chown -R 100:101 "$UPLOAD_TARGET" 2>/dev/null || true
+    else
+      echo "    The upload storage cannot be written to by this account and" >&2
+      echo "    this account cannot become root. The files of the customers" >&2
+      echo "    were NOT restored." >&2
+    fi
     echo "    $(blipmade_count_files "$UPLOAD_TARGET") files are in place"
   fi
 else

@@ -147,4 +147,9 @@ else
   fi
 fi
 
+# The receipt of the drill, for the platform. The result is the one of the
+# drill: a drill that failed is an alarm, and a drill that was never run
+# leaves no receipt at all, which the platform reads as "nothing is known".
+blipmade_write_receipt "restore-drill.json" "{\"runAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"result\":\"$([[ "$status" -eq 0 ]] && echo success || echo failed)\",\"source\":\"$(basename "${ARCHIVE:-the local archive}")\",\"restoredInto\":\"$SCRATCH_DB\",\"durationSeconds\":0,\"checks\":[],\"reason\":\"$([[ "$status" -eq 0 ]] && echo "" || echo "the restore did not match the live database")\"}"
+
 exit "$status"

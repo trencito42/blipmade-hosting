@@ -30,6 +30,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/tickets', label: 'Support queue', shortLabel: 'Tickets', icon: 'doc' },
   { to: '/admin/promotions', label: 'Promotions', shortLabel: 'Promos', icon: 'shield' },
   { to: '/admin/infrastructure', label: 'Infrastructure', shortLabel: 'Infra', icon: 'globe' },
+  { to: '/admin/ops', label: 'Operations', shortLabel: 'Ops', icon: 'heart' },
   { to: '/admin/mail', label: 'Mail', shortLabel: 'Mail', icon: 'mail' },
   { to: '/admin/notifications', label: 'Email & notifications', shortLabel: 'Notifications', icon: 'bell' },
   { to: '/admin/audit', label: 'Audit log', shortLabel: 'Audit', icon: 'term' },
@@ -37,10 +38,21 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },
 ];
 
+/**
+ * The entry of a route of the admin navigation.
+ *
+ * The phone bar picks its four entries by their route and not by their place
+ * in the list, so a page that is added to the navigation cannot move the bar
+ * under the feet of the operator.
+ */
+function adminTab(to: string): NavEntry {
+  return ADMIN_NAV.find((entry) => entry.to === to) ?? ADMIN_NAV[0]!;
+}
+
 /** Phone bottom bar: Dashboard, Customers, Support queue, Audit log. */
 export const ADMIN_PHONE_TABS: NavEntry[] = [
-  ADMIN_NAV[0]!,
-  ADMIN_NAV[1]!,
-  ADMIN_NAV[6]!,
-  ADMIN_NAV[11]!,
+  adminTab('/admin'),
+  adminTab('/admin/customers'),
+  adminTab('/admin/tickets'),
+  adminTab('/admin/audit'),
 ];

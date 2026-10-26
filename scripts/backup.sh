@@ -18,10 +18,25 @@ BACKUP_DIR="${BACKUP_DIR:-/var/backups/blipmade}"
 LABEL="${1:-auto}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 KEEP_DAYS="${BACKUP_KEEP_DAYS:-14}"
+# The moment the backup started, and the moment it ended. The receipt that
+# the platform reads holds both, so it can say how long the backup takes.
+STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+STARTED_TS="$(date +%s)"
 
 mkdir -p "$BACKUP_DIR"
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+
+# The receipt of the backup. It is written when the backup is finished, and
+# it is written when the backup fails, because a failure that leaves no trace
+# cannot be seen by the operator.
+RECEIPT_ARCHIVE=""
+blipmade_backup_finish() {
+  local code=$?
+  if [[ "$code" -ne 0 ]]; then
+    blipmade_write_receipt "backup.json" "{\"runAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"result\":\"failed\",\"archive\":\"\",\"bytes\":0,\"durationSeconds\":$(( $(date +%s) - STARTED_TS )),\"reason\":\"the backup exited with the code $code\"}"
+  fi
+}
+trap 'blipmade_backup_finish; rm -rf "$WORK"' EXIT
 
 if [[ -z "${DATABASE_URL:-}" && -f .env ]]; then
   # shellcheck disable=SC1091
@@ -84,6 +99,14 @@ sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 
 echo "==> Backup written: $ARCHIVE"
 cat "$ARCHIVE.sha256"
+
+# The receipt of the backup, for the platform. It holds the name of the
+# archive and its size, and nothing that could say anything about the
+# customers.
+RECEIPT_ARCHIVE="$(basename "$ARCHIVE")"
+RECEIPT_BYTES="$(wc -c < "$ARCHIVE" | tr -d ' ')"
+blipmade_write_receipt "backup.json" "{\"runAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"result\":\"success\",\"archive\":\"$RECEIPT_ARCHIVE\",\"bytes\":$RECEIPT_BYTES,\"durationSeconds\":$(( $(date +%s) - STARTED_TS )),\"reason\":\"\"}"
+echo "    The receipt of the backup was written for the platform."
 
 echo "==> Removing local backups older than $KEEP_DAYS days"
 find "$BACKUP_DIR" -maxdepth 1 -name "blipmade-*.tar.gz" -mtime "+$KEEP_DAYS" -print -delete

@@ -62,6 +62,7 @@ export const ICONS = {
   doc: { name: "file-lines" },
   mail: { name: "envelope" },
   bell: { name: "bell" },
+  heart: { name: "heart-pulse" },
 } as const satisfies Record<string, IconSpec>;
 
 /** The names of the icons of the interface. */

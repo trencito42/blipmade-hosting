@@ -40,7 +40,7 @@ function amount(value: number, currency: string): string {
 async function publish(
   type: NotificationEventType,
   subject: string,
-  userId: string,
+  userId: string | null,
   payload: Record<string, unknown>,
   occurrence?: string | Date | number | null,
 ): Promise<void> {
@@ -730,3 +730,150 @@ export async function notifyDomainDnsIncomplete(input: Recipient & {
 export async function unreadNotificationCount(userId: string): Promise<number> {
   return prisma.notification.count({ where: { userId, readAt: null } });
 }
+
+/* --------------------------------------------------------------- operator */
+
+/**
+ * The alarms of the operator.
+ *
+ * The messages of this part are not for a customer: they are for the person
+ * who runs the platform. They are published by the sweep of the health of the
+ * platform, which is the only thing that watches the platform, and they carry
+ * no account of a customer: the sweep sees a service, a number or a machine,
+ * and it says so.
+ *
+ * The user is empty on purpose. The event has the audience of the operator,
+ * so the engine sends it to the address of the operator and not to the
+ * account of a customer.
+ */
+
+/** The building of a service never finished. */
+export async function notifyOpsProvisioningStuck(
+  input: { service: string; minutes: number },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.provisioning_stuck',
+    input.service,
+    null,
+    { service: input.service, minutes: input.minutes },
+    occurrence ?? new Date(),
+  );
+}
+
+/** The events of the payment provider could not be processed. */
+export async function notifyOpsWebhookFailures(
+  input: { count: number },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish('ops.webhook_failures', 'stripe', null, { count: input.count }, occurrence ?? new Date());
+}
+
+/** The messages of the platform could not be delivered. */
+export async function notifyOpsDeliveryFailures(
+  input: { count: number },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish('ops.delivery_failures', 'mail', null, { count: input.count }, occurrence ?? new Date());
+}
+
+/** The backup of the platform failed. */
+export async function notifyOpsBackupFailed(
+  input: { target: string; reason: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.backup_failed',
+    input.target,
+    null,
+    { target: input.target, reason: input.reason },
+    occurrence ?? new Date(),
+  );
+}
+
+/** The copy of the backup that leaves the host is missing. */
+export async function notifyOpsOffsiteBackupMissing(
+  input: { target: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.offsite_backup_missing',
+    input.target,
+    null,
+    { target: input.target },
+    occurrence ?? new Date(),
+  );
+}
+
+/** The drill of the restore failed. */
+export async function notifyOpsRestoreVerificationFailed(
+  input: { target: string; reason: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.restore_verification_failed',
+    input.target,
+    null,
+    { target: input.target, reason: input.reason },
+    occurrence ?? new Date(),
+  );
+}
+
+/** The mail server did not answer. */
+export async function notifyOpsMailcowUnhealthy(
+  input: { reason: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish('ops.mailcow_unhealthy', 'smtp', null, { reason: input.reason }, occurrence ?? new Date());
+}
+
+/** There is an incident on the platform. */
+export async function notifyOpsIncident(
+  input: { message: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish('ops.incident', 'platform', null, { message: input.message }, occurrence ?? new Date());
+}
+
+/** The machine is running out of room. */
+export async function notifyOpsCapacityCritical(
+  input: { resource: string; value: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.capacity_critical',
+    input.resource,
+    null,
+    { resource: input.resource, value: input.value },
+    occurrence ?? new Date(),
+  );
+}
+
+/** The certificate of an address of the platform is about to expire. */
+export async function notifyOpsDnsCertificateFailure(
+  input: { subject: string; reason: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.dns_certificate_failure',
+    input.subject,
+    null,
+    { subject: input.subject, reason: input.reason },
+    occurrence ?? new Date(),
+  );
+}
+
+/** Something that touches the security of the platform changed. */
+export async function notifyOpsSecurityChange(
+  input: { subject: string; detail: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.security_change',
+    input.subject,
+    null,
+    { subject: input.subject, detail: input.detail },
+    occurrence ?? new Date(),
+  );
+}
+

@@ -66,20 +66,12 @@ const KNOWN_UNREACHABLE: Record<string, string> = {
   'mailhosting-activated': 'the mail of a customer is not delivered yet',
   'mailhosting-canceled': 'the mail of a customer is not delivered yet',
   'mailhosting-renewal-reminder': 'the mail of a customer is not delivered yet',
-  // The alarms of the operator. Nothing watches the platform and publishes
-  // them, so the operator is blind to a backup that fails, a webhook that
-  // fails, a capacity that runs out or a certificate that expires.
-  'ops-provisioning-stuck': 'nothing watches the provisioning',
-  'ops-webhook-failures': 'nothing watches the webhooks',
-  'ops-delivery-failures': 'nothing watches the delivery of the messages',
-  'ops-backup-failed': 'nothing watches the backups',
-  'ops-offsite-backup-missing': 'nothing watches the backups',
-  'ops-restore-verification-failed': 'nothing watches the backups',
-  'ops-mailcow-unhealthy': 'nothing watches the mail server',
-  'ops-incident': 'nothing watches the platform',
-  'ops-capacity-critical': 'nothing watches the platform',
-  'ops-dns-certificate-failure': 'nothing watches the certificates',
-  'ops-security-change': 'nothing watches the platform',
+  // The alarms of the operator are no longer in this list: the sweep of the
+  // health of the platform (api/src/services/ops-health.ts) watches the
+  // provisioning, the webhooks, the delivery of the messages, the backups,
+  // the copy that leaves the host, the drill of the restore, the mail
+  // server, the capacity, the certificates, the incidents and the changes
+  // that touch the security, and it publishes them.
 };
 
 /** Every file of the source of the API. */

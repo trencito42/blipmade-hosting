@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/lib/password.js';
+import { assertSeedTargetIsSafe } from '../src/lib/seed-guard.js';
+import { seedMailPlanDrafts } from '../src/lib/mail-plan-drafts.js';
 
 const prisma = new PrismaClient();
 
@@ -175,133 +177,12 @@ const PRODUCTS: SeedProduct[] = [
   },
 ];
 
-/**
- * The plans of hosted mail.
- *
- * The plans are DRAFTS. They carry the limits that were proposed and no
- * price at all: the price of the mail is a commercial decision of the
- * operator, and the sale of the mail stays closed until the payment, the
- * mail system, the DNS, the backup and the delivery have been proved from
- * end to end.
- *
- * The limits that are written here are the limits that were PROPOSED. The
- * limits that are really applied are the smaller of them and the ceiling of
- * the platform (the MAIL_MAX_* values of the environment), so a plan can
- * never promise more than the platform can hold.
- */
-interface SeedMailPlan {
-  slug: string;
-  name: string;
-  description: string;
-  icon: string;
-  maxDomains: number;
-  maxMailboxes: number;
-  maxAliases: number;
-  maxForwarding: number;
-  totalStorageMb: number;
-  mailboxQuotaMb: number;
-  sendLimit: number;
-  sendInterval: 'MINUTELY' | 'HOURLY' | 'DAILY';
-  sortOrder: number;
-}
-
-const MAIL_PLANS: SeedMailPlan[] = [
-  {
-    slug: 'email-starter',
-    name: 'Email Starter',
-    description:
-      'Hosted mail for one domain, with the mailboxes and the aliases a small team needs. The price is not set yet.',
-    icon: 'mail',
-    maxDomains: 1,
-    maxMailboxes: 5,
-    maxAliases: 25,
-    maxForwarding: 5,
-    totalStorageMb: 5120,
-    mailboxQuotaMb: 1024,
-    sendLimit: 200,
-    sendInterval: 'HOURLY',
-    sortOrder: 100,
-  },
-  {
-    slug: 'email-plus',
-    name: 'Email Plus',
-    description:
-      'Hosted mail for a few domains, with more space and a larger sending limit. The price is not set yet.',
-    icon: 'mail',
-    maxDomains: 3,
-    maxMailboxes: 10,
-    maxAliases: 100,
-    maxForwarding: 10,
-    totalStorageMb: 10240,
-    mailboxQuotaMb: 1024,
-    sendLimit: 500,
-    sendInterval: 'HOURLY',
-    sortOrder: 101,
-  },
-  {
-    slug: 'email-business',
-    name: 'Email Business',
-    description:
-      'Hosted mail for a company: more domains, more space and a sending limit that follows the business. The price is not set yet.',
-    icon: 'mail',
-    maxDomains: 10,
-    maxMailboxes: 25,
-    maxAliases: 250,
-    maxForwarding: 25,
-    totalStorageMb: 102400,
-    mailboxQuotaMb: 4096,
-    sendLimit: 2000,
-    sendInterval: 'HOURLY',
-    sortOrder: 102,
-  },
-];
-
-/**
- * Writes the plans of hosted mail.
- *
- * Everything is idempotent: the seed can be run on every deploy. A plan that
- * the operator has already put on sale keeps its price and its state, because
- * the seed never touches the commercial decisions of the operator.
- */
-async function seedMailPlans(): Promise<void> {
-  for (const plan of MAIL_PLANS) {
-    const existing = await prisma.product.findUnique({ where: { slug: plan.slug } });
-    if (existing) {
-      // A plan that is already there belongs to the operator: its price, its
-      // state and the limits that were tuned in the back office are never
-      // written over by a deploy.
-      continue;
-    }
-
-    await prisma.product.create({
-      data: {
-        slug: plan.slug,
-        name: plan.name,
-        category: 'EMAIL_HOSTING',
-        fulfilment: 'EMAIL',
-        description: plan.description,
-        icon: plan.icon,
-        eggId: null,
-        visible: true,
-        // A draft is not on sale: the operator opens it when the price is
-        // written and the mail has been proved from end to end.
-        deployable: false,
-        sortOrder: plan.sortOrder,
-        mailMaxDomains: plan.maxDomains,
-        mailMaxMailboxes: plan.maxMailboxes,
-        mailMaxAliases: plan.maxAliases,
-        mailMaxForwarding: plan.maxForwarding,
-        mailTotalStorageMb: plan.totalStorageMb,
-        mailMailboxQuotaMb: plan.mailboxQuotaMb,
-        mailSendLimit: plan.sendLimit,
-        mailSendInterval: plan.sendInterval,
-      },
-    });
-  }
-  console.info(`Seeded ${MAIL_PLANS.length} draft plans of hosted mail.`);
-}
-
 async function main(): Promise<void> {
+  // The guard runs before the first write. The seed rebuilds the catalog of
+  // the platform, and the live database holds the customers: running the
+  // seed against it is how the platform lost its data on 2026-10-26.
+  assertSeedTargetIsSafe();
+
   console.info('Seeding catalog…');
   for (const product of PRODUCTS) {
     await prisma.product.upsert({
@@ -371,7 +252,10 @@ async function main(): Promise<void> {
     }
   }
   console.info(`Seeded ${PRODUCTS.length} products.`);
-  await seedMailPlans();
+  const mailPlans = await seedMailPlanDrafts(prisma);
+  console.info(
+    `Wrote ${mailPlans.written} draft plans of hosted mail and kept ${mailPlans.kept} that were already there.`,
+  );
 
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;

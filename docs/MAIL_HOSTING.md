@@ -1,497 +1,79 @@
 # The hosted mail
 
-The platform hosts the mail of its customers with a mail server of its own.
-This file says how it is put together, what the operator has to write down,
-and how every step is checked.
-
-Everything here is the state of the machine of the platform, measured. Nothing
-here is a secret: the keys are written as shapes, and the only real values are
-the ones that are public anyway (a certificate, a fingerprint, a record of
-DNS).
-
----
-
-## 1. What is where
-
-| Piece | Where |
-|---|---|
-| The mail server | VM `blipmade-mail`, `10.77.0.14` (private), `193.34.214.20` (public) |
-| The software | Mailcow, `/opt/mailcow-dockerized`, 18 containers |
-| The administrative API | `https://mail.blipmade.com/api/v1`, key in the header `X-API-Key` |
-| The code of the platform | `api/src/services/mailcow.ts` (the client), `api/src/services/mail.ts` (the service), `api/src/services/mail-dns.ts` (the records of DNS) |
-| The customer page | `web/src/app/Mail.tsx`, at `/email` |
-| The back office page | `web/src/admin/Mail.tsx`, at `/admin/mail` |
-| The tables of the platform | `MailDomain`, `Mailbox`, `MailAlias`, `MailJob` |
-
-The public address of the mail server is the address of the platform itself
-(`193.34.214.20`). The traffic of the mail is translated to the machine of the
-mail by the rules of the network of the platform
-(`/usr/local/sbin/blipmade-network.sh`, unit `blipmade-network.service`). The
-rules are written down there and they are applied on every boot.
-
----
-
-## 2. The variables of the environment
-
-The file of the environment of the platform is `/opt/blipmade/.env` on the
-host of the platform (VM `10.77.0.13`). It is never in the repository. The
-shapes are in `.env.example` at the root of the repository.
-
-| Variable | Format | Meaning |
-|---|---|---|
-| `MAILCOW_API_URL` | `https://<name of the machine>` | The administrative API of the mail server. |
-| `MAILCOW_API_KEY` | long hexadecimal string | The key of the platform. It never reaches the browser. |
-| `MAILCOW_API_CERT_SHA256` | 64 hexadecimal characters | The fingerprint of the certificate of the mail server. It is the SHA-256 of the certificate, in lower case. It is empty when the certificate is signed by an authority the machine trusts. |
-| `MAIL_HOSTNAME` | a name of a host | The name of the machine of the mail server. It is the name in the certificate and the name that the DNS of the hosted domains points at. |
-| `MAIL_WEBMAIL_URL` | a URL | Where the customer reads the mail. |
-| `MAIL_RUA_ADDRESS` | a bare address | The mailbox that receives the reports of DMARC. |
-| `MAIL_MAX_DOMAINS_PER_CUSTOMER` | a whole number | How many domains of mail one customer may host. Default `3`. |
-| `MAIL_MAX_MAILBOXES_PER_DOMAIN` | a whole number | How many mailboxes one domain may hold. Default `10`. |
-| `MAIL_MAX_ALIASES_PER_DOMAIN` | a whole number | How many aliases one domain may hold. Default `100`. |
-| `MAIL_MAX_QUOTA_MB_PER_MAILBOX` | a whole number | The space of one mailbox, in megabytes. Default `1024`. |
-| `MAIL_MAX_QUOTA_MB_PER_DOMAIN` | a whole number | The space of one domain, in megabytes. Default `10240`. |
-| `SMTP_URL` | `smtp://<mailbox>%40<domain>:<password>@<host>:587` | The relay of the transactional mail. The name of the mailbox is the **whole address**, written with `%40` for the `@`, because the relay refuses to send in the name of another mailbox. |
-| `SMTP_CA_FILE` | a path of a file in PEM | The certificate of the relay, when the relay is signed by nobody the machine trusts. |
-
-### The value that is written today
-
-```
-MAILCOW_API_URL=https://mail.blipmade.com
-MAILCOW_API_CERT_SHA256=7c9a7865a7ad3c5a9a05a4f4bb414640d643c85c392bad1ce2c409cbbaca25be
-MAIL_HOSTNAME=mail.blipmade.com
-MAIL_WEBMAIL_URL=https://mail.blipmade.com
-MAIL_RUA_ADDRESS=postmaster@blipmade.com
-SMTP_CA_FILE=/opt/blipmade-mail/mailcow-ca.pem
-```
-
-`MAILCOW_API_KEY` and `SMTP_URL` carry secrets and are not written in this
-file. They are in `/opt/blipmade/.env` on the host of the platform, with the
-rights of the file that only the owner can read.
-
----
-
-## 3. What the platform does, and what it does not
-
-**It does** create the domains, the mailboxes and the aliases of the customer,
-it tells the customer which records of DNS to publish, and it checks with a
-real lookup what is really published.
-
-**It does not** write the records of DNS of a customer. The DNS of a domain
-belongs to the customer, and a record that the platform writes itself could
-overwrite something the customer needs. The platform shows the record and it
-checks the record; publishing it is the work of the customer.
-
-The checks of the DNS compare the way the record is really written and not the
-way the platform wrote it: the parts of a record of TXT are compared without
-their order, the key of a record of DKIM is compared and not the whole record,
-and the name of a host is the same with a trailing dot and without it.
-
----
-
-## 4. The steps that are still in the hands of the operator
-
-Each step says what is missing, the exact value, where it goes and how it is
-checked. The values are the shapes; the real values are written by the
-operator.
-
-### 4.1 A public address of its own for the mail
-
-**What is missing.** The mail leaves the platform through `193.34.214.20`, the
-address of the platform itself. That address is also the address of the web
-site, of the panel and of the node. A mail server that shares its address
-with everything else has the reputation of everything else.
-
-**What the operator has to do.** Ask the provider for one more address in the
-block `193.34.214.0/24`. The addresses that are routed today are `.20`,
-`.86`, `.87` and `.143`; the others of the block are not routed and the
-platform cannot route them by itself.
-
-**Where.** In the rules of the network of the platform,
-`/usr/local/sbin/blipmade-network.sh`, and then in the rules of the provider.
-
-**How it is checked.**
-
-```bash
-# from outside the platform
-curl -sS "https://check-host.net/check-tcp?host=<the new address>:25&max_nodes=3"
-```
-
-The answer must be `OK` from three nodes. The same check is done for `587`
-and `993`.
-
-### 4.2 The reverse name of the address of the mail
-
-**What is missing.** There is no `PTR` for any of the four addresses of the
-platform. A receiver that cannot find the reverse name of the address that
-sends the mail holds the message or throws it away.
-
-**What the operator has to do.** Ask the provider for
-`PTR mail.blipmade.com` on the address of the mail, and for the matching
-forward name.
-
-**How it is checked.**
-
-```bash
-host -t PTR <the address of the mail> | tail -2
-# the answer must be mail.blipmade.com
-```
-
-### 4.3 The name of the mail server in the DNS
-
-**What is missing.** `mail.blipmade.com` does not exist in the DNS. The
-certificate of the mail server is signed by nobody until the name is
-published, and the customers cannot point their records of MX at a name that
-does not exist.
-
-**What the operator has to do.** Publish an `A` record for `mail.blipmade.com`
-with the address of the mail, and the records that the platform shows in the
-customer page for every hosted domain:
-
-| Type | Name | Value |
-|---|---|---|
-| `MX` | `<the domain of the customer>` | `mail.blipmade.com` (priority `10`) |
-| `TXT` | `<the domain of the customer>` | `v=spf1 mx -all` |
-| `TXT` | `_dmarc.<the domain of the customer>` | `v=DMARC1; p=none; rua=mailto:postmaster@blipmade.com` |
-| `CNAME` | `autodiscover.<the domain of the customer>` | `mail.blipmade.com` |
-| `CNAME` | `autoconfig.<the domain of the customer>` | `mail.blipmade.com` |
-| `TXT` | `dkim._domainkey.<the domain of the customer>` | the record that the customer page shows, with the key of the domain |
-
-**How it is checked.** The customer page shows the state of every record, and
-the state is a real lookup: `verified` means that every record is published
-with the value the platform expects. From outside:
-
-```bash
-host -t MX <the domain of the customer> | tail -2
-host -t TXT dkim._domainkey.<the domain of the customer> | tail -2
-```
-
-### 4.4 The certificate of the mail server
-
-**What is missing.** The certificate of the mail server is signed by itself,
-because the name of the machine was not in the DNS when it was made. The
-platform does not trust it blindly: it compares the fingerprint of the
-certificate with the one the operator wrote down
-(`MAILCOW_API_CERT_SHA256`). The mail server can also answer with a real
-certificate once the name is published.
-
-**What the operator has to do.** Publish the name of the machine (4.3), then
-let the mail server make its own certificate:
-
-```bash
-cd /opt/mailcow-dockerized
-sudo docker compose up -d acme-mailcow        # the container that makes the certificate
-sudo docker compose restart nginx-mailcow postfix-mailcow dovecot-mailcow
-```
-
-After that the fingerprint changes, and the platform has to be told the new
-one:
-
-```bash
-sudo openssl x509 -in /opt/mailcow-dockerized/data/assets/ssl/cert.pem \
-  -noout -fingerprint -sha256
-```
-
-The answer is the new `MAILCOW_API_CERT_SHA256` (the colons are removed and
-the letters are lower case). When the certificate is signed by an authority
-the machine trusts, the variable may be emptied.
-
-**How it is checked.**
-
-```bash
-curl -sS -H "X-API-Key: $MAILCOW_API_KEY" https://mail.blipmade.com/api/v1/get/status/version
-# the answer must be {"version":"..."} and not an error about the certificate
-```
-
-### 4.5 The key of the API of the mail server
-
-**What is missing.** The key that the platform uses was written down when it
-was made, and it was shown in the transcript of the work. A key that was
-shown is a key that has to be replaced before the service carries the mail of
-real customers.
-
-**What the operator has to do.** Make a new key with the same rights
-(`read` and `write`, and the list of the addresses that may call) and write it
-in `/opt/blipmade/.env` as `MAILCOW_API_KEY`. The old key is removed from the
-mail server.
-
-**How it is checked.**
-
-```bash
-curl -sS -H "X-API-Key: <the new key>" https://mail.blipmade.com/api/v1/get/domain/all
-# the answer must be the list of the domains, and not "access_denied"
-```
-
-### 4.6 The key of DKIM of the domain of the platform
-
-**What is missing.** The mail that the platform sends is signed with a key of
-DKIM for `blipmade.com`, and the public part of it is not published yet. The
-mail is delivered, but it is not signed, and a receiver that wants a signature
-holds it.
-
-**What the operator has to do.** Publish this record of `TXT` at
-`dkim._domainkey.blipmade.com`:
-
-```
-v=DKIM1;k=rsa;t=s;s=email;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5wgS9BK4QkobmkbTO0hmP8g0Dqsd8JcGOtRaMOw+RpjFECqqATtyuwpBmnFypE7Lq7aD9WE0g53PqD/WVY8UwgnvPxpuvxftEv2kvlEyCCsVK5z5o7CZXCv2xZSFHnFhCScRmue2IRL7ZkrP2YWXIkcZh+fFAwASGZrpYu2KrAg8Kss7+UFonGyECwiqvwYE2V/fGSLil0Qa3jTo1OdbNtjqV02qqt7ZE9bOtcGhkLYUZvXxETUptSEfkFCfguSfDEz5rjIdNolqvFlkdXuPGOuC9WtMDhBnMJ6mzG3VgKDQ0RlYHDUEnwcq/uR3dsvPBDwm0i9pO1+T6vg1lkicPwIDAQAB
-```
-
-**How it is checked.** The same record is read back by the customer page of
-the hosted domain, and the signature of a message that the platform sends is
-read with any reader of mail:
-
-```bash
-host -t TXT dkim._domainkey.blipmade.com | tail -2
-```
-
-### 4.7 The relay of the transactional mail
-
-**What is missing.** The relay of the platform is `no-reply@blipmade.com` in
-the mail server of the platform. The path was measured end to end: the
-platform sent a message, the mail server took it, signed it and delivered it,
-and the message was read back over IMAP with its real headers.
-
-What is missing is the **switching on** of the relay in the production
-environment, and it is on purpose: the key of DKIM of `blipmade.com` is not
-published yet (4.6), and a message that carries a signature that cannot be
-checked is worse than a message without a signature.
-
-**What the operator has to do.** After the record of DKIM is published:
-
-1. Write the relay in `/opt/blipmade/.env`:
-
-```
-SMTP_URL=smtp://no-reply%40blipmade.com:<the password of the mailbox>@mail.blipmade.com:587
-SMTP_CA_FILE=/opt/blipmade-mail/mailcow-ca.pem
-```
-
-The password of the mailbox is in `/opt/blipmade-mail/platform-mailboxes.pass`
-on the host of the platform, and it is not written in this file.
-
-2. Tell the host of the platform where the mail server is, until the name is
-   in the DNS (4.3). The line is in `/etc/hosts` and it is marked:
-
-```
-10.77.0.14 mail.blipmade.com # blipmade: mail server, until the name is in the DNS
-```
-
-3. Recreate the containers of the API and of the worker, so they read the new
-   environment:
-
-```bash
-cd /opt/blipmade
-sudo docker compose up -d --force-recreate api worker
-```
-
-**How it is checked.** The message of a customer is read in the back office,
-at `/admin/deliveries`, and the state of it is `delivered`. It is not
-`written-to-file`: the second one means that the message was written on the
-disk and nobody received it.
-
-### 4.8 The name of the mail server in the container of the platform
-
-**What is missing.** The container of the API does not read the file of the
-hosts of the host. When the name of the machine is in the DNS, this step
-disappears on its own.
-
-**What the operator has to do.** Until then, add the name to the container:
-
-```yaml
-# compose.api.yml
-services:
-  api:
-    extra_hosts:
-      - "mail.blipmade.com:10.77.0.14"
-```
-
-**How it is checked.**
-
-```bash
-sudo docker compose exec api getent hosts mail.blipmade.com
-```
-
----
-
-## 5. The backupe of the mail
-
-The mail server has its own scripts, in
-`/opt/mailcow-dockerized/helper-scripts/`:
-
-- `backup_and_restore.sh` — makes a backupe of the whole mail server and
-  restores it. It asks what it has to do.
-- `backup-all.sh` — the backupe of everything: the database, the mail, the
-  configuration and the certificates.
-
-A backupe is not a backupe until it was restored. The drill is the script of
-the platform, `scripts/restore-drill.sh`, and it has to end with a message
-that was read back from the restored copy.
-
-The copy of the mail has to leave the machine: the backupe of the platform
-(`scripts/backup.sh`) and the copy that goes off the site
-(`scripts/backup-offsite.sh`) carry the database of the platform, and the mail
-of the customers lives in the mail server and not in the database of the
-platform. The two copies are two things and both are needed.
-
----
-
-## 6. What is measured, and how
-
-| What | How it was measured | Result |
-|---|---|---|
-| The mail server answers | `get/status/version` | `55982ac` |
-| The disk of the mail | `get/status/vmail` | 6.6 G of 127 G |
-| A domain is created and really exists | The platform creates it and reads the list of the mail server | The domain is in the mail server, with 10 mailboxes and 100 aliases |
-| The key of DKIM is made and is readable | The platform reads `get/dkim/<domain>` | The public part is there and the record of DNS is produced |
-| A mailbox is created | The platform creates it | The password is shown once and it is nowhere else |
-| An alias is created and removed | The platform creates it and removes it | It works, and it is removed by the address |
-| The platform sends through the relay | The platform sends a message to a mailbox of the mail server | `delivered`, and the message is read back over IMAP with a real signature of DKIM |
-| The certificate is the one that was expected | The client of the mail server compares the fingerprint | A certificate that is not the one is refused |
-
----
-
-## 7. The sale of hosted mail
-
-The mail of the platform is a product of its own: a customer can buy it alone,
-without a server and without a panel, and can add it to the order of a server
-as an extra line. The plans are in the same catalog as the applications and
-they are managed from the same back office.
-
-### 7.1 How the catalog of the mail works
-
-| Piece | Where |
-|---|---|
-| The category of the plans | `EMAIL_HOSTING`, in `api/prisma/schema.prisma` |
-| What a plan delivers | `Product.fulfilment = EMAIL` — no egg, no node, no instance |
-| The limits of a plan | `mailMaxDomains`, `mailMaxMailboxes`, `mailMaxAliases`, `mailMaxForwarding`, `mailTotalStorageMb`, `mailMailboxQuotaMb`, `mailSendLimit`, `mailSendInterval` |
-| The price of a plan | `ProductPrice` — one row per period, `baseAmount` in minor units |
-| The identity of the mail | `MailService` — it has no instance and it has its own life |
-| The proof of ownership of a domain | `MailDomain.ownershipStatus` + the record `_blipmade-verify.<domain>` |
-| The back office of the plans | `/admin/mail/plans` (the API) and `/admin/mail` (the interface) |
-
-The limits of a plan are the limits of the customer and the `MAIL_MAX_*`
-values of the environment are the ceiling of the platform. The limit that is
-really applied is the smaller of the two, so a plan can never promise more
-than the platform can hold. A plan may be a draft that asks for more than the
-ceiling; what is refused is selling such a plan.
-
-Three plans are written by the seed, as drafts: `email-starter`,
-`email-plus` and `email-business`. They carry the limits that were proposed
-and **no price at all**, so they can be read in the storefront and cannot be
-bought.
-
-### 7.2 The steps that are still in the hands of the operator
-
-The sale of the mail is closed by default. `MAIL_SALES_ENABLED=false` means:
-the plans are listed, the customer can read the limits, and the checkout says
-in words that hosted mail is not on sale at the moment. Every step below is
-checked before that switch is opened.
-
-#### 7.2.1 The price of the plans
-
-**What is missing.** The plans have no price. The seed writes none and the
-platform never invents one.
-
-**Where it goes.** The back office of the plans of mail, at `/admin/mail`
-(the tab of the plans), or the API of the back office:
-`PATCH /admin/mail/plans/:id` with
-`{ "prices": [ { "period": "MONTHLY", "amount": 0, "currency": "EUR" } ] }`.
-
-**The shape of the value.** `amount` is a whole number in **minor units**
-(cents): `1990` is 19.90 EUR. `period` is `MONTHLY` or `YEARLY`. `currency` is
-the ISO code of the money.
-
-**How it is checked.** `GET /mail/plans` answers with `price.amount` and
-`price.period` for the plan, and the storefront shows the same amount. The
-quote of the order answers with the same number:
-`POST /catalog/quote` with `items: [ { "productSlug": "email-plus" } ]`.
-
-#### 7.2.2 The keys of the payment provider
-
-**What is missing.** The platform has no key of the payment provider, so the
-payment of a line of mail cannot be proved.
-
-**Where it goes.** The environment of the API container, in `/opt/blipmade/.env`:
-`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`.
-
-**The shape of the value.** Three strings that start with the prefix of the
-provider. The secret of the webhooks is the one of the endpoint of the webhooks
-of the provider, not a key of the API.
-
-**How it is checked.** The payment of the test mode of the provider is made
-with a card of the provider and the event of the payment arrives at
-`/webhooks/stripe`. The order of the customer passes from `AWAITING_PAYMENT`
-to `PAID`, and the line of the mail passes to `PROVISIONING` without a second
-payment: the event that arrives twice must not create a second mail service.
-
-#### 7.2.3 The name of the mail server in the DNS
-
-**What is missing.** `mail.blipmade.com` does not resolve, so no client of
-mail can accept the certificate of the mail server and no customer can
-publish an MX that leads to it.
-
-**Where it goes.** The DNS of the zone `blipmade.com`, at the provider of the
-names of the domain: an `A` record for `mail.blipmade.com` that points to the
-public address of the mail server (today `193.34.214.20`, and the address of
-its own once it is allocated).
-
-**How it is checked.** `dig +short mail.blipmade.com` answers with the public
-address of the mail server, and the mail server answers on the port 443 with a
-certificate that carries the name in its `SAN`.
-
-#### 7.2.4 The certificate of the mail server
-
-**What is missing.** The certificate of the mail server is self-signed and has
-no `SAN`, so it is accepted only by the client of the platform, which compares
-the fingerprint by hand.
-
-**Where it goes.** The environment of the platform: `MAILCOW_API_CERT_SHA256`
-(the fingerprint, in lower case hex, of the certificate that is served) and,
-for the clients of mail, `SMTP_CA_FILE` (the path of the file of the
-certificate of the authority).
-
-**How it is checked.** `curl -sS https://mail.blipmade.com/api/v1/get/status/version`
-answers without a warning of the certificate, and a message sent through the
-relay with `SMTP_CA_FILE` is accepted.
-
-#### 7.2.5 The backup of the mail, off the machine
-
-**What is missing.** The backup of the mail is on the machine itself, on a
-RAID 0, and the copy off the machine is not configured.
-
-**Where it goes.** The environment of the machine of the mail:
-`OFFSITE_TARGET` (the target of the copy: a bucket or a machine), and the
-tools `age` and `rclone` on the machine.
-
-**How it is checked.** `sudo bash backup-mail.sh drill` restores the last
-archive on a scratch directory and counts the domains, the mailboxes and the
-messages that came back. The same count has to be the count of the archive.
-
-#### 7.2.6 The proof of ownership of a domain
-
-**What is missing.** Nothing is missing: the customer proves that a domain is
-theirs with a record of DNS of his own.
-
-**Where it goes.** The DNS of the domain of the customer: a record of type
-`TXT` at `_blipmade-verify.<domain>` that holds the token that the platform
-shows in the dashboard.
-
-**How it is checked.** The button "Check the proof" of the dashboard. When the
-proof is good, the domain is hosted by the mail server within a minute, and
-the domain appears in the back office with the mark of the service that owns
-it.
-
-### 7.3 The order of the steps
-
-The order matters. The sale is opened in the last step, and it is opened only
-when every step above has its proof:
-
-1. the name of the mail server in the DNS (7.2.3) and the certificate (7.2.4);
-2. the keys of the payment provider (7.2.2) and the payment proved in the test
-   mode of the provider;
-3. the price of the plans (7.2.1);
-4. the backup off the machine and the drill of the restoration (7.2.5);
-5. `MAIL_SALES_ENABLED=true` in the environment of the API, and a restart of
-   the API and of the worker.
-
-After the restart, `GET /mail/plans` answers with `onSale: true` for the
-plans that have a price, and `GET /catalog/quote` answers with the price of a
-line of mail instead of a refusal.
+The platform can host the mail of a customer on the Mailcow of the operator.
+This document says what the platform offers today, what it does not offer
+yet, and what has to happen before the mail can be sold.
+
+## What exists today
+
+Three plans exist in the catalog of the platform. They are written by the
+seed (`api/prisma/seed.ts`), and their shape lives in
+`api/src/lib/mail-plan-drafts.ts`, because the same shape is needed by the
+seed, by the tests and by the back office.
+
+| Plan | Domains | Mailboxes | Aliases | Forwarding | Space of the plan | Space of a mailbox | Sending limit |
+|---|---|---|---|---|---|---|---|
+| `email-hosting-starter` | 1 | 2 | 20 | 3 | 512 MB | 256 MB | 100 messages / hour |
+| `email-hosting-plus` | 2 | 5 | 50 | 6 | 5120 MB | 512 MB | 250 messages / hour |
+| `email-hosting-business` | 3 | 10 | 100 | 10 | 30720 MB | 1024 MB | 500 messages / hour |
+
+The ladder is the same in every column: the bigger the plan, the more it
+holds. Every number is under the ceiling of the platform, which is the
+default of the environment today: three domains, ten mailboxes and a hundred
+aliases for a domain, a thousand and twenty four megabytes for a mailbox, ten
+thousand two hundred and forty megabytes for a domain and five hundred
+messages for an hour.
+
+A plan that was still there under an old name is renamed instead of being
+written a second time, so a plan that the operator has already put on sale
+keeps its address.
+
+## What is NOT there
+
+**No price.** A price that the platform invented would be an offer, and an
+offer that nobody decided is not an offer. The three plans have no
+`ProductPrice` row, and the catalogue says so.
+
+**No sale.** The three plans are written with `visible: false` and
+`deployable: false`:
+
+- `visible: false` keeps them out of the public catalogue.
+- `deployable: false` makes the order refuse. The catalogue, the quote and
+  the order all refuse the same way, so there is no path by which a customer
+  can order a plan that is not ready.
+
+The sale of the mail is closed by `MAIL_SALES_ENABLED`, which is off by
+default and is read at the moment it is asked for, so it can be opened and
+closed without a restart.
+
+## What has to happen before the mail is sold
+
+In this order, because each one unblocks the next.
+
+1. **The name of the mail server in the public DNS.** `mail.blipmade.com` has
+   to point at the machine of the mail, as a record that is **not** proxied
+   by Cloudflare. A name that is proxied does not serve SMTP, and the
+   certificate of the server cannot be issued for it.
+2. **The certificate of the mail server**, so that the clients of the
+   customers do not see a warning. The relay of the platform verifies the
+   certificate of the mail server against the certificate that the operator
+   wrote down (`SMTP_CA_FILE`); the verification is never turned off.
+3. **The price of every plan**, written in the back office. The price is a
+   decision of the operator and it is not invented.
+4. **The backup of the mail.** The mail of the customers is in the Mailcow
+   and not in the backup of the platform. `scripts/backup-mail.sh` exists for
+   it, and it has to run and be proved.
+5. **The restore of the mail**, proved the same way.
+6. **The payment of the mail**, proved with a real order and a real payment,
+   with the webhooks of the provider answering.
+7. **The provisioning of the mail**, proved from the order to the mailbox
+   that receives the first message.
+8. **Then, and only then:** `deployable: true`, `visible: true` and
+   `MAIL_SALES_ENABLED=true`.
+
+## What is watched
+
+The plans of the mail are part of the health of the platform: the sweep
+checks the certificate of the mail server, the delivery of the messages and
+the mail server itself, and it says so in `/admin/ops`. See
+`docs/OPERATIONS-HEALTH.md`.
