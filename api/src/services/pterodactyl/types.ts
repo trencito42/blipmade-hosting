@@ -170,6 +170,8 @@ export interface PteroStatsAttributes {
     disk_bytes?: number;
     network_rx_bytes?: number;
     network_tx_bytes?: number;
+    /** The time the container has been up, in milliseconds. */
+    uptime?: number;
   };
 }
 
