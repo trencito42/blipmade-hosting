@@ -1,7 +1,7 @@
 # Blipmade — the state of the platform, second round
 
 **Date:** 2026-10-26
-**Live commit:** `7afe5a3` ("Close the failures of the instances that are gone, so the operator is not waited for nothing")
+**Live commit:** `02a531e` (the merge of the bump of the types of node)
 **Branch that was integrated:** `fix/ops-readiness-and-stripe` (fast-forward into `main`)
 **Production:** `10.77.0.13` (`/opt/blipmade`), edge `10.77.0.12`, mail `10.77.0.14`, panel `10.77.0.10`, node `10.77.0.11`, hypervisor `193.34.214.20`
 
@@ -20,6 +20,7 @@
 | The node of the panel | The daemon of the node is reached over the private network by the panel and by the platform, and the port 8080 is no longer forwarded from the internet. |
 | The queue of the operator | A failure of an instance that is gone is closed by itself, so the operator is not waited for nothing. |
 | The cluster | 65 idle scratch databases of old test runs were dropped (about 700 MB). |
+| The dependencies | Five of the eight branches that Dependabot proposed were evaluated and integrated: the three actions of the workflows, the plugin of the uploads and the types of node. Two were kept out: Prisma 7 and Stripe 23 (the reasons are in section 5). |
 
 ---
 
@@ -50,6 +51,7 @@
 | The databases of the old test runs | DONE & VERIFIED LIVE | 65 scratch databases were dropped; the cluster holds the live database, the scratch one and the one of the system |
 | The instance 20 | BROKEN / INCOMPLETE | the container was stopped by a reinstall of an earlier version; the container is not started again from here, because it is the service of a customer |
 | The backup | DONE & VERIFIED LIVE | the backup with the role of the application ends with `result: success` |
+| The dependencies of the platform | DONE & VERIFIED LIVE | five bumps integrated and validated by the suite and by the CI; two major upgrades kept out with the reason written down |
 
 ---
 
@@ -135,12 +137,12 @@ the suite of the tests:        103 files / 988 tests, with the role of the test
 
 | Step | Result |
 |---|---|
-| The suite of the tests, before the integration | 105 files / 999 tests green, with the isolated role |
+| The suite of the tests, on the final tree | 105 files / 999 tests green, with the isolated role |
 | The type check (`tsc -p tsconfig.json`, the command of the Dockerfile) | clean |
-| The migration of the schema | nothing to migrate: the schema did not change |
-| The integration in `main` | fast-forward, no force-push, no branch deleted |
-| The CI of GitHub | green on `4266b08` (run 40340478866, seven jobs) and on `7afe5a3` |
-| The deployment | the API and the worker were rebuilt and restarted |
+| The migration of the schema | checked before the deployment: 17 migrations, "Database schema is up to date"; nothing was applied |
+| The integration in `main` | fast-forward for the repairs, merge commits for the bumps; no force-push, no branch deleted |
+| The CI of GitHub | green on `4266b08`, `7afe5a3`, `022f238`, `d5413ad`, `b0df4c4` and on the final `02a531e` (run 40358266009, seven jobs) |
+| The deployment | the API and the worker were rebuilt and restarted; the image that runs is `e49b68016e50` and it holds the plugin of the uploads in the tenth major version |
 | The smoke of the production | 31/31 |
 | The backup | `result: success`, three archives written (before the deployment, after it and at the end) |
 
@@ -155,6 +157,8 @@ the suite of the tests:        103 files / 988 tests, with the role of the test
 | The data of a customer stayed on the mail server after the retention | the mail system refused to delete a domain with mailboxes and the platform swallowed the refusal | `tests/mail-domain-removal.test.ts`, `tests/mail-commerce-flow.test.ts` |
 | The suite ran as the owner of the live database | reading the command line of the runner | the runner reads the file of the root; `scripts/db-roles.sh` gives the rights |
 | The failure of an instance that is gone was put back on the queue | the test of the dead letter failed after the change that refuses it | `tests/provisioning-dead-letter-requeue.test.ts` |
+| Prisma 7 does not accept the schema of the platform | `prisma generate` with Prisma 7: "The datasource property `url` is no longer supported in schema files" | kept out of `main`: the connection moves to `prisma.config.ts` and the client needs an adapter, which is a migration of the data layer and not a bump |
+| Stripe 23 changes the shape of the answers | the type check: `current_period_start` is not on the subscription any more, the invoice has no `paid` any more, and the version of the API is a new one | kept out of `main`: the version of the API of the provider changes what the webhooks carry, so it needs a migration of the code and a validation of the way of paying |
 | The queue of the operator held a failure of an instance that was deleted | the log of the worker: one failure was waiting for an operator since 2026-10-25, and the instance was gone | `tests/dead-letter-gone-instance.test.ts` |
 | 18 events of the catalogue were never published | the audit of the events | `tests/notification-*.test.ts` |
 
