@@ -193,3 +193,61 @@ The platform runs, the services come back on their own, the mail of a customer i
 3. The verification of the ports from outside can be run again as soon as there is a way to reach the internet from here.
 4. The wildcard of the domains can be checked as soon as the record exists.
 5. The tests can be run again on every change, and the integration of the branches that wait (the dependabot ones, which are risky and are not taken by themselves) can be done one by one.
+
+---
+
+## 8. The consolidation of the repository, and the last verification
+
+This section was written after the last round, when every branch and every worktree of the machine was audited once more, the whole suite was run on the final `main`, and the running platform was compared with a fresh build of that same `main`.
+
+### 8.1 The branches and the worktrees
+
+`git branch --no-merged main` returns nothing: every commit of every local branch of the machine is already in `main`. The only branches that are not in `main` are the eight Dependabot branches on the remote, and they are kept there on purpose.
+
+| Branch | What it holds | Why it is not in `main` |
+| --- | --- | --- |
+| `dependabot/npm_and_yarn/api/prisma-7.10.1` | Prisma 7.10.1 | `prisma generate` fails with `P1012`: the `url` of the datasource is not supported any more, the client needs an adapter and a `prisma.config.ts`. It is a migration of the data layer, not a bump. |
+| `dependabot/npm_and_yarn/api/prisma/client-7.10.1` | `@prisma/client` 7.10.1 | The same migration, for the client. |
+| `dependabot/npm_and_yarn/api/stripe-23.0.0` | Stripe 23.0.0 | The types of the new version do not have `current_period_start`, `current_period_end` or `invoice.paid` any more, and the version of the API changes the shape of the webhooks. The payloads of the payments would have to be rewritten. |
+
+The 30 worktrees of the machine were opened and read one by one. Not one of them has a commit that `main` does not have. The 33 files that are not committed in them are:
+
+- 14 symlinks of `node_modules` that point to the installation of the platform. They are the artefacts of the worktrees, not work.
+- 7 ad-hoc scripts of the measurements (`perf-db-name.py`, `perf-db-url.py`, `perf-db.sh`, `perf-stack.sh`, `phase16-patch.py`, `phase16-patch2.py`, `phase16-patch3.py`) and the old runner `run-tests.sh` of `wt-phase16`.
+- `api/probe-instance-state.mts` of `wt-stripe`, a probe of the state of an instance.
+- 2 copies of test files that `main` already has: `api/tests/phase14-rate-limits.test.ts` is byte for byte the file of `main`, and `api/tests/phase15-order-lifecycle.test.ts` is a strict subset of the file of `main` (the two tests of the subscription that `main` added are missing from the copy).
+- The 4 files of the two bumps that were kept out: `api/package.json` and `api/package-lock.json` of `wt-dep-prisma` and of `wt-dep-stripe`. The same work is on the remote Dependabot branches, so nothing is lost.
+
+No worktree and no branch was deleted.
+
+### 8.2 The tests of the final `main`
+
+| Suite | Result |
+| --- | --- |
+| The API (`scripts/run-tests.sh`, with the isolated role `blipmade_test`) | 105 files, 999 tests, all green |
+| The web (`node --test --experimental-strip-types`) | 279 tests in 52 suites, all green |
+
+The suite exited with the code 0 on `/opt/blipmade` at the commit `f4cec9b`.
+
+### 8.3 The CI
+
+| Run | Commit | Result |
+| --- | --- | --- |
+| 161 | `f4cec9b` | green |
+| 156 | `02a531e` | green |
+| 155 | `79389b8` | green |
+| 152 | `b0df4c4` | green |
+| 151 | `b239b87` | green |
+| 150 | `d5413ad` | green |
+| 148 | `022f238` | green |
+| 147 | `7afe5a3` | green |
+| 146 | `4266b08` | green |
+
+### 8.4 The platform that answers
+
+The three images of the platform were compared with a fresh build of the final `main`, file by file:
+
+- `blipmade-api-1` and `blipmade-worker-1`: the compiled output of the running containers is byte for byte the output of a fresh build of `main` (178 files each).
+- `blipmade-web-1`: the bundle that the server sends is the same bundle (`assets/index-DKzUj6L3.js`), and the container was recreated from the image that was built from `main` (`sha256:8d0a1a8f47fd`).
+
+The five containers are healthy, the smoke test answers 31 checks out of 31, and the backup taken before the deployment is on the machine with its checksum: `blipmade-pre-final-2026-10-26-20261026T161954Z.tar.gz` (`3ce912ebf251bb7ffc2499fbe94c3f8fd3a7195e7c7953196e68db5f6650ff8c`).
