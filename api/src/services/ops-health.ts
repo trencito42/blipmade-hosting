@@ -1208,6 +1208,40 @@ async function publishFinding(finding: OpsFinding, now: Date): Promise<void> {
 }
 
 /**
+ * Marks the findings that are not there any more as resolved.
+ *
+ * A finding that is not there any more is not forgotten: it is marked as
+ * resolved, so that the same finding, when it comes back, is reported again
+ * instead of being held back as if the operator already knew about it.
+ *
+ * The function returns how many findings were resolved.
+ */
+async function resolveMissingFindings(check: OpsCheckId, findings: OpsFinding[]): Promise<number> {
+  const present = new Set(findings.map((finding) => finding.fingerprint));
+  let resolved = 0;
+  try {
+    const keys = await redis.keys(`ops:state:${check}:*`);
+    for (const key of keys) {
+      const raw = await redis.get(key);
+      if (!raw) continue;
+      let state: OpsAlertState;
+      try {
+        state = JSON.parse(raw) as OpsAlertState;
+      } catch {
+        continue;
+      }
+      if (state.status !== 'firing') continue;
+      if (present.has(state.fingerprint)) continue;
+      await writeState({ ...state, status: 'ok' });
+      resolved += 1;
+    }
+  } catch (error) {
+    console.error('[ops] the findings that were resolved could not be marked', (error as Error).message);
+  }
+  return resolved;
+}
+
+/**
  * The result of a sweep.
  */
 export interface OpsSweepResult {
@@ -1234,6 +1268,10 @@ export async function runOpsSweep(now: Date = new Date()): Promise<OpsSweepResul
   let recovered = 0;
 
   for (const check of checks) {
+    // The findings that are not there any more are marked as resolved, so
+    // that the same one can be reported again when it comes back.
+    recovered += await resolveMissingFindings(check.id, check.findings);
+
     for (const finding of check.findings) {
       findings += 1;
       const state = await readState(check.id, finding.fingerprint);

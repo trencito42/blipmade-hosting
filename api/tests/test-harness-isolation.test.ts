@@ -39,6 +39,30 @@ describe("the isolation of the test suite", () => {
     expect(runner).toContain("mkdir -p \"$BACKUP_DIR/mail\"");
   });
 
+  it("writes the receipts of the operations into a directory of its own", async () => {
+    const runner = await readFile(RUNNER, "utf-8");
+
+    const match = /^export OPS_STATUS_DIR="\$\{TEST_OPS_STATUS_DIR:-([^}]+)\}"/m.exec(runner);
+    expect(match).not.toBeNull();
+    const directory = match![1]!;
+
+    expect(directory).not.toBe("/var/backups/blipmade/status");
+    expect(directory.startsWith("/var/backups/blipmade/")).toBe(false);
+  });
+
+  it("leaves the receipts of the platform alone", async () => {
+    const runner = await readFile(RUNNER, "utf-8");
+
+    const override = /^export OPS_STATUS_DIR="\$\{TEST_OPS_STATUS_DIR:-([^}]+)\}"/m.exec(runner);
+    expect(override).not.toBeNull();
+
+    // The scripts of the backups write into the directory of the state of the
+    // operations, and the platform reads that directory to know whether the
+    // backup of the night happened. A suite that writes there replaces the
+    // receipts of the platform with the receipts of its own run.
+    expect(override![1]!).not.toContain("/var/backups/blipmade");
+  });
+
   it("leaves the directory of the mail of the platform alone", async () => {
     const env = await readFile(ENV_FILE, "utf-8");
     const runner = await readFile(RUNNER, "utf-8");

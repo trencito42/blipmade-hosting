@@ -77,6 +77,14 @@ export SMTP_URL=""
 # fixture of a test never touches the mail of the platform.
 export BACKUP_DIR="${TEST_BACKUP_DIR:-/var/tmp/blipmade-test-backup}"
 mkdir -p "$BACKUP_DIR/mail"
+
+# The receipts of the backups are the state of the operations, and the
+# platform reads them to know whether the backup of the night happened. The
+# suite runs the scripts of the backups, so without this the suite writes the
+# receipts of its own run over the receipts of the platform, and the platform
+# reads the receipts of a test as if they were the receipts of the night.
+export OPS_STATUS_DIR="${TEST_OPS_STATUS_DIR:-/var/tmp/blipmade-test-backup/status}"
+mkdir -p "$OPS_STATUS_DIR"
 export COOKIE_SECURE=false
 
 # The gateway of the platform is never called by the suite. The routes of the
