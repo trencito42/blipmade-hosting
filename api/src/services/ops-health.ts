@@ -7,6 +7,7 @@ import { env } from '../env.js';
 import { prisma } from '../db.js';
 import { redis } from '../redis.js';
 import { mailDeliverySummary, smtpTransportOptions } from '../lib/mailer.js';
+import { certificateTargets as certificateTargetsOf, type CertificateTarget } from '../lib/ops-certificate-targets.js';
 import {
   notifyOpsBackupFailed,
   notifyOpsCapacityCritical,
@@ -629,22 +630,6 @@ async function checkCapacity(now: Date): Promise<OpsCheckResult> {
 }
 
 /**
- * The certificates of the addresses the platform serves.
- *
- * A certificate that expires in three days is an outage that is written in
- * the calendar of the machine, and the only thing that can stop it is a
- * renewal that somebody has to look at. The check reads the certificate of
- * every address the platform serves and says how many days are left.
- */
-interface CertificateTarget {
-  label: string;
-  host: string;
-  port: number;
-  ca?: string;
-}
-
-
-/**
  * The name of the holder of a certificate.
  *
  * The type of the subject of a certificate says that the name may be a list,
@@ -659,26 +644,17 @@ function commonName(certificate: PeerCertificate): string | null {
 /**
  * The addresses whose certificate belongs to the platform.
  *
- * The relay of the mail is not in the list: its certificate is the one of a
- * machine that is not published in the DNS yet, and the check of the mail
- * server already verifies it against the certificate of the operator.
+ * The relay of the mail is in the list since its name is published in the DNS
+ * and its certificate is signed by an authority the machine trusts. A relay
+ * that cannot be verified is reported by the check of the mail server, which
+ * verifies it against the certificate of the operator.
  */
 function certificateTargets(): CertificateTarget[] {
-  const targets: CertificateTarget[] = [];
-  for (const [label, url] of [
+  return certificateTargetsOf([
     ['the public address', env.APP_PUBLIC_URL],
     ['the control panel', env.PTERODACTYL_URL],
-  ] as const) {
-    if (!url) continue;
-    try {
-      const parsed = new URL(url);
-      targets.push({ label, host: parsed.hostname, port: parsed.port ? Number(parsed.port) : 443 });
-    } catch {
-      // An address that cannot be parsed is reported by the check of the
-      // health endpoint, not here.
-    }
-  }
-  return targets;
+    ['the mail server', env.MAILCOW_API_URL],
+  ]);
 }
 
 /**

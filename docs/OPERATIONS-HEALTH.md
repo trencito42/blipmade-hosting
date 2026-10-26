@@ -19,9 +19,9 @@ sentence that can be read in the back office.
 | `backup` | Did the backup of the night happen? | A backup that failed, or a backup that is older than `OPS_BACKUP_MAX_AGE_HOURS` (30 by default). |
 | `offsite` | Is the copy that leaves the host there? | A copy that failed, a copy that was not read back on the target, or a copy that is older than `OPS_OFFSITE_MAX_AGE_HOURS`. |
 | `restore` | Does the backup still restore? | A drill of the restore that failed. |
-| `mailcow` | Does the mail server answer? | A relay that does not take the session. The certificate of the relay is verified against the certificate of the operator, and the verification is never turned off. |
+| `mailcow` | Does the mail server answer? | A relay that does not take the session. The certificate of the relay is verified against the authorities the machine trusts, and the verification is never turned off. |
 | `capacity` | Is there room on the machine? | A disk over `OPS_DISK_MAX_PERCENT` (85), a memory over `OPS_MEMORY_MAX_PERCENT` (90). |
-| `certificate` | Do the certificates of the platform expire soon? | A certificate with less than `OPS_CERT_MIN_DAYS` (21) days left. |
+| `certificate` | Do the certificates of the platform expire soon? | A certificate with less than `OPS_CERT_MIN_DAYS` (21) days left. The sweep reads the certificate of the public address, of the control panel and of the mail server. |
 | `incident` | Did the operator declare an incident? | An incident that is open. |
 | `security` | Did something that touches the security change? | A new administrator, changed rights, a new key of a customer or a changed setting in the last hour. |
 
@@ -102,6 +102,8 @@ those scripts write them, those three checks have nothing to read and they
 say so.
 
 The certificate that the mail server presents is checked by the mailer of the
-platform on every message it sends. The certificate of the *public* address
-is checked by the sweep, but the name `mail.blipmade.com` has to be in the
-DNS before the relay of the platform can be reached from outside.
+platform on every message it sends. The sweep reads the certificate of the
+mail server as well, on the address the operator wrote down in
+`MAILCOW_API_URL`: the name `mail.blipmade.com` is published in the DNS and
+the certificate is signed by an authority the machine trusts, so the relay is
+watched like every other address the platform serves.

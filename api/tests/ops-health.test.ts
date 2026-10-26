@@ -184,4 +184,9 @@ describe('the wiring of the health of the platform', () => {
     expect(source).toContain('rejectUnauthorized: true');
     expect(source).not.toContain('rejectUnauthorized: false');
   });
+
+  it('watches the certificate of the mail server', async () => {
+    const source = await readFile(join(SRC, 'services', 'ops-health.ts'), 'utf-8');
+    expect(source).toContain("['the mail server', env.MAILCOW_API_URL]");
+  });
 });

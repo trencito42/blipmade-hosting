@@ -45,12 +45,16 @@ services:
       - /var/backups/blipmade/status:/var/backups/blipmade-status:rw
       # The certificate of the mail relay.
       #
-      # The relay of the platform is the mail server of the operator, and it
-      # has a certificate of its own. The platform verifies it against the
-      # certificate that is mounted here, and the file is read only. The
-      # directory is mounted and not the file, so a machine where the file is
-      # missing gets an empty directory and a clear error from the mailer
-      # instead of a file that Docker would replace with a directory.
+      # The relay of the platform is the mail server of the operator. Its name
+      # is published in the DNS and its certificate is signed by an authority
+      # the machine trusts, so the platform verifies it against the roots it
+      # already has and `SMTP_CA_FILE` is empty.
+      #
+      # The directory stays mounted for a relay whose certificate nobody else
+      # signs: `SMTP_CA_FILE` points at a file inside it, and the file is read
+      # only. The directory is mounted and not the file, so a machine where the
+      # file is missing gets an empty directory and a clear error from the
+      # mailer instead of a file that Docker would replace with a directory.
       #
       # The path is the same inside the container and on the host, because the
       # alarm of the backup runs on the host and sends its mail with the same
