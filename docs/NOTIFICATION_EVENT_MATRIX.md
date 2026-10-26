@@ -36,7 +36,7 @@ suspended twice has two keys, and therefore two messages.
 
 ## 2. The events that are published
 
-**39 of the 72 events of the registry have a trigger.**
+**68 of the 73 events of the registry have a trigger.**
 
 | Event | Template | Group | Kind | Audience | Channels | Secret | Trigger | Where |
 |---|---|---|---|---|---|---|---|---|
@@ -45,10 +45,10 @@ suspended twice has two keys, and therefore two messages.
 | `account.email_verified` | `account-email-verified` | Account and security | essential | customer | email+in_app | — | POST /api/auth/verify-email | notifications.ts → notifyEmailVerified |
 | `account.password_reset_requested` | `account-password-reset` | Account and security | essential | customer | email | yes | POST /api/auth/forgot-password | notifications.ts → notifyPasswordResetRequested (secret) |
 | `account.password_changed` | `account-password-changed` | Account and security | essential | customer | email+in_app | — | POST /api/auth/reset-password | notifications.ts → notifyPasswordChanged |
-| `account.email_change_requested` | `account-email-change-requested` | Account and security | essential | customer | email | yes | POST /api/settings/email-change/request | notifications.ts → notifyEmailChangeRequested (secret) |
 | `account.email_changed` | `account-email-changed` | Account and security | essential | customer | email+in_app | — | POST /api/settings/email-change/confirm | notifications.ts → notifyEmailChanged |
 | `account.suspended` | `account-suspended` | Account and security | essential | customer | email+in_app | — | POST /api/admin/customers/:id/suspend | routes/admin.ts → notifyAccountSuspended |
 | `account.reinstated` | `account-reinstated` | Account and security | essential | customer | email+in_app | — | POST /api/admin/customers/:id/suspend (put back) | routes/admin.ts → notifyAccountReinstated |
+| `account.deletion_requested` | `account-deletion-requested` | Account and security | essential | customer | email | — | POST /api/settings/account/closure | routes/settings.ts → notifyAccountDeletionRequested |
 | `order.created` | `order-created` | Orders and billing | optional | customer | email+in_app | — | POST /api/orders | notifications.ts → notifyOrderCreated |
 | `order.payment_required` | `order-payment-required` | Orders and billing | essential | customer | email+in_app | — | POST /api/orders/:id/checkout | notifications.ts → notifyPaymentRequired |
 | `order.canceled` | `order-canceled` | Orders and billing | optional | customer | email+in_app | — | POST /api/orders/:id/cancel | notifications.ts → notifyOrderCanceled |
@@ -60,13 +60,27 @@ suspended twice has two keys, and therefore two messages.
 | `invoice.paid` | `invoice-paid` | Orders and billing | essential | customer | email+in_app | — | Stripe: invoice.paid | routes/webhooks.ts → notifyInvoicePaid |
 | `invoice.payment_failed` | `invoice-payment-failed` | Orders and billing | essential | customer | email+in_app | — | Stripe: invoice.payment_failed | routes/webhooks.ts → notifyInvoiceFailed |
 | `invoice.overdue` | `invoice-overdue` | Orders and billing | essential | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | notifications.ts → notifyInvoiceOverdue |
+| `invoice.reminder_due` | `invoice-reminder-due` | Orders and billing | optional | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | notifications.ts → notifyInvoiceReminderDue |
+| `subscription.activated` | `subscription-activated` | Orders and billing | optional | customer | email+in_app | — | services/stripe.ts → markOrderPaid() | notifications.ts → notifySubscriptionActivated |
 | `subscription.renewed` | `subscription-renewed` | Orders and billing | essential | customer | email+in_app | — | services/billing.ts → applyRenewalToSubscription() | notifications.ts → notifySubscriptionRenewed |
+| `subscription.changed` | `subscription-changed` | Orders and billing | optional | customer | email+in_app | — | Stripe: customer.subscription.updated, customer.subscription.deleted | routes/webhooks.ts → notifySubscriptionChanged |
 | `subscription.cancellation_scheduled` | `subscription-cancellation-scheduled` | Orders and billing | essential | customer | email+in_app | — | POST /api/billing/subscriptions/:id/cancel | routes/billing.ts → notifySubscriptionCancellationScheduled |
 | `subscription.canceled` | `subscription-canceled` | Orders and billing | essential | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | notifications.ts → notifySubscriptionCanceled |
 | `subscription.reactivated` | `subscription-reactivated` | Orders and billing | optional | customer | email+in_app | — | POST /api/billing/subscriptions/:id/reactivate | routes/billing.ts → notifySubscriptionReactivated |
+| `subscription.grace_period` | `subscription-grace-period` | Orders and billing | essential | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | notifications.ts → notifySubscriptionGracePeriod |
+| `subscription.suspension_warning` | `subscription-suspension-warning` | Orders and billing | essential | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | notifications.ts → notifySubscriptionSuspensionWarning |
+| `service.provisioning_started` | `service-provisioning-started` | Hosting services | optional | customer | email | — | services/provisioning.ts → provisionInstance() | services/notifications.ts → notifyProvisioningStarted |
 | `service.provisioning_failed` | `service-provisioning-failed` | Hosting services | essential | customer | email+in_app | — | services/provisioning.ts → failProvisioning() | services/notifications.ts → notifyProvisioningFailed |
 | `service.activated` | `service-activated` | Hosting services | essential | customer | email+in_app | — | services/provisioning.ts → provisionInstance() | services/notifications.ts → notifyInstanceProvisioned |
 | `service.suspended` | `service-suspended` | Hosting services | essential | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | services/notifications.ts → notifyInstanceStopped |
+| `service.unsuspended` | `service-unsuspended` | Hosting services | essential | customer | email+in_app | — | POST /api/instances/:id/power (start) | routes/instances.ts → notifyInstanceUnsuspended |
+| `service.expiring` | `service-expiring` | Hosting services | optional | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | notifications.ts → notifyInstanceExpiring |
+| `service.renewal_reminder` | `service-renewal-reminder` | Hosting services | optional | customer | email+in_app | — | services/billing.ts → sweepSubscriptions() | notifications.ts → notifyInstanceRenewalReminder |
+| `service.expired` | `service-expired` | Hosting services | essential | customer | email+in_app | — | services/billing.ts → renew(), withdraw() | notifications.ts → notifyInstanceExpired |
+| `service.canceled` | `service-canceled` | Hosting services | essential | customer | email+in_app | — | POST /api/instances/:id/cancel | routes/instances.ts → notifyInstanceCanceled |
+| `service.deleted` | `service-deleted` | Hosting services | essential | customer | email | — | services/billing.ts → processCancelledInstances() | notifications.ts → notifyInstanceDeleted |
+| `service.upgrade_completed` | `service-upgrade-completed` | Hosting services | optional | customer | email+in_app | — | services/upgrades.ts → applyUpgradeOrder() | notifications.ts → notifyUpgradeCompleted |
+| `service.upgrade_failed` | `service-upgrade-failed` | Hosting services | essential | customer | email+in_app | — | services/upgrades.ts → applyUpgradeOrder() | notifications.ts → notifyUpgradeFailed |
 | `ticket.created` | `ticket-created` | Support | essential | customer | email+in_app | — | POST /api/tickets | notifications.ts → notifyTicketCreated |
 | `ticket.opened_for_staff` | `ticket-opened-for-staff` | Support | optional | staff | email | — | POST /api/tickets | notifications.ts → notifyTicketOpenedForStaff |
 | `ticket.assigned` | `ticket-assigned` | Support | optional | staff | email | — | POST /api/admin/tickets/:id/assign | routes/admin.ts → notifyTicketAssigned |
@@ -76,9 +90,25 @@ suspended twice has two keys, and therefore two messages.
 | `ticket.reopened` | `ticket-reopened` | Support | optional | customer | email | — | POST /api/tickets/:id/status (CLOSED → other) | notifications.ts → notifyTicketReopened |
 | `ticket.closed` | `ticket-closed` | Support | optional | customer | email+in_app | — | POST /api/tickets/:id/status (→ CLOSED) | notifications.ts → notifyTicketClosed |
 | `mailbox.created` | `mailbox-created` | Domains and email hosting | essential | customer | email+in_app | — | POST /api/mail/domains/:id/mailboxes | services/mail.ts → notifyMailboxCreated |
+| `mailbox.provisioning_failed` | `mailbox-provisioning-failed` | Domains and email hosting | essential | customer | email+in_app | — | services/mail.ts → createMailbox() | notifications.ts → notifyMailboxProvisioningFailed |
+| `mailhosting.activated` | `mailhosting-activated` | Domains and email hosting | essential | customer | email+in_app | — | services/mail-commerce.ts → provisionMailService() | notifications.ts → notifyMailhostingActivated |
+| `mailhosting.canceled` | `mailhosting-canceled` | Domains and email hosting | essential | customer | email+in_app | — | services/mail-commerce.ts → cancelMailService() | notifications.ts → notifyMailhostingCanceled |
+| `mailhosting.renewal_reminder` | `mailhosting-renewal-reminder` | Domains and email hosting | optional | customer | email+in_app | — | services/mail-commerce.ts → sweepMailServices() | notifications.ts → notifyMailhostingRenewalReminder |
 | `domain.verification_instructions` | `domain-verification-instructions` | Domains and email hosting | essential | customer | email+in_app | yes | POST /api/instances/:id/domains | routes/domains.ts → notifyDomainVerificationInstructions (secret) |
 | `domain.verified` | `domain-verified` | Domains and email hosting | essential | customer | email+in_app | — | POST /api/domains/:id/verify | routes/domains.ts → notifyDomainVerified |
 | `domain.dns_incomplete` | `domain-dns-incomplete` | Domains and email hosting | optional | customer | email+in_app | — | POST /api/domains/:id/verify (proof missing), POST /api/mail/domains | routes/domains.ts, services/mail.ts → notifyDomainDnsIncomplete |
+
+| `ops.provisioning_stuck` | `ops-provisioning-stuck` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsProvisioningStuck |
+| `ops.webhook_failures` | `ops-webhook-failures` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsWebhookFailures |
+| `ops.delivery_failures` | `ops-delivery-failures` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsDeliveryFailures |
+| `ops.backup_failed` | `ops-backup-failed` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsBackupFailed |
+| `ops.offsite_backup_missing` | `ops-offsite-backup-missing` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsOffsiteBackupMissing |
+| `ops.restore_verification_failed` | `ops-restore-verification-failed` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsRestoreVerificationFailed |
+| `ops.mailcow_unhealthy` | `ops-mailcow-unhealthy` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsMailcowUnhealthy |
+| `ops.incident` | `ops-incident` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsIncident |
+| `ops.capacity_critical` | `ops-capacity-critical` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsCapacityCritical |
+| `ops.dns_certificate_failure` | `ops-dns-certificate-failure` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsDnsCertificateFailure |
+| `ops.security_change` | `ops-security-change` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsSecurityChange |
 
 ---
 
@@ -91,39 +121,11 @@ gap is visible and not hidden behind a claim of coverage.
 
 | Event | Template | Group | Kind | Audience | Channels | Secret | Trigger | Where |
 |---|---|---|---|---|---|---|---|---|
-| `account.deletion_requested` | `account-deletion-requested` | Account and security | essential | customer | email | — | — | — |
-| `invoice.reminder_due` | `invoice-reminder-due` | Orders and billing | optional | customer | email+in_app | — | — | — |
-| `subscription.activated` | `subscription-activated` | Orders and billing | optional | customer | email+in_app | — | — | — |
-| `subscription.changed` | `subscription-changed` | Orders and billing | optional | customer | email+in_app | — | — | — |
-| `subscription.grace_period` | `subscription-grace-period` | Orders and billing | essential | customer | email+in_app | — | — | — |
-| `subscription.suspension_warning` | `subscription-suspension-warning` | Orders and billing | essential | customer | email+in_app | — | — | — |
-| `service.provisioning_started` | `service-provisioning-started` | Hosting services | optional | customer | email | — | — | — |
-| `service.unsuspended` | `service-unsuspended` | Hosting services | essential | customer | email+in_app | — | — | — |
-| `service.expiring` | `service-expiring` | Hosting services | optional | customer | email+in_app | — | — | — |
-| `service.expired` | `service-expired` | Hosting services | essential | customer | email+in_app | — | — | — |
-| `service.canceled` | `service-canceled` | Hosting services | essential | customer | email+in_app | — | — | — |
-| `service.deleted` | `service-deleted` | Hosting services | essential | customer | email | — | — | — |
-| `service.upgrade_completed` | `service-upgrade-completed` | Hosting services | optional | customer | email+in_app | — | — | — |
-| `service.upgrade_failed` | `service-upgrade-failed` | Hosting services | essential | customer | email+in_app | — | — | — |
+| `account.email_change_requested` | `account-email-change-requested` | Account and security | essential | customer | email | yes | — | — |
 | `service.incident` | `service-incident` | Incidents and maintenance | essential | customer | email+in_app | — | — | — |
 | `service.restored` | `service-restored` | Incidents and maintenance | essential | customer | email+in_app | — | — | — |
 | `ticket.resolved` | `ticket-resolved` | Support | essential | customer | email+in_app | — | — | — |
-| `mailbox.provisioning_failed` | `mailbox-provisioning-failed` | Domains and email hosting | essential | customer | email+in_app | — | — | — |
 | `mailbox.password_reset` | `mailbox-password-reset` | Domains and email hosting | essential | customer | email | — | — | — |
-| `mailhosting.activated` | `mailhosting-activated` | Domains and email hosting | essential | customer | email+in_app | — | — | — |
-| `mailhosting.canceled` | `mailhosting-canceled` | Domains and email hosting | essential | customer | email+in_app | — | — | — |
-| `mailhosting.renewal_reminder` | `mailhosting-renewal-reminder` | Domains and email hosting | optional | customer | email+in_app | — | — | — |
-| `ops.provisioning_stuck` | `ops-provisioning-stuck` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.webhook_failures` | `ops-webhook-failures` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.delivery_failures` | `ops-delivery-failures` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.backup_failed` | `ops-backup-failed` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.offsite_backup_missing` | `ops-offsite-backup-missing` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.restore_verification_failed` | `ops-restore-verification-failed` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.mailcow_unhealthy` | `ops-mailcow-unhealthy` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.incident` | `ops-incident` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.capacity_critical` | `ops-capacity-critical` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.dns_certificate_failure` | `ops-dns-certificate-failure` | Incidents and maintenance | essential | operator | email | — | — | — |
-| `ops.security_change` | `ops-security-change` | Incidents and maintenance | essential | operator | email | — | — | — |
 
 
 ### Why they are not published
@@ -131,27 +133,18 @@ gap is visible and not hidden behind a claim of coverage.
 The platform has no place where these moments happen yet, or the moment
 exists but carries no decision yet:
 
-* `account.deletion_requested` — the platform writes the request of the
-  closing in the profile, but no route accepts it yet.
-* `invoice.reminder_due`, `subscription.grace_period`,
-  `subscription.suspension_warning` — the reminders need a schedule. The
-  brief asks for "sensible reminder schedules" and for "no duplicate
-  reminders", so they are not a rule that is guessed: they wait for the
-  calendar of the platform.
-* `service.expiring`, `service.expired`, `service.canceled`,
-  `service.deleted` — the sweeps of the platform change the state of the
-  services, but the wording of the moment the customer has to act on is a
-  decision of the operator (how many days before the end, what happens
-  after).
-* `mailhosting.*` — the life of the hosted mail is in the sweep of the mail
-  commerce; the messages of the retention are a decision of the operator.
-* `ops.*` — the eleven operational events are the alarms of the platform.
-  They are written for the operator and they are the events that must never
-  become a flood: they need thresholds, and the thresholds are the decision
-  of the operator.
-* `mailbox.provisioning_failed`, `mailbox.password_reset` — the job of the
-  mail writes its failure in the table of the jobs; the moment the customer
-  has to know about it is still to be decided.
+* `account.email_change_requested` — the route of the change of the address
+  sends the message on its own, with the hand-written template of
+  `api/src/lib/email-templates.ts`. The event of the registry would be a
+  second message about the same change, so it is left unwritten.
+* `service.incident`, `service.restored` — the platform has no incident of a
+  service and no moment where it is restored: the health of a container is
+  shown in the panel and nothing is published about it.
+* `ticket.resolved` — the platform has no "resolved" state. The moment the
+  request is answered is published as `ticket.reply_created`.
+* `mailbox.password_reset` — the platform does not reset the password of a
+  mailbox. The customer asks for a new password of the account, and that
+  moment is published as `account.password_reset_requested`.
 
 ### The events that are deliberately not doubled
 
@@ -167,6 +160,17 @@ exists but carries no decision yet:
   messages for one answer.
 * `domain.dns_incomplete` is published once per hostname and per scope.
   Checking the proof of ownership ten times does not send ten messages.
+* `subscription.grace_period` and `subscription.suspension_warning` are two
+  moments of the same week: the grace is told when it starts, the warning
+  when the end of the grace is near. The window of the warning is shorter
+  than the grace itself, so the two messages never fall on the same day.
+* `service.expiring` and `service.renewal_reminder` are the two sides of the
+  same term: the term of a service that is cancelled for the end of the
+  period ends, the term of the other one goes on. A customer receives the
+  message that is true for their service, never both.
+* The reminders are written once per period. The occurrence holds the period
+  or the invoice, so a sweep that runs again does not send the message of
+  yesterday a second time.
 
 ---
 
@@ -177,8 +181,13 @@ The matrix is not a promise, it is a description. These files prove it:
 | File | What it proves |
 |---|---|
 | `api/tests/notification-ticket-events.test.ts` | The author of a reply is never notified about their own reply, in both directions, and the message goes to the right address |
+| `api/tests/notification-account-events.test.ts` | The request of the closing of an account is told to the customer, and the message goes out even when the customer closed the group of the account |
+| `api/tests/notification-subscription-events.test.ts` | The change of a subscription, the grace, the warning of the suspension and the invoice that is due are told once per period, and the optional ones follow the group of the customer |
+| `api/tests/notification-service-events.test.ts` | The life of a service — the building, the term, the cancellation, the deletion, the start again and the change of the resources — is told to the customer, once |
+| `api/tests/notification-mail-events.test.ts` | The mailbox that could not be made, the hosted mail that starts, that is canceled and that renews soon are told to the customer, once |
 | `api/tests/notification-engine-rules.test.ts` | The rules of the groups, the idempotency of the occurrence, the emptying of the secret, the isolation between the customers |
 | `api/tests/email-design.test.ts` | The catalogue holds exactly the templates of the registry, and every template reads only the facts the events carry |
+| `api/tests/notification-template-wiring.test.ts` | Every template that is not written down as out of reach has a publisher that is called |
 | `api/tests/admin-notifications.test.ts` | The back office shows the events, the deliveries and the state of every channel |
 
 The probe `api/probe/notification-matrix.ts` prints this matrix out of the

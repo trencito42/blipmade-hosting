@@ -5,7 +5,7 @@ import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { randomToken } from '../lib/tokens.js';
 import * as gateway from './gateway.js';
 import * as mailcow from './mailcow.js';
-import { notifyDomainDnsIncomplete, notifyMailboxCreated } from './notifications.js';
+import { notifyDomainDnsIncomplete, notifyMailboxCreated, notifyMailboxProvisioningFailed } from './notifications.js';
 import { checkMailDns, mailDnsRecords, type MailDnsStatus } from './mail-dns.js';
 
 /**
@@ -159,6 +159,12 @@ export async function withMailJob<T>(input: {
   domainId?: string | null;
   payload: Record<string, unknown>;
   run: () => Promise<T>;
+  /**
+   * Called when the work failed, with the row of the journal that holds the
+   * failure. The caller that knows the customer uses it to tell the customer
+   * what happened; the row is the occasion of that message.
+   */
+  onFailure?: (job: { id: string; error: unknown }) => Promise<void>;
 }): Promise<T> {
   const job = await prisma.mailJob.create({
     data: {
@@ -179,6 +185,13 @@ export async function withMailJob<T>(input: {
       where: { id: job.id },
       data: { status: 'failed', lastError: (error as Error).message },
     });
+    if (input.onFailure) {
+      try {
+        await input.onFailure({ id: job.id, error });
+      } catch (failure) {
+        console.error('[mail] the failure of the work could not be told:', (failure as Error).message);
+      }
+    }
     throw error;
   }
 }
@@ -444,6 +457,18 @@ export async function createMailbox(
         password: secret,
         quotaMb: env.MAIL_MAX_QUOTA_MB_PER_MAILBOX,
       }),
+    // The mailbox could not be made, so the customer is told. The row of the
+    // journal is the occasion of the message: the failure of one attempt is
+    // one message and a new attempt is a message of its own.
+    onFailure: async (job) => {
+      await notifyMailboxProvisioningFailed({
+        userId: user.id,
+        mailbox: address,
+        domain: domain.name,
+        reason: job.error instanceof Error ? job.error.message : String(job.error),
+        occurrence: job.id,
+      });
+    },
   });
 
   const created = await prisma.mailbox

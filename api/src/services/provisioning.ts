@@ -3,7 +3,7 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
 import { unavailable } from '../lib/errors.js';
-import { notifyInstanceProvisioned, notifyProvisioningFailed } from './notifications.js';
+import { notifyInstanceProvisioned, notifyProvisioningFailed, notifyProvisioningStarted } from './notifications.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
@@ -1316,6 +1316,17 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     }
 
     await beginProvisioning(instance, 'pterodactyl_user');
+
+    // The building of the service has started, so the customer is told. The
+    // key of the provisioning is the occurrence: a run that is repeated does
+    // not write a second message about the same service.
+    await notifyProvisioningStarted({
+      userId: instance.userId,
+      instanceName: instance.name,
+      plan: product.name,
+      occurrence: instance.provisioningKey ?? instance.id,
+    });
+
     const pterodactylUserId = await ensurePterodactylUser(instance);
     await recordEvent(instance.id, 'provisioning', 'Pterodactyl account ready.');
     await completeStep(instance.id, 'pterodactyl_user');

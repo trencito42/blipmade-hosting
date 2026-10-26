@@ -7,6 +7,11 @@ import { randomToken } from '../lib/tokens.js';
 import { matchesToken, resolveTxt, verificationHostFor } from './dns.js';
 import * as mailcow from './mailcow.js';
 import { assertValidMailDomain } from './mail.js';
+import {
+  notifyMailhostingActivated,
+  notifyMailhostingCanceled,
+  notifyMailhostingRenewalReminder,
+} from './notifications.js';
 import { enqueueMailProvisioning } from './queue.js';
 
 /**
@@ -30,6 +35,14 @@ import { enqueueMailProvisioning } from './queue.js';
  * smaller of the two, so a plan can never promise more than the platform can
  * hold.
  */
+
+/**
+ * How many days before the end of a term the customer is reminded of it.
+ *
+ * The window of the reminders of the platform is here, in one place, so the
+ * operator can change it and every reminder follows.
+ */
+const REMINDER_WINDOW_DAYS = 7;
 
 /** The limits of a mail plan. */
 export interface MailPlanLimits {
@@ -775,6 +788,17 @@ export async function provisionMailService(serviceId: string): Promise<{
         data: { status: 'ACTIVE', lastError: null },
       });
       provisioned += 1;
+
+      // The hosted mail of this domain works, so the customer is told. The
+      // service and the domain are the occasion of the message, so a run that
+      // is repeated does not tell it twice.
+      await notifyMailhostingActivated({
+        userId: service.userId,
+        service: service.product.name,
+        plan: service.product.name,
+        domain: domain.name,
+        occurrence: `${serviceId}:${domain.id}`,
+      });
     } catch (error) {
       failed += 1;
       await prisma.mailDomain.update({
@@ -941,7 +965,10 @@ export async function cancelMailService(serviceId: string, actorId?: string): Pr
   graceUntil: string;
   retentionUntil: string;
 }> {
-  const service = await prisma.mailService.findUnique({ where: { id: serviceId } });
+  const service = await prisma.mailService.findUnique({
+    where: { id: serviceId },
+    include: { product: { select: { name: true } } },
+  });
   if (!service) throw notFound('This mail service does not exist.');
   if (service.status === 'CANCELLED') {
     return {
@@ -958,6 +985,18 @@ export async function cancelMailService(serviceId: string, actorId?: string): Pr
     where: { id: serviceId },
     data: { status: 'GRACE', cancelledAt: now, graceUntil, retentionUntil },
   });
+
+  // The hosted mail stops, so the customer is told. A service that is already
+  // in its grace has been told already: a second cancellation moves the end of
+  // the retention, but the mail does not stop twice.
+  if (service.status !== 'GRACE') {
+    await notifyMailhostingCanceled({
+      userId: service.userId,
+      service: service.product.name,
+      retentionUntil,
+      occurrence: retentionUntil.toISOString(),
+    });
+  }
 
   await audit({
     actorId,
@@ -1113,6 +1152,34 @@ export async function sweepMailServices(): Promise<{ suspended: number; deleted:
   const now = new Date();
   let suspended = 0;
   let deleted = 0;
+
+  // The hosted mail that renews soon. The service and the end of the term are
+  // the occasion of the message, so a term that is paid again has a message
+  // of its own.
+  const reminderEnd = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const renewing = await prisma.mailService.findMany({
+    where: {
+      status: 'ACTIVE',
+      subscription: { is: { currentPeriodEnd: { gt: now, lte: reminderEnd } } },
+    },
+    select: {
+      id: true,
+      userId: true,
+      product: { select: { name: true } },
+      subscription: { select: { currentPeriodEnd: true } },
+    },
+    take: 50,
+  });
+  for (const service of renewing) {
+    const currentPeriodEnd = service.subscription?.currentPeriodEnd;
+    if (!currentPeriodEnd) continue;
+    await notifyMailhostingRenewalReminder({
+      userId: service.userId,
+      service: service.product.name,
+      renewsAt: currentPeriodEnd,
+      occurrence: `${service.id}:${currentPeriodEnd.toISOString()}`,
+    });
+  }
 
   const inGrace = await prisma.mailService.findMany({
     where: { status: 'GRACE', graceUntil: { lte: now } },

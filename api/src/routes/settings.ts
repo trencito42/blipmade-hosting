@@ -9,7 +9,7 @@ import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import { sendMail } from '../lib/mailer.js';
 import { emailChangeTemplate } from '../lib/email-templates.js';
-import { notifyEmailChanged } from '../services/notifications.js';
+import { notifyAccountDeletionRequested, notifyEmailChanged } from '../services/notifications.js';
 import { addressRateLimitKey, requireAuth, type AuthUser } from '../plugins/auth.js';
 
 /**
@@ -629,6 +629,16 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
         targetType: 'user',
         targetId: user.id,
         ip: request.ip,
+      });
+
+      // The customer asked for the closing of the account, so the customer is
+      // told that the request is recorded. The moment of the request is the
+      // occurrence: a request that is taken back and asked again is a
+      // message of its own.
+      await notifyAccountDeletionRequested({
+        userId: user.id,
+        name: fullName({ firstName: account.firstName, lastName: account.lastName }),
+        occurrence: requestedAt.toISOString(),
       });
 
       const services = await prisma.instance.count({

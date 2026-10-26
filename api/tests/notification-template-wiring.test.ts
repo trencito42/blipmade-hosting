@@ -38,34 +38,14 @@ const KNOWN_UNREACHABLE: Record<string, string> = {
   // of the address (api/src/lib/email-templates.ts), so the event of the
   // catalogue would be a second message about the same thing.
   'account-email-change-requested': 'the message is delivered by the legacy template of the change of the address',
-  // The cancellation of a subscription, the plan of the cancellation and the
-  // reactivation already have their own events, so a general one would be a
-  // second message about the same change.
-  'subscription-changed': 'the specific events of the change already exist',
-  // The lifecycle of the service is not swept yet: nothing asks the platform
-  // whether a service is about to expire or has expired.
-  'service-expiring': 'the sweep of the services that expire does not exist yet',
-  'service-expired': 'the sweep of the services that expire does not exist yet',
-  'service-canceled': 'the sweep of the services that expire does not exist yet',
-  'service-deleted': 'the sweep of the services that expire does not exist yet',
-  'service-unsuspended': 'the sweep of the services that expire does not exist yet',
-  'service-provisioning-started': 'the start of the provisioning is not published',
+  // The platform has no incident of a service and no restoring of one: the
+  // health of a container is shown in the panel and nothing is published.
   'service-incident': 'no incident of a service is published',
   'service-restored': 'no incident of a service is published',
-  'service-upgrade-completed': 'the upgrade of a service publishes nothing',
-  'service-upgrade-failed': 'the upgrade of a service publishes nothing',
-  'subscription-grace-period': 'the grace period of a subscription is not swept',
-  'subscription-suspension-warning': 'the grace period of a subscription is not swept',
-  'invoice-reminder-due': 'the invoice that is due is not reminded',
-  'account-deletion-requested': 'the closure of an account publishes nothing',
   'ticket-resolved': 'the ticket of a customer is closed with another event',
-  // The mail of a customer is not delivered yet, so the events of the mail
-  // boxes cannot fire.
-  'mailbox-provisioning-failed': 'the mail of a customer is not delivered yet',
-  'mailbox-password-reset': 'the mail of a customer is not delivered yet',
-  'mailhosting-activated': 'the mail of a customer is not delivered yet',
-  'mailhosting-canceled': 'the mail of a customer is not delivered yet',
-  'mailhosting-renewal-reminder': 'the mail of a customer is not delivered yet',
+  // The platform does not reset the password of a mailbox: the customer asks
+  // for a new password of the account.
+  'mailbox-password-reset': 'the platform does not reset the password of a mailbox',
   // The alarms of the operator are no longer in this list: the sweep of the
   // health of the platform (api/src/services/ops-health.ts) watches the
   // provisioning, the webhooks, the delivery of the messages, the backups,
@@ -148,8 +128,8 @@ describe('the templates of the notification engine', () => {
     const ids = await catalogue();
     const events = await registry();
 
-    expect(ids.length).toBe(72);
-    expect(events.length).toBe(72);
+    expect(ids.length).toBe(73);
+    expect(events.length).toBe(73);
 
     const templates = events.map((event) => event.template).sort();
     expect(templates).toEqual([...ids].sort());

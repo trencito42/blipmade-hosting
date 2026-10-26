@@ -106,6 +106,7 @@ export interface EventPayloadMap {
   'service.suspended': { service: string; reason: string };
   'service.unsuspended': { service: string };
   'service.expiring': { service: string; expiresAt: string | null };
+  'service.renewal_reminder': { service: string; renewsAt: string | null };
   'service.expired': { service: string };
   'service.canceled': { service: string };
   'service.deleted': { service: string };
@@ -607,6 +608,17 @@ export const EVENT_DEFINITIONS: EventRegistry = {
     audience: 'customer',
     title: (payload) => `${payload.service} ends soon`,
     body: (payload) => `The service ${payload.service} ends on ${payload.expiresAt ?? 'the date of its term'}.`,
+    link: () => ({ url: '/app/billing', label: 'Open the billing' }),
+  }),
+  'service.renewal_reminder': definition({
+    type: 'service.renewal_reminder',
+    template: 'service-renewal-reminder',
+    channels: ['email', 'in_app'],
+    category: 'hostingServices',
+    classification: 'optional',
+    audience: 'customer',
+    title: (payload) => `${payload.service} renews soon`,
+    body: (payload) => `The service ${payload.service} renews on ${payload.renewsAt ?? 'the date of its term'}.`,
     link: () => ({ url: '/app/billing', label: 'Open the billing' }),
   }),
   'service.expired': definition({

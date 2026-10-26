@@ -1,10 +1,17 @@
 import { prisma } from '../db.js';
 import {
+  notifyInstanceDeleted,
+  notifyInstanceExpiring,
+  notifyInstanceExpired,
+  notifyInstanceRenewalReminder,
+  notifyInstanceStopped,
   notifyInvoiceIssued,
   notifyInvoiceOverdue,
-  notifyInstanceStopped,
+  notifyInvoiceReminderDue,
   notifySubscriptionCanceled,
+  notifySubscriptionGracePeriod,
   notifySubscriptionRenewed,
+  notifySubscriptionSuspensionWarning,
 } from './notifications.js';
 import { nextInvoiceNumber, nextOrderNumber } from './order-numbers.js';
 import { env } from '../env.js';
@@ -20,12 +27,14 @@ import type { BillingPeriod } from '@prisma/client';
 /**
  * The billing sweep.
  *
- * It runs on a schedule and does three things:
+ * It runs on a schedule and does four things:
  *
- *   1. a subscription that was cancelled for the end of the period is
+ *   1. the terms that end soon, the grace that is running and the warning
+ *      that the service is going to be suspended are told to the customer;
+ *   2. a subscription that was cancelled for the end of the period is
  *      withdrawn once the period is over;
- *   2. a subscription that was not paid is suspended after a grace period;
- *   3. a subscription that is due is renewed.
+ *   3. a subscription that was not paid is suspended after a grace period;
+ *   4. a subscription that is due is renewed.
  *
  * Every action is recorded, so the operator can see what happened without
  * reading the logs.
@@ -38,6 +47,25 @@ import type { BillingPeriod } from '@prisma/client';
 
 /** How many days a customer has to pay before the service is suspended. */
 const GRACE_PERIOD_DAYS = 7;
+
+/**
+ * How many days before the end of a term the customer is reminded of it.
+ *
+ * The window of the reminders of the platform is here, in one place, so the
+ * operator can change it and every reminder follows.
+ */
+const REMINDER_WINDOW_DAYS = 7;
+
+/**
+ * How many days before the end of the grace the customer is told that the
+ * service is going to be suspended.
+ *
+ * The window is shorter than the grace itself on purpose: the message of the
+ * grace goes out when the grace starts, and this one is the last warning
+ * before the service is suspended. With a window as long as the grace, both
+ * messages would fall on the same day.
+ */
+const SUSPENSION_WARNING_WINDOW_DAYS = 2;
 
 /** How many months a year has. */
 const MONTHS_IN_YEAR = 12;
@@ -632,7 +660,7 @@ export async function processCancelledInstances(): Promise<{ deleted: number; pe
 
     const instance = await prisma.instance.findUnique({
       where: { id: record.instanceId },
-      select: { id: true, pterodactylServerId: true },
+      select: { id: true, name: true, pterodactylServerId: true },
     });
     if (instance?.pterodactylServerId) {
       const { deleteServer } = await import('./pterodactyl/application.js');
@@ -656,6 +684,15 @@ export async function processCancelledInstances(): Promise<{ deleted: number; pe
       targetId: record.instanceId,
       meta: { retentionDays: record.retentionDays, scheduledFor: record.scheduledFor },
     });
+
+    // The data of the service is gone, so the customer is told. The moment of
+    // the deletion is the occurrence, so a service that is deleted again
+    // after a new retention is a message of its own.
+    await notifyInstanceDeleted({
+      userId: record.userId,
+      instanceName: instance?.name ?? 'the service',
+      occurrence: record.deletedAt,
+    });
   }
 
   if (changed) await writeRetentionRecords(records);
@@ -671,7 +708,7 @@ export async function processCancelledInstances(): Promise<{ deleted: number; pe
 async function withdraw(subscriptionId: string): Promise<void> {
   const subscription = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    include: { instance: { select: { id: true, pterodactylUuid: true, pterodactylServerId: true, userId: true } } },
+    include: { instance: { select: { id: true, name: true, pterodactylUuid: true, pterodactylServerId: true, userId: true } } },
   });
   if (!subscription || !subscription.instance) return;
 
@@ -680,6 +717,15 @@ async function withdraw(subscriptionId: string): Promise<void> {
   await prisma.instance.update({
     where: { id: instance.id },
     data: { status: 'CANCELLED', cancelledAt: new Date() },
+  });
+
+  // The paid term of the service is over, so the customer is told that the
+  // data is kept for a while. The end of the term is the occurrence, so a
+  // term that is paid again is a message of its own.
+  await notifyInstanceExpired({
+    userId: subscription.userId,
+    instanceName: instance.name,
+    occurrence: subscription.currentPeriodEnd?.toISOString() ?? new Date().toISOString(),
   });
 
   // The service is marked for deletion and the data of the customer is
@@ -736,7 +782,7 @@ async function renew(subscriptionId: string): Promise<{ renewed: boolean; pendin
     where: { id: subscriptionId },
     include: {
       orderItem: { include: { order: true } },
-      instance: { select: { id: true } },
+      instance: { select: { id: true, name: true } },
     },
   });
   if (!subscription) return { renewed: false, pending: false, invoiceId: null, reason: 'The subscription does not exist.' };
@@ -788,6 +834,15 @@ async function renew(subscriptionId: string): Promise<{ renewed: boolean; pendin
   await prisma.subscription.update({
     where: { id: subscription.id },
     data: { status: 'PAST_DUE', lastRenewalCheckAt: new Date() },
+  });
+
+  // The paid term of the service is over, so the customer is told. The end
+  // of the term is the occurrence, so a term that is paid again is a message
+  // of its own.
+  await notifyInstanceExpired({
+    userId: subscription.userId,
+    instanceName: subscription.instance?.name ?? 'the service',
+    occurrence: start.toISOString(),
   });
 
   if (subscription.instance) {
@@ -1322,7 +1377,116 @@ export async function sweepSubscriptions(): Promise<{
   let withdrawn = 0;
   let deleted = 0;
 
-  // 1. The period is over and the subscription was cancelled.
+  // 1. The terms that end soon, the grace that is running and the warning
+  //    that the service is going to be suspended.
+  //
+  //    The customer hears about a term before it is over, so a renewal or a
+  //    cancellation is a decision and not a surprise. Every message of this
+  //    block is written once per period: the occurrence holds the period, so
+  //    a sweep that runs again does not write a second message.
+  const reminderEnd = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  const ending = await prisma.subscription.findMany({
+    where: {
+      status: { in: ['ACTIVE', 'TRIALING'] },
+      currentPeriodEnd: { gt: now, lte: reminderEnd },
+    },
+    select: {
+      id: true,
+      userId: true,
+      currentPeriodEnd: true,
+      cancelAtPeriodEnd: true,
+      instance: { select: { name: true } },
+    },
+    take: 100,
+  });
+  for (const subscription of ending) {
+    if (!subscription.currentPeriodEnd) continue;
+    const service = subscription.instance?.name ?? 'the service';
+    const occurrence = `${subscription.id}:${subscription.currentPeriodEnd.toISOString()}`;
+    if (subscription.cancelAtPeriodEnd) {
+      // The term ends and the service does not go on, so the customer is told
+      // before the term is over.
+      await notifyInstanceExpiring({
+        userId: subscription.userId,
+        instanceName: service,
+        expiresAt: subscription.currentPeriodEnd,
+        occurrence,
+      });
+    } else {
+      // The term ends and the subscription goes on, so the customer is told
+      // that the renewal is coming.
+      await notifyInstanceRenewalReminder({
+        userId: subscription.userId,
+        instanceName: service,
+        renewsAt: subscription.currentPeriodEnd,
+        occurrence,
+      });
+    }
+  }
+
+  // The grace that is running: the service still works and the customer has
+  // the days that are left to pay.
+  const inGrace = await prisma.subscription.findMany({
+    where: {
+      status: { in: ['PAST_DUE', 'INCOMPLETE'] },
+      currentPeriodEnd: { lte: now, gt: graceStart },
+    },
+    select: {
+      id: true,
+      userId: true,
+      currentPeriodEnd: true,
+      instance: { select: { name: true } },
+    },
+    take: 100,
+  });
+  for (const subscription of inGrace) {
+    if (!subscription.currentPeriodEnd) continue;
+    await notifySubscriptionGracePeriod({
+      userId: subscription.userId,
+      service: subscription.instance?.name ?? 'the service',
+      graceUntil: new Date(
+        subscription.currentPeriodEnd.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000,
+      ),
+      occurrence: `${subscription.id}:${subscription.currentPeriodEnd.toISOString()}`,
+    });
+  }
+
+  // The warning that the service is going to be suspended. The grace of a
+  // subscription lasts GRACE_PERIOD_DAYS, so the terms that ended between
+  // the start of the grace and the end of the window are the terms whose
+  // grace ends inside the window.
+  const warningFrom = new Date(now.getTime() - GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+  const warningTo = new Date(
+    warningFrom.getTime() + SUSPENSION_WARNING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const warned = await prisma.subscription.findMany({
+    where: {
+      status: { in: ['PAST_DUE', 'INCOMPLETE'] },
+      currentPeriodEnd: { gt: warningFrom, lte: warningTo },
+    },
+    select: {
+      id: true,
+      userId: true,
+      currentPeriodEnd: true,
+      instance: { select: { name: true } },
+    },
+    take: 100,
+  });
+  for (const subscription of warned) {
+    if (!subscription.currentPeriodEnd) continue;
+    const graceUntil = new Date(
+      subscription.currentPeriodEnd.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000,
+    );
+    await notifySubscriptionSuspensionWarning({
+      userId: subscription.userId,
+      service: subscription.instance?.name ?? 'the service',
+      graceUntil,
+      occurrence: `${subscription.id}:${graceUntil.toISOString()}`,
+    });
+  }
+
+  // 2. The period is over and the subscription was cancelled.
   const due = await prisma.subscription.findMany({
     where: {
       status: { in: ['ACTIVE', 'PAST_DUE', 'INCOMPLETE', 'TRIALING'] },
@@ -1372,7 +1536,7 @@ export async function sweepSubscriptions(): Promise<{
       continue;
     }
 
-    // 2. The subscription is overdue: the service is suspended.
+    // 3. The subscription is overdue: the service is suspended.
     const record = await prisma.subscription.findUnique({
       where: { id: subscription.id },
       include: {
@@ -1420,14 +1584,32 @@ export async function sweepSubscriptions(): Promise<{
       continue;
     }
 
-    // 3. The period is over and the service is still fine: the renewal is
+    // 4. The period is over and the service is still fine: the renewal is
     // due. The period is only extended when the money is collected.
     const outcome = await renew(record.id);
     if (outcome.renewed) renewed += 1;
     if (outcome.pending) pending += 1;
   }
 
-  // 4. The invoices that are late. The invoice is the occurrence, so a late
+  // 5. The invoices that are due soon. The invoice is the occurrence, so a
+  // reminder is one message per invoice and not one message per day.
+  const dueSoon = await prisma.invoice.findMany({
+    where: { status: 'OPEN', dueDate: { gte: now, lte: reminderEnd } },
+    select: { id: true, number: true, userId: true, total: true, currency: true, dueDate: true },
+    take: 100,
+  });
+  for (const invoice of dueSoon) {
+    await notifyInvoiceReminderDue({
+      userId: invoice.userId,
+      number: invoice.number,
+      amount: invoice.total,
+      currency: invoice.currency,
+      dueAt: invoice.dueDate,
+      occurrence: invoice.id,
+    });
+  }
+
+  // 6. The invoices that are late. The invoice is the occurrence, so a late
   // invoice is one message and not one message per day.
   const late = await prisma.invoice.findMany({
     where: { status: 'OPEN', dueDate: { lt: now } },
@@ -1449,7 +1631,7 @@ export async function sweepSubscriptions(): Promise<{
     });
   }
 
-  // 5. The services whose retention term is over are deleted.
+  // 7. The services whose retention term is over are deleted.
   const deletions = await processCancelledInstances();
   deleted += deletions.deleted;
 
