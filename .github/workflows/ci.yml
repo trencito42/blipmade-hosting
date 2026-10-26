@@ -51,10 +51,10 @@ jobs:
       DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -83,10 +83,10 @@ jobs:
         working-directory: web
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -158,10 +158,10 @@ jobs:
       BLIPMADE_INTERNAL_API_TOKEN: ci-only-internal-token-not-a-real-secret
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -255,13 +255,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the whole history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Without the full history the scanner only sees the last commit.
           fetch-depth: 0
 
       - name: Scan the history for secrets
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         with:
           # Leave the findings out of the pull request, the job result is the
           # signal that the run is interested in.
@@ -287,10 +287,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -424,10 +424,10 @@ jobs:
       DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow_check
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -477,7 +477,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install actionlint
         # The version is pinned and the archive is checked against the sum
