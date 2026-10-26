@@ -1,35 +1,35 @@
 /**
- * The guard of the tests and of the scripts that change data.
+ * The guard of the data.
  *
- * A test or a script that empties tables, that writes rows or that sends
- * requests that create orders must never reach a database that carries real
- * data. The guard reads the name of the database from the connection string
- * and refuses to go on when that name does not end with "_test".
+ * The suite of the platform truncates every table before each test, and the
+ * scripts of the platform empty the tables and write orders. A guard that
+ * fails open is not a guard, so the refusal is the default and it is proved
+ * in the test of the guard.
  *
- * The refusal is the default and not the exception. A script that really has
- * to work against the production database says so out loud, with a flag that
- * is printed in the output, so the intent is never hidden and never assumed.
- *
- * The same rule exists in `scripts/lib/assert-disposable-db.mjs` for the
- * scripts that run with plain node and cannot import a TypeScript module.
- * The test `api/tests/test-target-guard.test.ts` checks that both copies
- * answer the same, so the two cannot drift apart.
+ * The rule is written in `api/src/lib/database-target.ts`, and the copy of it
+ * for the scripts of plain node is in `scripts/lib/assert-disposable-db.mjs`.
+ * The test `api/tests/database-target.test.ts` asks both of them the same
+ * questions, so the two cannot drift apart.
  */
 
-/** The suffix every disposable database carries. */
-export const DISPOSABLE_DATABASE_SUFFIX = '_test';
+import {
+  DISPOSABLE_DATABASE_SUFFIXES,
+  databaseNameOf,
+  isDisposableDatabaseName as isDisposableName,
+} from './database-target.js';
+
+/** The suffixes a disposable database may carry. */
+export { DISPOSABLE_DATABASE_SUFFIXES };
 
 /**
  * The name of the database a connection string points at.
  *
- * The name is the last part of the path of the connection string, without the
- * query that carries the options. An empty string means the connection
+ * The name is the last part of the path of the connection string, without
+ * the query that carries the options. An empty string means the connection
  * string says nothing about the target, which is treated as a refusal.
  */
 export function databaseNameFromUrl(url: string | null | undefined): string {
-  if (!url) return '';
-  const withoutQuery = url.split('?')[0] ?? '';
-  return withoutQuery.split('/').pop() ?? '';
+  return databaseNameOf(url);
 }
 
 /**
@@ -39,7 +39,7 @@ export function databaseNameFromUrl(url: string | null | undefined): string {
  * name of a database, it is a missing name.
  */
 export function isDisposableDatabaseName(name: string): boolean {
-  return name.length > DISPOSABLE_DATABASE_SUFFIX.length && name.endsWith(DISPOSABLE_DATABASE_SUFFIX);
+  return isDisposableName(name);
 }
 
 export interface DisposableDatabaseOptions {
@@ -77,7 +77,7 @@ export function assertDisposableDatabase(options: DisposableDatabaseOptions = {}
 
   throw new Error(
     `Refusing to ${label}: the database "${name || 'an unknown database'}" is not a disposable one. ` +
-      `A database this operation changes has to end with "${DISPOSABLE_DATABASE_SUFFIX}". ` +
+      `A database this operation changes has to end with ${DISPOSABLE_DATABASE_SUFFIXES.map((suffix) => `"${suffix}"`).join(', ')}. ` +
       'Nothing was read and nothing was changed.',
   );
 }

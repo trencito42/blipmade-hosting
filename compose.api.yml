@@ -19,7 +19,10 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3100
-      RUN_MIGRATIONS: "true"
+      # The migrations are applied on the host, with the credentials of the
+      # owner of the database. The container only checks that the database is
+      # at the schema of this release and refuses to start when it is not.
+      CHECK_MIGRATIONS: "true"
       # The directory of the state of the operations: the receipts of the
       # backups, the incident of the operator and the journal of the alarms.
       # The scripts of the host write the receipts there, and the platform

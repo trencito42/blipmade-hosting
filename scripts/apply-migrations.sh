@@ -8,6 +8,12 @@ set -euo pipefail
 
 cd /opt/blipmade/api
 
+# The migrations change the schema, so they need the credentials of the
+# owner of the database. The role the platform uses cannot do that, and that
+# is what keeps a destructive command away from the live database.
+if [[ -z "${DATABASE_URL:-}" && -f ../.env.db-admin ]]; then
+  set -a; . ./../.env.db-admin; set +a
+fi
 if [[ -z "${DATABASE_URL:-}" && -f ../.env ]]; then
   set -a; . ./../.env; set +a
 fi

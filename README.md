@@ -203,7 +203,7 @@ Rules that matter:
   is not deployed with `build api worker` leaves the worker on the old code,
   and the two drift apart. Always rebuild them together.
 * **The migrations run when the API container starts.** The entrypoint runs
-  `prisma migrate deploy` before the API starts, because `RUN_MIGRATIONS` is
+  `prisma migrate status` before the API starts, because `CHECK_MIGRATIONS` is
   set in `compose.api.yml`. Never run `prisma migrate dev` on the host: it
   wants an interactive answer and it wants to reset the database.
 * **The `.env` file is not in the repository.** It lives in `/opt/blipmade/.env`

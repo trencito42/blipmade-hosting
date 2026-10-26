@@ -9,6 +9,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT/api"
 
+# The suite runs with the credentials of the role of the suite. The password
+# of the live database is not in the hands of the runner of the tests, and the
+# role of the suite cannot connect to the live database even by accident.
+if [[ -f .env.test ]]; then
+  set -a; . ./.env.test; set +a
+fi
+
 if [[ -f .env ]]; then
   set -a; . ./.env; set +a
 elif [[ -f ../.env ]]; then
@@ -38,10 +45,18 @@ if [[ "$TEST_DB_NAME" != *_test ]]; then
   exit 1
 fi
 
-TEST_URL="${HOST_URL%/*}/$TEST_DB_NAME"
+# The connection string of the suite comes from the file of its own, when
+# that file is there. Without it, the connection string of the environment is
+# used with the name of the scratch database.
+TEST_URL="${TEST_DATABASE_URL:-${HOST_URL%/*}/$TEST_DB_NAME}"
+
+# The suite runs on the host, so the name of the container of the database is
+# the name of the host.
+TEST_URL="${TEST_URL/@postgres:/@localhost:}"
+TEST_URL="${TEST_URL/@redis:/@localhost:}"
 
 if [[ "$TEST_URL" != *"/$TEST_DB_NAME" ]]; then
-  echo "Could not derive the test database URL from DATABASE_URL." >&2
+  echo "The connection string of the suite does not point at the scratch database." >&2
   exit 1
 fi
 

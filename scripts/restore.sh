@@ -21,9 +21,13 @@ cd "$ROOT"
 # shellcheck source=scripts/backup-common.sh
 source "$ROOT/scripts/backup-common.sh"
 
+# The restore writes the schema of the database back, so it needs the
+# credentials of the owner. The file of the host only fills a gap, so a
+# target can be given explicitly for a restore drill.
+if [[ -z "${DATABASE_URL:-}" && -f .env.db-admin ]]; then
+  set -a; . ./.env.db-admin; set +a
+fi
 if [[ -z "${DATABASE_URL:-}" && -f .env ]]; then
-  # The environment file only fills a gap, so a target can be given explicitly
-  # for a restore drill.
   set -a; . ./.env; set +a
 fi
 

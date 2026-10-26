@@ -187,7 +187,36 @@ jobs:
         # The test database is thrown away after the run, so the schema is
         # pushed from prisma/schema.prisma instead of running the migration
         # history. No production migration is ever executed here.
-        run: npx prisma db push --skip-generate --accept-data-loss
+        run: bash ../scripts/prisma-safe.sh db push --skip-generate --accept-data-loss
+
+      - name: The guard refuses to destroy a database that holds data
+        working-directory: api
+        run: |
+          # A database that looks like the live one, with a row in it.
+          psql "postgresql://blipmade:blipmade@127.0.0.1:5432/postgres" -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE blipmade_live;'
+          psql "postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_live" -v ON_ERROR_STOP=1 \
+            -c 'CREATE TABLE "Customer" ("id" text PRIMARY KEY);'
+          psql "postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_live" -v ON_ERROR_STOP=1 \
+            -c 'INSERT INTO "Customer" ("id") VALUES ('"'"'keep-me'"'"');'
+          set +e
+          output=$(DATABASE_URL="postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_live" \
+            bash ../scripts/prisma-safe.sh db push --force-reset --accept-data-loss 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "::error::the guard let a destructive command run against a database that holds data"
+            exit 1
+          fi
+          if ! echo "$output" | grep -q "Refusing to"; then
+            echo "::error::the command stopped for another reason than the refusal of the guard"
+            exit 1
+          fi
+          # The row is still there: nothing was destroyed.
+          psql "postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_live" -At \
+            -c 'SELECT count(*) FROM "Customer";' | grep -qx 1
+          echo "the guard refused, and the row is still there"
 
       - name: Record the migration history as applied
         working-directory: api
@@ -392,7 +421,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow
+      DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow_check
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -416,7 +445,7 @@ jobs:
             -e PGPASSWORD=blipmade \
             postgres:17 \
             psql -h 127.0.0.1 -U blipmade -d postgres -v ON_ERROR_STOP=1 \
-            -c 'CREATE DATABASE blipmade_shadow;'
+            -c 'CREATE DATABASE blipmade_shadow_check;'
 
       - name: Validate the schema
         working-directory: api
@@ -432,7 +461,7 @@ jobs:
           npx prisma migrate diff \
             --from-migrations prisma/migrations \
             --to-schema-datamodel prisma/schema.prisma \
-            --shadow-database-url "postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow" \
+            --shadow-database-url "postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade_shadow_check" \
             --exit-code
 
   # ---------------------------------------------------------------------------

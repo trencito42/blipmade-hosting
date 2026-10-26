@@ -63,6 +63,10 @@ EOF
   exit 1
 fi
 
+# The guard of the platform asks the same question and reads the list of the
+# suffixes from one place, so this script and the module cannot drift apart.
+(cd "$ROOT/api" && npx tsx ../scripts/lib/assert-disposable-db.ts --name "$REQUESTED" --label "reset the database")
+
 # The url of the database that is asked for.
 TARGET_URL="${BASE_URL%/*}/${REQUESTED}"
 

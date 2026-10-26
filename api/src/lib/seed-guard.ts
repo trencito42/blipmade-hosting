@@ -29,8 +29,18 @@
  * write, so it is the only thing that can be checked. The rule is a suffix
  * and not a list of names, because a name that is not in a list is a name
  * that gets added to the list in a hurry.
+ *
+ * The suffixes are written in `api/src/lib/database-target.ts`, so the guard of
+ * the seed, the guard of the suite and the guard of the destructive commands
+ * cannot drift apart.
  */
-const SCRATCH_NAME = /(_test|_drill|_scratch|_check)$/i;
+import {
+  DISPOSABLE_DATABASE_SUFFIXES,
+  databaseNameOf as databaseNameOfUrl,
+  isDisposableDatabaseName,
+} from './database-target.js';
+
+const SCRATCH_NAME = DISPOSABLE_DATABASE_SUFFIXES;
 
 /** What the guard decided about the target of a seed. */
 export interface SeedTarget {
@@ -49,12 +59,7 @@ export interface SeedTarget {
  * hold a "/" and a "?" and the name is simply the last part of the path.
  */
 export function databaseNameOf(url: string | undefined): string {
-  const raw = (url ?? '').trim();
-  if (!raw) return '';
-  const withoutQuery = raw.split('?')[0];
-  const withoutCredentials = withoutQuery.slice(withoutQuery.lastIndexOf('@') + 1);
-  const segments = withoutCredentials.split('/');
-  return (segments[segments.length - 1] ?? '').trim();
+  return databaseNameOfUrl(url);
 }
 
 /**
@@ -75,7 +80,7 @@ export function seedTarget(
       reason: 'the database of the url could not be read',
     };
   }
-  if (SCRATCH_NAME.test(database)) {
+  if (isDisposableDatabaseName(database)) {
     return {
       database,
       allowed: true,
