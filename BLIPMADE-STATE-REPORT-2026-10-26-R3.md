@@ -339,3 +339,48 @@ platform — all of them stop the build.
    place.
 4. The pages of the documentation of the topics that the platform does not
    have yet, when the platform has them.
+
+---
+
+## 10. The release, and what it was checked with
+
+The release is a commit of `main`, and it was put out in the order the
+runbook asks for: the tests, the CI, the push, the backup, the build, the
+restart, and the checks of the running system.
+
+| What | How it was checked | The result |
+|---|---|---|
+| the suite of the API | `scripts/run-tests.sh` on the machine of the release | 106 files, **1014 tests passed**, 6 skipped, exit 0 |
+| the suite of the frontend | the same runner, `node --test` | **304 tests passed**, exit 0 |
+| the chain of the payments | `tests/stripe-sandbox-live.test.ts` with the keys of the sandbox | **6/6** — a checkout really paid, a refund really made, nothing written twice |
+| the types | `tsc --noEmit` for the API, for the tests and for the frontend | no error |
+| the content of the documentation | `scripts/validate-docs.mjs` | structure ok, links ok, terminology ok, catalog skipped |
+| the secrets of the history | `gitleaks` over the whole history | no finding outside the files of `.env`, which are ignored by git |
+| the CI | the seven jobs of the workflow, on the commit of the release | **7/7 green** |
+| the backup of the clients | `scripts/backup.sh` before the restart | `blipmade-pre-release-cf3274c-20261026T211152Z.tar.gz`, sha256 `e2681c44…a22f` |
+| the copy that leaves the host | `scripts/backup-offsite.sh` | encrypted, read back, verified on the target, 100801 bytes |
+| the migrations | `scripts/apply-migrations.sh` | 17 applied, **0 pending, 0 failed** |
+| the data of the clients | the tables of the live database | 4 users, 10 orders, 5 products, 5 payments, 5 invoices, 5 instances, 731 audit records, 25 sessions |
+| the containers | `docker compose ps` | **5/5 healthy** |
+| the commit that runs | the label of the images, read with `docker inspect` | `cf3274ce5548b3a27f139daa181233e0a6714ca1` on the API, on the worker and on the web |
+| the live platform | `scripts/smoke-production.sh` | **31/31**, nothing failed |
+| the documentation | a real browser, on 390px, 768px and 1440px | **no problem** — the navigation, the search, the anchors, the links, the keyboard and the landmarks are all there |
+
+**The commit that runs is read, not guessed.** The images carry the commit
+they were built from as a label, so the state of the production is a fact
+that anyone can read:
+
+```bash
+docker inspect blipmade-api blipmade-worker blipmade-web \
+  --format '{{index .RepoTags 0}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
+```
+
+Before this release the label did not exist, and the state of the production
+had to be concluded from the working tree. That is now a one-line check, and
+the runbook (section 10) says so.
+
+**Nothing was forced.** `main` went from `1214c4b` to the commit of the
+release with a fast-forward, with no force-push, no `migrate reset` and no
+seed. The branches and the worktrees that hold the deferred work (the
+Prisma 7 and the Stripe 23 bumps, the scripts of the performance) were left
+exactly where they were.
