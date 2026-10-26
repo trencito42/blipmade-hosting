@@ -169,6 +169,29 @@ it.
 written down, every alarm travels by the mail of the platform — including the
 alarm about the mail server.
 
+### What the first live sweep found
+
+The sweep was run on the live platform, and it found two things that nobody
+had noticed:
+
+1. **The address of the operator did not exist.** `MAIL_OPERATOR_EMAIL` was
+   `operator@blipmade.com`, and that mailbox is not on the mail server: every
+   alarm of the platform bounced with *"User unknown in virtual mailbox
+   table"*, and the bounce itself became a finding of the check of the
+   delivery. It is `platform@blipmade.com` now, which exists. **The operator
+   still has to write down the address he really reads** — the mail of the
+   platform stays on the machine of the mail, so an address that is not read
+   there is an alarm that nobody hears.
+2. **The suite of the tests wrote over the receipts of the platform.** The
+   suite runs the scripts of the backups, and the scripts write the receipts
+   into the directory of the state of the operations, which was not excluded
+   from the suite. The platform therefore read the receipts of a test as if
+   they were the receipts of the night, and it said that the copy that leaves
+   the host was missing, because a fixture of a test had failed on purpose.
+   The suite now gets a directory of its own for the state of the operations,
+   the same way it gets one for the mail, and the test that holds that
+   isolation was extended.
+
 ### Priority 4 — the certificate of Mailcow, the DNS, the renewal
 
 **Nothing was disabled and no verification was turned off.**
@@ -249,7 +272,7 @@ done and the smoke test passes.
 | The alarms of the operator | **DONE & VERIFIED LIVE** | 11 producers; the gap of the events that cannot be fired went from 33 to 22. |
 | The certificate of the public addresses | **DONE & VERIFIED LIVE** | Valid until 7 January 2027; the days that are left are shown in the dashboard. |
 | The backup of the night | **DONE & VERIFIED LIVE** | Ran at 02:15:44, `Result: success`, 92 346 bytes offsite, 14 copies on the target. It was **restored for real** during the incident. |
-| The copy that leaves the host | **CODE DONE, NOT DEPLOYED** | The drill of the restore of the encrypted copy exists. The **receipts** that the platform reads (`offsite.json`) are written by the scripts of the host, and that part is in the branch — it goes out with the next deployment. |
+| The copy that leaves the host | **DONE & VERIFIED LIVE** | The drill of the restore of the encrypted copy exists and ran. The **receipts** that the platform reads are written by the scripts of the host: backup, copy off the host, drill of the restore — all three written and read. |
 | The mail server (Mailcow) | **BLOCKED BY OPERATOR** | It answers and delivers. The name `mail.blipmade.com` is not in the public DNS, so it cannot be reached from the outside and cannot have a public certificate. |
 | The name of the mail server in the DNS | **BLOCKED BY OPERATOR** | An A record, DNS-only, in the zone of Cloudflare, and a certificate ACME. |
 | The alarms outside the platform (webhook) | **BLOCKED BY OPERATOR** | `OPS_ALERT_WEBHOOK_URL` has to be written down. |
@@ -269,14 +292,17 @@ done and the smoke test passes.
 
 | What | Result |
 |---|---|
-| The regression of the API | **887 tests in 88 files, all green** (the 886 of before plus the 12 of the guard of the seed and the 16 of the health of the platform; the list of the events that cannot be fired went from 33 to 22, which is a change of the test itself and not a new test). |
+| The regression of the API | **931 tests in 91 files, all green** (the 886 of before, plus 12 for the guard of the seed, 16 for the health of the platform, 9 for the drafts of the mail, 6 for the drill of the copy that leaves the host, 2 for the isolation of the state of the operations). |
 | The regression of the web | **279 tests in 24 files, all green** (21 of them new, for the page of the operations). |
 | The typecheck of the API | Clean. |
 | The build of the web | Clean. |
-| The CI | Green on the commit of the deployment. |
+| The CI | **Run 129, success**, 7/7 jobs green on the commit of the deployment. |
 | The smoke test of the production | **31/31**. |
 | The migrations | 17/17, no pending migration. |
 | The containers | 5/5 healthy. |
+| The sweep of the health, live | 11 checks, 2 findings, 1 alarm sent and 1 held back — the anti-storm worked exactly as it is written. |
+| The receipts of the backups | Written by the scripts and read by the platform: backup, copy off the host, drill of the restore. |
+| The restore of the backup | **Done for real**: the copy of 08:08 restores into a database that matches the live one (40 tables, 4 accounts, 5 products, 17 migrations). |
 
 ---
 
@@ -294,11 +320,14 @@ Nothing below was done, and nothing below breaks the platform as it is.
    Without this, every alarm of the platform travels by the mail of the
    platform — including the alarm about the mail server.
 
-2. **Decide where the alarm of the backup has to arrive.** Right now
-   `MAIL_TO=platform@blipmade.com`, and the mail server of the platform keeps
-   its own copy of the domain, so the alarm stays on the machine of the mail.
-   Write down an address that you actually read (for example the one that
-   `mail.xodo.ro` serves), and I will set it and test it from end to end.
+2. **Decide where the alarm has to arrive.** The address of the operator was
+   `operator@blipmade.com`, which does not exist on the mail server, so every
+   alarm bounced; it is `platform@blipmade.com` now, which exists. But the
+   mail server of the platform keeps its own copy of the domain, so the alarm
+   stays on the machine of the mail. Write down an address that you actually
+   read (for example the one that `mail.xodo.ro` serves), in
+   `MAIL_OPERATOR_EMAIL` and in `MAIL_TO`, and I will set it and test it from
+   end to end.
 
 3. **The name of the mail server in the DNS.** In the zone of Cloudflare of
    `blipmade.com`: an **A record, DNS-only (grey), not proxied**, towards the
