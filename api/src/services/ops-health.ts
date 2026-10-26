@@ -124,6 +124,7 @@ import {
   type AlertDecision,
   type OpsAlertState,
 } from '../lib/ops-alert-policy.js';
+import { notifyOpsRecovered } from './notifications.js';
 
 export { backoffMinutes, decideAlert };
 export type { AlertDecision, OpsAlertState };
@@ -1208,6 +1209,19 @@ async function resolveMissingFindings(check: OpsCheckId, findings: OpsFinding[])
       }
       if (state.status !== 'firing') continue;
       if (present.has(state.fingerprint)) continue;
+      // The problem is over, and the operator is told. A finding that was
+      // reported at least once was a problem somebody had to know about, and
+      // the end of it is a thing the operator has to know about as well: a
+      // platform that only talks about what is broken teaches the operator to
+      // wait for the next message instead of reading the ones it gets.
+      if (state.sends > 0) {
+        await notifyOpsRecovered({
+          check,
+          title: state.title ?? state.fingerprint,
+          detail: state.detail ?? '',
+          occurrence: `${check}:${state.fingerprint}`,
+        });
+      }
       await writeState({ ...state, status: 'ok' });
       resolved += 1;
     }
@@ -1251,7 +1265,7 @@ export async function runOpsSweep(now: Date = new Date()): Promise<OpsSweepResul
     for (const finding of check.findings) {
       findings += 1;
       const state = await readState(check.id, finding.fingerprint);
-      const decision = decideAlert(state, finding.fingerprint, now);
+      const decision = decideAlert(state, finding.fingerprint, now, finding.severity);
 
       if (decision.decision === 'suppress') {
         suppressed += 1;
@@ -1270,7 +1284,9 @@ export async function runOpsSweep(now: Date = new Date()): Promise<OpsSweepResul
           at: now.toISOString(),
           check: check.id,
           fingerprint: finding.fingerprint,
-          severity: finding.severity,
+          // A finding that has been reported again and again is a critical
+          // one, and the alarm says so.
+          severity: decision.severity,
           title: finding.title,
           detail: finding.detail,
           channels: { journal: false, webhook: 'skipped' },
@@ -1286,6 +1302,11 @@ export async function runOpsSweep(now: Date = new Date()): Promise<OpsSweepResul
           lastSentAt: now.toISOString(),
           sends: (state?.status === 'firing' ? state.sends : 0) + 1,
           acknowledgedAt: state?.status === 'firing' ? state.acknowledgedAt : null,
+          // The name of the finding is kept, so the message that says the
+          // problem is over can name the problem.
+          severity: decision.severity,
+          title: finding.title,
+          detail: finding.detail,
         });
       }
     }

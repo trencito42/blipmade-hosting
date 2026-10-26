@@ -1666,6 +1666,28 @@ const CATALOGUE: TemplateDefinition[] = [
     ],
   },
   {
+    id: 'ops-recovered',
+    version: 1,
+    category: 'operator',
+    operator: true,
+    heading: 'The problem is over',
+    subject: 'The problem is over',
+    preheader: 'A problem of the platform is over.',
+    facts: [
+      ['ops.check', 'check'],
+      ['ops.title', 'title'],
+    ],
+    paragraphs: [
+      'A problem of the platform is over.',
+      '{{ops.title}}',
+      '{{ops.detail}}',
+    ],
+    details: [
+      { label: 'Check', value: '{{ops.check}}' },
+      { label: 'Problem', value: '{{ops.title}}' },
+    ],
+  },
+  {
     id: 'ops-mailcow-unhealthy',
     version: 1,
     category: 'operator',

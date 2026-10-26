@@ -14,6 +14,12 @@ cd "$ROOT/api"
 # role of the suite cannot connect to the live database even by accident.
 if [[ -f .env.test ]]; then
   set -a; . ./.env.test; set +a
+elif [[ -f ../.env.test ]]; then
+  # The file of the scratch database sits at the root of the repository, and
+  # the runner works from the directory of the API. Without this the file was
+  # never read, the suite fell back to the credentials of the environment and
+  # entered the scratch database as the owner of the live one.
+  set -a; . ./../.env.test; set +a
 fi
 
 if [[ -f .env ]]; then

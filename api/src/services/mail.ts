@@ -387,7 +387,10 @@ export async function deleteMailDomain(
     kind: 'domain.delete',
     domainId: domain.id,
     payload: { domain: domain.name },
-    run: () => mailcow.mailcowDeleteDomain(domain.name),
+    // The domain goes with the mailboxes and the aliases that are on it: the
+    // mail system refuses to delete a domain that still holds them, and a
+    // domain that is left behind with its mail is mail that nobody owns.
+    run: () => mailcow.mailcowDeleteDomainWithItsContent(domain.name),
   });
   await prisma.mailDomain.delete({ where: { id: domain.id } });
   await audit({

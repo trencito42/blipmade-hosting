@@ -54,6 +54,10 @@ vi.mock('../src/services/mailcow.js', () => {
       record('deleteDomain', domain);
       mailcowMock.domains.delete(domain);
     },
+    mailcowDeleteDomainWithItsContent: async (domain: string) => {
+      record('deleteDomainWithItsContent', domain);
+      mailcowMock.domains.delete(domain);
+    },
     mailcowCreateDkim: async () => 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtestkey',
     mailcowEnsureDkim: async (domain: string) => {
       record('ensureDkim', domain);
@@ -508,6 +512,37 @@ describe('the sale of hosted mail', () => {
     });
     expect(stolen.status).toBe(409);
     expect(String(stolen.body.error?.message ?? stolen.body.message ?? '')).toMatch(/already hosted/i);
+  });
+
+  it('keeps the service when the mail system refuses to release the data', async () => {
+    await createMailPlan();
+    const { client } = await registerAndLogin(app, 'retention@blipmade.test');
+
+    const created = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'email-plan', mailDomain: 'retention.example' }],
+    });
+    await client.request('POST', `/api/orders/${created.body.order.id}/confirm`);
+    const service = (await services())[0]!;
+
+    await client.request('POST', `/api/mail/services/${service.id}/cancel`);
+    // The retention has ended, so the data may go.
+    await prisma.mailService.update({
+      where: { id: service.id },
+      data: { retentionUntil: new Date(Date.now() - 60_000) },
+    });
+
+    // The mail system refuses to delete the domain.
+    mailcowMock.failures.set('deleteDomainWithItsContent', 'domain_not_empty');
+
+    const { deleteMailServiceData } = await import('../src/services/mail-commerce.js');
+    await expect(deleteMailServiceData(service.id)).rejects.toThrow(/mail system/i);
+
+    // The service is still there, with the reason on it: the mail of the
+    // customer is still on the server, so the platform must not forget it.
+    const kept = await prisma.mailService.findUnique({ where: { id: service.id } });
+    expect(kept).not.toBeNull();
+    expect(kept!.lastError).toMatch(/mail system/i);
+    expect(await prisma.mailDomain.count({ where: { serviceId: service.id } })).toBe(1);
   });
 
   it('puts a service that failed on the queue again', async () => {

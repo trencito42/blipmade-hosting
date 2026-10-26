@@ -46,6 +46,7 @@ const PUBLISHERS: Record<string, string> = {
   'ops.capacity_critical': 'notifyOpsCapacityCritical',
   'ops.dns_certificate_failure': 'notifyOpsDnsCertificateFailure',
   'ops.security_change': 'notifyOpsSecurityChange',
+  'ops.recovered': 'notifyOpsRecovered',
 };
 
 /** A moment in time that does not depend on when the suite runs. */
@@ -126,6 +127,35 @@ describe('the decision about an alarm', () => {
   });
 });
 
+describe('the severity of a finding that is not fixed', () => {
+  it('keeps the severity of a finding that was reported once', () => {
+    // The pause before the second alarm is half an hour.
+    const decision = decideAlert(firing({ sends: 1 }), 'mailcow:unreachable', new Date('2026-10-26T08:00:00.000Z'), 'warning');
+    expect(decision.decision).toBe('repeat');
+    expect(decision.severity).toBe('warning');
+  });
+
+  it('makes a finding that was reported again and again a critical one', () => {
+    // The pause before the third alarm is two hours, so the third alarm is
+    // due at ten in the morning.
+    const decision = decideAlert(firing({ sends: 2 }), 'mailcow:unreachable', new Date('2026-10-26T10:00:00.000Z'), 'warning');
+    expect(decision.decision).toBe('repeat');
+    // The third alarm says that this is not a moment any more.
+    expect(decision.severity).toBe('critical');
+  });
+
+  it('never makes a critical finding a small one', () => {
+    const decision = decideAlert(firing({ sends: 1 }), 'mailcow:unreachable', new Date('2026-10-26T08:00:00.000Z'), 'critical');
+    expect(decision.severity).toBe('critical');
+  });
+
+  it('reports a new finding with the severity it has', () => {
+    const decision = decideAlert(null, 'mailcow:unreachable', NOW, 'critical');
+    expect(decision.decision).toBe('notify');
+    expect(decision.severity).toBe('critical');
+  });
+});
+
 describe('the wiring of the health of the platform', () => {
   it('has a publisher for every alarm of the catalogue', async () => {
     const source = await readFile(join(SRC, 'services', 'notifications.ts'), 'utf-8');
@@ -133,6 +163,18 @@ describe('the wiring of the health of the platform', () => {
       expect(source, `the event ${event} has no publisher`).toContain(`export async function ${publisher}(`);
       expect(source, `the publisher of ${event} does not publish it`).toContain(`'${event}'`);
     }
+  });
+
+  it('tells the operator that a problem is over', async () => {
+    // The end of a problem is a thing the operator has to know about as
+    // well: a platform that only talks about what is broken teaches the
+    // operator to wait for the next message instead of reading the ones it
+    // gets.
+    const source = await readFile(join(SRC, 'services', 'ops-health.ts'), 'utf-8');
+    expect(source).toContain('notifyOpsRecovered(');
+    // The message is only sent for a finding that was reported: a finding
+    // that nobody was told about does not need an ending.
+    expect(source).toMatch(/state\.sends\s*>\s*0/);
   });
 
   it('calls every publisher from the sweep of the health', async () => {

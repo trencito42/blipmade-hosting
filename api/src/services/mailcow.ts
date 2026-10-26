@@ -479,6 +479,64 @@ export async function mailcowDeleteDomain(domain: string): Promise<void> {
   await mailcowRequest('/delete/domain', { method: 'POST', body: [domain] });
 }
 
+/**
+ * The parts of the mail system that a removal of a domain needs.
+ *
+ * They are given to the removal so the rule can be checked without a mail
+ * system, and the real ones are used when they are not given.
+ */
+export interface MailSystemRemovals {
+  mailboxes: () => Promise<MailcowMailbox[]>;
+  aliases: () => Promise<MailcowAlias[]>;
+  deleteMailbox: (address: string) => Promise<void>;
+  deleteAlias: (address: string) => Promise<void>;
+  deleteDomain: (domain: string) => Promise<void>;
+}
+
+/**
+ * Removes a domain from the mail system, with everything that is on it.
+ *
+ * The mail system refuses to delete a domain that still holds mailboxes or
+ * aliases, and it is right to refuse: a domain that is deleted with its
+ * mailboxes still in it is a domain whose mail is still on the server. So
+ * the mailboxes and the aliases are taken away first, and the domain goes
+ * last.
+ *
+ * The mail system is asked what it holds, and not the platform, because the
+ * platform and the mail system can disagree about a mailbox that was made
+ * outside of the platform.
+ */
+export async function removeDomainWithItsContent(
+  domain: string,
+  system: MailSystemRemovals = {
+    mailboxes: () => mailcowMailboxes(),
+    aliases: () => mailcowAliases(),
+    deleteMailbox: (address: string) => mailcowDeleteMailbox(address),
+    deleteAlias: (address: string) => mailcowDeleteAlias(address),
+    deleteDomain: (name: string) => mailcowDeleteDomain(name),
+  },
+): Promise<void> {
+  const wanted = domain.trim().toLowerCase();
+  const mailboxes = await system.mailboxes();
+  for (const mailbox of mailboxes) {
+    if ((mailbox.domain ?? '').trim().toLowerCase() !== wanted) continue;
+    await system.deleteMailbox(mailbox.username);
+  }
+  const aliases = await system.aliases();
+  for (const alias of aliases) {
+    if ((alias.domain ?? '').trim().toLowerCase() !== wanted) continue;
+    await system.deleteAlias(alias.address);
+  }
+  await system.deleteDomain(domain);
+}
+
+/**
+ * Removes a domain from the mail system, with everything that is on it.
+ */
+export async function mailcowDeleteDomainWithItsContent(domain: string): Promise<void> {
+  await removeDomainWithItsContent(domain);
+}
+
 /** Creates a mailbox in the mail system. */
 export async function mailcowCreateMailbox(input: {
   localPart: string;

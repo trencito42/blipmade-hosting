@@ -117,6 +117,22 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 ALTER DATABASE blipmade_test OWNER TO $TEST_ROLE;
 SQL
 
+# The tables of the scratch database were made by the owner, because the
+# migrations are applied by the owner. The role of the suite therefore needs
+# the rights on them, or the suite cannot read a row of the database it owns.
+# The grants are given by the owner, because only the owner of a table may
+# give the rights on it.
+OWNER_TEST_URL="${HOST_URL%/*}/blipmade_test"
+psql "$OWNER_TEST_URL" -v ON_ERROR_STOP=1 -q <<SQL
+GRANT USAGE ON SCHEMA public TO $TEST_ROLE;
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA public TO $TEST_ROLE;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO $TEST_ROLE;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLES TO $TEST_ROLE;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO $TEST_ROLE;
+SQL
+
 echo "==> The roles are in place"
 echo "    $APP_ROLE: the rows of the live database, and nothing else"
 echo "    $TEST_ROLE: the scratch databases, and nothing else"

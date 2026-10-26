@@ -1219,8 +1219,22 @@ export async function deleteMailServiceData(serviceId: string): Promise<void> {
   if (service.retentionUntil && service.retentionUntil.getTime() > Date.now()) {
     throw conflict('The data of this mail service is still kept. The retention has not ended.');
   }
+  // The data of the customer has to be gone from the mail system as well.
+  // The mail system refuses to delete a domain that still holds mailboxes or
+  // aliases, so they are taken away first.
+  //
+  // A refusal is not swallowed: the row of the service stays in the
+  // platform, the reason is written on it and the run is tried again later.
+  // A service that is deleted from the platform while its mail is still on
+  // the server is a service whose data nobody will ever delete.
   for (const domain of service.domains) {
-    await mailcow.mailcowDeleteDomain(domain.name).catch(() => undefined);
+    try {
+      await mailcow.mailcowDeleteDomainWithItsContent(domain.name);
+    } catch (error) {
+      const reason = `The data of the domain ${domain.name} could not be removed from the mail system: ${(error as Error).message}`;
+      await prisma.mailService.update({ where: { id: serviceId }, data: { lastError: reason } }).catch(() => undefined);
+      throw new Error(reason);
+    }
   }
   await prisma.mailService.delete({ where: { id: serviceId } });
   await audit({

@@ -40,6 +40,7 @@ function addressesOf(text: string): string[] {
  * fact that the event has and the example does not.
  */
 const EVENT_EXAMPLES = {
+  'ops.recovered': { check: 'mailcow', title: 'The mail system does not answer', detail: 'The mail system of the platform does not answer.' },
   'account.registered': { name: 'Ada Lovelace' },
   'account.verification_requested': { name: 'Ada Lovelace', token: TOKEN },
   'account.email_verified': { name: 'Ada Lovelace' },
@@ -238,6 +239,7 @@ function hostilePayload(payload: Record<string, unknown>): Record<string, unknow
 
 /** The identifiers the catalogue has to hold. */
 const REQUIRED_IDS = [
+  'ops-recovered',
   'account-welcome',
   'account-verify-email',
   'account-email-verified',
@@ -321,15 +323,15 @@ afterEach(() => {
 
 describe('the catalogue of the templates', () => {
   it('holds exactly the templates the events of the platform expect', () => {
-    expect(REQUIRED_IDS).toHaveLength(73);
+    expect(REQUIRED_IDS).toHaveLength(74);
     expect([...emailTemplateIds()].sort()).toEqual([...REQUIRED_IDS].sort());
     expect(emailTemplateCatalog().map((entry) => entry.id).sort()).toEqual([...REQUIRED_IDS].sort());
-    expect(emailTemplateCatalog()).toHaveLength(73);
+    expect(emailTemplateCatalog()).toHaveLength(74);
   });
 
   it('holds the same templates as the registry of the events', () => {
     const expected = Object.values(EVENT_DEFINITIONS).map((definition) => definition.template);
-    expect(expected).toHaveLength(73);
+    expect(expected).toHaveLength(74);
     expect([...emailTemplateIds()].sort()).toEqual([...expected].sort());
   });
 

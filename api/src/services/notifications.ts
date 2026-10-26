@@ -59,6 +59,29 @@ async function publish(
   }
 }
 
+/**
+ * A problem of the platform is over.
+ *
+ * The operator is told when the problem is over, and not only when it
+ * begins: a platform that only talks about what is broken teaches the
+ * operator to wait for the next message instead of reading the ones it
+ * gets.
+ */
+export async function notifyOpsRecovered(input: {
+  check: string;
+  title: string;
+  detail: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish(
+    'ops.recovered',
+    input.title,
+    null,
+    { check: input.check, title: input.title, detail: input.detail },
+    input.occurrence ?? null,
+  );
+}
+
 /* ------------------------------------------------------------------ account */
 
 /** The account of a customer was created. */

@@ -19,6 +19,7 @@ import {
   pruneQueueJobs,
 } from '../src/services/queue.js';
 import { resetDatabase } from './helpers.js';
+import { hashPassword } from '../src/lib/password.js';
 
 /**
  * The dead letter of a job that was given up on.
@@ -195,6 +196,52 @@ describe('the dead letter of a failed job', () => {
   });
 });
 
+/**
+ * An instance that exists.
+ *
+ * A failure of an instance that is gone cannot be put back on the queue: the
+ * run would fail again for ever, and the platform would keep talking about
+ * a failure it cannot fix. So the test needs an instance that is there.
+ */
+async function seedInstance(): Promise<string> {
+  const stamp = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  const user = await prisma.user.create({
+    data: {
+      email: `dead-letter-${stamp}@example.com`,
+      passwordHash: await hashPassword('CorrectHorseBattery9'),
+      firstName: 'Test',
+      lastName: 'Customer',
+      emailVerifiedAt: new Date(),
+    },
+  });
+  const product = await prisma.product.create({
+    data: {
+      slug: `dead-letter-product-${stamp}`,
+      name: 'Service',
+      category: 'WEB_CMS',
+      description: 'A service.',
+      icon: 'globe',
+      deployable: true,
+      eggId: 1,
+      prices: { create: { period: 'MONTHLY', baseAmount: 1000, currency: 'EUR' } },
+    },
+  });
+  const instance = await prisma.instance.create({
+    data: {
+      userId: user.id,
+      productId: product.id,
+      name: 'dead letter instance',
+      status: 'FAILED',
+      ram: 1024,
+      cpu: 1,
+      disk: 10,
+      price: 1000,
+      currency: 'EUR',
+    },
+  });
+  return instance.id;
+}
+
 describe('putting a failed job back on the queue', () => {
   beforeAll(async () => {
     await resetDatabase();
@@ -208,7 +255,7 @@ describe('putting a failed job back on the queue', () => {
   });
 
   it('puts the job back on the queue and is safe to run twice', async () => {
-    const instanceId = 'instance-requeue-1';
+    const instanceId = await seedInstance();
     await noteJobFailure(
       PROVISION_QUEUE,
       { id: `provision-${instanceId}`, name: 'provision', data: { instanceId }, attemptsMade: 5 },

@@ -44,6 +44,7 @@ vi.mock('../src/services/mailcow.js', () => {
     mailcowDomain: async () => null,
     mailcowCreateDomain: async (input: unknown) => input,
     mailcowDeleteDomain: async (input: unknown) => input,
+    mailcowDeleteDomainWithItsContent: async (input: unknown) => input,
     mailcowSetDomainActive: async (input: unknown) => input,
     mailcowSetDomainRateLimit: async (input: unknown) => input,
     mailcowEnsureDkim: async () => ({

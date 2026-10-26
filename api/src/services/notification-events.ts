@@ -146,6 +146,7 @@ export interface EventPayloadMap {
   'ops.capacity_critical': { resource: string; value: string };
   'ops.dns_certificate_failure': { subject: string; reason: string };
   'ops.security_change': { subject: string; detail: string };
+  'ops.recovered': { check: string; title: string; detail: string };
 }
 
 /** The kind of every event. */
@@ -952,6 +953,16 @@ export const EVENT_DEFINITIONS: EventRegistry = {
     audience: 'operator',
     title: () => 'The restoration could not be verified',
     body: (payload) => `The restoration of ${payload.target} did not give back what it should: ${payload.reason}.`,
+  }),
+  'ops.recovered': definition({
+    type: 'ops.recovered',
+    template: 'ops-recovered',
+    channels: ['email'],
+    category: 'incidents',
+    classification: 'essential',
+    audience: 'operator',
+    title: (payload) => `The problem is over: ${payload.title}`,
+    body: (payload) => payload.detail,
   }),
   'ops.mailcow_unhealthy': definition({
     type: 'ops.mailcow_unhealthy',

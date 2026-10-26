@@ -30,6 +30,7 @@ vi.mock('../src/services/mailcow.js', () => {
     },
     mailcowCreateDomain: async (input: unknown) => record('createDomain', input),
     mailcowDeleteDomain: async (name: string) => record('deleteDomain', name),
+    mailcowDeleteDomainWithItsContent: async (name: string) => record('deleteDomainWithItsContent', name),
     mailcowCreateDkim: async (input: string) => record('createDkim', input),
     mailcowEnsureDkim: async (name: string) => {
       record('createDkim', name);
