@@ -285,6 +285,8 @@ done and the smoke test passes.
 | `DOMAIN_BASE` | **BROKEN / INCOMPLETE** | Empty. The platform cannot write the hostname of a service. |
 | The instances 19 and 20 | **BLOCKED BY OPERATOR** | 19 is `RESTARTING` and its container serves; 20 is `CANCELLED` and it was not started again. |
 | The system of the menu of the platform | **DONE & VERIFIED LIVE** | Font Awesome 7.3.1 Pro Duotone, self-hosted, 0 third-party requests, 0 empty icons. |
+| The health of the platform (live) | **DONE & VERIFIED LIVE** | 11/11 checks green at 08:2x: backup 0h old, copy off the host 0h old, drill restored, the relay took the session, disk 54%, memory 53%, certificates 72 and 85 days left. |
+| The alarms of the operator (live) | **DONE & VERIFIED LIVE** | The journal is written, the state of a finding that is gone is marked as resolved by itself, and the mail to the operator is accepted (0 rejections). |
 
 ---
 
@@ -296,7 +298,7 @@ done and the smoke test passes.
 | The regression of the web | **279 tests in 24 files, all green** (21 of them new, for the page of the operations). |
 | The typecheck of the API | Clean. |
 | The build of the web | Clean. |
-| The CI | **Run 129, success**, 7/7 jobs green on the commit of the deployment. |
+| The CI | **Runs 127, 128, 129 and 130: all success**, 7/7 jobs green. The commit of the deployment is `90dff5c` (run 129) and the report is `db78944` (run 130). |
 | The smoke test of the production | **31/31**. |
 | The migrations | 17/17, no pending migration. |
 | The containers | 5/5 healthy. |
