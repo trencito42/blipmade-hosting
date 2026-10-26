@@ -194,19 +194,30 @@ had noticed:
 
 ### Priority 4 — the certificate of Mailcow, the DNS, the renewal
 
-**Nothing was disabled and no verification was turned off.**
+**Done on 26 October 2026, and nothing was disabled to get there.**
 
-- The certificate of the relay is verified against the certificate of the
-  operator (`SMTP_CA_FILE`) on every message. The sweep verifies the same
-  way, with `rejectUnauthorized: true`, and the code says so in a test.
-- `mail.blipmade.com` **is not in the public DNS**: it answers NXDOMAIN from
-  the outside. The platform reaches the relay because the name resolves to
-  the private address `10.77.0.14` inside the network.
-- The certificate of the public addresses is checked by the sweep, with the
-  number of days that are left. `blipmade.com` has a valid certificate until
-  **7 January 2027**.
-- The renewal is automatic (Let's Encrypt on the edge). The renewal of the
-  mail server needs the name in the DNS — an operator action.
+- The name `mail.blipmade.com` is in the public DNS: an **A record,
+  DNS-only**, towards `193.34.214.20`, which the router forwards to
+  `10.77.0.14`. The name answers with the public address from the outside
+  and with the private one inside the network.
+- The certificate of the relay is a **Let's Encrypt** certificate for
+  `mail.blipmade.com`, issued over `http-01` (the port 80 is forwarded, and
+  Mailcow serves `/.well-known/acme-challenge/`), valid until **24 January
+  2027**. The chain is complete on the ports 587 and 443, and the
+  verification ends with `Verify return code: 0 (ok)`.
+- The renewal is automatic: the client of ACME of Mailcow checks every day
+  and renews when the certificate has less than 30 days left.
+- The platform does not pin the certificate of the relay any more:
+  `SMTP_CA_FILE` is empty and `MAILCOW_API_CERT_SHA256` is empty, so the
+  machine verifies the certificate against the authorities it already
+  trusts. **The verification was never turned off** — it is stronger than
+  before, and it survives the renewal of the certificate.
+- The sweep of the health reads the certificate of the mail server as well:
+  `the public address: 72 day(s) left · the control panel: 85 day(s) left ·
+  the mail server: 89 day(s) left`.
+- The platform writes down the delivery of a message **before** it says that
+  the message went out. It used to say it first and to write the row
+  afterwards, so a reader could see a message that was not there.
 
 ### Priority 5 — the draft products of the hosted mail
 
@@ -270,11 +281,11 @@ done and the smoke test passes.
 | The webhook of the payments | **DONE & VERIFIED LIVE** | 200 with a valid signature, 400 for a wrong signature, 400 for an expired signature, 400 without a signature. |
 | The health of the platform (dashboard) | **DONE & VERIFIED LIVE** | `/admin/ops` + `/api/ops/*`, 11 checks, anti-storm, journal + webhook + mail. |
 | The alarms of the operator | **DONE & VERIFIED LIVE** | 11 producers; the gap of the events that cannot be fired went from 33 to 22. |
-| The certificate of the public addresses | **DONE & VERIFIED LIVE** | Valid until 7 January 2027; the days that are left are shown in the dashboard. |
+| The certificate of the public addresses | **DONE & VERIFIED LIVE** | Valid until 7 January 2027; the days that are left are shown in the dashboard. The certificate of the mail server is watched by the same check: 89 days left. |
 | The backup of the night | **DONE & VERIFIED LIVE** | Ran at 02:15:44, `Result: success`, 92 346 bytes offsite, 14 copies on the target. It was **restored for real** during the incident. |
 | The copy that leaves the host | **DONE & VERIFIED LIVE** | The drill of the restore of the encrypted copy exists and ran. The **receipts** that the platform reads are written by the scripts of the host: backup, copy off the host, drill of the restore — all three written and read. |
-| The mail server (Mailcow) | **BLOCKED BY OPERATOR** | It answers and delivers. The name `mail.blipmade.com` is not in the public DNS, so it cannot be reached from the outside and cannot have a public certificate. |
-| The name of the mail server in the DNS | **BLOCKED BY OPERATOR** | An A record, DNS-only, in the zone of Cloudflare, and a certificate ACME. |
+| The mail server (Mailcow) | **DONE & VERIFIED LIVE** | It answers and delivers, with a Let's Encrypt certificate for `mail.blipmade.com` valid until 24 January 2027. The chain is complete on the ports 587 and 443, and the verification ends with `0 (ok)`. |
+| The name of the mail server in the DNS | **DONE & VERIFIED LIVE** | The A record, DNS-only, was written by the operator on 26 October 2026 and points at `193.34.214.20`, which the router forwards to the mail server. |
 | The alarms outside the platform (webhook) | **BLOCKED BY OPERATOR** | `OPS_ALERT_WEBHOOK_URL` has to be written down. |
 | The sale of the hosted mail | **BLOCKED BY OPERATOR** | Three drafts in the catalog, `deployable: false`, no prices, the sale closed. |
 | The payments with real money | **BLOCKED BY OPERATOR** | `sk_live_`, `pk_live_` and `whsec_` live, and `PAYMENTS_ENABLED=true`. |
@@ -285,7 +296,7 @@ done and the smoke test passes.
 | `DOMAIN_BASE` | **BROKEN / INCOMPLETE** | Empty. The platform cannot write the hostname of a service. |
 | The instances 19 and 20 | **BLOCKED BY OPERATOR** | 19 is `RESTARTING` and its container serves; 20 is `CANCELLED` and it was not started again. |
 | The system of the menu of the platform | **DONE & VERIFIED LIVE** | Font Awesome 7.3.1 Pro Duotone, self-hosted, 0 third-party requests, 0 empty icons. |
-| The health of the platform (live) | **DONE & VERIFIED LIVE** | 11/11 checks green at 08:2x: backup 0h old, copy off the host 0h old, drill restored, the relay took the session, disk 54%, memory 53%, certificates 72 and 85 days left. |
+| The health of the platform (live) | **DONE & VERIFIED LIVE** | 11/11 checks green: backup and copy off the host a few hours old, drill restored, the relay took the session, disk and memory with room, certificates 72, 85 and 89 days left (the public address, the control panel and the mail server). |
 | The alarms of the operator (live) | **DONE & VERIFIED LIVE** | The journal is written, the state of a finding that is gone is marked as resolved by itself, and the mail to the operator is accepted (0 rejections). |
 
 ---
@@ -331,11 +342,11 @@ Nothing below was done, and nothing below breaks the platform as it is.
    `MAIL_OPERATOR_EMAIL` and in `MAIL_TO`, and I will set it and test it from
    end to end.
 
-3. **The name of the mail server in the DNS.** In the zone of Cloudflare of
-   `blipmade.com`: an **A record, DNS-only (grey), not proxied**, towards the
-   public address that is forwarded to `10.77.0.14`. The certificate comes
-   afterwards: `http-01` with the port 80 open, or `dns-01` with a token of
-   Cloudflare. A name that is proxied by Cloudflare does not serve SMTP.
+3. **The name of the mail server in the DNS — DONE on 26 October 2026.** The
+   A record, DNS-only, towards `193.34.214.20` was written by the operator
+   and the certificate was issued with `http-01`; the renewal is automatic.
+   Nothing is left to do here. The only thing left is to **look at the
+   renewal** of the certificate from the outside, once, in January.
 
 4. **The passwords of real money.** `sk_live_…`, `pk_live_…`, `whsec_…` and
    `PAYMENTS_ENABLED=true`. With the keys of test that were put in place
@@ -378,7 +389,8 @@ Nothing below was done, and nothing below breaks the platform as it is.
     the network.** The platform and the sandbox of the agent are behind the
     same address as the machines, so they cannot tell whether a port is
     really open. A telephone with data is enough: `193.34.214.86:443`,
-    `193.34.214.143:443`, `193.34.214.87:8080`, `193.34.214.20:25`.
+    `193.34.214.143:443`, `193.34.214.87:8080`, and on the mail server
+    `193.34.214.20:25`, `:465`, `:587`, `:993`, `:80`, `:443`.
 
 12. **Verify the new firewall of the hypervisor from the outside.** The
     interface of Proxmox must answer from the private network and must not
