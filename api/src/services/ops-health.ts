@@ -115,7 +115,7 @@ export interface OpsAlert {
   severity: OpsSeverity;
   title: string;
   detail: string;
-  channels: { journal: boolean; webhook: 'sent' | 'skipped' | 'failed' };
+  channels: { journal: boolean; webhook: 'sent' | 'skipped' | 'failed'; discord: 'sent' | 'skipped' | 'failed' };
 }
 
 import {
@@ -125,6 +125,12 @@ import {
   type OpsAlertState,
 } from '../lib/ops-alert-policy.js';
 import { notifyOpsRecovered } from './notifications.js';
+import {
+  discordWebhookUrl,
+  sendDiscordAlert,
+  toDiscordAlert,
+  type DiscordSeverity,
+} from './ops-alert-discord.js';
 
 export { backoffMinutes, decideAlert };
 export type { AlertDecision, OpsAlertState };
@@ -1023,6 +1029,22 @@ export async function listOpsAlerts(limit = 50): Promise<{ alerts: OpsAlert[]; s
 }
 
 /**
+ * Says where a channel lives, without saying the secret of the channel.
+ *
+ * The address of a webhook carries the token that lets anybody write in the
+ * channel of the operator. The dashboard shows the host of the address and
+ * nothing else, so the address cannot be read from a screen that is not the
+ * one of the operator.
+ */
+function describeAddress(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return 'the configured address';
+  }
+}
+
+/**
  * The channels an alarm can travel by.
  *
  * The list is shown to the operator, because the question "will I hear about
@@ -1052,7 +1074,9 @@ export async function opsChannels(): Promise<{
           id: 'webhook',
           name: 'Webhook of the operator',
           state: 'ok',
-          detail: `the alarms are pushed to ${webhook}`,
+          // The address of the webhook carries the secret that lets anybody
+          // write in the channel of the operator, so only its host is shown.
+          detail: `the alarms are pushed to ${describeAddress(webhook)}`,
         }
       : {
           id: 'webhook',
@@ -1060,6 +1084,26 @@ export async function opsChannels(): Promise<{
           state: 'off',
           detail:
             'no address is configured, so an alarm can only leave the host by the mail of the platform',
+        },
+  );
+
+  const discord = discordWebhookUrl();
+  channels.push(
+    discord
+      ? {
+          id: 'discord',
+          name: 'Discord channel of the operator',
+          state: 'ok',
+          // The address of the webhook carries the token of the channel, so
+          // only its host is shown, never the address itself.
+          detail: `the alarms are pushed to ${describeAddress(discord)}`,
+        }
+      : {
+          id: 'discord',
+          name: 'Discord channel of the operator',
+          state: 'off',
+          detail:
+            'no Discord channel is configured, so an alarm leaves the host by the journal, by the webhook and by the mail of the platform',
         },
   );
 
@@ -1135,6 +1179,40 @@ async function pushWebhook(alert: OpsAlert): Promise<'sent' | 'skipped' | 'faile
     }
   }
   return 'failed';
+}
+
+/**
+ * Pushes the alarm to the Discord channel of the operator.
+ *
+ * Discord does not take the body of the platform, so the channel has an
+ * adapter of its own. The journal of the alarms and the message by mail are
+ * not touched: this is a channel more, and a channel that is down must not
+ * stop the sweep.
+ */
+async function pushDiscord(alert: OpsAlert, severity: DiscordSeverity = alert.severity): Promise<'sent' | 'skipped' | 'failed'> {
+  const delivery = await sendDiscordAlert(
+    toDiscordAlert({
+      severity,
+      title: alert.title,
+      detail: alert.detail,
+      check: alert.check,
+      fingerprint: alert.fingerprint,
+      occurredAt: new Date(alert.at),
+      dashboardUrl: opsDashboardUrl(),
+    }),
+  );
+  return delivery.status;
+}
+
+/**
+ * The page of the operations that the operator opens.
+ *
+ * The link is in the message of Discord, so the operator does not have to
+ * look for the page. The address of the platform is taken from the
+ * environment, and it is never the address of the private network.
+ */
+export function opsDashboardUrl(): string {
+  return `${env.publicWebUrl}/admin/ops`;
 }
 
 /**
@@ -1221,6 +1299,21 @@ async function resolveMissingFindings(check: OpsCheckId, findings: OpsFinding[])
           detail: state.detail ?? '',
           occurrence: `${check}:${state.fingerprint}`,
         });
+        // The end of a problem is a message of its own in the Discord
+        // channel too: an operator who only sees the alarms of what is
+        // broken cannot tell that the work is over.
+        await pushDiscord(
+          {
+            at: new Date().toISOString(),
+            check,
+            fingerprint: state.fingerprint,
+            severity: 'warning',
+            title: state.title ?? state.fingerprint,
+            detail: state.detail ?? '',
+            channels: { journal: false, webhook: 'skipped', discord: 'skipped' },
+          },
+          'recovery',
+        );
       }
       await writeState({ ...state, status: 'ok' });
       resolved += 1;
@@ -1289,10 +1382,11 @@ export async function runOpsSweep(now: Date = new Date()): Promise<OpsSweepResul
           severity: decision.severity,
           title: finding.title,
           detail: finding.detail,
-          channels: { journal: false, webhook: 'skipped' },
+          channels: { journal: false, webhook: 'skipped', discord: 'skipped' },
         };
         alert.channels.journal = await writeJournal(alert);
         alert.channels.webhook = await pushWebhook(alert);
+        alert.channels.discord = await pushDiscord(alert);
         sent += 1;
         await writeState({
           check: check.id,

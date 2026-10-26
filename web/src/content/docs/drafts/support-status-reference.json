@@ -1,0 +1,1107 @@
+[
+  {
+    "id": "support",
+    "group": "support",
+    "title": "Support",
+    "summary": "How to reach the operator, what the operator can and cannot do, and what to write in a ticket so the answer comes quickly.",
+    "keywords": ["support", "help", "contact", "operator", "assistance", "ticket"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "how-to-reach-us",
+        "title": "How to reach us",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A support ticket is the only way to reach the operator. There is no phone number and no live chat in the platform today. The mail of the platform is the channel of its notifications, and the mail that announces a new ticket goes to the staff that works the queue, or to the operator when nobody of them may read a ticket."
+          },
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Open the Support page",
+                "body": "Sign in to the dashboard and choose Support in the menu on the left.",
+                "result": "The page Your tickets appears, with the button New ticket."
+              },
+              {
+                "title": "Choose New ticket",
+                "body": "Fill in Subject, Category, Priority, Related instance and Message.",
+                "result": "The form New ticket is open, ready to be filled in."
+              },
+              {
+                "title": "Send it",
+                "body": "Choose Create ticket.",
+                "result": "The ticket appears in the list with its number, and a message about it reaches the notification centre of your account."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "The platform sends its own notifications from no-reply@blipmade.com, so a reply to one of those messages does not reach a person. Answer inside the ticket: the operator reads the ticket, not the mailbox."
+          },
+          {
+            "t": "p",
+            "text": "Every ticket is one thread. The answer of the operator is written in the same ticket, and you are told about it by mail and in the notification centre. The page [Support tickets](/docs?p=tickets) describes the thread in full."
+          }
+        ]
+      },
+      {
+        "id": "what-support-can-do",
+        "title": "What the operator can and cannot do",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The operator works on your account from the back office, with the same data you see: the instance, its events, the output of its console, the orders and the invoices."
+          },
+          {
+            "t": "list",
+            "items": [
+              "Read the instance, the events of its life and the output of its console.",
+              "Read the orders, the subscriptions and the invoices of the account, and act on them.",
+              "Work the machine that runs the instance: start it, stop it, resize it, reinstall it.",
+              "Give back the money of a server that was paid for and could not be provisioned, and of a plan change that was paid for and could not be applied. Any other refund is a decision of the operator, and the platform has no button for it.",
+              "Read a ticket only if the account of the staff member holds the permission tickets.read. A staff member without that permission sees no ticket at all."
+            ]
+          },
+          {
+            "t": "list",
+            "items": [
+              "The operator cannot open a shell in your instance: there is no SSH and no SFTP in the platform. The file browser and the console are the way in.",
+              "The operator cannot restore the contents of an instance for you. The platform takes no automatic backup of the data inside your instance, so the copy you keep is yours.",
+              "The operator cannot promise an answer time, and there is no service credit for a period of interruption.",
+              "The operator cannot make the platform reach a percentage of availability: the platform publishes none and promises none."
+            ]
+          }
+        ]
+      },
+      {
+        "id": "hours",
+        "title": "Hours and answer times",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform publishes no opening hours and no answer time for a ticket. A ticket is not answered at a promised moment. What decides where it sits in the queue is the priority you give it, and the category decides which desk it goes to."
+          },
+          {
+            "t": "p",
+            "text": "What the platform does publish is the truth of the ticket itself: the time of every message, the state of the ticket and the date of every message in the notification centre. A ticket that has been answered says so, and says when."
+          },
+          {
+            "t": "callout",
+            "tone": "warning",
+            "text": "If a problem blocks all of your work, set the priority to High and say in the message that it blocks you. If the platform itself has a problem, the status page says so before you write."
+          }
+        ]
+      },
+      {
+        "id": "what-to-write",
+        "title": "What to write in a ticket",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Say what you expected and what happened",
+                "body": "One line for each: the site should answer on port 3000, it answers 502. A ticket that says only that it does not work costs a round trip.",
+                "result": "The operator can tell a fault from a misunderstanding without asking you back."
+              },
+              {
+                "title": "Name the instance",
+                "body": "Choose the instance in Related instance. The operator then reads that instance and its events instead of asking which one you mean.",
+                "result": "The ticket carries the instance, so the answer is about your instance and not about a guess."
+              },
+              {
+                "title": "Paste the part of the console that matters",
+                "body": "The console is where the reason of a failed start is written. Ten lines around the error are enough.",
+                "result": "The operator sees the error without asking for a screenshot."
+              },
+              {
+                "title": "Give the time and the address",
+                "body": "The moment it happened and the address you tried. The events of the instance are kept with their time, so the two together usually find the cause.",
+                "result": "The ticket carries enough to be answered in one message."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "tip",
+            "text": "If the question is about your data, about a payment or about the account itself, choose the category Billing or Account instead of Technical. It is what routes the ticket to the right desk."
+          }
+        ]
+      },
+      {
+        "id": "when-you-are-told",
+        "title": "When you are told",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform writes to you by mail and in the notification centre of your account when a ticket is opened, when the operator answers, when the state of the ticket changes and when it is closed. These messages are always sent: they belong to the conversation itself, so they do not follow the preferences of your account."
+          },
+          {
+            "t": "p",
+            "text": "The messages about the platform itself are a different group. Today the platform writes those to the operator and not to the customers, so a problem of the platform is read on the status page and not in your inbox. The page [Notifications](/docs?p=notifications) describes the groups of the notification centre."
+          }
+        ]
+      }
+    ],
+    "next": ["tickets", "status", "troubleshooting"],
+    "related": ["tickets", "status", "notifications", "faq"]
+  },
+  {
+    "id": "tickets",
+    "group": "support",
+    "title": "Support tickets",
+    "summary": "How to open a ticket, how to answer it, how to attach a file, and what the operator sees when the ticket arrives.",
+    "keywords": ["ticket", "support", "reply", "attachment", "conversation", "thread"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "open-a-ticket",
+        "title": "Open a ticket",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Go to Support",
+                "body": "Choose Support in the menu of the dashboard. The page is called Your tickets.",
+                "result": "The list of your tickets appears, newest activity first."
+              },
+              {
+                "title": "Choose New ticket",
+                "body": "The form asks for a Subject, a Category, a Priority, an optional Related instance and a Message.",
+                "result": "The form is open."
+              },
+              {
+                "title": "Fill it in and send",
+                "body": "Choose Create ticket. The message is the first message of the ticket.",
+                "result": "A message appears that says Ticket #<number> created, and the ticket is in the list."
+              }
+            ]
+          },
+          {
+            "t": "spec",
+            "rows": [
+              { "k": "Subject", "v": "Between 3 and 160 characters. It is the line the operator reads first." },
+              { "k": "Category", "v": "Technical, Billing, Account, Abuse report or Other. It decides the desk the ticket goes to." },
+              { "k": "Priority", "v": "Low, Normal or High. It decides the order in which the queue is worked." },
+              { "k": "Related instance", "v": "Optional. Only an instance of your own account can be chosen." },
+              { "k": "Message", "v": "Between 1 and 20 000 characters. It is the first message of the thread." }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "The platform accepts the words of the category and of the priority in any case. If you write technical in a script, the platform stores Technical and reads it back that way."
+          }
+        ]
+      },
+      {
+        "id": "what-you-see",
+        "title": "What you see",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The page Your tickets lists every conversation with the support of Blipmade, newest activity first. Every line carries the subject, the category, the number, the state and the time of the last reply."
+          },
+          {
+            "t": "p",
+            "text": "The page of one ticket shows Category, Priority, Related instance and Last activity, the panel Conversation with every message in the order it was written, and the panel Reply where you answer."
+          },
+          {
+            "t": "spec",
+            "rows": [
+              { "k": "Open", "v": "The ticket is new and nobody has answered yet." },
+              { "k": "Awaiting your reply", "v": "The operator has answered and the question is on your side." },
+              { "k": "Awaiting support", "v": "You have answered and the answer is on the operator's side." },
+              { "k": "On hold", "v": "The ticket waits for something that is not a message: a decision, a payment, a change on the platform." },
+              { "k": "Closed", "v": "The conversation is over. A closed ticket can be reopened by the operator." }
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The state follows the conversation: your reply puts the ticket in Awaiting support, and the answer of the operator puts it in Awaiting your reply."
+          }
+        ]
+      },
+      {
+        "id": "add-a-message",
+        "title": "Add a message",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Open the ticket",
+                "body": "Choose the ticket in Your tickets. The conversation is above, the Reply panel is below.",
+                "result": "The panel Reply is ready."
+              },
+              {
+                "title": "Write your message",
+                "body": "Use the field Your message. A reply of 20 000 characters at most is accepted.",
+                "result": "The message is written in the field."
+              },
+              {
+                "title": "Send it",
+                "body": "Choose Send reply.",
+                "result": "Your message is added to the same thread, and the state becomes Awaiting support."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "tip",
+            "text": "Keep everything in one thread. A ticket that is answered in a second ticket loses the context of the first, and the operator has to ask for it again."
+          }
+        ]
+      },
+      {
+        "id": "attach-a-file",
+        "title": "Attach a file",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The Attachment field of the Reply panel adds the name, the size and the type of a file to your message. The contents of the file are not uploaded from that form, so the operator reads the description of the file and not the file itself."
+          },
+          {
+            "t": "p",
+            "text": "The bytes are uploaded with the API, as multipart form data. The file is stored on the volume of the platform and is only reachable through the route that downloads it, which checks who may read it."
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "# read the token out of the cookie jar\nCSRF=$(awk '/bm_csrf/ {print $7}' cookies.txt)\n\ncurl -X POST \"$BASE/api/tickets/TICKET_ID/attachments\" \\\n  -H \"X-CSRF-Token: $CSRF\" \\\n  -b cookies.txt \\\n  -F \"file=@/path/to/console.log\"\n"
+          },
+          {
+            "t": "spec",
+            "rows": [
+              { "k": "Number of files", "v": "At most 5 files on a message." },
+              { "k": "Size of a file", "v": "At most 5 MB. A bigger file is refused with the message that a file may not be larger than 5 MB." },
+              { "k": "Types accepted", "v": "Plain text, CSV, Markdown, HTML, JSON, PDF, ZIP, GZIP, TAR, octet-stream, PNG, JPEG, GIF and WebP. Any other type is refused." }
+            ]
+          },
+          {
+            "t": "p",
+            "text": "A file that holds a secret is a file that is on the platform. Remove the keys, the tokens and the passwords of the log before you attach it."
+          }
+        ]
+      },
+      {
+        "id": "close-a-ticket",
+        "title": "Close a ticket",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A ticket is closed by the operator, not by you. The API accepts a change of the state only from an account of the staff, so the Update status control of the Status panel is refused for a customer account. Write it in a reply instead: the operator closes the ticket when the problem is solved."
+          },
+          {
+            "t": "p",
+            "text": "When the ticket is closed, the platform writes it in the notification centre of your account and sends you a message about it. A closed ticket is not deleted: it stays in Your tickets with its whole conversation, and the operator can reopen it."
+          }
+        ]
+      },
+      {
+        "id": "what-the-operator-sees",
+        "title": "What the operator sees",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The operator opens the ticket in the queue of the back office and reads the same thread you read, with more behind it."
+          },
+          {
+            "t": "list",
+            "items": [
+              "The subject, the category, the priority and the related instance.",
+              "Your name and the address of the account, so the operator can reach you.",
+              "Every message of the thread, with its author and its time.",
+              "The events of the ticket: Ticket opened, Reply added, File attached, and Status changed to the new state.",
+              "The files attached to a message: their name, their size and their type.",
+              "Internal notes: messages the staff write for each other. They are never visible to you, and they are not part of your thread."
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The ticket is written in the audit log of the platform: who opened it, who answered it and who changed its state are all recorded with the moment."
+          }
+        ]
+      },
+      {
+        "id": "with-the-api",
+        "title": "Tickets with the API",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A ticket is opened, answered and read with the same session cookie as the rest of the API. Every request that changes something carries the X-CSRF-Token header, whose value is the readable bm_csrf cookie."
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "# read the token out of the cookie jar\nCSRF=$(awk '/bm_csrf/ {print $7}' cookies.txt)\n\n# open a ticket about an instance\ncurl -X POST \"$BASE/api/tickets\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-CSRF-Token: $CSRF\" \\\n  -b cookies.txt \\\n  -d '{\"subject\":\"The instance answers 502\",\"category\":\"technical\",\"priority\":\"normal\",\"body\":\"Expected an answer on the port of the instance, got 502 since 09:15.\",\"instanceId\":\"INSTANCE_ID\"}'\n"
+          },
+          {
+            "t": "p",
+            "text": "Put the id of your instance in INSTANCE_ID, and leave the field out when the ticket is not about an instance. The answer is the ticket with its number and its state."
+          },
+          {
+            "t": "callout",
+            "tone": "danger",
+            "text": "A script that opens tickets unattended needs the session of a real account, and that session is a password. There is no key of the API to use instead, so do not leave such a script running with a cookie of an account you care about."
+          }
+        ]
+      }
+    ],
+    "next": ["support", "status", "troubleshooting"],
+    "related": ["support", "notifications", "faq", "common-errors"]
+  },
+  {
+    "id": "status",
+    "group": "status-incidents",
+    "title": "Status and incidents",
+    "summary": "What the status page reports, what an incident is, and what the platform does not promise about availability.",
+    "keywords": ["status", "incident", "outage", "availability", "uptime", "maintenance"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "the-status-page",
+        "title": "The status page",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Open the status page",
+                "body": "The page is called Service status and lives at /status. It needs no session.",
+                "result": "The page shows a banner and one line per component of the platform."
+              },
+              {
+                "title": "Read the banner",
+                "body": "The banner says All systems operational, Degraded performance, Partial outage, Major outage, No components reported or Status partially reported.",
+                "result": "You know the state of the platform as a whole at that moment."
+              },
+              {
+                "title": "Read the components",
+                "body": "Each line carries the name of a part of the platform and its state: Operational, Degraded performance, Partial outage, Outage or Reported state.",
+                "result": "You know which part is the problem, and not only that something is."
+              },
+              {
+                "title": "Check the moment",
+                "body": "The bottom of the page carries Last checked, the moment the answer was given.",
+                "result": "You know how fresh the answer is. The page shows the state of the moment; no history is kept on it."
+              }
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The page asks the platform itself, at the moment you open it. Every component is measured on its own, so a green light means that this part was really checked and not that it is assumed to work."
+          },
+          {
+            "t": "spec",
+            "rows": [
+              { "k": "Platform API", "v": "The database the platform reads and writes." },
+              { "k": "Dashboard", "v": "The dashboard can read its data." },
+              { "k": "Cache and queues", "v": "The cache and the queues of the platform answer." },
+              { "k": "Control panel", "v": "The part of the platform that manages the instances answers." },
+              { "k": "Automation worker", "v": "The worker that runs the deployments and the jobs is running." },
+              { "k": "Provisioning queue", "v": "The queue is read, and the jobs that wait, run, wait and fail are counted." },
+              { "k": "Compute nodes", "v": "The machines that run the instances are registered, and the ones that are in maintenance are counted." },
+              { "k": "Port allocator", "v": "There are still addresses free for new services." },
+              { "k": "Deployments", "v": "Every service is online, and the one that is not is counted with its age." },
+              { "k": "Support", "v": "Mail is delivered, and not only written to a file." }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "what-an-incident-is",
+        "title": "What an incident is",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "An incident is a note that the operator writes when the platform is not in its normal state. It holds what is happening and, optionally, until when it is expected to last. It is a declaration and not a measurement: the state of the components on the status page is what is measured, and the incident is the words of the operator about it."
+          },
+          {
+            "t": "p",
+            "text": "The note is written once and kept in the file of the operations of the platform, so everybody reads the same words. The sweep of the health of the platform turns it into an alarm, and the platform then says out loud what the operator already knows."
+          }
+        ]
+      },
+      {
+        "id": "how-an-incident-is-declared",
+        "title": "How an incident is declared",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The operator declares it from the Operations page of the back office, where the panel is called Incident, with the fields What is happening and Until. The same thing is done with the API, which asks for the permission infrastructure.write."
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "# the session of an operator that holds infrastructure.write\nCSRF=$(awk '/bm_csrf/ {print $7}' cookies.txt)\n\ncurl -X POST \"$BASE/api/ops/incident\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-CSRF-Token: $CSRF\" \\\n  -b cookies.txt \\\n  -d '{\"message\":\"The mail of the platform is not delivered\",\"until\":\"2026-10-26T12:00:00.000Z\"}'\n"
+          },
+          {
+            "t": "p",
+            "text": "Until is optional and empty means that the incident has no announced end. The incident is closed with DELETE /api/ops/incident, which is also what the operator does from the same panel."
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "The page of the operations of the back office carries the checks of the machine, of the database, of the mail and of the backups. It is the page of the operator; a customer account cannot open it."
+          }
+        ]
+      },
+      {
+        "id": "how-you-are-told",
+        "title": "How you are told",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Today the platform does not write to the customers when an incident starts and when it ends. The recovery notification is sent to the operator, and the incident itself is announced to the operator. A message to the customer for an incident and for its end is {{planned}}: the platform holds the two events and the two templates, but nothing publishes them yet."
+          },
+          {
+            "t": "p",
+            "text": "What you can do today is watch the status page, which returns to its normal state as soon as the components answer again, and open a ticket if the problem concerns your instance. The answer of the operator says where the problem stood and when it was over."
+          }
+        ]
+      },
+      {
+        "id": "what-is-not-promised",
+        "title": "What is not promised",
+        "blocks": [
+          {
+            "t": "callout",
+            "tone": "warning",
+            "text": "The platform publishes no percentage of availability, keeps no history of the uptime and gives no service credit for a period of interruption. Nothing in this documentation promises one either."
+          },
+          {
+            "t": "p",
+            "text": "The status page shows the state of the moment it is asked for. The history of the last ninety days is not published yet, so the page cannot be used to measure an availability over a period. The page of the service levels says the same thing in the words of the platform."
+          },
+          {
+            "t": "p",
+            "text": "A machine of the cluster can be put into maintenance, and the instances on that machine can be affected by it. The platform publishes no maintenance window and announces none in advance."
+          }
+        ]
+      },
+      {
+        "id": "the-api",
+        "title": "The status through the API",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The same answer is given to the API, without a session. It is the state of the components, the overall state and the moment of the answer."
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "curl -s \"$BASE/api/status\"\n"
+          },
+          {
+            "t": "code",
+            "lang": "json",
+            "code": "{\n  \"overall\": \"operational\",\n  \"components\": [\n    { \"id\": \"api\", \"name\": \"Platform API\", \"state\": \"operational\", \"detail\": \"The database answers.\" }\n  ],\n  \"updatedAt\": \"2026-10-26T09:15:00.000Z\"\n}\n"
+          },
+          {
+            "t": "p",
+            "text": "The overall state is major_outage when a component is down, degraded when a component is degraded, and operational when every component answers."
+          }
+        ]
+      }
+    ],
+    "next": ["troubleshooting", "tickets", "support"],
+    "related": ["support", "notifications", "faq", "limits"]
+  },
+  {
+    "id": "troubleshooting",
+    "group": "troubleshooting",
+    "title": "Common problems",
+    "summary": "What to check, in the order that usually finds the cause.",
+    "keywords": ["troubleshooting", "problem", "error", "not working", "stopped", "help"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "check-the-status",
+        "title": "Check the state of the instance",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Look at the state",
+                "body": "Open the instance. The state is shown next to its name, and the Overview tab tells you what it may use against what it uses right now.",
+                "result": "You see whether it is Pending, Provisioning, Online, Restarting, Stopped, Failed, Suspended or Cancelled, and how much memory, disk and processor it uses."
+              },
+              {
+                "title": "Start it if it is stopped",
+                "body": "Use the Start action of the instance. It is offered when the instance is Stopped or Failed.",
+                "result": "The container is started again and the state follows it."
+              },
+              {
+                "title": "Read the console",
+                "body": "Open the Console tab. It shows the output of the application, and the reason it did not start is written there.",
+                "result": "You see the error that stopped the application, in the words of the program itself."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "The platform never puts an instance in a state called degraded. The state that is written is the one the container is really in, so a line that reads Online is the container answering and not an assumption."
+          }
+        ]
+      },
+      {
+        "id": "check-the-resources",
+        "title": "Check the resources",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The Overview tab shows the memory, the disk and the processor of the instance against the limits it was given, and the state of the container. An application that asks for more memory than the limit of the container is stopped by the container itself; that is the usual reason an instance that worked yesterday is stopped today."
+          },
+          {
+            "t": "p",
+            "text": "The disk of an instance is one disk. The database, the logs and the uploads end up on the same one, and a full disk stops the application."
+          },
+          {
+            "t": "callout",
+            "tone": "tip",
+            "text": "Give the application the memory it needs before it runs out. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance. A size that costs more is applied once its payment is confirmed; the page [Resources](/docs?p=resources) explains it."
+          }
+        ]
+      },
+      {
+        "id": "check-the-activity",
+        "title": "Check the activity",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The Activity tab records what happened to the instance: when it was started, stopped, resized or renamed. It is the fastest way to see whether something changed on our side."
+          }
+        ]
+      },
+      {
+        "id": "check-billing",
+        "title": "Check the billing",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "If the instance stopped on its own and the payment method is old, the subscription may be past due. An invoice that was not paid puts the subscription in Past due, and after a grace of seven days the instance is stopped and marked Suspended. The data is kept while it is suspended."
+          },
+          {
+            "t": "p",
+            "text": "The Billing page shows the state of every subscription and lets you update the card. It also shows the state of every invoice, so you never have to ask where a payment stands."
+          }
+        ]
+      },
+      {
+        "id": "ask",
+        "title": "Ask us",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Still stuck? Open a ticket and attach the instance. Include what you expected, what happened, and the relevant part of the console output. That context is what makes the difference between a question and an answer. The page [Support tickets](/docs?p=tickets) describes the ticket in full."
+          },
+          {
+            "t": "p",
+            "text": "If the problem is the platform and not your instance, the [status page](/docs?p=status) says whether other customers are seeing it too."
+          }
+        ]
+      },
+      {
+        "id": "problems-that-do-not-happen-yet",
+        "title": "Problems that do not happen yet",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Some problems are heard a lot but do not exist in the platform today. They are written here so nobody looks for them."
+          },
+          {
+            "t": "list",
+            "items": [
+              "There is no metrics page. The dashboard has no page of metrics, and the numbers of the instance are read in the Overview tab of the instance, against the limits it was given.",
+              "An instance is never shown as degraded because it is short of memory. The platform writes the state the container is really in; an application that wants more memory than the limit is stopped by the container, and the console says so.",
+              "There is no page of the uptime history. The status page shows the state of the moment and no history of it.",
+              "No answer time is published for a ticket. The platform does not promise one, so a ticket that waits is not a fault of the platform."
+            ]
+          }
+        ]
+      }
+    ],
+    "next": ["limits", "tickets", "status"],
+    "related": ["status", "support", "faq", "common-errors"]
+  },
+  {
+    "id": "limits",
+    "group": "limits-fair-use",
+    "title": "Limits and fair use",
+    "summary": "The bounds the platform really enforces, and the ones it does not have.",
+    "keywords": ["limits", "fair use", "abuse", "policy", "quotas", "rate limit"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "per-product-limits",
+        "title": "The limits of your instance",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Every product in the catalog has a minimum and a maximum for memory, CPU and disk. The configurator refuses anything outside those values, so an instance can never ask for more than the plan allows. A change of plan is checked against the same numbers."
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "Those bounds come from the catalog itself. You do not have to remember them: the form shows what is allowed."
+          }
+        ]
+      },
+      {
+        "id": "limits-you-can-hit",
+        "title": "The limits you can hit",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Some of these limits are not written where you would meet them. They are here, with the number the platform really uses."
+          },
+          {
+            "t": "spec",
+            "rows": [
+              { "k": "Size of a request", "v": "2 MB for the API. The upload of a file to an instance accepts 64 MB." },
+              { "k": "Sessions of an account", "v": "At most 20 at the same time. When the limit is passed, the oldest sessions are closed." },
+              { "k": "Environment variables", "v": "At most 100 per instance." },
+              { "k": "Startup command", "v": "At most 4096 characters, and the name of the image at most 255 characters." },
+              { "k": "Lines of an order", "v": "At most 20 lines, and at most 50 option codes on a line." },
+              { "k": "Files of a ticket message", "v": "At most 5 files, and at most 5 MB for a file." },
+              { "k": "Message of a ticket", "v": "At most 20 000 characters, and a subject of at most 160 characters." },
+              { "k": "Failed sign-in attempts", "v": "At most 10 for the same account and 10 for the same address, in fifteen minutes. A sign-in that works does not count." },
+              { "k": "Writes of an account", "v": "30 writes a minute on a route that writes a row, and 120 a minute for the same address." },
+              { "k": "Calls that reach the platform", "v": "20 a minute for an account and 60 a minute for an address on a route that reaches the machine, the node or the gateway." },
+              { "k": "Messages sent", "v": "10 every fifteen minutes for an account and 30 for an address." },
+              { "k": "Tokens read", "v": "10 every fifteen minutes for an account and 10 for an address." }
+            ]
+          },
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "I was refused with Too many requests. Try again shortly.",
+                "a": "The counter of your account or of your address is full for that kind of request. Wait for the window to pass and try again. A script that opens tickets or writes in a loop is the usual reason."
+              },
+              {
+                "q": "My session was closed while I was working.",
+                "a": "An account keeps at most 20 sessions at the same time, and the oldest ones are closed when the limit is passed. The list of the sessions is in the settings of your account, and you can close one by one."
+              },
+              {
+                "q": "The environment of my instance was refused.",
+                "a": "An instance carries at most 100 environment variables. Remove the ones you do not use and save it again."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "what-is-not-limited",
+        "title": "What is not limited",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade does not publish quotas for traffic, tickets, accounts or the number of instances you may run."
+          },
+          {
+            "t": "list",
+            "items": [
+              "Traffic and bandwidth ceilings per instance: not available yet. The traffic the panel counts is what was used, never a ceiling that is enforced.",
+              "A maximum number of instances per account: not available yet.",
+              "Published response times for support tickets: not available yet.",
+              "A percentage of availability: not published, and not promised. See the [status page](/docs?p=status)."
+            ]
+          }
+        ]
+      },
+      {
+        "id": "staying-within-your-resources",
+        "title": "Staying within your resources",
+        "blocks": [
+          {
+            "t": "list",
+            "items": [
+              "Give the application the memory it needs. The memory of an instance is the limit of its container, and an application that asks for more is stopped by the container.",
+              "Watch the disk. Databases, logs and uploads all end up on the same disk, and a full disk stops the application.",
+              "Do not use an instance to send bulk mail or to run something that has nothing to do with the application you deployed.",
+              "Do not put a session of a real account into a script that runs unattended. Treat every cookie like a password."
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for. The acceptable use policy of the platform carries the same rule."
+          }
+        ]
+      },
+      {
+        "id": "backups",
+        "title": "Backups",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform takes no automatic backup of the data inside an instance. That is a decision about your data, not about ours: you know what the data is and how it should be restored."
+          },
+          {
+            "t": "p",
+            "text": "What the platform does offer is a manual backup of the files of the container, taken from the Backups tab of the instance. It is an archive you can download, and restoring it replaces the files of the container with the archive. It holds no dump of a database that runs somewhere else, so the copy of a database is yours to take."
+          },
+          {
+            "t": "callout",
+            "tone": "tip",
+            "text": "Take your own copy with the commands on the page of your product. The page [Backups](/docs?p=backups) describes what the manual backup holds and what it does not."
+          }
+        ]
+      }
+    ],
+    "next": ["troubleshooting", "resources", "faq"],
+    "related": ["troubleshooting", "resources", "backups", "account-security", "faq"]
+  },
+  {
+    "id": "glossary",
+    "group": "reference",
+    "title": "Glossary",
+    "summary": "The words the platform uses, explained in one line each.",
+    "keywords": ["glossary", "words", "terms", "definition", "instance", "subscription"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "the-words-of-the-account",
+        "title": "The words of the account",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              { "k": "Product", "v": "An entry of the catalog: what the platform offers, with its price, the resources it may use and the minimum and the maximum of those resources." },
+              { "k": "Order", "v": "What you asked for. It has lines, a state and a number, and it is the thing that is paid and that is fulfilled." },
+              { "k": "Subscription", "v": "The billing relation between an order and a service. It has a period and a state: Active, Past due, Paused, Cancelled or Expired." },
+              { "k": "Invoice", "v": "The document of what is owed. Its state is Draft, Open, Paid, Void or Uncollectible." },
+              { "k": "Instance", "v": "What you run on the platform: one server with its own memory, processor and disk, its own files and its own address." },
+              { "k": "Service", "v": "The word the billing pages use for an instance: a service is billed, it can be past due, and it is kept for the retention term when it is cancelled." }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-words-of-the-operation",
+        "title": "The words of the operation",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              { "k": "Allocation", "v": "The address of an instance: the machine it runs on and the port it is reached on. The platform reads the allocation that was really assigned and never assumes a port." },
+              { "k": "Node", "v": "A machine of the platform that runs instances. It has its own memory and disk, and it can be put into maintenance." },
+              { "k": "Egg", "v": "The recipe the platform uses to start a container: the image, the startup command and the limits. A product of the catalog points at one, so two instances of the same product are built the same way." },
+              { "k": "Route", "v": "The entry in the gateway that sends a hostname to an instance. A route exists only for a hostname whose ownership was proven." },
+              { "k": "Health check", "v": "The probe that verifies that a deployment really works, and the sweep that measures the machine, the database, the mail and the backups of the platform." },
+              { "k": "Dead letter", "v": "A job of a queue that failed for good. It is kept with the reason of the failure so that the operator can put it back on the queue or close it by hand." },
+              { "k": "Notification", "v": "A message of your account: it is in the notification centre and, when the group allows it, in your mailbox." },
+              { "k": "Ticket", "v": "A conversation with the support of the platform: the subject, the category, the priority, the messages and the events of the thread." }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "how-the-words-follow-each-other",
+        "title": "How the words follow each other",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "You choose a product",
+                "body": "The catalog gives you its limits and its price. You set the memory, the processor and the disk you want.",
+                "result": "A quote, with the total you will pay."
+              },
+              {
+                "title": "The quote becomes an order",
+                "body": "The order is the purchase. Its state says where the money is: Pending, Awaiting payment, Paid, Fulfilled, Failed, Cancelled or Refunded.",
+                "result": "The order carries the lines that were bought."
+              },
+              {
+                "title": "The order produces a subscription and an invoice",
+                "body": "A paid order opens the subscription of the service and the invoice of the period.",
+                "result": "The Billing page shows both, with their state."
+              },
+              {
+                "title": "The subscription produces the instance",
+                "body": "The deployment of the instance is a job of the queue of the platform. The steps of the deployment are written down, so the page of the instance can say where it stopped.",
+                "result": "The instance exists, with its own address and its own files."
+              },
+              {
+                "title": "The instance produces notifications",
+                "body": "Every moment of the life of the service is published as a notification: the building, the suspension, the invoice, the answer of the support.",
+                "result": "The notification centre of the account holds the whole story."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "next": ["faq", "support", "tickets"],
+    "related": ["faq", "common-errors", "support", "status"]
+  },
+  {
+    "id": "faq",
+    "group": "reference",
+    "title": "Frequently asked questions",
+    "summary": "The questions that come up again, with short and honest answers.",
+    "keywords": ["faq", "question", "answer", "how", "can i", "why"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "about-reaching-us",
+        "title": "Reaching us",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "Can I call you or chat with a person?",
+                "a": "No. There is no phone number and no live chat in the platform. A ticket is the way to reach the operator, and the answer is written in the same thread."
+              },
+              {
+                "q": "How long does it take to answer a ticket?",
+                "a": "The platform publishes no answer time and promises none. What it publishes is the time of every message and the state of the ticket, so you always know when the last answer was written."
+              },
+              {
+                "q": "Is the ticket answered by a robot?",
+                "a": "The platform sends notifications by mail from no-reply@blipmade.com and those mails are not read. The answers of the operator are written in the ticket itself."
+              },
+              {
+                "q": "Do you promise an uptime percentage?",
+                "a": "No. The platform publishes no percentage of availability, keeps no history of the uptime and gives no service credit. The [status page](/docs?p=status) shows the state of the moment."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "about-the-services",
+        "title": "The services",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "How many instances may I run?",
+                "a": "There is no maximum. The only count the platform makes on your instances is the one of an order, to know that what was bought was delivered."
+              },
+              {
+                "q": "Why did my instance stop by itself?",
+                "a": "Most often because the application asked for more memory than the limit of the container, and the container stopped it. The Console tab of the instance says so, and the Overview tab shows the memory it uses against the limit it was given."
+              },
+              {
+                "q": "Why is my instance suspended?",
+                "a": "An invoice that was not paid puts the subscription in Past due. After a grace of seven days the instance is stopped and marked Suspended. The data is kept while it is suspended, and the Billing page shows the state."
+              },
+              {
+                "q": "Can I use SSH or SFTP?",
+                "a": "No. There is neither SSH nor SFTP in the platform. The file browser and the console of the instance are the way in and out."
+              },
+              {
+                "q": "Do you install the application for me?",
+                "a": "No. When the platform builds an instance it writes a small Node.js server into the container, and you deploy your own application on top of it. A product whose image is not on the platform yet says so in the catalog and cannot be ordered."
+              },
+              {
+                "q": "Why did my instance not restart when I changed the environment?",
+                "a": "Saving the environment does not restart the instance. The new values apply at the next start of the container."
+              },
+              {
+                "q": "Is my data backed up for me?",
+                "a": "The platform takes no automatic backup of the data inside an instance. The Backups tab of the instance lets you take a manual archive of the files of the container and download it, but it holds no dump of a database that runs somewhere else. The copy of a database is yours to take."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "about-the-money",
+        "title": "The money",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "Will I get a refund?",
+                "a": "Two refunds are automatic: a server that was paid for and could not be provisioned, and a plan change that was paid for and could not be applied. Any other refund is a decision of the operator, and the platform has no button for it."
+              },
+              {
+                "q": "Is my card charged when I order?",
+                "a": "Not today: the checkout of this platform is turned off, so an order stays in the state Pending and no card is charged. You still see every order and every invoice on the Billing page."
+              },
+              {
+                "q": "What happens to my data when I cancel?",
+                "a": "The instance keeps running until the end of the period you have paid for. After that it is stopped, the data is exported for you, and the service is kept for the retention term, which is thirty days by default. The data is not removed when the period ends."
+              },
+              {
+                "q": "Can I change the size of my instance?",
+                "a": "Yes, from the Resources tab. A change that costs more is applied once the payment of it is confirmed, and a change that costs less is applied at once and credited on the next invoice."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "about-the-account",
+        "title": "The account",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "Do you offer keys for the API?",
+                "a": "Not yet. The API has no key management, so a script uses the session of an account, with its cookie and its CSRF token. A cookie of a real account in an unattended script is a password left on a desk."
+              },
+              {
+                "q": "How many devices may be signed in at the same time?",
+                "a": "At most twenty sessions. When the limit is passed, the oldest sessions are closed. The list is in the settings of your account, and you can close one by one."
+              },
+              {
+                "q": "Do you issue a certificate for my domain?",
+                "a": "No. The platform does not issue a certificate for a customer hostname, and the hostname is served over plain HTTP today. The [SSL](/docs?p=ssl) page says what to do about it."
+              },
+              {
+                "q": "Can I buy hosted mail?",
+                "a": "Not today. The hosted mail exists in the platform but is not on sale, and the Email page of the dashboard says that the sale of hosted mail is closed at the moment instead of offering an order."
+              },
+              {
+                "q": "How do I reach the platform by mail?",
+                "a": "The notifications of your account come by mail, from no-reply@blipmade.com. A reply to one of them does not reach a person: answer in the ticket, or in the notification of the notification centre."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "next": ["support", "tickets", "status"],
+    "related": ["glossary", "common-errors", "limits", "troubleshooting"]
+  },
+  {
+    "id": "common-errors",
+    "group": "reference",
+    "title": "Common errors",
+    "summary": "The errors you see in the dashboard or in the API, what each one means and what to do about it.",
+    "keywords": ["error", "code", "message", "failed", "refused", "status code"],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "the-shape-of-an-answer",
+        "title": "The shape of an answer",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Every error of the API has the same shape: an object error with a code, a message and the identifier of the request. The dashboard shows the message, and the code is what a script reads."
+          },
+          {
+            "t": "code",
+            "lang": "json",
+            "code": "{\n  \"error\": {\n    \"code\": \"validation_failed\",\n    \"message\": \"Some fields need attention.\",\n    \"fields\": { \"subject\": \"subject: Give the ticket a short subject.\" },\n    \"requestId\": \"req-3f9c1a\"\n  }\n}\n"
+          },
+          {
+            "t": "p",
+            "text": "The fields are only there when the error is about a field: they name the field that is wrong and say what is allowed there, so the interface can show the problem next to the input instead of a general message."
+          }
+        ]
+      },
+      {
+        "id": "the-codes",
+        "title": "The codes",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "400 bad_request",
+                "a": "The request was refused because what it names does not exist or does not belong to you. The message says which one: \"That instance does not belong to your account.\" Change the value and send it again."
+              },
+              {
+                "q": "400 validation_failed",
+                "a": "A field is missing or is not right. The message names the field and what is allowed there. A subject of a ticket that is too short answers exactly that."
+              },
+              {
+                "q": "400 The file has to be sent as multipart form data.",
+                "a": "The upload of a file to a ticket was sent in another shape. The file has to be sent with a form, as multipart form data."
+              },
+              {
+                "q": "401 unauthorized",
+                "a": "There is no session, or the session has ended. Sign in again and repeat the request. The session of an account lasts fourteen days and is not extended by the activity."
+              },
+              {
+                "q": "401 account_suspended",
+                "a": "The account is suspended, and the message names the address of the support to write to. The suspension is put by the operator, and the message is only given when the password was right, so it never tells a stranger whether an address exists."
+              },
+              {
+                "q": "403 forbidden",
+                "a": "The account may not do this. Two cases are common: the CSRF token is missing or wrong, which answers \"Invalid or missing CSRF token. Reload the page and try again.\", and the action is reserved for the staff, which answers \"Staff access only.\""
+              },
+              {
+                "q": "404 not_found",
+                "a": "The object does not exist, or it belongs to another account. The answer is the same in the two cases on purpose: a guess never finds out that something exists."
+              },
+              {
+                "q": "404 No such endpoint.",
+                "a": "The path of the request does not exist. The API lives under /api of the same address as the dashboard."
+              },
+              {
+                "q": "429 rate_limited",
+                "a": "The counter of your account or of your address is full for that kind of request. Wait for the window to pass and try again. The numbers are on the page [Limits and fair use](/docs?p=limits)."
+              },
+              {
+                "q": "502 upstream_error",
+                "a": "The platform could not reach the machine behind the request: the node, the gateway or the part of the platform that manages the instances. It is not your mistake. Try again, and if it persists, open a ticket with the time and the identifier of the request."
+              },
+              {
+                "q": "503 unavailable",
+                "a": "The part of the platform that answers this request is not available at the moment. The [status page](/docs?p=status) says whether the platform has a problem."
+              },
+              {
+                "q": "503 payments_unavailable",
+                "a": "The checkout of the platform is turned off. No session of payment is created and no card is charged; the order stays in the state Pending."
+              },
+              {
+                "q": "500 internal_error",
+                "a": "Something went wrong on our side. The message says nothing more, and the identifier of the request is the reference: put it in a ticket and the operator finds the moment in the logs of the platform."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "what-to-do-with-the-request-id",
+        "title": "What to do with the identifier of the request",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Keep the identifier",
+                "body": "The answer of the API carries requestId, and the dashboard writes it under the message of the error, as request <id>.",
+                "result": "You have the reference of the exact call."
+              },
+              {
+                "title": "Keep what you did",
+                "body": "The address, the moment and the body you sent. A call that is refused with a requestId and nothing else is hard to find.",
+                "result": "The operator can reproduce the call instead of guessing it."
+              },
+              {
+                "title": "Open a ticket",
+                "body": "Put the identifier and the details in a ticket, with the instance if there is one.",
+                "result": "The error is found in the logs of the platform and answered in the thread."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "tip",
+            "text": "A message that names the field that is wrong is the most useful thing a script can print: the fields of the answer carry it already, one line per field."
+          }
+        ]
+      }
+    ],
+    "next": ["troubleshooting", "faq", "tickets"],
+    "related": ["faq", "glossary", "support", "limits"]
+  }
+]

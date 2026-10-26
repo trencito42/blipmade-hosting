@@ -311,6 +311,27 @@ const schema = z.object({
    */
   OPS_ALERT_WEBHOOK_SECRET: z.string().default(''),
   /**
+   * The webhook of the Discord channel of the operator.
+   *
+   * Discord does not take the body of the platform, so the channel has an
+   * adapter of its own: the message is built as an embed, with the severity,
+   * the component and the name of the occurrence.
+   *
+   * The address carries the token that lets anybody write in the channel of
+   * the operator, so it is never written in a log, never shown in the
+   * dashboard and never sent in an answer.
+   */
+  OPS_DISCORD_WEBHOOK_URL: z.string().default(''),
+  /**
+   * The file that holds the webhook of the Discord channel.
+   *
+   * The address is a secret, and a secret that is written in the environment
+   * of the platform travels with every copy of the configuration. A file that
+   * only the owner of the platform can read keeps it in one place, and the
+   * file is read when the channel is needed.
+   */
+  OPS_DISCORD_WEBHOOK_FILE: z.string().default(''),
+  /**
    * How many minutes a provisioning may last before the service is said to
    * be stuck.
    */

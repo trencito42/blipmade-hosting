@@ -502,7 +502,7 @@ export async function instanceRetention(instanceId: string): Promise<RetentionRe
   return records[instanceId] ?? null;
 }
 
-async function writeRetentionRecords(records: Record<string, RetentionRecord>): Promise<void> {
+export async function writeRetentionRecords(records: Record<string, RetentionRecord>): Promise<void> {
   await prisma.setting.upsert({
     where: { key: RETENTION_SETTING_KEY },
     create: { key: RETENTION_SETTING_KEY, value: records as never },

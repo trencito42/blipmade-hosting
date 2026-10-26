@@ -1,0 +1,92 @@
+[
+  {
+    "id": "getting-started",
+    "label": "Getting started",
+    "order": 1,
+    "description": "The first steps: an account, a first deployment and the way around the dashboard."
+  },
+  {
+    "id": "apps",
+    "label": "Apps",
+    "order": 2,
+    "description": "Every application the catalog offers, with what it needs and how to run it."
+  },
+  {
+    "id": "databases",
+    "label": "Databases",
+    "order": 3,
+    "description": "The managed databases, their configuration and the way to connect to them."
+  },
+  {
+    "id": "resources-billing",
+    "label": "Resources & billing",
+    "order": 4,
+    "description": "RAM, CPU and disk, what they cost, and how to change or end a subscription."
+  },
+  {
+    "id": "domains-ssl",
+    "label": "Domains & SSL",
+    "order": 5,
+    "description": "Attaching a domain, pointing the DNS at Blipmade and securing it with HTTPS."
+  },
+  {
+    "id": "files-console",
+    "label": "Files & console",
+    "order": 6,
+    "description": "The files of an instance and the console that opens on its shell."
+  },
+  {
+    "id": "security",
+    "label": "Security",
+    "order": 7,
+    "description": "Passwords, sessions and the ways to reach an instance."
+  },
+  {
+    "id": "email-hosting",
+    "label": "Email hosting",
+    "order": 8,
+    "description": "Hosted mail: the plans, the domains and the settings of the mailboxes."
+  },
+  {
+    "id": "notifications",
+    "label": "Notifications",
+    "order": 9,
+    "description": "What Blipmade sends, and how to choose what you hear about."
+  },
+  {
+    "id": "backups-recovery",
+    "label": "Backups & recovery",
+    "order": 10,
+    "description": "How a copy of your data is taken, kept and put back."
+  },
+  {
+    "id": "troubleshooting",
+    "label": "Troubleshooting",
+    "order": 11,
+    "description": "The answers to the problems that come up most often."
+  },
+  {
+    "id": "support",
+    "label": "Support",
+    "order": 12,
+    "description": "How to reach a person, and what to send so the answer is quick."
+  },
+  {
+    "id": "status-incidents",
+    "label": "Status & incidents",
+    "order": 13,
+    "description": "The state of the platform and what happened during an incident."
+  },
+  {
+    "id": "limits-fair-use",
+    "label": "Limits & fair use",
+    "order": 14,
+    "description": "The limits of the platform and the rules that keep it fair."
+  },
+  {
+    "id": "reference",
+    "label": "Reference",
+    "order": 15,
+    "description": "The technical reference: the API, the environment and the words the documentation uses."
+  }
+]

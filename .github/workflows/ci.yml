@@ -4,7 +4,8 @@
 # that are not obvious are written next to the step they belong to.
 #
 #   api-typecheck     the API and the test suite are type checked
-#   web-build         the frontend is type checked and bundled
+#   web-build         the frontend is type checked and bundled, and the content
+#                     of the documentation is checked
 #   test              the API test suite runs against a disposable _test database
 #   secret-scan       the whole git history is scanned for secrets
 #   dependency-audit  npm audit --audit-level=high for both workspaces
@@ -100,6 +101,13 @@ jobs:
 
       - name: Build the frontend
         run: npx vite build
+
+      - name: Check the documentation content
+        # The content of the documentation is two files of plain data, and
+        # they are checked on their own: the check needs no database and no
+        # browser, and it says what is wrong with the pages instead of only
+        # that something is.
+        run: node ../scripts/validate-docs.mjs
 
   # ---------------------------------------------------------------------------
   # The suite runs against its own database. It refuses to run against a

@@ -596,14 +596,33 @@ git log --oneline -1
 
 # the images
 DC="docker compose -f compose.yml -f compose.api.yml -f compose.web.yml"
-$DC build --no-cache api worker
-$DC up -d --force-recreate api worker
+VCS_REF="$(git rev-parse HEAD)"
+$DC build --no-cache --build-arg VCS_REF="$VCS_REF" api worker web
+$DC up -d --force-recreate api worker web
 
 # the health
 $DC ps
 curl -s http://127.0.0.1:3100/health
 curl -s http://127.0.0.1:3101/health
+
+# the commit that runs, read from the image and not guessed
+docker inspect blipmade-api \
+  --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
 ```
+
+**The commit is written in the image.** The build receives the commit of the
+release as an argument and the image keeps it as a label, so the state of the
+production is a fact that can be read and not a conclusion that has to be
+reached:
+
+```bash
+docker inspect blipmade-api blipmade-worker blipmade-web \
+  --format '{{.RepoTags}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
+```
+
+The label has to be the commit of `main` that was released. A label of
+`unknown` means the build was made without the argument, and the image
+cannot be tied to a commit.
 
 **Two things go wrong here when they are not known.**
 

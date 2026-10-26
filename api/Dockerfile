@@ -1,5 +1,10 @@
 FROM node:22-alpine AS build
 
+# The commit the image was built from. The label is on the image, so the
+# commit that runs in production can be read with `docker inspect` instead of
+# being guessed from the state of the working tree.
+ARG VCS_REF=unknown
+
 WORKDIR /app
 RUN apk add --no-cache openssl
 
@@ -12,6 +17,9 @@ COPY src ./src
 RUN npx prisma generate && npx tsc -p tsconfig.json
 
 FROM node:22-alpine AS runtime
+
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.revision=$VCS_REF
 
 WORKDIR /app
 RUN apk add --no-cache openssl wget \

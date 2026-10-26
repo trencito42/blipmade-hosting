@@ -84,7 +84,7 @@ export interface OpsAlert {
   severity: 'critical' | 'warning';
   title: string;
   detail: string;
-  channels: { journal: boolean; webhook: 'sent' | 'skipped' | 'failed' };
+  channels: { journal: boolean; webhook: 'sent' | 'skipped' | 'failed'; discord: 'sent' | 'skipped' | 'failed' };
 }
 
 /** The state of the alerts of one check. */
@@ -176,7 +176,8 @@ function sinceMoment(value: string | null | undefined): string {
 function channelText(channels: OpsAlert['channels'] | undefined): string {
   const journal = channels?.journal ? 'written' : 'not written';
   const webhook = channels?.webhook ?? 'skipped';
-  return `Journal: ${journal} · Webhook: ${webhook}`;
+  const discord = channels?.discord ?? 'skipped';
+  return `Journal: ${journal} · Webhook: ${webhook} · Discord: ${discord}`;
 }
 
 /** The numbers behind the sentence of a check. */
