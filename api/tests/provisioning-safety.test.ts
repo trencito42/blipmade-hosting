@@ -223,7 +223,7 @@ vi.mock('../src/services/stripe.js', async (importOriginal) => {
 });
 
 const { prisma } = await import('../src/db.js');
-const { provisionInstance, compensateFailedProvisioning, nodeCapacity, requiredCapacity } = await import(
+const { provisionInstance, compensateFailedProvisioning, completeStep, nodeCapacity, requiredCapacity } = await import(
   '../src/services/provisioning.js'
 );
 const { nextOrderNumber } = await import('../src/routes/orders.js');
@@ -663,5 +663,68 @@ describe('the number of an order', () => {
     // The counter starts at the highest number that exists.
     const number = await nextOrderNumber();
     expect(number).toBe('BM-00043');
+  });
+});
+
+describe('the state machine of the provisioning', () => {
+  it('does not undo a service that was delivered', async () => {
+    const { instance } = await seedInstanceWithOrder({ status: 'PAID' });
+
+    // The service was delivered and it is running.
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: { provisionStep: 'activated', status: 'ONLINE' },
+    });
+
+    const result = await compensateFailedProvisioning(instance.id, 'the job was delivered again');
+
+    // The container of a running service is not deleted.
+    expect(result.serverDeleted).toBe(false);
+    expect(panel.deleted).toEqual([]);
+
+    const events = await prisma.instanceEvent.findMany({ where: { instanceId: instance.id } });
+    expect(events.map((event) => event.type)).toContain('compensation_skipped');
+  });
+
+  it('does not move the step of an instance backwards', async () => {
+    const { instance } = await seedInstanceWithOrder({ status: 'PAID' });
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: { provisionStep: 'activated' },
+    });
+
+    // A run that started earlier and finishes later does not undo the step
+    // that a newer run reached.
+    await completeStep(instance.id, 'started');
+
+    const after = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(after?.provisionStep).toBe('activated');
+  });
+
+  it('does not bring back a service that was undone', async () => {
+    const { instance } = await seedInstanceWithOrder({ status: 'PAID' });
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: { provisionStep: 'compensated' },
+    });
+
+    await completeStep(instance.id, 'activated');
+
+    const after = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(after?.provisionStep).toBe('compensated');
+  });
+
+  it('marks a service that was undone as undone', async () => {
+    const { instance } = await seedInstanceWithOrder({ status: 'PAID' });
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: { provisionStep: 'installed' },
+    });
+
+    const result = await compensateFailedProvisioning(instance.id, 'the run failed for good');
+
+    expect(result.serverDeleted).toBe(true);
+    const after = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(after?.provisionStep).toBe('compensated');
   });
 });

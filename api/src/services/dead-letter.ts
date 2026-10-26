@@ -364,6 +364,16 @@ async function putBackOnQueue(entry: DeadLetterEntry, requestedBy: string | null
     if (typeof payload.instanceId !== 'string' || !payload.instanceId) {
       throw badRequest('This failure does not name the instance it belongs to, so it cannot be put back on the queue.');
     }
+    // The instance has to be there. A failure of an instance that is gone
+    // would fail again for ever: the same record is reopened every time, and
+    // the platform keeps alerting about it.
+    const instance = await prisma.instance.findUnique({
+      where: { id: payload.instanceId },
+      select: { id: true },
+    });
+    if (!instance) {
+      throw badRequest('The instance of this failure is gone, so the failure cannot be put back on the queue.');
+    }
     await enqueueProvisioning(payload.instanceId, { reason: 'dead letter requeue', requestedBy: requestedBy ?? undefined });
     return;
   }

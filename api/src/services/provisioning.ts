@@ -168,9 +168,21 @@ export async function beginProvisioning(instance: Instance, step: ProvisionStep)
  * Records that a step finished. The step is stored on the instance, so a
  * retry resumes after it instead of running it again.
  */
-async function completeStep(instanceId: string, step: ProvisionStep): Promise<void> {
-  await prisma.instance.update({
-    where: { id: instanceId },
+export async function completeStep(instanceId: string, step: ProvisionStep): Promise<void> {
+  // The step of an instance only moves forward: a run that started earlier
+  // and finishes later does not move it back. The write is one statement, so
+  // two runs that finish at the same moment cannot undo each other.
+  //
+  // A step that was undone ("compensated") is not in the list of the steps
+  // that may be written, so a run that comes back later does not bring back
+  // a service that was taken away from the customer.
+  const index = PROVISION_STEPS.indexOf(step);
+  const earlier = PROVISION_STEPS.slice(0, index);
+  await prisma.instance.updateMany({
+    where: {
+      id: instanceId,
+      OR: [{ provisionStep: null }, { provisionStep: { in: [...earlier] } }],
+    },
     data: { provisionStep: step },
   });
   await prisma.provisioningJob.updateMany({
@@ -1218,7 +1230,15 @@ export async function compensateFailedProvisioning(instanceId: string, reason: s
     return { serverDeleted: false, allocationReleased: false, refunded: false, refundDue: false, orderId: null };
   }
 
-  if (instance.provisionStep === 'activated') {
+  // The decision to undo is taken with the instance itself, and not with a
+  // value that was read a moment earlier. A service that comes up while the
+  // compensation runs is not taken away from the customer: the claim fails
+  // and nothing is deleted.
+  const claimed = await prisma.instance.updateMany({
+    where: { id: instanceId, provisionStep: { not: 'activated' } },
+    data: { provisionStep: 'compensated' },
+  });
+  if (claimed.count === 0) {
     // The service was delivered and is running. A run that fails after that
     // does not take the service away from the customer.
     await recordEvent(
