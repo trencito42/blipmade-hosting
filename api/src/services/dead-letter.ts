@@ -205,6 +205,31 @@ export async function resolveDeadLetter(queue: string, jobId: string): Promise<v
   );
 }
 
+/**
+ * Closes the failures of the instances that are gone.
+ *
+ * A failure of an instance that was deleted is not a failure any more: the
+ * service it was about is gone, and there is nothing an operator could do
+ * about it. The row is closed, so the queue of the operator does not hold a
+ * failure that can never be fixed and cannot be put back on the queue
+ * either.
+ *
+ * The function answers how many rows it closed.
+ */
+export async function resolveDeadLettersOfGoneInstances(): Promise<number> {
+  const { entries } = await listDeadLetters({ state: 'pending', queue: PROVISION_QUEUE, limit: 200, cursor: null });
+  let closed = 0;
+  for (const entry of entries) {
+    const instanceId = (entry.payload as { instanceId?: unknown } | null)?.instanceId;
+    if (typeof instanceId !== 'string' || !instanceId) continue;
+    const instance = await prisma.instance.findUnique({ where: { id: instanceId }, select: { id: true } });
+    if (instance) continue;
+    await resolveDeadLetter(entry.queue, entry.jobId);
+    closed += 1;
+  }
+  return closed;
+}
+
 /** One failure of the list. */
 export async function getDeadLetter(id: string): Promise<DeadLetterEntry | null> {
   const rows = await prisma.$queryRaw<DeadLetterRow[]>(

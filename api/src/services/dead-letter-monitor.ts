@@ -1,4 +1,9 @@
-import { listDeadLetters, pendingDeadLetterCount, type DeadLetterEntry } from './dead-letter.js';
+import {
+  listDeadLetters,
+  pendingDeadLetterCount,
+  resolveDeadLettersOfGoneInstances,
+  type DeadLetterEntry,
+} from './dead-letter.js';
 import { registry } from '../lib/perf-metrics.js';
 
 /**
@@ -56,6 +61,8 @@ const MAX_REPORTS_PER_TICK = 20;
 export interface DeadLetterMonitorLogger {
   warn: (message: string) => void;
   error: (message: string) => void;
+  /** The news of the watch. It is optional, so a logger without it still works. */
+  info?: (message: string) => void;
 }
 
 /**
@@ -363,6 +370,19 @@ async function reconcileRunningServices(log: DeadLetterMonitorLogger): Promise<v
  */
 export async function watchDeadLetterQueue(options: DeadLetterMonitorOptions = {}): Promise<DeadLetterMonitorState> {
   const log = options.log ?? consoleLogger;
+  // The failures of the instances that are gone are closed first, so the
+  // queue of the operator holds only the failures somebody can do something
+  // about.
+  try {
+    const closed = await resolveDeadLettersOfGoneInstances();
+    if (closed > 0) {
+      const message = `[dead-letter] ${closed} failure(s) of instances that are gone were closed`;
+      log.info?.(message);
+      log.warn(message);
+    }
+  } catch (error) {
+    log.error(`[dead-letter] the failures of the instances that are gone could not be closed: ${(error as Error).message}`);
+  }
   const observed = await checkDeadLetters({ ...options, log });
   await reconcileRunningServices(log);
   return observed;
