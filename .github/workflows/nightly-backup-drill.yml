@@ -52,7 +52,7 @@ jobs:
       DATABASE_URL: postgresql://blipmade:blipmade@127.0.0.1:5432/blipmade
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
         uses: actions/setup-node@v4
