@@ -316,7 +316,7 @@ export async function dispatchEmail(payload: EmailJobData): Promise<MailSendResu
   }
   try {
     const jobId = await enqueueEmail(payload);
-    noteQueued(payload, jobId);
+    await noteQueued(payload, jobId);
     const now = new Date().toISOString();
     return {
       state: 'queued',

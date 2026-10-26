@@ -562,7 +562,7 @@ export async function registerAdminNotificationRoutes(app: FastifyInstance): Pro
     });
     // The ledger says that the message is waiting again, so the operator sees
     // the truth of the queue and not the failure that is over.
-    noteQueued(
+    await noteQueued(
       {
         key: row.key,
         kind: event.type,

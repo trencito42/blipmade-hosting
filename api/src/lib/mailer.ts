@@ -115,7 +115,7 @@ export function mailDeliveryRecord(key: string): MailDeliveryRecord | undefined 
  * The worker is another process, so the API writes down what it queued. The
  * record holds no body and no token.
  */
-export function noteQueued(payload: MailJobPayload, jobId: string): void {
+export async function noteQueued(payload: MailJobPayload, jobId: string): Promise<void> {
   const existing = registry.get(payload.key);
   // A message that was already delivered stays delivered: a second request
   // must never make it look like it is still on its way.
@@ -139,7 +139,7 @@ export function noteQueued(payload: MailJobPayload, jobId: string): void {
     updatedAt: now,
   };
   remember(record);
-  void persistRecord(record);
+  await persistRecord(record);
 }
 
 /** The transport that is in use: the relay, or the file that stands in for it. */
@@ -718,7 +718,7 @@ async function attempt(payload: MailJobPayload): Promise<MailSendResult> {
       record.errorClass = errorClass(error);
       record.error = safeError(error);
       remember(record);
-      void persistRecord(record);
+      await persistRecord(record);
       throw new MailDeliveryError(record.errorClass, record.error ?? 'The relay refused the message.');
     }
   } else {
@@ -734,13 +734,13 @@ async function attempt(payload: MailJobPayload): Promise<MailSendResult> {
       record.errorClass = errorClass(error);
       record.error = safeError(error);
       remember(record);
-      void persistRecord(record);
+      await persistRecord(record);
       throw new MailDeliveryError(record.errorClass, record.error ?? 'The message could not be written to disk.');
     }
   }
 
   remember(record);
-  void persistRecord(record);
+  await persistRecord(record);
   return { ...record };
 }
 
