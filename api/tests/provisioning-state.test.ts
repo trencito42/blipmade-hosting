@@ -84,7 +84,7 @@ afterEach(() => {
  * customer stored on the platform.
  */
 async function seedOnlineInstance(
-  options: { uuid?: string; withKey?: boolean; status?: string } = {},
+  options: { uuid?: string; withKey?: boolean; status?: 'ONLINE' | 'PENDING' | 'CANCELLED' | 'FAILED' } = {},
 ) {
   const user = await prisma.user.create({
     data: {

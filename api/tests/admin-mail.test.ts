@@ -59,9 +59,8 @@ vi.mock('../src/services/mailcow.js', () => {
       return input;
     },
     mailcowDeleteDomainWithItsContent: async (input: unknown) => {
-      record('deleteDomainWithItsContent', input);
-      const domain = typeof input === 'string' ? input : String(input);
-      mailcowMock.domains.delete(domain);
+      refuse('deleteDomainWithItsContent');
+      return input;
     },
     mailcowCreateDkim: async () => {
       refuse('createDkim');
