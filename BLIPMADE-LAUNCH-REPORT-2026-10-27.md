@@ -212,6 +212,10 @@ Consola din browser arăta `POST https://blipmade.com/api/catalog/quote 400 (Bad
 
 Reparat: teaserul arată un produs care poate fi comandat și nu cere cotă deloc când produsul nu poate fi comandat. Decizia e o funcție cu test propriu (`teaserProduct`).
 
+Verificat pe pagina reală, cu un browser: după reparare, **toate** cererile paginii sunt `200` — inclusiv cele două `POST /api/catalog/quote`. Înainte, cota produsului închis era singura cerere cu `400`.
+
+**O notă de incident, pentru că e în jurnal:** între 19:12 și 19:18 mașina platformei a fost suprasolicitată (load average peste 50) și pagina publică nu a răspuns câteva minute. Cauza a fost un diagnostic al meu: o buclă de o sută de interogări de bază de date, fiecare într-un `docker exec` separat, pe mașina de producție. Platforma în sine era sănătoasă (containerele healthy, baza de date răspundea), iar încărcarea a coborât singură. Le spun pentru că a fost o decizie greșită a mea, nu o problemă a platformei: diagnosticele pe o mașină de producție se fac cu o singură interogare, nu cu o buclă.
+
 ---
 
 ## 3. Ce mai trebuie făcut pentru lansare
