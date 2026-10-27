@@ -20,7 +20,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "A support ticket is the only way to reach the operator. There is no phone number and no live chat in the platform today. The mail of the platform is the channel of its notifications, and the mail that announces a new ticket goes to the staff that works the queue, or to the operator when nobody of them may read a ticket."
+            "text": "A support ticket is the only way to reach the operator. There is no phone number and no live chat today. The mail of the platform carries the notifications, and the mail that announces a new ticket goes to the staff that works the queue."
           },
           {
             "t": "steps",
@@ -45,7 +45,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform sends its own notifications from no-reply@blipmade.com, so a reply to one of those messages does not reach a person. Answer inside the ticket: the operator reads the ticket, not the mailbox."
+            "text": "The notifications of the platform come from no-reply@blipmade.com, so a reply to them reaches nobody. Answer inside the ticket."
           },
           {
             "t": "p",
@@ -59,7 +59,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The operator works on your account from the back office, with the same data you see: the instance, its events, the output of its console, the orders and the invoices."
+            "text": "The operator works on your account with the same data you see: the instance, its events, the output of its console, the orders and the invoices."
           },
           {
             "t": "list",
@@ -97,7 +97,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "If a problem blocks all of your work, set the priority to High and say in the message that it blocks you. If the platform itself has a problem, the status page says so before you write."
+            "text": "If a problem blocks all of your work, set the priority to High and say so in the message. If the platform itself has a problem, the status page says so before you write."
           }
         ]
       },
@@ -133,7 +133,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "If the question is about your data, about a payment or about the account itself, choose the category Billing or Account instead of Technical. It is what routes the ticket to the right desk."
+            "text": "If the question is about your data, your payment or your account, choose Billing or Account instead of Technical, so the ticket reaches the right desk."
           }
         ]
       },
@@ -143,11 +143,11 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The platform writes to you by mail and in the notification centre of your account when a ticket is opened, when the operator answers, when the state of the ticket changes and when it is closed. These messages are always sent: they belong to the conversation itself, so they do not follow the preferences of your account."
+            "text": "You are written to by mail and in the notification centre of your account when a ticket is opened, when the operator answers, when the state of the ticket changes and when it is closed. These messages always come: they belong to the ticket itself."
           },
           {
             "t": "p",
-            "text": "The messages about the platform itself are a different group. Today the platform writes those to the operator and not to the customers, so a problem of the platform is read on the status page and not in your inbox. The page [Notifications](/docs?p=notifications) describes the groups of the notification centre."
+            "text": "The messages about the platform itself are a different group. Today they go to the operator and not to the customers, so a problem of the platform is read on the status page and not in your inbox. The page [Notifications](/docs?p=notifications) describes the groups."
           }
         ]
       }
@@ -231,7 +231,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform accepts the words of the category and of the priority in any case. If you write technical in a script, it is stored as Technical and read back that way."
+            "text": "The category and the priority are accepted in any case. If you write technical in a script, it is stored as Technical."
           }
         ]
       },
@@ -305,7 +305,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "Keep everything in one thread. A ticket that is answered in a second ticket loses the context of the first, and the operator has to ask for it again."
+            "text": "Keep everything in one thread. A question answered in a second ticket loses the context of the first."
           }
         ]
       },
@@ -315,7 +315,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The Attachment field of the Reply panel adds the name, the size and the type of a file to your message. The contents of the file are not uploaded from that form, so the operator reads the description of the file and not the file itself."
+            "text": "The Attachment field of the Reply panel adds the name, the size and the type of a file to your message. The file itself is not uploaded from that form, so you have to describe it."
           },
           {
             "t": "p",
@@ -369,7 +369,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The operator opens the ticket in the queue of the back office and reads the same thread you read, with more behind it."
+            "text": "The operator opens the ticket in the queue and reads the same thread you read, with more behind it."
           },
           {
             "t": "list",
@@ -408,7 +408,7 @@
           {
             "t": "callout",
             "tone": "danger",
-            "text": "A script that opens tickets unattended needs the session of a real account, and that session is a password. There is no key of the API to use instead, so do not leave such a script running with a cookie of an account you care about."
+            "text": "A script that opens tickets unattended needs the session of a real account, and a session is a password. Treat the cookie like one."
           }
         ]
       }
@@ -526,7 +526,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "An incident is a note that the operator writes when the platform is not in its normal state. It holds what is happening and, optionally, until when it is expected to last. It is a declaration and not a measurement: the state of the components on the status page is what is measured, and the incident is the words of the operator about it."
+            "text": "An incident is a note that the operator writes when the platform is not in its normal state. It holds what is happening and, optionally, until when it is expected to last. The state of the components on the page is what is measured; the incident is the explanation of the operator."
           },
           {
             "t": "p",
@@ -540,7 +540,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The operator declares it from the Operations page of the back office, where the panel is called Incident, with the fields What is happening and Until. The same thing is done with the API, which asks for the permission infrastructure.write."
+            "text": "The operator declares it from the Operations page, where the panel is called Incident, with the fields What is happening and Until."
           },
           {
             "t": "code",
@@ -550,11 +550,6 @@
           {
             "t": "p",
             "text": "Until is optional and empty means that the incident has no announced end. The incident is closed with DELETE /api/ops/incident, which is also what the operator does from the same panel."
-          },
-          {
-            "t": "callout",
-            "tone": "note",
-            "text": "The page of the operations of the back office carries the checks of the machine, of the database, of the mail and of the backups. It belongs to the operator, so a customer account cannot open it."
           }
         ]
       },
@@ -564,7 +559,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "Today the platform does not write to the customers when an incident starts and when it ends. The recovery notification is sent to the operator, and the incident itself is announced to the operator. A message to the customer for an incident and for its end is {{planned}}: the platform holds the two events and the two templates, but nothing publishes them yet."
+            "text": "Today the platform does not write to the customers when an incident starts and when it ends; the notification goes to the operator. A message to the customer for an incident and for its end is {{planned}}: the two events and the two templates are ready, but nothing publishes them yet."
           },
           {
             "t": "p",
@@ -579,7 +574,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The platform publishes no percentage of availability, keeps no history of the uptime and gives no service credit for a period of interruption. Nothing here promises one either."
+            "text": "No percentage of availability, no history of the uptime and no service credit are published."
           },
           {
             "t": "p",
@@ -689,7 +684,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "Give the application the memory it needs before it runs out. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance. A size that costs more is applied once its payment is confirmed; the page [Resources](/docs?p=resources) explains it."
+            "text": "Give the application the memory it needs. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance."
           }
         ]
       },
@@ -908,7 +903,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for. The acceptable use policy carries the same rule."
+            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for."
           }
         ]
       },
@@ -927,7 +922,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "Take your own copy with the commands on the page of your product. The page [Backups](/docs?p=backups) describes what the manual backup holds and what it does not."
+            "text": "Take your own copy with the commands on the page of your product. The page [Backups](/docs?p=backups) says what the backup holds."
           }
         ]
       }
@@ -1363,7 +1358,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "A message that names the field that is wrong is the most useful thing a script can print: the fields of the answer carry it already, one line per field."
+            "text": "A message that names the field that is wrong is the most useful thing a script can print. The answer already carries it, one line per field."
           }
         ]
       }

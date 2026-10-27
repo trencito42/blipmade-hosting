@@ -44,7 +44,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform answers the same way for every address, on the sign-in page and on the page of the forgotten password, so it never tells you whether an account exists."
+            "text": "The sign-in page and the page of the forgotten password answer the same way for every address, so they never say whether an account exists."
           }
         ]
       },
@@ -192,7 +192,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The platform cannot take a payment today, so the checkout is refused and the order stays unpaid. The deploy page says it in these words: Checkout is not available. The order was created and stays unpaid. Open a support ticket to finish the payment."
+            "text": "Payments are not available yet. Your order is created and stays unpaid, so open a support ticket and we finish the payment with you."
           }
         ]
       },
@@ -736,7 +736,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -957,7 +957,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -1178,7 +1178,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -1257,7 +1257,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "Code Server cannot be ordered today: the platform does not install it yet. The deploy page says: Code Server cannot be ordered."
+            "text": "Code Server cannot be ordered today. The platform does not install it yet."
           },
           {
             "t": "p",
@@ -1403,7 +1403,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -1482,7 +1482,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "Uptime Kuma cannot be ordered today: the platform does not install it yet. The deploy page says: Uptime Kuma cannot be ordered."
+            "text": "Uptime Kuma cannot be ordered today. The platform does not install it yet."
           },
           {
             "t": "p",
@@ -1628,7 +1628,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -1849,7 +1849,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -2070,7 +2070,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -2149,7 +2149,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The Discord Bot can be ordered today: the platform installs it and checks that it answers before it reports the order as done."
+            "text": "The Discord Bot can be ordered today."
           },
           {
             "t": "p",
@@ -2295,7 +2295,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A backup is a copy of the files of the container. It is not the export of the instance, which describes the service and its records: see [Cancel an instance](/docs?p=cancel)."
+            "text": "A backup is a copy of the files of the container, not the export of the instance. See [Cancel an instance](/docs?p=cancel)."
           }
         ]
       },
@@ -2374,7 +2374,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "PostgreSQL cannot be ordered today: the platform does not install it yet. The deploy page says: PostgreSQL cannot be ordered."
+            "text": "PostgreSQL cannot be ordered today. The platform does not install it yet."
           },
           {
             "t": "p",
@@ -2484,7 +2484,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "A backup is a copy of the files of the container. The data of a database that belongs to an instance is not part of it, so you have to make your own copy of the data you cannot lose."
+            "text": "A backup holds the files of the container. The data of a database is not part of it, so copy the data you cannot lose yourself."
           }
         ]
       },
@@ -2669,7 +2669,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "A backup is a copy of the files of the container. The data of a database that belongs to an instance is not part of it, so you have to make your own copy of the data you cannot lose."
+            "text": "A backup holds the files of the container. The data of a database is not part of it, so copy the data you cannot lose yourself."
           }
         ]
       },
@@ -2854,7 +2854,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "A backup is a copy of the files of the container. The data of a database that belongs to an instance is not part of it, so you have to make your own copy of the data you cannot lose."
+            "text": "A backup holds the files of the container. The data of a database is not part of it, so copy the data you cannot lose yourself."
           }
         ]
       },
@@ -3039,7 +3039,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "A backup is a copy of the files of the container. The data of a database that belongs to an instance is not part of it, so you have to make your own copy of the data you cannot lose."
+            "text": "A backup holds the files of the container. The data of a database is not part of it, so copy the data you cannot lose yourself."
           }
         ]
       },
@@ -3137,7 +3137,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The minimum and the maximum belong to the product in the catalog. The platform refuses a configuration that is under the minimum or over the maximum."
+            "text": "The minimum and the maximum belong to the product in the catalog. A configuration under the minimum or over the maximum is refused."
           }
         ]
       },
@@ -3298,11 +3298,11 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The platform cannot take a payment today: the checkout is refused and the order stays unpaid. The deploy page says it in these words: Checkout is not available. The order was created and stays unpaid. Open a support ticket to finish the payment."
+            "text": "Payments are not available yet. Your order is created and stays unpaid, so open a support ticket and we finish the payment with you."
           },
           {
             "t": "p",
-            "text": "The chain of a payment is in place — the order, the subscription, the invoice, the deployment and the message that tells you that it is done — but the switch of the payments is off on this environment, so the payment itself is finished with the team."
+            "text": "The whole chain is in place — the order, the subscription, the invoice, the deployment and the message that tells you it is done — but the payment itself is finished with the team."
           },
           {
             "t": "p",
@@ -3652,7 +3652,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform does not promise how long a refund takes. The payment provider states how long it takes to return the amount."
+            "text": "The platform does not promise how long a refund takes. The payment provider states the delay."
           }
         ]
       },
@@ -3734,7 +3734,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A hostname of the platform is reserved. apps.blipmade.com and everything under it belong to the platform, and a claim of one of them is refused. See [the domain of the platform](/docs?p=platform-domains)."
+            "text": "A hostname of the platform is reserved. apps.blipmade.com and everything under it belong to the platform, and a claim of one of them is refused."
           }
         ]
       },
@@ -3758,7 +3758,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "A claim that is never proved runs out after seven days. When the seven days are over the hostname is free again, and you have to claim it a second time."
+            "text": "A claim that is never proved runs out after seven days. After that the hostname is free again, and you have to claim it a second time."
           }
         ]
       },
@@ -3854,7 +3854,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The hostname stops resolving as soon as it is deleted: the platform takes the route away before it deletes the claim. This cannot be undone, and the token of the proof goes with it."
+            "text": "The hostname stops resolving as soon as you delete it. This cannot be undone, and the proof of the hostname goes with it."
           }
         ]
       },
@@ -3938,7 +3938,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "If your provider has a CNAME flattening or proxy setting, turn it off for these records. A proxied hostname does not answer the verification check."
+            "text": "If your provider has a CNAME flattening or a proxy setting, turn it off for these records. A proxied hostname does not answer the verification check."
           }
         ]
       },
@@ -3979,7 +3979,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A claim of a hostname that is never proved runs out after seven days, so verify again as soon as your records are published rather than waiting for a day."
+            "text": "A claim that is never proved runs out after seven days, so verify again as soon as your records are published."
           }
         ]
       },
@@ -4034,7 +4034,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The certificate of the platform's own site is a different thing. The edge of the platform holds a certificate for the names of the platform, such as blipmade.com, so the dashboard and the site of the platform are reached over HTTPS. That certificate says nothing about a hostname you attach to an instance."
+            "text": "The certificate of blipmade.com covers the addresses of the platform only. It says nothing about a hostname you attach to an instance."
           },
           {
             "t": "p",
@@ -4079,7 +4079,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The edge of the platform holds a certificate for the names of the platform and for nothing else. It does not cover a hostname under the domain of the platform, and it does not cover a hostname of yours. A certificate that you get for a hostname from your own provider does not protect the hostname the platform routes, because the platform answers on that hostname itself."
+            "text": "The certificate of the platform covers the names of the platform and nothing else. It does not cover a hostname under the domain of the platform, and it does not cover a hostname of yours. A certificate you get for a hostname from your own provider does not protect it either, because the platform answers on that hostname itself."
           },
           {
             "t": "p",
@@ -4191,7 +4191,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The edge of the platform holds a certificate for the names of the platform, such as blipmade.com, so the dashboard and the site of the platform are reached over HTTPS. That certificate covers neither a hostname under apps.blipmade.com nor a hostname of yours. The details are in [SSL certificates](/docs?p=ssl)."
+            "text": "The certificate of blipmade.com covers the addresses of the platform, so the dashboard and the site are reached over HTTPS. It covers neither a hostname under apps.blipmade.com nor a hostname of yours. The details are in [SSL certificates](/docs?p=ssl)."
           }
         ]
       }
@@ -4265,7 +4265,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "Saving replaces the whole file. If the application is running and holds that file open, it may keep running with the old content until it is restarted."
+            "text": "Saving replaces the whole file. If the application is running and holds it open, it may keep working with the old content until it is restarted."
           },
           {
             "t": "p",
@@ -4309,7 +4309,7 @@
           {
             "t": "callout",
             "tone": "danger",
-            "text": "There is no trash folder, and nothing takes a copy of the file for you. The backup of the instance is a separate archive that you ask for yourself, and it holds the files of the container as they were at that moment. See [Backups of an instance](/docs?p=backups)."
+            "text": "There is no trash folder, and nothing takes a copy of the file for you. Take a [backup](/docs?p=backups) before you delete something."
           }
         ]
       },
@@ -4512,7 +4512,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "A file you write yourself is a file of the container, so it is in the backup and it is in the file browser. It is not a log that the platform keeps for you, and the platform does not rotate it for you either."
+            "text": "A file you write yourself is a file of the container: it is in the backup and in the file browser. The platform does not keep a log for you and does not rotate it."
           }
         ]
       },
@@ -4577,7 +4577,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "After fourteen days the session ends on its own and you sign in again. You can end it earlier: the Sessions panel of the settings page lists every session that is open for your account, and you can close them one by one."
+            "text": "After fourteen days the session ends on its own and you sign in again. You can end it earlier from the Sessions panel of the settings page, one session at a time."
           }
         ]
       },
@@ -4639,7 +4639,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "Changing the password closes the other sessions of the account. A script that holds the cookie of your account stops working at the same moment."
+            "text": "Changing the password closes the other sessions of the account, and a script that holds your cookie stops working at the same moment."
           }
         ]
       },
@@ -4751,7 +4751,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "Everything you do to an instance goes through the account you signed in with. The credential of the platform is scoped to your own account and it never reaches the browser."
+            "text": "Everything you do to an instance goes through the account you signed in with. The credential of the platform stays on the server, in your account only."
           }
         ]
       },
@@ -4782,7 +4782,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "Environment variables are readable by anyone who can open the instance and by everything that runs inside it. Keep tokens and database passwords out of your repository."
+            "text": "Environment variables are readable by anyone who can open the instance and by everything that runs inside it. Keep tokens and database passwords out of your code."
           }
         ]
       },
@@ -4902,7 +4902,7 @@
             "rows": [
               {
                 "k": "ADMIN",
-                "v": "Holds every permission of the back office."
+                "v": "Holds every permission of the platform."
               },
               {
                 "k": "STAFF",
@@ -4916,7 +4916,7 @@
           },
           {
             "t": "p",
-            "text": "A staff member who does not hold a permission cannot hand it out either: the back office refuses a staff member who tries to grant more than they hold themselves. And the access to the container of a customer always goes through the customer credential, so the work in the back office never depends on the privilege of the platform to reach your files."
+            "text": "A staff member who does not hold a permission cannot hand it out either: nobody can grant more than they hold. The access to the container of a customer always goes through the credential of the customer, so the staff of the platform never reaches your files with its own privileges."
           }
         ]
       },
@@ -4976,7 +4976,7 @@
           {
             "t": "callout",
             "tone": "danger",
-            "text": "The hosted mail is not on sale today, so no plan of hosted mail can be bought and no mail service can be started. The Email page of the dashboard says the same: Not on sale yet."
+            "text": "The hosted mail is not on sale today, so no plan of hosted mail can be bought and no mail service can be started."
           },
           {
             "t": "p",
@@ -5114,7 +5114,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The password of a mailbox is shown once, in the answer of the request that created it. It is not written down anywhere else, so a lost password is a new mailbox and not a recovered one."
+            "text": "The password of a mailbox is shown once, when the mailbox is created. It is not written down anywhere else, so a lost password means a new mailbox."
           }
         ]
       },
@@ -5271,7 +5271,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "These records have nothing to do with the records of an instance. An instance needs an address record and a proof of ownership; a domain of mail needs the records above. A hostname that carries both needs both sets, and each set is checked in the place it belongs: the proof of an instance in the Domains page, the records of mail in the Email page. The records of an instance are in [The DNS records you need](/docs?p=dns)."
+            "text": "These records have nothing to do with the records of an instance. An instance needs an address record and a proof of ownership; a domain of mail needs the records above. A hostname that carries both needs both sets. The records of an instance are in [The DNS records you need](/docs?p=dns)."
           }
         ]
       }
@@ -5319,7 +5319,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The webmail is the place where the mail of a domain is read, in the browser. Its address comes from the platform and not from the page: you are sent to the webmail of the platform and never to an address that was written in the source of the page. On this platform the webmail is the mail server of the platform, mail.blipmade.com. When the platform has no webmail set up, the page says that it is not set up instead of inventing an address."
+            "text": "The webmail is where the mail of a domain is read, in the browser. The address comes from the platform, and the page says when there is no webmail set up instead of showing an address that does not work."
           }
         ]
       },
@@ -5329,7 +5329,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "A mail client needs the settings of the mailbox: the host of the incoming and the outgoing server, and the ports they listen on. The platform does not publish them in the customer area today. There is no panel in the dashboard that shows the host or the port of IMAP or SMTP for a mailbox, so a client cannot be set up from the dashboard alone."
+            "text": "A mail client needs the settings of the mailbox: the host of the incoming and the outgoing server, and the ports they listen on. The platform does not publish them today, so a client cannot be set up from the dashboard alone."
           },
           {
             "t": "p",
@@ -5338,7 +5338,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "If you need the settings of a mail client and the platform does not publish them, open a ticket and say which client and which domain you use. The request is in the support queue of your account."
+            "text": "If you need the settings of a mail client and they are not published, open a ticket and say which client and which domain you use."
           }
         ]
       },
@@ -5564,7 +5564,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform also keeps a copy of its own database and of its own configuration. That copy belongs to the platform: it is not a backup of your application and it is not a backup of your files."
+            "text": "The copy the platform keeps of its own database is not a backup of your application and not a backup of your files. Take your own copy from the [Backups](/docs?p=backups) page."
           }
         ]
       },
@@ -5643,7 +5643,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "A restore replaces the files of the container with the archive. The archive was taken at a moment in the past, so a file that was written after that moment is not in it and is lost by the restore."
+            "text": "A restore replaces the files of the container with the archive. A file that was written after the archive was taken is not in it, and the restore loses it."
           }
         ]
       },
@@ -5762,7 +5762,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "Give the application the memory it needs before it runs out. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance. A size that costs more is applied once its payment is confirmed; the page [Resources](/docs?p=resources) explains it."
+            "text": "Give the application the memory it needs. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance."
           }
         ]
       },
@@ -5857,7 +5857,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "A support ticket is the only way to reach the operator. There is no phone number and no live chat in the platform today. The mail of the platform is the channel of its notifications, and the mail that announces a new ticket goes to the staff that works the queue, or to the operator when nobody of them may read a ticket."
+            "text": "A support ticket is the only way to reach the operator. There is no phone number and no live chat today. The mail of the platform carries the notifications, and the mail that announces a new ticket goes to the staff that works the queue."
           },
           {
             "t": "steps",
@@ -5882,7 +5882,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform sends its own notifications from no-reply@blipmade.com, so a reply to one of those messages does not reach a person. Answer inside the ticket: the operator reads the ticket, not the mailbox."
+            "text": "The notifications of the platform come from no-reply@blipmade.com, so a reply to them reaches nobody. Answer inside the ticket."
           },
           {
             "t": "p",
@@ -5896,7 +5896,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The operator works on your account from the back office, with the same data you see: the instance, its events, the output of its console, the orders and the invoices."
+            "text": "The operator works on your account with the same data you see: the instance, its events, the output of its console, the orders and the invoices."
           },
           {
             "t": "list",
@@ -5934,7 +5934,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "If a problem blocks all of your work, set the priority to High and say in the message that it blocks you. If the platform itself has a problem, the status page says so before you write."
+            "text": "If a problem blocks all of your work, set the priority to High and say so in the message. If the platform itself has a problem, the status page says so before you write."
           }
         ]
       },
@@ -5970,7 +5970,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "If the question is about your data, about a payment or about the account itself, choose the category Billing or Account instead of Technical. It is what routes the ticket to the right desk."
+            "text": "If the question is about your data, your payment or your account, choose Billing or Account instead of Technical, so the ticket reaches the right desk."
           }
         ]
       },
@@ -5980,11 +5980,11 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The platform writes to you by mail and in the notification centre of your account when a ticket is opened, when the operator answers, when the state of the ticket changes and when it is closed. These messages are always sent: they belong to the conversation itself, so they do not follow the preferences of your account."
+            "text": "You are written to by mail and in the notification centre of your account when a ticket is opened, when the operator answers, when the state of the ticket changes and when it is closed. These messages always come: they belong to the ticket itself."
           },
           {
             "t": "p",
-            "text": "The messages about the platform itself are a different group. Today the platform writes those to the operator and not to the customers, so a problem of the platform is read on the status page and not in your inbox. The page [Notifications](/docs?p=notifications) describes the groups of the notification centre."
+            "text": "The messages about the platform itself are a different group. Today they go to the operator and not to the customers, so a problem of the platform is read on the status page and not in your inbox. The page [Notifications](/docs?p=notifications) describes the groups."
           }
         ]
       }
@@ -6068,7 +6068,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform accepts the words of the category and of the priority in any case. If you write technical in a script, it is stored as Technical and read back that way."
+            "text": "The category and the priority are accepted in any case. If you write technical in a script, it is stored as Technical."
           }
         ]
       },
@@ -6142,7 +6142,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "Keep everything in one thread. A ticket that is answered in a second ticket loses the context of the first, and the operator has to ask for it again."
+            "text": "Keep everything in one thread. A question answered in a second ticket loses the context of the first."
           }
         ]
       },
@@ -6152,7 +6152,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The Attachment field of the Reply panel adds the name, the size and the type of a file to your message. The contents of the file are not uploaded from that form, so the operator reads the description of the file and not the file itself."
+            "text": "The Attachment field of the Reply panel adds the name, the size and the type of a file to your message. The file itself is not uploaded from that form, so you have to describe it."
           },
           {
             "t": "p",
@@ -6206,7 +6206,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The operator opens the ticket in the queue of the back office and reads the same thread you read, with more behind it."
+            "text": "The operator opens the ticket in the queue and reads the same thread you read, with more behind it."
           },
           {
             "t": "list",
@@ -6245,7 +6245,7 @@
           {
             "t": "callout",
             "tone": "danger",
-            "text": "A script that opens tickets unattended needs the session of a real account, and that session is a password. There is no key of the API to use instead, so do not leave such a script running with a cookie of an account you care about."
+            "text": "A script that opens tickets unattended needs the session of a real account, and a session is a password. Treat the cookie like one."
           }
         ]
       }
@@ -6363,7 +6363,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "An incident is a note that the operator writes when the platform is not in its normal state. It holds what is happening and, optionally, until when it is expected to last. It is a declaration and not a measurement: the state of the components on the status page is what is measured, and the incident is the words of the operator about it."
+            "text": "An incident is a note that the operator writes when the platform is not in its normal state. It holds what is happening and, optionally, until when it is expected to last. The state of the components on the page is what is measured; the incident is the explanation of the operator."
           },
           {
             "t": "p",
@@ -6377,7 +6377,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The operator declares it from the Operations page of the back office, where the panel is called Incident, with the fields What is happening and Until. The same thing is done with the API, which asks for the permission infrastructure.write."
+            "text": "The operator declares it from the Operations page, where the panel is called Incident, with the fields What is happening and Until."
           },
           {
             "t": "code",
@@ -6387,11 +6387,6 @@
           {
             "t": "p",
             "text": "Until is optional and empty means that the incident has no announced end. The incident is closed with DELETE /api/ops/incident, which is also what the operator does from the same panel."
-          },
-          {
-            "t": "callout",
-            "tone": "note",
-            "text": "The page of the operations of the back office carries the checks of the machine, of the database, of the mail and of the backups. It belongs to the operator, so a customer account cannot open it."
           }
         ]
       },
@@ -6401,7 +6396,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "Today the platform does not write to the customers when an incident starts and when it ends. The recovery notification is sent to the operator, and the incident itself is announced to the operator. A message to the customer for an incident and for its end is {{planned}}: the platform holds the two events and the two templates, but nothing publishes them yet."
+            "text": "Today the platform does not write to the customers when an incident starts and when it ends; the notification goes to the operator. A message to the customer for an incident and for its end is {{planned}}: the two events and the two templates are ready, but nothing publishes them yet."
           },
           {
             "t": "p",
@@ -6416,7 +6411,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The platform publishes no percentage of availability, keeps no history of the uptime and gives no service credit for a period of interruption. Nothing here promises one either."
+            "text": "No percentage of availability, no history of the uptime and no service credit are published."
           },
           {
             "t": "p",
@@ -6610,7 +6605,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for. The acceptable use policy carries the same rule."
+            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for."
           }
         ]
       },
@@ -6629,7 +6624,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "Take your own copy with the commands on the page of your product. The page [Backups](/docs?p=backups) describes what the manual backup holds and what it does not."
+            "text": "Take your own copy with the commands on the page of your product. The page [Backups](/docs?p=backups) says what the backup holds."
           }
         ]
       }
@@ -7065,7 +7060,7 @@
           {
             "t": "callout",
             "tone": "tip",
-            "text": "A message that names the field that is wrong is the most useful thing a script can print: the fields of the answer carry it already, one line per field."
+            "text": "A message that names the field that is wrong is the most useful thing a script can print. The answer already carries it, one line per field."
           }
         ]
       }

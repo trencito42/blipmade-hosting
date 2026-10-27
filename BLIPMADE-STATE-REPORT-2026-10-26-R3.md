@@ -317,14 +317,22 @@ platform — all of them stop the build.
 written in the voice of the operator: the result of a step was labelled
 "Expected", the way a test names it, and the notes explained the machinery of
 the platform ("the name in the catalog is the name of the product", "this
-page is published only when the catalog offers the product"). A customer does
-not read the machinery of a platform, they read what happens to them, so the
-pages were rewritten: the label of a step is now "What happens", the notes
-say what the platform does to the account that reads them, and the notes that
-only defended the platform against its own audit were written for the person
-who reads them. The facts did not move: the same claims, the same fifteen
-pages that carry a "Planned" badge, the same price and the same resources
-that come from the catalog.
+page is published only when the catalog offers the product", "the deploy page
+says it in these words: Checkout is not available"). A customer does not read
+the machinery of a platform, they read what happens to them, so the pages
+were rewritten twice:
+
+- the label of a step is gone — the outcome of a step is a line of its own,
+  under the step, with a mark and nothing else;
+- the notes say what the platform does to the account that reads them, in one
+  or two sentences, and the notes that only explained the machinery of the
+  platform were dropped;
+- the notes that only defended the platform against its own audit were written
+  for the person who reads them.
+
+The facts did not move: the same claims, the same fifteen pages that carry a
+"Planned" badge, the same price and the same resources that come from the
+catalog.
 
 ---
 
