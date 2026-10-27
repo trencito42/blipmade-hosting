@@ -62,9 +62,17 @@ say "the channel of the alarms is on $HOST"
 
 # --- 2. the file that only the owner can read ------------------------------------------------
 
-mkdir -p "$SECRETS_DIR"
-chmod 0700 "$SECRETS_DIR" 2>/dev/null \
-  || fail "the directory $SECRETS_DIR belongs to another user and cannot be closed; the address of the channel would be readable by the other users of the machine"
+mkdir -p "$SECRETS_DIR" 2>/dev/null || true
+if ! chmod 0700 "$SECRETS_DIR" 2>/dev/null; then
+  # A mount of a file that is not there yet leaves a directory of the root
+  # behind, and the owner of the machine cannot close a directory of another
+  # user. The directory is handed over first, when the machine allows it.
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo chown "$(id -u):$(id -g)" "$SECRETS_DIR" >/dev/null 2>&1 || true
+  fi
+  chmod 0700 "$SECRETS_DIR" 2>/dev/null \
+    || fail "the directory $SECRETS_DIR belongs to another user and cannot be closed; the address of the channel would be readable by the other users of the machine"
+fi
 
 # The container of the platform runs under another user than the owner of the
 # machine (`blip`, 100, and `debian`, 1000), so the file cannot stay 0600: the

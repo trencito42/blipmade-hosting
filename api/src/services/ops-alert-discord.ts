@@ -31,7 +31,7 @@ import { env } from '../env.js';
 import { redis } from '../redis.js';
 
 /** How much the alert matters, in the words of Discord. */
-export type DiscordSeverity = 'critical' | 'warning' | 'recovery';
+export type DiscordSeverity = 'critical' | 'warning' | 'recovery' | 'info';
 
 /** The alert that is written for Discord. */
 export interface DiscordAlert {
@@ -93,13 +93,22 @@ const COLORS: Record<DiscordSeverity, number> = {
   critical: 0xb32d2d,
   warning: 0xd08700,
   recovery: 0x2f7d32,
+  info: 0x2f6fb3,
 };
 
-/** The words of the severities, so that the operator reads them and not a colour. */
+/**
+ * The words of the severities, so that the operator reads them and not a
+ * colour.
+ *
+ * A severity that is not in the map falls back to the word itself, because a
+ * field of an embed without a value is refused by Discord with a 400, and
+ * the whole alarm is lost with it.
+ */
 const LABELS: Record<DiscordSeverity, string> = {
   critical: 'Critical',
   warning: 'Warning',
   recovery: 'Recovered',
+  info: 'Info',
 };
 
 /**
@@ -154,9 +163,11 @@ export function incidentIdOf(fingerprint: string): string {
 /** The embed of an alert, as Discord wants it. */
 export function buildDiscordEmbed(alert: DiscordAlert): Record<string, unknown> {
   const fields: { name: string; value: string; inline: boolean }[] = [
-    { name: 'Severity', value: LABELS[alert.severity], inline: true },
+    // Every field carries a value: Discord refuses the whole message with a
+    // 400 when one of them has none.
+    { name: 'Severity', value: LABELS[alert.severity] ?? alert.severity, inline: true },
     { name: 'Component', value: sanitizeAlertText(alert.component, 200) || 'the platform', inline: true },
-    { name: 'Incident', value: alert.incidentId, inline: true },
+    { name: 'Incident', value: sanitizeAlertText(alert.incidentId, 100) || 'unknown', inline: true },
   ];
   const detail = sanitizeAlertText(alert.detail, LIMITS.field);
   if (detail) {
@@ -165,7 +176,7 @@ export function buildDiscordEmbed(alert: DiscordAlert): Record<string, unknown> 
   const embed: Record<string, unknown> = {
     title: sanitizeAlertText(alert.title, LIMITS.title),
     description: sanitizeAlertText(alert.description, LIMITS.description),
-    color: COLORS[alert.severity],
+    color: COLORS[alert.severity] ?? COLORS.info,
     timestamp: alert.occurredAt,
     fields,
     footer: { text: sanitizeAlertText(`Blipmade · ${alert.incidentId}`, LIMITS.footer) },

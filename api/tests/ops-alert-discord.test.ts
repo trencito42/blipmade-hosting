@@ -129,6 +129,31 @@ describe('the Discord channel of the operator', () => {
     expect(incident?.value).toBe('INC-0123456789');
   });
 
+  it('gives every field of the embed a value, because Discord refuses a field without one', () => {
+    // Discord answers a message with an embed that holds a field without a
+    // value with a 400, and the whole alarm is lost with it. The severity of
+    // the test message of the script of the channel was not in the map of the
+    // words, so the field of the severity went out empty.
+    for (const severity of ['critical', 'warning', 'recovery', 'info'] as const) {
+      const payload = buildDiscordPayload(alert({ severity }));
+      const embed = (payload.embeds as Record<string, unknown>[])[0];
+      const fields = embed.fields as { name: string; value: string }[];
+      expect(fields.length).toBeGreaterThan(0);
+      for (const field of fields) {
+        expect(typeof field.value).toBe('string');
+        expect(field.value.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('falls back to the word of a severity that is not known', () => {
+    const payload = buildDiscordPayload(alert({ severity: 'unknown' as unknown as DiscordAlert['severity'] }));
+    const embed = (payload.embeds as Record<string, unknown>[])[0];
+    const fields = embed.fields as { name: string; value: string }[];
+    const severity = fields.find((field) => field.name === 'Severity');
+    expect(severity?.value).toBe('unknown');
+  });
+
   it('calls nobody out and lets no message mention a customer', () => {
     const payload = buildDiscordPayload(alert({ detail: 'the customer jane.doe@example.com cannot sign in' }));
     expect(payload.allowed_mentions).toEqual({ parse: [] });

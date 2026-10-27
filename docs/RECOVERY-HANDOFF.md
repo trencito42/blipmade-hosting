@@ -113,13 +113,18 @@ operator can read what he is getting before he takes the package.
    receipt is checked out.
 3. The environment is put back from `env/.env` (and the other two files), with
    the mode `600`.
-4. The database is created and the roles are made with `scripts/db-roles.sh`;
+4. The directory of the secrets of the platform is made with the mode `700` and
+   it belongs to the owner of the machine: `mkdir -p /opt/blipmade/secrets &&
+   chmod 700 /opt/blipmade/secrets`. The file of the Discord channel is
+   mounted in the containers from it, and it must not be readable by the other
+   users of the machine.
+5. The database is created and the roles are made with `scripts/db-roles.sh`;
    the migrations are applied with `scripts/apply-migrations.sh` as the owner.
-5. The identity of the age is put back in `/home/debian/.blipmade-backup.age`
+6. The identity of the age is put back in `/home/debian/.blipmade-backup.age`
    (the mode `600`), so the off-site copies can be read again.
-6. The off-site copy is restored with `scripts/restore-offsite-drill.sh`, and
+7. The off-site copy is restored with `scripts/restore-offsite-drill.sh`, and
    the database of the platform is restored from it.
-7. The containers are started and the smoke test is run:
+8. The containers are started and the smoke test is run:
    `docker compose -f compose.yml -f compose.api.yml -f compose.web.yml up -d --build && ./scripts/smoke-production.sh`.
 
 ## What was not done, on purpose
