@@ -145,6 +145,7 @@ export interface EventPayloadMap {
   'ops.incident': { message: string };
   'ops.capacity_critical': { resource: string; value: string };
   'ops.dns_certificate_failure': { subject: string; reason: string };
+  'ops.panel_unreachable': { subject: string; reason: string };
   'ops.security_change': { subject: string; detail: string };
   'ops.recovered': { check: string; title: string; detail: string };
 }
@@ -1002,6 +1003,16 @@ export const EVENT_DEFINITIONS: EventRegistry = {
     classification: 'essential',
     audience: 'operator',
     title: (payload) => `The certificate of ${payload.subject} failed`,
+    body: (payload) => payload.reason,
+  }),
+  'ops.panel_unreachable': definition({
+    type: 'ops.panel_unreachable',
+    template: 'ops-panel-unreachable',
+    channels: ['email'],
+    category: 'incidents',
+    classification: 'essential',
+    audience: 'operator',
+    title: (payload) => `The platform cannot talk to ${payload.subject}`,
     body: (payload) => payload.reason,
   }),
   'ops.security_change': definition({

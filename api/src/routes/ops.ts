@@ -42,6 +42,7 @@ const CHECK_IDS = [
   'capacity',
   'certificate',
   'incident',
+  'panel',
   'security',
 ] as const;
 

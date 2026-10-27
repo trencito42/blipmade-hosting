@@ -6,6 +6,7 @@ import nodemailer from 'nodemailer';
 import { env } from '../env.js';
 import { prisma } from '../db.js';
 import { redis } from '../redis.js';
+import { listServers as listPanelServers, PterodactylError } from './pterodactyl/application.js';
 import { mailDeliverySummary, smtpTransportOptions } from '../lib/mailer.js';
 import { certificateTargets as certificateTargetsOf, type CertificateTarget } from '../lib/ops-certificate-targets.js';
 import {
@@ -16,6 +17,7 @@ import {
   notifyOpsIncident,
   notifyOpsMailcowUnhealthy,
   notifyOpsOffsiteBackupMissing,
+  notifyOpsPanelUnreachable,
   notifyOpsProvisioningStuck,
   notifyOpsRestoreVerificationFailed,
   notifyOpsSecurityChange,
@@ -63,6 +65,7 @@ export type OpsCheckId =
   | 'capacity'
   | 'certificate'
   | 'incident'
+  | 'panel'
   | 'security';
 
 /** How much a finding matters. */
@@ -863,6 +866,67 @@ async function checkSecurity(now: Date): Promise<OpsCheckResult> {
   };
 }
 
+/**
+ * The control panel, reached with the key of the environment.
+ *
+ * The panel can be there, answer, and still refuse the platform: a key that
+ * was revoked leaves the platform unable to build a service, and the order of
+ * a customer fails in a place where nobody looks. The check uses the same
+ * call that the provisioning uses, so a panel that is there and a panel the
+ * platform can use are never taken for one another.
+ *
+ * The answer of the panel says more than one thing, and the two are fixed in
+ * two different places: a key that is not accepted any more (401) has to be
+ * made again in the panel, and a key that is accepted but may not read the
+ * servers (403) misses a permission. The operator is told which one it is.
+ */
+async function checkPanel(now: Date): Promise<OpsCheckResult> {
+  const started = Date.now();
+  const findings: OpsFinding[] = [];
+
+  try {
+    const servers = await listPanelServers();
+    return {
+      id: 'panel',
+      title: 'The control panel',
+      state: 'ok',
+      summary: `The panel answered with ${servers.length} server(s).`,
+      detail: '',
+      checkedAt: now.toISOString(),
+      durationMs: Date.now() - started,
+      findings,
+    };
+  } catch (error) {
+    const status = error instanceof PterodactylError ? error.status : 0;
+    const reason = ((error as Error).message ?? 'the panel did not answer').slice(0, 300);
+    const summary =
+      status === 401
+        ? 'The panel refused the key of the platform.'
+        : status === 403
+          ? 'The key of the platform may not read the servers of the panel.'
+          : 'The panel could not be reached with the key of the platform.';
+    findings.push({
+      fingerprint: 'panel:application-key',
+      severity: 'critical',
+      title: 'The platform cannot talk to the control panel',
+      detail: reason,
+      type: 'ops.panel_unreachable',
+      subject: 'the control panel',
+      payload: { subject: 'the control panel', reason },
+    });
+    return {
+      id: 'panel',
+      title: 'The control panel',
+      state: 'critical',
+      summary,
+      detail: reason,
+      checkedAt: now.toISOString(),
+      durationMs: Date.now() - started,
+      findings,
+    };
+  }
+}
+
 /* ------------------------------------------------------------------ sweep */
 
 /** The checks, in the order they are run. */
@@ -877,6 +941,7 @@ const CHECKS: Array<{ id: OpsCheckId; run: (now: Date) => Promise<OpsCheckResult
   { id: 'capacity', run: checkCapacity },
   { id: 'certificate', run: checkCertificates },
   { id: 'incident', run: checkIncident },
+  { id: 'panel', run: checkPanel },
   { id: 'security', run: checkSecurity },
 ];
 
@@ -909,6 +974,24 @@ export async function runOpsChecks(now: Date = new Date()): Promise<OpsCheckResu
     }
   }
   return results;
+}
+
+/**
+ * Runs one check of the platform, by its name.
+ *
+ * The sweep runs every check at once, and a test that wants to see one check
+ * alone asks for it by name here. The check that runs is the one of the
+ * sweep: there is no second implementation of a check to drift away.
+ */
+export async function runOpsCheck(id: OpsCheckId, now: Date = new Date()): Promise<OpsCheckResult> {
+  const check = CHECKS.find((entry) => entry.id === id);
+  if (!check) {
+    throw new Error(`the check ${id} does not exist`);
+  }
+  const started = Date.now();
+  const result = await check.run(now);
+  result.durationMs = Date.now() - started;
+  return result;
 }
 
 /** The state of the platform, with the summary of the checks. */
@@ -1253,6 +1336,9 @@ async function publishFinding(finding: OpsFinding, now: Date): Promise<void> {
       return;
     case 'ops.dns_certificate_failure':
       await notifyOpsDnsCertificateFailure(finding.payload as { subject: string; reason: string }, occurrence);
+      return;
+    case 'ops.panel_unreachable':
+      await notifyOpsPanelUnreachable(finding.payload as { subject: string; reason: string }, occurrence);
       return;
     case 'ops.security_change':
       await notifyOpsSecurityChange(finding.payload as { subject: string; detail: string }, occurrence);

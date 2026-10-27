@@ -18,7 +18,7 @@ import { backoffMinutes, decideAlert, type OpsAlertState } from '../src/lib/ops-
 const ROOT = resolve(process.cwd(), '..');
 const SRC = join(ROOT, 'api', 'src');
 
-/** The eleven checks of the platform. */
+/** The twelve checks of the platform. */
 const CHECK_IDS = [
   'provisioning',
   'webhooks',
@@ -30,6 +30,7 @@ const CHECK_IDS = [
   'capacity',
   'certificate',
   'incident',
+  'panel',
   'security',
 ];
 
@@ -45,6 +46,7 @@ const PUBLISHERS: Record<string, string> = {
   'ops.incident': 'notifyOpsIncident',
   'ops.capacity_critical': 'notifyOpsCapacityCritical',
   'ops.dns_certificate_failure': 'notifyOpsDnsCertificateFailure',
+  'ops.panel_unreachable': 'notifyOpsPanelUnreachable',
   'ops.security_change': 'notifyOpsSecurityChange',
   'ops.recovered': 'notifyOpsRecovered',
 };

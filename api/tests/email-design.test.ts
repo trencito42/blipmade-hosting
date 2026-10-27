@@ -183,6 +183,7 @@ const EVENT_EXAMPLES = {
   'ops.incident': { message: 'The cluster lost a node.' },
   'ops.capacity_critical': { resource: 'disk', value: '92%' },
   'ops.dns_certificate_failure': { subject: 'example.com', reason: 'The DNS did not answer.' },
+  'ops.panel_unreachable': { subject: 'the control panel', reason: 'The panel refused the key.' },
   'ops.security_change': { subject: 'The firewall', detail: 'The rule 42 was removed.' },
 } satisfies { [Type in NotificationEventType]: EventPayloadMap[Type] };
 
@@ -312,6 +313,7 @@ const REQUIRED_IDS = [
   'ops-incident',
   'ops-capacity-critical',
   'ops-dns-certificate-failure',
+  'ops-panel-unreachable',
   'ops-security-change',
 ];
 
@@ -323,15 +325,15 @@ afterEach(() => {
 
 describe('the catalogue of the templates', () => {
   it('holds exactly the templates the events of the platform expect', () => {
-    expect(REQUIRED_IDS).toHaveLength(74);
+    expect(REQUIRED_IDS).toHaveLength(75);
     expect([...emailTemplateIds()].sort()).toEqual([...REQUIRED_IDS].sort());
     expect(emailTemplateCatalog().map((entry) => entry.id).sort()).toEqual([...REQUIRED_IDS].sort());
-    expect(emailTemplateCatalog()).toHaveLength(74);
+    expect(emailTemplateCatalog()).toHaveLength(75);
   });
 
   it('holds the same templates as the registry of the events', () => {
     const expected = Object.values(EVENT_DEFINITIONS).map((definition) => definition.template);
-    expect(expected).toHaveLength(74);
+    expect(expected).toHaveLength(75);
     expect([...emailTemplateIds()].sort()).toEqual([...expected].sort());
   });
 

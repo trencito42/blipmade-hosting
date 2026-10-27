@@ -1280,6 +1280,20 @@ export async function notifyOpsDnsCertificateFailure(
   );
 }
 
+/** The platform cannot talk to the control panel. */
+export async function notifyOpsPanelUnreachable(
+  input: { subject: string; reason: string },
+  occurrence?: Date | string | number | null,
+): Promise<void> {
+  await publish(
+    'ops.panel_unreachable',
+    input.subject,
+    null,
+    { subject: input.subject, reason: input.reason },
+    occurrence ?? new Date(),
+  );
+}
+
 /** Something that touches the security of the platform changed. */
 export async function notifyOpsSecurityChange(
   input: { subject: string; detail: string },

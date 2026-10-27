@@ -128,8 +128,8 @@ describe('the templates of the notification engine', () => {
     const ids = await catalogue();
     const events = await registry();
 
-    expect(ids.length).toBe(74);
-    expect(events.length).toBe(74);
+    expect(ids.length).toBe(75);
+    expect(events.length).toBe(75);
 
     const templates = events.map((event) => event.template).sort();
     expect(templates).toEqual([...ids].sort());

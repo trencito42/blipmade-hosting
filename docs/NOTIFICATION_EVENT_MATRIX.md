@@ -36,7 +36,7 @@ suspended twice has two keys, and therefore two messages.
 
 ## 2. The events that are published
 
-**68 of the 73 events of the registry have a trigger.**
+**70 of the 75 events of the registry have a trigger.**
 
 | Event | Template | Group | Kind | Audience | Channels | Secret | Trigger | Where |
 |---|---|---|---|---|---|---|---|---|
@@ -108,6 +108,8 @@ suspended twice has two keys, and therefore two messages.
 | `ops.incident` | `ops-incident` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsIncident |
 | `ops.capacity_critical` | `ops-capacity-critical` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsCapacityCritical |
 | `ops.dns_certificate_failure` | `ops-dns-certificate-failure` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsDnsCertificateFailure |
+| `ops.panel_unreachable` | `ops-panel-unreachable` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsPanelUnreachable |
+| `ops.recovered` | `ops-recovered` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → resolveMissingFindings() | notifications.ts → notifyOpsRecovered |
 | `ops.security_change` | `ops-security-change` | Incidents and maintenance | essential | operator | email | — | services/ops-health.ts → publishFinding() | notifications.ts → notifyOpsSecurityChange |
 
 ---

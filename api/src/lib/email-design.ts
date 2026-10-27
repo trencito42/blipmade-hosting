@@ -1741,6 +1741,28 @@ const CATALOGUE: TemplateDefinition[] = [
     ],
   },
   {
+    id: 'ops-panel-unreachable',
+    version: 1,
+    category: 'operator',
+    operator: true,
+    heading: 'The platform cannot talk to {{ops.subject}}',
+    subject: 'The platform cannot talk to {{ops.subject}}',
+    preheader: 'The platform could not reach the control panel with its key.',
+    facts: [
+      ['ops.subject', 'subject'],
+      ['ops.reason', 'reason'],
+    ],
+    paragraphs: [
+      'The platform cannot talk to {{ops.subject}}.',
+      'Reason: {{ops.reason}}',
+      'The services of the customers cannot be built until the platform reaches the panel. Apply the key of the panel with scripts/apply-panel-key.sh.',
+    ],
+    details: [
+      { label: 'Subject', value: '{{ops.subject}}' },
+      { label: 'Reason', value: '{{ops.reason}}' },
+    ],
+  },
+  {
     id: 'ops-dns-certificate-failure',
     version: 1,
     category: 'operator',
