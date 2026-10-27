@@ -375,7 +375,7 @@ restart, and the checks of the running system.
 | the migrations | `scripts/apply-migrations.sh` | 17 applied, **0 pending, 0 failed** |
 | the data of the clients | the tables of the live database | 4 users, 10 orders, 5 products, 5 payments, 5 invoices, 5 instances, 731 audit records, 25 sessions |
 | the containers | `docker compose ps` | **5/5 healthy** |
-| the commit that runs | the label of the images, read with `docker inspect` | `cf3274ce5548b3a27f139daa181233e0a6714ca1` on the API, on the worker and on the web |
+| the commit that runs | the label of the images, read with `docker inspect` | the commit of `main` that was released, on the API, on the worker and on the web |
 | the live platform | `scripts/smoke-production.sh` | **31/31**, nothing failed |
 | the documentation | a real browser, on 390px, 768px and 1440px | **no problem** — the navigation, the search, the anchors, the links, the keyboard and the landmarks are all there |
 
@@ -387,6 +387,11 @@ that anyone can read:
 docker inspect blipmade-api blipmade-worker blipmade-web \
   --format '{{index .RepoTags 0}} {{index .Config.Labels "org.opencontainers.image.revision"}}'
 ```
+
+This report does not write the commit down. The commit of a release changes
+every time the platform is released, and a report that carries an old commit
+is a report that lies. The label is the truth, and the check above gives it
+at any moment.
 
 Before this release the label did not exist, and the state of the production
 had to be concluded from the working tree. That is now a one-line check, and
