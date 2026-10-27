@@ -217,7 +217,7 @@ function Steps({ items }: { items: DocStep[] }) {
                   <Icon name="check" size={15} />
                 </span>
                 <span>
-                  <span className="font-bold">Expected:</span> {step.result}
+                  <span className="font-bold">What happens:</span> {step.result}
                 </span>
               </p>
             </div>

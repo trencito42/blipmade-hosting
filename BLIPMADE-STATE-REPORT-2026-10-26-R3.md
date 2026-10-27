@@ -313,6 +313,19 @@ exist, a page of a group that does not exist, a promise of an availability
 that the platform does not give, the name of the hosting panel behind the
 platform — all of them stop the build.
 
+**The pages speak to the customer.** The first version of the pages was
+written in the voice of the operator: the result of a step was labelled
+"Expected", the way a test names it, and the notes explained the machinery of
+the platform ("the name in the catalog is the name of the product", "this
+page is published only when the catalog offers the product"). A customer does
+not read the machinery of a platform, they read what happens to them, so the
+pages were rewritten: the label of a step is now "What happens", the notes
+say what the platform does to the account that reads them, and the notes that
+only defended the platform against its own audit were written for the person
+who reads them. The facts did not move: the same claims, the same fifteen
+pages that carry a "Planned" badge, the same price and the same resources
+that come from the catalog.
+
 ---
 
 ## 8. What is left for the operator

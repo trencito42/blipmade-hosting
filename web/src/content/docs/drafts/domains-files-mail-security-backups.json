@@ -4,7 +4,14 @@
     "group": "domains-ssl",
     "title": "Attach a domain to an instance",
     "summary": "How to claim a hostname for an instance, prove that you own it, and take it back.",
-    "keywords": ["domain", "hostname", "dns", "txt record", "ownership", "subdomain"],
+    "keywords": [
+      "domain",
+      "hostname",
+      "dns",
+      "txt record",
+      "ownership",
+      "subdomain"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -186,15 +193,31 @@
         ]
       }
     ],
-    "next": ["dns", "ssl"],
-    "related": ["platform-domains", "dns", "ssl", "troubleshooting"]
+    "next": [
+      "dns",
+      "ssl"
+    ],
+    "related": [
+      "platform-domains",
+      "dns",
+      "ssl",
+      "troubleshooting"
+    ]
   },
   {
     "id": "dns",
     "group": "domains-ssl",
     "title": "The DNS records you need",
     "summary": "Which records to publish at your DNS provider, and where to read their values.",
-    "keywords": ["dns", "records", "a record", "cname", "txt", "propagation", "nameserver"],
+    "keywords": [
+      "dns",
+      "records",
+      "a record",
+      "cname",
+      "txt",
+      "propagation",
+      "nameserver"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -282,15 +305,29 @@
         ]
       }
     ],
-    "next": ["domains", "ssl"],
-    "related": ["platform-domains", "domains", "mail-dns"]
+    "next": [
+      "domains",
+      "ssl"
+    ],
+    "related": [
+      "platform-domains",
+      "domains",
+      "mail-dns"
+    ]
   },
   {
     "id": "ssl",
     "group": "domains-ssl",
     "title": "SSL certificates",
     "summary": "Where HTTPS on a hostname of yours stands today: the platform issues no certificate.",
-    "keywords": ["ssl", "tls", "https", "certificate", "lets encrypt", "encryption"],
+    "keywords": [
+      "ssl",
+      "tls",
+      "https",
+      "certificate",
+      "lets encrypt",
+      "encryption"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -358,15 +395,30 @@
         ]
       }
     ],
-    "next": ["domains", "platform-domains"],
-    "related": ["domains", "dns", "account-security", "platform-domains"]
+    "next": [
+      "domains",
+      "platform-domains"
+    ],
+    "related": [
+      "domains",
+      "dns",
+      "account-security",
+      "platform-domains"
+    ]
   },
   {
     "id": "platform-domains",
     "group": "domains-ssl",
     "title": "The domain of the platform",
     "summary": "What apps.blipmade.com is, how it differs from a domain of yours, and which address your instance gets.",
-    "keywords": ["apps.blipmade.com", "platform domain", "hostname", "address", "reserved", "network"],
+    "keywords": [
+      "apps.blipmade.com",
+      "platform domain",
+      "hostname",
+      "address",
+      "reserved",
+      "network"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -451,15 +503,30 @@
         ]
       }
     ],
-    "next": ["domains", "dns"],
-    "related": ["ssl", "domains", "dns"]
+    "next": [
+      "domains",
+      "dns"
+    ],
+    "related": [
+      "ssl",
+      "domains",
+      "dns"
+    ]
   },
   {
     "id": "files",
     "group": "files-console",
     "title": "Browse and edit files",
     "summary": "What the file browser of an instance can do, and what it cannot do for you.",
-    "keywords": ["files", "file browser", "editor", "upload", "download", "delete", "disk"],
+    "keywords": [
+      "files",
+      "file browser",
+      "editor",
+      "upload",
+      "download",
+      "delete",
+      "disk"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -568,16 +635,30 @@
         ]
       }
     ],
-    "next": ["console", "backups"],
-    "related": ["instance-access", "console", "backups"]
+    "next": [
+      "console",
+      "backups"
+    ],
+    "related": [
+      "instance-access",
+      "console",
+      "backups"
+    ]
   },
   {
     "id": "console",
     "group": "files-console",
     "title": "Open the console",
     "summary": "A shell on the instance, straight from the dashboard, and what it is for.",
-    "keywords": ["console", "terminal", "shell", "commands", "output", "instance"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "console",
+      "terminal",
+      "shell",
+      "commands",
+      "output",
+      "instance"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "open-the-console",
@@ -600,7 +681,7 @@
           },
           {
             "t": "p",
-            "text": "The browser opens the console through the API of the platform, and the platform opens it on the server with the key of your account. The key of the platform never reaches the browser."
+            "text": "The browser asks the platform for the console, and the platform opens it on the server with the key of your account. The key never reaches the browser."
           }
         ]
       },
@@ -649,15 +730,29 @@
         ]
       }
     ],
-    "next": ["files", "logs"],
-    "related": ["instance-access", "logs", "troubleshooting"]
+    "next": [
+      "files",
+      "logs"
+    ],
+    "related": [
+      "instance-access",
+      "logs",
+      "troubleshooting"
+    ]
   },
   {
     "id": "logs",
     "group": "files-console",
     "title": "The logs of a service",
     "summary": "Where the output of an application comes from, what the platform keeps of it, and what you have to keep yourself.",
-    "keywords": ["logs", "output", "activity", "history", "console", "diagnostics"],
+    "keywords": [
+      "logs",
+      "output",
+      "activity",
+      "history",
+      "console",
+      "diagnostics"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -752,16 +847,31 @@
         ]
       }
     ],
-    "next": ["console", "backups"],
-    "related": ["files", "console", "backups", "troubleshooting"]
+    "next": [
+      "console",
+      "backups"
+    ],
+    "related": [
+      "files",
+      "console",
+      "backups",
+      "troubleshooting"
+    ]
   },
   {
     "id": "email-hosting",
     "group": "email-hosting",
     "title": "Email hosting",
     "summary": "What the hosted mail of the platform is, and that it is not on sale today.",
-    "keywords": ["email hosting", "hosted mail", "mail", "mailbox", "not on sale", "plan"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "email hosting",
+      "hosted mail",
+      "mail",
+      "mailbox",
+      "not on sale",
+      "plan"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "not-on-sale-today",
@@ -770,11 +880,11 @@
           {
             "t": "callout",
             "tone": "danger",
-            "text": "The hosted mail is not on sale today. The switch that opens the sale of the mail is closed, so no plan of hosted mail can be bought and no mail service can be started. The Email page of the dashboard says the same: Not on sale yet."
+            "text": "The hosted mail is not on sale today, so no plan of hosted mail can be bought and no mail service can be started. The Email page of the dashboard says the same: Not on sale yet."
           },
           {
             "t": "p",
-            "text": "Do not expect a mail plan, a mail domain or a mailbox that you can order today. The rest of this page describes what the feature holds, so that you know what it is when the sale opens. Nothing of it can be bought today."
+            "text": "Do not expect a mail plan, a mail domain or a mailbox that you can order today. So that you know what you are waiting for, here is what the feature holds. Nothing of it can be bought today."
           }
         ]
       },
@@ -804,7 +914,7 @@
           },
           {
             "t": "p",
-            "text": "The plans carry no price yet. A price that nobody decided is not an offer, so the documentation does not write one either."
+            "text": "The plans carry no price yet. A price that nobody decided is not an offer, so none is written here either."
           }
         ]
       },
@@ -839,16 +949,31 @@
         ]
       }
     ],
-    "next": ["mailboxes", "webmail"],
-    "related": ["mail-dns", "notifications", "tickets"]
+    "next": [
+      "mailboxes",
+      "webmail"
+    ],
+    "related": [
+      "mail-dns",
+      "notifications",
+      "tickets"
+    ]
   },
   {
     "id": "mailboxes",
     "group": "email-hosting",
     "title": "Mailboxes and aliases",
     "summary": "What a mailbox of a mail domain is, what an alias does, and the space a mailbox may use.",
-    "keywords": ["mailbox", "alias", "quota", "space", "password", "suspension", "mail"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "mailbox",
+      "alias",
+      "quota",
+      "space",
+      "password",
+      "suspension",
+      "mail"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "not-available-today",
@@ -857,7 +982,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "Hosted mail is not on sale today, so there is no mail domain and no mailbox in your account today. This page describes what the feature holds."
+            "text": "Hosted mail is not on sale today, so there is no mail domain and no mailbox in your account today. Here is what you get when the sale opens."
           }
         ]
       },
@@ -949,16 +1074,32 @@
         ]
       }
     ],
-    "next": ["mail-dns", "webmail"],
-    "related": ["email-hosting", "mail-dns", "webmail"]
+    "next": [
+      "mail-dns",
+      "webmail"
+    ],
+    "related": [
+      "email-hosting",
+      "mail-dns",
+      "webmail"
+    ]
   },
   {
     "id": "mail-dns",
     "group": "email-hosting",
     "title": "The DNS records of a mail domain",
     "summary": "The records a domain of mail needs, what each of them is for, and how the platform checks them.",
-    "keywords": ["mx", "dkim", "dmarc", "spf", "autodiscover", "autoconfig", "dns", "mail"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "mx",
+      "dkim",
+      "dmarc",
+      "spf",
+      "autodiscover",
+      "autoconfig",
+      "dns",
+      "mail"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "not-available-today",
@@ -967,7 +1108,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "Hosted mail is not on sale today, so there is no domain of mail in your account today. This page describes the records the feature needs."
+            "text": "Hosted mail is not on sale today, so there is no domain of mail in your account today. Here are the records it needs."
           }
         ]
       },
@@ -1039,16 +1180,31 @@
         ]
       }
     ],
-    "next": ["webmail", "mailboxes"],
-    "related": ["email-hosting", "dns", "domains"]
+    "next": [
+      "webmail",
+      "mailboxes"
+    ],
+    "related": [
+      "email-hosting",
+      "dns",
+      "domains"
+    ]
   },
   {
     "id": "webmail",
     "group": "email-hosting",
     "title": "The webmail and the mail clients",
     "summary": "Where the mail of a domain is read, and what a mail client is given to read it.",
-    "keywords": ["webmail", "imap", "smtp", "ports", "mail client", "settings", "mail"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "webmail",
+      "imap",
+      "smtp",
+      "ports",
+      "mail client",
+      "settings",
+      "mail"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "not-available-today",
@@ -1057,7 +1213,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "Hosted mail is not on sale today, so there is no domain of mail and no mailbox in your account today. This page describes what the feature holds."
+            "text": "Hosted mail is not on sale today, so there is no domain of mail and no mailbox in your account today. Here is what you get when the sale opens."
           }
         ]
       },
@@ -1117,15 +1273,29 @@
         ]
       }
     ],
-    "next": ["mail-dns", "mailboxes"],
-    "related": ["email-hosting", "mailboxes", "tickets"]
+    "next": [
+      "mail-dns",
+      "mailboxes"
+    ],
+    "related": [
+      "email-hosting",
+      "mailboxes",
+      "tickets"
+    ]
   },
   {
     "id": "notifications",
     "group": "notifications",
     "title": "Notifications",
     "summary": "What the platform tells you, where it reaches you, and how to switch a group of messages off.",
-    "keywords": ["notifications", "email", "preferences", "alerts", "notification centre", "mail"],
+    "keywords": [
+      "notifications",
+      "email",
+      "preferences",
+      "alerts",
+      "notification centre",
+      "mail"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -1257,15 +1427,29 @@
         ]
       }
     ],
-    "next": ["account", "tickets"],
-    "related": ["account-security", "status", "dashboard"]
+    "next": [
+      "account",
+      "tickets"
+    ],
+    "related": [
+      "account-security",
+      "status",
+      "dashboard"
+    ]
   },
   {
     "id": "account-security",
     "group": "security",
     "title": "Account security",
     "summary": "Your password, your sessions and the mail of your account.",
-    "keywords": ["security", "password", "sessions", "sign out", "verification", "reset"],
+    "keywords": [
+      "security",
+      "password",
+      "sessions",
+      "sign out",
+      "verification",
+      "reset"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -1412,15 +1596,30 @@
         ]
       }
     ],
-    "next": ["instance-access", "permissions"],
-    "related": ["notifications", "permissions", "limits"]
+    "next": [
+      "instance-access",
+      "permissions"
+    ],
+    "related": [
+      "notifications",
+      "permissions",
+      "limits"
+    ]
   },
   {
     "id": "instance-access",
     "group": "security",
     "title": "Instance access and secrets",
     "summary": "How you reach an instance, where its environment is read, and why there are no keys.",
-    "keywords": ["api", "environment variables", "secrets", "startup command", "csrf", "sftp", "access"],
+    "keywords": [
+      "api",
+      "environment variables",
+      "secrets",
+      "startup command",
+      "csrf",
+      "sftp",
+      "access"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -1519,15 +1718,31 @@
         ]
       }
     ],
-    "next": ["files", "console"],
-    "related": ["account-security", "files", "console", "permissions"]
+    "next": [
+      "files",
+      "console"
+    ],
+    "related": [
+      "account-security",
+      "files",
+      "console",
+      "permissions"
+    ]
   },
   {
     "id": "permissions",
     "group": "security",
     "title": "Who can do what",
     "summary": "What your account can do in the dashboard, and how the back office of the platform is split.",
-    "keywords": ["permissions", "roles", "owner", "staff", "admin", "access", "account"],
+    "keywords": [
+      "permissions",
+      "roles",
+      "owner",
+      "staff",
+      "admin",
+      "access",
+      "account"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -1615,16 +1830,31 @@
         ]
       }
     ],
-    "next": ["account", "tickets"],
-    "related": ["account-security", "instance-access", "dashboard"]
+    "next": [
+      "account",
+      "tickets"
+    ],
+    "related": [
+      "account-security",
+      "instance-access",
+      "dashboard"
+    ]
   },
   {
     "id": "backups",
     "group": "backups-recovery",
     "title": "Backups of an instance",
     "summary": "The archive of the files of an instance, how to take it, how to restore it, and what it does not hold.",
-    "keywords": ["backup", "restore", "archive", "download", "recovery", "files", "instance"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "backup",
+      "restore",
+      "archive",
+      "download",
+      "recovery",
+      "files",
+      "instance"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-backup-is",
@@ -1641,7 +1871,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform also keeps a copy of its own database and of its own configuration. That copy is for the platform: it is not a backup of your application and it is not a backup of your files."
+            "text": "The platform also keeps a copy of its own database and of its own configuration. That copy belongs to the platform: it is not a backup of your application and it is not a backup of your files."
           }
         ]
       },
@@ -1768,7 +1998,14 @@
         ]
       }
     ],
-    "next": ["files", "console"],
-    "related": ["logs", "files", "troubleshooting"]
+    "next": [
+      "files",
+      "console"
+    ],
+    "related": [
+      "logs",
+      "files",
+      "troubleshooting"
+    ]
   }
 ]

@@ -4,7 +4,14 @@
     "group": "support",
     "title": "Support",
     "summary": "How to reach the operator, what the operator can and cannot do, and what to write in a ticket so the answer comes quickly.",
-    "keywords": ["support", "help", "contact", "operator", "assistance", "ticket"],
+    "keywords": [
+      "support",
+      "help",
+      "contact",
+      "operator",
+      "assistance",
+      "ticket"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -145,16 +152,32 @@
         ]
       }
     ],
-    "next": ["tickets", "status", "troubleshooting"],
-    "related": ["tickets", "status", "notifications", "faq"]
+    "next": [
+      "tickets",
+      "status",
+      "troubleshooting"
+    ],
+    "related": [
+      "tickets",
+      "status",
+      "notifications",
+      "faq"
+    ]
   },
   {
     "id": "tickets",
     "group": "support",
     "title": "Support tickets",
     "summary": "How to open a ticket, how to answer it, how to attach a file, and what the operator sees when the ticket arrives.",
-    "keywords": ["ticket", "support", "reply", "attachment", "conversation", "thread"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "ticket",
+      "support",
+      "reply",
+      "attachment",
+      "conversation",
+      "thread"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "open-a-ticket",
@@ -183,17 +206,32 @@
           {
             "t": "spec",
             "rows": [
-              { "k": "Subject", "v": "Between 3 and 160 characters. It is the line the operator reads first." },
-              { "k": "Category", "v": "Technical, Billing, Account, Abuse report or Other. It decides the desk the ticket goes to." },
-              { "k": "Priority", "v": "Low, Normal or High. It decides the order in which the queue is worked." },
-              { "k": "Related instance", "v": "Optional. Only an instance of your own account can be chosen." },
-              { "k": "Message", "v": "Between 1 and 20 000 characters. It is the first message of the thread." }
+              {
+                "k": "Subject",
+                "v": "Between 3 and 160 characters. It is the line the operator reads first."
+              },
+              {
+                "k": "Category",
+                "v": "Technical, Billing, Account, Abuse report or Other. It decides the desk the ticket goes to."
+              },
+              {
+                "k": "Priority",
+                "v": "Low, Normal or High. It decides the order in which the queue is worked."
+              },
+              {
+                "k": "Related instance",
+                "v": "Optional. Only an instance of your own account can be chosen."
+              },
+              {
+                "k": "Message",
+                "v": "Between 1 and 20 000 characters. It is the first message of the thread."
+              }
             ]
           },
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform accepts the words of the category and of the priority in any case. If you write technical in a script, the platform stores Technical and reads it back that way."
+            "text": "The platform accepts the words of the category and of the priority in any case. If you write technical in a script, it is stored as Technical and read back that way."
           }
         ]
       },
@@ -212,11 +250,26 @@
           {
             "t": "spec",
             "rows": [
-              { "k": "Open", "v": "The ticket is new and nobody has answered yet." },
-              { "k": "Awaiting your reply", "v": "The operator has answered and the question is on your side." },
-              { "k": "Awaiting support", "v": "You have answered and the answer is on the operator's side." },
-              { "k": "On hold", "v": "The ticket waits for something that is not a message: a decision, a payment, a change on the platform." },
-              { "k": "Closed", "v": "The conversation is over. A closed ticket can be reopened by the operator." }
+              {
+                "k": "Open",
+                "v": "The ticket is new and nobody has answered yet."
+              },
+              {
+                "k": "Awaiting your reply",
+                "v": "The operator has answered and the question is on your side."
+              },
+              {
+                "k": "Awaiting support",
+                "v": "You have answered and the answer is on the operator's side."
+              },
+              {
+                "k": "On hold",
+                "v": "The ticket waits for something that is not a message: a decision, a payment, a change on the platform."
+              },
+              {
+                "k": "Closed",
+                "v": "The conversation is over. A closed ticket can be reopened by the operator."
+              }
             ]
           },
           {
@@ -276,9 +329,18 @@
           {
             "t": "spec",
             "rows": [
-              { "k": "Number of files", "v": "At most 5 files on a message." },
-              { "k": "Size of a file", "v": "At most 5 MB. A bigger file is refused with the message that a file may not be larger than 5 MB." },
-              { "k": "Types accepted", "v": "Plain text, CSV, Markdown, HTML, JSON, PDF, ZIP, GZIP, TAR, octet-stream, PNG, JPEG, GIF and WebP. Any other type is refused." }
+              {
+                "k": "Number of files",
+                "v": "At most 5 files on a message."
+              },
+              {
+                "k": "Size of a file",
+                "v": "At most 5 MB. A bigger file is refused with the message that a file may not be larger than 5 MB."
+              },
+              {
+                "k": "Types accepted",
+                "v": "Plain text, CSV, Markdown, HTML, JSON, PDF, ZIP, GZIP, TAR, octet-stream, PNG, JPEG, GIF and WebP. Any other type is refused."
+              }
             ]
           },
           {
@@ -351,16 +413,32 @@
         ]
       }
     ],
-    "next": ["support", "status", "troubleshooting"],
-    "related": ["support", "notifications", "faq", "common-errors"]
+    "next": [
+      "support",
+      "status",
+      "troubleshooting"
+    ],
+    "related": [
+      "support",
+      "notifications",
+      "faq",
+      "common-errors"
+    ]
   },
   {
     "id": "status",
     "group": "status-incidents",
     "title": "Status and incidents",
     "summary": "What the status page reports, what an incident is, and what the platform does not promise about availability.",
-    "keywords": ["status", "incident", "outage", "availability", "uptime", "maintenance"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "status",
+      "incident",
+      "outage",
+      "availability",
+      "uptime",
+      "maintenance"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "the-status-page",
@@ -398,16 +476,46 @@
           {
             "t": "spec",
             "rows": [
-              { "k": "Platform API", "v": "The database the platform reads and writes." },
-              { "k": "Dashboard", "v": "The dashboard can read its data." },
-              { "k": "Cache and queues", "v": "The cache and the queues of the platform answer." },
-              { "k": "Control panel", "v": "The part of the platform that manages the instances answers." },
-              { "k": "Automation worker", "v": "The worker that runs the deployments and the jobs is running." },
-              { "k": "Provisioning queue", "v": "The queue is read, and the jobs that wait, run, wait and fail are counted." },
-              { "k": "Compute nodes", "v": "The machines that run the instances are registered, and the ones that are in maintenance are counted." },
-              { "k": "Port allocator", "v": "There are still addresses free for new services." },
-              { "k": "Deployments", "v": "Every service is online, and the one that is not is counted with its age." },
-              { "k": "Support", "v": "Mail is delivered, and not only written to a file." }
+              {
+                "k": "Platform API",
+                "v": "The database the platform reads and writes."
+              },
+              {
+                "k": "Dashboard",
+                "v": "The dashboard can read its data."
+              },
+              {
+                "k": "Cache and queues",
+                "v": "The cache and the queues of the platform answer."
+              },
+              {
+                "k": "Control panel",
+                "v": "The part of the platform that manages the instances answers."
+              },
+              {
+                "k": "Automation worker",
+                "v": "The worker that runs the deployments and the jobs is running."
+              },
+              {
+                "k": "Provisioning queue",
+                "v": "The queue is read, and the jobs that wait, run, wait and fail are counted."
+              },
+              {
+                "k": "Compute nodes",
+                "v": "The machines that run the instances are registered, and the ones that are in maintenance are counted."
+              },
+              {
+                "k": "Port allocator",
+                "v": "There are still addresses free for new services."
+              },
+              {
+                "k": "Deployments",
+                "v": "Every service is online, and the one that is not is counted with its age."
+              },
+              {
+                "k": "Support",
+                "v": "Mail is delivered, and not only written to a file."
+              }
             ]
           }
         ]
@@ -446,7 +554,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The page of the operations of the back office carries the checks of the machine, of the database, of the mail and of the backups. It is the page of the operator; a customer account cannot open it."
+            "text": "The page of the operations of the back office carries the checks of the machine, of the database, of the mail and of the backups. It belongs to the operator, so a customer account cannot open it."
           }
         ]
       },
@@ -471,7 +579,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The platform publishes no percentage of availability, keeps no history of the uptime and gives no service credit for a period of interruption. Nothing in this documentation promises one either."
+            "text": "The platform publishes no percentage of availability, keeps no history of the uptime and gives no service credit for a period of interruption. Nothing here promises one either."
           },
           {
             "t": "p",
@@ -508,16 +616,32 @@
         ]
       }
     ],
-    "next": ["troubleshooting", "tickets", "support"],
-    "related": ["support", "notifications", "faq", "limits"]
+    "next": [
+      "troubleshooting",
+      "tickets",
+      "support"
+    ],
+    "related": [
+      "support",
+      "notifications",
+      "faq",
+      "limits"
+    ]
   },
   {
     "id": "troubleshooting",
     "group": "troubleshooting",
     "title": "Common problems",
     "summary": "What to check, in the order that usually finds the cause.",
-    "keywords": ["troubleshooting", "problem", "error", "not working", "stopped", "help"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "troubleshooting",
+      "problem",
+      "error",
+      "not working",
+      "stopped",
+      "help"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "check-the-status",
@@ -546,7 +670,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform never puts an instance in a state called degraded. The state that is written is the one the container is really in, so a line that reads Online is the container answering and not an assumption."
+            "text": "The state you read is the real state of the container: when it reads Online, your container is answering."
           }
         ]
       },
@@ -621,22 +745,38 @@
               "There is no metrics page. The dashboard has no page of metrics, and the numbers of the instance are read in the Overview tab of the instance, against the limits it was given.",
               "An instance is never shown as degraded because it is short of memory. The platform writes the state the container is really in; an application that wants more memory than the limit is stopped by the container, and the console says so.",
               "There is no page of the uptime history. The status page shows the state of the moment and no history of it.",
-              "No answer time is published for a ticket. The platform does not promise one, so a ticket that waits is not a fault of the platform."
+              "No answer time is published for a ticket, so a ticket that waits is not a fault of the platform."
             ]
           }
         ]
       }
     ],
-    "next": ["limits", "tickets", "status"],
-    "related": ["status", "support", "faq", "common-errors"]
+    "next": [
+      "limits",
+      "tickets",
+      "status"
+    ],
+    "related": [
+      "status",
+      "support",
+      "faq",
+      "common-errors"
+    ]
   },
   {
     "id": "limits",
     "group": "limits-fair-use",
     "title": "Limits and fair use",
     "summary": "The bounds the platform really enforces, and the ones it does not have.",
-    "keywords": ["limits", "fair use", "abuse", "policy", "quotas", "rate limit"],
-    "updated": "2026-10-26",
+    "keywords": [
+      "limits",
+      "fair use",
+      "abuse",
+      "policy",
+      "quotas",
+      "rate limit"
+    ],
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "per-product-limits",
@@ -664,18 +804,54 @@
           {
             "t": "spec",
             "rows": [
-              { "k": "Size of a request", "v": "2 MB for the API. The upload of a file to an instance accepts 64 MB." },
-              { "k": "Sessions of an account", "v": "At most 20 at the same time. When the limit is passed, the oldest sessions are closed." },
-              { "k": "Environment variables", "v": "At most 100 per instance." },
-              { "k": "Startup command", "v": "At most 4096 characters, and the name of the image at most 255 characters." },
-              { "k": "Lines of an order", "v": "At most 20 lines, and at most 50 option codes on a line." },
-              { "k": "Files of a ticket message", "v": "At most 5 files, and at most 5 MB for a file." },
-              { "k": "Message of a ticket", "v": "At most 20 000 characters, and a subject of at most 160 characters." },
-              { "k": "Failed sign-in attempts", "v": "At most 10 for the same account and 10 for the same address, in fifteen minutes. A sign-in that works does not count." },
-              { "k": "Writes of an account", "v": "30 writes a minute on a route that writes a row, and 120 a minute for the same address." },
-              { "k": "Calls that reach the platform", "v": "20 a minute for an account and 60 a minute for an address on a route that reaches the machine, the node or the gateway." },
-              { "k": "Messages sent", "v": "10 every fifteen minutes for an account and 30 for an address." },
-              { "k": "Tokens read", "v": "10 every fifteen minutes for an account and 10 for an address." }
+              {
+                "k": "Size of a request",
+                "v": "2 MB for the API. The upload of a file to an instance accepts 64 MB."
+              },
+              {
+                "k": "Sessions of an account",
+                "v": "At most 20 at the same time. When the limit is passed, the oldest sessions are closed."
+              },
+              {
+                "k": "Environment variables",
+                "v": "At most 100 per instance."
+              },
+              {
+                "k": "Startup command",
+                "v": "At most 4096 characters, and the name of the image at most 255 characters."
+              },
+              {
+                "k": "Lines of an order",
+                "v": "At most 20 lines, and at most 50 option codes on a line."
+              },
+              {
+                "k": "Files of a ticket message",
+                "v": "At most 5 files, and at most 5 MB for a file."
+              },
+              {
+                "k": "Message of a ticket",
+                "v": "At most 20 000 characters, and a subject of at most 160 characters."
+              },
+              {
+                "k": "Failed sign-in attempts",
+                "v": "At most 10 for the same account and 10 for the same address, in fifteen minutes. A sign-in that works does not count."
+              },
+              {
+                "k": "Writes of an account",
+                "v": "30 writes a minute on a route that writes a row, and 120 a minute for the same address."
+              },
+              {
+                "k": "Calls that reach the platform",
+                "v": "20 a minute for an account and 60 a minute for an address on a route that reaches the machine, the node or the gateway."
+              },
+              {
+                "k": "Messages sent",
+                "v": "10 every fifteen minutes for an account and 30 for an address."
+              },
+              {
+                "k": "Tokens read",
+                "v": "10 every fifteen minutes for an account and 10 for an address."
+              }
             ]
           },
           {
@@ -732,7 +908,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for. The acceptable use policy of the platform carries the same rule."
+            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for. The acceptable use policy carries the same rule."
           }
         ]
       },
@@ -756,15 +932,32 @@
         ]
       }
     ],
-    "next": ["troubleshooting", "resources", "faq"],
-    "related": ["troubleshooting", "resources", "backups", "account-security", "faq"]
+    "next": [
+      "troubleshooting",
+      "resources",
+      "faq"
+    ],
+    "related": [
+      "troubleshooting",
+      "resources",
+      "backups",
+      "account-security",
+      "faq"
+    ]
   },
   {
     "id": "glossary",
     "group": "reference",
     "title": "Glossary",
     "summary": "The words the platform uses, explained in one line each.",
-    "keywords": ["glossary", "words", "terms", "definition", "instance", "subscription"],
+    "keywords": [
+      "glossary",
+      "words",
+      "terms",
+      "definition",
+      "instance",
+      "subscription"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -774,12 +967,30 @@
           {
             "t": "spec",
             "rows": [
-              { "k": "Product", "v": "An entry of the catalog: what the platform offers, with its price, the resources it may use and the minimum and the maximum of those resources." },
-              { "k": "Order", "v": "What you asked for. It has lines, a state and a number, and it is the thing that is paid and that is fulfilled." },
-              { "k": "Subscription", "v": "The billing relation between an order and a service. It has a period and a state: Active, Past due, Paused, Cancelled or Expired." },
-              { "k": "Invoice", "v": "The document of what is owed. Its state is Draft, Open, Paid, Void or Uncollectible." },
-              { "k": "Instance", "v": "What you run on the platform: one server with its own memory, processor and disk, its own files and its own address." },
-              { "k": "Service", "v": "The word the billing pages use for an instance: a service is billed, it can be past due, and it is kept for the retention term when it is cancelled." }
+              {
+                "k": "Product",
+                "v": "An entry of the catalog: what the platform offers, with its price, the resources it may use and the minimum and the maximum of those resources."
+              },
+              {
+                "k": "Order",
+                "v": "What you asked for. It has lines, a state and a number, and it is the thing that is paid and that is fulfilled."
+              },
+              {
+                "k": "Subscription",
+                "v": "The billing relation between an order and a service. It has a period and a state: Active, Past due, Paused, Cancelled or Expired."
+              },
+              {
+                "k": "Invoice",
+                "v": "The document of what is owed. Its state is Draft, Open, Paid, Void or Uncollectible."
+              },
+              {
+                "k": "Instance",
+                "v": "What you run on the platform: one server with its own memory, processor and disk, its own files and its own address."
+              },
+              {
+                "k": "Service",
+                "v": "The word the billing pages use for an instance: a service is billed, it can be past due, and it is kept for the retention term when it is cancelled."
+              }
             ]
           }
         ]
@@ -791,14 +1002,38 @@
           {
             "t": "spec",
             "rows": [
-              { "k": "Allocation", "v": "The address of an instance: the machine it runs on and the port it is reached on. The platform reads the allocation that was really assigned and never assumes a port." },
-              { "k": "Node", "v": "A machine of the platform that runs instances. It has its own memory and disk, and it can be put into maintenance." },
-              { "k": "Egg", "v": "The recipe the platform uses to start a container: the image, the startup command and the limits. A product of the catalog points at one, so two instances of the same product are built the same way." },
-              { "k": "Route", "v": "The entry in the gateway that sends a hostname to an instance. A route exists only for a hostname whose ownership was proven." },
-              { "k": "Health check", "v": "The probe that verifies that a deployment really works, and the sweep that measures the machine, the database, the mail and the backups of the platform." },
-              { "k": "Dead letter", "v": "A job of a queue that failed for good. It is kept with the reason of the failure so that the operator can put it back on the queue or close it by hand." },
-              { "k": "Notification", "v": "A message of your account: it is in the notification centre and, when the group allows it, in your mailbox." },
-              { "k": "Ticket", "v": "A conversation with the support of the platform: the subject, the category, the priority, the messages and the events of the thread." }
+              {
+                "k": "Allocation",
+                "v": "The address of an instance: the machine it runs on and the port it is reached on. The platform reads the allocation that was really assigned and never assumes a port."
+              },
+              {
+                "k": "Node",
+                "v": "A machine of the platform that runs instances. It has its own memory and disk, and it can be put into maintenance."
+              },
+              {
+                "k": "Egg",
+                "v": "The recipe the platform uses to start a container: the image, the startup command and the limits. A product of the catalog points at one, so two instances of the same product are built the same way."
+              },
+              {
+                "k": "Route",
+                "v": "The entry in the gateway that sends a hostname to an instance. A route exists only for a hostname whose ownership was proven."
+              },
+              {
+                "k": "Health check",
+                "v": "The probe that verifies that a deployment really works, and the sweep that measures the machine, the database, the mail and the backups of the platform."
+              },
+              {
+                "k": "Dead letter",
+                "v": "A job of a queue that failed for good. It is kept with the reason of the failure so that the operator can put it back on the queue or close it by hand."
+              },
+              {
+                "k": "Notification",
+                "v": "A message of your account: it is in the notification centre and, when the group allows it, in your mailbox."
+              },
+              {
+                "k": "Ticket",
+                "v": "A conversation with the support of the platform: the subject, the category, the priority, the messages and the events of the thread."
+              }
             ]
           }
         ]
@@ -840,15 +1075,31 @@
         ]
       }
     ],
-    "next": ["faq", "support", "tickets"],
-    "related": ["faq", "common-errors", "support", "status"]
+    "next": [
+      "faq",
+      "support",
+      "tickets"
+    ],
+    "related": [
+      "faq",
+      "common-errors",
+      "support",
+      "status"
+    ]
   },
   {
     "id": "faq",
     "group": "reference",
     "title": "Frequently asked questions",
     "summary": "The questions that come up again, with short and honest answers.",
-    "keywords": ["faq", "question", "answer", "how", "can i", "why"],
+    "keywords": [
+      "faq",
+      "question",
+      "answer",
+      "how",
+      "can i",
+      "why"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -976,15 +1227,31 @@
         ]
       }
     ],
-    "next": ["support", "tickets", "status"],
-    "related": ["glossary", "common-errors", "limits", "troubleshooting"]
+    "next": [
+      "support",
+      "tickets",
+      "status"
+    ],
+    "related": [
+      "glossary",
+      "common-errors",
+      "limits",
+      "troubleshooting"
+    ]
   },
   {
     "id": "common-errors",
     "group": "reference",
     "title": "Common errors",
     "summary": "The errors you see in the dashboard or in the API, what each one means and what to do about it.",
-    "keywords": ["error", "code", "message", "failed", "refused", "status code"],
+    "keywords": [
+      "error",
+      "code",
+      "message",
+      "failed",
+      "refused",
+      "status code"
+    ],
     "updated": "2026-10-26",
     "sections": [
       {
@@ -1101,7 +1368,16 @@
         ]
       }
     ],
-    "next": ["troubleshooting", "faq", "tickets"],
-    "related": ["faq", "glossary", "support", "limits"]
+    "next": [
+      "troubleshooting",
+      "faq",
+      "tickets"
+    ],
+    "related": [
+      "faq",
+      "glossary",
+      "support",
+      "limits"
+    ]
   }
 ]

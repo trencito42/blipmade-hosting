@@ -141,7 +141,7 @@
     "id": "first-app",
     "group": "getting-started",
     "title": "Deploy your first app",
-    "summary": "How to order an application, what the platform writes into the container and how to open the service.",
+    "summary": "How to order an application, what you find in the container and how to open the service.",
     "keywords": [
       "deploy",
       "catalog",
@@ -149,7 +149,7 @@
       "checkout",
       "first app"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "order-the-application",
@@ -210,7 +210,7 @@
           },
           {
             "t": "p",
-            "text": "The product itself is not installed by the platform. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "The product itself is not installed by the platform yet. What runs in the container until you put your own files there is a minimal application of the platform."
           }
         ]
       },
@@ -574,7 +574,7 @@
     "id": "wordpress",
     "group": "apps",
     "title": "WordPress",
-    "summary": "What a deployment of WordPress writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order WordPress, and what the platform does not install yet.",
     "keywords": [
       "wordpress",
       "cms",
@@ -582,7 +582,7 @@
       "php",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -598,7 +598,7 @@
           },
           {
             "t": "p",
-            "text": "The WordPress application itself is not installed by the platform today: {{planned}} a WordPress installation with its own PHP, its own web server and its own database. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} WordPress itself is not installed today. When it is, the instance will run a WordPress installation with its own PHP, its own web server and its own database. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -793,7 +793,7 @@
     "id": "ghost",
     "group": "apps",
     "title": "Ghost",
-    "summary": "What a deployment of Ghost writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order Ghost, and what the platform does not install yet.",
     "keywords": [
       "ghost",
       "blog",
@@ -801,7 +801,7 @@
       "node",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -814,7 +814,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "This page is published only when the catalog offers the product. The catalog of the platform does not offer Ghost today, so the page is not in the documentation."
+            "text": "Ghost cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
           },
           {
             "t": "p",
@@ -822,7 +822,7 @@
           },
           {
             "t": "p",
-            "text": "The Ghost application itself is not installed by the platform today: {{planned}} a Ghost installation. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} Ghost itself is not installed today. When it is, the instance will run a Ghost installation. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -983,7 +983,7 @@
             "items": [
               {
                 "q": "I cannot order Ghost.",
-                "a": "The catalog of the platform does not offer Ghost today, so there is nothing to order. When the catalog carries the product, the page of the product opens and the order can be placed."
+                "a": "Ghost cannot be ordered today: the platform does not offer it yet. When it is, the order can be placed from the page of the product."
               },
               {
                 "q": "The container answers, but I expected my blog.",
@@ -1013,7 +1013,7 @@
     "id": "forgejo",
     "group": "apps",
     "title": "Forgejo",
-    "summary": "What a deployment of Forgejo writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order Forgejo, and what the platform does not install yet.",
     "keywords": [
       "forgejo",
       "git",
@@ -1021,7 +1021,7 @@
       "node",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -1034,7 +1034,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "This page is published only when the catalog offers the product. The catalog of the platform does not offer Forgejo today, so the page is not in the documentation."
+            "text": "Forgejo cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
           },
           {
             "t": "p",
@@ -1042,7 +1042,7 @@
           },
           {
             "t": "p",
-            "text": "The Forgejo application itself is not installed by the platform today: {{planned}} a Forgejo installation. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} Forgejo itself is not installed today. When it is, the instance will run a Forgejo installation. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -1203,7 +1203,7 @@
             "items": [
               {
                 "q": "I cannot order Forgejo.",
-                "a": "The catalog of the platform does not offer Forgejo today, so there is nothing to order. When the catalog carries the product, the page of the product opens and the order can be placed."
+                "a": "Forgejo cannot be ordered today: the platform does not offer it yet. When it is, the order can be placed from the page of the product."
               },
               {
                 "q": "The container answers, but I expected my repositories.",
@@ -1233,7 +1233,7 @@
     "id": "code-server",
     "group": "apps",
     "title": "Code Server",
-    "summary": "What a deployment of Code Server writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order Code Server, and what the platform does not install yet.",
     "keywords": [
       "code server",
       "vscode",
@@ -1241,7 +1241,7 @@
       "browser",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -1254,7 +1254,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The entry of Code Server is in the catalog, but the image of the product is not installed on the platform yet, so it cannot be ordered today. The deploy page says: Code Server cannot be ordered."
+            "text": "Code Server cannot be ordered today: the platform does not install it yet. The deploy page says: Code Server cannot be ordered."
           },
           {
             "t": "p",
@@ -1262,7 +1262,7 @@
           },
           {
             "t": "p",
-            "text": "The Code Server application itself is not installed by the platform today: {{planned}} a Code Server installation. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} Code Server itself is not installed today. When it is, the instance will run a Code Server installation. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -1457,7 +1457,7 @@
     "id": "uptime-kuma",
     "group": "apps",
     "title": "Uptime Kuma",
-    "summary": "What a deployment of Uptime Kuma writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order Uptime Kuma, and what the platform does not install yet.",
     "keywords": [
       "uptime kuma",
       "monitoring",
@@ -1465,7 +1465,7 @@
       "http",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -1478,7 +1478,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The entry of Uptime Kuma is in the catalog, but the image of the product is not installed on the platform yet, so it cannot be ordered today. The deploy page says: Uptime Kuma cannot be ordered."
+            "text": "Uptime Kuma cannot be ordered today: the platform does not install it yet. The deploy page says: Uptime Kuma cannot be ordered."
           },
           {
             "t": "p",
@@ -1486,7 +1486,7 @@
           },
           {
             "t": "p",
-            "text": "The Uptime Kuma application itself is not installed by the platform today: {{planned}} an Uptime Kuma installation. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} Uptime Kuma itself is not installed today. When it is, the instance will run an Uptime Kuma installation. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -1681,7 +1681,7 @@
     "id": "grafana",
     "group": "apps",
     "title": "Grafana",
-    "summary": "What a deployment of Grafana writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order Grafana, and what the platform does not install yet.",
     "keywords": [
       "grafana",
       "dashboard",
@@ -1689,7 +1689,7 @@
       "monitoring",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -1702,7 +1702,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "This page is published only when the catalog offers the product. The catalog of the platform does not offer Grafana today, so the page is not in the documentation."
+            "text": "Grafana cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
           },
           {
             "t": "p",
@@ -1710,7 +1710,7 @@
           },
           {
             "t": "p",
-            "text": "The Grafana application itself is not installed by the platform today: {{planned}} a Grafana installation. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} Grafana itself is not installed today. When it is, the instance will run a Grafana installation. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -1871,7 +1871,7 @@
             "items": [
               {
                 "q": "I cannot order Grafana.",
-                "a": "The catalog of the platform does not offer Grafana today, so there is nothing to order. When the catalog carries the product, the page of the product opens and the order can be placed."
+                "a": "Grafana cannot be ordered today: the platform does not offer it yet. When it is, the order can be placed from the page of the product."
               },
               {
                 "q": "The container answers, but I expected my dashboards.",
@@ -1901,7 +1901,7 @@
     "id": "n8n",
     "group": "apps",
     "title": "n8n",
-    "summary": "What a deployment of n8n writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order n8n, and what the platform does not install yet.",
     "keywords": [
       "n8n",
       "automation",
@@ -1909,7 +1909,7 @@
       "node",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -1922,7 +1922,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "This page is published only when the catalog offers the product. The catalog of the platform does not offer n8n today, so the page is not in the documentation."
+            "text": "n8n cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
           },
           {
             "t": "p",
@@ -1930,7 +1930,7 @@
           },
           {
             "t": "p",
-            "text": "The n8n application itself is not installed by the platform today: {{planned}} an n8n installation. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} n8n itself is not installed today. When it is, the instance will run an n8n installation. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -2091,7 +2091,7 @@
             "items": [
               {
                 "q": "I cannot order n8n.",
-                "a": "The catalog of the platform does not offer n8n today, so there is nothing to order. When the catalog carries the product, the page of the product opens and the order can be placed."
+                "a": "n8n cannot be ordered today: the platform does not offer it yet. When it is, the order can be placed from the page of the product."
               },
               {
                 "q": "The container answers, but I expected my workflows.",
@@ -2121,7 +2121,7 @@
     "id": "discord-bot",
     "group": "apps",
     "title": "Discord Bot",
-    "summary": "What a deployment of the Discord Bot writes into the container today, and what the platform does not install.",
+    "summary": "What you get today when you order the Discord Bot, and what the platform does not install yet.",
     "keywords": [
       "discord",
       "bot",
@@ -2129,7 +2129,7 @@
       "token",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -2142,7 +2142,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The entry of the Discord Bot is in the catalog and it can be ordered today: the image of the product is installed on the platform, and the deployment is checked before the order is reported as done."
+            "text": "The Discord Bot can be ordered today: the platform installs it and checks that it answers before it reports the order as done."
           },
           {
             "t": "p",
@@ -2150,7 +2150,7 @@
           },
           {
             "t": "p",
-            "text": "The bot itself is not written by the platform: {{planned}} a bot that is generated for you. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} The bot itself is not written by the platform. When it is, you get a bot that is generated for you. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -2345,7 +2345,7 @@
     "id": "postgresql",
     "group": "databases",
     "title": "PostgreSQL",
-    "summary": "What a deployment of PostgreSQL writes into the container today, and where the databases of an instance live.",
+    "summary": "What you get today when you order PostgreSQL, and where the databases of an instance live.",
     "keywords": [
       "postgresql",
       "postgres",
@@ -2353,7 +2353,7 @@
       "database",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -2366,7 +2366,7 @@
           {
             "t": "callout",
             "tone": "warning",
-            "text": "The entry of PostgreSQL is in the catalog, but the image of the product is not installed on the platform yet, so it cannot be ordered today. The deploy page says: PostgreSQL cannot be ordered."
+            "text": "PostgreSQL cannot be ordered today: the platform does not install it yet. The deploy page says: PostgreSQL cannot be ordered."
           },
           {
             "t": "p",
@@ -2374,7 +2374,7 @@
           },
           {
             "t": "p",
-            "text": "The PostgreSQL server itself is not installed by the platform today: {{planned}} a PostgreSQL server in the container. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} PostgreSQL itself is not installed today. When it is, the instance will run a PostgreSQL server in the container. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -2533,7 +2533,7 @@
     "id": "mysql",
     "group": "databases",
     "title": "MySQL",
-    "summary": "What a deployment of MySQL writes into the container today, and where the databases of an instance live.",
+    "summary": "What you get today when you order MySQL, and where the databases of an instance live.",
     "keywords": [
       "mysql",
       "sql",
@@ -2541,7 +2541,7 @@
       "mariadb",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -2554,7 +2554,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "This page is published only when the catalog offers the product. The catalog of the platform does not offer MySQL today, so the page is not in the documentation."
+            "text": "MySQL cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
           },
           {
             "t": "p",
@@ -2562,7 +2562,7 @@
           },
           {
             "t": "p",
-            "text": "The MySQL server itself is not installed by the platform today: {{planned}} a MySQL server in the container. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} MySQL itself is not installed today. When it is, the instance will run a MySQL server in the container. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -2687,7 +2687,7 @@
             "items": [
               {
                 "q": "I cannot order MySQL.",
-                "a": "The catalog of the platform does not offer MySQL today, so there is nothing to order. When the catalog carries the product, the page of the product opens and the order can be placed."
+                "a": "MySQL cannot be ordered today: the platform does not offer it yet. When it is, the order can be placed from the page of the product."
               },
               {
                 "q": "My application cannot reach the database.",
@@ -2717,7 +2717,7 @@
     "id": "redis",
     "group": "databases",
     "title": "Redis",
-    "summary": "What a deployment of Redis writes into the container today, and where the databases of an instance live.",
+    "summary": "What you get today when you order Redis, and where the databases of an instance live.",
     "keywords": [
       "redis",
       "cache",
@@ -2725,7 +2725,7 @@
       "key value",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -2738,7 +2738,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "This page is published only when the catalog offers the product. The catalog of the platform does not offer Redis today, so the page is not in the documentation."
+            "text": "Redis cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
           },
           {
             "t": "p",
@@ -2746,7 +2746,7 @@
           },
           {
             "t": "p",
-            "text": "The Redis server itself is not installed by the platform today: {{planned}} a Redis server in the container. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} Redis itself is not installed today. When it is, the instance will run a Redis server in the container. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -2871,7 +2871,7 @@
             "items": [
               {
                 "q": "I cannot order Redis.",
-                "a": "The catalog of the platform does not offer Redis today, so there is nothing to order. When the catalog carries the product, the page of the product opens and the order can be placed."
+                "a": "Redis cannot be ordered today: the platform does not offer it yet. When it is, the order can be placed from the page of the product."
               },
               {
                 "q": "My application cannot reach the database.",
@@ -2901,7 +2901,7 @@
     "id": "mongodb",
     "group": "databases",
     "title": "MongoDB",
-    "summary": "What a deployment of MongoDB writes into the container today, and where the databases of an instance live.",
+    "summary": "What you get today when you order MongoDB, and where the databases of an instance live.",
     "keywords": [
       "mongodb",
       "document",
@@ -2909,7 +2909,7 @@
       "nosql",
       "deploy"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "what-a-deployment-does",
@@ -2922,7 +2922,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "This page is published only when the catalog offers the product. The catalog of the platform does not offer MongoDB today, so the page is not in the documentation."
+            "text": "MongoDB cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
           },
           {
             "t": "p",
@@ -2930,7 +2930,7 @@
           },
           {
             "t": "p",
-            "text": "The MongoDB server itself is not installed by the platform today: {{planned}} a MongoDB server in the container. The name in the catalog is the name of the product, and what runs in the container is the application of the platform until you put your own files there."
+            "text": "{{planned}} MongoDB itself is not installed today. When it is, the instance will run a MongoDB server in the container. Until then, what runs in the container is a minimal application of the platform."
           }
         ]
       },
@@ -3055,7 +3055,7 @@
             "items": [
               {
                 "q": "I cannot order MongoDB.",
-                "a": "The catalog of the platform does not offer MongoDB today, so there is nothing to order. When the catalog carries the product, the page of the product opens and the order can be placed."
+                "a": "MongoDB cannot be ordered today: the platform does not offer it yet. When it is, the order can be placed from the page of the product."
               },
               {
                 "q": "My application cannot reach the database.",
@@ -3095,7 +3095,7 @@
       "disk",
       "price"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "the-three-resources",
@@ -3125,7 +3125,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The minimum and the maximum belong to the product in the catalog. The platform refuses a configuration that is under the minimum of the product or over its maximum."
+            "text": "The minimum and the maximum belong to the product in the catalog. The platform refuses a configuration that is under the minimum or over the maximum."
           }
         ]
       },
@@ -3346,7 +3346,7 @@
       "price difference",
       "restart"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "a-change-is-an-order",
@@ -3367,7 +3367,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform never changes the resources of a service that has not been paid for."
+            "text": "The resources of a service that has not been paid for are never changed."
           }
         ]
       },
@@ -3591,7 +3591,7 @@
       "cancel",
       "money"
     ],
-    "updated": "2026-10-26",
+    "updated": "2026-10-27",
     "sections": [
       {
         "id": "the-automatic-refunds",
@@ -3640,7 +3640,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "The platform does not promise a delay. The payment provider states how long it takes to return the amount."
+            "text": "The platform does not promise how long a refund takes. The payment provider states how long it takes to return the amount."
           }
         ]
       },
