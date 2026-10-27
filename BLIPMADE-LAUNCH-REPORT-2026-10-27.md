@@ -181,11 +181,44 @@ Deci `mail.xodo.ro` acceptă orice expeditor al cărui domeniu poate fi rezolvat
 
 ---
 
+## 2 quinquies. Resetul platformei: fresh start, 27 octombrie, între 19:10 și 19:25
+
+**Ce s-a șters.** Tot ce ținea de clienți, în panou și în baza de date:
+
+| Unde | Ce a plecat |
+| --- | --- |
+| Panou | 4 servere ale clienților (17, 18, 19, 21) și 4 conturi de client create de platformă (25, 26, 27, 28) |
+| Baza de date | 4 instanțe, comenzile și liniile lor, 754 evenimente de provisionare, rândurile de audit, toate livrările de mail, toate notificările, abonamentele, tichetele, domeniile de mail, sesiunile și evenimentele Stripe |
+| Conturi | 3 administratori și 1 client rămși din prima rundă |
+
+**Ce a rămas:** catalogul cu cele 5 produse și prețurile lui, ouăle de pe panou, cheile Stripe live, canalul Discord, și **exact două conturi**:
+
+| Cont | Rol | Nume |
+| --- | --- | --- |
+| `nissqbv@gmail.com` | ADMIN | Catalin Marian Nitu |
+| `horja3i@gmail.com` | ADMIN | Horia Andrei |
+
+Parola lor este cea de administrator pe care o aveai deja (din `ADMIN_PASSWORD`), iar `ADMIN_EMAIL` din `.env` indică acum `nissqbv@gmail.com`, ca seed-ul de la deploy să nu mai recreeze `admin@blipmade.com`. Am intrat cu ambele conturi ca să verific: răspuns `200`.
+
+**Backup înainte de reset:** `blipmade-pre-reset-20261027T190410Z.tar.gz`, copiat și în afara clusterului. Dacă vrei ceva înapoi, se poate restaura din el.
+
+**Un cont de administrator al panoului a rămas:** `stefan@xodo.ro` (id 1), pentru că panoul refuză să ștergă un cont cu servere atașate — și acel cont deține șablonul de runtime al platformei (serverul 16), de pe care platforma clonează serverele noi. Contul `stefan10xdd@gmail.com` (id 2) a fost șters.
+
+---
+
+## 2 sexies. Errorul 400 de pe pagina principală
+
+Consola din browser arăta `POST https://blipmade.com/api/catalog/quote 400 (Bad Request)`. Răspunsul serverului e corect: cotă se cere pentru un produs care poate fi comandat. Măsurat pe fiecare produs: `discord-bot` cotă **200**, iar `wordpress`, `code-server`, `uptime-kuma` și `postgresql` răspund **400** cu „not available to order yet: It has not been validated for deployment yet". Deci nu era o eroare a serverului: era teaserul de pe pagina principală care cerea cotă unui produs închis, pentru că lua primul produs cu preț, nu primul care poate fi comandat.
+
+Reparat: teaserul arată un produs care poate fi comandat și nu cere cotă deloc când produsul nu poate fi comandat. Decizia e o funcție cu test propriu (`teaserProduct`).
+
+---
 
 ## 3. Ce mai trebuie făcut pentru lansare
 
 | # | Acțiune | Cine | Cum se verifică |
 | --- | --- | --- | --- |
+| 0 | Schimbă parolele celor două conturi de staff (`nissqbv@gmail.com`, `horja3i@gmail.com`) — acum amândoi au parola veche de administrator | **operator** | fiecare intră cu parola lui |
 | 1 | Importă cele trei ouă în panou | **operator** | API-ul panoului răspunde cu `Postgres 16`, `Code-Server`, `Uptime Kuma` |
 | 2 | ~~Trimite cheile Stripe live~~ — **făcut** (18:44) | — | `/api/health` arată `stripe: live`; o livrare semnată primește `200` |
 | 3 | În dashboard-ul Stripe: endpointul `https://blipmade.com/api/webhooks/stripe` și evenimentele `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `charge.refunded` | **operator** | o comandă reală de plată ajunge la platformă și marchează comanda plătită |

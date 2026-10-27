@@ -5,8 +5,36 @@ step says who does it and how to check that it worked. Nothing here holds a
 secret.
 
 **Done on the 27th of October 2026:** the live keys of Stripe are applied
-(section 1) and the channel of the alarms of Discord is set (section 5). The
-rest is still open.
+(section 1), the channel of the alarms of Discord is set (section 5), and the
+platform has been reset: the customers, the orders, the instances, the
+services on the panel, the audit log and the accounts of the first round are
+gone (section 0).
+
+## 0. The fresh start — done
+
+The platform holds two accounts, both of them administrators:
+
+| Account | Name |
+| --- | --- |
+| `nissqbv@gmail.com` | Catalin Marian Nitu |
+| `horja3i@gmail.com` | Horia Andrei |
+
+Their password is the administrator password of the environment
+(`ADMIN_PASSWORD`), and `ADMIN_EMAIL` points at `nissqbv@gmail.com`, so the
+seed of a deploy never brings the old administrator back.
+
+**Still on the operator:** both accounts have the same password today. Change
+it from the settings of the account, once, on each of them.
+
+The catalog, the prices, the eggs on the panel, the live keys of Stripe and
+the channel of Discord were not touched. The backup from before the reset is
+`blipmade-pre-reset-20261027T190410Z.tar.gz`, on the machine and in the
+off-site copy.
+
+One administrator account of the panel stayed: `stefan@xodo.ro`, because the
+panel refuses to delete an account that has servers attached to it, and that
+account owns the runtime template of the platform (the server every new one
+is cloned from).
 
 ## 1. The live keys of Stripe — done
 
