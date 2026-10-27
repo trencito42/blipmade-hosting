@@ -69,33 +69,48 @@ server of the operator refused it:
 User unknown in virtual mailbox table (in reply to RCPT TO command)
 ```
 
-The server of the operator checks the sender against its own mailbox table,
-and `no-reply@blipmade.com` is not in it. The fix is on `mail.xodo.ro`, in
-the configuration of Postfix:
+The cause was measured with probes sent from outside, straight to
+`mail.xodo.ro` (the 27th of October 2026, at RCPT TO):
 
-```
-# main.cf
-smtpd_reject_unlisted_sender = no
-```
+| Sender | Answer of `mail.xodo.ro` |
+| --- | --- |
+| `probe@google.com` | `250 2.1.5 Ok` |
+| `probe@mail.blipmade.com` | `250 2.1.5 Ok` |
+| `probe@example.org` | `550 5.7.27 ... does not accept mail (nullMX)` |
+| `no-reply@blipmade.com` | `550 5.1.0 ... User unknown in virtual mailbox table` |
 
-and then `postfix reload`. The other way is to add `no-reply@blipmade.com` to
-the virtual mailbox table of that server. Gmail accepts the messages of the
-platform, so the platform itself is not the problem.
+So the server accepts every sender whose domain it can resolve, and it
+refuses `blipmade.com` because it **knows the domain** (it was added to it) but
+**does not have the mailbox `no-reply`** in its own table. The fix is on
+`mail.xodo.ro`:
+
+- either create the mailbox (or the alias) `no-reply@blipmade.com` — in
+  Mailcow: **Domains → blipmade.com → Mailboxes / Aliases → no-reply**;
+- or put in `main.cf`:
+  ```
+  smtpd_reject_unlisted_sender = no
+  ```
+  and then `postfix reload`.
+
+The platform itself is not the problem: the messages it sends are signed
+(`DKIM-Signature: d=blipmade.com, s=dkim`) and Gmail accepts them.
 
 **The domain of the platform has no mail of its own.** `blipmade.com` has no
-MX record, so nothing that is sent from it can be answered, and the alerts of
-the platform (`ops.*`) land in a local mailbox of the server of the operator
-and stay there. The records that are needed:
+MX record, so nothing that is sent from it can be answered, and a server that
+resolves the sender strictly refuses it as `nullMX`. This is the state of the
+records on the 27th of October 2026:
 
-| Record | Value | Where |
+| Record | State now | What is needed |
 | --- | --- | --- |
-| MX | the host of the mail of the platform | DNS of the domain |
-| DKIM | the key of the domain in Mailcow | DNS of the domain |
-| PTR | the host of the mail | the provider of the address |
+| MX | missing | `MX 10 mail.blipmade.com` |
+| SPF | `v=spf1 mx a ip4:193.34.214.20 ~all` | it can be tightened to `v=spf1 mx ip4:193.34.214.20 ~all`, because `a` leads to Cloudflare |
+| DKIM | `dkim._domainkey.blipmade.com` is published, and the platform signs with `d=blipmade.com, s=dkim` | check in Mailcow (**Domains → blipmade.com → DKIM**) that the published value is the one Mailcow shows |
+| PTR of `193.34.214.20` (the mail of the platform) | missing | ask the provider of the addresses |
+| PTR of `193.34.214.143` (the edge) | missing | ask the provider of the addresses |
 
-The value of the DKIM is taken from the interface of Mailcow: **Domains →
-blipmade.com → DKIM**. The record that exists today does not hold the key of
-Mailcow.
+The MX record and the PTR records are the ones that are asked for. The DKIM
+record is published already; the check is only that the published value is the
+value of Mailcow.
 
 ## 4. The addresses of the customers — the operator
 
@@ -108,9 +123,10 @@ over HTTPS and the instance is reached on its own address.
 
 The platform sends the alarms of the operations to a webhook of Discord. The
 address is a secret, and it is **not** in the `.env`: it is written in a file
-that only the owner of the machine can read, and the platform is told where
-that file is. The address therefore travels neither with the rest of the
-environment nor with a copy of the configuration.
+that only the owner of the machine can reach (the directory is `0700`, the file
+is `0444` and it is mounted in the containers read only), and the platform is
+told where that file is. The address therefore travels neither with the rest
+of the environment nor with a copy of the configuration.
 
 The address is read from the standard input, so it never appears in the list
 of the processes and never in the history of a shell:
@@ -120,10 +136,18 @@ printf '%s' "$WEBHOOK" | ./scripts/set-discord-webhook.sh
 ```
 
 The script refuses an address that is not a webhook of Discord, writes the
-file with the rights of a secret, points the platform at it, restarts the api
-and the worker and sends a test message **with the code of the platform
-itself**, so a message that arrives proves that the alarms arrive too. It
-prints the host of the channel and never the address.
+file, points the platform at it, restarts the api and the worker, checks that
+the platform can really read the file, and sends a test message **with the
+code of the platform itself**, so a message that arrives proves that the
+alarms arrive too. It prints the host of the channel and never the address.
+
+It was tested on the machine of the platform with a false address: the script
+wrote the file, restarted the services, confirmed that the platform reads the
+file, called Discord and answered `404` (which is what a false address gets).
+The false address was removed afterwards.
+
+If the address is not the right one, the script says so and exits with the
+status 1, and the channel stays as it was.
 
 ## 6. The package of recovery — the operator
 

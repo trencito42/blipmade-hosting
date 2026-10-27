@@ -9,7 +9,7 @@
 #     printf '%s' "$WEBHOOK" | ./scripts/set-discord-webhook.sh
 #
 # The address is written in a file that only the owner of the machine can
-# read, and the platform is told where that file is. The address therefore
+# reach, and the platform is told where that file is. The address therefore
 # travels neither with the rest of the environment nor with a copy of the
 # configuration. The script prints the host of the channel and never the
 # address itself.
@@ -22,7 +22,10 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${BLIPMADE_ENV_FILE:-$ROOT/.env}"
-SECRETS_DIR="${BLIPMADE_SECRETS_DIR:-$ROOT/secrets}"
+# The path of the file with the address. It is the same on the machine and
+# inside the containers: the compose files mount the file at this path, and
+# the platform reads the path that is written in the environment.
+SECRETS_DIR="${BLIPMADE_SECRETS_DIR:-/opt/blipmade/secrets}"
 WEBHOOK_FILE="${OPS_DISCORD_WEBHOOK_FILE:-$SECRETS_DIR/discord-webhook}"
 COMPOSE_FILES=(-f compose.yml -f compose.api.yml -f compose.web.yml)
 
@@ -60,16 +63,33 @@ say "the channel of the alarms is on $HOST"
 # --- 2. the file that only the owner can read ------------------------------------------------
 
 mkdir -p "$SECRETS_DIR"
-chmod 0700 "$SECRETS_DIR"
+chmod 0700 "$SECRETS_DIR" 2>/dev/null \
+  || fail "the directory $SECRETS_DIR belongs to another user and cannot be closed; the address of the channel would be readable by the other users of the machine"
 
-# The file is written with the permissions of the secret from the start: a
-# file that is world readable for a moment is a secret that is read.
+# The container of the platform runs under another user than the owner of the
+# machine (`blip`, 100, and `debian`, 1000), so the file cannot stay 0600: the
+# container would not be able to read it. The file is read only for everybody
+# and the directory that holds it is closed to the other users of the machine,
+# so the address is reachable by the owner of the machine and by the platform,
+# and by nobody else.
+#
+# The file is written under another name and moved into place: a file that is
+# read only cannot be written over, and a move needs only the permission on
+# the directory.
+if [ -d "$WEBHOOK_FILE" ]; then
+  # A mount of a file that is not there yet leaves a directory behind.
+  rmdir "$WEBHOOK_FILE" 2>/dev/null \
+    || fail "the path $WEBHOOK_FILE is a directory and cannot be replaced by the file of the channel"
+fi
+
 umask 077
-printf '%s' "$WEBHOOK" >"$WEBHOOK_FILE"
-chmod 0600 "$WEBHOOK_FILE"
+TMP_FILE="$(mktemp "$SECRETS_DIR/.discord-webhook.XXXXXX")"
+printf '%s' "$WEBHOOK" >"$TMP_FILE"
+chmod 0444 "$TMP_FILE"
+mv -f "$TMP_FILE" "$WEBHOOK_FILE"
 unset WEBHOOK
 
-say "the address is written in $WEBHOOK_FILE (readable by the owner only)"
+say "the address is written in $WEBHOOK_FILE (the directory is closed to the other users)"
 
 # --- 3. the environment -----------------------------------------------------------------------
 
@@ -99,8 +119,23 @@ docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate api worker
 
 # --- 5. the check --------------------------------------------------------------------------------
 
+say "checking that the platform sees the file"
+SEEN=no
+for attempt in $(seq 1 30); do
+  if docker compose "${COMPOSE_FILES[@]}" exec -T api sh -c 'test -r "$OPS_DISCORD_WEBHOOK_FILE"' >/dev/null 2>&1; then
+    SEEN=yes
+    break
+  fi
+  sleep 2
+done
+[ "$SEEN" = "yes" ] || fail "the container of the api cannot read $WEBHOOK_FILE; the compose files have to mount it"
+
 say "sending a test message with the code of the platform"
-RESULT="$(docker compose "${COMPOSE_FILES[@]}" exec -T api node -e "
+# The modules of the platform open connections of their own, so the process
+# would stay alive after the work is done. The program therefore ends itself,
+# and the call is capped in time: a script that waits for a process that never
+# ends is a script that never ends.
+RESULT="$(timeout 60 docker compose "${COMPOSE_FILES[@]}" exec -T api node -e "
   import('/app/dist/services/ops-alert-discord.js')
     .then((m) => m.sendDiscordAlert(
       m.toDiscordAlert({
@@ -113,8 +148,8 @@ RESULT="$(docker compose "${COMPOSE_FILES[@]}" exec -T api node -e "
       }),
       { attempts: 2, wait: 0 },
     ))
-    .then((r) => process.stdout.write(JSON.stringify(r)))
-    .catch((error) => { process.stdout.write(JSON.stringify({ status: 'failed', reason: String(error?.message ?? error) })); });
+    .then((r) => { process.stdout.write(JSON.stringify(r), () => process.exit(0)); })
+    .catch((error) => { process.stdout.write(JSON.stringify({ status: 'failed', reason: String(error?.message ?? error) }), () => process.exit(0)); });
 " 2>/dev/null || echo '{"status":"failed","reason":"the container did not answer"}')"
 
 STATUS="$(printf '%s' "$RESULT" | sed -n 's/.*"status":"\([a-z]*\)".*/\1/p')"

@@ -63,6 +63,19 @@ services:
       # alarm of the backup runs on the host and sends its mail with the same
       # configuration.
       - /opt/blipmade-ca:/opt/blipmade-ca:ro
+      # The address of the Discord channel of the alarms.
+      #
+      # It is a secret, so it lives in a file and not in the environment. The
+      # directory that holds it is closed to the other users of the machine
+      # (0700), and the file itself is read only for everybody: the container
+      # of the platform runs under another user than the owner of the machine
+      # (`blip`, 100, and `debian`, 1000), so a file of 0600 would not be
+      # readable in there. The file is mounted read only, and only the two
+      # containers of the platform have it.
+      #
+      # The path is the same inside the container and on the host, so the
+      # environment can name one path for both.
+      - /opt/blipmade/secrets/discord-webhook:/opt/blipmade/secrets/discord-webhook:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,6 +151,19 @@ services:
       # alarm of the backup runs on the host and sends its mail with the same
       # configuration.
       - /opt/blipmade-ca:/opt/blipmade-ca:ro
+      # The address of the Discord channel of the alarms.
+      #
+      # It is a secret, so it lives in a file and not in the environment. The
+      # directory that holds it is closed to the other users of the machine
+      # (0700), and the file itself is read only for everybody: the container
+      # of the platform runs under another user than the owner of the machine
+      # (`blip`, 100, and `debian`, 1000), so a file of 0600 would not be
+      # readable in there. The file is mounted read only, and only the two
+      # containers of the platform have it.
+      #
+      # The path is the same inside the container and on the host, so the
+      # environment can name one path for both.
+      - /opt/blipmade/secrets/discord-webhook:/opt/blipmade/secrets/discord-webhook:ro
     depends_on:
       postgres:
         condition: service_healthy

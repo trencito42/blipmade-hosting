@@ -37,7 +37,7 @@ PSQL=(docker exec -i blipmade-postgres-1 psql -h 127.0.0.1 -U blipmade -d blipma
 
 # --- 1. the product ------------------------------------------------------------------------
 
-PRODUCT_JSON="$(docker exec blipmade-api-1 node -e "
+PRODUCT_JSON="$(timeout 60 docker exec blipmade-api-1 node -e "
   const { PrismaClient } = require('@prisma/client');
   const prisma = new PrismaClient();
   prisma.product.findUnique({ where: { slug: process.argv[1] } })
@@ -94,11 +94,15 @@ say "instance $INSTANCE_ID"
 # --- 3. the build ---------------------------------------------------------------------------
 
 say "the platform builds the instance"
-docker exec blipmade-api-1 node -e "
+# The modules of the platform open connections of their own, so the process
+# would stay alive after the work is done. The program ends itself, and the
+# call is capped in time, so a provisioning that hangs is reported instead of
+# holding the operator in front of a command that never returns.
+timeout 900 docker exec blipmade-api-1 node -e "
   import('/app/dist/services/provisioning.js')
     .then((m) => m.provisionInstance(process.argv[1]))
-    .then(() => process.stdout.write('the provisioning run finished\n'))
-    .catch((error) => { process.stderr.write(String(error?.message ?? error) + '\n'); process.exit(1); });
+    .then(() => { process.stdout.write('the provisioning run finished\n', () => process.exit(0)); })
+    .catch((error) => { process.stderr.write(String(error?.message ?? error) + '\n', () => process.exit(1)); });
 " "$INSTANCE_ID" || fail "the provisioning of the instance failed"
 
 # --- 4. what the panel holds -----------------------------------------------------------------

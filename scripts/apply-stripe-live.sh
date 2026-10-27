@@ -117,7 +117,7 @@ if command -v docker >/dev/null 2>&1; then
 
   say "waiting for the api to answer"
   for attempt in $(seq 1 30); do
-    if docker compose "${COMPOSE_FILES[@]}" exec -T api node -e "process.exit(0)" >/dev/null 2>&1; then
+    if timeout 10 docker compose "${COMPOSE_FILES[@]}" exec -T api node -e "process.exit(0)" >/dev/null 2>&1; then
       break
     fi
     sleep 2
@@ -129,7 +129,7 @@ fi
 # --- 5. what the platform answers -----------------------------------------------------------
 
 say "the state of the payments, read by the platform itself"
-STATUS="$(docker compose "${COMPOSE_FILES[@]}" exec -T api node -e "
+STATUS="$(timeout 60 docker compose "${COMPOSE_FILES[@]}" exec -T api node -e "
   const url = process.env.STRIPE_SECRET_KEY || '';
   const live = url.startsWith('sk_live_');
   process.stdout.write(live ? 'live' : 'not-live');

@@ -128,16 +128,50 @@ printf '%s' "$WEBHOOK" | ./scripts/set-discord-webhook.sh
 
 ---
 
+## 2 ter. Ce s-a aflat la 18:15, când am probat comanda de webhook pe mașina reală
+
+Am vrut să validez comanda de webhook pe mașina reală, cu o adresă falsă, ca să nu o primești tu prima dată. A fost bine: **trei probleme reale**, toate reparate înainte să primești comanda.
+
+**1. Scriptul nu se mai termina.** `node` rulează în containerul API-ului, iar modulele platformei deschid conexiuni proprii (baza de date, cache-ul), deci procesul rămâne viu după ce termină treaba. Scriptul stătea în așteptarea ieșirii lui: mesajul de test plecase, răspunsul era primit, iar comanda nu revenea — un operator ar fi rămas în fața unei comenzi care părea înghețată. **Aceeași eroare era în `scripts/deploy-test-instance.sh`**, adică în scriptul cu care se face proba reală de deployment: instanța s-ar fi construit, iar scriptul ar fi rămas blocat. Reparare: programul își încheie procesul, apelul e limitat în timp (`timeout`), iar un test nou (`api/tests/script-node-exit.test.ts`) cere ca orice apel de `node` din containere să fie limitat în timp și să-și termine procesul.
+
+**2. Platforma nu vedea fișierul cu adresa.** Fișierul era scris pe gazdă, dar nu era montat în containere, iar modul `0600` al lui `debian` (uid 1000) nu poate fi citit de `blip` (uid 100) din container. Platforma răspundea „no Discord channel is configured" — exact răspunsul greșit pentru o adresă corectă. Reparare: fișierele de compose montează fișierul în API și în worker, la același drum pe mașină și în container, doar pentru citire; fișierul e `0444` într-un director `0700`, deci e la îndemâna proprietarului și a platformei, și a nimănui altcineva; scriptul verifică acum, înainte de mesajul de test, că platforma vede fișierul, și spune limpede dacă nu.
+
+**3. Probe-ul prin SMTP a măsurat cauza exactă a refuzului de pe `mail.xodo.ro`.** Trimis din afara serverului tău, la RCPT TO:
+
+| Expeditor | Răspunsul lui `mail.xodo.ro` |
+| --- | --- |
+| `probe@google.com` | `250 2.1.5 Ok` |
+| `probe@mail.blipmade.com` | `250 2.1.5 Ok` |
+| `probe@example.org` | `550 5.7.27 ... does not accept mail (nullMX)` |
+| `no-reply@blipmade.com` | `550 5.1.0 ... User unknown in virtual mailbox table` |
+
+Deci `mail.xodo.ro` acceptă orice expeditor al cărui domeniu poate fi rezolvat, și refuză `blipmade.com` pentru că **domeniul îl cunoaște** (l-ai adăugat) dar **nu are căsuța `no-reply`** în tabelul lui de căsuțe virtuale. Fixul rămâne pe serverul tău: creezi căsuța (sau aliasul) `no-reply@blipmade.com` în Mailcow de pe `mail.xodo.ro` — **Domains → blipmade.com → Mailboxes / Aliases → no-reply** — sau pui `smtpd_reject_unlisted_sender = no` în `main.cf` și `postfix reload`.
+
+**Starea DNS a lui `blipmade.com`, măsurată acum:**
+
+| Record | Starea de acum | Ce trebuie |
+| --- | --- | --- |
+| MX | **lipsește** | `MX 10 mail.blipmade.com` — fără el domeniul nu poate fi răspuns, iar serverele stricte îl refuză ca `nullMX` |
+| SPF | `v=spf1 mx a ip4:193.34.214.20 ~all` | poate fi strâns la `v=spf1 mx ip4:193.34.214.20 ~all`, pentru că `a` duce la Cloudflare |
+| DKIM | `dkim._domainkey.blipmade.com` există; platforma semnează `d=blipmade.com, s=dkim` | de verificat în Mailcow că valoarea publicată e cea din **Domains → blipmade.com → DKIM** |
+| PTR `193.34.214.20` (mail.blipmade.com) | **lipsește** | se cere la furnizorul de adrese |
+| PTR `193.34.214.143` (edge) | **lipsește** | se cere la furnizorul de adrese |
+
+**Adresa webhook-ului:** în istoricul păstrat nu există decât adrese de exemplu din cod și din teste; valoarea trimisă de tine nu mai e acolo. Deci nu a fost aplicată niciodată — `.env` nu are `OPS_DISCORD*` și nu există fișier — și nu o mai caut în chat. Comanda e gata și **probată pe mașina reală**: cu adresa falsă, scriptul a scris fișierul, a repornit serviciile, a confirmat că platforma vede fișierul, a chemat Discord și a răspuns „404" — exact ce trebuie pentru o adresă falsă. Adresa falsă a fost eliminată după probă, `.env` a fost readus la starea lui, producția e curată.
+
+---
+
+
 ## 3. Ce mai trebuie făcut pentru lansare
 
 | # | Acțiune | Cine | Cum se verifică |
 | --- | --- | --- | --- |
 | 1 | Importă cele trei ouă în panou | **operator** | API-ul panoului răspunde cu `Postgres 16`, `Code-Server`, `Uptime Kuma` |
 | 2 | Trimite cheile Stripe live | **operator → eu** | `/api/health` arată `stripe: live` și `PAYMENTS_ENABLED=true` |
-| 3 | `smtpd_reject_unlisted_sender = no` pe `mail.xodo.ro` | **operator** | resetul de parolă ajunge la `stefan@xodo.ro` |
-| 4 | MX pentru `blipmade.com` + DKIM din Mailcow + PTR pentru `193.34.214.20` | **operator** | mesajele din domeniu primesc răspuns și nu cad în spam |
+| 3 | Pe `mail.xodo.ro`: căsuța (sau aliasul) `no-reply@blipmade.com`, ori `smtpd_reject_unlisted_sender = no` + `postfix reload` | **operator** | resetul de parolă ajunge la `stefan@xodo.ro` |
+| 4 | DNS: `MX 10 mail.blipmade.com` pentru `blipmade.com`, PTR pentru `193.34.214.20` și `193.34.214.143` | **operator** | mesajele din domeniu primesc răspuns și nu cad în spam |
 | 5 | Wildcard `*.apps.blipmade.com` → `A 193.34.214.143`, DNS only | **operator** | adresa de instanță se deschide pe HTTPS |
-| 6 | Adresa webhook-ului Discord | **operator** | evenimentele ajung în canal |
+| 6 | Adresa webhook-ului Discord (comanda e gata și probată) | **operator** | evenimentele ajung în canal |
 | 7 | Cheia publică age a operatorului | **operator** | `scripts/recovery-package.sh` poate construi pachetul |
 | 8 | Găzduitor extern pentru copiile de backup | **operator** | o copie trăiește în afara clusterului |
 | 9 | Testul de deployment real al celor trei produse | **eu**, după pasul 1 | o instanță răspunde pe nod |
@@ -178,6 +212,9 @@ Nu se șterge nimic. Cele cinci instanțe din producție aparțin unor comenzi r
 | `pterodactyl-eggs/*` | cele trei fișiere de ou, plus ghidul de import |
 | `scripts/apply-stripe-live.sh` | comanda unică pentru cheile live |
 | `scripts/deploy-test-instance.sh` | testul de deployment real |
+| `scripts/set-discord-webhook.sh` | comanda pentru canalul de alarmă; scrie fișierul `0444` într-un director `0700`, verifică că platforma îl vede și își termină procesul |
+| `compose.api.yml` | fișierul cu adresa canalului e montat în API și worker, la același drum ca pe mașină |
+| `api/tests/script-node-exit.test.ts` | orice apel de `node` din containere e limitat în timp și își termină procesul; fișierul canalului e montat în ambele servicii |
 | `scripts/fetch-eggs.mjs` | reia și verifică fișierele ouălor |
 | `docs/LAUNCH-CHECKLIST.md` | lista de lansare cu comenzile exacte |
 | `docs/DOCS_CLAIM_AUDIT.md`, `docs/docs-claim-audit.json` | auditul adus la starea nouă a catalogului |
