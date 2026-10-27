@@ -23,3 +23,8 @@ web/public/fontawesome/
 # The before and after screenshots of the interface. They are a review
 # artefact, not source, and they would make the history heavy.
 screenshots/
+# The secrets of the machine: the address of the Discord channel of the
+# alarms and anything else that only the owner of the machine may read. The
+# files are written by scripts/set-discord-webhook.sh and never travel with
+# the history of the repository.
+secrets/

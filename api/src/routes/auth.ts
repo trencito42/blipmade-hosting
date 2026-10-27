@@ -203,9 +203,21 @@ export function publicUser(user: {
   };
 }
 
-async function issueToken(userId: string, type: 'EMAIL_VERIFY' | 'PASSWORD_RESET', ttlHours: number): Promise<string> {
+/**
+ * Makes a token of verification.
+ *
+ * The row of the token is the identity of the request: the id of the row is
+ * the occurrence of the message, so a second request of the same kind is a
+ * second message. The token itself is a secret and never leaves this place
+ * except inside the message.
+ */
+async function issueToken(
+  userId: string,
+  type: 'EMAIL_VERIFY' | 'PASSWORD_RESET',
+  ttlHours: number,
+): Promise<{ token: string; id: string }> {
   const token = randomToken(32);
-  await prisma.verificationToken.create({
+  const row = await prisma.verificationToken.create({
     data: {
       tokenHash: hashToken(token),
       type,
@@ -213,7 +225,7 @@ async function issueToken(userId: string, type: 'EMAIL_VERIFY' | 'PASSWORD_RESET
       expiresAt: new Date(Date.now() + ttlHours * 60 * 60 * 1000),
     },
   });
-  return token;
+  return { token, id: row.id };
 }
 
 /**
@@ -224,12 +236,12 @@ async function issueToken(userId: string, type: 'EMAIL_VERIFY' | 'PASSWORD_RESET
  * a job, so the only reference to it is the short hash.
  */
 export async function sendVerificationEmail(userId: string, email: string, name: string): Promise<MailSendResult> {
-  const token = await issueToken(userId, 'EMAIL_VERIFY', 24);
+  const { token, id } = await issueToken(userId, 'EMAIL_VERIFY', 24);
   // The message goes through the notification engine: the event is written
   // in the outbox and the engine builds the message and sends it. The token
   // is in the event only until the message is on the queue, and the event
   // is emptied right after.
-  await notifyVerificationRequested({ userId, name, token });
+  await notifyVerificationRequested({ userId, name, token, occurrence: id });
   const result = queuedMailResult('verification');
   console.info(mailLogLine('verification', result, email, token));
   return result;
@@ -242,8 +254,11 @@ export async function sendVerificationEmail(userId: string, email: string, name:
  * log line or a file.
  */
 export async function sendResetEmail(userId: string, email: string, name: string): Promise<MailSendResult> {
-  const token = await issueToken(userId, 'PASSWORD_RESET', 1);
-  await notifyPasswordResetRequested({ userId, name, token });
+  const { token, id } = await issueToken(userId, 'PASSWORD_RESET', 1);
+  // The id of the token is the occurrence of the message: a customer whose
+  // message was lost asks again, and the second request has to be a message
+  // of its own.
+  await notifyPasswordResetRequested({ userId, name, token, occurrence: id });
   const result = queuedMailResult('reset');
   console.info(mailLogLine('reset', result, email, token));
   return result;

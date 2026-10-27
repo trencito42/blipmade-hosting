@@ -124,49 +124,114 @@ export async function notifyAccountReinstated(input: Recipient & {
   );
 }
 
-/** The confirmation of the address was asked for again. */
+/**
+ * The confirmation of the address was asked for again.
+ *
+ * Every request is an occurrence of its own: a customer whose message was
+ * lost asks again, and the second request has to be a message of its own.
+ * Without it, the engine finds the event of the first request, decides that
+ * the thing already happened and sends nothing at all.
+ */
 export async function notifyVerificationRequested(input: Recipient & {
   name: string | null;
   token: string;
+  occurrence?: string | Date | null;
 }): Promise<void> {
-  await publish('account.verification_requested', input.userId, input.userId, {
-    name: input.name,
-    token: input.token,
-  });
+  await publish(
+    'account.verification_requested',
+    input.userId,
+    input.userId,
+    {
+      name: input.name,
+      token: input.token,
+    },
+    input.occurrence ?? null,
+  );
 }
 
-/** The address of the account was confirmed. */
+/**
+ * The address of the account was confirmed.
+ *
+ * The moment of the confirmation is the occurrence, so a second confirmation
+ * is a message of its own.
+ */
 export async function notifyEmailVerified(input: Recipient & { name: string | null }): Promise<void> {
-  await publish('account.email_verified', input.userId, input.userId, { name: input.name });
+  await publish(
+    'account.email_verified',
+    input.userId,
+    input.userId,
+    { name: input.name },
+    new Date(),
+  );
 }
 
-/** The customer asked for a new password. */
+/**
+ * The customer asked for a new password.
+ *
+ * Every request is an occurrence of its own, like the confirmation of the
+ * address: a customer whose message was lost asks again, and the second
+ * request has to reach him. Without it, the second request finds the event of
+ * the first one, the engine decides that the thing already happened, and no
+ * message goes out at all.
+ */
 export async function notifyPasswordResetRequested(input: Recipient & {
   name: string | null;
   token: string;
+  occurrence?: string | Date | null;
 }): Promise<void> {
-  await publish('account.password_reset_requested', input.userId, input.userId, {
-    name: input.name,
-    token: input.token,
-  });
+  await publish(
+    'account.password_reset_requested',
+    input.userId,
+    input.userId,
+    {
+      name: input.name,
+      token: input.token,
+    },
+    input.occurrence ?? null,
+  );
 }
 
-/** The password of the account was changed. */
+/**
+ * The password of the account was changed.
+ *
+ * The moment of the change is the occurrence: an account whose password is
+ * changed twice has two messages, and the second change is not swallowed by
+ * the first one.
+ */
 export async function notifyPasswordChanged(input: Recipient & { name: string | null }): Promise<void> {
-  await publish('account.password_changed', input.userId, input.userId, { name: input.name });
+  await publish(
+    'account.password_changed',
+    input.userId,
+    input.userId,
+    { name: input.name },
+    new Date(),
+  );
 }
 
-/** The customer asked for another address on the account. */
+/**
+ * The customer asked for another address on the account.
+ *
+ * Every request is an occurrence of its own, like the reset of the password:
+ * a request that was not answered can be made again, and the second request
+ * has to reach the customer.
+ */
 export async function notifyEmailChangeRequested(input: Recipient & {
   name: string | null;
   token: string;
   email: string;
+  occurrence?: string | Date | null;
 }): Promise<void> {
-  await publish('account.email_change_requested', input.userId, input.userId, {
-    name: input.name,
-    token: input.token,
-    email: input.email,
-  });
+  await publish(
+    'account.email_change_requested',
+    input.userId,
+    input.userId,
+    {
+      name: input.name,
+      token: input.token,
+      email: input.email,
+    },
+    input.occurrence ?? null,
+  );
 }
 
 /** The address of the account was changed. */
