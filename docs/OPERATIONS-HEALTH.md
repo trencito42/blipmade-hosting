@@ -8,7 +8,7 @@ down.
 ## What is watched
 
 The sweep of the health of the platform runs in the worker every five
-minutes. It answers eleven questions, and every question has a state and a
+minutes. It answers twelve questions, and every question has a state and a
 sentence that can be read in the back office.
 
 | Check | What it answers | When it is a problem |
@@ -23,6 +23,7 @@ sentence that can be read in the back office.
 | `capacity` | Is there room on the machine? | A disk over `OPS_DISK_MAX_PERCENT` (85), a memory over `OPS_MEMORY_MAX_PERCENT` (90). |
 | `certificate` | Do the certificates of the platform expire soon? | A certificate with less than `OPS_CERT_MIN_DAYS` (21) days left. The sweep reads the certificate of the public address, of the control panel and of the mail server. |
 | `incident` | Did the operator declare an incident? | An incident that is open. |
+| `panel` | Can the platform talk to the control panel? | A panel that refuses the key of the platform. The check uses the same call that the provisioning uses, so a panel that is there and a panel the platform can use are never taken for one another. A key that is not accepted any more (401) and a key that is accepted but may not read the servers (403) are two problems that are fixed in two different places, and the summary says which one it is. |
 | `security` | Did something that touches the security change? | A new administrator, changed rights, a new key of a customer or a changed setting in the last hour. |
 
 ## Where the state of the operations lives
@@ -45,7 +46,7 @@ because a failure that leaves no trace cannot be seen by anybody.
 
 ## How an alarm reaches the operator
 
-An alarm travels by three channels, and the back office shows the state of
+An alarm travels by four channels, and the back office shows the state of
 each one.
 
 1. **The journal of the alerts** — `ops-alerts.ndjson` on the host. It is
@@ -57,13 +58,23 @@ each one.
    the mail of the platform, so an alarm about the mail server can still
    leave the host. The body is signed with `OPS_ALERT_WEBHOOK_SECRET` in the
    header `X-Blipmade-Signature`.
-3. **The mail of the platform** — the event of the catalogue that carries the
+3. **The channel of Discord** — `OPS_DISCORD_WEBHOOK_URL`, or the file
+   `OPS_DISCORD_WEBHOOK_FILE` that holds the address. The file is the better
+   way: the address carries the token that lets anybody write in the channel,
+   so it stays in a file that only the owner of the platform can read and not
+   in a copy of the configuration. Discord takes a message of its own, with an
+   embed that carries the severity, the component that is broken and the name
+   of the occurrence, so the alarm can be read in the channel and not only
+   received. The channel that is switched off is shown as switched off, and
+   not as a channel that is broken.
+4. **The mail of the platform** — the event of the catalogue that carries the
    alarm, sent to `MAIL_OPERATOR_EMAIL` (or `MAIL_SUPPORT_EMAIL`).
 
-**The channel of the operator is the one that matters.** Without
-`OPS_ALERT_WEBHOOK_URL`, every alarm of the platform travels by the mail of
-the platform, and an alarm about the mail server cannot leave the host. The
-dashboard says so in plain words, on the page of the channels.
+**The channel of the operator is the one that matters.** Without a webhook of
+the operator and without the channel of Discord, every alarm of the platform
+travels by the mail of the platform, and an alarm about the mail server cannot
+leave the host. The dashboard says so in plain words, on the page of the
+channels.
 
 ## Why the platform does not flood the operator
 
@@ -86,7 +97,7 @@ checked without a database and without a cache.
 
 ## The back office
 
-The page is `/admin/ops`. It shows the state of the platform, the eleven
+The page is `/admin/ops`. It shows the state of the platform, the twelve
 checks, the alarms that were sent, the channels, and it lets an operator
 acknowledge a finding and declare an incident.
 
@@ -107,3 +118,12 @@ mail server as well, on the address the operator wrote down in
 `MAILCOW_API_URL`: the name `mail.blipmade.com` is published in the DNS and
 the certificate is signed by an authority the machine trusts, so the relay is
 watched like every other address the platform serves.
+
+The key of the control panel is not a problem of the platform but of the
+panel: a key that was revoked leaves the platform unable to build a service,
+and the order of a customer waits. The key is made in the panel
+(Administration → API Keys → Application API, with the permission to create
+servers) and it is applied on the host with `scripts/apply-panel-key.sh`,
+which reads it from the standard input, keeps a copy of the file before it
+writes, and checks the key with the code of the platform: a key the panel
+refuses is caught there, and not at the first order of a customer.
