@@ -1,5 +1,6 @@
 import { useAsync } from '../../lib/useAsync';
 import { getResources, listEvents } from '../../lib/instance-api';
+import CredentialsCard from './CredentialsCard';
 import {
   EmptyState,
   ListRow,
@@ -113,6 +114,8 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
           </div>
         )}
       </Panel>
+
+      {instance.credentials ? <CredentialsCard instanceId={instance.id} /> : null}
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Panel title="Network" description="Traffic counted by the panel since the instance started.">

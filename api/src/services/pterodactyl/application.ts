@@ -298,9 +298,17 @@ export async function listAllocations(nodeId: number): Promise<PteroAllocation[]
  * `scripts/create-egg-template.py` gives to the egg when it creates it, plus
  * the ones the egg itself carries (`BRANCH`). The variables of an existing
  * server are still read for an egg that is not known here.
+ *
+ * The eggs are held by their name and not by their number. The number of an
+ * egg belongs to the panel: it is given when the egg is imported and it is
+ * different on every panel. The name is written in the egg itself and does
+ * not change, so a product that names the egg it runs on keeps working when
+ * the panel is moved or when the egg is imported again. The numbers of the
+ * eggs that the platform already knows are kept in `EGG_NAMES_BY_ID`, so an
+ * egg that was imported before this change is still found.
  */
-export const EGG_ENVIRONMENT_TEMPLATES: Record<number, Record<string, string>> = {
-  15: {
+export const EGG_ENVIRONMENT_TEMPLATES: Record<string, Record<string, string>> = {
+  'node.js generic': {
     AUTO_UPDATE: '0',
     BRANCH: '',
     GIT_ADDRESS: '',
@@ -312,7 +320,65 @@ export const EGG_ENVIRONMENT_TEMPLATES: Record<number, Record<string, string>> =
     ACCESS_TOKEN: '',
     USER_UPLOAD: '0',
   },
+  // The official egg of Pterodactyl. The variables are the ones of the egg
+  // itself: the superuser of the database and its password. The password is
+  // replaced by the platform with one that is made for every instance, so
+  // two customers never share it.
+  'postgres 16': {
+    PGUSER: 'postgres',
+    PGPASSWORD: 'Pl3453Ch4n63M3!',
+  },
+  // The official egg of Pterodactyl. The password of the editor is replaced
+  // by the platform with one that is made for every instance.
+  'code-server': {
+    PASSWORD: 'changeme',
+    VERSION: 'latest',
+  },
+  // The official egg of Pterodactyl. The account of the administrator of
+  // Uptime Kuma is made by the application itself on the first start, so the
+  // egg carries no password.
+  'uptime kuma': {
+    GIT_ADDRESS: 'https://github.com/louislam/uptime-kuma',
+    JS_FILE: 'server/server.js',
+    AUTO_UPDATE: '1',
+  },
 };
+
+/**
+ * The names of the eggs that were imported before the templates were held by
+ * name. The number is the one of the panel of the deployment.
+ */
+const EGG_NAMES_BY_ID: Record<number, string> = {
+  15: 'node.js generic',
+  16: 'python generic',
+};
+
+/** The name of an egg, in the form the templates are written in. */
+function eggKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+/**
+ * Reads the name of an egg from the panel.
+ *
+ * The Application API does not know one egg by its number alone: the eggs are
+ * listed per nest. A panel that does not answer leaves the name empty, and
+ * the caller falls back to what it knows.
+ */
+async function eggNameOf(eggId: number): Promise<string | null> {
+  try {
+    const nests = await listNests();
+    for (const nest of nests) {
+      const eggs = await listEggs(nest.id);
+      const egg = eggs.find((candidate) => candidate.id === eggId);
+      if (egg) return egg.name;
+    }
+  } catch {
+    // The panel did not answer. The caller reads the variables of a server
+    // of the egg instead, which is the older way of finding them.
+  }
+  return null;
+}
 
 /**
  * Returns the default environment variables for an egg.
@@ -322,9 +388,16 @@ export const EGG_ENVIRONMENT_TEMPLATES: Record<number, Record<string, string>> =
  * that the platform knows is used, and for an egg that is not known the
  * variables of an existing server on the same egg are used, minus the
  * per-server values the panel sets itself.
+ *
+ * The name of the egg may be given by the caller, which already knows it. If
+ * it is not given, the name is read from the panel.
  */
-export async function eggEnvironmentTemplate(eggId: number): Promise<Record<string, string>> {
-  const known = EGG_ENVIRONMENT_TEMPLATES[eggId];
+export async function eggEnvironmentTemplate(
+  eggId: number,
+  eggName?: string,
+): Promise<Record<string, string>> {
+  const name = eggName ?? EGG_NAMES_BY_ID[eggId] ?? (await eggNameOf(eggId));
+  const known = name ? EGG_ENVIRONMENT_TEMPLATES[eggKey(name)] : undefined;
   if (known) {
     return { ...known };
   }

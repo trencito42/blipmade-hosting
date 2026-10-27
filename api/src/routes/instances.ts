@@ -14,6 +14,7 @@ import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeUpgradeOrder } from '../services/upgrades.js';
 import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
+import { parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
 import { createCheckout } from '../services/stripe.js';
 
 /**
@@ -35,7 +36,7 @@ function serializeInstance(instance: {
   price: number;
   currency: string;
   createdAt: Date;
-  product: { slug: string; name: string; icon: string };
+  product: { slug: string; name: string; icon: string; generatedVariables?: unknown };
   subscription: { status: string; currentPeriodEnd: Date | null } | null;
   orderItem?: { subscription: { status: string; currentPeriodEnd: Date | null } | null } | null;
   pterodactylServerId: number | null;
@@ -58,6 +59,10 @@ function serializeInstance(instance: {
     url: active ? `https://${active.hostname}` : null,
     createdAt: instance.createdAt,
     node: null as { name: string } | null,
+    // Whether this service has a password that the platform made for it. The
+    // console shows it only then, so a service without one does not carry an
+    // empty panel.
+    credentials: Object.keys(parseGeneratedVariableSpecs(instance.product.generatedVariables)).length > 0,
     subscription: subscription
       ? { status: subscription.status.toLowerCase(), currentPeriodEnd: subscription.currentPeriodEnd }
       : null,

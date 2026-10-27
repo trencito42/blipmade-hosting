@@ -101,6 +101,7 @@ function planView(
     icon: string;
     deployable: boolean;
     eggId: number | null;
+    eggName: string | null;
     visible: boolean;
     fulfilment: string;
     prices: ProductPrice[];
@@ -116,6 +117,7 @@ function planView(
       name: product.name,
       deployable: product.deployable,
       eggId: product.eggId,
+      eggName: product.eggName,
       visible: product.visible,
       fulfilment: product.fulfilment as never,
     },

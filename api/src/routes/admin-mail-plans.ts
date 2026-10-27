@@ -411,6 +411,7 @@ function planView(product: PlanWithPrices, counts: { services: number; customers
         name: product.name,
         deployable: product.deployable,
         eggId: product.eggId,
+        eggName: product.eggName,
         visible: product.visible,
         fulfilment: product.fulfilment,
       },

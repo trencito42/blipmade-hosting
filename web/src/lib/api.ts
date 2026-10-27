@@ -372,6 +372,8 @@ export interface Instance {
   url: string | null;
   createdAt: string;
   node: { name: string } | null;
+  /** Whether this service has a password that the platform made for it. */
+  credentials: boolean;
   subscription: { status: string; currentPeriodEnd: string | null } | null;
 }
 

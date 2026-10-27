@@ -52,6 +52,8 @@ const panel = {
   servers: [] as { id: number; egg: number }[],
   /** The bodies of the create requests the platform made. */
   created: [] as CreateRequest[],
+  /** The paths the platform asked for. */
+  calls: [] as string[],
 };
 
 function readBody(request: IncomingMessage): Promise<string> {
@@ -105,6 +107,7 @@ const REFUSAL = {
 async function answerPanel(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url ?? '/', 'http://panel.invalid');
   const path = url.pathname;
+  panel.calls.push(path);
 
   if (request.headers.authorization !== `Bearer ${TOKEN}`) {
     sendJson(response, 401, { error: 'not authorized' });
@@ -143,8 +146,41 @@ async function answerPanel(request: IncomingMessage, response: ServerResponse): 
             nest_id: 5,
           },
         },
+        {
+          object: 'egg',
+          attributes: {
+            id: 17,
+            uuid: 'egg-uuid-postgres',
+            name: 'Postgres 16',
+            docker_image: 'ghcr.io/ptero-eggs/yolks:postgres_16',
+            startup: 'postgres -D /home/container/postgres_db/',
+            nest_id: 5,
+          },
+        },
+        {
+          object: 'egg',
+          attributes: {
+            id: 18,
+            uuid: 'egg-uuid-code-server',
+            name: 'Code-Server',
+            docker_image: 'ghcr.io/ptero-eggs/yolks:nodejs_18',
+            startup: 'sh .local/lib/code-server-{{VERSION}}/bin/code-server',
+            nest_id: 5,
+          },
+        },
+        {
+          object: 'egg',
+          attributes: {
+            id: 19,
+            uuid: 'egg-uuid-uptime-kuma',
+            name: 'Uptime Kuma',
+            docker_image: 'ghcr.io/ptero-eggs/apps:uptimekuma',
+            startup: 'node /home/container/server/server.js',
+            nest_id: 5,
+          },
+        },
       ],
-      meta: { pagination: { total: 1, count: 1, per_page: 100, current_page: 1, total_pages: 1 } },
+      meta: { pagination: { total: 4, count: 4, per_page: 100, current_page: 1, total_pages: 1 } },
     });
     return;
   }
@@ -208,6 +244,7 @@ afterAll(async () => {
 beforeEach(() => {
   panel.servers = [];
   panel.created = [];
+  panel.calls = [];
 });
 
 const application = await import('../src/services/pterodactyl/application.js');
@@ -308,5 +345,46 @@ describe('the environment of the egg', () => {
     expect(server.id).toBe(100);
     expect(panel.created).toHaveLength(1);
     expect(panel.created[0]?.environment).toEqual(template);
+  });
+});
+
+describe('the environment of an egg that is named', () => {
+  it('is found by the name the panel gives the egg', async () => {
+    // The number of an egg belongs to the panel: it is given when the egg is
+    // imported. The name is written in the egg itself, so the platform looks
+    // the egg up by its name.
+    const template = await application.eggEnvironmentTemplate(17);
+
+    expect(template.PGUSER).toBe('postgres');
+    expect(template.PGPASSWORD).toBeTruthy();
+    expect(Object.keys(template).sort()).toEqual(['PGPASSWORD', 'PGUSER']);
+  });
+
+  it('is found without asking the panel when the name is known', async () => {
+    const calls = panel.calls.length;
+    const template = await application.eggEnvironmentTemplate(17, 'Postgres 16');
+
+    expect(template.PGUSER).toBe('postgres');
+    expect(panel.calls.length).toBe(calls);
+  });
+
+  it('carries the variables of the official eggs of the platform', async () => {
+    // The variables of the official eggs are known: the panel refuses a
+    // server whose environment does not carry all of them, and it refuses the
+    // ones that break the rule of the egg.
+    const postgres = await application.eggEnvironmentTemplate(17);
+    expect(Object.keys(postgres).sort()).toEqual(['PGPASSWORD', 'PGUSER']);
+    expect(postgres.PGUSER.length).toBeLessThanOrEqual(20);
+    expect(postgres.PGPASSWORD.length).toBeLessThanOrEqual(20);
+
+    const codeServer = await application.eggEnvironmentTemplate(18);
+    expect(Object.keys(codeServer).sort()).toEqual(['PASSWORD', 'VERSION']);
+    expect(codeServer.VERSION).toBe('latest');
+    expect(codeServer.PASSWORD.length).toBeLessThanOrEqual(32);
+
+    const uptime = await application.eggEnvironmentTemplate(19);
+    expect(Object.keys(uptime).sort()).toEqual(['AUTO_UPDATE', 'GIT_ADDRESS', 'JS_FILE']);
+    expect(uptime.JS_FILE).toBe('server/server.js');
+    expect(uptime.AUTO_UPDATE).toBe('1');
   });
 });

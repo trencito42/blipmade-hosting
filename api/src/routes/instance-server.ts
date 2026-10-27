@@ -9,6 +9,7 @@ import * as client from '../services/pterodactyl/client.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import * as operations from '../services/panel/operations.js';
 import { reinstallInstance } from '../services/reinstall.js';
+import { openVariables, parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
 import { assertBoundedFields, MAX_ENVIRONMENT_VARIABLES, MAX_PAYLOAD_KEYS } from '../lib/bounded.js';
 
 /**
@@ -586,6 +587,48 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     } catch (error) {
       return translatePanelError(error);
     }
+  });
+
+  // --- credentials of the service ------------------------------------------
+
+  /**
+   * The variables the platform made for this instance.
+   *
+   * Some products come with a password that the platform makes for every
+   * instance, such as the password of the database. The owner of the instance
+   * reads it here, because there is nowhere else it is written in the clear:
+   * the container holds it and the platform keeps it encrypted.
+   *
+   * The answer holds the password, so the call is written to the audit log.
+   */
+  app.get('/instances/:id/credentials', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = idParam.parse(request.params);
+    const instance = await operations.loadOwnedInstance(user.id, id);
+
+    const specs = parseGeneratedVariableSpecs(instance.productVariables);
+    const names = Object.keys(specs);
+    if (names.length === 0) {
+      return { credentials: [] };
+    }
+
+    const values = openVariables(instance.generatedVariables);
+    const credentials = names.map((name) => ({
+      name,
+      label: specs[name]?.label ?? name,
+      value: values?.[name] ?? null,
+    }));
+
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'instance.credentials_read',
+      targetType: 'instance',
+      targetId: instance.id,
+      meta: { variables: names },
+    });
+
+    return { credentials };
   });
 
   // --- backups -------------------------------------------------------------

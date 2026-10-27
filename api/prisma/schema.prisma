@@ -344,8 +344,18 @@ model Product {
   // Pterodactyl egg mapping.
   eggId       Int?
   eggUuid     String?
+  // The name of the egg the product runs on. The number of an egg belongs to
+  // the panel and is given when the egg is imported, so a product that names
+  // its egg keeps working when the panel is moved or when the egg is
+  // imported again. The number is used when it is set.
+  eggName     String?
   dockerImage String?
   startup     Json?
+  // The variables the platform makes for every instance of this product, such
+  // as the password of a database. They are written in the environment of the
+  // container and shown to the owner of the instance:
+  // { "PGPASSWORD": { "length": 20 } }
+  generatedVariables Json?
   // The command the container runs. Overrides the egg default when set.
   startupCommand String?
   // Minimum resources required to run.
@@ -778,6 +788,11 @@ model Instance {
   // after this step instead of starting over, which is what keeps a retry
   // from reinstalling a server that is already running.
   provisionStep     String?
+  // The variables the platform made for this instance, such as the password
+  // of a database. They are encrypted with the secret of the deployment, so
+  // they can be shown to the owner of the instance without being written in
+  // the clear. The value is empty for an instance that needs no such variable.
+  generatedVariables String?
   // Set while a worker holds the instance, so two jobs cannot provision it.
   provisionLockAt   DateTime?
   suspendedAt       DateTime?

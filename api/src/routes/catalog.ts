@@ -42,6 +42,7 @@ function serializeProduct(product: {
   visible: boolean;
   deployable: boolean;
   eggId: number | null;
+  eggName: string | null;
   docsUrl: string | null;
   fulfilment: string;
   mailMaxDomains: number | null;
@@ -75,6 +76,7 @@ function serializeProduct(product: {
       name: product.name,
       deployable: product.deployable,
       eggId: product.eggId,
+      eggName: product.eggName,
       visible: product.visible,
       fulfilment: product.fulfilment as never,
     },

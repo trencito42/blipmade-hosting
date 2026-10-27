@@ -14,6 +14,12 @@ import {
 } from './panel/credentials.js';
 import { cancelSubscription, refundPayment } from './stripe.js';
 import { planStarterFiles, starterFiles } from './starter-apps.js';
+import {
+  generateVariables,
+  openVariables,
+  parseGeneratedVariableSpecs,
+  sealVariables,
+} from './instance-credentials.js';
 import type { Instance, Product } from '@prisma/client';
 import {
   judgeContainer,
@@ -587,17 +593,28 @@ async function chooseNode(instance: { ram: number; disk: number; cpu: number }, 
  * The environment starts from the egg's defaults and is then overridden by the
  * product configuration, so a product can change the startup variables of its
  * container.
+ *
+ * The egg is found by its number when the product carries one, and by its
+ * name when it does not. The number of an egg is given by the panel when the
+ * egg is imported, so a product that names its egg does not have to be
+ * changed when the panel is moved.
  */
 async function resolveEgg(product: Product): Promise<{ egg: number; image: string; startup: string; environment: Record<string, string> }> {
-  if (!product.eggId) {
+  const wantedId = product.eggId;
+  const wantedName = product.eggName ? product.eggName.trim().toLowerCase() : null;
+  if (!wantedId && !wantedName) {
     throw new ProvisioningError('server_created', `${product.name} has no egg mapping yet.`);
   }
   const nests = await ptero.listNests();
   for (const nest of nests) {
     const eggs = await ptero.listEggs(nest.id);
-    const egg = eggs.find((candidate) => candidate.id === product.eggId);
+    const egg = eggs.find((candidate) =>
+      wantedId
+        ? candidate.id === wantedId
+        : candidate.name.trim().toLowerCase() === wantedName,
+    );
     if (egg) {
-      const template = await ptero.eggEnvironmentTemplate(egg.id);
+      const template = await ptero.eggEnvironmentTemplate(egg.id, egg.name);
       const overrides = (product.startup as Record<string, string> | undefined) ?? {};
       return {
         egg: egg.id,
@@ -608,6 +625,39 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
     }
   }
   throw new ProvisioningError('server_created', 'The mapped egg is not available on the panel.');
+}
+
+/**
+ * The variables the platform makes for an instance of this product.
+ *
+ * They are made once and kept on the instance, so a run that is repeated
+ * uses the values the server already runs with. A password that changed
+ * between two runs would leave the owner of the instance with a password that
+ * does not open the service.
+ */
+async function generatedVariablesFor(
+  instance: Instance & { product: Product },
+): Promise<Record<string, string>> {
+  const specs = parseGeneratedVariableSpecs(instance.product.generatedVariables);
+  const names = Object.keys(specs);
+  if (names.length === 0) return {};
+
+  const stored = openVariables(instance.generatedVariables);
+  if (stored) {
+    const values: Record<string, string> = {};
+    for (const name of names) {
+      const value = stored[name];
+      if (typeof value === 'string' && value !== '') values[name] = value;
+    }
+    if (Object.keys(values).length === names.length) return values;
+  }
+
+  const values = generateVariables(specs);
+  await prisma.instance.update({
+    where: { id: instance.id },
+    data: { generatedVariables: sealVariables(values) },
+  });
+  return values;
 }
 
 /**
@@ -1411,7 +1461,11 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       const egg = await resolveEgg(product);
       await beginProvisioning(instance, 'server_created');
 
-      const environment: Record<string, string> = { ...egg.environment };
+      // The variables the product asks for are made here, so the container
+      // runs with them and the owner of the instance can read them in the
+      // console of the service.
+      const made = await generatedVariablesFor(instance);
+      const environment: Record<string, string> = { ...egg.environment, ...made };
 
       const created = await ptero.createServer({
         name: instance.name,

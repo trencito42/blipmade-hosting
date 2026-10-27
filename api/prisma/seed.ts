@@ -28,11 +28,15 @@ interface SeedProduct {
   maxDisk: number;
   baseAmount: number;
   eggId: number | null;
+  /** The name of the egg of the panel the product runs on. */
+  eggName: string | null;
   dockerImage: string | null;
   /** The command the container runs. Overrides the egg default when set. */
   startupCommand: string | null;
   /** Environment variables passed to the container. */
   startup: Record<string, string>;
+  /** The variables the platform makes for every instance of the product. */
+  generatedVariables: Record<string, { length: number; label: string }> | null;
   deployable: boolean;
   sortOrder: number;
 }
@@ -43,11 +47,16 @@ interface SeedProduct {
  * ghcr.io/ptero-eggs/yolks:nodejs_25. A Node.js container was smoke tested
  * on it and answered HTTP 200 on 10.77.0.11:30000.
  *
- * So only the product that runs on that egg is deployable. Every other
- * product stays unavailable until its own image is installed on the panel and
- * smoke tested, which means it must not advertise an egg, an image or a
- * startup command that does not exist there. An invented mapping would fail
- * at provisioning time, in front of a paying customer.
+ * The three official eggs of Pterodactyl — Code-Server, Uptime Kuma and
+ * Postgres 16 — are named here, because they are imported into the panel by
+ * name and the number of an egg belongs to the panel. They stay
+ * `deployable: false` until a server of each of them was really built and
+ * answered on the node, because a product that is opened for ordering before
+ * it was proved fails in front of a paying customer.
+ *
+ * WordPress stays closed as well: the node.js egg is not WordPress, so a
+ * WordPress product that runs on it would give the customer something else
+ * than what he paid for.
  */
 const VERIFIED_EGG_ID = 15;
 const VERIFIED_IMAGE = 'ghcr.io/ptero-eggs/yolks:nodejs_25';
@@ -58,7 +67,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'WordPress',
     category: 'WEB_CMS',
     description:
-      'The most widely used CMS. Its image is not installed on the platform yet, so it is listed but cannot be deployed.',
+      'The most widely used CMS. It runs on a WordPress image of the panel, and that image is not installed on the platform yet, so it is listed but cannot be deployed.',
     icon: 'globe',
     minRam: 512,
     minCpu: 1,
@@ -71,9 +80,11 @@ const PRODUCTS: SeedProduct[] = [
     maxDisk: 100,
     baseAmount: 149,
     eggId: null,
+    eggName: null,
     dockerImage: null,
     startupCommand: null,
     startup: {},
+    generatedVariables: null,
     deployable: false,
     sortOrder: 10,
   },
@@ -82,7 +93,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'Code Server',
     category: 'DEVELOPER_TOOLS',
     description:
-      'Visual Studio Code in the browser, running on your own resources. Its image is not installed on the platform yet, so it cannot be deployed.',
+      'Visual Studio Code in the browser, running on your own resources.',
     icon: 'term',
     minRam: 1024,
     minCpu: 1,
@@ -95,9 +106,13 @@ const PRODUCTS: SeedProduct[] = [
     maxDisk: 100,
     baseAmount: 299,
     eggId: null,
-    dockerImage: null,
+    eggName: 'Code-Server',
+    dockerImage: 'ghcr.io/ptero-eggs/yolks:nodejs_18',
     startupCommand: null,
     startup: {},
+    // The password of the editor is made for every instance, so two
+    // customers never hold the same one.
+    generatedVariables: { PASSWORD: { length: 24, label: 'Password of the editor' } },
     deployable: false,
     sortOrder: 20,
   },
@@ -119,11 +134,13 @@ const PRODUCTS: SeedProduct[] = [
     maxDisk: 50,
     baseAmount: 149,
     eggId: VERIFIED_EGG_ID,
+    eggName: 'node.js generic',
     dockerImage: VERIFIED_IMAGE,
     // The generic Node.js egg starts the container with `npm run start`, and
     // MAIN_FILE tells it which file that script runs.
     startupCommand: 'npm run start',
     startup: { MAIN_FILE: 'index.js' },
+    generatedVariables: null,
     deployable: true,
     sortOrder: 30,
   },
@@ -132,7 +149,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'Uptime Kuma',
     category: 'MONITORING',
     description:
-      'Simple uptime monitoring with public status pages. Its image is not installed on the platform yet, so it cannot be deployed.',
+      'Simple uptime monitoring with public status pages.',
     icon: 'mon',
     minRam: 256,
     minCpu: 1,
@@ -145,9 +162,11 @@ const PRODUCTS: SeedProduct[] = [
     maxDisk: 50,
     baseAmount: 149,
     eggId: null,
-    dockerImage: null,
+    eggName: 'Uptime Kuma',
+    dockerImage: 'ghcr.io/ptero-eggs/apps:uptimekuma',
     startupCommand: null,
     startup: {},
+    generatedVariables: null,
     deployable: false,
     sortOrder: 40,
   },
@@ -156,7 +175,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'PostgreSQL',
     category: 'DATABASES',
     description:
-      'Relational database with a connection string for your applications. Its image is not installed on the platform yet, so it cannot be deployed.',
+      'PostgreSQL for your applications, with the connection details and a password of your own.',
     icon: 'db',
     minRam: 1024,
     minCpu: 1,
@@ -169,9 +188,13 @@ const PRODUCTS: SeedProduct[] = [
     maxDisk: 200,
     baseAmount: 449,
     eggId: null,
-    dockerImage: null,
+    eggName: 'Postgres 16',
+    dockerImage: 'ghcr.io/ptero-eggs/yolks:postgres_16',
     startupCommand: null,
     startup: {},
+    // The password of the superuser is made for every instance, so two
+    // customers never hold the same one.
+    generatedVariables: { PGPASSWORD: { length: 20, label: 'Password of the database superuser' } },
     deployable: false,
     sortOrder: 50,
   },
@@ -203,9 +226,11 @@ async function main(): Promise<void> {
         maxCpu: product.maxCpu,
         maxDisk: product.maxDisk,
         eggId: product.eggId,
+        eggName: product.eggName,
         dockerImage: product.dockerImage,
         startup: product.startup,
         startupCommand: product.startupCommand,
+        generatedVariables: product.generatedVariables as never,
         deployable: product.deployable,
         visible: true,
         sortOrder: product.sortOrder,
@@ -229,9 +254,11 @@ async function main(): Promise<void> {
         // verified on the panel, so the seed is authoritative for them. A
         // product that lost its mapping here loses it in the database too.
         eggId: product.eggId,
+        eggName: product.eggName,
         dockerImage: product.dockerImage,
         startup: product.startup,
         startupCommand: product.startupCommand,
+        generatedVariables: product.generatedVariables as never,
         deployable: product.deployable,
         sortOrder: product.sortOrder,
       },

@@ -25,6 +25,10 @@ export interface OwnedInstance {
   pterodactylUuid: string | null;
   pterodactylServerId: number | null;
   status: string;
+  /** The variables the platform made for this instance, encrypted. */
+  generatedVariables: string | null;
+  /** The variables the product of the instance asks for. */
+  productVariables: unknown;
 }
 
 /**
@@ -42,10 +46,20 @@ export async function loadOwnedInstance(userId: string, id: string): Promise<Own
       pterodactylUuid: true,
       pterodactylServerId: true,
       status: true,
+      generatedVariables: true,
+      product: { select: { generatedVariables: true } },
     },
   });
   if (!instance) throw notFound('Instance not found.');
-  return instance;
+  return {
+    id: instance.id,
+    userId: instance.userId,
+    pterodactylUuid: instance.pterodactylUuid,
+    pterodactylServerId: instance.pterodactylServerId,
+    status: instance.status,
+    generatedVariables: instance.generatedVariables,
+    productVariables: instance.product.generatedVariables,
+  };
 }
 
 /**

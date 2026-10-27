@@ -366,6 +366,26 @@ export const deleteDatabase = (id: string, databaseId: string) =>
 export const getDatabaseCredentials = (id: string, databaseId: string) =>
   get<{ credentials: DatabaseCredentials }>(`/instances/${id}/databases/${databaseId}/credentials`);
 
+// --- credentials of the service ---------------------------------------------
+
+/** One variable the platform made for this instance. */
+export interface InstanceCredential {
+  /** The name of the variable in the container. */
+  name: string;
+  /** The name the customer reads. */
+  label: string;
+  /** The value, or null when it cannot be read any more. */
+  value: string | null;
+}
+
+/**
+ * The variables the platform made for this instance, such as the password of
+ * a database. The password is only in this answer, and the call is written to
+ * the audit log.
+ */
+export const getInstanceCredentials = (id: string) =>
+  get<{ credentials: InstanceCredential[] }>(`/instances/${id}/credentials`);
+
 // --- backups ---------------------------------------------------------------
 
 export const listBackups = (id: string, signal?: AbortSignal) =>

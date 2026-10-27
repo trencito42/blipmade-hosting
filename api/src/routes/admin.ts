@@ -700,6 +700,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         visible: product.visible,
         deployable: product.deployable,
         eggId: product.eggId,
+        eggName: product.eggName,
         dockerImage: product.dockerImage,
         // What the catalog and the ordering will answer for this product.
         availability: deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }),
@@ -749,6 +750,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         description: z.string().trim().min(10).max(2000),
         icon: z.string().trim().max(40).default('box'),
         eggId: z.number().int().positive().nullable().optional(),
+        eggName: z.string().trim().min(1).max(120).nullable().optional(),
         dockerImage: z.string().trim().max(300).nullable().optional(),
         startup: z.record(z.string()).nullable().optional(),
         startupCommand: z.string().trim().max(4000).nullable().optional(),
@@ -777,8 +779,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     // A product can only be opened for ordering when the panel can build it.
     // A product without an egg mapping can never be deployed, so it must not
-    // be sellable either.
-    if (body.deployable && !isMail && (body.eggId === null || body.eggId === undefined)) {
+    // be sellable either. The egg may be named instead of numbered: the
+    // number of an egg belongs to the panel and is given when the egg is
+    // imported.
+    if (body.deployable && !isMail && (body.eggId === null || body.eggId === undefined) && !body.eggName) {
       throw badRequest('Set the panel egg of the product before it can be ordered. A product without an egg can never be deployed.');
     }
 
@@ -790,6 +794,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         description: body.description,
         icon: body.icon,
         eggId: isMail ? null : body.eggId ?? null,
+        eggName: isMail ? null : body.eggName ?? null,
         dockerImage: body.dockerImage ?? null,
         startup: (body.startup ?? undefined) as never,
         startupCommand: body.startupCommand ?? null,
@@ -832,6 +837,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         visible: z.boolean().optional(),
         deployable: z.boolean().optional(),
         eggId: z.number().int().positive().nullable().optional(),
+        eggName: z.string().trim().min(1).max(120).nullable().optional(),
         dockerImage: z.string().trim().max(300).nullable().optional(),
         startupCommand: z.string().trim().max(4000).nullable().optional(),
         minRam: z.number().int().positive().optional(),
@@ -850,10 +856,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     // Opening a product for ordering needs a product the panel can build.
     // Without an egg mapping the deployment fails at the step "server_created",
-    // so the flag must not be set on a product that has none.
+    // so the flag must not be set on a product that has none. The egg may be
+    // named instead of numbered.
     if (body.deployable === true) {
       const eggId = body.eggId !== undefined ? body.eggId : product.eggId;
-      if (eggId === null || eggId === undefined) {
+      const eggName = body.eggName !== undefined ? body.eggName : product.eggName;
+      if ((eggId === null || eggId === undefined) && !eggName) {
         throw badRequest('Set the panel egg of the product before it can be ordered. A product without an egg can never be deployed.');
       }
     }
