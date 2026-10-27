@@ -63,7 +63,7 @@ EMAIL="verify-${STAMP}@blipmade.test"
 PASSWORD="$(head -c 18 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 
 say "writing the customer, the order and the instance of the test"
-INSTANCE_ID="$(cat <<SQL | "${PSQL[@]}" -f - | head -n 1
+INSTANCE_ID="$(cat <<SQL | "${PSQL[@]}" -f -
 WITH customer AS (
   INSERT INTO "User" ("id", "email", "passwordHash", "role", "firstName", "lastName", "emailVerifiedAt", "createdAt", "updatedAt")
   VALUES ('verify-${STAMP}', '${EMAIL}', 'not-a-real-hash', 'CUSTOMER', 'Verify', 'Instance', NOW(), NOW(), NOW())
