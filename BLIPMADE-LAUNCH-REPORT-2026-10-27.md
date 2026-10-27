@@ -12,8 +12,8 @@ Runda aceasta a fost despre trei lucruri: activarea produselor care nu puteau fi
 | --- | --- |
 | `main` pe GitHub | pushat, fast-forward, fără force-push |
 | CI | **7/7 joburi verzi** pe ultimul commit |
-| Suita API | **108 fișiere, 1034 teste trecute, 6 sărite** |
-| Suita web | **304/304** |
+| Suita API | **112 fișiere, 1047 teste trecute, 6 sărite** |
+| Suita web | **305/305** |
 | Typecheck API + teste | curat |
 | Migrări în producție | **18 aplicate, 0 în așteptare, 0 eșuate** |
 | Containere | **5/5 healthy** |
@@ -40,6 +40,12 @@ Cele trei produse — Code Server, Uptime Kuma și PostgreSQL — primesc acum o
 | `pterodactyl-eggs/postgres16.json`, `code-server.json`, `uptime-kuma.json` | fișierele oficiale, în formatul pe care panoul îl citește, verificate |
 | `pterodactyl-eggs/README.md` | pasul exact de import, în interfața panoului |
 | `scripts/fetch-eggs.mjs` | reia fișierele și le verifică în același mod în care le verifică panoul |
+| `api/src/services/ops-health.ts` | al doilea-lea check, `panel`: întreabă panoul cu cererea de care se folosește provisionarea și deosebește cheia refuzată de cheia fără permisiune |
+| `api/src/services/notification-events.ts`, `api/src/lib/email-design.ts`, `api/src/services/notifications.ts` | evenimentul, templateul și publisher-ul alarmei `ops.panel_unreachable` |
+| `api/src/routes/ops.ts` | ruta de confirmare a unui finding știe și check-ul `panel` |
+| `scripts/apply-panel-key.sh` | comanda pentru cheia Application API: o citește de la intrare și o verifică cu codul platformei |
+| `api/tests/ops-panel-check.test.ts` | check-ul de panou e testat cu panoul înlocuit: răspuns bun, cheie refuzată, permisiune lipsă |
+| `docs/OPERATIONS-HEALTH.md`, `docs/LAUNCH-CHECKLIST.md` | ceasele de supraveghere, canalul Discord și pasul cheii de panou |
 | `scripts/apply-stripe-live.sh` | pune cheile live în `.env` într-un singur pas |
 | `scripts/deploy-test-instance.sh` | construiește o instanță reală a unui produs și o verifică |
 | `docs/LAUNCH-CHECKLIST.md` | tot ce mai trebuie făcut, cu comenzile exacte |
@@ -218,11 +224,43 @@ Verificat pe pagina reală, cu un browser: după reparare, **toate** cererile pa
 
 ---
 
+## 2 septies. Platforma spune acum când nu poate vorbi cu panoul (20:36–20:45)
+
+**Măsurat:** cheia Application API a panoului a fost revocată. `GET /api/application/servers` răspunde `401 Unauthenticated`, deci platforma nu poate nici să listeze serverele, nici să construiască o instanță. Până la ora 20:36 asta nu producea niciun zgomot: o comandă nouă eșua în tăcere, într-un loc unde nimeni nu privește.
+
+**Acum:** sweep-ul de sănătate are un al doilea-lea check, `panel`, care întreabă panoul cu aceeași întrebare ca provisionarea — aceeași cerere, aceeași cheie. Rezultatul măsurat pe mașina reală:
+
+| | |
+| --- | --- |
+| Stare | `critical` |
+| Finding | `panel:application-key` |
+| Rezumat | „The panel refused the key of the platform." |
+| Detaliu | `Pterodactyl GET /api/application/servers?per_page=100 failed with 401. Unauthenticated.` |
+
+Rezumatul deosebește două probleme care se repară în două locuri diferite: `401` înseamnă că cheia nu mai e acceptată și trebuie făcută din nou în panou, `403` înseamnă că cheia e acceptată dar nu are permisiunea de citit serverele.
+
+**Alarma are traseul complet, măsurat la 20:43:** eveniment propriu `ops.panel_unreachable` în catalog, template propriu, publisher propriu. În producție: e-mailul operatorului livrat prin SMTP (`delivered`), mesajul Discord trimis (niciun refuz în logul workerului), linia scrisă în jurnalul alarmelor (`/var/backups/blipmade/status/ops-alerts.ndjson`).
+
+**Verificat pe mașina reală, ca administrator:** `GET /api/ops/health` răspunde `200` și listează **12** check-uri, dintre care `panel` în `critical`. Sweep-ul din worker a raportat „12 check(s), 1 finding(s), 1 alarm(s) sent, 0 held back".
+
+**Scriptul pentru cheie:** `scripts/apply-panel-key.sh` citește cheia de la intrare (deci nu apare în lista proceselor și nici în istoricul shell-ului), păstrează o copie a `.env` înainte de scriere, repornește api-ul și worker-ul și **verifică cheia cu codul platformei**: o cheie refuzată e prinsă acolo, nu la prima comandă a unui client. Testat cu o cheie falsă — exit 1, mesaj explicit.
+
+**Ce a rămas la operator:** cheia Application API nouă (Administration → API Keys → Application API, cu permisiunea de creare servere) și aplicarea ei:
+
+```bash
+printf '%s' "$PANEL_KEY" | ./scripts/apply-panel-key.sh
+```
+
+**Încă un cont de administrator:** `stefan@xodo.ro` a fost ridicat la ADMIN la 19:52, la cererea ta („dă-mi admin"). Deci sunt **trei** conturi cu rol ADMIN — `nissqbv@gmail.com`, `horja3i@gmail.com` și `stefan@xodo.ro` — și toate trei au încă aceeași parolă (`ADMIN_PASSWORD`).
+
+---
+
 ## 3. Ce mai trebuie făcut pentru lansare
 
 | # | Acțiune | Cine | Cum se verifică |
 | --- | --- | --- | --- |
-| 0 | Schimbă parolele celor două conturi de staff (`nissqbv@gmail.com`, `horja3i@gmail.com`) — acum amândoi au parola veche de administrator | **operator** | fiecare intră cu parola lui |
+| 0 | Schimbă parolele celor trei conturi de administrator (`nissqbv@gmail.com`, `horja3i@gmail.com`, `stefan@xodo.ro`) — acum toate trei au parola veche de administrator | **operator** | fiecare intră cu parola lui |
+| 0 bis | Fă o cheie Application API nouă în panou și aplic-o: `printf '%s' "$PANEL_KEY" \| ./scripts/apply-panel-key.sh` — fără ea nicio comandă nouă nu poate fi provisionată | **operator** | check-ul `panel` din `/admin/ops` trece din `critical` în `ok` |
 | 1 | Importă cele trei ouă în panou | **operator** | API-ul panoului răspunde cu `Postgres 16`, `Code-Server`, `Uptime Kuma` |
 | 2 | ~~Trimite cheile Stripe live~~ — **făcut** (18:44) | — | `/api/health` arată `stripe: live`; o livrare semnată primește `200` |
 | 3 | În dashboard-ul Stripe: endpointul `https://blipmade.com/api/webhooks/stripe` și evenimentele `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `charge.refunded` | **operator** | o comandă reală de plată ajunge la platformă și marchează comanda plătită |
