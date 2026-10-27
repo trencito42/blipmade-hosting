@@ -903,7 +903,7 @@ async function checkPanel(now: Date): Promise<OpsCheckResult> {
       status === 401
         ? 'The panel refused the key of the platform.'
         : status === 403
-          ? 'The key of the platform may not read the servers of the panel.'
+          ? 'The key of the platform misses a permission: it may not read the servers of the panel.'
           : 'The panel could not be reached with the key of the platform.';
     findings.push({
       fingerprint: 'panel:application-key',
