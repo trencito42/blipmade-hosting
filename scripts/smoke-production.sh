@@ -66,6 +66,28 @@ sys.exit(0 if ($expression) else 1)
   fi
 }
 
+echo "=== waiting for the platform to answer ==="
+# The checks begin only when the api answers. Right after a release the
+# containers are still starting, and a check that runs too early says that the
+# platform is broken when it is only warming up: the gateway answers 502 and
+# the health of the host answers nothing at all.
+READY=0
+for attempt in $(seq 1 30); do
+  CODE="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "$API_LOCAL/health" 2>/dev/null)"
+  if [[ "$CODE" == "200" ]]; then
+    READY=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$READY" == "1" ]]; then
+  printf '  ok    %-46s %s\n' "the api answers" "$CODE"
+else
+  printf '  FAIL  %-46s %s\n' "the api answers" "the api did not answer in a minute"
+  exit 1
+fi
+
+echo
 echo "=== public pages (over the internet, through the gateway) ==="
 check "homepage"                      200 "$BASE_PUBLIC/"
 check "catalog"                       200 "$BASE_PUBLIC/catalog"
