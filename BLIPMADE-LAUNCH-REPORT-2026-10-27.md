@@ -161,21 +161,42 @@ Deci `mail.xodo.ro` acceptă orice expeditor al cărui domeniu poate fi rezolvat
 
 ---
 
+## 2 quater. Cheile live, aplicate la 18:44, și un bug găsit chiar de acolo
+
+**Cheile Stripe live sunt în producție.** Le-am aplicat cu `scripts/apply-stripe-live.sh`, citite de la intrare (nu apar în lista proceselor, nici în istoricul shell-ului):
+
+| | |
+| --- | --- |
+| `STRIPE_SECRET_KEY` | `sk_live_…` |
+| `STRIPE_PUBLISHABLE_KEY` | `pk_live_…` |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_…` |
+| `PAYMENTS_ENABLED` | `true` |
+| `STRIPE_TEST_MODE` | `false` |
+
+`/api/health` spune acum `stripe: live`. **Endpoint-ul de webhook Stripe e verificat cu cheia live**: o livrare semnată corect, trimisă prin adresa publică `https://blipmade.com/api/webhooks/stripe`, a primit `200 {"received":true}` și a fost scrisă în jurnalul evenimentelor fără efecte asupra comenzilor (5 utilizatori, 11 comenzi, 0 plătite, 5 instanțe — întregul a rămas neatins).
+
+**Canalul Discord e viu.** Adresa e în `/opt/blipmade/secrets/discord-webhook` (`0444`, într-un director `0700`), iar `.env` spune platformei unde e. Mesajul de test a fost primit: *„the answer of Discord: sent — Discord took the message"*. Alarmele platformei ajung în canal.
+
+**Bug găsit chiar acum:** la prima încercare, Discord a răspuns `400`. Payload-ul era bine format, cu un singur defect: câmpul severității pleca **fără valoare**, pentru că severitatea testului (`info`) nu era în harta de cuvinte. Discord refuză **mesajul întreg** când un câmp nu are valoare — deci fiecare alarmă a platformei s-ar fi pierdut la fel, fără nimeni care să afle de ce. Reparare: `info` e acum o severitate cu cuvântul și culoarea ei, orice câmp al embed-ului are valoare (o severitate necunoscută cade pe cuvântul ei), iar un test ține regula: fiecare câmp are valoare, pentru fiecare severitate. **Fără proba pe mașina reală, acest bug ar fi rămas ascuns până la prima alarmă reală.**
+
+---
+
 
 ## 3. Ce mai trebuie făcut pentru lansare
 
 | # | Acțiune | Cine | Cum se verifică |
 | --- | --- | --- | --- |
 | 1 | Importă cele trei ouă în panou | **operator** | API-ul panoului răspunde cu `Postgres 16`, `Code-Server`, `Uptime Kuma` |
-| 2 | Trimite cheile Stripe live | **operator → eu** | `/api/health` arată `stripe: live` și `PAYMENTS_ENABLED=true` |
-| 3 | Pe `mail.xodo.ro`: căsuța (sau aliasul) `no-reply@blipmade.com`, ori `smtpd_reject_unlisted_sender = no` + `postfix reload` | **operator** | resetul de parolă ajunge la `stefan@xodo.ro` |
-| 4 | DNS: `MX 10 mail.blipmade.com` pentru `blipmade.com`, PTR pentru `193.34.214.20` și `193.34.214.143` | **operator** | mesajele din domeniu primesc răspuns și nu cad în spam |
-| 5 | Wildcard `*.apps.blipmade.com` → `A 193.34.214.143`, DNS only | **operator** | adresa de instanță se deschide pe HTTPS |
-| 6 | Adresa webhook-ului Discord (comanda e gata și probată) | **operator** | evenimentele ajung în canal |
-| 7 | Cheia publică age a operatorului | **operator** | `scripts/recovery-package.sh` poate construi pachetul |
-| 8 | Găzduitor extern pentru copiile de backup | **operator** | o copie trăiește în afara clusterului |
-| 9 | Testul de deployment real al celor trei produse | **eu**, după pasul 1 | o instanță răspunde pe nod |
-| 10 | Deschiderea produselor în catalog + rescrierea paginilor | **eu**, după pasul 9 | catalogul arată `DEPLOYABLE`, pagina nu mai are „Planned" |
+| 2 | ~~Trimite cheile Stripe live~~ — **făcut** (18:44) | — | `/api/health` arată `stripe: live`; o livrare semnată primește `200` |
+| 3 | În dashboard-ul Stripe: endpointul `https://blipmade.com/api/webhooks/stripe` și evenimentele `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `charge.refunded` | **operator** | o comandă reală de plată ajunge la platformă și marchează comanda plătită |
+| 4 | Pe `mail.xodo.ro`: căsuța (sau aliasul) `no-reply@blipmade.com`, ori `smtpd_reject_unlisted_sender = no` + `postfix reload` | **operator** | resetul de parolă ajunge la `stefan@xodo.ro` |
+| 5 | DNS: `MX 10 mail.blipmade.com` pentru `blipmade.com`, PTR pentru `193.34.214.20` și `193.34.214.143` | **operator** | mesajele din domeniu primesc răspuns și nu cad în spam |
+| 6 | Wildcard `*.apps.blipmade.com` → `A 193.34.214.143`, DNS only | **operator** | adresa de instanță se deschide pe HTTPS |
+| 7 | ~~Adresa webhook-ului Discord~~ — **făcut** (18:50) | — | Discord a primit mesajul de test |
+| 8 | Cheia publică age a operatorului | **operator** | `scripts/recovery-package.sh` poate construi pachetul |
+| 9 | Găzduitor extern pentru copiile de backup | **operator** | o copie trăiește în afara clusterului |
+| 10 | Testul de deployment real al celor trei produse | **eu**, după pasul 1 | o instanță răspunde pe nod |
+| 11 | Deschiderea produselor în catalog + rescrierea paginilor | **eu**, după pasul 10 | catalogul arată `DEPLOYABLE`, pagina nu mai are „Planned" |
 
 ### Despre curățenia instanțelor
 
@@ -187,7 +208,8 @@ Nu se șterge nimic. Cele cinci instanțe din producție aparțin unor comenzi r
 
 - **Produsele trei nu pot fi comandate încă.** Catalogul le arată corect ca „COMING_SOON", cu motivul „It has not been validated for deployment yet". Ele se deschid numai după ce un server de fiecare a fost construit și a răspuns pe nod.
 - **WordPress nu e livrabil** și rămâne listat, dar închis. Nu există oul de WordPress pe panou.
-- **Plățile sunt încă în sandbox** și `PAYMENTS_ENABLED=false`: acum niciun client nu poate plăti. Cheile din `.env` sunt `sk_test_`/`pk_test_`. Am corectat `/api/health`, care spunea „live" și pentru cheile de sandbox — acum spune `sandbox`, ca să se vadă din stare.
+- **Plățile rulează pe cheile live** (din 27 octombrie, 18:44) și `PAYMENTS_ENABLED=true`, dar **endpoint-ul de webhook din dashboard-ul Stripe încă nu e legat de platformă**: până când nu e, o plată reală nu marchează comanda plătită. Cheile live nu se mai pot schimba fără să se refacă secretul de webhook.
+- **Platforma nu știe că un mail a fost refuzat.** Ea scrie „delivered" pentru că relay-ul a primit mesajul; bounce-ul se întoarce la `no-reply@blipmade.com` și rămâne în căsuța de pe Mailcow, nescit. Citirea bounce-urilor (IMAP + corelarea cu mesajul) e o funcție de făcut, nu e în acest release.
 - **Adresele de instanță nu au încă HTTPS** cu un certificat propriu: edge-ul nu are încă recordul wildcard, iar TLS-on-demand cu dovadă TXT nu e legat.
 - **Pachetul de recuperare criptat nu poate fi construit** fără cheia publică age a operatorului.
 - **Offsite-ul copiilor de backup e tot în cluster** (mașina de mail, `10.77.0.14`), deci nu e independent de pierderea clusterului.

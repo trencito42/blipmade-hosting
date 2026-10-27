@@ -2,41 +2,40 @@
 
 Everything that is left for the launch, in the order it has to be done. Each
 step says who does it and how to check that it worked. Nothing here holds a
-secret, and no step of this file has been applied to the production
-environment.
+secret.
 
-## 1. The live keys of Stripe — the operator
+**Done on the 27th of October 2026:** the live keys of Stripe are applied
+(section 1) and the channel of the alarms of Discord is set (section 5). The
+rest is still open.
 
-The payments run on the sandbox until this step is done. The three keys are
-read from the standard input, so they never appear in the list of the
-processes and never in the history of a shell.
+## 1. The live keys of Stripe — done
 
-On the machine that runs the platform (`/opt/blipmade`):
+The payments run on the live keys since the 27th of October 2026, at 18:44.
+The three keys were read from the standard input, so they never appeared in the
+list of the processes and never in the history of a shell. The copy of the
+`.env` from before the change is kept on the machine, with the mode `600`.
 
-```bash
-printf '%s\n' "$STRIPE_SECRET_KEY" "$STRIPE_PUBLISHABLE_KEY" "$STRIPE_WEBHOOK_SECRET" \
-  | ./scripts/apply-stripe-live.sh
-```
-
-The script refuses a sandbox key, keeps a copy of the `.env` before it writes,
-writes the three keys and `PAYMENTS_ENABLED=true` in one go and restarts the
-api and the worker. It prints nothing that holds a key.
-
-The webhook of Stripe has to answer on the platform:
+The state of the platform after the change:
 
 ```
-https://<the host of the platform>/api/webhooks/stripe
+/api/health -> "stripe": "live"
 ```
 
-The events that matter are `checkout.session.completed`,
-`invoice.paid`, `invoice.payment_failed` and `charge.refunded`. The secret of
-the webhook is the one that was given to the script.
+The webhook of Stripe answers on the platform, and a delivery signed with the
+live secret is accepted:
 
-To check it afterwards:
-
-```bash
-curl -sS https://<the host of the platform>/api/health | jq
 ```
+https://blipmade.com/api/webhooks/stripe
+```
+
+**Still on the operator:** the endpoint of the webhook in the dashboard of
+Stripe has to point at `https://blipmade.com/api/webhooks/stripe`, and the
+events it sends have to be `checkout.session.completed`, `invoice.paid`,
+`invoice.payment_failed` and `charge.refunded`. The secret of the webhook is
+the one that was given to the script.
+
+The events that came before the change belong to the sandbox and are not read
+any more: the platform verifies every delivery with the live secret.
 
 ## 2. The eggs of the panel — the operator
 
@@ -119,14 +118,17 @@ The wildcard `*.apps.blipmade.com` must point at the edge of the platform
 has to cover it. Until that is done, the address of a customer is not served
 over HTTPS and the instance is reached on its own address.
 
-## 5. The webhook of Discord — the operator
+## 5. The webhook of Discord — done
 
-The platform sends the alarms of the operations to a webhook of Discord. The
-address is a secret, and it is **not** in the `.env`: it is written in a file
-that only the owner of the machine can reach (the directory is `0700`, the file
-is `0444` and it is mounted in the containers read only), and the platform is
-told where that file is. The address therefore travels neither with the rest
-of the environment nor with a copy of the configuration.
+The channel of the alarms is set since the 27th of October 2026, at 18:50.
+The last message the platform sent through it was taken by Discord, so the
+alarms of the platform reach the channel.
+
+The address is a secret, and it is **not** in the `.env`: it is written in a
+file that only the owner of the machine can reach (the directory is `0700`,
+the file is `0444` and it is mounted in the containers read only), and the
+platform is told where that file is. The address therefore travels neither
+with the rest of the environment nor with a copy of the configuration.
 
 The address is read from the standard input, so it never appears in the list
 of the processes and never in the history of a shell:
