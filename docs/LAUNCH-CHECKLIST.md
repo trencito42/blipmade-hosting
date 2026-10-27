@@ -5,10 +5,11 @@ step says who does it and how to check that it worked. Nothing here holds a
 secret.
 
 **Done on the 27th of October 2026:** the live keys of Stripe are applied
-(section 1), the channel of the alarms of Discord is set (section 5), and the
+(section 1), the channel of the alarms of Discord is set (section 5), the
 platform has been reset: the customers, the orders, the instances, the
 services on the panel, the audit log and the accounts of the first round are
-gone (section 0).
+gone (section 0), and the platform says now, every five minutes, that it
+cannot talk to the control panel (section 8).
 
 ## 0. The fresh start — done
 
@@ -199,3 +200,31 @@ The copies of the backup of the database are kept on the machine of the mail
 another provider is the only one that survives the loss of the cluster. The
 script `scripts/backup-offsite.sh` writes the copy and the address of the
 target is in the environment of the platform.
+
+## 8. The key of the control panel — the operator
+
+The Application API key of the panel was revoked. The platform cannot list the
+servers of the panel any more, so it cannot build a service: a new order waits
+until the key is made again.
+
+The key is made in the panel: `https://panel.blipmade.com` → **Administration →
+API Keys → Application API**, with the permission to create servers. It is then
+applied on the machine of the platform:
+
+```bash
+printf '%s' "$PANEL_KEY" | ./scripts/apply-panel-key.sh
+```
+
+The script keeps a copy of the `.env` before it writes, restarts the api and
+the worker, and checks the key **with the code of the platform**: it asks the
+panel the same question the provisioning asks. A key that the panel refuses is
+caught there, with the words of the panel, and not at the first order of a
+customer. The key is read from the standard input, so it never appears in the
+list of the processes and never in the history of a shell.
+
+Since the 27th of October 2026, the health of the platform asks the panel the
+same question every five minutes. The check `panel` is `critical` in the page
+of the operations (`/admin/ops`) while the key is refused, and the alarm
+reaches the channel of Discord and the mail of the operator. A key that the
+panel accepts but that may not read the servers is a different problem, and
+the summary says so: that one is fixed by giving the key the permission.
