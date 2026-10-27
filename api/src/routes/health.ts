@@ -99,7 +99,11 @@ async function healthHandler() {
     redis,
     mail: mailTransportName(),
     mailDelivery: mailDeliverySummary(),
-    stripe: env.stripeEnabled ? 'live' : env.isTest ? 'test' : 'not_configured',
+    // The mode of Stripe is written as it is: a key of the sandbox says
+    // "sandbox" and not "live", so the operator sees from the health of the
+    // platform whether the money of a customer goes to Stripe or to the
+    // sandbox of the tests.
+    stripe: env.stripeEnabled ? env.stripeMode : env.isTest ? 'test' : 'not_configured',
     pterodactyl: env.pterodactylEnabled ? 'configured' : 'not_configured',
     panelKeyBridge: env.panelBridgeEnabled ? 'configured' : 'not_installed',
   };

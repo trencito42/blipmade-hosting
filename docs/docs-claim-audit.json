@@ -1114,9 +1114,9 @@
         },
         {
           "claim": "WordPress: 'WordPress is the site builder in the Blipmade catalog: blogs, company sites and small stores. You choose the memory, CPU and disk, and the instance runs the stack for you.' First run: 'Open the instance' -> 'The WordPress installer opens in your browser.', 'Choose the language', 'Create the administrator account', 'Set the permalink structure'. Environment: no variables. Backup: 'Blipmade does not take automatic backups of your data yet. Your content lives in the database and your uploads live in the files of the instance, so back up both.' Upgrade: 'Resize the instance whenever the site needs more room. WordPress keeps running while the change is applied'. Troubleshooting: 'The installer never appears', 'The installer stops at the database step', 'The site is slow or shows a database error'.",
-          "implementation": "api/prisma/seed.ts:57; api/src/services/starter-apps.ts:100",
+          "implementation": "api/prisma/seed.ts:66; api/src/services/starter-apps.ts:100",
           "status": "NOT IMPLEMENTED",
-          "evidence": "The product is listed but not deployable: deployable is false, eggId is null and dockerImage is null, with the description 'Its image is not installed on the platform yet, so it is listed but cannot be deployed' (seed.ts:57-78). The platform writes its own Node.js server, not WordPress (starter-apps.ts:100-120). There is no installer, no wp-config.php and no mysqldump unless the customer installs WordPress himself.",
+          "evidence": "The product is listed but not deployable: deployable is false, eggId is null, eggName is null and dockerImage is null, with the description 'It runs on a WordPress image of the panel, and that image is not installed on the platform yet, so it is listed but cannot be deployed' (seed.ts:66-88). It was marked as orderable and pointed at egg 15, the generic Node.js egg, which would have given the customer a Node.js container instead of WordPress; it was closed again on 2026-10-27. The platform writes its own Node.js server, not WordPress (starter-apps.ts:100-120). There is no installer, no wp-config.php and no mysqldump unless the customer installs WordPress himself.",
           "action": "MARK UNAVAILABLE"
         },
         {
@@ -1135,16 +1135,16 @@
         },
         {
           "claim": "Code Server: 'Code Server is the browser version of Visual Studio Code. It runs on your instance, so your editor, your terminal and your project files are the same machine.' First run: 'Open the instance', 'Set the access password', 'Open your project folder', 'Open a terminal'. Environment: PASSWORD, PORT. Backup: 'Your projects are plain files on the instance. Blipmade does not back them up for you yet.' Upgrade: 'Code Server is stateless: it only serves the files of the instance.' Troubleshooting: 'The editor does not load', 'The terminal says command not found', 'Installed tools disappear after a restart'.",
-          "implementation": "api/prisma/seed.ts:81; api/src/services/starter-apps.ts:100",
+          "implementation": "api/prisma/seed.ts:92; api/src/services/starter-apps.ts:100",
           "status": "NOT IMPLEMENTED",
-          "evidence": "The product is listed but not deployable: deployable false, eggId null, dockerImage null, with the description 'Its image is not installed on the platform yet, so it cannot be deployed' (seed.ts:81-102). The container receives the Node.js server of the platform, not code-server (starter-apps.ts:84-120).",
+          "evidence": "The product is listed but not deployable: deployable false, eggId null, with eggName 'Code-Server' and the image ghcr.io/ptero-eggs/yolks:nodejs_18 (seed.ts:92-116). The egg is not imported in the panel yet, so the product stays closed. The container would receive the Code-Server egg and not the Node.js server of the platform, and the password of the editor is made for every instance and read in the console of the service (api/src/services/instance-credentials.ts).",
           "action": "MARK UNAVAILABLE"
         },
         {
           "claim": "Uptime Kuma: 'Uptime Kuma watches your endpoints over HTTP, TCP or ping and publishes a status page you can share with your own users.' First run: 'Open the instance', 'Read the credentials from the console', 'Change the password immediately', 'Add a monitor and a status page'. Environment: no variables. Backup: 'Monitors, status pages and the account live in the Uptime Kuma database in the data folder. Blipmade does not take automatic backups yet.' Upgrade: 'The Uptime Kuma version follows the image. Blipmade does not patch it in place.' Troubleshooting: 'The default password is rejected', 'Monitors report down although the target is up', 'The login page keeps loading'.",
-          "implementation": "api/prisma/seed.ts:131; api/src/services/starter-apps.ts:100",
+          "implementation": "api/prisma/seed.ts:148; api/src/services/starter-apps.ts:100",
           "status": "NOT IMPLEMENTED",
-          "evidence": "The product is listed but not deployable: deployable false, eggId null, dockerImage null (seed.ts:131-152). The console of a fresh instance shows the output of the Node.js server of the platform and never default credentials of Uptime Kuma (starter-apps.ts:100-120).",
+          "evidence": "The product is listed but not deployable: deployable false, eggId null, with eggName 'Uptime Kuma' and the image ghcr.io/ptero-eggs/apps:uptimekuma (seed.ts:148-170). The egg is not imported in the panel yet, so the product stays closed. The account of the administrator of Uptime Kuma is made by the application itself on the first start, and the egg carries no password.",
           "action": "MARK UNAVAILABLE"
         },
         {
@@ -1170,9 +1170,9 @@
         },
         {
           "claim": "PostgreSQL: 'PostgreSQL is a relational database with a strong query planner. The instance gives you a database with its own disk, and you connect to it from anywhere the network allows.' First run: 'Deploy the database', 'Read the connection details', 'Create the database you need', 'Create an application user'. Environment: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, PGDATA. Backup: 'Blipmade does not schedule automatic backups for database instances yet. A dump from the console is the reliable way to keep a copy.' Upgrade: 'A major version change needs a dump and a restore into a new instance.' Troubleshooting: 'The connection is refused', 'Authentication failed', 'The database runs out of disk'.",
-          "implementation": "api/prisma/seed.ts:155; api/src/services/starter-apps.ts:100",
+          "implementation": "api/prisma/seed.ts:174; api/src/services/starter-apps.ts:100",
           "status": "NOT IMPLEMENTED",
-          "evidence": "The product is listed but not deployable: deployable false, eggId null, dockerImage null, with the description 'Its image is not installed on the platform yet, so it cannot be deployed' (seed.ts:155-176). There is no PostgreSQL server, no superuser and no connection details in the instance (starter-apps.ts:100-120).",
+          "evidence": "The product is listed but not deployable: deployable false, eggId null, with eggName 'Postgres 16' and the image ghcr.io/ptero-eggs/yolks:postgres_16 (seed.ts:174-198). The egg is not imported in the panel yet, so the product stays closed. The password of the superuser is made for every instance and read in the console of the service (api/src/services/instance-credentials.ts).",
           "action": "MARK UNAVAILABLE"
         },
         {

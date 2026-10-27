@@ -419,6 +419,17 @@ export const env = {
   loginRateLimitMax: raw.LOGIN_RATE_LIMIT_MAX,
   stripeEnabled: raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   /**
+   * Which Stripe the platform talks to: the sandbox of Stripe or the live
+   * one. The key of the sandbox starts with "sk_test_" and the key of the
+   * live one with "sk_live_", so the mode is read from the key itself and is
+   * never guessed.
+   */
+  stripeMode: raw.STRIPE_SECRET_KEY.startsWith('sk_live_')
+    ? 'live'
+    : raw.STRIPE_SECRET_KEY.startsWith('sk_test_')
+      ? 'sandbox'
+      : 'none',
+  /**
    * True when the tax of a checkout is calculated by Stripe. It is off by
    * default, so the platform never charges a tax nobody configured.
    */
