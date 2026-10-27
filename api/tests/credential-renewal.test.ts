@@ -51,6 +51,10 @@ const instance = {
   pterodactylUuid: 'server-uuid',
   pterodactylServerId: 10,
   status: 'ONLINE',
+  // The variables the platform made for the instance. This instance needs
+  // none, so the two are empty.
+  generatedVariables: null,
+  productVariables: null,
 };
 
 beforeEach(() => {
