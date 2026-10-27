@@ -37,7 +37,10 @@ import urllib.request
 PROTECTED_SERVER_ID = 2
 PROTECTED_SERVER_UUID = "aec52a41-0445-4c03-bab9-82f1af8ed621"
 PROTECTED_SERVER_NAME = "Blipmade App Test"
-PROTECTED_USER_IDS = {1, 2, 3, 4}
+# The two accounts of the people who run the platform. The accounts of the
+# first round (the addresses of the old administrators) are not protected any
+# more: the fresh start leaves only these two.
+PROTECTED_USER_IDS = {3, 4}
 
 # --- the explicit allowlist ----------------------------------------------
 # A target is deleted only when the panel still reports the exact id, uuid
@@ -51,7 +54,15 @@ PROTECTED_USER_IDS = {1, 2, 3, 4}
 #   ALLOWED_USERS = {
 #       11: {"email": "<email>", "username": "<username>"},
 #   }
-ALLOWED_SERVERS = {}
+ALLOWED_SERVERS = {
+    # The servers of the customers of the first round. They belong to the
+    # orders BM-00007, BM-00008, BM-00010 and BM-00012, and the panel holds
+    # the same id, uuid and name for each of them.
+    17: {"uuid": "6a2eacf8-46ea-4133-97a2-35dfb2ed6e07", "name": "2"},
+    18: {"uuid": "ba96f30a-9894-4b09-9173-e0e5717fe4f2", "name": "1"},
+    19: {"uuid": "c6d7070a-dfb7-4410-9218-05712edd4a3d", "name": "Discord Bot"},
+    21: {"uuid": "47884b45-9cd2-4852-afeb-3a9610d73f17", "name": "Discord Bot"},
+}
 ALLOWED_USERS = {
     # The four accounts that the verification runs created on the panel. The
     # address of every one of them ends in ".invalid", a domain name that is
@@ -65,6 +76,17 @@ ALLOWED_USERS = {
     20: {"email": "qa-headless-two-eefha38m@panel.blipmade.invalid", "username": "bm-01eefha38m"},
     23: {"email": "browser-customer-qhrka12o@panel.blipmade.invalid", "username": "bm-3cqhrka12o"},
     24: {"email": "browser-customer-jm9c7zmu@panel.blipmade.invalid", "username": "bm-d8jm9c7zmu"},
+    # The accounts the platform created for the customers of the first round.
+    # They are the accounts of the servers above, and the addresses follow the
+    # same pattern as the ones of the verification runs.
+    25: {"email": "stefan-ay37ey0l@panel.blipmade.invalid", "username": "bm-01ay37ey0l"},
+    26: {"email": "steph-1mx42ney@panel.blipmade.invalid", "username": "bm-011mx42ney"},
+    27: {"email": "nissqbv-fcql2sz0@panel.blipmade.invalid", "username": "bm-01fcql2sz0"},
+    28: {"email": "browser-customer-czrgy3iu@panel.blipmade.invalid", "username": "bm-i5czrgy3iu"},
+    # The two administrator accounts of the first round. The accounts that stay
+    # are the two of the people who run the platform.
+    1: {"email": "stefan@xodo.ro", "username": "adm"},
+    2: {"email": "stefan10xdd@gmail.com", "username": "adm1"},
 }
 
 BASE = ""

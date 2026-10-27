@@ -34,6 +34,7 @@ import {
   recommendedPrice,
   startingConfiguration,
   startingPrice,
+  teaserProduct,
   type AvailabilityState,
 } from '../src/lib/pricing-contract.ts';
 import type { CatalogProduct } from '../src/lib/api.ts';
@@ -118,6 +119,22 @@ test('every state of the server has one wording and one answer', () => {
     // deploy button without leaving the customer in front of a dead end.
     assert.equal(orderBlockers(product).length > 0, !orderable);
   }
+});
+
+test('the teaser of the homepage shows a product that can be quoted', () => {
+  // The teaser quotes a price. The server refuses the quote of a product
+  // that was not validated for deployment, with a 400, so the teaser shows
+  // a product that can be ordered.
+  const closed = discordBot({ slug: 'wordpress', name: 'WordPress', ...withState('COMING_SOON') });
+  const open = discordBot({ slug: 'discord-bot', name: 'Discord Bot' });
+
+  assert.equal(teaserProduct([closed, open])?.slug, 'discord-bot');
+  assert.equal(teaserProduct([open, closed])?.slug, 'discord-bot');
+
+  // A catalog without an orderable product still shows a product, and the
+  // page is never empty.
+  assert.equal(teaserProduct([closed])?.slug, 'wordpress');
+  assert.equal(teaserProduct([]), null);
 });
 
 test('a product that cannot be deployed offers no deploy action', () => {

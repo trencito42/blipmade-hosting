@@ -5,7 +5,7 @@ import { scrollToId } from '../router';
 import { api, get, type CatalogProduct, type Quote } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { memLabel } from '../lib/pricing';
-import { cpuOptions, diskOptions, nearestOption, ramOptions, recommendedPreset, startingConfiguration } from '../lib/pricing-contract';
+import { cpuOptions, diskOptions, isOrderable, nearestOption, ramOptions, recommendedPreset, startingConfiguration, teaserProduct } from '../lib/pricing-contract';
 
 /**
  * The resource teaser of the homepage.
@@ -33,7 +33,12 @@ export function Configurator() {
     get<{ products: CatalogProduct[] }>('/catalog/products', undefined, signal),
   );
   const products = catalog.data?.products ?? [];
-  const product = useMemo(() => products.find((item) => item.pricing) ?? products[0] ?? null, [products]);
+  // The teaser shows the price of a product that can be ordered. A product
+  // that is closed has no price to quote: the server refuses the quote of a
+  // product that was not validated, with a 400, and the page would sit there
+  // with an error in the console and no amount on the screen.
+  const product = useMemo(() => teaserProduct(products), [products]);
+  const orderable = product ? isOrderable(product) : false;
 
   const ramGrid = useMemo(() => (product ? ramOptions(product) : []), [product]);
   const cpuGrid = useMemo(() => (product ? cpuOptions(product) : []), [product]);
@@ -66,14 +71,14 @@ export function Configurator() {
 
   const quoteState = useAsync<Quote | null>(
     async (signal) => {
-      if (!product || !quoted) return null;
+      if (!product || !orderable || !quoted) return null;
       return api<Quote>('/catalog/quote', {
         method: 'POST',
         body: { items: [{ productSlug: product.slug, ram: quoted.ram, cpu: quoted.cpu, disk: quoted.disk }] },
         signal,
       });
     },
-    [product?.slug, quoted?.ram, quoted?.cpu, quoted?.disk],
+    [product?.slug, orderable, quoted?.ram, quoted?.cpu, quoted?.disk],
   );
 
   const price = quoteState.data ? quoteState.data.total / 100 : null;

@@ -266,6 +266,26 @@ export function isOrderable(product: CatalogProduct): boolean {
   return product.deployable && Boolean(product.price);
 }
 
+/**
+ * The product the teaser of the homepage shows.
+ *
+ * The teaser quotes a price, so it shows a product that can be ordered. The
+ * server refuses the quote of a product that was not validated for
+ * deployment, with a 400, so a teaser that quoted a closed product showed an
+ * error in the console and no amount on the screen.
+ *
+ * A catalog without an orderable product still shows something: the first
+ * product that has a price, so the page is never empty.
+ */
+export function teaserProduct(products: CatalogProduct[]): CatalogProduct | null {
+  return (
+    products.find((product) => product.pricing && isOrderable(product)) ??
+    products.find((product) => product.pricing) ??
+    products[0] ??
+    null
+  );
+}
+
 /** Why the product cannot be ordered. Empty when it can. */
 export function orderBlockers(product: CatalogProduct): string[] {
   if (product.availability) return product.availability.blockers;
