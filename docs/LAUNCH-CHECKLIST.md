@@ -106,14 +106,24 @@ over HTTPS and the instance is reached on its own address.
 
 ## 5. The webhook of Discord — the operator
 
-The platform sends the events of the instances to a webhook of Discord. The
-address is a secret: it goes into the `.env` of the platform and nowhere else.
-The dashboard of the platform shows only the host of the webhook, never the
-address itself.
+The platform sends the alarms of the operations to a webhook of Discord. The
+address is a secret, and it is **not** in the `.env`: it is written in a file
+that only the owner of the machine can read, and the platform is told where
+that file is. The address therefore travels neither with the rest of the
+environment nor with a copy of the configuration.
+
+The address is read from the standard input, so it never appears in the list
+of the processes and never in the history of a shell:
 
 ```bash
-DISCORD_WEBHOOK_URL=<the address of the webhook>
+printf '%s' "$WEBHOOK" | ./scripts/set-discord-webhook.sh
 ```
+
+The script refuses an address that is not a webhook of Discord, writes the
+file with the rights of a secret, points the platform at it, restarts the api
+and the worker and sends a test message **with the code of the platform
+itself**, so a message that arrives proves that the alarms arrive too. It
+prints the host of the channel and never the address.
 
 ## 6. The package of recovery — the operator
 

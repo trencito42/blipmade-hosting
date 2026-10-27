@@ -101,6 +101,33 @@ apoi `postfix reload`. Cealaltă cale e să adaugi `no-reply@blipmade.com` în t
 
 ---
 
+## 2 bis. Ce s-a aflat la 18:00, după întrebarea despre reset
+
+**Al doilea reset al unui client nu pleca niciodată.** Cheia unui eveniment din outbox spune ce îl face pe același eveniment, iar pentru o cerere a clientului cheia era doar tipul evenimentului și contul clientului. Așadar, orice cerere a unui client era *același* eveniment: motorul găsea evenimentul primei cereri, hotăra că lucrul s-a întâmplat deja și nu trimitea nimic.
+
+Am reprodus asta în producție: la 14:32 și la 17:40, `stefan@xodo.ro` a cerut resetul. Primul mesaj a fost refuzat de serverul de mail al destinatarului, deci **a doua cerere a fost cea care conta** — și ea a fost înghițită. Clientul primea răspuns „s-a cerut resetul" și niciun mesaj nu pleca vreodată. Contează și pentru tine: dacă ai fi apăsat de cinci ori, tot un singur mesaj ar fi plecat.
+
+Reparat (commit `b89a454`, în producție, CI 7/7, suita 1036/1042): fiecare cerere poartă acum propria sa „ocurență" — rândul tokenului pentru cererile care au token, momentul schimbării pentru celelalte. Atinge resetul de parolă, confirmarea adresei, schimbarea adresei și schimbarea parolei. Testul cere de două ori și așteaptă două evenimente și două mesaje.
+
+**Verificarea trimiterii pe xodo.ro, după reparație:** am cerut resetul de două ori, la 18:01. Platforma a scris două evenimente și a trimis două mesaje (18:01:04 și 18:01:11). Relay-ul le-a predat lui `mail.xodo.ro`, care le-a refuzat pe amândouă, cu același motiv:
+
+```
+550 5.1.0 <no-reply@blipmade.com>: Sender address rejected:
+User unknown in virtual mailbox table (in reply to RCPT TO command)
+```
+
+**Adăugarea domeniului `blipmade.com` pe `mail.xodo.ro` nu ajută**, pentru că verificarea nu e despre domeniul primit, ci despre *adresa expeditorului*: `mail.xodo.ro` cere ca `no-reply@blipmade.com` să existe în tabela lui de căsuțe virtuale. Fixul rămâne pe serverul tău: fie `smtpd_reject_unlisted_sender = no` în `main.cf` și `postfix reload`, fie creezi căsuța `no-reply@blipmade.com` în tabela de căsuțe virtuale.
+
+**O lacună de onestitate rămasă (necorectată):** platforma scrie „delivered" în tabelul livrărilor pentru că relay-ul a primit mesajul. Bounce-ul se întoarce la `no-reply@blipmade.com` și este salvat în căsuța de pe Mailcow (`250 2.0.0 ... Saved`), iar platforma nu îl citește nicăieri: nu știe că mesajul a fost refuzat. Citirea bounce-urilor (IMAP + corelarea cu mesajul) e o funcție de făcut, nu e în acest release.
+
+**Webhook-ul Discord:** valoarea nu se mai găsește în istoricul păstrat (doar adrese de exemplu din cod și din teste), deci nu a fost aplicată niciodată — `.env` nu are `OPS_DISCORD_WEBHOOK_URL` și nu există fișier. Nu te mai trimit în chat: rulezi o comandă, care citește adresa de la intrare, o scrie într-un fișier pe care doar proprietarul îl poate citi și trimite un mesaj de test chiar prin codul platformei:
+
+```bash
+printf '%s' "$WEBHOOK" | ./scripts/set-discord-webhook.sh
+```
+
+---
+
 ## 3. Ce mai trebuie făcut pentru lansare
 
 | # | Acțiune | Cine | Cum se verifică |
