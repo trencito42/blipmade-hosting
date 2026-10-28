@@ -42,7 +42,7 @@ test.describe('the login screen', () => {
     await expect(page.getByText('Enter a valid email address.')).toBeVisible();
   });
 
-  test('shows the words of the server when the account is refused', async ({ page }) => {
+  test('answers a refused sign-in with one sentence, so the answer never says whether an account exists', async ({ page }) => {
     await stubAccount(page);
     await page.route('**/api/auth/login', async (route) => {
       await route.fulfill({
@@ -57,8 +57,9 @@ test.describe('the login screen', () => {
     await page.getByLabel('Password', { exact: true }).fill('wrong-password');
     await page.getByRole('button', { name: 'Log in' }).click();
 
-    // The words come from the server, and they are not reworded.
-    await expect(page.getByRole('alert')).toContainText('The email address or the password is wrong.');
+    // The answer is the same for a wrong password and for an address that
+    // does not exist, so the page never says that an account is missing.
+    await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.');
   });
 
   test('shows the reason when the account is suspended', async ({ page }) => {
@@ -76,7 +77,8 @@ test.describe('the login screen', () => {
     await page.getByLabel('Password', { exact: true }).fill('a-password');
     await page.getByRole('button', { name: 'Log in' }).click();
 
-    await expect(page.getByRole('alert')).toContainText('This account is suspended. Write to support to know more.');
+    // The words come from the server, and they are not reworded.
+    await expect(page.getByRole('alert')).toHaveText('This account is suspended. Write to support to know more.');
   });
 
   test('lands on the dashboard when the answer carries a session', async ({ page }) => {
