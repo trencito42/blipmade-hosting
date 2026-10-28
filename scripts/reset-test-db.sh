@@ -51,9 +51,10 @@ fi
 BASE_URL="${BASE_URL/@postgres:/@localhost:}"
 BASE_URL="${BASE_URL/@redis:/@localhost:}"
 
-# The name of the database of the url.
-DATABASE_NAME="${BASE_URL%/*}"
-DATABASE_NAME="${DATABASE_NAME##*/}"
+# The name of the database of the url. It is read from the url itself and
+# not from the part before it: the scheme of the url holds a slash of its
+# own, and the name would be read from the wrong place.
+DATABASE_NAME="${BASE_URL##*/}"
 DATABASE_NAME="${DATABASE_NAME%%\?*}"
 
 # The name that was asked for wins over the one of the url.

@@ -37,11 +37,15 @@ fi
 # The connection string of the environment points at the name of the
 # container. The script runs on the host, so the address of the host is what
 # it must use.
-export DATABASE_URL="${DATABASE_URL/@postgres:/@localhost:}"
-export DATABASE_URL="${DATABASE_URL/@redis:/@localhost:}"
+HOST_URL="${DATABASE_URL/@postgres:/@localhost:}"
+HOST_URL="${HOST_URL/@redis:/@localhost:}"
+export DATABASE_URL="$HOST_URL"
 
-DB_NAME="${DATABASE_URL%/*}"
-DB_NAME="${DB_NAME##*/}"
+# The name of the database is the last part of the path of the url. It is
+# read from the url itself and not from the part before it: the scheme of the
+# url holds a slash of its own, and the name would be read from the wrong
+# place.
+DB_NAME="${HOST_URL##*/}"
 DB_NAME="${DB_NAME%%\?*}"
 
 if [[ "$DB_NAME" != "blipmade" ]]; then

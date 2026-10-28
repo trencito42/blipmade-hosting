@@ -88,7 +88,10 @@ HOST_URL="${CREDENTIALS%%$'\n'*}"
 export PGPASSWORD="${CREDENTIALS#*$'\n'}"
 
 BASE_URL="${HOST_URL%/*}"
-LIVE_DB="${BASE_URL##*/}"
+# The name of the live database is read from the url itself: the scheme of
+# the url holds a slash of its own, and the name would be read from the
+# wrong place.
+LIVE_DB="${HOST_URL##*/}"
 LIVE_DB="${LIVE_DB%%\?*}"
 SCRATCH_URL="${BASE_URL}/${SCRATCH_DB}"
 
