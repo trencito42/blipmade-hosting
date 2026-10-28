@@ -39,6 +39,10 @@ The arguments are, in order: the cents of a gigabyte of memory, the cents of
 a processor, the cents of a gigabyte of disk and the cents of the fee of the
 instance. Without them the card that is already there is kept.
 
+The card is read from the settings at most every thirty seconds, so a card
+that was changed reaches the whole platform within half a minute. The change
+itself is immediate for the operator who writes it.
+
 A **plan of hosted mail** is priced differently, on purpose. A plan is a
 subscription of a service and the plan itself is what the customer buys, so
 it keeps its own base price and it is not broken into resources.

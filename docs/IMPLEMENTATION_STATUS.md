@@ -1,6 +1,13 @@
 # Blipmade — implementation status
 
-Last updated: 2026-10-23 02:10 UTC
+Last updated: 2026-10-28 18:20 UTC
+
+> **Update 2026-10-28 — the price of the resources.** A server is priced by
+> what it holds and by the fee of the instance itself, with one card for the
+> whole platform: 200 cents a gigabyte of memory, 75 a processor, 5 a
+> gigabyte of disk and 49 of fee, for a month. The arithmetic is exact, the
+> processor may be a half, and the price of a running instance is not touched
+> by a change of the card. The whole model is in [`PRICING.md`](PRICING.md).
 
 > **Update 2026-10-23, second round — the panel became headless.** The panel is
 > now strictly a backend: no customer signs in to it, nothing links to it and no
@@ -119,7 +126,7 @@ copy existed.
 | Rate limiting | Login 10/15 min, register 20/15 min, reset 10/15 min, quote 120/min, order 30/10 min. Answers `429` with a calm message. |
 | Authorisation | `CUSTOMER` / `STAFF` / `ADMIN` roles plus 20 granular staff permissions. Administrators hold all of them. |
 | Ownership isolation | Instances, orders, tickets and domains answer `404` for another customer, and a refused request changes nothing. |
-| Catalog and pricing | Server-side quote only. Integer minor units. `base + extraGB×ramPerGb + extraVCPU×cpuPerUnit + extraGB×diskPerGb + options`, plus percentage or fixed promotions. |
+| Catalog and pricing | Server-side quote only. Integer minor units. One card for the whole platform (`pricing_resources`): `baseFee + GB×ramPerGb + vCPU×cpuPerUnit + GB×diskPerGb`, computed with integers and rounded once, to the nearest cent, with a half rounded up. A year is twelve months of the card. The quote carries the breakdown of the price and the tax of the invoice. The processor may be a half. See [`PRICING.md`](PRICING.md). |
 | Orders | Order creation, listing, reading, checkout, cancellation. Prices are frozen onto the order items. |
 | Billing | Summary, invoices, subscriptions, cancel at period end, resume, payment method. |
 | Tickets | Create, reply, internal notes, status changes, categories, assignment, event history, attachment metadata validation. |
@@ -198,7 +205,8 @@ A round of frontend work followed the audit of the platform. The details are in
 |---|---|
 | `auth.test.ts` | Registration, duplicate address, weak password, wrong password, unknown account, session persistence, logout, expired session, deleted session, CSRF rejection and acceptance, rate limiting. |
 | `isolation.test.ts` | Instance, order, ticket and admin isolation between customers; anonymous access rejected. |
-| `pricing.test.ts` | Base price, resource surcharge, integer minor units, minimum and maximum rejection, non-deployable products, paid options, percentage promotion, invalid promotion, catalog visibility. |
+| `pricing.test.ts` | The card of the platform, the exact price of a configuration, integer minor units, minimum and maximum rejection, non-deployable products, paid options, percentage promotion, invalid promotion, catalog visibility. |
+| `resource-pricing.test.ts` | The sixteen areas of the price: the six prices of the brief, half a processor, the rounding, the same price for the same resources in every product, a year of twelve months, the breakdown that adds up, the plan of mail that keeps its base, the catalog, the order, the card that is written, the prices the customers already have, the capacity of a node, the breakdown and the tax of the quote, and the configuration that is refused. |
 | `webhooks.test.ts` | Payment applied, redelivery ignored, one payment per event, unknown order ignored, no second instance for the same order, order pricing, cancellation rules. |
 | `tickets.test.ts` | Ticket creation, replies and status, internal notes hidden from customers, customers cannot write internal notes, status history, attachment type and size validation, admin route protection, real admin counts, product updates, audit entries, staff permission checks. |
 | `provisioning.test.ts` | Server created and instance activated, retry does not create a second server, failure is recorded and the instance is not activated, and a missing client key is named in the error instead of failing silently. The panel is replaced with a fake; the flow itself is the production code. |
