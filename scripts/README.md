@@ -8,6 +8,7 @@ Everything in this folder runs on VM 103 (`/opt/blipmade/scripts`).
 |---|---|
 | `scripts/` | The operator runbooks: backups, restores, the inventory, the tests and the two cleanup tools. They are run by hand, they print what they are about to change and they need an explicit flag before anything is changed. |
 | `scripts/ops/` | The exploration and debugging tools: the panel probes, the browser drivers and the client readers. They are used to find out what the panel does. Everything that changes something needs `--execute`. |
+| `scripts/edge/` | The tools of the edge (VM 102), where Caddy answers the visitors. **They run on the edge and not on the platform**: the platform writes its routes into Caddy through the administrative API and never touches the files of the edge. |
 
 Two rules hold for every script in this folder:
 
@@ -160,3 +161,29 @@ SSL_CERT_FILE=/etc/ssl/certs/blipmade-ca.pem node scripts/ops/console-stream.mjs
 # or
 export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/blipmade-ca.pem
 ```
+
+### `edge/apply-origin-cert.py`
+
+This one runs on the **edge** (`10.77.0.12`), as root, and not on the
+platform. It puts the certificate of the origin in place — the one that
+Cloudflare trusts between itself and the edge — and proves that the edge
+serves it.
+
+```bash
+# on the edge, as root
+cat certificate.pem key.pem | sudo python3 apply-origin-cert.py
+```
+
+The certificate and the key are read from the standard input, so the private
+key never appears in the list of the processes and never in the history of a
+shell. The script refuses a certificate that cannot be read, a key that
+cannot be read, a pair whose two halves do not belong together, a certificate
+that expires within a week, and a certificate that does not cover the
+wildcard of the base of the platform. It keeps a copy of the certificate that
+was in use, writes the new one with the rights of the service of Caddy, puts
+the routes of the customers back after the reload of Caddy — a reload
+replaces the whole configuration, and the routes that were written through the
+administrative API are not a part of the file — and then checks the handshake
+with the name of the wildcard.
+
+The whole story of the certificates is in `docs/DOMAIN_ROUTING.md`.

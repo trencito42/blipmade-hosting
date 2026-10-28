@@ -176,10 +176,67 @@ value of Mailcow.
 
 ## 4. The addresses of the customers — the operator
 
-The wildcard `*.apps.blipmade.com` must point at the edge of the platform
-(`A 193.34.214.143`, DNS only, not proxied) and the certificate of the edge
-has to cover it. Until that is done, the address of a customer is not served
-over HTTPS and the instance is reached on its own address.
+The applications of the platform live under the base of the platform
+(`DOMAIN_BASE`, `apps.blipmade.com`), and the wildcard of that base is served
+through Cloudflare:
+
+```
+visitor ──HTTPS──> Cloudflare ──HTTPS──> edge (Caddy) ──HTTP──> node (Wings) ──> container
+```
+
+**The edge is ready.** The certificate of Cloudflare Origin CA is in place
+(`/etc/caddy/certs/blipmade-origin.crt`, `644`, and the key `640`, `root:caddy`),
+it covers `*.apps.blipmade.com`, `apps.blipmade.com`, `*.blipmade.com` and
+`blipmade.com`, it verifies with the root of Cloudflare, and the edge offers
+it for the wildcard of the base:
+
+```console
+$ openssl s_client -connect 127.0.0.1:443 -servername foo.apps.blipmade.com
+subject=O=CloudFlare, Inc., OU=CloudFlare Origin CA, CN=CloudFlare Origin Certificate
+issuer=C=US, O=CloudFlare, Inc., OU=CloudFlare Origin SSL Certificate Authority, ...
+```
+
+**What Cloudflare still has to do** is the certificate that the *visitor* sees.
+The certificate of the zone `blipmade.com` covers `blipmade.com` and
+`*.blipmade.com`, and a wildcard that is one level deeper
+(`*.apps.blipmade.com`) is not covered by it — Cloudflare refuses the
+handshake of such a name with the alert 40, and no request ever reaches the
+edge. Two ways to cover it:
+
+| Way | What the operator does |
+|---|---|
+| **A zone of its own for the base** (recommended, it costs nothing) | `apps.blipmade.com` is added as a zone of Cloudflare, the two name servers of Cloudflare are published as `NS` records in the zone of the platform, and the wildcard `A` record (`193.34.214.143`) is created in the new zone. The Universal SSL of the new zone covers `apps.blipmade.com` and `*.apps.blipmade.com`. |
+| **A custom certificate on the zone of the platform** | a certificate that a browser trusts and that covers `*.apps.blipmade.com` is uploaded to the zone `blipmade.com`. A wildcard needs the challenge of the DNS, and the certificate has to be renewed. |
+
+The mode of the SSL of the zone has to be **Full (strict)**: the certificate of
+the origin is trusted by Cloudflare and by nothing else.
+
+The whole story is in `docs/DOMAIN_ROUTING.md`, in the sections 2.4 and 4.4.
+
+### 4.1 The rotation of the key of the origin
+
+The private key of the certificate of the origin was published in the
+conversation with the operator, so it is treated as compromised and it has to
+be replaced. The new pair is put in place with one command on the edge:
+
+```bash
+# on the edge (10.77.0.12), as root
+cat certificate.pem key.pem | sudo python3 apply-origin-cert.py
+```
+
+The script is `scripts/edge/apply-origin-cert.py` in the repository. It reads
+the pair from the standard input, so the key never appears in the list of the
+processes, refuses a pair that is broken or that does not belong together,
+keeps a copy of the certificate that was in use, writes the new one, puts the
+routes of the customers back after the reload of Caddy and checks the
+handshake.
+
+The new certificate is asked for with the wildcard of the base of the
+platform **only** (`*.apps.blipmade.com` and `apps.blipmade.com`), and not
+with the zone of the platform: a certificate of the origin that covers
+`blipmade.com` takes the place of the certificate of the site of the platform
+at the origin, and a hostname under `*.blipmade.com` that points straight at
+the edge would then be answered with a certificate that only Cloudflare trusts.
 
 ## 5. The webhook of Discord — done
 

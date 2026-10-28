@@ -147,6 +147,32 @@
 # The name of the server of Caddy that holds the routes is `blipmade`, and
 # `CADDY_APP_SERVER` on the platform carries the same name.
 # ---------------------------------------------------------------------------
+# THE CERTIFICATE OF THE ORIGIN
+#
+# The zone of the platform is in front of a CDN. The CDN asks this edge for
+# the certificate of the origin, and the only certificate it trusts for that
+# is the certificate of Cloudflare Origin CA — a certificate that a browser
+# does NOT trust, and that is never used between a visitor and the CDN.
+#
+# The certificate lives in `/etc/caddy/certs/`:
+#
+#     blipmade-origin.crt   root:root, 644
+#     blipmade-origin.key   root:caddy, 640
+#
+# It is put in place by `scripts/edge/apply-origin-cert.py`, which reads the
+# pair from the standard input, refuses a pair that does not belong together,
+# writes the files, puts the routes of the customers back after the reload of
+# Caddy and then checks the handshake.
+#
+# A certificate of the origin that covers the zone of the platform as well
+# (`blipmade.com` and `*.blipmade.com`) takes the place of the certificate of
+# the site of the platform at the origin, because Caddy offers every
+# certificate that covers the name it is asked for. The site of the platform
+# still works through the CDN, but a host name under `*.blipmade.com` that
+# points straight at the edge would then be answered with a certificate that
+# only the CDN trusts. The certificate of the origin is therefore asked for
+# with the wildcard of the base of the platform only.
+# ---------------------------------------------------------------------------
 
 {
 	# The administrative API of Caddy. It is not exposed publicly: it listens
@@ -238,7 +264,7 @@ http://10.77.0.12:2020 {
 	}
 }
 
-blipmade.com {
+blipmade.com, www.blipmade.com {
 	encode zstd gzip
 
 	reverse_proxy 10.77.0.13:3000 {
@@ -250,4 +276,18 @@ blipmade.com {
 		header_up X-Real-IP {client_ip}
 		header_up X-Forwarded-Proto {scheme}
 	}
+}
+
+# The applications of the platform, under the base of the platform.
+#
+# The routes of the customers are written by the platform through the
+# administrative API and they live in the same server as this one. The route
+# of a host name that was proven answers before this one, because a route
+# that answers for an exact host name is more specific than a wildcard.
+*.apps.blipmade.com, apps.blipmade.com {
+	tls /etc/caddy/certs/blipmade-origin.crt /etc/caddy/certs/blipmade-origin.key
+
+	# A host name of this base that has no route answers with "not found",
+	# and not with an error of the certificate.
+	respond "This hostname has no route yet." 404
 }
