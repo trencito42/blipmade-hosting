@@ -418,10 +418,11 @@ describe('the yearly interval', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.period).toBe('YEARLY');
-    // 1000 (base) + 500 (half a gigabyte of extra memory at 2000) + 5000 (five
-    // gigabytes of extra disk at 1000).
-    expect(response.body.total).toBe(7000);
-    expect(response.body.items[0].unitAmount).toBe(7000);
+    // The price of the resources of the configuration, for the twelve months
+    // of the year: one gigabyte of memory, one processor and ten gigabytes of
+    // disk, at the rate card of the platform.
+    expect(response.body.total).toBe(3000);
+    expect(response.body.items[0].unitAmount).toBe(3000);
   });
 
   it('renews a yearly subscription for twelve months', async () => {
@@ -543,24 +544,24 @@ describe('the price of a service is the price of its configuration', () => {
     });
 
     // The import wrote the price of the product instead of the price of the
-    // configuration: 100 + 300 (memory) + 300 (cpu) + 1500 (disk).
+    // configuration: 200 (memory) + 100 (cpu) + 200 (disk).
     const result = await reconcileInstancePrices();
     expect(result.checked).toBe(1);
     expect(result.corrected).toBe(1);
     expect(result.differences[0]?.previousPrice).toBe(100);
-    expect(result.differences[0]?.price).toBe(2200);
+    expect(result.differences[0]?.price).toBe(500);
 
     const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
-    expect(updated?.price).toBe(2200);
+    expect(updated?.price).toBe(500);
 
     const journal = await prisma.auditLog.findFirst({ where: { action: 'instance.price_reconciled' } });
     expect(journal).toBeTruthy();
-    expect((journal?.meta as { delta?: number })?.delta).toBe(2100);
+    expect((journal?.meta as { delta?: number })?.delta).toBe(400);
 
     // The estimate of the panel is the price of the configuration.
     const summary = await client.request('GET', '/api/billing/summary');
     expect(summary.status).toBe(200);
-    expect(summary.body.monthlyEstimate).toBe(2200);
+    expect(summary.body.monthlyEstimate).toBe(500);
 
     // The reconciliation is safe to run again.
     const second = await reconcileInstancePrices();

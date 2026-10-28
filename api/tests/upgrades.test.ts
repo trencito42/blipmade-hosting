@@ -87,9 +87,10 @@ async function seedInstance() {
       ram: 1024,
       cpu: 1,
       disk: 10,
-      // The price the server calculates for this configuration:
-      // 149 base + 30 for the extra half GB of RAM + 10 for the extra disk.
-      price: 189,
+      // The price the server calculates for this configuration: the price of
+      // the resources, with the rate card of the platform: a gigabyte of
+      // memory, one processor and ten gigabytes of disk.
+      price: 250,
       currency: 'EUR',
       pterodactylServerId: 42,
       pterodactylUuid: 'uuid-42',
@@ -109,13 +110,13 @@ describe('resource changes', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.body.quote.newPrice).toBe(249);
-    expect(response.body.quote.priceDelta).toBe(60);
+    expect(response.body.quote.newPrice).toBe(350);
+    expect(response.body.quote.priceDelta).toBe(100);
     expect(response.body.quote.requiresPayment).toBe(true);
 
     const unchanged = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(unchanged?.ram).toBe(1024);
-    expect(unchanged?.price).toBe(189);
+    expect(unchanged?.price).toBe(250);
     expect(panelState.builds).toBe(0);
   });
 
@@ -130,19 +131,19 @@ describe('resource changes', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.status).toBe('requires_payment');
-    expect(response.body.priceDelta).toBe(60);
+    expect(response.body.priceDelta).toBe(100);
     expect(response.body.checkoutUrl).toBeTruthy();
 
     const unchanged = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(unchanged?.ram).toBe(1024);
-    expect(unchanged?.price).toBe(189);
+    expect(unchanged?.price).toBe(250);
     expect(panelState.builds).toBe(0);
 
     // The change waits as an order that was not paid for.
     const order = await prisma.order.findFirst({ where: { instanceId: instance.id } });
     expect(order?.kind).toBe('UPGRADE');
     expect(order?.status).toBe('AWAITING_PAYMENT');
-    expect(order?.total).toBe(60);
+    expect(order?.total).toBe(100);
   });
 
   it('applies the change once the payment is confirmed', async () => {
@@ -159,14 +160,14 @@ describe('resource changes', () => {
     const payment = await webhook.request(
       'POST',
       '/api/webhooks/stripe/test',
-      { id: 'evt_upgrade_paid', type: 'checkout.session.completed', orderId, amount: 60 },
+      { id: 'evt_upgrade_paid', type: 'checkout.session.completed', orderId, amount: 100 },
       { headers: { 'x-internal-token': env.internalToken } },
     );
     expect(payment.status).toBe(200);
 
     const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(updated?.ram).toBe(2048);
-    expect(updated?.price).toBe(249);
+    expect(updated?.price).toBe(350);
     expect(panelState.builds).toBe(1);
 
     const order = await prisma.order.findUnique({ where: { id: orderId } });
@@ -189,13 +190,13 @@ describe('resource changes', () => {
     await webhook.request(
       'POST',
       '/api/webhooks/stripe/test',
-      { id: 'evt_upgrade_rejected', type: 'checkout.session.completed', orderId, amount: 60 },
+      { id: 'evt_upgrade_rejected', type: 'checkout.session.completed', orderId, amount: 100 },
       { headers: { 'x-internal-token': env.internalToken } },
     );
 
     const unchanged = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(unchanged?.ram).toBe(1024);
-    expect(unchanged?.price).toBe(189);
+    expect(unchanged?.price).toBe(250);
 
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     expect(order?.fulfillmentStatus).toBe('FAILED');
@@ -220,7 +221,7 @@ describe('resource changes', () => {
 
     const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(updated?.ram).toBe(512);
-    expect(updated?.price).toBe(149);
+    expect(updated?.price).toBe(150);
     expect(panelState.builds).toBe(1);
   });
 

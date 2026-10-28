@@ -81,9 +81,10 @@ describe('server-side pricing', () => {
   });
 
   it('charges the same price for the same resources in every product', async () => {
-    // A cheap product and an expensive one, with another minimum and another
-    // base. The price of the resources is the same, because the price of a
-    // server is the price of what it uses.
+    // Two products with another minimum, another default and another base.
+    // The price of the resources is the same, because the price of a server is
+    // the price of what it uses and the card of the platform is one card for
+    // every product.
     await seedProduct();
     await seedProduct({
       slug: 'minecraft',
@@ -93,7 +94,16 @@ describe('server-side pricing', () => {
       minDisk: 20,
       defaultRam: 4096,
       defaultDisk: 30,
-      baseAmount: 0,
+      prices: {
+        create: {
+          period: 'MONTHLY',
+          baseAmount: 0,
+          ramPerGb: 0,
+          cpuPerUnit: 0,
+          diskPerGb: 0,
+          currency: 'EUR',
+        },
+      },
     });
 
     const client = makeClient(app);

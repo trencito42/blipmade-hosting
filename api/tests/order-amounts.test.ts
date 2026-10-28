@@ -190,10 +190,10 @@ describe('an order paid with a promotion', () => {
     });
 
     expect(response.status).toBe(201);
-    // 149 cents, half of it taken away: 75 cents off, 74 cents to pay.
-    expect(response.body.order.total).toBe(74);
+    // 150 cents, half of it taken away: 75 cents off, 75 cents to pay.
+    expect(response.body.order.total).toBe(75);
     expect(response.body.order.discount).toBe(75);
-    expect(response.body.order.items[0].unitAmount).toBe(149);
+    expect(response.body.order.items[0].unitAmount).toBe(150);
   });
 
   it('confirms an order that a promotion covers completely, without a payment', async () => {
@@ -207,7 +207,7 @@ describe('an order paid with a promotion', () => {
     });
     expect(created.status).toBe(201);
     expect(created.body.order.total).toBe(0);
-    expect(created.body.order.discount).toBe(149);
+    expect(created.body.order.discount).toBe(150);
 
     const checkout = await client.request('POST', `/api/orders/${created.body.order.id}/checkout`);
 
@@ -270,7 +270,7 @@ describe('an order paid with a promotion', () => {
     expect(checkout.body.url).not.toBeNull();
 
     const order = await prisma.order.findUnique({ where: { id: created.body.order.id } });
-    expect(order?.total).toBe(74);
+    expect(order?.total).toBe(75);
     expect(order?.status).toBe('AWAITING_PAYMENT');
   });
 });

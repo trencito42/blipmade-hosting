@@ -88,6 +88,7 @@ export function priceConfiguration(
   config: { ram: number; cpu: number; disk: number },
   options: ProductOption[] = [],
   rates: ResourceRates = DEFAULT_RESOURCE_RATES,
+  period: BillingPeriod = 'MONTHLY',
 ): number {
   const addons = options.reduce((sum, option) => sum + option.amount, 0);
 
@@ -104,7 +105,23 @@ export function priceConfiguration(
     );
   }
 
-  return normalizeAmount(resourcePrice(config, rates) + addons);
+  // The card of the resources is the price of a month. A year is twelve
+  // months of the same card, and the options of the configuration are added
+  // once, as they are part of the configuration and not of the month.
+  return normalizeAmount(
+    normalizeAmount(resourcePrice(config, rates) * monthsOfPeriod(period)) + addons,
+  );
+}
+
+/**
+ * The number of months a period of billing covers.
+ *
+ * The card of the resources is the price of a month. A year covers twelve
+ * months, so the price of a year is the price of the twelve months of the
+ * same card.
+ */
+export function monthsOfPeriod(period: BillingPeriod): number {
+  return period === 'YEARLY' ? 12 : 1;
 }
 
 /**
@@ -397,7 +414,7 @@ export async function priceItems(
     const missing = optionCodes.filter((code) => !found.has(code));
     if (missing.length) throw badRequest(`Unknown option: ${missing.join(', ')}`);
 
-    const unitAmount = priceConfiguration(price, product, config, options, await resourceRates());
+    const unitAmount = priceConfiguration(price, product, config, options, await resourceRates(), period);
     const quantity = Math.max(1, item.quantity ?? 1);
     priced.push({
       productId: product.id,

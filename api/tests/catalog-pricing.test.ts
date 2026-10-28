@@ -77,9 +77,12 @@ describe('the price book of the catalog', () => {
 
     expect(response.status).toBe(200);
     const product = response.body.product;
-    expect(product.price.amount).toBe(149);
-    expect(product.pricing.minimum).toMatchObject({ ram: 512, cpu: 1, disk: 5, amount: 149 });
-    expect(product.pricing.recommended).toMatchObject({ ram: 1024, cpu: 1, disk: 10, amount: 189 });
+    // The price of a server is the price of its resources, with the rate card
+    // of the platform: the smallest configuration is half a gigabyte of
+    // memory, one processor and five gigabytes of disk.
+    expect(product.price.amount).toBe(150);
+    expect(product.pricing.minimum).toMatchObject({ ram: 512, cpu: 1, disk: 5, amount: 150 });
+    expect(product.pricing.recommended).toMatchObject({ ram: 1024, cpu: 1, disk: 10, amount: 250 });
   });
 
   it('gives the same amounts as the quote of the same configurations', async () => {
@@ -103,10 +106,10 @@ describe('the price book of the catalog', () => {
     const response = await client.request('GET', '/api/catalog/products/wordpress');
     const product = response.body.product;
 
-    // 149 for the smallest configuration, 189 for the recommended one:
-    // 512 MB is free, the extra 512 MB cost 30 and the extra 5 GB cost 10.
-    expect(product.pricing.minimum.amount).toBe(149);
-    expect(product.pricing.recommended.amount).toBe(189);
+    // 150 for the smallest configuration, 250 for the recommended one: the
+    // price of the memory, the processor and the disk of each of them.
+    expect(product.pricing.minimum.amount).toBe(150);
+    expect(product.pricing.recommended.amount).toBe(250);
     expect(product.pricing.recommended.amount).not.toBe(product.pricing.minimum.amount);
   });
 
@@ -139,8 +142,11 @@ describe('the price book of the catalog', () => {
     const response = await client.request('GET', '/api/catalog/products/wordpress');
     const product = response.body.product;
 
-    expect(product.price.amount).toBe(249);
-    expect(product.pricing.minimum.amount).toBe(249);
+    // The base of a server is not used any more: the price is the price of
+    // the resources, and the card of the platform is the same for every
+    // product.
+    expect(product.price.amount).toBe(150);
+    expect(product.pricing.minimum.amount).toBe(150);
 
     const minimum = await quote(client, 512, 1, 5);
     expect(product.pricing.minimum.amount).toBe(minimum.total);

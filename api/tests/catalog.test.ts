@@ -144,7 +144,10 @@ describe('public catalog', () => {
 
     expect(response.status).toBe(200);
     const product = response.body.products[0];
-    expect(product.price.amount).toBe(749);
+    // The starting price of the catalogue is the price of the smallest
+    // configuration of the product: half a gigabyte of memory, one processor
+    // and five gigabytes of disk, with the rate card of the platform.
+    expect(product.price.amount).toBe(150);
     expect(product.price.currency).toBe('EUR');
     expect(product.price.period).toBe('MONTHLY');
     expect(Number.isInteger(product.price.amount)).toBe(true);
@@ -199,7 +202,7 @@ describe('a single product', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.product.slug).toBe('discord-bot');
-    expect(response.body.product.price.amount).toBe(749);
+    expect(response.body.product.price.amount).toBe(150);
     expect(Number.isInteger(response.body.product.price.amount)).toBe(true);
   });
 });

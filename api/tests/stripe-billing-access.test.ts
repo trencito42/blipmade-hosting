@@ -317,9 +317,11 @@ describe('the quote', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body.items[0].unitAmount).toBe(149);
-    expect(response.body.items[0].total).toBe(149);
-    expect(response.body.subtotal).toBe(149);
-    expect(response.body.total).toBe(149);
+    // The price of the resources of the configuration, and not the price that
+    // the body of the request carried.
+    expect(response.body.items[0].unitAmount).toBe(250);
+    expect(response.body.items[0].total).toBe(250);
+    expect(response.body.subtotal).toBe(250);
+    expect(response.body.total).toBe(250);
   });
 });

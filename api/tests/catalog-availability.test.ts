@@ -193,7 +193,9 @@ describe('the availability of a product', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body.total).toBe(149);
+    // The price of the resources of the configuration: half a gigabyte of
+    // memory, one processor and five gigabytes of disk.
+    expect(response.body.total).toBe(150);
   });
 });
 

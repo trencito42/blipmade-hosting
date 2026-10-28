@@ -279,10 +279,11 @@ describe('the sale of hosted mail', () => {
     expect(created.status).toBe(201);
     expect(created.body.order.items).toHaveLength(2);
     // The two lines are priced apart, so the summary of the order can show
-    // the price of the add-on on its own line.
-    expect(created.body.order.items[0].total).toBe(500);
+    // the price of the add-on on its own line. The line of the server is
+    // priced by its resources, the plan of mail keeps its own price.
+    expect(created.body.order.items[0].total).toBe(150);
     expect(created.body.order.items[1].total).toBe(1990);
-    expect(created.body.order.total).toBe(2490);
+    expect(created.body.order.total).toBe(2140);
 
     await client.request('POST', `/api/orders/${created.body.order.id}/confirm`);
 

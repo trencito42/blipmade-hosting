@@ -210,7 +210,10 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
 
-    return { products: products.map(serializeProduct) };
+    // The products are serialized one by one, because the price of a product
+    // needs the rate card of the platform, which is read from the settings.
+    const serialized = await Promise.all(products.map((product) => serializeProduct(product)));
+    return { products: serialized };
   });
 
   app.get('/catalog/products/:slug', async (request) => {

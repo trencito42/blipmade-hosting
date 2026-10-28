@@ -21,7 +21,7 @@ import { normalizeAmount } from '../lib/money.js';
 import * as client from './pterodactyl/client.js';
 import { resolveCustomerCredential } from './panel/credentials.js';
 import { stripeLive, upsertInvoice, removeStripeSubscriptionItem } from './stripe.js';
-import { loadOptions, priceConfiguration, resourceRates } from './pricing.js';
+import { loadOptions, monthsOfPeriod, priceConfiguration, resourceRates } from './pricing.js';
 import type { BillingPeriod } from '@prisma/client';
 
 /**
@@ -68,7 +68,6 @@ const REMINDER_WINDOW_DAYS = 7;
 const SUSPENSION_WARNING_WINDOW_DAYS = 2;
 
 /** How many months a year has. */
-const MONTHS_IN_YEAR = 12;
 
 /**
  * How long a cancelled service is kept before it is deleted. The term is a
@@ -112,7 +111,9 @@ export function addDays(date: Date, days: number): Date {
 
 /** The number of months a period covers. */
 export function monthsOfInterval(interval: BillingInterval): number {
-  return interval === 'YEARLY' ? MONTHS_IN_YEAR : 1;
+  // The card of the resources is the price of a month, and the price of a
+  // year is the price of the twelve months of that card.
+  return monthsOfPeriod(interval);
 }
 
 /**
@@ -135,7 +136,7 @@ export async function configurationPrice(
   });
   if (!price) return null;
   const options = optionCodes.length ? await loadOptions(product.id, optionCodes) : [];
-  return priceConfiguration(price, product, config, options, await resourceRates());
+  return priceConfiguration(price, product, config, options, await resourceRates(), period);
 }
 
 /**

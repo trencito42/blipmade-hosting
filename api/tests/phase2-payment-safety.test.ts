@@ -27,8 +27,11 @@ beforeEach(async () => {
   await resetDatabase();
 });
 
-const MONTHLY = 149;
-const YEARLY = 1788;
+// The price of a server is the price of its resources, with the rate card of
+// the platform: one gigabyte of memory, one processor and ten gigabytes of
+// disk. A year is the twelve months of that price.
+const MONTHLY = 250;
+const YEARLY = 3000;
 
 /** A counter, so that no two cases share a payment intent. */
 let sequence = 0;
@@ -54,9 +57,10 @@ async function seedProduct() {
       eggId: 1,
       prices: {
         create: [
-          // The resource price is zero, so the sum of the quote is the sum
-          // of the price row and nothing else. The test then says what it
-          // means: the yearly plan costs the yearly sum.
+          // The product needs a price for the period of the order: without a
+          // yearly row the platform refuses to quote a year. The sum itself
+          // comes from the resources of the configuration, and not from the
+          // row.
           { period: 'MONTHLY', baseAmount: MONTHLY, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0, currency: 'EUR' },
           { period: 'YEARLY', baseAmount: YEARLY, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0, currency: 'EUR' },
         ],
