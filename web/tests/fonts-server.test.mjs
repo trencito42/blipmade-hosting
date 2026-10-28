@@ -78,8 +78,9 @@ test("the health of the site says that the typeface is served by the site", asyn
     assert.equal(answer.status, 200);
     const body = await answer.json();
     assert.equal(body.status, "ok");
-    assert.equal(body.fonts.family, "Geist Variable");
-    assert.equal(body.fonts.mono, "Geist Mono Variable");
+    assert.equal(body.fonts.family, "Hanken Grotesk Variable");
+    assert.equal(body.fonts.display, "Funnel Display Variable");
+    assert.equal(body.fonts.mono, "JetBrains Mono Variable");
     assert.equal(body.fonts.installed, true);
     assert.equal(body.fonts.webfont, true);
     assert.equal(body.fonts.source, "self");
@@ -88,7 +89,7 @@ test("the health of the site says that the typeface is served by the site", asyn
     assert.equal(body.fonts.fallback, "sans-serif");
 
     // The console of the container says the same.
-    assert.ok(instance.log.join("").includes("Geist Variable"));
+    assert.ok(instance.log.join("").includes("Hanken Grotesk Variable"));
   } finally {
     instance.stop();
   }

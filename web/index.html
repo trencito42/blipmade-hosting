@@ -5,16 +5,23 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>Blipmade — Pick an app. Deploy it.</title>
     <meta name="description" content="Your favorite apps and databases, ready to run. No VPS setup, no complicated infrastructure. Start small and scale as you grow." />
-    <meta name="theme-color" content="#090A09" />
-    <link rel="icon" href="/favicon.svg" />
+    <meta name="theme-color" content="#090b0a" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <!-- The icon font of the interface. It is served by this site, under
          /fontawesome/, so the browser asks this site for it and never a
          third party. The stylesheet is loaded once, before the styles of the
          application, so the application can override anything it needs. -->
     <link rel="stylesheet" href="/fontawesome/css/pro.min.css" />
+    <!-- The head of the page is written here, when the site is built: the
+         title, the description, the address of the page and the structured
+         data. The script that writes it fills this place. -->
+    <!--head-->
   </head>
   <body>
-    <div id="root"></div>
+    <!-- The page is written here as well, when the site is built. A reader
+         without JavaScript and a crawler read the same thing a browser
+         reads. -->
+    <div id="root"><!--app--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

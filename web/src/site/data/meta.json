@@ -1,0 +1,746 @@
+[
+  {
+    "id": "getting-started",
+    "title": "Create an account and sign in",
+    "summary": "How to create an account on Blipmade, confirm the address and open the first session.",
+    "group": "getting-started",
+    "groupLabel": "Getting started",
+    "keywords": [
+      "account",
+      "sign in",
+      "register",
+      "email address",
+      "password"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "first-app",
+    "title": "Deploy your first app",
+    "summary": "How to order an application, what you find in the container and how to open the service.",
+    "group": "getting-started",
+    "groupLabel": "Getting started",
+    "keywords": [
+      "deploy",
+      "catalog",
+      "order",
+      "checkout",
+      "first app"
+    ],
+    "updated": "2026-10-28"
+  },
+  {
+    "id": "order-values",
+    "title": "The values a product asks for",
+    "summary": "When a product asks for an account, a licence or a key, and what the platform does with it.",
+    "group": "getting-started",
+    "groupLabel": "Getting started",
+    "keywords": [
+      "order",
+      "variables",
+      "licence",
+      "steam",
+      "account",
+      "secret",
+      "key"
+    ],
+    "updated": "2026-10-28"
+  },
+  {
+    "id": "account",
+    "title": "Your profile, your address and your sessions",
+    "summary": "What the settings of the account hold and how to change the name, the address, the password and the sessions.",
+    "group": "getting-started",
+    "groupLabel": "Getting started",
+    "keywords": [
+      "profile",
+      "settings",
+      "email address",
+      "password",
+      "sessions",
+      "close account"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "dashboard",
+    "title": "The dashboard of your account",
+    "summary": "What the pages of the dashboard show and where the actions of the platform are.",
+    "group": "getting-started",
+    "groupLabel": "Getting started",
+    "keywords": [
+      "dashboard",
+      "overview",
+      "menu",
+      "services",
+      "activity"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "wordpress",
+    "title": "WordPress",
+    "summary": "What you get today when you order WordPress, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "wordpress",
+      "cms",
+      "blog",
+      "php",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "wordpress"
+  },
+  {
+    "id": "ghost",
+    "title": "Ghost",
+    "summary": "What you get today when you order Ghost, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "ghost",
+      "blog",
+      "cms",
+      "node",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "ghost"
+  },
+  {
+    "id": "forgejo",
+    "title": "Forgejo",
+    "summary": "What you get today when you order Forgejo, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "forgejo",
+      "git",
+      "repository",
+      "node",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "forgejo"
+  },
+  {
+    "id": "code-server",
+    "title": "Code Server",
+    "summary": "What you get today when you order Code Server, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "code server",
+      "vscode",
+      "editor",
+      "browser",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "code-server"
+  },
+  {
+    "id": "uptime-kuma",
+    "title": "Uptime Kuma",
+    "summary": "What you get today when you order Uptime Kuma, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "uptime kuma",
+      "monitoring",
+      "status page",
+      "http",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "uptime-kuma"
+  },
+  {
+    "id": "grafana",
+    "title": "Grafana",
+    "summary": "What you get today when you order Grafana, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "grafana",
+      "dashboard",
+      "metrics",
+      "monitoring",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "grafana"
+  },
+  {
+    "id": "n8n",
+    "title": "n8n",
+    "summary": "What you get today when you order n8n, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "n8n",
+      "automation",
+      "workflow",
+      "node",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "n8n"
+  },
+  {
+    "id": "discord-bot",
+    "title": "Discord Bot",
+    "summary": "What you get today when you order the Discord Bot, and what the platform does not install yet.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "discord",
+      "bot",
+      "node",
+      "token",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "discord-bot"
+  },
+  {
+    "id": "postgresql",
+    "title": "PostgreSQL",
+    "summary": "What you get today when you order PostgreSQL, and where the databases of an instance live.",
+    "group": "databases",
+    "groupLabel": "Databases",
+    "keywords": [
+      "postgresql",
+      "postgres",
+      "sql",
+      "database",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "postgresql"
+  },
+  {
+    "id": "mysql",
+    "title": "MySQL",
+    "summary": "What you get today when you order MySQL, and where the databases of an instance live.",
+    "group": "databases",
+    "groupLabel": "Databases",
+    "keywords": [
+      "mysql",
+      "sql",
+      "database",
+      "mariadb",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "mysql"
+  },
+  {
+    "id": "redis",
+    "title": "Redis",
+    "summary": "What you get today when you order Redis, and where the databases of an instance live.",
+    "group": "databases",
+    "groupLabel": "Databases",
+    "keywords": [
+      "redis",
+      "cache",
+      "database",
+      "key value",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "redis"
+  },
+  {
+    "id": "mongodb",
+    "title": "MongoDB",
+    "summary": "What you get today when you order MongoDB, and where the databases of an instance live.",
+    "group": "databases",
+    "groupLabel": "Databases",
+    "keywords": [
+      "mongodb",
+      "document",
+      "database",
+      "nosql",
+      "deploy"
+    ],
+    "updated": "2026-10-27",
+    "catalogSlug": "mongodb"
+  },
+  {
+    "id": "resources",
+    "title": "Choose the right resources",
+    "summary": "What the memory, the vCPU and the storage of an instance mean and how the price follows them.",
+    "group": "resources-billing",
+    "groupLabel": "Resources & billing",
+    "keywords": [
+      "resources",
+      "memory",
+      "ram",
+      "cpu",
+      "storage",
+      "disk",
+      "price"
+    ],
+    "updated": "2026-10-28"
+  },
+  {
+    "id": "billing",
+    "title": "Invoices and payment methods",
+    "summary": "What the billing page shows, when an invoice is written and how a payment is made today.",
+    "group": "resources-billing",
+    "groupLabel": "Resources & billing",
+    "keywords": [
+      "billing",
+      "invoice",
+      "payment",
+      "subscription",
+      "price",
+      "month"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "upgrade",
+    "title": "Upgrade or resize an instance",
+    "summary": "How a change of resources is ordered, what it costs and when it is applied.",
+    "group": "resources-billing",
+    "groupLabel": "Resources & billing",
+    "keywords": [
+      "upgrade",
+      "resize",
+      "resources",
+      "order",
+      "price difference",
+      "restart"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "cancel",
+    "title": "Cancel an instance",
+    "summary": "What happens to an instance when you cancel it, how long it is kept and what happens to your data.",
+    "group": "resources-billing",
+    "groupLabel": "Resources & billing",
+    "keywords": [
+      "cancel",
+      "cancellation",
+      "retention",
+      "export",
+      "data",
+      "delete"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "refunds",
+    "title": "Refunds and credits",
+    "summary": "When the platform returns a payment by itself, when a person decides, and what the platform does not do.",
+    "group": "resources-billing",
+    "groupLabel": "Resources & billing",
+    "keywords": [
+      "refund",
+      "credit",
+      "payment",
+      "invoice",
+      "cancel",
+      "money"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "domains",
+    "title": "Attach a domain to an instance",
+    "summary": "How to claim a hostname for an instance, prove that you own it, and take it back.",
+    "group": "domains-ssl",
+    "groupLabel": "Domains & SSL",
+    "keywords": [
+      "domain",
+      "hostname",
+      "dns",
+      "txt record",
+      "ownership",
+      "subdomain"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "dns",
+    "title": "The DNS records you need",
+    "summary": "Which records to publish at your DNS provider, and where to read their values.",
+    "group": "domains-ssl",
+    "groupLabel": "Domains & SSL",
+    "keywords": [
+      "dns",
+      "records",
+      "a record",
+      "cname",
+      "txt",
+      "propagation",
+      "nameserver"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "ssl",
+    "title": "SSL certificates",
+    "summary": "Where HTTPS on a hostname of yours stands today: the platform issues no certificate.",
+    "group": "domains-ssl",
+    "groupLabel": "Domains & SSL",
+    "keywords": [
+      "ssl",
+      "tls",
+      "https",
+      "certificate",
+      "lets encrypt",
+      "encryption"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "platform-domains",
+    "title": "The domain of the platform",
+    "summary": "What apps.blipmade.com is, how it differs from a domain of yours, and which address your instance gets.",
+    "group": "domains-ssl",
+    "groupLabel": "Domains & SSL",
+    "keywords": [
+      "apps.blipmade.com",
+      "platform domain",
+      "hostname",
+      "address",
+      "reserved",
+      "network"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "files",
+    "title": "Browse and edit files",
+    "summary": "What the file browser of an instance can do, and what it cannot do for you.",
+    "group": "files-console",
+    "groupLabel": "Files & console",
+    "keywords": [
+      "files",
+      "file browser",
+      "editor",
+      "upload",
+      "download",
+      "delete",
+      "disk"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "console",
+    "title": "Open the console",
+    "summary": "A shell on the instance, straight from the dashboard, and what it is for.",
+    "group": "files-console",
+    "groupLabel": "Files & console",
+    "keywords": [
+      "console",
+      "terminal",
+      "shell",
+      "commands",
+      "output",
+      "instance"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "logs",
+    "title": "The logs of a service",
+    "summary": "Where the output of an application comes from, what the platform keeps of it, and what you have to keep yourself.",
+    "group": "files-console",
+    "groupLabel": "Files & console",
+    "keywords": [
+      "logs",
+      "output",
+      "activity",
+      "history",
+      "console",
+      "diagnostics"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "account-security",
+    "title": "Account security",
+    "summary": "Your password, your sessions and the mail of your account.",
+    "group": "security",
+    "groupLabel": "Security",
+    "keywords": [
+      "security",
+      "password",
+      "sessions",
+      "sign out",
+      "verification",
+      "reset"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "instance-access",
+    "title": "Instance access and secrets",
+    "summary": "How you reach an instance, where its environment is read, and why there are no keys.",
+    "group": "security",
+    "groupLabel": "Security",
+    "keywords": [
+      "api",
+      "environment variables",
+      "secrets",
+      "startup command",
+      "csrf",
+      "sftp",
+      "access"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "permissions",
+    "title": "Who can do what",
+    "summary": "What your account can do in the dashboard, and how the back office of the platform is split.",
+    "group": "security",
+    "groupLabel": "Security",
+    "keywords": [
+      "permissions",
+      "roles",
+      "owner",
+      "staff",
+      "admin",
+      "access",
+      "account"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "email-hosting",
+    "title": "Email hosting",
+    "summary": "What the hosted mail of the platform is, and that it is not on sale today.",
+    "group": "email-hosting",
+    "groupLabel": "Email hosting",
+    "keywords": [
+      "email hosting",
+      "hosted mail",
+      "mail",
+      "mailbox",
+      "not on sale",
+      "plan"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "mailboxes",
+    "title": "Mailboxes and aliases",
+    "summary": "What a mailbox of a mail domain is, what an alias does, and the space a mailbox may use.",
+    "group": "email-hosting",
+    "groupLabel": "Email hosting",
+    "keywords": [
+      "mailbox",
+      "alias",
+      "quota",
+      "space",
+      "password",
+      "suspension",
+      "mail"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "mail-dns",
+    "title": "The DNS records of a mail domain",
+    "summary": "The records a domain of mail needs, what each of them is for, and how the platform checks them.",
+    "group": "email-hosting",
+    "groupLabel": "Email hosting",
+    "keywords": [
+      "mx",
+      "dkim",
+      "dmarc",
+      "spf",
+      "autodiscover",
+      "autoconfig",
+      "dns",
+      "mail"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "webmail",
+    "title": "The webmail and the mail clients",
+    "summary": "Where the mail of a domain is read, and what a mail client is given to read it.",
+    "group": "email-hosting",
+    "groupLabel": "Email hosting",
+    "keywords": [
+      "webmail",
+      "imap",
+      "smtp",
+      "ports",
+      "mail client",
+      "settings",
+      "mail"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "notifications",
+    "title": "Notifications",
+    "summary": "What the platform tells you, where it reaches you, and how to switch a group of messages off.",
+    "group": "notifications",
+    "groupLabel": "Notifications",
+    "keywords": [
+      "notifications",
+      "email",
+      "preferences",
+      "alerts",
+      "notification centre",
+      "mail"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "backups",
+    "title": "Backups of an instance",
+    "summary": "The archive of the files of an instance, how to take it, how to restore it, and what it does not hold.",
+    "group": "backups-recovery",
+    "groupLabel": "Backups & recovery",
+    "keywords": [
+      "backup",
+      "restore",
+      "archive",
+      "download",
+      "recovery",
+      "files",
+      "instance"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "troubleshooting",
+    "title": "Common problems",
+    "summary": "What to check, in the order that usually finds the cause.",
+    "group": "troubleshooting",
+    "groupLabel": "Troubleshooting",
+    "keywords": [
+      "troubleshooting",
+      "problem",
+      "error",
+      "not working",
+      "stopped",
+      "help"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "support",
+    "title": "Support",
+    "summary": "How to reach the operator, what the operator can and cannot do, and what to write in a ticket so the answer comes quickly.",
+    "group": "support",
+    "groupLabel": "Support",
+    "keywords": [
+      "support",
+      "help",
+      "contact",
+      "operator",
+      "assistance",
+      "ticket"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "tickets",
+    "title": "Support tickets",
+    "summary": "How to open a ticket, how to answer it, how to attach a file, and what the operator sees when the ticket arrives.",
+    "group": "support",
+    "groupLabel": "Support",
+    "keywords": [
+      "ticket",
+      "support",
+      "reply",
+      "attachment",
+      "conversation",
+      "thread"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "status",
+    "title": "Status and incidents",
+    "summary": "What the status page reports, what an incident is, and what the platform does not promise about availability.",
+    "group": "status-incidents",
+    "groupLabel": "Status & incidents",
+    "keywords": [
+      "status",
+      "incident",
+      "outage",
+      "availability",
+      "uptime",
+      "maintenance"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "limits",
+    "title": "Limits and fair use",
+    "summary": "The bounds the platform really enforces, and the ones it does not have.",
+    "group": "limits-fair-use",
+    "groupLabel": "Limits & fair use",
+    "keywords": [
+      "limits",
+      "fair use",
+      "abuse",
+      "policy",
+      "quotas",
+      "rate limit"
+    ],
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "glossary",
+    "title": "Glossary",
+    "summary": "The words the platform uses, explained in one line each.",
+    "group": "reference",
+    "groupLabel": "Reference",
+    "keywords": [
+      "glossary",
+      "words",
+      "terms",
+      "definition",
+      "instance",
+      "subscription"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "faq",
+    "title": "Frequently asked questions",
+    "summary": "The questions that come up again, with short and honest answers.",
+    "group": "reference",
+    "groupLabel": "Reference",
+    "keywords": [
+      "faq",
+      "question",
+      "answer",
+      "how",
+      "can i",
+      "why"
+    ],
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "common-errors",
+    "title": "Common errors",
+    "summary": "The errors you see in the dashboard or in the API, what each one means and what to do about it.",
+    "group": "reference",
+    "groupLabel": "Reference",
+    "keywords": [
+      "error",
+      "code",
+      "message",
+      "failed",
+      "refused",
+      "status code"
+    ],
+    "updated": "2026-10-26"
+  }
+]

@@ -5,6 +5,7 @@
 # a directory, and it has no business in the history either.
 node_modules
 dist/
+dist-ssr/
 build/
 coverage/
 *.log

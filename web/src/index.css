@@ -1,43 +1,57 @@
 @import "tailwindcss";
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/funnel-display";
+@import "@fontsource-variable/hanken-grotesk";
+@import "@fontsource-variable/jetbrains-mono";
 
-/* The typeface of the interface.
+/* The typefaces of the interface.
  *
- * Geist Variable and Geist Mono Variable are served from the host of the
- * platform: the files of the typeface are in the build of the page, so the
- * visitor never asks a third party for a letter and the page never shifts
- * while the letters arrive. The system of the visitor is the fallback, so the
- * page still reads on a machine where the files did not load. */
+ * Funnel Display carries the headings, Hanken Grotesk the text and JetBrains
+ * Mono the numbers, the ports and the codes. All three are served from the
+ * host of the platform: the files of a typeface are in the build of the page,
+ * so the visitor never asks a third party for a letter and the page never
+ * shifts while the letters arrive. The typeface of the machine is the
+ * fallback, so the page still reads when the files did not load. */
 @theme {
-  /* The colours of the reference. A near-black base, one green, and a scale
-     of surfaces that a card, a field and a chip can be told apart by. */
-  --color-bg: #0a0a0a;
-  --color-s1: #111111;
-  --color-s2: #161616;
-  --color-s3: #1d1d1d;
-  --color-line: #262626;
-  --color-acc-bg: #0f2417;
-  --color-con: #0d0d0d;
-  --color-con-ink: #a3a3a3;
-  --color-ink: #f5f5f5;
-  --color-ink2: #a3a3a3;
-  --color-ink3: #8c8c8c;
-  --color-acc: #22c55e;
-  --color-acc-h: #4ade80;
-  --color-on-acc: #06130b;
-  --color-bad: #f87171;
+  /* The scale of the reference: one near-black paper, one green, and the
+     surfaces a card, a panel and a field can be told apart by. */
+  --color-paper: #090b0a;
+  --color-paper-2: #101512;
+  --color-card: #0e1310;
+  --color-night: #121915;
+  --color-night-2: #18221c;
+  --color-night-3: #243229;
+  --color-night-line: #2c3b31;
+  --color-snow: #eef2ec;
+  --color-snow-2: #a9b5ac;
+  --color-ink: #f1f5ef;
+  --color-ink-2: #b5c0b8;
+  --color-ink-3: #8c988f;
+  --color-line: #232d26;
+  --color-green: #4ee595;
+  --color-mint: #6be598;
+  --color-bad: #ff8f86;
   --color-warn: #f0b232;
 
-  /* The names of the reference, kept as aliases of the scale above.
-     `card` is the colour of a card on the page and `surface` is the colour of
-     a panel that holds one, so both names point at the same two shades the
-     interface already uses. */
-  --color-card: #161616;
-  --color-surface: #111111;
+  /* The names the dashboard and the admin area were built with. They point
+     at the same scale, so the whole interface moves at once and the customer
+     area keeps the names it has. */
+  --color-bg: #090b0a;
+  --color-s1: #101512;
+  --color-s2: #0e1310;
+  --color-s3: #18221c;
+  --color-acc: #4ee595;
+  --color-acc-h: #6be598;
+  --color-on-acc: #090b0a;
+  --color-acc-bg: #10251a;
+  --color-con: #121915;
+  --color-con-ink: #b5c0b8;
+  --color-ink2: #b5c0b8;
+  --color-ink3: #8c988f;
+  --color-surface: #101512;
 
-  --font-sans: "Geist Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: "Funnel Display Variable", "Hanken Grotesk Variable", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
 
   /* The typeface has every weight of the scale, so nothing is synthesised by
      the browser. */
@@ -48,8 +62,8 @@
   --font-weight-extrabold: 800;
   --font-weight-black: 900;
 
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out-expo: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* The duotone icons of the interface.
@@ -63,7 +77,7 @@
   --fa-secondary-opacity: 0.4;
 }
 
-/* An icon is a font: the line it stands in keeps the height it had, and the
+/* An icon is a font: the line it stands on keeps the height it had, and the
    icon is centered in it. */
 .fa-icon {
   line-height: 1;
@@ -73,8 +87,8 @@
 /* An icon that leaves the flow of the page.
  *
  * The stylesheet of the icon font is not layered, and it says that the icon
- * is in the flow, because the second layer of a duotone icon is drawn with
- * an absolute pseudo element. The utilities of Tailwind are layered, so the
+ * is in the flow, because the second layer of a duotone icon is drawn with an
+ * absolute pseudo element. The utilities of Tailwind are layered, so the
  * stylesheet of the font wins over them and an icon that was asked to leave
  * the flow stays in it. The rules below put the icon back where the page
  * asks for it. */
@@ -89,7 +103,8 @@
    controls it draws itself, the lists of the selects and the scrollbars, are
    drawn in the same theme as the page. */
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; color-scheme: dark; }
-body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body { font-weight: 400; background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: hidden; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; }
 
 /* The focus indicator of the whole interface. It sits in the base layer, so a
    control that carries its own ring can switch this one off with the
@@ -97,7 +112,7 @@ body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); f
    control would show two indicators at once: the ring of the control and the
    outline of the page. */
 @layer base {
-  :focus-visible { outline: 2px solid var(--color-acc-h); outline-offset: 3px; border-radius: 8px; }
+  :focus-visible { outline: 2px solid var(--color-green); outline-offset: 3px; border-radius: 6px; }
 
   /* A grid that names no column of its own gets one column that may be
      smaller than its content.
@@ -115,7 +130,7 @@ body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); f
   .grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-::selection { background: color-mix(in oklab, var(--color-acc) 40%, transparent); }
+::selection { background: var(--color-mint); color: var(--color-night); }
 
 /* Password managers and the browser fill the fields with their own colours,
    which are light and unreadable on a dark page. The fill is painted with the
@@ -171,57 +186,95 @@ textarea:-webkit-autofill:focus-visible {
   background-clip: content-box;
   border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover { background-color: var(--color-acc);
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-green);
 }
-::-webkit-scrollbar-thumb:active { background-color: var(--color-acc-h); }
+::-webkit-scrollbar-thumb:active { background-color: var(--color-mint); }
 
 /* Strips that scroll sideways on purpose do not show a bar. */
 .bm-hide-scroll { scrollbar-width: none; }
 .bm-hide-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
-/* Scroll reveal: the block rises, sharpens and settles. */
-.rv { opacity: 0; transform: translateY(18px); filter: blur(6px); transition: opacity .8s var(--ease-out-expo), transform .8s var(--ease-out-expo), filter .8s var(--ease-out-expo); transition-delay: calc(var(--d, 0) * 1ms); }
-.rv[data-in] { opacity: 1; transform: none; filter: none; }
+/* --- the moments of the reference ---------------------------------------- */
 
-.ln { display: block; overflow: hidden; padding: 0.04em 0.06em 0.12em; margin: -0.04em -0.06em -0.12em; }
-.ln > span { display: block; transform: translateY(105%); transition: transform 320ms var(--ease-out); transition-delay: calc((var(--d, 0) + var(--i, 0) * 70) * 1ms); }
-[data-in] .ln > span, .ln[data-in] > span { transform: none; }
+/* The range inputs: a thin track that fills to the thumb. The fill is drawn
+   with a gradient that stops at the value of the slider, so the track says
+   how much of the resource is taken. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+  --p: 0%;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 99px;
+  background: linear-gradient(to right, var(--color-mint) var(--p), var(--color-night-3) var(--p));
+}
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 99px; background: var(--color-night-3); }
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 99px; background: var(--color-mint); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: var(--color-snow);
+  border: 0;
+  box-shadow: 0 0 0 4px var(--color-night), 0 2px 8px #0008;
+  transition: transform 0.15s;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-snow);
+  border: 0;
+  box-shadow: 0 0 0 4px var(--color-night);
+}
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--color-night), 0 0 0 6px var(--color-mint); }
+input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--color-night), 0 0 0 6px var(--color-mint); }
 
-/* A card that comes back when the tab under it changes. */
-@keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
-.card-in { animation: card-in .6s var(--ease-out-expo) both; animation-delay: calc(var(--i, 0) * 70ms); }
+/* The one orchestrated moment: the gauges of the resources fill when the page
+   loads. */
+@keyframes bm-fill { from { transform: scaleX(0); } }
+.gauge { transform-origin: left; animation: bm-fill 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s backwards; }
 
-@keyframes cursor { 50% { opacity: 0; } }
-.cursor { animation: cursor 1s steps(1) infinite; }
+@keyframes bm-rise { from { opacity: 0; transform: translateY(10px); } }
+.rise { animation: bm-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
 
-@keyframes ring { 0% { transform: scale(.2); opacity: .7; } 100% { transform: scale(1.6); opacity: 0; } }
-.ring { animation: ring 6s var(--ease-out-expo) infinite; animation-delay: calc(var(--i, 0) * 1.5s); }
+@keyframes bm-blink2 { 50% { opacity: 0; } }
+.caret { animation: bm-blink2 1.1s steps(1) infinite; }
 
-@keyframes drift { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-8px,0); } }
-.drift { animation: drift 7s ease-in-out infinite; }
+/* The text of the documentation: the same measure everywhere. */
+.prose-doc p, .prose-doc li { color: var(--color-ink-2); }
+.prose-doc a { color: var(--color-green); text-decoration: underline; text-underline-offset: 3px; }
 
-@keyframes auth-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-.auth-in { animation: auth-in .7s var(--ease-out-expo) both; animation-delay: calc(var(--i, 0) * 70ms); }
+/* The big line of the reference. */
+.big { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.045em; line-height: 1; }
 
-@keyframes bm-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+/* The numbers of the interface: they have to line up in a column. */
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+/* The moments the dashboard and the admin area keep. */
+@keyframes bm-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
 @keyframes bm-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -8px, 0); } }
 @keyframes bm-ping { from { opacity: 0.6; transform: scale(1); } to { opacity: 0; transform: scale(2.6); } }
 @keyframes bm-blink { 50% { opacity: 0; } }
 @keyframes bm-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: none; } }
 .bm-pop { animation: bm-pop 220ms var(--ease-out) both; }
-.bm-float { animation: bm-float 6s ease-in-out infinite; }
+.bm-float { animation: bm-float 6s var(--ease-out) infinite; }
 .bm-ping::after { content: ""; position: absolute; inset: 0; border-radius: 999px; background: currentColor; animation: bm-ping 2s var(--ease-out) infinite; }
 .bm-caret { animation: bm-blink 1s steps(1) infinite; }
 .bm-in { animation: bm-in 200ms var(--ease-out) both; }
 
-/* The dotted ground of the reference. */
-.dots { background-image: radial-gradient(circle at 1px 1px, #262626 1px, transparent 0); background-size: 26px 26px; }
-
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .rv { opacity: 1; transform: none; filter: none; transition: none; }
-  .ln > span { transition: none; }
-  .card-in, .cursor, .ring, .drift, .auth-in { animation: none; }
+  .gauge, .rise, .caret { animation: none; }
   .bm-pop, .bm-float, .bm-ping::after, .bm-caret, .bm-in { animation: none; }
-  *, *::before, *::after { transition-duration: .01ms !important; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
 }

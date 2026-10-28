@@ -1,0 +1,92 @@
+[
+  {
+    "slug": "code-server",
+    "name": "Code Server",
+    "category": "DEVELOPER_TOOLS",
+    "description": "Visual Studio Code in the browser, running on your own resources.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 349,
+    "recPrice": 574,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR"
+  },
+  {
+    "slug": "discord-bot",
+    "name": "Discord Bot",
+    "category": "BOTS",
+    "description": "Run a Node.js bot around the clock without a home server. Runs on the verified Node.js image.",
+    "min": {
+      "ram": 256,
+      "cpu": 1,
+      "disk": 1
+    },
+    "def": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 4,
+      "disk": 50
+    },
+    "minPrice": 179,
+    "recPrice": 249,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR"
+  },
+  {
+    "slug": "postgresql",
+    "name": "PostgreSQL",
+    "category": "DATABASES",
+    "description": "PostgreSQL for your applications, with the connection details and a password of your own.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 200
+    },
+    "minPrice": 349,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR"
+  }
+]

@@ -18,7 +18,22 @@ const ParamsCtx = createContext<Record<string, string>>({});
 export const useParams = () => useContext(ParamsCtx);
 export const ParamsProvider = ParamsCtx.Provider;
 
+/**
+ * The address the router reads when there is no browser.
+ *
+ * The site is written to the disk before it is served, and the writing is done
+ * by a program that has no window. The router therefore takes the address it
+ * renders from this variable, and the browser takes it from the window.
+ */
+let serverLocation: { path: string; search: string } | null = null;
+
+/** Sets the address the router reads when it runs outside the browser. */
+export function setServerLocation(path: string, search = '') {
+  serverLocation = { path, search };
+}
+
 function readLocation() {
+  if (typeof location === 'undefined') return serverLocation ?? { path: '/', search: '' };
   return { path: location.pathname, search: location.search.replace(/^\?/, '') };
 }
 
@@ -50,13 +65,14 @@ export function Router({ children }: { children: ReactNode }) {
     const query: Record<string, string> = {};
     for (const [key, val] of new URLSearchParams(state.search)) query[key] = val;
     const navigate = (to: string, options?: { replace?: boolean; scroll?: boolean }) => {
+      if (typeof location === 'undefined') return;
       const url = new URL(to, location.origin);
       if (options?.replace) history.replaceState(null, '', url.pathname + url.search + url.hash);
       else history.pushState(null, '', url.pathname + url.search + url.hash);
       setState(readLocation());
       // A page that changes its own address without leaving it does not want
       // to jump to the top: the customer is in the middle of the page.
-      if (options?.scroll !== false) scrollTo(0, 0);
+      if (options?.scroll !== false && typeof scrollTo === 'function') scrollTo(0, 0);
     };
     return { path: state.path, search: state.search, query, navigate };
   }, [state.path, state.search]);

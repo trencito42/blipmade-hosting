@@ -1,12 +1,13 @@
 /**
  * The typefaces of the interface.
  *
- * The interface asks for **Geist Variable** and for **Geist Mono Variable**,
- * and it asks this site for them: the files of the typeface are written into
- * the build of the page, next to the other files of the site, and the server
- * hands them out with `font/woff2`. The visitor never asks a house of
- * typefaces for a letter, and the browser never shifts the page while the
- * letters arrive.
+ * The interface asks for **Hanken Grotesk Variable** for the text, for
+ * **Funnel Display Variable** for the headings and for **JetBrains Mono
+ * Variable** for the numbers, the ports and the codes, and it asks this site
+ * for them: the files of the typeface are written into the build of the page,
+ * next to the other files of the site, and the server hands them out with
+ * `font/woff2`. The visitor never asks a house of typefaces for a letter, and
+ * the browser never shifts the page while the letters arrive.
  *
  * The typeface of the machine is still the last name of the stack, so the
  * page keeps reading on a machine where the files did not load.
@@ -15,11 +16,14 @@
  * it carries no letter of the text.
  */
 
-/** The family the interface asks for first. */
-export const SANS_FAMILY = "Geist Variable";
+/** The family the text of the interface asks for first. */
+export const SANS_FAMILY = "Hanken Grotesk Variable";
+
+/** The family the headings of the interface ask for first. */
+export const DISPLAY_FAMILY = "Funnel Display Variable";
 
 /** The family the console, the codes and the numbers ask for first. */
-export const MONO_FAMILY = "Geist Mono Variable";
+export const MONO_FAMILY = "JetBrains Mono Variable";
 
 /**
  * The stack of the text of the interface.
@@ -29,7 +33,7 @@ export const MONO_FAMILY = "Geist Mono Variable";
  * when none of the named families is there.
  */
 export const SANS_STACK = [
-  "Geist Variable",
+  "Hanken Grotesk Variable",
   "system-ui",
   "-apple-system",
   "BlinkMacSystemFont",
@@ -42,13 +46,21 @@ export const SANS_STACK = [
 ];
 
 /**
+ * The stack of the headings of the interface.
+ *
+ * The typeface of the headings falls back on the typeface of the text, so a
+ * page that has only one of the two files still reads.
+ */
+export const DISPLAY_STACK = ["Funnel Display Variable", "Hanken Grotesk Variable", "system-ui", "sans-serif"];
+
+/**
  * The stack of the text of the console, of the codes and of the numbers.
  *
  * The stack starts with the typeface of the site and ends with the generic
  * family, the same way the stack of the text does.
  */
 export const MONO_STACK = [
-  "Geist Mono Variable",
+  "JetBrains Mono Variable",
   "ui-monospace",
   "SFMono-Regular",
   "SF Mono",
@@ -68,6 +80,7 @@ const PLAIN = new Set([
   "system-ui",
   "-apple-system",
   "BlinkMacSystemFont",
+  "Segoe UI",
   "Roboto",
   "Arial",
   "sans-serif",
@@ -85,6 +98,11 @@ export function sansStack() {
   return [...SANS_STACK];
 }
 
+/** The stack of the headings of the interface. */
+export function displayStack() {
+  return [...DISPLAY_STACK];
+}
+
 /** The stack of the console and of the codes. */
 export function monoStack() {
   return [...MONO_STACK];
@@ -95,7 +113,12 @@ export function sansStackValue() {
   return SANS_STACK.map(familyName).join(", ");
 }
 
-/** The stack of the console, written the way the browser reads it. */
+/** The stack of the headings, written the way the browser reads it. */
+export function displayStackValue() {
+  return DISPLAY_STACK.map(familyName).join(", ");
+}
+
+/** The stack of the console and of the codes, written the way the browser reads it. */
 export function monoStackValue() {
   return MONO_STACK.map(familyName).join(", ");
 }
@@ -113,6 +136,7 @@ export function monoStackValue() {
 export function fontStatus() {
   return {
     family: SANS_FAMILY,
+    display: DISPLAY_FAMILY,
     installed: true,
     webfont: true,
     // The files are written by the build and are served by this server.

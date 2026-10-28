@@ -17,7 +17,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel, periodLabel, periodSuffix } from '../lib/pricing';
 import { useRouter } from '../router';
 import { useSession } from '../session';
-import { Eyebrow, Headline, Wrap } from '../ui';
+import { Eyebrow, Footer, Nav, Wrap } from '../site/ui';
 import {
   ButtonLink,
   EmptyState,
@@ -29,8 +29,6 @@ import {
   StatusPill,
   TextInput,
 } from '../ui-app';
-import { Footer } from '../home/Closing';
-import { Nav } from '../home/Nav';
 import { validateMailDomainName } from '../lib/mail-domain';
 
 /** The page of the storefront of hosted mail. */
@@ -49,7 +47,7 @@ function PublicShell({ children }: { children: ReactNode }) {
   return (
     <>
       <Nav />
-      <main className="min-h-[100svh] pt-[96px] sm:pt-[112px]">{children}</main>
+      <main className="min-h-[100svh]">{children}</main>
       <Footer />
     </>
   );
@@ -224,7 +222,9 @@ export default function EmailHosting() {
       <Wrap>
         <div className="py-8 sm:py-12">
           <Eyebrow>Email hosting</Eyebrow>
-          <Headline as="h1" lines={['Your own mail, on your own domain.']} />
+          <h1 className="mt-3 max-w-[14em] text-[clamp(38px,5.4vw,66px)] leading-[0.98] font-semibold tracking-[-0.045em]">
+            Your own mail, on your own domain.
+          </h1>
           <p className="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink2">
             Hosted mail gives every domain of yours a place where mail arrives and where mail leaves. The
             plans, their limits and their price are the ones of the platform.

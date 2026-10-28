@@ -5,17 +5,21 @@
  *
  *     node --test web/tests/
  *
- * The test runner of the project reads TypeScript but not JSX, so Vite reads
- * the files for us, the same way the build does. The pages are rendered on the
+ * The test runner of the project reads TypeScript but not JSX, so Vite reads the
+ * files for us, the same way the build does. The pages are rendered on the
  * server, without a browser, which is enough to see the title of a page, the
  * text it holds and the links it offers.
  *
- * Three things are checked here:
+ * Four things are checked here:
  *
- *   1. the six pages have their own route and the router knows all of them;
+ *   1. the six pages have their own route, and the router of the public site
+ *      knows all of them;
  *   2. every page is really written: it has a title, its sections and the
  *      links to the other legal pages;
- *   3. the pages do not promise what the platform does not do.
+ *   3. the pages do not promise what the platform does not do;
+ *   4. a page that still waits for a value of the operator stays out of the
+ *      index of the search engines, and the count of the values it waits for
+ *      is the count the page shows.
  */
 
 import { after, before, describe, it } from 'node:test';
@@ -31,27 +35,22 @@ const webRoot = join(here, '..');
 
 /** The six pages, with the route and the title each of them must carry. */
 const LEGAL_PAGES = [
-  { path: '/terms', title: 'Terms of service', module: '/src/pages/Terms.tsx' },
-  { path: '/privacy', title: 'Privacy policy', module: '/src/pages/Privacy.tsx' },
-  { path: '/cookies', title: 'Cookie policy', module: '/src/pages/Cookies.tsx' },
-  { path: '/aup', title: 'Acceptable use policy', module: '/src/pages/Aup.tsx' },
-  { path: '/refund-policy', title: 'Refund policy', module: '/src/pages/RefundPolicy.tsx' },
-  { path: '/sla', title: 'Service levels and support', module: '/src/pages/Sla.tsx' },
+  { path: '/terms', title: 'Terms of service' },
+  { path: '/privacy', title: 'Privacy policy' },
+  { path: '/cookies', title: 'Cookie policy' },
+  { path: '/aup', title: 'Acceptable use policy' },
+  { path: '/refund-policy', title: 'Refund policy' },
+  { path: '/sla', title: 'Service levels and support' },
 ];
 
 /** The marker of a value the operator still has to supply. */
 const MARKER = 'TODO(operator)';
 
-interface RouteDef {
-  pattern: string;
-  component: unknown;
-  title: string;
-}
-
 let server: ViteDevServer;
 /** The rendered markup of each page, by its route. */
 const pages = new Map<string, string>();
-let routes: RouteDef[] = [];
+let matchPublic: (path: string) => { kind: string; param?: string };
+let metaFor: (path: string) => { noindex: boolean; title: string; description: string; canonical: string };
 
 before(async () => {
   server = await createServer({
@@ -61,12 +60,16 @@ before(async () => {
     logLevel: 'silent',
   });
 
-  const router = (await server.ssrLoadModule('/src/routes.tsx')) as { ROUTES: RouteDef[] };
-  routes = router.ROUTES;
+  const routes = (await server.ssrLoadModule('/src/site/public-routes.ts')) as { matchPublic: typeof matchPublic };
+  matchPublic = routes.matchPublic;
 
+  const seo = (await server.ssrLoadModule('/src/site/seo.ts')) as { metaFor: typeof metaFor };
+  metaFor = seo.metaFor;
+
+  const legal = (await server.ssrLoadModule('/src/site/Legal.tsx')) as { LegalPage: (props: { slug: string }) => unknown };
   for (const page of LEGAL_PAGES) {
-    const mod = (await server.ssrLoadModule(page.module)) as { default: () => unknown };
-    pages.set(page.path, renderToStaticMarkup(createElement(mod.default as never)));
+    const slug = page.path.replace(/^\//, '');
+    pages.set(page.path, renderToStaticMarkup(createElement(legal.LegalPage as never, { slug })));
   }
 });
 
@@ -94,25 +97,24 @@ function visibleText(html: string): string {
 describe('the legal routes', () => {
   it('gives every legal page its own route', () => {
     for (const page of LEGAL_PAGES) {
-      const route = routes.find((entry) => entry.pattern === page.path);
-      assert.ok(route, `the route ${page.path} is missing from the router`);
-      assert.ok(route.component, `the route ${page.path} has no page`);
+      const match = matchPublic(page.path);
+      assert.equal(match.kind, 'legal', `${page.path} is not a legal route`);
+      assert.equal(match.param, page.path.replace(/^\//, ''));
     }
   });
 
   it('keeps the six pages apart from the other routes of the site', () => {
-    const patterns = routes.map((entry) => entry.pattern);
-    assert.equal(new Set(patterns).size, patterns.length, 'two routes share a pattern');
-    // A legal page is not behind the account: it has no area.
-    for (const page of LEGAL_PAGES) {
-      const route = routes.find((entry) => entry.pattern === page.path);
-      assert.equal((route as RouteDef & { area?: string }).area, undefined, `${page.path} asks for an account`);
-    }
+    const kinds = LEGAL_PAGES.map((page) => matchPublic(page.path).kind);
+    assert.equal(new Set(kinds).size, 1);
+    assert.equal(kinds[0], 'legal');
   });
 
-  it('has a page for a server failure as well', () => {
-    const route = routes.find((entry) => entry.pattern === '/500');
-    assert.ok(route, 'the route /500 is missing from the router');
+  it('has a page for a server failure as well', async () => {
+    const routes = (await server.ssrLoadModule('/src/routes.tsx')) as { ROUTES: { pattern: string }[] };
+    assert.ok(
+      routes.ROUTES.some((route) => route.pattern === '/500'),
+      'the route /500 is missing from the router',
+    );
   });
 });
 
@@ -154,6 +156,29 @@ describe('the legal pages', () => {
       const marks = html.split(MARKER).length - 1;
       // The note of the footer carries one, so every page has at least two.
       assert.ok(marks >= 2, `${page.path} carries ${marks} markers`);
+    }
+  });
+
+  it('says how many values it still waits for', () => {
+    for (const page of LEGAL_PAGES) {
+      const html = visibleText(pages.get(page.path) ?? '');
+      assert.match(html, /still carries \d+ values? the operator has to publish/i, `${page.path} does not say what it waits for`);
+    }
+  });
+});
+
+describe('the legal pages and the index of the search engines', () => {
+  it('keeps a page that waits for the operator out of the index', () => {
+    for (const page of LEGAL_PAGES) {
+      const meta = metaFor(page.path);
+      assert.equal(meta.noindex, true, `${page.path} is in the index of the search engines`);
+      assert.equal(meta.title, `${page.title} | Blipmade`);
+    }
+  });
+
+  it('names the page in its own address', () => {
+    for (const page of LEGAL_PAGES) {
+      assert.equal(metaFor(page.path).canonical, `https://blipmade.com${page.path}`);
     }
   });
 });

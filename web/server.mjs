@@ -356,23 +356,50 @@ const server = createServer(async (req, res) => {
 
   if (!['GET', 'HEAD'].includes(req.method)) return send(res, 405, 'Method not allowed');
   let pathname;
+  let search;
   try {
-    pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    const url = new URL(req.url, 'http://localhost');
+    pathname = decodeURIComponent(url.pathname);
+    search = url.search;
   } catch {
     return send(res, 400, 'Bad request');
   }
   if (pathname.includes('\\') || pathname.includes('\0')) return send(res, 400, 'Bad request');
+
+  // The documentation was named with a question in the address
+  // (`/docs?p=upgrade`). The site names a page with a part of the address
+  // (`/docs/upgrade`). An address that was kept from before is sent to the
+  // page it names.
+  if (pathname === '/docs') {
+    const asked = new URLSearchParams(search).get('p');
+    if (asked) {
+      res.writeHead(301, { Location: `/docs/${encodeURIComponent(asked)}`, 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+  }
+
   // The compressed forms are the private business of the server. They are
   // served through the file they belong to, never on their own.
   if (['.gz', '.br'].includes(extname(pathname).toLowerCase())) return send(res, 404, 'Not found');
   let filename = resolve(root, '.' + pathname);
   if (filename !== root && !filename.startsWith(root + sep)) return send(res, 403, 'Forbidden');
+  let status = 200;
   try {
     if (existsSync(filename) && statSync(filename).isDirectory()) filename = join(filename, 'index.html');
     if (!existsSync(filename) || !statSync(filename).isFile()) {
-      // Client-side routes such as /login should load React's entry point.
       if (extname(pathname)) return send(res, 404, 'Not found');
-      filename = join(root, 'index.html');
+      // The dashboard and the admin area are drawn by the browser: they need a
+      // session and the answer of the API. Every other address that does not
+      // exist is the page of an address that does not exist, and it is
+      // answered with the answer 404 and with the page itself.
+      const isClientArea = pathname === '/app' || pathname === '/admin' || pathname.startsWith('/app/') || pathname.startsWith('/admin/');
+      const notFound = join(root, '404.html');
+      if (!isClientArea && existsSync(notFound)) {
+        filename = notFound;
+        status = 404;
+      } else {
+        filename = join(root, 'index.html');
+      }
     }
     const stat = statSync(filename);
     const ext = extname(filename).toLowerCase();
@@ -425,7 +452,7 @@ const server = createServer(async (req, res) => {
       });
       return res.end();
     }
-    res.writeHead(200, headers);
+    res.writeHead(status, headers);
     if (req.method === 'HEAD') return res.end();
     createReadStream(served.path).pipe(res);
   } catch (error) {

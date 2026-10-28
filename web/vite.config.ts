@@ -17,6 +17,9 @@ function precompressAssets(): Plugin {
     name: 'blipmade:precompress-assets',
     apply: 'build',
     configResolved(config) {
+      // The bundle that writes the site to the disk is not sent to a
+      // browser, so it is not compressed: the file is read once, by Node.
+      if (config.build.ssr) return;
       build = { root: config.root, outDir: config.build.outDir };
     },
     closeBundle() {
