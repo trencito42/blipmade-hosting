@@ -209,11 +209,11 @@ test('the address keeps a half of a processor and refuses a quarter of one', () 
   assert.deepEqual(configurationFromQuery({ cpu: '0.5' }, product), { ram: 512, cpu: 0.5, disk: 5 });
   assert.deepEqual(configurationFromQuery({ cpu: '1.5' }, product), { ram: 512, cpu: 1.5, disk: 5 });
   // A quarter of a processor is not a configuration the platform sells: the
-  // address falls back on the configuration the deployment starts from.
-  assert.deepEqual(configurationFromQuery({ cpu: '0.25' }, product), { ram: 512, cpu: 0.5, disk: 5 });
-  assert.deepEqual(configurationFromQuery({ cpu: '0.75' }, product), { ram: 512, cpu: 0.5, disk: 5 });
+  // address falls back on the configuration the price book starts from.
+  assert.deepEqual(configurationFromQuery({ cpu: '0.25' }, product), { ram: 512, cpu: 1, disk: 5 });
+  assert.deepEqual(configurationFromQuery({ cpu: '0.75' }, product), { ram: 512, cpu: 1, disk: 5 });
   // The memory and the storage stay whole numbers.
-  assert.deepEqual(configurationFromQuery({ ram: '1.5' }, product), { ram: 512, cpu: 0.5, disk: 5 });
+  assert.deepEqual(configurationFromQuery({ ram: '1.5' }, product), { ram: 512, cpu: 1, disk: 5 });
 });
 
 test('the grid of the memory holds the limits of the product', () => {
