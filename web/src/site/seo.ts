@@ -189,7 +189,7 @@ export function metaFor(path: string): Meta {
   if (path === '/docs') {
     return {
       ...base,
-      title: 'Documentation: deploy, manage and bill an instance | Blipmade',
+      title: 'Documentation: deploy and manage an instance | Blipmade',
       description: `${published.length} guides covering accounts, deployments, resources, files and console, domains, backups and support on Blipmade.`,
       jsonld: [crumbs([['Home', '/'], ['Docs', '/docs']])],
     };
