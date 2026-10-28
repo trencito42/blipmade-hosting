@@ -75,103 +75,109 @@ export function CatalogIndex() {
     }`;
 
   return (
-    <section aria-labelledby="apps-title" className="pb-24">
-      <Wrap className="grid gap-10">
-        <Reveal className="grid gap-4">
-          <h1 id="apps-title" className="max-w-3xl text-[clamp(40px,6vw,76px)] leading-[1] font-semibold tracking-[-0.045em] [text-wrap:balance]">
-            Apps and databases, ready to run.
-          </h1>
-          <p className="max-w-xl text-[17px] text-ink2">
-            Pick a product, choose the memory, CPU and storage it needs, and deploy. The price follows the resources you choose.
-          </p>
-        </Reveal>
+    <>
+      <Nav />
+      <main id="top" className="min-h-[100svh] pt-[96px] sm:pt-[112px]">
+        <section aria-labelledby="apps-title" className="pb-24">
+          <Wrap className="grid gap-10">
+          <Reveal className="grid gap-4">
+            <h1 id="apps-title" className="max-w-3xl text-[clamp(40px,6vw,76px)] leading-[1] font-semibold tracking-[-0.045em] [text-wrap:balance]">
+              Apps and databases, ready to run.
+            </h1>
+            <p className="max-w-xl text-[17px] text-ink2">
+              Pick a product, choose the memory, CPU and storage it needs, and deploy. The price follows the resources you choose.
+            </p>
+          </Reveal>
 
-        <div className="grid gap-4">
-          <label className="sr-only" htmlFor="apps-search">
-            Search the catalog
-          </label>
-          <input
-            id="apps-search"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search the catalog"
-            className="h-12 w-full max-w-md rounded-xl border border-line bg-card px-4 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink3 focus:border-acc focus:shadow-[0_0_0_3px_rgb(34_197_94/0.18)]"
-          />
-          <div role="group" aria-label="Category" className="flex gap-2 overflow-x-auto pb-1">
-            <button type="button" aria-pressed={group === 'all'} className={pill(group === 'all')} onClick={() => setGroup('all')}>
-              All
-            </button>
-            {categories.map(([code, label]) => (
-              <button key={code} type="button" aria-pressed={group === code} className={pill(group === code)} onClick={() => setGroup(code)}>
-                {label}
+          <div className="grid gap-4">
+            <label className="sr-only" htmlFor="apps-search">
+              Search the catalog
+            </label>
+            <input
+              id="apps-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search the catalog"
+              className="h-12 w-full max-w-md rounded-xl border border-line bg-card px-4 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink3 focus:border-acc focus:shadow-[0_0_0_3px_rgb(34_197_94/0.18)]"
+            />
+            <div role="group" aria-label="Category" className="flex gap-2 overflow-x-auto pb-1">
+              <button type="button" aria-pressed={group === 'all'} className={pill(group === 'all')} onClick={() => setGroup('all')}>
+                All
               </button>
-            ))}
+              {categories.map(([code, label]) => (
+                <button key={code} type="button" aria-pressed={group === code} className={pill(group === code)} onClick={() => setGroup(code)}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {loading ? (
-          <LoadingBlock rows={3} label="Loading the catalog" />
-        ) : list.length === 0 ? (
-          <div className="rounded-2xl border border-line bg-s1 p-8">
-            <p className="text-[18px] font-semibold">No product matches your search.</p>
-            <p className="mt-1 text-[15px] text-ink2">Clear the search or pick another category.</p>
-          </div>
-        ) : (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((product, i) => (
-              <li key={product.id} className="card-in" style={{ ['--i' as string]: i % 12 }}>
-                <article className="grid h-full content-between gap-6 rounded-2xl border border-line bg-card p-6 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-acc/50">
-                  <div className="grid gap-2">
-                    <p className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink3">{categoryLabel(product.category)}</p>
-                    <h2 className="text-[22px] font-semibold tracking-tight">
-                      <Link to={`/apps/${product.slug}`} className="outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
-                        {product.name}
-                      </Link>
-                    </h2>
-                    <p className="text-[15px] text-ink2">{product.description}</p>
-                  </div>
-                  <div className="grid gap-4">
-                    <dl className="grid grid-cols-3 gap-2 text-[13px]">
-                      <div>
-                        <dt className="text-ink3">Memory</dt>
-                        <dd className="font-mono">{memLabel(product.minRam)}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-ink3">vCPU</dt>
-                        <dd className="font-mono">{product.minCpu}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-ink3">Storage</dt>
-                        <dd className="font-mono">{product.minDisk} GB</dd>
-                      </div>
-                    </dl>
-                    <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-                      <p className="text-[14px] text-ink2">
-                        From{' '}
-                        <span className="font-mono text-[18px] font-semibold text-ink">
-                          {product.pricing?.minimum.amount !== undefined ? formatPrice(product.pricing.minimum.amount, product.pricing.currency) : '—'}
-                        </span>{' '}
-                        / mo
-                      </p>
-                      <Button to={`/apps/${product.slug}`}>Deploy</Button>
+          {loading ? (
+            <LoadingBlock rows={3} label="Loading the catalog" />
+          ) : list.length === 0 ? (
+            <div className="rounded-2xl border border-line bg-s1 p-8">
+              <p className="text-[18px] font-semibold">No product matches your search.</p>
+              <p className="mt-1 text-[15px] text-ink2">Clear the search or pick another category.</p>
+            </div>
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {list.map((product, i) => (
+                <li key={product.id} className="card-in" style={{ ['--i' as string]: i % 12 }}>
+                  <article className="grid h-full content-between gap-6 rounded-2xl border border-line bg-card p-6 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-acc/50">
+                    <div className="grid gap-2">
+                      <p className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink3">{categoryLabel(product.category)}</p>
+                      <h2 className="text-[22px] font-semibold tracking-tight">
+                        <Link to={`/apps/${product.slug}`} className="outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
+                          {product.name}
+                        </Link>
+                      </h2>
+                      <p className="text-[15px] text-ink2">{product.description}</p>
                     </div>
-                  </div>
-                </article>
-              </li>
-            ))}
-          </ul>
-        )}
+                    <div className="grid gap-4">
+                      <dl className="grid grid-cols-3 gap-2 text-[13px]">
+                        <div>
+                          <dt className="text-ink3">Memory</dt>
+                          <dd className="font-mono">{memLabel(product.minRam)}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-ink3">vCPU</dt>
+                          <dd className="font-mono">{product.minCpu}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-ink3">Storage</dt>
+                          <dd className="font-mono">{product.minDisk} GB</dd>
+                        </div>
+                      </dl>
+                      <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
+                        <p className="text-[14px] text-ink2">
+                          From{' '}
+                          <span className="font-mono text-[18px] font-semibold text-ink">
+                            {product.pricing?.minimum.amount !== undefined ? formatPrice(product.pricing.minimum.amount, product.pricing.currency) : '—'}
+                          </span>{' '}
+                          / mo
+                        </p>
+                        <Button to={`/apps/${product.slug}`}>Deploy</Button>
+                      </div>
+                    </div>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <p className="text-[13px] text-ink3">
-          Prices in euros per month, from the smallest configuration.{' '}
-          <Link to="/docs?p=resources" className="underline underline-offset-4 hover:text-ink2">
-            Read how resources and billing work
-          </Link>
-          .
-        </p>
-      </Wrap>
-    </section>
+          <p className="text-[13px] text-ink3">
+            Prices in euros per month, from the smallest configuration.{' '}
+            <Link to="/docs?p=resources" className="underline underline-offset-4 hover:text-ink2">
+              Read how resources and billing work
+            </Link>
+            .
+          </p>
+          </Wrap>
+        </section>
+      </main>
+      <Footer />
+    </>
   );
 }
 

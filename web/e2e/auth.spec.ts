@@ -36,7 +36,7 @@ test.describe('the login screen', () => {
     await page.goto('/login');
 
     await page.getByLabel('Email address').fill('not-an-address');
-    await page.getByLabel('Password').fill('whatever');
+    await page.getByLabel('Password', { exact: true }).fill('whatever');
     await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page.getByText('Enter a valid email address.')).toBeVisible();
@@ -54,7 +54,7 @@ test.describe('the login screen', () => {
 
     await page.goto('/login');
     await page.getByLabel('Email address').fill('ana@example.test');
-    await page.getByLabel('Password').fill('wrong-password');
+    await page.getByLabel('Password', { exact: true }).fill('wrong-password');
     await page.getByRole('button', { name: 'Log in' }).click();
 
     // The words come from the server, and they are not reworded.
@@ -73,7 +73,7 @@ test.describe('the login screen', () => {
 
     await page.goto('/login');
     await page.getByLabel('Email address').fill('ana@example.test');
-    await page.getByLabel('Password').fill('a-password');
+    await page.getByLabel('Password', { exact: true }).fill('a-password');
     await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page.getByRole('alert')).toContainText('This account is suspended. Write to support to know more.');
@@ -93,7 +93,7 @@ test.describe('the login screen', () => {
 
     await page.goto('/login');
     await page.getByLabel('Email address').fill('ana@example.test');
-    await page.getByLabel('Password').fill('a-good-password');
+    await page.getByLabel('Password', { exact: true }).fill('a-good-password');
     await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page).toHaveURL(/\/app/);
@@ -109,7 +109,7 @@ test.describe('the register screen', () => {
     await expect(rules).toBeVisible();
     await expect(rules.getByText('10 characters or more')).toHaveClass(/text-ink3/);
 
-    await page.getByLabel('Password').fill('Str0ngPassword');
+    await page.getByLabel('Password', { exact: true }).fill('Str0ngPassword');
     await expect(rules.getByText('10 characters or more')).toHaveClass(/text-acc-h/);
     await expect(rules.getByText('a lowercase letter')).toHaveClass(/text-acc-h/);
     await expect(rules.getByText('an uppercase letter')).toHaveClass(/text-acc-h/);
@@ -128,7 +128,7 @@ test.describe('the register screen', () => {
     await page.getByLabel('First name').fill('Ana');
     await page.getByLabel('Last name').fill('Ionescu');
     await page.getByLabel('Email address').fill('ana@example.test');
-    await page.getByLabel('Password').fill('short');
+    await page.getByLabel('Password', { exact: true }).fill('short');
     await page.getByRole('button', { name: 'Create account' }).click();
 
     await expect(page.getByText(/Choose a password with at least 10 characters/)).toBeVisible();
@@ -149,7 +149,7 @@ test.describe('the register screen', () => {
     await page.getByLabel('First name').fill('Ana');
     await page.getByLabel('Last name').fill('Ionescu');
     await page.getByLabel('Email address').fill('ana@example.test');
-    await page.getByLabel('Password').fill('Str0ngPassword');
+    await page.getByLabel('Password', { exact: true }).fill('Str0ngPassword');
     await page.getByRole('button', { name: 'Create account' }).click();
 
     await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
