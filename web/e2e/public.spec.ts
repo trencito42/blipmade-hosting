@@ -101,7 +101,9 @@ test.describe('the home page', () => {
       element.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    const expected = price(2048, 1, 1, { ramPerGb: 200, cpuPerUnit: 75, diskPerGb: 5, baseFee: 49 });
+    // Only the memory moves: the processor and the storage stay where the
+    // platform recommends them.
+    const expected = price(2048, 1, 5, { ramPerGb: 200, cpuPerUnit: 75, diskPerGb: 5, baseFee: 49 });
     await expect(page.getByRole('region', { name: 'Price configurator' }).locator('p[role="status"]')).toHaveText(euros(expected));
     // The price of the server for the same resources is the price of the site.
     expect(expected).toBeGreaterThan(product!.pricing!.minimum.amount);
