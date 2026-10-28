@@ -71,32 +71,36 @@ async function start() {
   };
 }
 
-test("the health of the site says that the typeface is the one of the machine", async () => {
+test("the health of the site says that the typeface is served by the site", async () => {
   const instance = await start();
   try {
     const answer = await fetch(`${instance.base}/healthz`);
     assert.equal(answer.status, 200);
     const body = await answer.json();
     assert.equal(body.status, "ok");
-    assert.equal(body.fonts.family, "System UI");
+    assert.equal(body.fonts.family, "Geist Variable");
+    assert.equal(body.fonts.mono, "Geist Mono Variable");
     assert.equal(body.fonts.installed, true);
-    assert.equal(body.fonts.webfont, false);
+    assert.equal(body.fonts.webfont, true);
+    assert.equal(body.fonts.source, "self");
     assert.deepEqual(body.fonts.files, []);
     assert.deepEqual(body.fonts.missing, []);
     assert.equal(body.fonts.fallback, "sans-serif");
 
     // The console of the container says the same.
-    assert.ok(instance.log.join("").includes("System UI"));
+    assert.ok(instance.log.join("").includes("Geist Variable"));
   } finally {
     instance.stop();
   }
 });
 
-test("the site does not serve a file of a typeface", async () => {
+test("the site does not serve a typeface of its own under /fonts", async () => {
   const instance = await start();
   try {
-    // There is no typeface on the site any more, so there is nothing to ask
-    // for. The answer is a plain 404 and the page never waits for a font.
+    // The files of the typeface are written by the build, next to the other
+    // files of the site, and they carry the name of the build. There is no
+    // directory of typefaces that the server serves on its own, so the answer
+    // is a plain 404.
     const answer = await fetch(`${instance.base}/fonts/proxima-nova-400.woff2`);
     assert.equal(answer.status, 404);
   } finally {

@@ -2,55 +2,70 @@
 
 ## 1. The typeface of the interface
 
-**The typeface of the interface is the typeface of the machine of the
-visitor.** There is no web font for the text: no file of a typeface is
-downloaded, no house of typefaces is asked for anything, and the page is
-painted with the letters the visitor already has.
+**The typeface of the interface is Geist, and the site serves it.** The files
+of the typeface are part of the build of the page: the browser asks this site
+for them and never a third party, and the page never shifts while the letters
+arrive.
 
-The stack is written once, in the theme block of `web/src/index.css`:
+The typeface comes from two packages that carry the files themselves:
 
-```css
---font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
---font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+```json
+"@fontsource-variable/geist": "^5.3.0",
+"@fontsource-variable/geist-mono": "^5.3.0"
 ```
 
-The stack starts with the system font of the visitor and ends with the
-generic family, so every browser of every system has something to draw with,
-even when none of the named families is there. The console, the codes and the
-numbers use the monospace stack, because a column of characters has to line
-up and a port has to be read as a port.
+The stylesheet of the site asks for the families by their name, and the
+packages write the faces into the build:
+
+```css
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+--font-sans: "Geist Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+--font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+```
+
+The stack starts with the typeface of the site and ends with the generic
+family, so every browser of every system has something to draw with, even when
+the files did not load. The console, the codes and the numbers use the
+monospace stack, because a column of characters has to line up and a port has
+to be read as a port.
 
 Nothing else in the codebase sets a font family, so the interface uses the
 sans stack and the data uses the mono stack everywhere.
 
-### Why the typeface of the machine
+### Why the typeface of the site
 
-| What the web font costs | What the system font gives |
+The typeface of the machine was the rule until the redesign of the site. The
+design of the reference asks for Geist, and the interface now wears it. The
+rule that did not change is the one that matters most: **no house of typefaces
+is asked for anything.** The files are in the build, the site hands them out,
+and the visitor is never sent anywhere else.
+
+| What a web font from a third party costs | What the typeface of the site costs |
 |---|---|
-| A request to a house of typefaces for every visitor | No request at all: the letters are already on the machine |
-| A page that is painted twice: once in the fallback, once in the typeface | A page that is painted once, the first time |
-| A shift of the text when the typeface arrives | No shift: the size of the letters is known before the page is painted |
-| A license that has to be checked before the site is published | No license: the typeface is the one of the operating system |
-| The same look only on the systems the file was tested on | The look the visitor expects from their own machine |
+| A request to a house of typefaces for every visitor | A request to this site, and the files are in the build already |
+| A page that is painted twice: once in the fallback, once in the typeface | The same, and the size of the letters is known before the page is painted |
+| A license of a third party to be checked before the site is published | The files are in the repository, under the license of the package |
+| The same look only on the systems the file was tested on | The same look on every system, and the typeface of the machine is the fallback |
 
-The weight tokens are the same as before and they are still normalized, so
-every `font-medium`, `font-extrabold` and `font-black` of the codebase asks
-for a weight the browser can draw and nothing is synthesised:
+The weight tokens are normalized, so every `font-medium`, `font-semibold` and
+`font-extrabold` of the codebase asks for a weight the browser can draw and
+nothing is synthesised:
 
 | Token | Value |
 |---|---|
 | `--font-weight-normal` | 400 |
-| `--font-weight-medium` | 400 |
+| `--font-weight-medium` | 500 |
 | `--font-weight-semibold` | 600 |
 | `--font-weight-bold` | 700 |
-| `--font-weight-extrabold` | 700 |
-| `--font-weight-black` | 700 |
+| `--font-weight-extrabold` | 800 |
+| `--font-weight-black` | 900 |
 
-## 2. The only font the site fetches
+## 2. The other font the site fetches
 
-The **icon font** of Font Awesome 7 Pro is the only font the browser
-downloads, and it carries no letter of the text. It is served by the site
-itself, under `/fontawesome/`:
+The **icon font** of Font Awesome 7 Pro carries no letter of the text. It is
+served by the site itself, under `/fontawesome/`:
 
 ```html
 <link rel="stylesheet" href="/fontawesome/css/pro.min.css" />
@@ -78,7 +93,7 @@ image under `/app/dist/fontawesome/` and are served from `/fontawesome/`.
 The **console of the web container** names the typeface of the interface:
 
 ```text
-Typeface: System UI of the machine of the visitor, no web font for the text.
+Typeface: Geist Variable and Geist Mono Variable, served by this site.
 ```
 
 The **health of the site** answers with the same thing:
@@ -91,19 +106,20 @@ curl -s https://blipmade.com/healthz
 {
   "status": "ok",
   "fonts": {
-    "family": "System UI",
+    "family": "Geist Variable",
     "installed": true,
-    "webfont": false,
+    "webfont": true,
+    "source": "self",
     "files": [],
     "missing": [],
     "fallback": "sans-serif",
-    "mono": "ui-monospace"
+    "mono": "Geist Mono Variable"
   }
 }
 ```
 
-There is nothing to be missing any more: the typeface of the interface is
-the one of the machine of the visitor.
+There is nothing to be missing: the files of the typeface are written by the
+build, and the build either wrote them or the site was never built.
 
 ## 4. The checklist for the operator
 
@@ -131,3 +147,27 @@ the one of the machine of the visitor.
    ```
 
    The answer has to be `HTTP/1.1 200 OK`.
+
+4. **Check that the typeface of the text is served by the site** and not by a
+   third party:
+
+   ```bash
+   curl -s https://blipmade.com/healthz
+   ```
+
+   `fonts.source` has to be `self` and `fonts.family` has to be
+   `Geist Variable`.
+
+## 5. What changed in the redesign of the site
+
+The interface used to ask for the typeface of the machine of the visitor, and
+the rule was written down in `web/fonts.mjs`, in `web/tests/fonts.test.mjs`
+and in `docs/CUSTOMER_PANEL_AUDIT.md`. The redesign of the site wears the
+design of the reference, and the reference asks for Geist, so the typeface
+changed:
+
+- the stack of the text starts with `Geist Variable` and the stack of the
+  console with `Geist Mono Variable`;
+- the two packages of the typeface carry the files, and the build writes them
+  into the site;
+- the rule that did not change: no request leaves the site for a letter.

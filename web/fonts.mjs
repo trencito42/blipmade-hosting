@@ -1,28 +1,35 @@
 /**
  * The typefaces of the interface.
  *
- * The interface asks for the typeface of the machine and for nothing else.
- * There is no web font for the text: no file of a typeface is downloaded, no
- * request goes to a house of typefaces, and the page is painted with the
- * letters the visitor already has. The interface is therefore the same on
- * every system, it never shifts while a font arrives, and it never sends the
- * visitor to a third party to read a page.
+ * The interface asks for **Geist Variable** and for **Geist Mono Variable**,
+ * and it asks this site for them: the files of the typeface are written into
+ * the build of the page, next to the other files of the site, and the server
+ * hands them out with `font/woff2`. The visitor never asks a house of
+ * typefaces for a letter, and the browser never shifts the page while the
+ * letters arrive.
  *
- * The only font the site fetches is the icon font of Font Awesome, and it
- * carries no letter of the text.
+ * The typeface of the machine is still the last name of the stack, so the
+ * page keeps reading on a machine where the files did not load.
+ *
+ * The only other font the site fetches is the icon font of Font Awesome, and
+ * it carries no letter of the text.
  */
 
 /** The family the interface asks for first. */
-export const SYSTEM_UI_FAMILY = "system-ui";
+export const SANS_FAMILY = "Geist Variable";
+
+/** The family the console, the codes and the numbers ask for first. */
+export const MONO_FAMILY = "Geist Mono Variable";
 
 /**
  * The stack of the text of the interface.
  *
- * The stack starts with the system font of the visitor and ends with the
- * generic family, so every browser of every system has something to draw
- * with, even when none of the named families is there.
+ * The stack starts with the typeface of the site and ends with the generic
+ * family, so every browser of every system has something to draw with, even
+ * when none of the named families is there.
  */
 export const SANS_STACK = [
+  "Geist Variable",
   "system-ui",
   "-apple-system",
   "BlinkMacSystemFont",
@@ -37,10 +44,11 @@ export const SANS_STACK = [
 /**
  * The stack of the text of the console, of the codes and of the numbers.
  *
- * The stack starts with the monospace font of the machine and ends with the
- * generic family, the same way the stack of the text does.
+ * The stack starts with the typeface of the site and ends with the generic
+ * family, the same way the stack of the text does.
  */
 export const MONO_STACK = [
+  "Geist Mono Variable",
   "ui-monospace",
   "SFMono-Regular",
   "SF Mono",
@@ -77,7 +85,7 @@ export function sansStack() {
   return [...SANS_STACK];
 }
 
-/** The stack of the text of the console and of the codes. */
+/** The stack of the console and of the codes. */
 export function monoStack() {
   return [...MONO_STACK];
 }
@@ -95,19 +103,23 @@ export function monoStackValue() {
 /**
  * What the site knows about the typeface of the interface.
  *
- * There is nothing to install and nothing to be missing: the typeface is the
- * one of the machine of the visitor. The answer is written down in the
- * health of the site, so the operator can see that the site does not depend
- * on a file of a typeface.
+ * The files of the typeface are part of the build of the site, so there is
+ * nothing to install on the host and nothing that can be missing from it:
+ * the build either wrote the files or the site was never built. The answer is
+ * written down in the health of the site, so the operator can see that the
+ * typeface of the interface is served by the site itself and not by a third
+ * party.
  */
 export function fontStatus() {
   return {
-    family: "System UI",
+    family: SANS_FAMILY,
     installed: true,
-    webfont: false,
+    webfont: true,
+    // The files are written by the build and are served by this server.
+    source: "self",
     files: [],
     missing: [],
     fallback: "sans-serif",
-    mono: "ui-monospace",
+    mono: MONO_FAMILY,
   };
 }

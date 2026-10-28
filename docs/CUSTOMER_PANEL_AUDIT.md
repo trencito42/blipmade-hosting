@@ -121,6 +121,34 @@ verified in Chromium: the faces that are loaded, the computed `font-family`
 and the absence of any request to Adobe while no kit is configured. The
 verification in a clean Safari session is still to be done by a person.
 
+### 2.2 the redesign of the site wears Geist, and the site serves it
+
+**What it was.** After the audit above, the interface asked for the typeface of
+the machine of the visitor (`system-ui`), because the kit of Adobe never
+arrived and a web font without its files is a promise the site cannot keep. The
+rule was written down in `web/fonts.mjs`, in the two font test files and in
+`docs/TYPOGRAPHY.md`.
+
+**What it is now.** The site wears the design of the reference, and the
+reference asks for Geist. The typeface changed with it, and it changed for
+good: the files are in the build.
+
+- `@fontsource-variable/geist` and `@fontsource-variable/geist-mono` carry the
+  files of the typeface, and the build writes them into the site next to the
+  other files.
+- `web/src/index.css` asks for the two families by their name and keeps the
+  typeface of the machine as the last name of the stack.
+- `web/fonts.mjs` reports the typeface of the interface and says that it is
+  served by the site (`source: "self"`), and `/healthz` answers with the same.
+- The rule that did not change: **no request leaves the site for a letter.**
+  The files come from this site, not from a house of typefaces.
+
+**Tests.** `web/tests/fonts.test.mjs` and `web/tests/fonts-server.test.mjs`
+check the new rule: the stack starts with the typeface of the site, the
+packages of the typeface are the only font packages of the project, the
+stylesheet carries no face of its own, and the health of the site names the
+typeface and says where it comes from.
+
 ---
 
 ## 3. The catalog and the prices
@@ -376,7 +404,7 @@ device before the panel is called finished on a phone.
 
 | # | What | Who | Why it is still open |
 |---|---|---|---|
-| 1 | The Adobe Fonts web project | operator | The kit of the account is needed. The step is in `docs/TYPOGRAPHY.md`. |
+| 1 | The Adobe Fonts web project | — | Closed. The redesign of the site wears Geist, and the files of the typeface are served by the site itself. The step is in `docs/TYPOGRAPHY.md`. |
 | 2 | The mail relay | operator | `SMTP_URL` and the records of DNS. The step is in `docs/EMAIL.md`. |
 | 3 | The payments | operator | `PAYMENTS_ENABLED` is `false` and `STRIPE_SECRET_KEY` is empty in the deployment. The answer is honest: the payments are not available. |
 | 4 | The keys of the API of the customer | product | The public API of the customer does not exist. The interface does not offer a key that grants nothing. |

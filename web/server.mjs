@@ -208,13 +208,14 @@ function send(res, status, message) {
 /**
  * The typefaces of the interface.
  *
- * The typeface of the interface is the typeface of the machine of the
- * visitor, so there is no file of a typeface to wait for and none to be
- * missing. The health of the site says so, so the operator can see that the
- * site does not depend on a typeface of its own.
+ * The interface asks for Geist and for Geist Mono, and it asks this site for
+ * them: the files are part of the build and are served from here, so the
+ * visitor is never sent to a third party for a letter. The health of the site
+ * says so, so the operator can see where the typeface of the interface comes
+ * from.
  */
 const fonts = fontStatus();
-console.log(`Typeface: ${fonts.family} of the machine of the visitor, no web font for the text.`);
+console.log(`Typeface: ${fonts.family} and ${fonts.mono}, served by this site.`);
 
 /**
  * The addresses whose forwarding headers are believed. Every other request is

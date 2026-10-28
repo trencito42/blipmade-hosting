@@ -94,7 +94,7 @@ describe('ButtonLink', () => {
     assert.match(soft, /bg-card/);
     assert.match(soft, /text-ink/);
     const danger = render(createElement(ui.ButtonLink, { to: '/apps', variant: 'danger' }, 'Delete'));
-    assert.match(danger, /bg-bad\/12/);
+    assert.match(danger, /bg-bad\/10/);
     assert.match(danger, /text-bad/);
   });
 

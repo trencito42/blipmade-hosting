@@ -23,9 +23,15 @@ The integration is ready for the kit of the operator:
 
 | Piece | Where | What it does |
 |---|---|---|
-| _(none)_ | `web/src/index.css`, `web/server.mjs` | proxima nova is served from this machine under `/fonts/`. The licensed web files are placed under `web/public/fonts/`; the health of the site names the ones that are missing. |
-| `--font-sans` | `web/src/index.css` | `"Proxima Nova", "proxima-nova", "Geist Variable", "Inter", system-ui, sans-serif`. Both spellings are asked for, because the web project may declare the family either way. |
-| `--font-weight-*` | `web/src/index.css` | 400, 600 and 700 only. `medium` is 400, `extrabold` and `black` are 700. |
+| `@fontsource-variable/geist`, `@fontsource-variable/geist-mono` | `web/package.json` | The files of the typeface are in the build of the page, so the browser asks this site for them and never a third party. |
+| `--font-sans` | `web/src/index.css` | `"Geist Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`. The typeface of the site comes first and the typeface of the machine is the last name of the stack, so the page keeps reading when the files did not load. |
+| `--font-weight-*` | `web/src/index.css` | 400, 500, 600, 700, 800 and 900, the whole scale of the typeface of the site, so nothing is synthesised by the browser. |
+
+> The redesign of the site changed this row: the interface used to ask for
+> `"Proxima Nova"` and to fall through to the typeface of the machine. The
+> design of the reference asks for Geist, and the files of the typeface now
+> come with the build. The step for the operator is in
+> [`TYPOGRAPHY.md`](TYPOGRAPHY.md).
 
 The weights are normalized in the theme tokens, not component by component: the
 51 `font-extrabold`, the 31 `font-medium` and the 5 `font-normal` in the
