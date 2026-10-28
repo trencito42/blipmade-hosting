@@ -20,9 +20,8 @@ cd "$ROOT"
 
 # The environment file only fills a gap, it never overrides a value that is
 # already in the environment.
-if [[ -f .env ]]; then
-  set -a; . ./.env; set +a
-fi
+source "$ROOT/scripts/lib/load-env.sh"
+load_env_file "$ROOT/.env"
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "DATABASE_URL is not set and .env was not found." >&2

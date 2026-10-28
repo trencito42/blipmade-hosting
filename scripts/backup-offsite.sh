@@ -78,9 +78,8 @@ PBKDF2_ITER="${OFFSITE_PBKDF2_ITER:-600000}"
 
 # The environment file only fills a gap, it never overrides a value that is
 # already in the environment.
-if [[ -f .env ]]; then
-  set -a; . ./.env; set +a
-fi
+source "$ROOT/scripts/lib/load-env.sh"
+load_env_file "$ROOT/.env"
 
 # ---------------------------------------------------------------------------
 # Without a target there is nothing to do.

@@ -117,11 +117,12 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 ALTER DATABASE blipmade_test OWNER TO $TEST_ROLE;
 SQL
 
-# The tables of the scratch database were made by the owner, because the
-# migrations are applied by the owner. The role of the suite therefore needs
-# the rights on them, or the suite cannot read a row of the database it owns.
-# The grants are given by the owner, because only the owner of a table may
-# give the rights on it.
+# The tables of the scratch database are made by the role of the suite, because
+# the migrations of the suite are applied by the role of the suite: the role
+# that owns the scratch database builds the schema of it. The grants below
+# are the safety net for a scratch database that was built by the owner, and
+# they are given by the owner, because only the owner of a table may give the
+# rights on it.
 OWNER_TEST_URL="${HOST_URL%/*}/blipmade_test"
 psql "$OWNER_TEST_URL" -v ON_ERROR_STOP=1 -q <<SQL
 GRANT USAGE ON SCHEMA public TO $TEST_ROLE;
