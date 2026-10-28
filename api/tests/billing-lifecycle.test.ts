@@ -419,10 +419,10 @@ describe('the yearly interval', () => {
     expect(response.status).toBe(200);
     expect(response.body.period).toBe('YEARLY');
     // The price of the resources of the configuration, for the twelve months
-    // of the year: one gigabyte of memory, one processor and ten gigabytes of
-    // disk, at the rate card of the platform.
-    expect(response.body.total).toBe(3000);
-    expect(response.body.items[0].unitAmount).toBe(3000);
+    // of the year: the fee of the instance, one gigabyte of memory, one
+    // processor and ten gigabytes of disk, at the rate card of the platform.
+    expect(response.body.total).toBe(374 * 12);
+    expect(response.body.items[0].unitAmount).toBe(374 * 12);
   });
 
   it('renews a yearly subscription for twelve months', async () => {

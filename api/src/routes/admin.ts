@@ -1073,7 +1073,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * so instead of showing a number that would be made up.
    */
   app.get('/admin/capacity', { preHandler: requirePermission('pricing.read') }, async (request: FastifyRequest) => {
-    const actor = await requireStaff(request);
+    await requireStaff(request);
     const [nodes, revenue, oversubscription, cores, costs] = await Promise.all([
       ptero.listNodes(),
       revenueSummary(),
@@ -1133,8 +1133,6 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const declaredNodes = rows.filter((row) => row.monthlyCost !== null);
     const allDeclared = rows.length > 0 && declaredNodes.length === rows.length;
     const monthlyCost = allDeclared ? rows.reduce((sum, row) => sum + (row.monthlyCost ?? 0), 0) : null;
-
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'capacity.read', targetType: 'platform', targetId: 'capacity' });
 
     return {
       nodes: rows,

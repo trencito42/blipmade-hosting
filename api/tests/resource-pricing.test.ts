@@ -41,12 +41,16 @@ afterAll(async () => {
   else process.env.MAIL_SALES_ENABLED = originalMailSales;
 });
 
-beforeEach(async () => {
-  await resetDatabase();
-});
-
 /** The card the brief announces: 200 cents a gigabyte, 75 a processor, 5 a gigabyte of disk and 49 of fee. */
 const CARD = { ramPerGb: 200, cpuPerUnit: 75, diskPerGb: 5, baseFee: 49 };
+
+beforeEach(async () => {
+  await resetDatabase();
+  // The card of the platform is written for every case. The card is kept in
+  // memory for a short while, so a case that writes another card must not
+  // change the cases that follow it.
+  await saveResourceRates(CARD);
+});
 
 /**
  * A product of the platform.

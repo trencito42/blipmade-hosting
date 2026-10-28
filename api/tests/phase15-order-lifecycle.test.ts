@@ -21,9 +21,9 @@ import { closeApp, createAdmin, getApp, makeClient, registerAndLogin, resetDatab
 let app: FastifyInstance;
 
 // The price of a server is the price of its resources, with the rate card of
-// the platform: one gigabyte of memory, one processor and ten gigabytes of
-// disk.
-const MONTHLY = 250;
+// the platform: the fee of the instance, one gigabyte of memory, one
+// processor and ten gigabytes of disk.
+const MONTHLY = 374;
 
 beforeAll(async () => {
   app = await getApp();
@@ -155,7 +155,7 @@ describe('the life of an order', () => {
     await seedProduct();
     const { orderId } = await placeOrder('quoted@example.com');
 
-    await expect(markOrderPaid({ orderId, amount: 1 })).rejects.toThrow(/is not the 250 that was quoted/);
+    await expect(markOrderPaid({ orderId, amount: 1 })).rejects.toThrow(/is not the 374 that was quoted/);
     expect(await statusOf(orderId)).not.toBe('PAID');
 
     await expect(markOrderPaid({ orderId, amount: MONTHLY })).resolves.toBeDefined();

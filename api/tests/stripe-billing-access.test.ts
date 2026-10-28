@@ -318,10 +318,11 @@ describe('the quote', () => {
 
     expect(response.status).toBe(200);
     // The price of the resources of the configuration, and not the price that
-    // the body of the request carried.
-    expect(response.body.items[0].unitAmount).toBe(250);
-    expect(response.body.items[0].total).toBe(250);
-    expect(response.body.subtotal).toBe(250);
-    expect(response.body.total).toBe(250);
+    // the body of the request carried: the fee of the instance, one gigabyte
+    // of memory, one processor and ten gigabytes of disk.
+    expect(response.body.items[0].unitAmount).toBe(374);
+    expect(response.body.items[0].total).toBe(374);
+    expect(response.body.subtotal).toBe(374);
+    expect(response.body.total).toBe(374);
   });
 });

@@ -25,9 +25,9 @@ import { closeApp, getApp, makeClient, registerAndLogin, resetDatabase } from '.
 let app: FastifyInstance;
 
 // The price of a server is the price of its resources, with the rate card of
-// the platform: one gigabyte of memory, one processor and ten gigabytes of
-// disk.
-const MONTHLY = 250;
+// the platform: the fee of the instance, one gigabyte of memory, one
+// processor and ten gigabytes of disk.
+const MONTHLY = 374;
 const QUOTE_LIMIT = 120;
 const ORDER_LIMIT = 30;
 

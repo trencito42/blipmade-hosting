@@ -336,8 +336,9 @@ describe('orders', () => {
     });
 
     expect(response.status).toBe(201);
-    // Two gigabytes of memory, two processors and ten gigabytes of disk.
-    expect(response.body.order.total).toBe(400);
+    // The fee of the instance, two gigabytes of memory, two processors and
+    // ten gigabytes of disk.
+    expect(response.body.order.total).toBe(649);
     expect(response.body.order.status).toBe('PENDING');
     expect(response.body.order.items[0].config.ram).toBe(2048);
   });

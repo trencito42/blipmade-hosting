@@ -178,7 +178,7 @@ describe('the limit per account', () => {
     const quote = await buildQuote(ITEMS, 'ONCE', userId);
 
     expect(quote.discount).toBe(0);
-    expect(quote.total).toBe(150);
+    expect(quote.total).toBe(249);
     expect(quote.promotion?.valid).toBe(false);
   });
 
@@ -317,9 +317,9 @@ describe('the cap of a fixed-amount campaign', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body.subtotal).toBe(150);
+    expect(response.body.subtotal).toBe(249);
     // The campaign takes the order and not more than the order.
-    expect(response.body.discount).toBe(150);
+    expect(response.body.discount).toBe(249);
     expect(response.body.total).toBe(0);
     expect(response.body.total).toBeGreaterThanOrEqual(0);
   });

@@ -270,7 +270,7 @@ describe('an order paid with a promotion', () => {
     expect(checkout.body.url).not.toBeNull();
 
     const order = await prisma.order.findUnique({ where: { id: created.body.order.id } });
-    expect(order?.total).toBe(75);
+    expect(order?.total).toBe(124);
     expect(order?.status).toBe('AWAITING_PAYMENT');
   });
 });
