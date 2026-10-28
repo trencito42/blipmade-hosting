@@ -75,8 +75,8 @@ WITH customer AS (
   VALUES ('verify-order-${STAMP}', 'BM-VERIFY-${STAMP}', (SELECT id FROM customer), 'PAID', 149, 'EUR', NOW(), NOW(), NOW())
   RETURNING id
 ), item AS (
-  INSERT INTO "OrderItem" ("id", "orderId", "productId", "name", "quantity", "unitAmount", "total", "currency", "createdAt", "updatedAt")
-  VALUES ('verify-item-${STAMP}', (SELECT id FROM created_order), '${PRODUCT_ID}', '${SLUG}', 1, 149, 149, 'EUR', NOW(), NOW())
+  INSERT INTO "OrderItem" ("id", "orderId", "productId", "name", "quantity", "unitAmount", "total", "currency")
+  VALUES ('verify-item-${STAMP}', (SELECT id FROM created_order), '${PRODUCT_ID}', '${SLUG}', 1, 149, 149, 'EUR')
   RETURNING id
 ), instance AS (
   INSERT INTO "Instance" ("id", "userId", "productId", "orderId", "orderItemId", "name", "status", "ram", "cpu", "disk", "price", "currency", "createdAt", "updatedAt")
