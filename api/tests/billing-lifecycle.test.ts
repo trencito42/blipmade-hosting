@@ -562,7 +562,9 @@ describe('the price of a service is the price of its configuration', () => {
     // The estimate of the panel is the price of the configuration.
     const summary = await client.request('GET', '/api/billing/summary');
     expect(summary.status).toBe(200);
-    expect(summary.body.monthlyEstimate).toBe(500);
+    // The estimate of the month follows the price of the service, and the
+    // price of the service is the price of its configuration.
+    expect(summary.body.monthlyEstimate).toBe(699);
 
     // The reconciliation is safe to run again.
     const second = await reconcileInstancePrices();
