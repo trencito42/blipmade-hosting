@@ -995,6 +995,14 @@ export async function verifyContainerDeployment(
       }
 
       if (!verdict.serving) {
+        if (verdict.pending) {
+          // A container that was started a moment ago and that uses no memory
+          // yet is not a broken container: it is one that is still starting.
+          // The check waits for it, and the loop ends with the reason of the
+          // last check, so a container that never starts is still a failure.
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
+        }
         // A state that will not become healthy by waiting for it.
         return {
           ok: false,

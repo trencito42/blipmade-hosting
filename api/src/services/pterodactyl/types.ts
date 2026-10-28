@@ -270,6 +270,14 @@ export interface ContainerVerdict {
   confirmed: boolean;
   /** The reason, in words, for the verdict. */
   reason: string;
+  /**
+   * True when the container may still serve the customer if the check waits.
+   *
+   * A container that was started a second ago is "starting" and uses no memory
+   * yet: it is not serving, but it is not broken either. A check that gives up
+   * at once would refuse a service that is starting normally.
+   */
+  pending: boolean;
 }
 
 /**
@@ -298,6 +306,7 @@ export function judgeContainer(evidence: ContainerEvidence): ContainerVerdict {
       serving: true,
       confirmed: true,
       reason: `The container is running on the node (state: ${state}).`,
+      pending: false,
     };
   }
 
@@ -310,12 +319,18 @@ export function judgeContainer(evidence: ContainerEvidence): ContainerVerdict {
         reason:
           `The node reports the state "${state}" and the container uses ${Math.round(memory / (1024 * 1024))} MB of memory, ` +
           'so the container is alive; the node does not confirm the running state, because the health check of the egg does not pass.',
+        pending: false,
       };
     }
+    // The container was started a moment ago: it has not used any memory yet.
+    // This is not a broken container, it is a container that is still starting,
+    // so the check waits for it instead of refusing it. A suspended container
+    // is not waiting for anything, so it is not pending.
     return {
       serving: false,
       confirmed: false,
       reason: `The node reports the state "${state}" and the container shows no memory in use yet, so it is not serving yet.`,
+      pending: !evidence.suspended,
     };
   }
 
@@ -324,6 +339,9 @@ export function judgeContainer(evidence: ContainerEvidence): ContainerVerdict {
       serving: false,
       confirmed: false,
       reason: 'The node reported no state at all for the server, so the deployment cannot be called healthy.',
+      // The node does not know the server yet, which is what happens right
+      // after a server is created. The check waits for the node to catch up.
+      pending: true,
     };
   }
 
@@ -331,5 +349,6 @@ export function judgeContainer(evidence: ContainerEvidence): ContainerVerdict {
     serving: false,
     confirmed: false,
     reason: `The node reports the state "${state}", which is not a state in which the container serves the customer.`,
+    pending: false,
   };
 }

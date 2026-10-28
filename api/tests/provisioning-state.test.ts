@@ -34,6 +34,9 @@ const panel = {
   uptime: new Map<string, number>(),
   suspended: new Set<string>(),
   silent: new Set<string>(),
+  /** The number of calls after which a container that boots reports itself running. */
+  boots: new Map<string, number>(),
+  calls: new Map<string, number>(),
 };
 
 function fakePanel(): void {
@@ -45,12 +48,18 @@ function fakePanel(): void {
       if (panel.silent.has(uuid)) {
         throw new Error('The node did not answer.');
       }
+      // A container that boots answers "starting" and no memory for a while,
+      // and answers "running" with memory after that.
+      const count = (panel.calls.get(uuid) ?? 0) + 1;
+      panel.calls.set(uuid, count);
+      const bootAfter = panel.boots.get(uuid);
+      const booted = bootAfter !== undefined && count >= bootAfter;
       // The panel of the production nests the counters below "resources".
       const attributes: Record<string, unknown> = {
         is_suspended: panel.suspended.has(uuid),
-        current_state: panel.states.get(uuid),
+        current_state: booted ? 'running' : panel.states.get(uuid),
         resources: {
-          memory_bytes: panel.memory.get(uuid) ?? 0,
+          memory_bytes: booted ? 46_694_400 : panel.memory.get(uuid) ?? 0,
           cpu_absolute: 0,
           disk_bytes: 0,
           network_rx_bytes: 0,
@@ -73,6 +82,8 @@ beforeEach(async () => {
   panel.uptime.clear();
   panel.suspended.clear();
   panel.silent.clear();
+  panel.boots.clear();
+  panel.calls.clear();
 });
 
 afterEach(() => {
@@ -160,6 +171,24 @@ describe('the health check of a deployment that has no port', () => {
     // deployment is not healthy.
     expect(result.ok).toBe(false);
     expect(result.reason).toContain('starting');
+  });
+
+  it('waits for a container that was started a moment ago', async () => {
+    fakePanel();
+    panel.states.set('uuid-booting', 'starting');
+    // The container uses no memory yet: it was started a second ago.
+    panel.boots.set('uuid-booting', 3);
+
+    const result = await verifyContainerDeployment(CLIENT_KEY, 'uuid-booting', { kind: 'container' }, {
+      attempts: 8,
+      delayMs: 1,
+    });
+
+    // A container that is still starting is not a service yet, but it is not
+    // broken either: the check waits for it instead of refusing a service
+    // that starts normally.
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('running');
   });
 
   it('refuses a container that the node reports as offline, and names the state', async () => {
