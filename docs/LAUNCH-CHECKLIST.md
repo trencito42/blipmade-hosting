@@ -213,7 +213,7 @@ the origin is trusted by Cloudflare and by nothing else.
 
 The whole story is in `docs/DOMAIN_ROUTING.md`, in the sections 2.4 and 4.4.
 
-### 4.1 The rotation of the key of the origin
+### 4.1 The rotation of the key of the origin — done, once more to come
 
 The private key of the certificate of the origin was published in the
 conversation with the operator, so it is treated as compromised and it has to
@@ -224,8 +224,9 @@ be replaced. The new pair is put in place with one command on the edge:
 cat certificate.pem key.pem | sudo python3 apply-origin-cert.py
 ```
 
-The script is `scripts/edge/apply-origin-cert.py` in the repository. It reads
-the pair from the standard input, so the key never appears in the list of the
+The script is `scripts/edge/apply-origin-cert.py` in the repository, and it is
+installed on the edge at `/usr/local/sbin/apply-origin-cert.py`. It reads the
+pair from the standard input, so the key never appears in the list of the
 processes, refuses a pair that is broken or that does not belong together,
 keeps a copy of the certificate that was in use, writes the new one, puts the
 routes of the customers back after the reload of Caddy and checks the
@@ -237,6 +238,19 @@ with the zone of the platform: a certificate of the origin that covers
 `blipmade.com` takes the place of the certificate of the site of the platform
 at the origin, and a hostname under `*.blipmade.com` that points straight at
 the edge would then be answered with a certificate that only Cloudflare trusts.
+
+**Done on the 28th of October 2026, at 16:10.** The pair was verified before
+the installation: the certificate verifies against the root of Cloudflare, the
+key is valid, and the public key of the certificate is the one of the key
+(`6aa3912096a8c678…`). The edge was reloaded, the route of `witch.pw` was
+written back, and the handshakes were measured: the wildcard of the base is
+answered with the certificate of the origin, and `blipmade.com` and
+`www.blipmade.com` with their own certificate, which the origin certificate
+no longer shadows.
+
+**What is left:** the pair that is in place was given in the conversation as
+well, so its key is in the same place as the one it replaced. It has to be
+rotated one more time, with a pair that does not pass through a conversation.
 
 ## 5. The webhook of Discord — done
 

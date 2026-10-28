@@ -175,6 +175,10 @@ serves it.
 cat certificate.pem key.pem | sudo python3 apply-origin-cert.py
 ```
 
+The copy that is on the edge is installed at `/usr/local/sbin/apply-origin-cert.py`,
+so it survives a restart of the machine; the copy of the repository is the one
+that is read when the edge is built again.
+
 The certificate and the key are read from the standard input, so the private
 key never appears in the list of the processes and never in the history of a
 shell. The script refuses a certificate that cannot be read, a key that

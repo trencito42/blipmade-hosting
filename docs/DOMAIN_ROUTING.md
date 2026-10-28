@@ -167,6 +167,29 @@ Two facts about the certificate of the origin are worth keeping in mind:
   certificate that only the CDN trusts. The certificate of the origin is
   therefore asked for with the wildcard of the base of the platform only.
 
+The pair that is in place since the 28th of October 2026 covers the wildcard of
+the base and nothing else, and the difference was measured on the edge:
+
+```console
+$ openssl s_client -connect 127.0.0.1:443 -servername blipmade.com \
+    | openssl x509 -noout -subject -issuer
+subject=CN=blipmade.com
+issuer=C=US, O=Let's Encrypt, CN=YE2
+
+$ openssl s_client -connect 127.0.0.1:443 -servername foo.apps.blipmade.com \
+    | openssl x509 -noout -subject -ext subjectAltName
+subject=O=CloudFlare, Inc., OU=CloudFlare Origin CA, CN=CloudFlare Origin Certificate
+    DNS:*.apps.blipmade.com, DNS:apps.blipmade.com
+```
+
+The site of the platform is answered at the origin with its own certificate,
+and the base of the applications with the certificate of the origin. The two
+names never meet.
+
+The script of the rotation is on the edge at `/usr/local/sbin/apply-origin-cert.py`,
+and the copy of the repository is the one that is read when the edge is built
+again.
+
 ### 2.5 The routes come back on their own
 
 The configuration of the edge is not a file of the platform: the platform
@@ -254,8 +277,8 @@ certificates, and they are not the same one:
 | CDN → edge | the edge | the certificate of Cloudflare Origin CA (`/etc/caddy/certs/`) | Cloudflare |
 
 The certificate of the origin is in place since the 28th of October 2026, and
-it covers `*.apps.blipmade.com`, `apps.blipmade.com`, `*.blipmade.com` and
-`blipmade.com`.
+it covers `*.apps.blipmade.com` and `apps.blipmade.com`. It covers nothing
+else: the names of the platform keep their own certificate at the origin.
 
 What the CDN still needs is a certificate of **its own** that covers
 `*.apps.blipmade.com`, because that is the one the visitor sees. The
@@ -335,10 +358,11 @@ customer.
 * The certificate of the origin is trusted by Cloudflare and by nothing else.
   A visitor that reaches the edge without going through Cloudflare sees a
   certificate that the browser refuses.
-* The certificate of the origin that is in place covers the zone of the
-  platform as well (`blipmade.com` and `*.blipmade.com`), so the edge offers
-  it for those names too, and Caddy prefers it at the origin because its
-  chain is shorter. The site of the platform still works through the CDN. A
-  hostname under `*.blipmade.com` that points straight at the edge would be
-  answered with a certificate that only Cloudflare trusts; the certificate of
-  the next rotation covers the wildcard of the base of the platform only.
+* The certificate of the origin that is in place covers the wildcard of the
+  base of the platform only (`*.apps.blipmade.com` and `apps.blipmade.com`),
+  and not the zone of the platform. The edge answers `blipmade.com` and
+  `www.blipmade.com` with their own certificate, and the base of the
+  applications with the certificate of the origin. A hostname under
+  `*.blipmade.com` that points straight at the edge is answered with the
+  certificate of the origin, which only Cloudflare trusts; the visitor has to
+  go through the CDN.
