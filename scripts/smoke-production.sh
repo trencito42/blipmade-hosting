@@ -90,12 +90,21 @@ fi
 echo
 echo "=== public pages (over the internet, through the gateway) ==="
 check "homepage"                      200 "$BASE_PUBLIC/"
-check "catalog"                       200 "$BASE_PUBLIC/catalog"
-check "pricing"                       200 "$BASE_PUBLIC/pricing"
+check "catalog of the apps"           200 "$BASE_PUBLIC/apps"
+check "a product"                     200 "$BASE_PUBLIC/apps/code-server"
+check "the documentation"             200 "$BASE_PUBLIC/docs"
+check "a page of the documentation"   200 "$BASE_PUBLIC/docs/upgrade"
 check "login"                         200 "$BASE_PUBLIC/login"
 check "register"                      200 "$BASE_PUBLIC/register"
-# The frontend renders in the browser, so the content of a page is checked by
-# the browser test and not by the status code of the shell.
+check "the terms"                     200 "$BASE_PUBLIC/terms"
+# The pages of the site are written to the disk, so an address that does not
+# exist is answered with the page of the address that does not exist and with
+# the answer 404, and not with the shell of the site.
+check "an address that does not exist" 404 "$BASE_PUBLIC/this-address-does-not-exist"
+# The files that a crawler reads.
+check "the map of the site"           200 "$BASE_PUBLIC/sitemap.xml"
+check "the file of the crawlers"      200 "$BASE_PUBLIC/robots.txt"
+check "the picture of a shared link"  200 "$BASE_PUBLIC/og.png"
 
 echo
 echo "=== the API behind the gateway ==="
