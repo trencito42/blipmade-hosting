@@ -1,8 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { CATEGORIES, type Category } from '../data';
-import { categoryLabel, useCatalogProducts, useCatalogSummary } from '../lib/pricing';
-
-import { Icon, type IconName } from '../icons';
+import { useEffect, useRef, useState } from 'react';
+import { Icon } from '../icons';
 import { cn, useScrollY } from '../lib';
 import { scrollToId, useRouter } from '../router';
 import { Button, Logo } from '../ui';
@@ -10,48 +7,32 @@ import { useSession } from '../session';
 import { homeOf } from '../auth-guard';
 
 /**
- * The icon of a category and the words that describe it while the catalog is
- * still loading. The products a category holds are never written here: they
- * come from the catalog of the platform, so the menu cannot advertise a
- * product the platform does not sell.
+ * The navigation of the public site.
+ *
+ * The bar is fixed and it becomes solid when the page is scrolled. The links
+ * of the sections of the home page are here, and the sheet of the phone
+ * carries every one of them, because a link that only exists on a wide
+ * screen is a link that a phone cannot use.
  */
-const CATS: Record<string, [IconName, string]> = {
-  'Web & CMS': ['globe', 'Sites, blogs and stores'],
-  'Developer Tools': ['code', 'Editors, forges and toolchains'],
-  Monitoring: ['mon', 'Uptime, metrics and dashboards'],
-  Automation: ['flow', 'Workflows that run themselves'],
-  Bots: ['bot', 'Chat bots, always on'],
-  Databases: ['db', 'Relational and document databases'],
-};
-
-export function Nav({ setCat }: { setCat: (c: Category) => void }) {
-  const catalog = useCatalogSummary();
-  const { products } = useCatalogProducts();
+export function Nav() {
   const y = useScrollY();
   const { path, navigate } = useRouter();
   const { user } = useSession();
-  const [menu, setMenu] = useState(false);
   const [sheet, setSheet] = useState(false);
   const root = useRef<HTMLElement>(null);
   const sheetPanel = useRef<HTMLDivElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
-  const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      setMenu(false);
-      // The sheet is a dialog: it gives the focus back to the button that
-      // opened it.
-      if (sheetPanel.current) {
-        setSheet(false);
-        menuButton.current?.focus();
-      }
+      if (e.key !== 'Escape' || !sheet) return;
+      setSheet(false);
+      menuButton.current?.focus();
     };
-    const out = (e: MouseEvent) => { if (root.current && !root.current.contains(e.target as Node)) setMenu(false); };
-    addEventListener('keydown', esc); addEventListener('mousedown', out);
-    return () => { removeEventListener('keydown', esc); removeEventListener('mousedown', out); };
-  }, []);
+    addEventListener('keydown', esc);
+    return () => removeEventListener('keydown', esc);
+  }, [sheet]);
+
   useEffect(() => { document.body.style.overflow = sheet ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [sheet]);
 
   // While the sheet is open the focus stays inside it.
@@ -79,103 +60,101 @@ export function Nav({ setCat }: { setCat: (c: Category) => void }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [sheet]);
 
-  const hover = (v: boolean) => { clearTimeout(timer.current); if (v) setMenu(true); else timer.current = window.setTimeout(() => setMenu(false), 160); };
-  const go = (id: string, c?: Category) => {
-    const hadSheet = sheet;
-    setSheet(false); setMenu(false);
-    if (hadSheet) menuButton.current?.focus();
-    const run = () => { if (c) setCat(c); scrollToId(id); };
-    if (path === '/') setTimeout(run, sheet ? 60 : 0); else { navigate('/'); setTimeout(run, 140); }
-  };
-  const link = 'relative inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-[15px] font-bold text-ink2 outline-none transition-colors duration-[180ms] hover:text-ink focus-visible:ring-2 focus-visible:ring-acc';
-  const scrolled = y > 24;
+  const solid = y > 12;
+  const link = 'rounded-lg px-3 py-2 text-[14px] text-ink2 transition-colors hover:text-ink';
 
-  /**
-   * The categories the menu offers, with the products the catalog really has
-   * in them. A category without a product in the catalog is not an entry: it
-   * would lead to an empty page.
-   */
-  const entries = useMemo(() => {
-    const byCategory = new Map<string, string[]>();
-    for (const product of products) {
-      const label = categoryLabel(product.category);
-      const names = byCategory.get(label) ?? [];
-      names.push(product.name);
-      byCategory.set(label, names);
+  /** A section of the home page. The page is scrolled to it when it is the one that is open. */
+  const go = (id: string) => {
+    const hadSheet = sheet;
+    setSheet(false);
+    if (hadSheet) menuButton.current?.focus();
+    if (path === '/') scrollToId(id);
+    else {
+      navigate('/');
+      setTimeout(() => scrollToId(id), 160);
     }
-    return CATEGORIES.filter((c) => c !== 'All')
-      .map((c) => ({ label: c, icon: CATS[c]?.[0] ?? 'box', names: byCategory.get(c) ?? [] }))
-      .filter((entry) => entry.names.length > 0 || products.length === 0);
-  }, [products]);
+  };
+
+  /** The links of the sheet of the phone. The same ones the wide bar holds. */
+  const sections: { label: string; id: string }[] = [
+    { label: 'Plans', id: 'plans' },
+    { label: 'Why Blipmade', id: 'why' },
+    { label: 'Panel', id: 'panel' },
+    { label: 'FAQ', id: 'faq' },
+  ];
 
   return (
-    <header ref={root} className="pointer-events-auto fixed inset-x-0 top-0 z-40 bg-bg px-3 pb-2 sm:px-6" onMouseLeave={() => hover(false)}>
-      <div className={cn('mx-auto max-w-[1280px] transition-[padding] duration-[220ms]', scrolled ? 'pt-2' : 'pt-3 sm:pt-4')}>
-        <div className="relative overflow-hidden rounded-[28px] bg-s1">
-          <nav aria-label="Main" className="flex h-[60px] items-center gap-2 pl-5 pr-2">
-            <Logo className="mr-2" />
-            <ul className="mx-auto hidden items-center gap-1 lg:flex">
-              <li onMouseEnter={() => hover(true)}>
-                <button type="button" aria-expanded={menu} className={cn(link, menu && 'text-ink')} onClick={() => setMenu(!menu)}>Apps<Icon name="arrow" size={13} className={cn('transition-transform duration-[180ms]', menu ? '-rotate-90' : 'rotate-90')} />
-                  <span aria-hidden="true" className={cn('absolute inset-x-4 -bottom-0.5 h-0.5 origin-left rounded-full bg-acc transition-transform duration-[220ms]', menu ? 'scale-x-100' : 'scale-x-0')} />
-                </button>
-              </li>
-              <li onMouseEnter={() => hover(false)}><button type="button" className={link} onClick={() => go('apps', 'Databases')}>Databases</button></li>
-              <li><button type="button" className={link} onClick={() => go('pricing')}>Pricing</button></li>
-              <li><a className={link} href="/docs">Docs</a></li>
-              <li><a className={link} href="/status">Status</a></li>
-            </ul>
-            <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
-              {user ? (
-                <a href={homeOf(user.role)} onClick={(e) => { e.preventDefault(); navigate(homeOf(user.role)); }} className="hidden h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink2 hover:text-ink sm:inline-flex">Dashboard</a>
-              ) : (
-                <a href="/login" onClick={(e) => { e.preventDefault(); navigate('/login'); }} className="hidden h-11 items-center rounded-full px-4 text-[15px] font-bold text-ink2 hover:text-ink sm:inline-flex">Log in</a>
-              )}
-              <Button icon="arrowUR" className="max-sm:hidden" onClick={() => go('apps', 'All')}>Get started</Button>
-              <button ref={menuButton} type="button" aria-label={sheet ? 'Close menu' : 'Open menu'} aria-expanded={sheet} onClick={() => setSheet(!sheet)} className="grid size-11 place-items-center rounded-full bg-s3 text-ink transition-transform duration-[180ms] active:scale-95 lg:hidden"><Icon name={sheet ? 'close' : 'menu'} size={20} /></button>
-            </div>
-          </nav>
-
-          <div aria-hidden={!menu} className={cn('hidden grid-rows-[0fr] transition-[grid-template-rows] duration-[220ms] lg:grid', menu && 'grid-rows-[1fr]')}>
-            <div className="overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-6 px-6 pb-6 pt-3">
-                <ul className="grid grid-cols-2 gap-x-6 gap-y-1">
-                  {entries.map((entry) => (
-                    <li key={entry.label}>
-                      <button type="button" tabIndex={menu ? 0 : -1} onClick={() => go('apps', entry.label)} className="group grid w-full grid-cols-[44px_minmax(0,1fr)] items-center gap-4 rounded-2xl p-3 text-left outline-none transition-colors duration-[180ms] hover:bg-s2 focus-visible:ring-2 focus-visible:ring-acc">
-                        <span className="grid size-11 place-items-center rounded-xl bg-s3 text-acc transition-transform duration-[180ms] group-hover:scale-105"><Icon name={entry.icon} size={20} /></span>
-                        <span className="min-w-0"><span className="block text-[18px] font-extrabold leading-tight tracking-[-0.03em]">{entry.label}</span><span className="block text-[13.5px] text-ink2">{entry.names.length ? entry.names.join(', ') : CATS[entry.label]?.[1]}</span></span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <div className="grid content-between gap-6 rounded-[22px] bg-acc p-7 text-on-acc">
-                  <div><p className="font-mono text-[11.5px] uppercase tracking-[0.1em] opacity-70">{catalog.count === null ? 'Apps and databases' : `${catalog.count} apps and databases`}</p><p className="mt-2 text-[30px] font-extrabold leading-[1] tracking-[-0.055em]">Skip the server setup.</p></div>
-                  <button type="button" tabIndex={menu ? 0 : -1} onClick={() => go('apps', 'All')} className="inline-flex h-11 w-fit items-center gap-1.5 rounded-full bg-on-acc px-5 text-[14.5px] font-bold text-acc">Explore apps<Icon name="arrowUR" size={15} /></button>
-                </div>
-              </div>
-            </div>
-          </div>
+    <header
+      ref={root}
+      className={cn(
+        'fixed inset-x-0 top-0 z-40 transition-[background-color,border-color] duration-300',
+        solid ? 'border-b border-line bg-bg/85 backdrop-blur-md' : 'border-b border-transparent',
+      )}
+    >
+      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center gap-2 px-5 sm:px-8">
+        <Logo className="mr-4" />
+        <nav aria-label="Main" className="hidden items-center md:flex">
+          {sections.map((section) => (
+            <button key={section.id} type="button" onClick={() => go(section.id)} className={link}>
+              {section.label}
+            </button>
+          ))}
+          <button type="button" onClick={() => navigate('/apps')} className={link}>Apps</button>
+          <button type="button" onClick={() => navigate('/docs')} className={link}>Docs</button>
+        </nav>
+        <div className="ml-auto flex items-center gap-1.5">
+          <a
+            href={user ? homeOf(user.role) : '/login'}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(user ? homeOf(user.role) : '/login');
+            }}
+            className="hidden h-10 items-center rounded-xl px-3 text-[14px] font-medium text-ink2 transition-colors hover:text-ink sm:inline-flex"
+          >
+            {user ? 'Dashboard' : 'Sign in'}
+          </a>
+          <Button onClick={() => navigate(user ? homeOf(user.role) : '/register')}>Get started</Button>
+          <button
+            ref={menuButton}
+            type="button"
+            aria-label={sheet ? 'Close menu' : 'Open menu'}
+            aria-expanded={sheet}
+            onClick={() => setSheet(!sheet)}
+            className="grid size-11 place-items-center rounded-xl text-ink transition-transform duration-200 active:scale-95 md:hidden"
+          >
+            <Icon name={sheet ? 'close' : 'menu'} size={20} />
+          </button>
         </div>
       </div>
 
       {sheet && (
-        <div ref={sheetPanel} className="pointer-events-auto fixed inset-0 -z-10 overflow-y-auto bg-bg px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[84px] lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <div className="bm-in grid gap-3">
-            <div className="rounded-[24px] bg-s1 p-2">
-              <p className="px-4 pb-1 pt-3 font-mono text-[12px] uppercase tracking-[0.1em] text-ink3">Browse</p>
-              <ul>
-                {CATEGORIES.filter((c) => c === 'All' || entries.some((entry) => entry.label === c)).map((c) => (
-                  <li key={c}><button type="button" onClick={() => go('apps', c)} className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl px-4 text-left text-[20px] font-extrabold tracking-[-0.035em] active:bg-s2"><Icon name={c === 'All' ? 'box' : CATS[c]?.[0] ?? 'box'} size={20} className="text-acc" />{c === 'All' ? 'All apps' : c}</button></li>
-                ))}
-              </ul>
+        <div
+          ref={sheetPanel}
+          className="fixed inset-0 top-16 z-40 overflow-y-auto bg-bg px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+        >
+          <div className="bm-in grid gap-2">
+            {sections.map((section) => (
+              <button key={section.id} type="button" onClick={() => go(section.id)} className="flex min-h-[52px] w-full items-center rounded-xl px-3 text-left text-[18px] font-semibold tracking-tight text-ink active:bg-s2">
+                {section.label}
+              </button>
+            ))}
+            <button type="button" onClick={() => { setSheet(false); navigate('/apps'); }} className="flex min-h-[52px] w-full items-center rounded-xl px-3 text-left text-[18px] font-semibold tracking-tight text-ink active:bg-s2">
+              Apps
+            </button>
+            <button type="button" onClick={() => { setSheet(false); navigate('/docs'); }} className="flex min-h-[52px] w-full items-center rounded-xl px-3 text-left text-[18px] font-semibold tracking-tight text-ink active:bg-s2">
+              Docs
+            </button>
+            <div className="mt-2 grid gap-2">
+              <Button size="lg" full onClick={() => { setSheet(false); navigate(user ? homeOf(user.role) : '/register'); }}>
+                {user ? 'Dashboard' : 'Get started'}
+              </Button>
+              <Button size="lg" variant="soft" full onClick={() => { setSheet(false); navigate(user ? homeOf(user.role) : '/login'); }}>
+                {user ? 'Dashboard' : 'Sign in'}
+              </Button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button type="button" onClick={() => go('pricing')} className="grid h-14 place-items-center rounded-2xl bg-s1 text-[16px] font-extrabold active:bg-s2">Pricing</button>
-              <a href="/docs" className="grid h-14 place-items-center rounded-2xl bg-s1 text-[16px] font-extrabold active:bg-s2">Docs</a>
-              <a href="/status" className="grid h-14 place-items-center rounded-2xl bg-s1 text-[16px] font-extrabold active:bg-s2">Status</a>
-            </div>
-            <div className="mt-1 grid gap-2"><Button size="lg" icon="arrowUR" onClick={() => go('apps', 'All')}>Get started</Button><Button size="lg" variant="soft" to={user ? homeOf(user.role) : '/login'}>{user ? 'Dashboard' : 'Log in'}</Button></div>
           </div>
         </div>
       )}

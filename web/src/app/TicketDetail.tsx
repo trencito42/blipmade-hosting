@@ -227,7 +227,7 @@ export default function TicketDetail() {
             </PrimaryButton>
           </div>
           {changeStatus.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {changeStatus.error}
             </p>
           )}
@@ -253,7 +253,7 @@ export default function TicketDetail() {
                 )}
               >
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <p className="text-[14.5px] font-bold text-ink">{authorName(message, user?.id ?? null)}</p>
+                  <p className="text-[14.5px] font-medium text-ink">{authorName(message, user?.id ?? null)}</p>
                   <span className="rounded-full bg-s3 px-2.5 py-0.5 text-[11.5px] font-bold text-ink2">
                     {roleLabel(message.author.role)}
                   </span>
@@ -292,7 +292,7 @@ export default function TicketDetail() {
           />
 
           <div className="grid gap-2">
-            <label htmlFor="ticket-attachment" className="px-1 text-[13.5px] font-bold text-ink">
+            <label htmlFor="ticket-attachment" className="px-1 text-[13.5px] font-medium text-ink">
               Attachment
             </label>
             <input
@@ -318,7 +318,7 @@ export default function TicketDetail() {
           </div>
 
           {reply.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {reply.error}
             </p>
           )}

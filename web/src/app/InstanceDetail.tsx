@@ -217,12 +217,12 @@ function Stepper({
 }) {
   const clamp = (next: number) => Math.min(max, Math.max(min, next));
   const buttonClass =
-    'grid size-11 shrink-0 place-items-center rounded-full bg-s3 text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc disabled:cursor-not-allowed disabled:opacity-40';
+    'grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
     <div className="grid gap-2 rounded-2xl bg-s2 p-4">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[14px] font-bold text-ink">{label}</p>
+        <p className="text-[14px] font-medium text-ink">{label}</p>
         <p className="font-mono text-[14px] tabular-nums text-ink">
           {value} {unit}
         </p>
@@ -368,7 +368,7 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
           </p>
         )}
         {save.error && (
-          <p role="alert" className="mt-2 rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
+          <p role="alert" className="mt-2 rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {save.error}
           </p>
         )}
@@ -386,7 +386,7 @@ function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: 
         <Panel title="Payment needed" description={`Order ${checkout.orderNumber} covers the price difference.`}>
           <a
             href={checkout.url}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97]"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-acc px-5 text-[14.5px] font-semibold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97]"
           >
             Pay and apply the change
           </a>
@@ -423,7 +423,7 @@ function DomainsTab({ instance }: { instance: Instance }) {
           action={
             <Link
               to="/app/domains"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-acc px-5 text-[14.5px] font-semibold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
             >
               Manage domains
             </Link>
@@ -452,7 +452,7 @@ function DomainsTab({ instance }: { instance: Instance }) {
                 </p>
 
                 {domain.lastError && (
-                  <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[13.5px] font-bold text-bad">
+                  <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[13.5px] font-medium text-bad">
                     {domain.lastError}
                   </p>
                 )}
@@ -494,7 +494,7 @@ function DomainsTab({ instance }: { instance: Instance }) {
 
           <Link
             to="/app/domains"
-            className="text-[14px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+            className="text-[14px] font-medium text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
           >
             Manage all domains
           </Link>
@@ -553,7 +553,7 @@ function SettingsPanel({
           className="scroll-mt-16"
         />
         {rename.error && (
-          <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
+          <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {rename.error}
           </p>
         )}
@@ -565,12 +565,12 @@ function SettingsPanel({
       </div>
 
       <div className="mt-5 grid gap-2">
-        <h3 className="text-[15px] font-extrabold tracking-[-0.02em] text-ink">Cancel instance</h3>
+        <h3 className="text-[15px] font-semibold tracking-[-0.02em] text-ink">Cancel instance</h3>
         <p className="text-[13.5px] text-ink2">
           The instance keeps running until the end of the paid period, then it is removed.
         </p>
         {cancel.error && (
-          <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
+          <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {cancel.error}
           </p>
         )}
@@ -632,7 +632,7 @@ export default function InstanceDetail() {
           message={error?.message ?? 'The instance was not found.'}
           onRetry={reload}
         />
-        <Link to="/app/instances" className="px-1 text-[14px] font-bold text-acc hover:underline">
+        <Link to="/app/instances" className="px-1 text-[14px] font-medium text-acc hover:underline">
           Back to your instances
         </Link>
       </div>
@@ -661,7 +661,7 @@ export default function InstanceDetail() {
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <ProductIcon icon={instance.product.icon} size={46} />
             <div className="w-0 min-w-0 flex-1">
-              <h2 className="truncate text-[20px] font-extrabold tracking-[-0.035em] text-ink" title={instance.name}>
+              <h2 className="truncate text-[20px] font-semibold tracking-[-0.035em] text-ink" title={instance.name}>
                 {instance.name}
               </h2>
               <p className="truncate text-[13px] text-ink3" title={instance.product.name}>
@@ -681,7 +681,7 @@ export default function InstanceDetail() {
               target="_blank"
               rel="noreferrer noopener"
               title={instance.url}
-              className="inline-flex max-w-full min-h-11 items-center gap-1.5 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              className="inline-flex max-w-full min-h-11 items-center gap-1.5 rounded-xl border border-line bg-card px-4 text-[13.5px] font-medium text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               <span className="min-w-0 break-all">{instance.url}</span>
               <Icon name="arrowUR" size={15} className="shrink-0" />
@@ -702,7 +702,7 @@ export default function InstanceDetail() {
         </div>
 
         {power.error && (
-          <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
+          <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {power.error}
           </p>
         )}

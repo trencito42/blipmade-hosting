@@ -232,7 +232,7 @@ export default function Staff() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
+                        <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
                           {member.name ?? 'No name'}
                         </p>
                         <p className="truncate font-mono text-[12.5px] text-ink3" title={email(member.email)}>
@@ -250,7 +250,7 @@ export default function Staff() {
                   <div key={member.userId} className="rounded-2xl bg-s2 p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
+                        <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
                           {member.name ?? 'No name'}
                         </p>
                         <p
@@ -295,7 +295,7 @@ export default function Staff() {
           )}
 
           {save.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {save.error}
             </p>
           )}

@@ -141,28 +141,28 @@ export default function Status() {
 
   return (
     <div className="min-h-[100svh] bg-bg">
-      <header className="bg-s1">
+      <header className="border-b border-line bg-bg/85 backdrop-blur-md">
         {/* The bar wraps on a narrow phone so no navigation link is pushed out
             of the viewport. */}
-        <div className="mx-auto flex min-h-[60px] w-full max-w-[1280px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 sm:flex-nowrap sm:px-6 sm:py-0">
+        <div className="mx-auto flex min-h-[64px] w-full max-w-[1200px] flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2 sm:flex-nowrap sm:px-8 sm:py-0">
           <Logo className="shrink-0" />
           <nav aria-label="Main" className="ml-auto flex items-center gap-1">
             <Link
               to="/docs"
-              className="inline-flex h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 sm:text-[15px]"
+              className="inline-flex h-10 items-center rounded-lg px-3 text-[14px] font-medium text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
             >
               Docs
             </Link>
             <Link
               to="/status"
               aria-current="page"
-              className="inline-flex h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 sm:text-[15px]"
+              className="inline-flex h-10 items-center rounded-lg px-3 text-[14px] font-medium text-ink transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
             >
               Status
             </Link>
             <Link
               to="/"
-              className="inline-flex h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 sm:text-[15px]"
+              className="inline-flex h-10 items-center rounded-lg px-3 text-[14px] font-medium text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
             >
               Home
             </Link>
@@ -170,11 +170,11 @@ export default function Status() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[820px] px-4 py-10 sm:px-6 sm:py-14">
-        <h1 className="text-[clamp(30px,7vw,44px)] font-extrabold leading-[1.05] tracking-[-0.05em] text-ink">
+      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-8 sm:py-14">
+        <h1 className="text-[clamp(40px,6vw,76px)] leading-[1] font-semibold tracking-[-0.045em] text-ink [text-wrap:balance]">
           Service status
         </h1>
-        <p className="mt-3 text-[16px] leading-relaxed text-ink2">
+        <p className="mt-4 text-[17px] leading-relaxed text-ink2">
           Live state of the Blipmade platform, straight from the status endpoint.
         </p>
 
@@ -192,9 +192,9 @@ export default function Status() {
               <div
                 role="status"
                 aria-live="polite"
-                className={cn('rounded-[22px] px-5 py-5', banner.className)}
+                className={cn('rounded-2xl border border-line px-5 py-5', banner.className)}
               >
-                <p className="text-[19px] font-extrabold tracking-[-0.03em]">{banner.title}</p>
+                <p className="text-[19px] font-semibold tracking-[-0.03em]">{banner.title}</p>
                 <p className="mt-1 text-[14.5px] opacity-90">{banner.detail}</p>
               </div>
 
@@ -208,9 +208,9 @@ export default function Status() {
                   {components.map((component) => {
                     const kind = classify(component.state);
                     return (
-                      <li key={component.id} className="flex items-center gap-3 rounded-2xl bg-s1 px-4 py-3.5">
+                      <li key={component.id} className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3.5">
                         <span aria-hidden="true" className={cn('size-2.5 shrink-0 rounded-full', KIND_DOT[kind])} />
-                        <span className="w-0 min-w-0 flex-1 truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={component.name}>
+                        <span className="w-0 min-w-0 flex-1 truncate text-[15px] font-medium tracking-[-0.02em] text-ink" title={component.name}>
                           {component.name}
                         </span>
                         <span
@@ -229,7 +229,7 @@ export default function Status() {
                 </ul>
               )}
 
-              <div className="rounded-2xl bg-s1 px-4 py-4">
+              <div className="rounded-2xl border border-line bg-card px-4 py-4">
                 <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Last checked</p>
                 <p className="mt-1 text-[14.5px] text-ink2">
                   {state.data?.updatedAt ? (
@@ -255,10 +255,10 @@ export default function Status() {
         </div>
       </main>
 
-      <footer className="mx-auto w-full max-w-[1280px] px-4 pb-10 sm:px-6">
+      <footer className="mx-auto w-full max-w-[1200px] px-5 pb-10 sm:px-8">
         <p className="text-[13.5px] text-ink3">
           Something broken that is not listed here?{' '}
-          <Link to="/app/tickets" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline">
+          <Link to="/app/tickets" className="inline-flex min-h-11 items-center font-medium text-ink underline underline-offset-4 transition-colors duration-200 hover:text-acc-h">
             Open a ticket
           </Link>
           .

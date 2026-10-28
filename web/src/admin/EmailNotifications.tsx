@@ -599,7 +599,7 @@ export function NotificationOverviewPanel({ overview }: { overview: Notification
       </section>
 
       <div role="status" className={file ? 'rounded-2xl bg-warn/12 px-4 py-3' : 'rounded-2xl bg-acc-bg px-4 py-3'}>
-        <p className={file ? 'text-[14.5px] font-extrabold text-warn' : 'text-[14.5px] font-extrabold text-acc'}>
+        <p className={file ? 'text-[14.5px] font-semibold text-warn' : 'text-[14.5px] font-semibold text-acc'}>
           {file ? 'The relay is not configured.' : 'The relay is configured.'}
         </p>
         <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">
@@ -741,7 +741,7 @@ export function NotificationDeliveriesTable({
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="w-0 min-w-0 flex-1">
-                <p className="truncate font-mono text-[13.5px] font-bold text-ink" title={delivery.kind}>
+                <p className="truncate font-mono text-[13.5px] font-medium text-ink" title={delivery.kind}>
                   {delivery.kind}
                 </p>
                 <p className="truncate font-mono text-[12px] text-ink3" title={delivery.to}>
@@ -899,7 +899,7 @@ export function NotificationEventsTable({
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="w-0 min-w-0 flex-1">
-                <p className="truncate font-mono text-[13.5px] font-bold text-ink" title={event.type}>
+                <p className="truncate font-mono text-[13.5px] font-medium text-ink" title={event.type}>
                   {event.type}
                 </p>
                 <p className="truncate font-mono text-[12px] text-ink3" title={event.businessKey}>
@@ -1042,7 +1042,7 @@ export function NotificationTemplateCatalogue({
         {(template) => (
           <div>
             <div className="flex items-start justify-between gap-3">
-              <p className="w-0 min-w-0 flex-1 truncate font-mono text-[13.5px] font-bold text-ink" title={template.id}>
+              <p className="w-0 min-w-0 flex-1 truncate font-mono text-[13.5px] font-medium text-ink" title={template.id}>
                 {template.id}
               </p>
               <span className="shrink-0 font-mono text-[12px] text-ink3">v{template.version}</span>
@@ -1094,7 +1094,7 @@ export function NotificationTemplatePreviewPanel({
   return (
     <div className="grid gap-3">
       <div>
-        <p className="px-1 text-[13.5px] font-bold text-ink">Preview</p>
+        <p className="px-1 text-[13.5px] font-medium text-ink">Preview</p>
         <p className="mt-1 break-words text-[13px] leading-relaxed text-ink2">
           {template
             ? `The template "${template.id}" is rendered with the values below. Nothing is sent: the message goes nowhere from here.`
@@ -1139,7 +1139,7 @@ export function NotificationTemplatePreviewPanel({
           )}
           <div className="rounded-2xl bg-s2 p-4">
             <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Subject</p>
-            <p className="mt-1 break-words text-[14px] font-bold text-ink">{preview.subject}</p>
+            <p className="mt-1 break-words text-[14px] font-medium text-ink">{preview.subject}</p>
             <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Preheader</p>
             <p className="mt-1 break-words text-[13px] text-ink2">{preview.preheader}</p>
             <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Text</p>
@@ -1197,7 +1197,7 @@ export function NotificationTestSendPanel({
   return (
     <div className="grid gap-3">
       <div>
-        <p className="px-1 text-[13.5px] font-bold text-ink">Test message</p>
+        <p className="px-1 text-[13.5px] font-medium text-ink">Test message</p>
         <p className="mt-1 break-words text-[13px] leading-relaxed text-ink2">
           The message goes to the one address below. No customer of the platform is on this form, and nothing here writes to
           the customers of the platform.
@@ -1264,7 +1264,7 @@ export function NotificationTestSendPanel({
 
       {sent && (
         <div role="status" className="rounded-2xl bg-acc-bg px-4 py-3">
-          <p className="text-[13.5px] font-extrabold text-acc">
+          <p className="text-[13.5px] font-semibold text-acc">
             {sent.delivered ? 'The test message left the platform.' : 'The test message did not leave the platform.'}
           </p>
           {sent.notice && <p className="mt-1 break-words text-[13px] leading-relaxed text-ink2">{sent.notice}</p>}
@@ -1471,7 +1471,7 @@ export function NotificationPager({
 export function NotificationError({ message }: { message: string | null | undefined }) {
   if (!message) return null;
   return (
-    <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+    <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
       {message}
     </p>
   );
@@ -1766,7 +1766,7 @@ export default function EmailNotifications() {
 
       {file && (
         <div role="status" className="rounded-2xl bg-warn/12 px-4 py-3">
-          <p className="text-[14px] font-extrabold text-warn">The relay is not configured.</p>
+          <p className="text-[14px] font-semibold text-warn">The relay is not configured.</p>
           <p className="mt-1 break-words text-[13px] leading-relaxed text-ink2">
             The messages are written to files on the server — nothing is being sent to anybody.
           </p>

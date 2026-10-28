@@ -611,7 +611,7 @@ export function AdminMailPlansTable({
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="w-0 min-w-0 flex-1">
-                <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={plan.name}>
+                <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={plan.name}>
                   {plan.name}
                 </p>
                 <p className="truncate font-mono text-[12.5px] text-ink3" title={plan.slug}>
@@ -823,7 +823,7 @@ export function AdminMailPlanForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
-          <p className="px-1 text-[13.5px] font-bold text-ink">In the catalog</p>
+          <p className="px-1 text-[13.5px] font-medium text-ink">In the catalog</p>
           <Segmented
             ariaLabel="Visible in the catalog"
             role="group"
@@ -833,7 +833,7 @@ export function AdminMailPlanForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <p className="px-1 text-[13.5px] font-bold text-ink">On sale</p>
+          <p className="px-1 text-[13.5px] font-medium text-ink">On sale</p>
           <Segmented
             ariaLabel="On sale"
             role="group"
@@ -845,7 +845,7 @@ export function AdminMailPlanForm({
       </div>
 
       <div className="grid gap-3">
-        <p className="px-1 text-[13.5px] font-bold text-ink">Prices</p>
+        <p className="px-1 text-[13.5px] font-medium text-ink">Prices</p>
         {state.prices.length === 0 ? (
           <p className="px-1 text-[13px] leading-relaxed text-ink3">
             The catalog holds no price yet, so the API names no period. The periods and the currencies of the prices come
@@ -891,7 +891,7 @@ export function AdminMailPlanForm({
       </div>
 
       {error && (
-        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {error}
         </p>
       )}
@@ -1078,7 +1078,7 @@ export default function MailProducts() {
           )}
 
           {sale.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {sale.error}
             </p>
           )}
@@ -1113,7 +1113,7 @@ export default function MailProducts() {
       />
 
       {remove.error && (
-        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {remove.error}
         </p>
       )}

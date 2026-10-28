@@ -254,7 +254,7 @@ function ProfilePanel({
         </div>
 
         {save.error && (
-          <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+          <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
             {save.error}
           </p>
         )}
@@ -263,7 +263,7 @@ function ProfilePanel({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Email address</p>
-              <p className="mt-0.5 break-all text-[15px] font-bold text-ink">{data.profile.email}</p>
+              <p className="mt-0.5 break-all text-[15px] font-semibold text-ink">{data.profile.email}</p>
             </div>
             <span
               className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-bold ${
@@ -322,13 +322,13 @@ function ProfilePanel({
         <dl className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl bg-s2 p-3.5">
             <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Account role</dt>
-            <dd className="mt-1 text-[15px] font-bold text-ink">
+            <dd className="mt-1 text-[15px] font-semibold text-ink">
               {ROLE_LABEL[data.profile.role] ?? data.profile.role}
             </dd>
           </div>
           <div className="rounded-2xl bg-s2 p-3.5">
             <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Member since</dt>
-            <dd className="mt-1 text-[15px] font-bold text-ink">{fmtDate(data.profile.createdAt)}</dd>
+            <dd className="mt-1 text-[15px] font-semibold text-ink">{fmtDate(data.profile.createdAt)}</dd>
           </div>
         </dl>
       </div>
@@ -406,7 +406,7 @@ function PasswordPanel() {
         />
 
         {change.error && (
-          <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+          <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
             {change.error}
           </p>
         )}
@@ -489,7 +489,7 @@ function SessionsPanel({
           {sessions.map((session) => (
             <li key={session.id} className="grid gap-2 rounded-2xl bg-s2 p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 text-[14.5px] font-bold text-ink">
+                <p className="flex flex-wrap items-center gap-2 text-[14.5px] font-medium text-ink">
                   {session.device}
                   {session.current && <StatusPill status="current" label="This device" />}
                 </p>
@@ -508,7 +508,7 @@ function SessionsPanel({
       )}
 
       {revoke.error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {revoke.error}
         </p>
       )}
@@ -537,7 +537,7 @@ function SessionsPanel({
       )}
 
       {closeOthers.error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {closeOthers.error}
         </p>
       )}
@@ -641,7 +641,7 @@ function NotificationsPanel() {
       ) : (
         <div className="grid gap-3">
           {save.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {save.error}
             </p>
           )}
@@ -746,7 +746,7 @@ function NotificationPreferenceGroup({
     <div className="rounded-2xl bg-s2 p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[15px] font-bold text-ink">{category.label}</p>
+          <p className="text-[15px] font-semibold text-ink">{category.label}</p>
           <p className="mt-0.5 text-[13px] leading-relaxed text-ink3">{category.description}</p>
         </div>
         {category.essential ? (
@@ -776,7 +776,7 @@ function NotificationPreferenceGroup({
                     aria-label={`${category.label}: ${CHANNEL_LABEL[channel]}`}
                     className="size-6 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc disabled:cursor-not-allowed"
                   />
-                  <span className="text-[14px] font-bold text-ink">{CHANNEL_LABEL[channel]}</span>
+                  <span className="text-[14px] font-medium text-ink">{CHANNEL_LABEL[channel]}</span>
                 </label>
               );
             })}
@@ -864,7 +864,7 @@ function AccountPanel({ account }: { account: SettingsResponse['account'] }) {
           running until the end of the period you paid for, and the team will write to you before anything is closed.
         </p>
         {(request.error || cancel.error) && (
-          <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+          <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
             {request.error ?? cancel.error}
           </p>
         )}
@@ -919,7 +919,7 @@ function AccountPanel({ account }: { account: SettingsResponse['account'] }) {
       </div>
 
       {request.error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {request.error}
         </p>
       )}

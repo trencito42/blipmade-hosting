@@ -178,7 +178,7 @@ export default function Tickets() {
                           aria-pressed={ticket.id === selectedId}
                           className="block min-w-0 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                         >
-                          <span className="block truncate text-[14px] font-bold tracking-[-0.02em] text-ink" title={`#${ticket.number} ${ticket.subject}`}>
+                          <span className="block truncate text-[14px] font-medium tracking-[-0.02em] text-ink" title={`#${ticket.number} ${ticket.subject}`}>
                             #{ticket.number} {ticket.subject}
                           </span>
                           <span className="block truncate text-[12.5px] text-ink3" title={maskEmail(ticket.customer?.email ?? '')}>
@@ -211,7 +211,7 @@ export default function Tickets() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="w-0 min-w-0 flex-1">
-                          <p className="truncate text-[14.5px] font-bold tracking-[-0.02em] text-ink" title={`#${ticket.number} ${ticket.subject}`}>
+                          <p className="truncate text-[14.5px] font-medium tracking-[-0.02em] text-ink" title={`#${ticket.number} ${ticket.subject}`}>
                             #{ticket.number} {ticket.subject}
                           </p>
                           <p className="truncate font-mono text-[12.5px] text-ink3" title={maskEmail(ticket.customer?.email ?? '')}>
@@ -417,7 +417,7 @@ function TicketDetailPanel({
                 <p className="text-[13px] text-ink3">Your role does not hold &quot;tickets.write&quot;, so the ticket is read-only.</p>
               )}
               {assignAction.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {assignAction.error}
                 </p>
               )}
@@ -461,7 +461,7 @@ function TicketDetailPanel({
                 <p className="text-[13px] text-ink3">Your role does not hold &quot;tickets.write&quot;, so the status cannot be changed.</p>
               )}
               {statusAction.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {statusAction.error}
                 </p>
               )}
@@ -483,7 +483,7 @@ function TicketDetailPanel({
                     }
                   >
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="text-[14px] font-bold text-ink">{message.author.name ?? message.author.role}</p>
+                      <p className="text-[14px] font-medium text-ink">{message.author.name ?? message.author.role}</p>
                       <span className="rounded-full bg-s3 px-2.5 py-0.5 text-[11.5px] font-bold text-ink2">
                         {message.author.role}
                       </span>
@@ -527,7 +527,7 @@ function TicketDetailPanel({
               </div>
               {!mayWrite && <p className="text-[13px] text-ink3">Your role does not hold &quot;tickets.write&quot;, so you cannot reply.</p>}
               {reply.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {reply.error}
                 </p>
               )}

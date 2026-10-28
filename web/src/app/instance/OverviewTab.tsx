@@ -77,7 +77,7 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
           <div className="grid gap-4">
             <div className="grid gap-1.5">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[14px] font-bold text-ink">Memory</span>
+                <span className="text-[14px] font-medium text-ink">Memory</span>
                 <span className="font-mono text-[13px] tabular-nums text-ink2">
                   {sample?.memoryBytes === null || sample?.memoryBytes === undefined
                     ? '—'
@@ -92,7 +92,7 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
 
             <div className="grid gap-1.5">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[14px] font-bold text-ink">Disk</span>
+                <span className="text-[14px] font-medium text-ink">Disk</span>
                 <span className="font-mono text-[13px] tabular-nums text-ink2">
                   {sample?.diskBytes === null || sample?.diskBytes === undefined ? '—' : fmtBytes(sample.diskBytes)}{' '}
                   <span className="text-ink3">of {instance.disk} GB</span>
@@ -162,7 +162,7 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
                   <button
                     type="button"
                     onClick={() => onGoTo?.('activity')}
-                    className="h-11 rounded-full bg-s3 px-4 text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    className="h-11 rounded-xl border border-line bg-card px-4 text-[13.5px] font-medium text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     See the full activity
                   </button>

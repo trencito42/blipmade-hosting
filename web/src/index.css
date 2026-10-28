@@ -1,54 +1,55 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
-/* The typeface of the interface is the typeface of the machine.
+/* The typeface of the interface.
  *
- * No file of a typeface is downloaded and no house of typefaces is asked for
- * anything: the interface asks for the system font of the visitor and for
- * nothing else. The page is painted with the letters it already has, so it
- * never shifts, it never waits, and it never sends the visitor to a third
- * party to read a page. The icon font of Font Awesome is the only font that
- * is fetched, and it carries no letter of the text. */
-
-/* Blipmade tokens. Near-black base, fine borders, one green accent. */
+ * Geist Variable and Geist Mono Variable are served from the host of the
+ * platform: the files of the typeface are in the build of the page, so the
+ * visitor never asks a third party for a letter and the page never shifts
+ * while the letters arrive. The system of the visitor is the fallback, so the
+ * page still reads on a machine where the files did not load. */
 @theme {
-  --color-bg: #090a09;
-  --color-s1: #121412;
-  --color-s2: #1a1d1a;
-  --color-s3: #232823;
-  --color-line: #303630;
-  --color-acc-bg: #12291b;
-  --color-con: #050705;
-  --color-con-ink: #c9d2c9;
-  --color-ink: #f3f6f2;
-  --color-ink2: #a0a7a0;
-  --color-ink3: #7b827b;
-  --color-acc: #6be598;
-  --color-acc-h: #85edab;
+  /* The colours of the reference. A near-black base, one green, and a scale
+     of surfaces that a card, a field and a chip can be told apart by. */
+  --color-bg: #0a0a0a;
+  --color-s1: #111111;
+  --color-s2: #161616;
+  --color-s3: #1d1d1d;
+  --color-line: #262626;
+  --color-acc-bg: #0f2417;
+  --color-con: #0d0d0d;
+  --color-con-ink: #a3a3a3;
+  --color-ink: #f5f5f5;
+  --color-ink2: #a3a3a3;
+  --color-ink3: #8c8c8c;
+  --color-acc: #22c55e;
+  --color-acc-h: #4ade80;
   --color-on-acc: #06130b;
-  --color-bad: #ff6b6b;
+  --color-bad: #f87171;
   --color-warn: #f0b232;
-  /* One shade of red for the alerts of the interface: `bg-bad/10`, the block
-     that carries an error message. The danger button keeps `bg-bad/12`,
-     because it is a control and not an alert. */
-  /* The typeface of the interface is the typeface of the machine: the stack
-     starts with the system font of the visitor and ends with the generic
-     family, so every system of every browser has something to draw with.
-     The names are written the way the browser reads them, and the family is
-     written twice because some tools write it in small letters. */
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
-  /* The system font has the weights the browser can draw. The tokens are
-     normalized here, so every place that asks for a weight asks for one the
-     typeface really has and nothing is synthesised by the browser. */
+  /* The names of the reference, kept as aliases of the scale above.
+     `card` is the colour of a card on the page and `surface` is the colour of
+     a panel that holds one, so both names point at the same two shades the
+     interface already uses. */
+  --color-card: #161616;
+  --color-surface: #111111;
+
+  --font-sans: "Geist Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* The typeface has every weight of the scale, so nothing is synthesised by
+     the browser. */
   --font-weight-normal: 400;
-  --font-weight-medium: 400;
+  --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  --font-weight-extrabold: 700;
-  --font-weight-black: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
 
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* The duotone icons of the interface.
@@ -84,7 +85,10 @@
   position: fixed;
 }
 
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+/* The site has one theme, and it is dark. The browser is told, so the
+   controls it draws itself, the lists of the selects and the scrollbars, are
+   drawn in the same theme as the page. */
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; color-scheme: dark; }
 body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
 /* The focus indicator of the whole interface. It sits in the base layer, so a
@@ -93,7 +97,7 @@ body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); f
    control would show two indicators at once: the ring of the control and the
    outline of the page. */
 @layer base {
-  :focus-visible { outline: 2px solid var(--color-acc); outline-offset: 3px; border-radius: 8px; }
+  :focus-visible { outline: 2px solid var(--color-acc-h); outline-offset: 3px; border-radius: 8px; }
 
   /* A grid that names no column of its own gets one column that may be
      smaller than its content.
@@ -111,7 +115,7 @@ body { font-weight: 400; background: var(--color-bg); color: var(--color-ink); f
   .grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-::selection { background: rgb(107 229 152 / 0.3); }
+::selection { background: color-mix(in oklab, var(--color-acc) 40%, transparent); }
 
 /* Password managers and the browser fill the fields with their own colours,
    which are light and unreadable on a dark page. The fill is painted with the
@@ -167,19 +171,37 @@ textarea:-webkit-autofill:focus-visible {
   background-clip: content-box;
   border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover { background-color: var(--color-acc); }
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-acc);
+}
 ::-webkit-scrollbar-thumb:active { background-color: var(--color-acc-h); }
 
 /* Strips that scroll sideways on purpose do not show a bar. */
 .bm-hide-scroll { scrollbar-width: none; }
 .bm-hide-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
-/* Entrance: short fade and lift, triggered by data-in. */
-.rv { opacity: 0; transform: translate3d(0, 12px, 0); transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out); transition-delay: calc(var(--d, 0) * 1ms); }
-.rv[data-in] { opacity: 1; transform: none; }
+/* Scroll reveal: the block rises, sharpens and settles. */
+.rv { opacity: 0; transform: translateY(18px); filter: blur(6px); transition: opacity .8s var(--ease-out-expo), transform .8s var(--ease-out-expo), filter .8s var(--ease-out-expo); transition-delay: calc(var(--d, 0) * 1ms); }
+.rv[data-in] { opacity: 1; transform: none; filter: none; }
+
 .ln { display: block; overflow: hidden; padding: 0.04em 0.06em 0.12em; margin: -0.04em -0.06em -0.12em; }
 .ln > span { display: block; transform: translateY(105%); transition: transform 320ms var(--ease-out); transition-delay: calc((var(--d, 0) + var(--i, 0) * 70) * 1ms); }
 [data-in] .ln > span, .ln[data-in] > span { transform: none; }
+
+/* A card that comes back when the tab under it changes. */
+@keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+.card-in { animation: card-in .6s var(--ease-out-expo) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
+@keyframes cursor { 50% { opacity: 0; } }
+.cursor { animation: cursor 1s steps(1) infinite; }
+
+@keyframes ring { 0% { transform: scale(.2); opacity: .7; } 100% { transform: scale(1.6); opacity: 0; } }
+.ring { animation: ring 6s var(--ease-out-expo) infinite; animation-delay: calc(var(--i, 0) * 1.5s); }
+
+@keyframes drift { 0%, 100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-8px,0); } }
+.drift { animation: drift 7s ease-in-out infinite; }
+
+@keyframes auth-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.auth-in { animation: auth-in .7s var(--ease-out-expo) both; animation-delay: calc(var(--i, 0) * 70ms); }
 
 @keyframes bm-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
 @keyframes bm-float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -8px, 0); } }
@@ -192,8 +214,14 @@ textarea:-webkit-autofill:focus-visible {
 .bm-caret { animation: bm-blink 1s steps(1) infinite; }
 .bm-in { animation: bm-in 200ms var(--ease-out) both; }
 
+/* The dotted ground of the reference. */
+.dots { background-image: radial-gradient(circle at 1px 1px, #262626 1px, transparent 0); background-size: 26px 26px; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .rv, .ln > span { transition: none; opacity: 1; transform: none; }
+  .rv { opacity: 1; transform: none; filter: none; transition: none; }
+  .ln > span { transition: none; }
+  .card-in, .cursor, .ring, .drift, .auth-in { animation: none; }
   .bm-pop, .bm-float, .bm-ping::after, .bm-caret, .bm-in { animation: none; }
+  *, *::before, *::after { transition-duration: .01ms !important; }
 }

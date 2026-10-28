@@ -137,7 +137,7 @@ export function AdminMailHealthPanel({ health }: { health: AdminMailHealth }) {
 
       {!reachable || consistent === null ? (
         <div role="status" className="rounded-2xl bg-bad/10 px-4 py-3">
-          <p className="text-[14.5px] font-extrabold text-bad">The mail system cannot be reached.</p>
+          <p className="text-[14.5px] font-semibold text-bad">The mail system cannot be reached.</p>
           <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">
             {service.error ?? 'The mail system did not answer the request.'}
           </p>
@@ -148,7 +148,7 @@ export function AdminMailHealthPanel({ health }: { health: AdminMailHealth }) {
         </div>
       ) : consistent === false ? (
         <div role="status" className="rounded-2xl bg-warn/12 px-4 py-3">
-          <p className="text-[14.5px] font-extrabold text-warn">The two sides do not hold the same numbers.</p>
+          <p className="text-[14.5px] font-semibold text-warn">The two sides do not hold the same numbers.</p>
           <ul className="mt-1.5 grid gap-1 text-[13.5px] leading-relaxed text-ink2">
             {different.map((count) => (
               <li key={count.key}>
@@ -159,7 +159,7 @@ export function AdminMailHealthPanel({ health }: { health: AdminMailHealth }) {
         </div>
       ) : (
         <div role="status" className="rounded-2xl bg-acc-bg px-4 py-3">
-          <p className="text-[14.5px] font-extrabold text-acc">Both sides hold the same numbers.</p>
+          <p className="text-[14.5px] font-semibold text-acc">Both sides hold the same numbers.</p>
           <p className="mt-1 text-[13.5px] leading-relaxed text-ink2">
             The platform and the mail system hold the same domains, the same mailboxes and the same aliases.
           </p>
@@ -448,7 +448,7 @@ export function AdminMailServicesTable({
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="w-0 min-w-0 flex-1">
-                <p className="truncate font-mono text-[13.5px] font-bold text-ink" title={service.customerEmail ?? undefined}>
+                <p className="truncate font-mono text-[13.5px] font-medium text-ink" title={service.customerEmail ?? undefined}>
                   {service.customerEmail ?? DASH}
                 </p>
                 <p className="truncate text-[12.5px] text-ink3" title={service.plan?.name}>
@@ -610,7 +610,7 @@ export function AdminMailSystemHealth({ health }: { health: AdminMailUsage['heal
 
       {!reachable && (
         <div role="status" className="rounded-2xl bg-bad/10 px-4 py-3">
-          <p className="text-[14.5px] font-extrabold text-bad">The mail system cannot be reached.</p>
+          <p className="text-[14.5px] font-semibold text-bad">The mail system cannot be reached.</p>
           <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">
             {health?.error ?? 'The mail system did not answer the request.'}
           </p>
@@ -788,7 +788,7 @@ export function AdminMailDomainsTable({ domains }: { domains: AdminMailDomain[] 
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={domain.name}>
+                <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={domain.name}>
                   {domain.name}
                 </p>
                 <p className="truncate font-mono text-[12.5px] text-ink3" title={domain.customer.email}>
@@ -915,7 +915,7 @@ export function AdminMailJobsTable({
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate font-mono text-[13.5px] font-bold text-ink" title={job.kind}>
+                <p className="truncate font-mono text-[13.5px] font-medium text-ink" title={job.kind}>
                   {job.kind}
                 </p>
                 <p className="truncate font-mono text-[12.5px] text-ink3" title={job.domain?.name ?? undefined}>
@@ -1020,7 +1020,7 @@ export function AdminMailRetryDialog({
 export function AdminMailError({ message }: { message: string | null | undefined }) {
   if (!message) return null;
   return (
-    <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+    <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
       {message}
     </p>
   );

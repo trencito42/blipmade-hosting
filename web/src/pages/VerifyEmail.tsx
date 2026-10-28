@@ -1,34 +1,13 @@
-import { formatPrice, useCatalogSummary } from '../lib/pricing';
 import { useEffect, useRef, useState } from 'react';
-import { Button, Eyebrow, Headline, Logo } from '../ui';
+import { Arrow, Button } from '../ui';
 import { Link, useRouter } from '../router';
 import { ApiError, post } from '../lib/api';
 import { useSession } from '../session';
 import { LoadingBlock } from '../ui-app';
-import { LegalFooter } from '../legal/LegalFooter';
+import { AuthAlert, AuthBlock, AuthHead, AuthNote, AuthShell } from './auth-shell';
 
 type State = 'checking' | 'verified' | 'failed';
 type FailReason = 'invalid' | 'network' | 'unknown';
-
-function PromisePanel() {
-  const catalog = useCatalogSummary();
-  return (
-    <aside aria-hidden="true" className="hidden flex-col justify-between gap-8 rounded-[32px] bg-acc p-12 text-on-acc lg:flex">
-      <span className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] opacity-70">Blipmade</span>
-      <div>
-        <h2 className="text-[clamp(52px,6vw,96px)] font-extrabold leading-[0.88] tracking-[-0.07em]">Pick an app.<br />Deploy it.</h2>
-        <p className="mt-6 max-w-[26em] text-[19px] opacity-75">One account for your apps, databases, domains and billing. No VPS to set up.</p>
-      </div>
-      <ul className="flex flex-wrap gap-2">
-        {[
-          `Apps from ${formatPrice(catalog.minAppPrice, catalog.currency)}/mo`,
-          `Databases from ${formatPrice(catalog.minDatabasePrice, catalog.currency)}/mo`,
-          'Start small, scale freely',
-        ].map((t) => <li key={t} className="rounded-full bg-on-acc/10 px-4 py-2 text-[14.5px] font-bold">{t}</li>)}
-      </ul>
-    </aside>
-  );
-}
 
 export default function VerifyEmail() {
   const { query } = useRouter();
@@ -98,72 +77,87 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="grid min-h-[100svh] gap-3 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:grid-cols-[minmax(420px,1fr)_1.1fr]">
-      <main className="flex flex-col px-3 py-4 sm:px-8 sm:py-6">
-        <Logo />
-        <div className="m-auto grid w-full max-w-[420px] gap-5 py-10">
-          <Eyebrow>Account setup</Eyebrow>
-          <Headline as="h1" lines={['Confirm', 'your email.']} className="text-[clamp(52px,12vw,76px)] leading-[0.9]" />
+    <AuthShell label="Confirm your email">
+      <div className="grid w-full max-w-sm gap-5 py-10">
+        <AuthHead title="Confirm your email" text="One click on the link in the message opens every feature of your account." index={0} />
 
-          {state === 'checking' && (
-            <div className="grid gap-3">
-              <p className="text-[17px] text-ink2">We are confirming your email address.</p>
-              <LoadingBlock rows={2} label="Verifying your email" />
-            </div>
-          )}
+        {state === 'checking' && (
+          <AuthBlock index={1} className="gap-3">
+            <p className="text-[15px] text-ink2">We are confirming your email address.</p>
+            <LoadingBlock rows={2} label="Verifying your email" />
+          </AuthBlock>
+        )}
 
-          {state === 'verified' && (
-            <>
-              <div role="status" className="rounded-2xl bg-acc-bg px-4 py-3 text-[14.5px] font-bold text-acc">
-                Email verified. Your address is confirmed.
-              </div>
-              <p className="text-[15px] text-ink2">Every feature is open to you now, including billing and domain changes.</p>
-              <Button to="/app" full size="lg">Go to your dashboard</Button>
-            </>
-          )}
+        {state === 'verified' && (
+          <AuthBlock index={1} className="gap-4">
+            <AuthNote>Email verified. Your address is confirmed.</AuthNote>
+            <p className="text-[15px] text-ink2">Every feature is open to you now, including billing and domain changes.</p>
+            <Button to="/app" size="lg" full>
+              Go to your dashboard
+              <Arrow />
+            </Button>
+          </AuthBlock>
+        )}
 
-          {state === 'failed' && (
-            <>
-              <div role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14.5px] font-bold text-bad">
-                {reason === 'invalid'
-                  ? 'This confirmation link is invalid or has expired.'
-                  : reason === 'network'
-                    ? 'We could not reach the Blipmade API. Check your connection and try again.'
-                    : 'We could not confirm that link.'}
-              </div>
-              <p className="text-[15px] text-ink2">Confirmation links can only be used once and stop working after a while. Send yourself a new one and try again.</p>
-              {reason === 'network' && (
-                <Button variant="soft" full type="button" onClick={retry}>Try again</Button>
-              )}
-              {sessionLoading ? (
-                <p className="px-1 text-[13.5px] text-ink3">Checking your account…</p>
-              ) : accountEmail ? (
-                <>
-                  <Button variant="soft" full type="button" onClick={resendEmail} disabled={resend === 'sending'}>
-                    {resend === 'sending' ? 'Sending…' : 'Resend the email'}
-                  </Button>
-                  {resend === 'sent' && (
-                    <p role="status" className="px-1 text-[13.5px] text-ink2">
-                      {resendMsg ?? `If that address still needs a confirmation, we sent a new link to ${accountEmail}.`}
-                    </p>
-                  )}
-                  {resend === 'failed' && (
-                    <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">{resendMsg ?? 'We could not send another email. Try again in a moment.'}</p>
-                  )}
-                </>
-              ) : (
-                <p className="px-1 text-[13.5px] text-ink3">
-                  We cannot send another link without the account. <Link to="/login" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Log in</Link> to ask for one.
-                </p>
-              )}
-              <p className="text-center text-[14.5px] text-ink2">Already confirmed? <Link to="/app" className="inline-flex min-h-11 items-center font-bold text-acc hover:underline focus-visible:rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Go to your dashboard</Link></p>
-            </>
-          )}
-        </div>
-        <p className="flex items-center gap-2 px-1 font-mono text-[12.5px] text-ink3"><span className="size-[7px] rounded-full bg-acc" />Protected session access</p>
-        <LegalFooter className="mt-6" />
-      </main>
-      <PromisePanel />
-    </div>
+        {state === 'failed' && (
+          <AuthBlock index={1} className="gap-4">
+            <AuthAlert>
+              {reason === 'invalid'
+                ? 'This confirmation link is invalid or has expired.'
+                : reason === 'network'
+                  ? 'We could not reach the Blipmade API. Check your connection and try again.'
+                  : 'We could not confirm that link.'}
+            </AuthAlert>
+            <p className="text-[15px] text-ink2">
+              Confirmation links can only be used once and stop working after a while. Send yourself a new one and try again.
+            </p>
+            {reason === 'network' && (
+              <Button variant="soft" full type="button" onClick={retry}>
+                Try again
+              </Button>
+            )}
+            {sessionLoading ? (
+              <p className="px-1 text-[13.5px] text-ink3">Checking your account…</p>
+            ) : accountEmail ? (
+              <>
+                <Button variant="soft" full type="button" onClick={resendEmail} disabled={resend === 'sending'}>
+                  {resend === 'sending' ? 'Sending…' : 'Resend the email'}
+                </Button>
+                {resend === 'sent' && (
+                  <p role="status" className="px-1 text-[13.5px] text-ink2">
+                    {resendMsg ?? `If that address still needs a confirmation, we sent a new link to ${accountEmail}.`}
+                  </p>
+                )}
+                {resend === 'failed' && (
+                  <p role="alert" className="px-1 text-[13.5px] font-medium text-bad">
+                    {resendMsg ?? 'We could not send another email. Try again in a moment.'}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="px-1 text-[13.5px] text-ink3">
+                We cannot send another link without the account.{' '}
+                <Link
+                  to="/login"
+                  className="font-medium text-ink underline underline-offset-4 transition-colors duration-200 hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
+                >
+                  Log in
+                </Link>{' '}
+                to ask for one.
+              </p>
+            )}
+            <p className="text-center text-[14px] text-ink2">
+              Already confirmed?{' '}
+              <Link
+                to="/app"
+                className="font-medium text-ink underline underline-offset-4 transition-colors duration-200 hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
+              >
+                Go to your dashboard
+              </Link>
+            </p>
+          </AuthBlock>
+        )}
+      </div>
+    </AuthShell>
   );
 }

@@ -189,7 +189,7 @@ export default function Domains() {
                 {create.pending ? 'Adding…' : 'Add domain'}
               </PrimaryButton>
               {create.error && (
-                <p role="alert" className="mt-2 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">
                   {create.error}
                 </p>
               )}
@@ -219,7 +219,7 @@ export default function Domains() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="w-0 min-w-0 flex-1">
                     <p
-                      className="truncate text-[16px] font-extrabold tracking-[-0.02em] text-ink"
+                      className="truncate text-[16px] font-semibold tracking-[-0.02em] text-ink"
                       title={domain.hostname}
                     >
                       {domain.hostname}
@@ -244,7 +244,7 @@ export default function Domains() {
 
                 {!domain.verification.verified && domain.verification.instructions && (
                   <div className="mt-3 rounded-2xl bg-acc-bg p-4">
-                    <p className="text-[14px] font-bold text-acc">Prove that you own this hostname</p>
+                    <p className="text-[14px] font-medium text-acc">Prove that you own this hostname</p>
                     <p className="mt-1 text-[13.5px] text-ink2">
                       An address record is not enough, because every customer points at the same address. Add a TXT
                       record with the value below at your registrar, then press Verify now.
@@ -404,7 +404,7 @@ export default function Domains() {
       </Panel>
 
       {verify.error && (
-        <p role="alert" className="text-[13.5px] font-bold text-bad">
+        <p role="alert" className="text-[13.5px] font-medium text-bad">
           {verify.error}
         </p>
       )}
@@ -426,7 +426,7 @@ export default function Domains() {
         }}
       />
       {remove.error && (
-        <p role="alert" className="text-[13.5px] font-bold text-bad">
+        <p role="alert" className="text-[13.5px] font-medium text-bad">
           {remove.error}
         </p>
       )}

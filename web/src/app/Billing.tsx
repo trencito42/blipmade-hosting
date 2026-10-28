@@ -479,7 +479,7 @@ export default function Billing() {
             </p>
           )}
           {paymentMethodAction.error && (
-            <p role="alert" className="text-[13.5px] font-bold text-bad">
+            <p role="alert" className="text-[13.5px] font-medium text-bad">
               {paymentMethodAction.error}
             </p>
           )}
@@ -556,12 +556,12 @@ export default function Billing() {
               </div>
             ))}
             {resume.error && (
-              <p role="alert" className="text-[13.5px] font-bold text-bad">
+              <p role="alert" className="text-[13.5px] font-medium text-bad">
                 {resume.error}
               </p>
             )}
             {cancel.error && (
-              <p role="alert" className="text-[13.5px] font-bold text-bad">
+              <p role="alert" className="text-[13.5px] font-medium text-bad">
                 {cancel.error}
               </p>
             )}
@@ -657,7 +657,7 @@ export default function Billing() {
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-3">
                     <div className="w-0 min-w-0 flex-1">
-                      <p className="truncate font-mono text-[14px] font-bold text-ink" title={invoice.number}>
+                      <p className="truncate font-mono text-[14px] font-medium text-ink" title={invoice.number}>
                         {invoice.number}
                       </p>
                       <p className="text-[12.5px] text-ink3">{formatDate(invoice.createdAt)}</p>

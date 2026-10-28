@@ -192,11 +192,11 @@ export function TruncationNote({ shown, total }: { shown: number; total: number 
 export const denseInput =
   // scroll-mt keeps the sticky top bar from covering a field the phone scrolls
   // into view when it takes the focus.
-  'h-11 w-full scroll-mt-24 rounded-full bg-s2 px-4 text-[16px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:bg-s3 lg:h-[38px] lg:text-[14px]';
+  'h-11 w-full scroll-mt-24 rounded-xl border border-line bg-card px-4 text-[16px] text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 focus:border-acc lg:h-[38px] lg:text-[14px]';
 export const denseSelect =
-  'h-11 w-full scroll-mt-24 appearance-none rounded-full bg-s2 px-4 text-[16px] text-ink outline-none transition-colors duration-[180ms] focus:bg-s3 lg:h-[38px] lg:text-[14px]';
+  'h-11 w-full scroll-mt-24 appearance-none rounded-xl border border-line bg-card px-4 text-[16px] text-ink outline-none transition-colors duration-[180ms] focus:border-acc lg:h-[38px] lg:text-[14px]';
 export const denseButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50 lg:h-[38px]';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-[13.5px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50 lg:h-[38px]';
 export const densePrimary = `${denseButton} bg-acc text-on-acc hover:bg-acc-h`;
 export const denseSoft = `${denseButton} bg-s3 text-ink hover:bg-line`;
 export const denseDanger = `${denseButton} bg-bad/12 text-bad hover:bg-bad/20`;
@@ -275,8 +275,8 @@ export function ConfirmWithReason({
       aria-modal="true"
       aria-label={title}
     >
-      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[440px] flex-col rounded-[22px] bg-s1 p-5">
-        <h2 className="shrink-0 text-[18px] font-extrabold tracking-[-0.03em] text-ink">{title}</h2>
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-[440px] flex-col rounded-2xl bg-s1 p-5">
+        <h2 className="shrink-0 text-[18px] font-semibold tracking-[-0.03em] text-ink">{title}</h2>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {description && <p className="text-[14.5px] leading-relaxed text-ink2">{description}</p>}
           <div className="mt-4">
@@ -304,8 +304,8 @@ export function ConfirmWithReason({
             disabled={busy}
             className={
               destructive
-                ? 'inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto'
-                : 'inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto'
+                ? 'inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-bad px-5 text-[14.5px] font-semibold text-ink transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto'
+                : 'inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-acc px-5 text-[14.5px] font-semibold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto'
             }
           >
             {busy ? 'Working…' : confirmLabel}

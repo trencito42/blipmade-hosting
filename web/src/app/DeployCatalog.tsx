@@ -71,11 +71,11 @@ function ProductCard({ product }: { product: CatalogProduct }) {
   const price = product.price;
 
   return (
-    <li className="flex flex-col gap-3 rounded-[22px] bg-s1 p-4 sm:p-5">
+    <li className="flex flex-col gap-3 rounded-2xl bg-s1 p-4 sm:p-5">
       <div className="flex flex-wrap items-start gap-3">
         <AppMark icon={productIcon(product.icon)} size={44} />
         <div className="w-0 min-w-0 flex-1">
-          <p className="truncate text-[16px] font-extrabold tracking-[-0.03em] text-ink">{product.name}</p>
+          <p className="truncate text-[16px] font-semibold tracking-[-0.03em] text-ink">{product.name}</p>
           <p className="mt-0.5 text-[12.5px] font-mono uppercase tracking-[0.08em] text-ink3">
             {categoryLabel(product.category)}
           </p>
@@ -176,7 +176,7 @@ export default function DeployCatalog() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[19px] font-extrabold tracking-[-0.035em] text-ink">Deploy an app</h2>
+          <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Deploy an app</h2>
           <p className="text-[13.5px] text-ink3">
             {loading
               ? 'Loading the catalog.'

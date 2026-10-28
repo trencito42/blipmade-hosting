@@ -82,7 +82,7 @@ describe('ButtonLink', () => {
     const html = render(createElement(ui.ButtonLink, { to: '/app/deploy' }, 'Deploy new'));
     assert.match(html, /^<a href="\/app\/deploy"/);
     assert.match(html, /h-11/);
-    assert.match(html, /rounded-full/);
+    assert.match(html, /rounded-xl/);
     assert.match(html, /bg-acc/);
     assert.match(html, /px-5/);
     assert.match(html, /text-\[14\.5px\]/);
@@ -91,7 +91,7 @@ describe('ButtonLink', () => {
 
   it('draws the soft step and the danger step with the same classes as the buttons', () => {
     const soft = render(createElement(ui.ButtonLink, { to: '/apps', variant: 'soft' }, 'Catalog'));
-    assert.match(soft, /bg-s3/);
+    assert.match(soft, /bg-card/);
     assert.match(soft, /text-ink/);
     const danger = render(createElement(ui.ButtonLink, { to: '/apps', variant: 'danger' }, 'Delete'));
     assert.match(danger, /bg-bad\/12/);
@@ -109,7 +109,7 @@ describe('ButtonLink', () => {
     assert.match(html, /^<a href="https:\/\/invoice\.test\/1"/);
     assert.match(html, /target="_blank"/);
     assert.match(html, /rel="noreferrer noopener"/);
-    assert.match(html, /bg-s3/);
+    assert.match(html, /bg-card/);
   });
 
   it('adds the classes of the caller to the step of the button', () => {
@@ -123,7 +123,7 @@ describe('SoftButton', () => {
   it('draws the secondary step of a button', () => {
     const html = render(createElement(ui.SoftButton, null, 'Clear filters'));
     assert.match(html, /^<button/);
-    assert.match(html, /bg-s3/);
+    assert.match(html, /bg-card/);
     assert.match(html, /h-11/);
     assert.match(html, /px-5/);
     assert.match(html, /text-\[14\.5px\]/);
@@ -147,7 +147,7 @@ describe('DangerButton', () => {
   it('keeps the danger step for the action that destroys something', () => {
     const html = render(createElement(ui.DangerButton, null, 'Delete'));
     assert.match(html, /^<button/);
-    assert.match(html, /bg-bad\/12/);
+    assert.match(html, /bg-bad\/10/);
     assert.match(html, /text-bad/);
     assert.match(html, /hover:bg-bad\/20/);
   });

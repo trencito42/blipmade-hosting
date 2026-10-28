@@ -327,7 +327,7 @@ export default function Promotions() {
               </div>
 
               {create.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {create.error}
                 </p>
               )}
@@ -351,7 +351,7 @@ export default function Promotions() {
                     header: 'Code',
                     nowrap: true,
                     render: (promotion: AdminPromotion) => (
-                      <span className="font-mono text-[13.5px] font-bold text-ink">{promotion.code}</span>
+                      <span className="font-mono text-[13.5px] font-medium text-ink">{promotion.code}</span>
                     ),
                   },
                   {
@@ -427,7 +427,7 @@ export default function Promotions() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate font-mono text-[14px] font-bold text-ink" title={promotion.code}>
+                        <p className="truncate font-mono text-[14px] font-medium text-ink" title={promotion.code}>
                           {promotion.code}
                         </p>
                         <p className="text-[12.5px] capitalize text-ink3">{promotion.type}</p>
@@ -556,7 +556,7 @@ function PromotionLimitEditor({
   return (
     <div className="grid gap-3 rounded-2xl bg-s2 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-mono text-[14px] font-bold text-ink">{promotion.code}</p>
+        <p className="font-mono text-[14px] font-medium text-ink">{promotion.code}</p>
         <p className="text-[12.5px] text-ink3">The limit per account of this campaign.</p>
       </div>
 
@@ -585,7 +585,7 @@ function PromotionLimitEditor({
       </div>
 
       {save.error && (
-        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {save.error}
         </p>
       )}

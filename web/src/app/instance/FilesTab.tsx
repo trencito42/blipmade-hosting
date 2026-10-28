@@ -148,7 +148,7 @@ function TreeNode({
           }}
           className="min-w-0 flex-1 rounded-xl px-2 py-2 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
         >
-          <span className="block truncate text-[14px] font-bold text-ink" title={name}>
+          <span className="block truncate text-[14px] font-medium text-ink" title={name}>
             {name}
           </span>
           <span className="block truncate font-mono text-[11.5px] text-ink3" title={path}>
@@ -259,7 +259,7 @@ function TreeChildren({
                 onClick={() => onSelect({ path: full, entry: file })}
                 className="min-w-0 flex-1 rounded-xl px-2 py-2 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
               >
-                <span className="block truncate text-[14px] font-bold text-ink" title={file.name}>
+                <span className="block truncate text-[14px] font-medium text-ink" title={file.name}>
                   {file.name}
                 </span>
                 <span className="block truncate font-mono text-[11.5px] text-ink3" title={full}>
@@ -486,7 +486,7 @@ function FilePanel({
         {file.loading ? (
           <LoadingBlock rows={2} label="Loading the file" />
         ) : file.error ? (
-          <p role="alert" className="break-words rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
+          <p role="alert" className="break-words rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {file.error.message}
           </p>
         ) : decoded.binary ? (
@@ -516,7 +516,7 @@ function FilePanel({
         )}
 
         {actionError && (
-          <p role="alert" className="break-words rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
+          <p role="alert" className="break-words rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {actionError}
           </p>
         )}

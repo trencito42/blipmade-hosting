@@ -171,7 +171,7 @@ function AccountAccess({
             )}
           </div>
           {suspend.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {suspend.error}
             </p>
           )}
@@ -405,7 +405,7 @@ export default function CustomerDetail() {
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={instance.name}>
+                      <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={instance.name}>
                         {instance.name}
                       </p>
                       <p className="truncate text-[12.5px] text-ink3" title={instance.product.name}>
@@ -555,7 +555,7 @@ export default function CustomerDetail() {
                 <Link to={`/admin/tickets?ticket=${ticket.id}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[14.5px] font-bold tracking-[-0.02em] text-ink" title={ticket.subject}>
+                      <p className="truncate text-[14.5px] font-medium tracking-[-0.02em] text-ink" title={ticket.subject}>
                       {ticket.subject}
                     </p>
                       <p className="font-mono text-[12.5px] text-ink3">#{ticket.number} · {fmtDate(ticket.createdAt)}</p>

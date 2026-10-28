@@ -256,7 +256,7 @@ function DeployAction() {
   return (
     <Link
       to="/app/deploy"
-      className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-acc px-4 text-[13.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+      className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-acc px-4 text-[13.5px] font-medium text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
       <Icon name="rocket" size={15} />
       Deploy

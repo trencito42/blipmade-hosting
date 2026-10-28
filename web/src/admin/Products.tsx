@@ -318,7 +318,7 @@ export default function Products() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={product.name}>
+                        <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={product.name}>
                           {product.name}
                         </p>
                         <p className="truncate font-mono text-[12.5px] text-ink3" title={product.slug}>
@@ -446,7 +446,7 @@ export default function Products() {
       />
 
       {(patchProduct.error || removeProduct.error) && (
-        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {patchProduct.error ?? removeProduct.error}
         </p>
       )}
@@ -751,7 +751,7 @@ function NewProductForm({ onDone }: { onDone: () => void }) {
       </div>
 
       {create.error && (
-        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {create.error}
         </p>
       )}

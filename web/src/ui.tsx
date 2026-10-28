@@ -4,8 +4,17 @@ import { Icon, type IconName } from './icons';
 import { Link } from './router';
 import logo from './logo.svg';
 
+/**
+ * The atoms of the interface.
+ *
+ * The look of the reference: a near-black base, one green, cards of rounded
+ * corners, and one primary button per screen. The logo of the platform is the
+ * one that was already in the repository: the mark of the brand does not
+ * change with the colours of the page.
+ */
+
 export const Wrap = ({ children, className }: { children: ReactNode; className?: string }) => (
-  <div className={cn('mx-auto w-full max-w-[1280px] px-4 sm:px-6', className)}>{children}</div>
+  <div className={cn('mx-auto w-full max-w-[1200px] px-5 sm:px-8', className)}>{children}</div>
 );
 
 export function Reveal({ delay = 0, className, children, as = 'div' }: { delay?: number; className?: string; children: ReactNode; as?: ElementType }) {
@@ -18,7 +27,7 @@ export function Headline({ as = 'h2', lines, className, hidden }: { as?: 'h1' | 
   const [ref, seen] = useInView<HTMLElement>('0px 0px -8% 0px');
   return createElement(
     as,
-    { ref, 'data-in': seen ? '' : undefined, 'aria-hidden': hidden || undefined, className: cn('font-extrabold tracking-[-0.06em] [text-wrap:balance]', className) },
+    { ref, 'data-in': seen ? '' : undefined, 'aria-hidden': hidden || undefined, className: cn('font-semibold tracking-[-0.045em] [text-wrap:balance]', className) },
     lines.map((l, i) => (
       <span key={i} className="ln" style={{ '--i': i } as CSSProperties}>
         <span>{l}</span>
@@ -42,20 +51,20 @@ export const rangeInput =
   '[&::-moz-range-thumb]:size-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-s1 [&::-moz-range-thumb]:bg-acc';
 
 export const Eyebrow = ({ children, className }: { children: ReactNode; className?: string }) => (
-  <span className={cn('font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-acc', className)}>{children}</span>
+  <span className={cn('font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-acc-h', className)}>{children}</span>
 );
 
 const V = {
   pri: 'bg-acc text-on-acc hover:bg-acc-h',
   ink: 'bg-ink text-bg hover:opacity-90',
-  soft: 'bg-s3 text-ink hover:bg-line',
+  soft: 'border border-line bg-card text-ink hover:border-ink3 hover:bg-s2',
   ghost: 'bg-transparent text-ink2 hover:text-ink',
 } as const;
 type BtnProps = { to?: string; href?: string; onClick?: () => void; variant?: keyof typeof V; size?: 'md' | 'lg'; icon?: IconName; children: ReactNode; className?: string; type?: 'button' | 'submit'; disabled?: boolean; full?: boolean };
 export function Button({ to, href, onClick, variant = 'pri', size = 'md', icon, children, className, type = 'button', disabled, full }: BtnProps) {
   const cls = cn(
-    'group inline-flex items-center justify-center gap-2 rounded-full font-bold tracking-[-0.01em] whitespace-nowrap outline-none transition-[background-color,color,transform,opacity] duration-[180ms] focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
-    size === 'lg' ? 'h-14 px-7 text-[16px]' : 'h-11 px-5 text-[14.5px]',
+    'group inline-flex items-center justify-center gap-2 rounded-xl font-semibold whitespace-nowrap outline-none transition-[background-color,border-color,color,transform,opacity] duration-200 focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
+    size === 'lg' ? 'h-12 px-6 text-[15px]' : 'h-10 px-4 text-[14px]',
     full && 'w-full',
     V[variant],
     className,
@@ -63,7 +72,7 @@ export function Button({ to, href, onClick, variant = 'pri', size = 'md', icon, 
   const inner = (
     <>
       {children}
-      {icon && <Icon name={icon} size={size === 'lg' ? 18 : 16} className="transition-transform duration-[180ms] group-hover:translate-x-0.5" />}
+      {icon && <Icon name={icon} size={size === 'lg' ? 16 : 15} className="transition-transform duration-200 group-hover:translate-x-0.5" />}
     </>
   );
   if (to) return <Link to={to} className={cls}>{inner}</Link>;
@@ -71,11 +80,31 @@ export function Button({ to, href, onClick, variant = 'pri', size = 'md', icon, 
   return <button type={type} onClick={onClick} disabled={disabled} className={cls}>{inner}</button>;
 }
 
+/**
+ * The logo of the platform.
+ *
+ * The mark is the one of the repository: it was drawn for Blipmade and it is
+ * not replaced by the prototype of the reference.
+ */
 export const Logo = ({ className }: { className?: string }) => (
-  <Link to="/" aria-label="Blipmade home" className={cn('flex items-center gap-2.5 rounded-full text-[21px] font-extrabold tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-acc', className)}>
+  <Link to="/" aria-label="Blipmade home" className={cn('flex items-center gap-2.5 rounded-lg text-[17px] font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-acc-h', className)}>
     <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
-    blipmade
+    <span>blipmade</span>
   </Link>
+);
+
+/** The arrow of the reference: a line that points to the right. */
+export const Arrow = ({ className }: { className?: string }) => (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
+    <path d="M3 8h10m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/** The tick of the reference: the check of a list of what a plan carries. */
+export const Check = ({ className }: { className?: string }) => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
+    <path d="m3.5 8.5 3 3 6-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
 );
 
 export function StatusDot({ live = true }: { live?: boolean }) {

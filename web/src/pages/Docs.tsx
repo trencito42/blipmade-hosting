@@ -5,7 +5,7 @@ import { memLabel } from '../lib/pricing';
 import { Icon, type IconName } from '../icons';
 import { cn } from '../lib';
 import { Link, scrollToId, useRouter } from '../router';
-import { Logo } from '../ui';
+import { Logo, Reveal } from '../ui';
 import { Money, SoftButton } from '../ui-app';
 import { LegalFooter } from '../legal/LegalFooter';
 import {
@@ -152,7 +152,7 @@ const CALLOUT: Record<'note' | 'tip' | 'warning' | 'danger', { icon: IconName; l
 function Callout({ tone, text }: { tone: 'note' | 'tip' | 'warning' | 'danger'; text: ReactNode }) {
   const spec = CALLOUT[tone];
   return (
-    <aside className={cn('flex items-start gap-3 rounded-2xl px-4 py-3.5', spec.className)}>
+    <aside className={cn('flex items-start gap-3 rounded-2xl border border-line bg-card px-4 py-3.5', spec.className)}>
       <span className="mt-0.5 shrink-0">
         <Icon name={spec.icon} size={17} />
       </span>
@@ -199,9 +199,9 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
 
 function Steps({ items }: { items: DocStep[] }) {
   return (
-    <ol className="grid gap-2.5">
+    <ol className="grid gap-3">
       {items.map((step, index) => (
-        <li key={step.title} className="rounded-2xl bg-s1 p-4">
+        <li key={step.title} className="rounded-2xl border border-line bg-card p-5">
           <div className="flex items-start gap-3">
             <span
               aria-hidden="true"
@@ -210,9 +210,9 @@ function Steps({ items }: { items: DocStep[] }) {
               {index + 1}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[15px] font-bold tracking-[-0.02em] text-ink">{step.title}</p>
-              <p className="mt-1 text-[14px] leading-relaxed text-ink2">{step.body}</p>
-              <p className="mt-2 flex items-start gap-2 text-[13.5px] leading-relaxed text-acc">
+              <p className="text-[15px] font-semibold tracking-[-0.02em] text-ink">{step.title}</p>
+              <p className="mt-1 text-[15px] leading-relaxed text-ink2">{step.body}</p>
+              <p className="mt-2 flex items-start gap-2 text-[13.5px] leading-relaxed text-acc-h">
                 <span className="mt-0.5 shrink-0">
                   <Icon name="check" size={15} />
                 </span>
@@ -228,10 +228,10 @@ function Steps({ items }: { items: DocStep[] }) {
 
 function Trouble({ items }: { items: { q: string; a: string }[] }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-3">
       {items.map((item) => (
-        <details key={item.q} className="rounded-2xl bg-s1 px-4 py-3.5">
-          <summary className="cursor-pointer list-none text-[14.5px] font-bold tracking-[-0.02em] text-ink marker:hidden">
+        <details key={item.q} className="rounded-2xl border border-line bg-card px-4 py-3.5">
+          <summary className="cursor-pointer list-none text-[14.5px] font-semibold tracking-[-0.02em] text-ink marker:hidden">
             {item.q}
           </summary>
           <p className="mt-2 text-[14px] leading-relaxed text-ink2">{item.a}</p>
@@ -243,13 +243,13 @@ function Trouble({ items }: { items: { q: string; a: string }[] }) {
 
 function Spec({ rows }: { rows: { k: string; v: ReactNode }[] }) {
   return (
-    <dl className="grid gap-1.5">
+    <dl className="grid gap-2">
       {rows.map((row) => (
         <div
           key={row.k}
-          className="flex flex-col gap-0.5 rounded-2xl bg-s1 px-4 py-3 sm:flex-row sm:items-baseline sm:gap-4"
+          className="flex flex-col gap-0.5 rounded-2xl border border-line bg-card px-4 py-3 sm:flex-row sm:items-baseline sm:gap-4"
         >
-          <dt className="shrink-0 text-[13.5px] font-bold text-ink2 sm:w-52">{row.k}</dt>
+          <dt className="shrink-0 text-[13.5px] font-semibold text-ink2 sm:w-52">{row.k}</dt>
           <dd className="min-w-0 break-words text-[14px] text-ink">{row.v}</dd>
         </div>
       ))}
@@ -316,13 +316,13 @@ function NavTree({
   onNavigate?: () => void;
 }) {
   return (
-    <nav aria-label="Documentation" className="grid gap-5">
+    <nav aria-label="Documentation" className="grid gap-6">
       {groups.map((group) => {
         const groupPages = pages.filter((entry) => entry.page.group === group.id);
         if (!groupPages.length) return null;
         return (
         <div key={group.id}>
-          <p className="px-3 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">{group.label}</p>
+          <p className="px-2 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">{group.label}</p>
           <ul className="mt-2 grid gap-0.5">
             {groupPages.map((entry) => (
               <li key={entry.page.id}>
@@ -331,8 +331,10 @@ function NavTree({
                   onClick={onNavigate}
                   aria-current={entry.page.id === activeId ? 'page' : undefined}
                   className={cn(
-                    'flex min-h-[40px] items-center rounded-xl px-3 text-[14px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-                    entry.page.id === activeId ? 'bg-s2 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
+                    'flex min-h-[40px] items-center rounded-xl px-3 text-[14px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+                    entry.page.id === activeId
+                      ? 'bg-card font-semibold text-ink'
+                      : 'font-medium text-ink2 hover:bg-s2 hover:text-ink',
                   )}
                 >
                   {entry.page.title}
@@ -344,6 +346,60 @@ function NavTree({
         );
       })}
     </nav>
+  );
+}
+
+// --- the index --------------------------------------------------------------
+
+/**
+ * The list of everything the platform documents.
+ *
+ * It opens the documentation: the groups are the sections of the platform,
+ * and every card is one page. The card lifts a little and its arrow turns
+ * when it is pointed at, so the list answers the eye before it is read.
+ */
+function DocsIndex({ groups, pages }: { groups: DocGroup[]; pages: PublishedPage[] }) {
+  return (
+    <div className="grid gap-12">
+      <Reveal className="grid gap-4">
+        <h1 id="docs-title" className="max-w-3xl text-[clamp(40px,6vw,76px)] leading-[1] font-semibold tracking-[-0.045em] text-ink [text-wrap:balance]">
+          Documentation
+        </h1>
+        <p className="max-w-xl text-[17px] text-ink2">
+          How to set up your account, order a product and run it.
+        </p>
+      </Reveal>
+      <div className="grid gap-10">
+        {groups.map((group, index) => {
+          const groupPages = pages.filter((entry) => entry.page.group === group.id);
+          if (!groupPages.length) return null;
+          return (
+            <Reveal key={group.id} delay={index * 60} className="grid gap-4">
+              <h2 className="text-[22px] font-semibold tracking-tight text-ink">{group.label}</h2>
+              {group.description ? <p className="max-w-2xl text-[15px] text-ink2">{group.description}</p> : null}
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {groupPages.map((entry) => (
+                  <li key={entry.page.id}>
+                    <Link
+                      to={`/docs?p=${entry.page.id}`}
+                      className="group flex h-full items-center justify-between gap-4 rounded-2xl border border-line bg-card p-5 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-acc/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-[17px] font-semibold text-ink">{entry.page.title}</span>
+                        <span className="mt-1 block text-[14.5px] leading-relaxed text-ink2">{entry.page.summary}</span>
+                      </span>
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full border border-line text-ink2 transition-transform duration-500 group-hover:-rotate-45 group-hover:border-acc group-hover:text-acc-h">
+                        <Icon name="arrow" size={14} />
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -367,11 +423,14 @@ export default function Docs() {
   const pageById = useMemo(() => new Map(pages.map((entry) => [entry.page.id, entry])), [pages]);
   const catalogFailed = Boolean(catalog.error);
 
-  const pageId = query.p && pageById.has(query.p) ? query.p : pages[0]?.page.id;
-  const entry = (pageId ? pageById.get(pageId) : undefined) ?? pages[0]!;
-  const page = entry.page;
-  const product = entry.product;
-  const group = DOC_GROUP_BY_ID.get(page.group);
+  // The index of the documentation is the landing of the page. A page of it
+  // is shown when the address names one, so `/docs` opens with the list of
+  // everything the platform documents.
+  const requestedId = query.p && pageById.has(query.p) ? query.p : undefined;
+  const entry = requestedId ? pageById.get(requestedId)! : undefined;
+  const page = entry?.page;
+  const product = entry?.product;
+  const group = page ? DOC_GROUP_BY_ID.get(page.group) : undefined;
 
   // The documentation is the only part of the site that says in the title of
   // the window and in the description of the page what it is about.
@@ -384,13 +443,18 @@ export default function Docs() {
       document.head.appendChild(meta);
     }
     const previousDescription = meta.getAttribute('content');
-    document.title = `${page.title} — Blipmade documentation`;
-    meta.setAttribute('content', page.summary);
+    if (page) {
+      document.title = `${page.title} — Blipmade documentation`;
+      meta.setAttribute('content', page.summary);
+    } else {
+      document.title = 'Documentation — Blipmade';
+      meta.setAttribute('content', 'How to set up your account, order a product and run it.');
+    }
     return () => {
       document.title = previousTitle;
       if (previousDescription !== null) meta.setAttribute('content', previousDescription);
     };
-  }, [page.id, page.title, page.summary]);
+  }, [page?.id, page?.title, page?.summary]);
 
   // The list of contents is a dialog on a phone: the focus goes into it, it
   // closes with Escape and the focus goes back to the button that opened it.
@@ -461,34 +525,33 @@ export default function Docs() {
 
   return (
     <div className="min-h-[100svh] bg-bg">
-      <header className="sticky top-0 z-40 bg-bg">
-        <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6">
-          <div className="flex flex-wrap items-center gap-2 py-3">
-            <Logo />
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-[1280px] items-center gap-3 px-4 py-3 sm:px-6">
+          <Logo />
 
-            <div className="relative order-3 w-full lg:order-none lg:ml-6 lg:max-w-[420px] lg:flex-1">
-              <span aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink3">
-                <Icon name="search" size={16} />
-              </span>
-              <input
-                ref={searchRef}
-                type="search"
-                value={term}
-                onChange={(event) => setTerm(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') setTerm('');
+          <div className="relative order-3 w-full lg:order-none lg:ml-6 lg:max-w-[420px] lg:flex-1">
+            <span aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink3">
+              <Icon name="search" size={16} />
+            </span>
+            <input
+              ref={searchRef}
+              type="search"
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') setTerm('');
                   if (event.key === 'Enter' && results[0]) go(results[0].page.id);
                 }}
                 placeholder="Search the documentation"
                 aria-label="Search the documentation"
-                className="h-11 w-full rounded-full bg-s2 pl-10 pr-4 text-[16px] text-ink outline-none placeholder:text-ink3 focus:bg-s3 focus-visible:ring-2 focus-visible:ring-acc"
+                className="h-11 w-full rounded-xl border border-line bg-card pl-10 pr-4 text-[16px] text-ink outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-ink3 focus:border-acc focus:shadow-[0_0_0_3px_rgb(34_197_94/0.18)]"
               />
               {term.trim() && (
                 <div
                   role="region"
                   aria-live="polite"
                   aria-label="Search results"
-                  className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl bg-s1 p-1.5"
+                  className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-line bg-s1 p-1.5"
                 >
                   {results.length === 0 ? (
                     <p className="px-3 py-3 text-[13.5px] text-ink3">Nothing matches “{term.trim()}”.</p>
@@ -503,7 +566,7 @@ export default function Docs() {
                             }}
                             className="block rounded-xl px-3 py-2.5 transition-colors duration-[180ms] hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                           >
-                            <span className="block text-[14px] font-bold text-ink">{result.page.title}</span>
+                            <span className="block text-[14px] font-semibold text-ink">{result.page.title}</span>
                             <span className="block truncate text-[12.5px] text-ink3">
                               {docGroupLabel(result.page.group)}
                             </span>
@@ -516,16 +579,16 @@ export default function Docs() {
               )}
             </div>
 
-            <nav aria-label="Main" className="ml-auto flex items-center gap-1">
+            <nav aria-label="Main" className="ml-auto flex items-center gap-1.5">
               <Link
                 to="/status"
-                className="hidden h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc min-[380px]:inline-flex sm:px-4 sm:text-[15px]"
+                className="hidden h-10 items-center rounded-xl px-3 text-[14px] font-medium text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc min-[380px]:inline-flex"
               >
                 Status
               </Link>
               <Link
                 to="/"
-                className="hidden h-11 items-center rounded-full px-2.5 text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc min-[380px]:inline-flex sm:px-4 sm:text-[15px]"
+                className="hidden h-10 items-center rounded-xl px-3 text-[14px] font-medium text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc min-[380px]:inline-flex"
               >
                 Home
               </Link>
@@ -535,27 +598,33 @@ export default function Docs() {
                 onClick={() => setContentsOpen(true)}
                 aria-expanded={contentsOpen}
                 aria-label="Contents"
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-s2 px-3 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4 lg:hidden"
+                className="inline-flex h-11 items-center gap-2 rounded-xl border border-line bg-card px-3 text-[14px] font-medium text-ink transition-colors duration-[180ms] hover:border-ink3 hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc lg:hidden"
               >
                 <Icon name="menu" size={16} />
                 <span className="sr-only sm:not-sr-only">Contents</span>
               </button>
             </nav>
-          </div>
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1280px] gap-8 px-4 pb-16 sm:px-6 lg:grid-cols-[230px_minmax(0,1fr)_210px]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-[84px] max-h-[calc(100svh-104px)] overflow-y-auto pb-6">
-            <NavTree groups={DOC_GROUPS} pages={pages} activeId={page.id} />
-          </div>
-        </aside>
+      <div
+        className={cn(
+          'mx-auto grid w-full max-w-[1280px] gap-8 px-4 pb-16 sm:px-6',
+          entry ? 'lg:grid-cols-[230px_minmax(0,1fr)_210px]' : 'lg:grid-cols-1',
+        )}
+      >
+        {entry && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-[84px] max-h-[calc(100svh-104px)] overflow-y-auto pb-6">
+              <NavTree groups={DOC_GROUPS} pages={pages} activeId={entry.page.id} />
+            </div>
+          </aside>
+        )}
 
         <main className="min-w-0">
           {catalogFailed && (
             <div role="status" className="mb-7 grid gap-3 rounded-[24px] bg-s1 p-5">
-              <p className="text-[15px] font-extrabold tracking-[-0.02em]">The catalog could not be loaded.</p>
+              <p className="text-[15px] font-semibold tracking-[-0.02em]">The catalog could not be loaded.</p>
               <p className="text-[14px] leading-relaxed text-ink2">
                 The pages of the products are published from the catalog of the platform, so they are not listed while it is
                 unreachable. The rest of the documentation is here.
@@ -565,6 +634,7 @@ export default function Docs() {
               </div>
             </div>
           )}
+          {entry ? (
           <article className="min-w-0 max-w-[72ch]">
             <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-ink3">
               <Link
@@ -575,22 +645,22 @@ export default function Docs() {
               </Link>
               <span aria-hidden="true">/</span>
               <span className="font-mono text-[11.5px] uppercase tracking-[0.12em] text-ink3">
-                {group?.label ?? page.group}
+                {group?.label ?? entry.page.group}
               </span>
               <span aria-hidden="true">/</span>
-              <span className="text-ink2">{page.title}</span>
+              <span className="text-ink2">{entry.page.title}</span>
             </nav>
-            <h1 className="mt-2 text-[clamp(30px,6vw,42px)] font-extrabold leading-[1.06] tracking-[-0.05em] text-ink">
-              {page.title}
+            <h1 className="mt-2 text-[clamp(32px,5vw,48px)] leading-[1.02] font-semibold tracking-[-0.045em] text-ink">
+              {entry.page.title}
             </h1>
-            <p className="mt-3 text-[16.5px] leading-relaxed text-ink2">{page.summary}</p>
-            <p className="mt-4 text-[12.5px] text-ink3">Last updated {fmtDate(page.updated)}</p>
+            <p className="mt-3 text-[17px] leading-relaxed text-ink2">{entry.page.summary}</p>
+            <p className="mt-4 text-[12.5px] text-ink3">Last updated {fmtDate(entry.page.updated)}</p>
 
-            {page.sections.map((section) => (
+            {entry.page.sections.map((section) => (
               <section key={section.id} className="mt-9">
                 {/* The sticky header is two rows tall on a phone, so the
                     anchor needs to clear more space than on a desktop. */}
-                <h2 id={section.id} className="scroll-mt-32 text-[21px] font-extrabold tracking-[-0.035em] text-ink">
+                <h2 id={section.id} className="scroll-mt-32 text-[22px] font-semibold tracking-tight text-ink">
                   {section.title}
                 </h2>
                 <div className="mt-3 grid gap-4">
@@ -599,25 +669,25 @@ export default function Docs() {
               </section>
             ))}
 
-            {page.related.length > 0 && (
+            {entry.page.related.length > 0 && (
               <section aria-labelledby="related-pages" className="mt-12">
                 <h2 id="related-pages" className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">
                   Related pages
                 </h2>
-                <ul className="mt-3 grid gap-2 sm:grid-cols-3">
-                  {page.related.map((id) => {
+                <ul className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {entry.page.related.map((id) => {
                     const target = pageById.get(id);
                     if (!target) return null;
                     return (
                       <li key={id}>
                         <Link
                           to={`/docs?p=${id}`}
-                          className="flex min-h-[72px] flex-col justify-center gap-0.5 rounded-2xl bg-s1 px-4 py-3 transition-colors duration-[180ms] hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                          className="group flex h-full flex-col justify-center gap-0.5 rounded-2xl border border-line bg-card px-4 py-3 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-acc/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                         >
                           <span className="block font-mono text-[10.5px] uppercase tracking-[0.1em] text-ink3">
                             {docGroupLabel(target.page.group)}
                           </span>
-                          <span className="block text-[14px] font-bold leading-snug text-ink">{target.page.title}</span>
+                          <span className="block text-[14px] font-semibold leading-snug text-ink">{target.page.title}</span>
                         </Link>
                       </li>
                     );
@@ -626,53 +696,60 @@ export default function Docs() {
               </section>
             )}
 
-            {page.next.length > 0 && (
-              <nav aria-label="Next pages" className="mt-12 grid gap-2 sm:grid-cols-2">
-                {page.next.map((id) => {
+            {entry.page.next.length > 0 && (
+              <nav aria-label="Next pages" className="mt-12 grid gap-3 sm:grid-cols-2">
+                {entry.page.next.map((id) => {
                   const target = pageById.get(id);
                   if (!target) return null;
                   return (
                     <Link
                       key={id}
                       to={`/docs?p=${id}`}
-                      className="flex min-h-[64px] items-center justify-between gap-3 rounded-2xl bg-s1 px-4 py-3 transition-colors duration-[180ms] hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      className="group flex min-h-[64px] items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-3 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-acc/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     >
                       <span className="min-w-0">
                         <span className="block font-mono text-[10.5px] uppercase tracking-[0.1em] text-ink3">Next</span>
-                        <span className="block truncate text-[14.5px] font-bold text-ink" title={target.page.title}>
+                        <span className="block truncate text-[14.5px] font-semibold text-ink" title={target.page.title}>
                           {target.page.title}
                         </span>
                       </span>
-                      <Icon name="arrow" size={16} className="shrink-0 text-ink3" />
+                      <span className="grid size-9 shrink-0 place-items-center rounded-full border border-line text-ink2 transition-transform duration-500 group-hover:-rotate-45 group-hover:border-acc group-hover:text-acc-h">
+                        <Icon name="arrow" size={14} />
+                      </span>
                     </Link>
                   );
                 })}
               </nav>
             )}
           </article>
+          ) : (
+            <DocsIndex groups={DOC_GROUPS} pages={pages} />
+          )}
         </main>
 
-        <aside className="hidden lg:block">
-          <div className="sticky top-[84px] pb-6">
-            <p className="px-1 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">On this page</p>
-            <ul className="mt-3 grid gap-1">
-              {page.sections.map((section) => (
-                <li key={section.id}>
-                  <a
-                    href={`#${section.id}`}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      scrollToId(section.id);
-                    }}
-                    className="block rounded-lg px-1 py-1 text-[13.5px] leading-snug text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                  >
-                    {section.title}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </aside>
+        {entry && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-[84px] pb-6">
+              <p className="px-1 font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">On this page</p>
+              <ul className="mt-3 grid gap-1">
+                {entry.page.sections.map((section) => (
+                  <li key={section.id}>
+                    <a
+                      href={`#${section.id}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        scrollToId(section.id);
+                      }}
+                      className="block rounded-lg px-1 py-1 text-[13.5px] leading-snug text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    >
+                      {section.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
+        )}
       </div>
 
       {contentsOpen && (
@@ -684,7 +761,7 @@ export default function Docs() {
           aria-label="Documentation contents"
         >
           <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">Contents</p>
+            <p className="text-[17px] font-semibold tracking-[-0.03em] text-ink">Contents</p>
             <button
               type="button"
               onClick={() => {
@@ -692,7 +769,7 @@ export default function Docs() {
                 contentsButton.current?.focus();
               }}
               aria-label="Close the contents"
-              className="grid size-11 place-items-center rounded-full bg-s2 text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              className="grid size-11 place-items-center rounded-xl border border-line bg-card text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               <span aria-hidden="true">✕</span>
             </button>
@@ -702,13 +779,13 @@ export default function Docs() {
           <nav aria-label="Main" className="mb-5 flex items-center gap-2 min-[380px]:hidden">
             <Link
               to="/status"
-              className="inline-flex h-11 items-center rounded-full bg-s2 px-4 text-[14.5px] font-bold text-ink2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              className="inline-flex h-11 items-center rounded-xl border border-line bg-card px-4 text-[14px] font-medium text-ink2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               Status
             </Link>
             <Link
               to="/"
-              className="inline-flex h-11 items-center rounded-full bg-s2 px-4 text-[14.5px] font-bold text-ink2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              className="inline-flex h-11 items-center rounded-xl border border-line bg-card px-4 text-[14px] font-medium text-ink2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             >
               Home
             </Link>
@@ -716,7 +793,7 @@ export default function Docs() {
           <NavTree
             groups={DOC_GROUPS}
             pages={pages}
-            activeId={page.id}
+            activeId={entry?.page.id ?? ''}
             onNavigate={() => {
               setContentsOpen(false);
               contentsButton.current?.focus();

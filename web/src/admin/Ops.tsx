@@ -239,7 +239,7 @@ export function OpsHeadline({ health }: { health: OpsHealth }) {
         </div>
         <div className="rounded-2xl bg-s2 p-4">
           <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Last sweep</p>
-          <p className="mt-1 text-[15px] font-bold tracking-[-0.02em] text-ink">{sinceMoment(health.checkedAt)}</p>
+          <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-ink">{sinceMoment(health.checkedAt)}</p>
           <p className="mt-0.5 text-[12.5px] text-ink3">{sinceText(health.checkedAt)}</p>
         </div>
       </section>
@@ -368,7 +368,7 @@ export function OpsChecks({
             <div>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={check.title}>
+                  <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={check.title}>
                     {check.title}
                   </p>
                   <p className="truncate font-mono text-[12.5px] text-ink3" title={check.id}>
@@ -417,7 +417,7 @@ export function OpsAlertsList({ alerts }: { alerts: OpsAlert[] }) {
           <div key={`${alert.check}-${alert.at}-${index}`} className="rounded-2xl bg-s2 p-3.5">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="break-words text-[15px] font-bold tracking-[-0.02em] text-ink">{alert.title}</p>
+                <p className="break-words text-[15px] font-semibold tracking-[-0.02em] text-ink">{alert.title}</p>
                 <p className="mt-0.5 font-mono text-[12.5px] text-ink3">
                   {alert.check} · {fmtDateTime(alert.at)}
                 </p>
@@ -445,7 +445,7 @@ export function OpsChannelsList({ channels }: { channels: OpsChannel[] }) {
         return (
           <div key={channel.id} className="flex min-w-0 items-start justify-between gap-3 rounded-2xl bg-s2 p-3.5">
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={channel.name}>
+              <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={channel.name}>
                 {channel.name}
               </p>
               <p className="mt-0.5 break-words text-[13px] text-ink3">{channel.detail}</p>
@@ -662,12 +662,12 @@ export default function Ops() {
               </div>
 
               {declare.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {declare.error}
                 </p>
               )}
               {clear.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {clear.error}
                 </p>
               )}

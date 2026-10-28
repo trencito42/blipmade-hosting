@@ -208,7 +208,7 @@ export default function Settings() {
           )}
 
           {save.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {save.error}
             </p>
           )}

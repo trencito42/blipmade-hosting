@@ -52,34 +52,34 @@ export function ErrorPage({ code, title, message, detail, kind, onRetry }: Error
 
   return (
     <div className="flex min-h-[100svh] flex-col bg-bg">
-      <header className="px-4 py-4 sm:px-6">
+      <header className="px-5 py-5 sm:px-8">
         <a
           href="/"
-          className="inline-flex items-center gap-2.5 rounded-full text-[21px] font-extrabold tracking-[-0.055em] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+          className="inline-flex items-center gap-2.5 rounded-lg text-[17px] font-semibold tracking-tight text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
         >
           <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
           blipmade
         </a>
       </header>
 
-      <main className="flex flex-1 items-center px-4 pb-20 sm:px-6">
-        <div className="mx-auto w-full max-w-[560px] text-center">
-          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-ink3">{code}</p>
+      <main className="flex flex-1 items-center px-5 pb-20 sm:px-8">
+        <div className="mx-auto w-full max-w-[640px] text-center">
+          <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-acc-h">{code}</p>
           <h1
             ref={heading}
             tabIndex={-1}
-            className="mt-3 text-[clamp(30px,8vw,52px)] font-extrabold leading-[1.05] tracking-[-0.055em] text-ink"
+            className="mt-4 text-[clamp(40px,8vw,76px)] leading-[1] font-semibold tracking-[-0.045em] text-ink [text-wrap:balance]"
           >
             {title}
           </h1>
 
-          <div role="alert" className="mx-auto mt-4 max-w-[46ch]">
+          <div role="alert" className="mx-auto mt-5 max-w-[48ch]">
             <p className="text-[16px] leading-relaxed text-ink2">{message}</p>
           </div>
 
           {detail && (
-            <details className="mx-auto mt-6 max-w-[46ch] rounded-2xl bg-s1 px-4 py-3 text-left">
-              <summary className="cursor-pointer text-[13.5px] font-bold text-ink2">Technical detail</summary>
+            <details className="mx-auto mt-6 max-w-[48ch] rounded-2xl border border-line bg-card px-4 py-3 text-left">
+              <summary className="cursor-pointer text-[13.5px] font-medium text-ink2">Technical detail</summary>
               <p className="mt-2 break-words font-mono text-[12px] leading-relaxed text-ink3">{detail}</p>
             </details>
           )}
@@ -97,7 +97,7 @@ export function ErrorPage({ code, title, message, detail, kind, onRetry }: Error
             )}
           </div>
 
-          <p className="mx-auto mt-8 max-w-[46ch] text-[14px] leading-relaxed text-ink3">
+          <p className="mx-auto mt-8 max-w-[48ch] text-[14px] leading-relaxed text-ink3">
             If this keeps happening, write to <OperatorPlaceholder label="TODO(operator): the support email address" />.
           </p>
         </div>
@@ -105,8 +105,8 @@ export function ErrorPage({ code, title, message, detail, kind, onRetry }: Error
 
       {/* The legal pages are on the page of the error as well: a visitor who
           lands here is still a visitor of the site. */}
-      <footer className="px-4 pb-10 sm:px-6">
-        <div className="mx-auto w-full max-w-[560px]">
+      <footer className="px-5 pb-10 sm:px-8">
+        <div className="mx-auto w-full max-w-[640px]">
           <LegalFooter />
         </div>
       </footer>

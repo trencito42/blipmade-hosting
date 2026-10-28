@@ -69,7 +69,7 @@ test('the first and the last cell of a row carry the ends of the row', () => {
 test('every cell of a row has the same surface', () => {
   const col = column();
   for (const index of [0, 1, 2]) {
-    assert.ok(cellClass(col, index, 3).includes('bg-s2'));
+    assert.ok(cellClass(col, index, 3).includes('bg-card'));
   }
 });
 

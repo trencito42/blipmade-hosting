@@ -276,7 +276,7 @@ function RateCard({
         </p>
       )}
       {save.error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {save.error}
         </p>
       )}
@@ -415,7 +415,7 @@ function PriceEditor({
     <div className="rounded-2xl bg-s2 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="w-0 min-w-0 flex-1">
-          <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={price.product.name}>
+          <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={price.product.name}>
             {price.product.name}
           </p>
           {/* The full specification is longer than a phone line, so it wraps
@@ -541,7 +541,7 @@ function PriceEditor({
         </p>
       )}
       {save.error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
           {save.error}
         </p>
       )}

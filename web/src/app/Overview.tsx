@@ -216,7 +216,7 @@ export default function Overview() {
                   >
                     <ProductIcon icon={product.icon} size={36} />
                     <span className="w-0 min-w-0 flex-1">
-                      <span className="block truncate text-[14.5px] font-bold text-ink">{product.name}</span>
+                      <span className="block truncate text-[14.5px] font-medium text-ink">{product.name}</span>
                       <span className="block truncate text-[12.5px] text-ink3">{product.description}</span>
                     </span>
                     {/* The price gets a line of its own on a phone, so the
@@ -324,7 +324,7 @@ export default function Overview() {
                     href={instance.url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="-ml-2 inline-flex min-h-11 max-w-full items-center rounded-2xl px-2 text-[13.5px] font-bold text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    className="-ml-2 inline-flex min-h-11 max-w-full items-center rounded-2xl px-2 text-[13.5px] font-medium text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <span className="truncate">{instance.url}</span>
                   </a>

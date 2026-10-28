@@ -151,7 +151,7 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
           >
             <div className="grid gap-3">
               <div className="grid gap-1.5 rounded-2xl bg-s2 p-3.5">
-                <p className="text-[14.5px] font-bold text-ink">Reinstall the server</p>
+                <p className="text-[14.5px] font-medium text-ink">Reinstall the server</p>
                 <p className="text-[13px] text-ink2">
                   The panel wipes the files of the container and installs it again. Everything the instance stores is lost.
                 </p>
@@ -161,7 +161,7 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
               </div>
 
               <div className="grid gap-1.5 rounded-2xl bg-s2 p-3.5">
-                <p className="text-[14.5px] font-bold text-ink">
+                <p className="text-[14.5px] font-medium text-ink">
                   {current?.suspended ? 'Restore the instance' : 'Suspend the instance'}
                 </p>
                 <p className="text-[13px] text-ink2">

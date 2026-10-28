@@ -29,7 +29,7 @@ import {
   StatusPill,
   TextInput,
 } from '../ui-app';
-import { Footer } from '../home/Rest';
+import { Footer } from '../home/Closing';
 import { Nav } from '../home/Nav';
 import { validateMailDomainName } from '../lib/mail-domain';
 
@@ -48,10 +48,8 @@ export function mailCheckoutPath(slug: string): string {
 function PublicShell({ children }: { children: ReactNode }) {
   return (
     <>
-      {/* The chips of the navigation belong to the catalog of the site. Here
-          they only lead back to it. */}
-      <Nav setCat={() => {}} />
-      <main className="min-h-[100svh] pt-[84px] sm:pt-[104px]">{children}</main>
+      <Nav />
+      <main className="min-h-[100svh] pt-[96px] sm:pt-[112px]">{children}</main>
       <Footer />
     </>
   );
@@ -107,7 +105,7 @@ export function MailPlanLimitList({ limits }: { limits: MailPlanLimits }) {
  */
 export function MailPlanPriceLine({ plan }: { plan: MailPlanView }) {
   if (!plan.price) {
-    return <p className="text-[15px] font-bold text-ink2">This plan has no price yet.</p>;
+    return <p className="text-[15px] font-semibold text-ink2">This plan has no price yet.</p>;
   }
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -150,11 +148,11 @@ export function MailPlanCard({ plan, buyHref }: { plan: MailPlanView; buyHref?: 
     <article
       data-plan={plan.slug}
       data-on-sale={onSale ? 'yes' : 'no'}
-      className="flex h-full flex-col rounded-[22px] bg-s1 p-4 sm:p-5"
+      className="flex h-full flex-col rounded-2xl bg-s1 p-4 sm:p-5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="break-words text-[17px] font-extrabold tracking-[-0.02em] text-ink">{plan.name}</h3>
+          <h3 className="break-words text-[17px] font-semibold tracking-[-0.02em] text-ink">{plan.name}</h3>
           <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">{plan.description}</p>
         </div>
         <StatusPill
@@ -361,7 +359,7 @@ export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
           <div className="rounded-2xl bg-s2 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="break-words text-[16px] font-extrabold tracking-[-0.02em] text-ink">{plan.name}</p>
+                <p className="break-words text-[16px] font-semibold tracking-[-0.02em] text-ink">{plan.name}</p>
                 <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">{plan.description}</p>
               </div>
               <StatusPill

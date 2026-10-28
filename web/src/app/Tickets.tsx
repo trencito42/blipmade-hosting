@@ -308,18 +308,18 @@ function NewTicketForm({
       id="new-ticket-form"
       ref={formRef}
       tabIndex={-1}
-      className="scroll-mt-24 rounded-[22px] bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] focus:outline-none sm:p-5"
+      className="scroll-mt-24 rounded-2xl bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] focus:outline-none sm:p-5"
     >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">New ticket</h2>
+            <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-ink">New ticket</h2>
             <p className="mt-1 text-[13.5px] text-ink2">Tell us what happened and we will reply in this thread.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close the new ticket form"
-            className="grid size-11 shrink-0 place-items-center rounded-full bg-s3 text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+            className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
           >
             <span aria-hidden="true">✕</span>
           </button>
@@ -370,7 +370,7 @@ function NewTicketForm({
           {/* The priority is three choices: a strip of buttons is easier to
               hit than a dropdown on a phone. */}
           <div className="grid gap-2">
-            <p className="px-1 text-[13.5px] font-bold text-ink">Priority</p>
+            <p className="px-1 text-[13.5px] font-medium text-ink">Priority</p>
             <Segmented
               role="group"
               ariaLabel="Priority"
@@ -407,7 +407,7 @@ function NewTicketForm({
           />
 
           {create.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {create.error}
             </p>
           )}

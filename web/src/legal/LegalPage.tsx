@@ -27,8 +27,8 @@ function formatDate(value: string): string {
 }
 
 const NOTE_TONE = {
-  note: 'bg-s1 text-ink2',
-  warning: 'bg-warn/10 text-ink2',
+  note: 'border-line bg-card text-ink2',
+  warning: 'border-warn/40 bg-warn/10 text-ink2',
 } as const;
 
 function Block({ block }: { block: LegalBlock }) {
@@ -48,7 +48,7 @@ function Block({ block }: { block: LegalBlock }) {
     );
   }
   return (
-    <aside className={cn('rounded-2xl px-4 py-3.5', NOTE_TONE[block.tone ?? 'note'])}>
+    <aside className={cn('rounded-2xl border px-4 py-3.5', NOTE_TONE[block.tone ?? 'note'])}>
       <p className="text-[14.5px] leading-relaxed">{block.text}</p>
     </aside>
   );
@@ -57,7 +57,7 @@ function Block({ block }: { block: LegalBlock }) {
 function Section({ section }: { section: LegalSection }) {
   return (
     <section>
-      <h2 id={section.id} className="scroll-mt-24 text-[20px] font-extrabold tracking-[-0.035em] text-ink">
+      <h2 id={section.id} className="scroll-mt-24 text-[22px] font-semibold tracking-tight text-ink">
         {section.title}
       </h2>
       <div className="mt-3 grid gap-4">
@@ -74,29 +74,29 @@ function Section({ section }: { section: LegalSection }) {
 export function LegalPage({ document }: { document: LegalDocument }) {
   return (
     <div className="flex min-h-[100svh] flex-col bg-bg">
-      <header className="px-4 py-4 sm:px-6">
+      <header className="px-5 py-5 sm:px-8">
         <div className="mx-auto flex w-full max-w-[900px] items-center justify-between gap-3">
           <Logo />
           <Link
             to="/"
-            className="inline-flex min-h-11 items-center text-[13.5px] font-bold text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+            className="inline-flex min-h-11 items-center rounded-lg px-3 text-[14px] font-medium text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
           >
             Back to the site
           </Link>
         </div>
       </header>
 
-      <main className="flex-1 px-4 pb-14 sm:px-6">
+      <main className="flex-1 px-5 pb-14 sm:px-8">
         <div className="mx-auto w-full max-w-[760px]">
-          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-ink3">Legal</p>
-          <h1 className="mt-3 text-[clamp(30px,7vw,46px)] font-extrabold leading-[1.05] tracking-[-0.05em] text-ink">
+          <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-acc-h">Legal</p>
+          <h1 className="mt-4 text-[clamp(32px,6vw,56px)] leading-[1.05] font-semibold tracking-[-0.045em] text-ink">
             {document.label}
           </h1>
-          <p className="mt-3 text-[16.5px] leading-relaxed text-ink2">{document.summary}</p>
+          <p className="mt-3 text-[17px] leading-relaxed text-ink2">{document.summary}</p>
           <p className="mt-4 text-[12.5px] text-ink3">Last updated {formatDate(document.updated)}</p>
 
           {document.sections.length > 1 && (
-            <nav aria-label="On this page" className="mt-9 rounded-2xl bg-s1 px-4 py-4">
+            <nav aria-label="On this page" className="mt-9 rounded-2xl border border-line bg-card px-4 py-4">
               <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink3">On this page</p>
               <ul className="mt-2.5 grid gap-1 sm:grid-cols-2">
                 {document.sections.map((section) => (
@@ -107,7 +107,7 @@ export function LegalPage({ document }: { document: LegalDocument }) {
                         event.preventDefault();
                         scrollToId(section.id);
                       }}
-                      className="block rounded-lg px-1 py-1.5 text-[13.5px] leading-snug text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      className="block rounded-lg px-1 py-1.5 text-[13.5px] leading-snug text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
                     >
                       {section.title}
                     </a>
@@ -125,7 +125,7 @@ export function LegalPage({ document }: { document: LegalDocument }) {
         </div>
       </main>
 
-      <footer className="px-4 pb-10 sm:px-6">
+      <footer className="px-5 pb-10 sm:px-8">
         <div className="mx-auto w-full max-w-[760px] pt-6">
           <LegalFooter />
         </div>

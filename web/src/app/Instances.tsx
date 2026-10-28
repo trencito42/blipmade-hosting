@@ -153,7 +153,7 @@ export default function Instances() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[19px] font-extrabold tracking-[-0.035em] text-ink">Instances</h2>
+          <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Instances</h2>
           <p className="text-[13.5px] text-ink3">Your apps and databases, with the limits you bought.</p>
         </div>
         {/* The selector of the customer area, so the customer picks the

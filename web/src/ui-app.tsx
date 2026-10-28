@@ -202,8 +202,8 @@ export function AppShell({
     <div className="min-h-[100svh] bg-bg">
       <div className="lg:flex">
         {/* Desktop sidebar */}
-        <aside className="sticky top-0 hidden h-[100svh] w-[272px] shrink-0 flex-col bg-s1 p-4 lg:flex">
-          <Link to="/" className="mb-6 flex items-center gap-2.5 rounded-full px-2 py-1 text-[21px] font-extrabold tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-acc">
+        <aside className="sticky top-0 hidden h-[100svh] w-[272px] shrink-0 flex-col border-r border-line bg-s1 p-4 lg:flex">
+          <Link to="/" className="mb-6 flex items-center gap-2.5 rounded-lg px-2 py-1 text-[21px] font-semibold tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
             <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
             blipmade
           </Link>
@@ -214,8 +214,8 @@ export function AppShell({
                 to={entry.to}
                 aria-current={isActive(entry) ? 'page' : undefined}
                 className={cn(
-                  'flex h-11 items-center gap-3 rounded-2xl px-3 text-[15px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-                  isActive(entry) ? 'bg-s2 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
+                  'flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                  isActive(entry) ? 'bg-card text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
                 )}
               >
                 <Icon name={entry.icon} size={18} className={isActive(entry) ? 'text-acc' : 'text-ink3'} />
@@ -225,11 +225,11 @@ export function AppShell({
           </nav>
           <div className="mt-auto">
             {environment && (
-              <p className="mb-2 rounded-full bg-s3 px-3 py-1.5 text-center font-mono text-[11.5px] uppercase tracking-[0.12em] text-ink2">
+              <p className="mb-2 rounded-full border border-line bg-card px-3 py-1.5 text-center font-mono text-[11.5px] uppercase tracking-[0.12em] text-ink2">
                 {environment}
               </p>
             )}
-            <Link to="/" className="flex h-11 items-center gap-3 rounded-2xl px-3 text-[14.5px] font-bold text-ink3 transition-colors duration-[180ms] hover:bg-s2 hover:text-ink">
+            <Link to="/" className="flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] font-medium text-ink3 transition-colors duration-[180ms] hover:bg-s2 hover:text-ink">
               <Icon name="arrowUR" size={17} />
               Back to site
             </Link>
@@ -239,18 +239,18 @@ export function AppShell({
         <div className="min-w-0 flex-1">
           {/* Top bar. The padding keeps the bar clear of the notch of a
               phone, so the title is never under the camera. */}
-          <header className="sticky top-0 z-20 flex items-center gap-3 bg-bg px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6">
+          <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6">
             {/* The mark of the site is a link on a phone, so it is given the
                 room a finger needs, without changing the size of the mark. */}
             <Link
               to="/"
-              className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-full lg:hidden"
+              className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-xl lg:hidden"
               aria-label="Blipmade home"
             >
               <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
             </Link>
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[19px] font-extrabold tracking-[-0.04em] text-ink sm:text-[22px]">{title}</h1>
+              <h1 className="truncate text-[19px] font-semibold tracking-[-0.04em] text-ink sm:text-[22px]">{title}</h1>
               {subtitle && <p className="truncate text-[13px] text-ink3">{subtitle}</p>}
             </div>
             {/* The action of the bar is a touch target on a phone, so it
@@ -280,7 +280,7 @@ export function AppShell({
         aria-label="Primary"
         data-bottom-nav=""
         className={cn(
-          'fixed inset-x-0 bottom-0 z-30 grid bg-s1 px-1 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] transition-transform duration-200 lg:hidden',
+          'fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-bg/90 px-1 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] backdrop-blur-md transition-transform duration-200 lg:hidden',
           rest.length > 0 ? 'grid-cols-5' : 'grid-cols-4',
           keyboardOpen && 'pointer-events-none translate-y-full',
         )}
@@ -295,8 +295,8 @@ export function AppShell({
               className={cn(
                 // One cell of the grid is the whole touch target: 64px wide
                 // at 320px and 56px tall, well over the 44px minimum.
-                'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-2xl px-1 py-1 text-[11.5px] font-bold leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-                active ? 'bg-s2 text-ink' : 'text-ink3',
+                'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-xl px-1 py-1 text-[11.5px] font-medium leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                active ? 'bg-card text-ink' : 'text-ink3',
               )}
             >
               {/* The bar marks the active tab without relying on colour. It
@@ -319,8 +319,8 @@ export function AppShell({
             aria-controls="phone-more-sheet"
             onClick={() => setMoreOpen((open) => !open)}
             className={cn(
-              'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-2xl px-1 py-1 text-[11.5px] font-bold leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-              moreOpen || restActive ? 'bg-s2 text-ink' : 'text-ink3',
+              'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-xl px-1 py-1 text-[11.5px] font-medium leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+              moreOpen || restActive ? 'bg-card text-ink' : 'text-ink3',
             )}
           >
             {(moreOpen || restActive) && <span aria-hidden="true" className="absolute inset-x-4 -top-1.5 h-[3px] rounded-full bg-acc" />}
@@ -346,15 +346,15 @@ export function AppShell({
             role="dialog"
             aria-modal="true"
             aria-label="More pages"
-            className="absolute inset-x-0 bottom-0 max-h-[86dvh] overflow-y-auto overscroll-contain rounded-t-[26px] bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="absolute inset-x-0 bottom-0 max-h-[86dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-line bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
           >
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">All pages</h2>
+              <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-ink">All pages</h2>
               <button
                 type="button"
                 onClick={closeMore}
                 aria-label="Close"
-                className="grid h-11 w-11 place-items-center rounded-full bg-s3 text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                className="grid h-11 w-11 place-items-center rounded-xl border border-line bg-card text-ink transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
               >
                 <Icon name="close" size={18} />
               </button>
@@ -368,7 +368,7 @@ export function AppShell({
                     to={entry.to}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex h-12 items-center gap-3 rounded-2xl px-3 text-[15px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+                      'flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
                       active ? 'bg-s2 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
                     )}
                   >
@@ -409,7 +409,13 @@ export function Panel({
   actionBelow?: boolean;
 }) {
   return (
-    <section className={cn('rounded-[22px] p-4 sm:p-5', tone === 'accent' ? 'bg-acc-bg' : 'bg-s1', className)}>
+    <section
+      className={cn(
+        'rounded-2xl border p-4 sm:p-5',
+        tone === 'accent' ? 'border-acc/40 bg-acc-bg' : 'border-line bg-card',
+        className,
+      )}
+    >
       {(title || action) && (
         <div
           className={cn(
@@ -418,7 +424,7 @@ export function Panel({
           )}
         >
           <div className="min-w-0">
-            {title && <h2 className="text-[17px] font-extrabold tracking-[-0.03em] text-ink">{title}</h2>}
+            {title && <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-ink">{title}</h2>}
             {description && <p className="mt-1 text-[13.5px] text-ink2">{description}</p>}
           </div>
           {action && (
@@ -433,7 +439,7 @@ export function Panel({
 
 export function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="rounded-2xl bg-s2 p-4">
+    <div className="rounded-2xl border border-line bg-card p-4">
       <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">{label}</p>
       <p className="mt-1 break-words font-mono text-[22px] font-semibold leading-tight tracking-[-0.03em] tabular-nums text-ink">{value}</p>
       {hint && <p className="mt-1 text-[12.5px] text-ink3">{hint}</p>}
@@ -461,7 +467,7 @@ export function ListRow({
           keeps the text in the room that is left and takes the phrase out of
           the measurement of the page. */}
       <div className="w-0 min-w-0 flex-1">
-        <p className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{title}</p>
+        <p className="truncate text-[15.5px] font-medium tracking-[-0.02em] text-ink">{title}</p>
         {meta && <p className="mt-0.5 truncate text-[13px] text-ink3">{meta}</p>}
       </div>
       {right && <div className="shrink-0">{right}</div>}
@@ -471,7 +477,7 @@ export function ListRow({
     return (
       <Link
         to={to}
-        className="flex min-w-0 items-center gap-3 rounded-2xl bg-s2 p-3.5 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+        className="flex min-w-0 items-center gap-3 rounded-xl border border-line bg-card p-3.5 transition-colors duration-[180ms] hover:border-acc/50 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
       >
         {inner}
       </Link>
@@ -479,7 +485,7 @@ export function ListRow({
   }
   // The row may shrink below the width of its text, so a long text is cut and
   // never pushes the page sideways.
-  return <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-s2 p-3.5">{inner}</div>;
+  return <div className="flex min-w-0 items-center gap-3 rounded-xl border border-line bg-card p-3.5">{inner}</div>;
 }
 
 // --- four data states -----------------------------------------------------
@@ -493,7 +499,7 @@ export function LoadingBlock({ rows = 3, label = 'Loading' }: { rows?: number; l
     <div className="grid gap-2.5" role="status" aria-live="polite" aria-busy="true">
       <span className="sr-only">{label}</span>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="rounded-2xl bg-s2 p-4">
+        <div key={i} className="rounded-2xl border border-line bg-card p-4">
           <Skeleton className="w-2/5" />
           <Skeleton className="mt-2.5 w-3/5" />
         </div>
@@ -514,8 +520,8 @@ export function EmptyState({
   return (
     // One short line of what is missing, one action, and the facts that help.
     // The action fills the width of a phone, so it is within reach of a thumb.
-    <div className="rounded-2xl bg-s2 px-4 py-6 text-center sm:px-5 sm:py-8">
-      <p className="break-words text-[16px] font-extrabold tracking-[-0.02em] text-ink">{title}</p>
+    <div className="rounded-2xl border border-line bg-card px-4 py-6 text-center sm:px-5 sm:py-8">
+      <p className="break-words text-[16px] font-semibold tracking-[-0.02em] text-ink">{title}</p>
       {description && (
         <p className="mx-auto mt-1.5 max-w-[38ch] break-words text-[14px] leading-relaxed text-ink2">{description}</p>
       )}
@@ -536,8 +542,8 @@ export function ErrorState({
   onRetry?: () => void;
 }) {
   return (
-    <div role="alert" className="rounded-2xl bg-s2 px-5 py-6">
-      <p className="break-words text-[15px] font-extrabold text-bad">{title}</p>
+    <div role="alert" className="rounded-2xl border border-bad/40 bg-bad/10 px-5 py-6">
+      <p className="break-words text-[15px] font-semibold text-bad">{title}</p>
       {message && <p className="mt-1.5 break-words text-[14px] leading-relaxed text-ink2">{message}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         {onRetry && (
@@ -545,7 +551,7 @@ export function ErrorState({
             type="button"
             onClick={onRetry}
             // Full width on a phone, so the retry is within reach of a thumb.
-            className="h-11 w-full max-w-full whitespace-normal rounded-full bg-s3 px-4 text-center text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:w-auto"
+            className="h-11 w-full max-w-full whitespace-normal rounded-xl border border-line bg-card px-4 text-center text-[13.5px] font-medium text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:w-auto"
           >
             Retry
           </button>
@@ -669,7 +675,7 @@ export function Field({
 
   return (
     <div className={cn('grid gap-1.5', className)}>
-      <label htmlFor={htmlFor} className="px-1 text-[13.5px] font-bold text-ink">
+      <label htmlFor={htmlFor} className="px-1 text-[14px] font-medium text-ink">
         {label}
       </label>
       {control}
@@ -696,18 +702,18 @@ export function Field({
  * so the paint of the browser's autofill matches an empty field.
  */
 const fieldBase =
-  'w-full bg-s2 text-ink outline-none transition-colors duration-[180ms] placeholder:text-ink3 ' +
-  '[--bm-field-bg:var(--color-s2)] focus:bg-s3 focus:[--bm-field-bg:var(--color-s3)] ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ' +
+  'w-full rounded-xl border border-line bg-card text-ink outline-none transition-[border-color,box-shadow] duration-[180ms] placeholder:text-ink3 ' +
+  '[--bm-field-bg:var(--color-card)] focus:border-acc focus:[--bm-field-bg:var(--color-card)] ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc/40 ' +
   'disabled:cursor-not-allowed disabled:bg-s1 disabled:text-ink3 disabled:opacity-70 ' +
-  'read-only:cursor-default read-only:bg-s1 read-only:text-ink2 read-only:focus:bg-s1';
+  'read-only:cursor-default read-only:bg-s1 read-only:text-ink2 read-only:focus:border-line read-only:focus:bg-s1';
 
 /** The error ring keeps its colour when the field is focused, so the two never fight. */
-const errorRing = 'ring-2 ring-bad focus-visible:outline-none focus-visible:ring-bad';
+const errorRing = 'border-bad focus-visible:ring-bad/40';
 
-const inputBase = cn(fieldBase, 'h-14 rounded-full px-5 text-[16px] lg:text-[15px]');
-const areaBase = cn(fieldBase, 'rounded-2xl p-4 text-[16px] leading-relaxed lg:text-[15px]');
-const selectBase = cn(fieldBase, 'h-14 appearance-none rounded-full pl-5 pr-10 text-[16px] lg:text-[15px]');
+const inputBase = cn(fieldBase, 'h-12 px-4 text-[15px]');
+const areaBase = cn(fieldBase, 'rounded-xl p-4 text-[15px] leading-relaxed');
+const selectBase = cn(fieldBase, 'h-12 appearance-none pl-4 pr-10 text-[15px]');
 
 /** The chevron of the dropdown, drawn with the icon font and not with a picture. */
 const selectChevron = "pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink3";
@@ -785,10 +791,10 @@ export function Select({
 export type ButtonVariant = 'primary' | 'soft' | 'danger';
 
 const primaryButtonClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-acc px-5 text-[14.5px] font-semibold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
 
 const softButtonClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s3 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-line bg-card px-5 text-[14.5px] font-semibold text-ink transition-colors duration-[180ms] hover:border-acc/50 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
 
 /**
  * The same step of the secondary button, on a raised surface.
@@ -797,10 +803,10 @@ const softButtonClass =
  * visible, so it sinks one level (`bg-s1`).
  */
 const sunkenSoftButtonClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-s1 px-5 text-[14.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-line bg-s1 px-5 text-[14.5px] font-semibold text-ink transition-colors duration-[180ms] hover:border-acc/50 hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50';
 
 const dangerButtonClass =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-bad/12 px-5 text-[14.5px] font-bold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-bad/40 bg-bad/10 px-5 text-[14.5px] font-semibold text-bad transition-colors duration-[180ms] hover:bg-bad/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50';
 
 const buttonClass: Record<ButtonVariant, string> = {
   primary: primaryButtonClass,
@@ -928,8 +934,8 @@ export function Segmented<T extends string>({
             aria-pressed={isTabs ? undefined : option.value === value}
             onClick={() => onChange(option.value)}
             className={cn(
-              'h-11 max-w-full shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4',
-              option.value === value ? 'bg-ink text-bg' : 'bg-s2 text-ink2 hover:bg-s3 hover:text-ink',
+              'h-11 max-w-full shrink-0 whitespace-nowrap rounded-full border border-line px-3.5 text-[13.5px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc sm:px-4',
+              option.value === value ? 'border-acc bg-acc text-on-acc' : 'bg-card text-ink2 hover:bg-s3 hover:text-ink',
             )}
           >
             {option.label}
@@ -979,7 +985,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={item.id}
             role="status"
             className={cn(
-              'pointer-events-auto max-w-[92vw] rounded-full px-5 py-3 text-[14px] font-bold shadow-none',
+              'pointer-events-auto max-w-[92vw] rounded-xl px-5 py-3 text-[14px] font-medium shadow-none',
               item.tone === 'ok' ? 'bg-acc text-on-acc' : 'bg-bad text-white',
             )}
           >
@@ -1088,9 +1094,9 @@ export function ConfirmDialog({
         ref={panelRef}
         tabIndex={-1}
         // The dialog fits the screen: the body scrolls, the actions stay.
-        className="flex max-h-[calc(100svh-1.5rem)] w-full max-w-[440px] flex-col rounded-[22px] bg-s1 p-5 focus:outline-none"
+        className="flex max-h-[calc(100svh-1.5rem)] w-full max-w-[440px] flex-col rounded-2xl border border-line bg-card p-5 focus:outline-none"
       >
-        <h2 id={titleId} className="text-[18px] font-extrabold tracking-[-0.03em] text-ink">
+        <h2 id={titleId} className="text-[18px] font-semibold tracking-[-0.03em] text-ink">
           {title}
         </h2>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -1109,7 +1115,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy || blocked}
-            className="inline-flex h-11 w-full max-w-full items-center justify-center gap-2 rounded-full bg-bad px-5 text-[14.5px] font-bold text-white transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="inline-flex h-11 w-full max-w-full items-center justify-center gap-2 rounded-xl bg-bad px-5 text-[14.5px] font-semibold text-white transition-colors duration-[180ms] hover:bg-bad/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {busy ? 'Working…' : confirmLabel}
           </button>
@@ -1188,7 +1194,7 @@ export function CardList<T>({ rows, rowKey, children }: { rows: T[]; rowKey: (ro
     // so the cards never make the page wider than the screen.
     <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 md:hidden">
       {rows.map((row) => (
-        <div key={rowKey(row)} className="rounded-2xl bg-s2 p-3.5">
+        <div key={rowKey(row)} className="rounded-2xl border border-line bg-card p-3.5">
           {children(row)}
         </div>
       ))}
@@ -1415,7 +1421,7 @@ export function NotificationBellPanel({
       id="notification-menu"
       className="absolute right-0 top-full z-30 mt-2 w-[min(21rem,calc(100vw-2rem))] rounded-2xl bg-s1 p-3"
     >
-      <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">Notifications</p>
+      <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">Notifications</p>
 
       {loading ? (
         <p className="px-1 text-[13px] text-ink3" role="status">
@@ -1431,7 +1437,7 @@ export function NotificationBellPanel({
                 to={to}
                 className="block rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
               >
-                <p className="flex items-center gap-2 text-[13.5px] font-bold text-ink">
+                <p className="flex items-center gap-2 text-[13.5px] font-medium text-ink">
                   {item.readAt ? null : <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-acc" />}
                   <span className="min-w-0 break-words">{item.title}</span>
                 </p>
@@ -1444,7 +1450,7 @@ export function NotificationBellPanel({
 
       <Link
         to={to}
-        className="mt-2 block rounded-full bg-s3 px-4 py-2.5 text-center text-[13.5px] font-bold text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+        className="mt-2 block rounded-xl border border-line bg-card px-4 py-2.5 text-center text-[13.5px] font-medium text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
       >
         Open the notification centre
       </Link>

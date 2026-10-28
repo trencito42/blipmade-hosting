@@ -1,6 +1,8 @@
 import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { Icon } from '../icons';
 import { cn } from '../lib';
+import { Check } from '../ui';
+import { PASSWORD_RULES } from '../lib/password-rules';
 
 /**
  * The one field of the five auth screens.
@@ -35,13 +37,13 @@ export function FieldShell({
   return (
     <div
       className={cn(
-        'flex h-14 items-center overflow-hidden rounded-full pl-5 pr-2 ring-2 transition-colors duration-[180ms]',
+        'flex h-12 items-center overflow-hidden rounded-xl border pl-4 pr-2 transition-[border-color,box-shadow] duration-200',
         // The background of the container is the colour the browser paints the
-        // fill with, so an autofilled field is invisible against the pill.
+        // fill with, so an autofilled field is invisible against the card.
         'bg-[var(--bm-field-bg)]',
         error
-          ? '[--bm-field-bg:color-mix(in_oklab,var(--color-bad)_10%,var(--color-bg))] ring-bad'
-          : '[--bm-field-bg:var(--color-s1)] focus-within:[--bm-field-bg:var(--color-s2)] ring-transparent focus-within:ring-acc',
+          ? '[--bm-field-bg:color-mix(in_oklab,var(--color-bad)_10%,var(--color-bg))] border-bad'
+          : '[--bm-field-bg:var(--color-card,var(--color-s2))] border-line focus-within:border-acc focus-within:shadow-[0_0_0_3px_rgb(34_197_94/0.18)]',
         disabled && 'cursor-not-allowed opacity-60',
         className,
       )}
@@ -67,7 +69,7 @@ export function FieldInput({
       {...props}
       aria-describedby={describedBy}
       className={cn(
-        'h-full min-w-0 flex-1 bg-transparent text-[16px] text-ink outline-none! placeholder:text-ink3',
+        'h-full min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none! placeholder:text-ink3',
         // The fill of the browser sets the colour of the text, so the
         // placeholder needs its own colour to stay muted.
         '[&::placeholder]:[-webkit-text-fill-color:var(--color-ink3)]',
@@ -96,10 +98,35 @@ export function FieldReveal({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="grid size-11 shrink-0 place-items-center rounded-full text-ink3 transition-colors duration-[180ms] hover:bg-s3 hover:text-ink focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-acc outline-none! disabled:cursor-not-allowed disabled:opacity-50"
+      className="grid size-9 shrink-0 place-items-center rounded-lg text-ink3 transition-colors duration-200 hover:bg-s3 hover:text-ink focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-acc outline-none! disabled:cursor-not-allowed disabled:opacity-50"
     >
       <Icon name={shown ? 'eyeOff' : 'eye'} />
     </button>
+  );
+}
+
+/**
+ * The live checklist of the rules of a password.
+ *
+ * Every line is the rule the API enforces, and it turns green the moment the
+ * value keeps it. The checklist is under the field, so the visitor reads it
+ * while typing instead of after the server refused the password.
+ */
+export function PasswordRules({ value }: { value: string }) {
+  return (
+    <ul aria-label="Password rules" className="grid gap-1.5 text-[13.5px]">
+      {PASSWORD_RULES.map((rule) => {
+        const ok = rule.ok(value);
+        return (
+          <li key={rule.label} className={cn('flex items-center gap-2', ok ? 'text-acc-h' : 'text-ink3')}>
+            <span aria-hidden="true" className="grid size-4 shrink-0 place-items-center">
+              {ok ? <Check className="size-3.5" /> : <span className="size-1 rounded-full bg-current" />}
+            </span>
+            {rule.label}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -148,7 +175,7 @@ export function AuthField({
 
   return (
     <div className="grid gap-2">
-      <label htmlFor={id} className="px-1 text-[14px] font-bold">
+      <label htmlFor={id} className="text-[14px] font-medium">
         {label}
       </label>
       <FieldShell error={invalid} disabled={disabled}>
@@ -170,11 +197,11 @@ export function AuthField({
         )}
       </FieldShell>
       {error ? (
-        <p id={errorId} role="alert" className="px-1 text-[12.5px] font-medium text-bad">
+        <p id={errorId} role="alert" className="text-[13px] font-medium text-bad">
           {error}
         </p>
       ) : hint ? (
-        <p id={hintId} className="px-1 text-[12.5px] text-ink3">
+        <p id={hintId} className="text-[13px] text-ink3">
           {hint}
         </p>
       ) : null}

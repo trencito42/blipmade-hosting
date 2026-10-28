@@ -205,7 +205,7 @@ export function OneTimePasswordBox({
 
   return (
     <div role="status" className="rounded-2xl bg-acc-bg p-4">
-      <p className="text-[15px] font-extrabold tracking-[-0.02em] text-ink">The password of {address}</p>
+      <p className="text-[15px] font-semibold tracking-[-0.02em] text-ink">The password of {address}</p>
       <p className="mt-1 text-[13.5px] leading-relaxed text-ink2">
         This password is shown only once. Copy it now and store it: it cannot be shown again, and nobody can read it
         for you.
@@ -240,7 +240,7 @@ export function MailDnsRecords({ records, verified }: { records: DnsRecordView[]
       <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">DNS records to publish</p>
 
       {verified ? (
-        <p className="rounded-2xl bg-acc/12 px-3.5 py-3 text-[13.5px] font-bold text-acc">
+        <p className="rounded-2xl bg-acc/12 px-3.5 py-3 text-[13.5px] font-medium text-acc">
           The server has seen these records. Mail is delivered to this domain.
         </p>
       ) : (
@@ -860,7 +860,7 @@ export function MailServiceCard({
     <article data-service={service.id} className="rounded-2xl bg-s2 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="break-words text-[16px] font-extrabold tracking-[-0.02em] text-ink">{service.plan.name}</p>
+          <p className="break-words text-[16px] font-semibold tracking-[-0.02em] text-ink">{service.plan.name}</p>
           <p className="mt-0.5 text-[13px] text-ink3">{categoryLabel(service.plan.category)}</p>
         </div>
         {/* The state gets a line of its own on a phone, so the name of the plan
@@ -925,7 +925,7 @@ export function MailServiceCard({
           service.domains.map((domain) => (
             <div key={domain.id} className="rounded-2xl bg-s3 p-3.5">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <p className="break-all text-[14.5px] font-bold text-ink">{domain.name}</p>
+                <p className="break-all text-[14.5px] font-medium text-ink">{domain.name}</p>
                 <StatusPill status={domain.status.toLowerCase()} label={mailDomainStatusLabel(domain.status)} />
               </div>
               {domain.lastError && (
@@ -1019,7 +1019,7 @@ export function MailServiceCard({
           ) : (
             dns.map((entry) => (
               <div key={entry.id} className="rounded-2xl bg-s3 p-3.5">
-                <p className="break-all text-[14px] font-bold text-ink">{entry.name}</p>
+                <p className="break-all text-[14px] font-medium text-ink">{entry.name}</p>
                 <p className="mt-0.5 text-[12.5px] text-ink3">
                   {entry.verified
                     ? 'The server has seen the records of this domain.'
@@ -1253,7 +1253,7 @@ function MailHostingSection() {
       )}
 
       {failure && (
-        <p role="alert" className="mt-3 text-[13.5px] font-bold text-bad">
+        <p role="alert" className="mt-3 text-[13.5px] font-medium text-bad">
           {failure}
         </p>
       )}
@@ -1473,7 +1473,7 @@ export default function Mail() {
           </div>
         </div>
         {createDomain.error && (
-          <p role="alert" className="mt-2 text-[13.5px] font-bold text-bad">
+          <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">
             {createDomain.error}
           </p>
         )}
@@ -1499,7 +1499,7 @@ export default function Mail() {
               <article key={domain.id} className="rounded-2xl bg-s2 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="w-0 min-w-0 flex-1">
-                    <p className="truncate text-[16px] font-extrabold tracking-[-0.02em] text-ink" title={domain.name}>
+                    <p className="truncate text-[16px] font-semibold tracking-[-0.02em] text-ink" title={domain.name}>
                       {domain.name}
                     </p>
                     <p className="mt-0.5 text-[13px] text-ink3">
@@ -1588,7 +1588,7 @@ export default function Mail() {
                     {addMailbox.pending ? 'Adding…' : 'Add mailbox'}
                   </PrimaryButton>
                   {addMailbox.error && (
-                    <p role="alert" className="mt-2 text-[13.5px] font-bold text-bad">
+                    <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">
                       {addMailbox.error}
                     </p>
                   )}
@@ -1633,7 +1633,7 @@ export default function Mail() {
                     {addAlias.pending ? 'Adding…' : 'Add alias'}
                   </PrimaryButton>
                   {addAlias.error && (
-                    <p role="alert" className="mt-2 text-[13.5px] font-bold text-bad">
+                    <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">
                       {addAlias.error}
                     </p>
                   )}
@@ -1653,7 +1653,7 @@ export default function Mail() {
         }}
       />
       {remove.error && (
-        <p role="alert" className="text-[13.5px] font-bold text-bad">
+        <p role="alert" className="text-[13.5px] font-medium text-bad">
           {remove.error}
         </p>
       )}

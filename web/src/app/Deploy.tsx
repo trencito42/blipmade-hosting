@@ -203,18 +203,18 @@ function formatDateTime(value: string | null | undefined): string {
 
 const pill = (on: boolean) =>
   cn(
-    'h-11 whitespace-nowrap rounded-full px-3 text-[13.5px] font-bold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc lg:h-10',
-    on ? 'bg-ink text-bg' : 'bg-s2 text-ink2 hover:bg-s3 hover:text-ink',
+    'h-11 whitespace-nowrap rounded-full border px-3 text-[13.5px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc lg:h-10',
+    on ? 'border-acc bg-acc text-on-acc' : 'border-line bg-card text-ink2 hover:bg-s3 hover:text-ink',
   );
 
 const linkButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-acc px-5 text-[14.5px] font-bold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-acc px-5 text-[14.5px] font-semibold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl bg-s2 px-3.5 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-card px-3.5 py-3">
       <dt className="text-[13.5px] text-ink2">{label}</dt>
-      <dd className="w-0 min-w-0 flex-1 truncate text-right text-[14.5px] font-bold text-ink">{children}</dd>
+      <dd className="w-0 min-w-0 flex-1 truncate text-right text-[14.5px] font-medium text-ink">{children}</dd>
     </div>
   );
 }
@@ -277,7 +277,7 @@ function TaxLine({ tax, currency }: { tax: QuoteTax | undefined; currency: strin
   if (!tax) return null;
   if (!tax.applies) {
     return (
-      <div className="rounded-2xl bg-s2 px-3.5 py-3">
+      <div className="rounded-xl border border-line bg-card px-3.5 py-3">
         <p className="text-[12.5px] leading-relaxed text-ink3">
           {tax.note ?? 'No tax is added to this invoice.'}
         </p>
@@ -286,15 +286,15 @@ function TaxLine({ tax, currency }: { tax: QuoteTax | undefined; currency: strin
   }
   return (
     <>
-      <div className="flex items-center justify-between rounded-2xl bg-s2 px-3.5 py-3">
+      <div className="flex items-center justify-between rounded-xl border border-line bg-card px-3.5 py-3">
         <span className="text-[13.5px] text-ink2">VAT ({tax.rate}%)</span>
-        <span className="text-[14.5px] font-bold text-ink">
+        <span className="text-[14.5px] font-medium text-ink">
           <Money amount={tax.amount} currency={currency} />
         </span>
       </div>
-      <div className="flex items-center justify-between rounded-2xl bg-s2 px-3.5 py-3">
+      <div className="flex items-center justify-between rounded-xl border border-line bg-card px-3.5 py-3">
         <span className="text-[13.5px] text-ink2">Total on the invoice</span>
-        <span className="text-[14.5px] font-bold text-ink">
+        <span className="text-[14.5px] font-medium text-ink">
           <Money amount={tax.total} currency={currency} />
         </span>
       </div>
@@ -328,12 +328,12 @@ function Preset({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        'flex w-full items-center justify-between gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
-        active ? 'bg-ink text-bg' : 'bg-s2 text-ink hover:bg-s3',
+        'flex w-full items-center justify-between gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc',
+        active ? 'border-acc bg-acc text-on-acc' : 'border-line bg-card text-ink hover:bg-s3',
       )}
     >
       <span className="min-w-0">
-        <span className="block text-[14px] font-bold">{label}</span>
+        <span className="block text-[14px] font-medium">{label}</span>
         <span className={cn('block text-[12.5px]', active ? 'opacity-75' : 'text-ink3')}>{detail}</span>
       </span>
       <span className="shrink-0 font-mono text-[13.5px] font-semibold">{price}</span>
@@ -747,13 +747,13 @@ export default function Deploy() {
               <li key={label} className="flex shrink-0 items-center gap-1.5" aria-current={current ? 'step' : undefined}>
                 <span
                   className={cn(
-                    'grid size-7 shrink-0 place-items-center rounded-full text-[11.5px] font-bold',
-                    done || current ? 'bg-acc text-on-acc' : 'bg-s2 text-ink3',
+                    'grid size-7 shrink-0 place-items-center rounded-full text-[11.5px] font-semibold',
+                    done || current ? 'bg-acc text-on-acc' : 'border border-line bg-card text-ink3',
                   )}
                 >
                   {done ? <Icon name="check" size={12} /> : number}
                 </span>
-                <span className={cn('text-[13px] font-bold', current ? 'text-ink' : 'text-ink3', current ? 'inline' : 'hidden sm:inline')}>
+                <span className={cn('text-[13px] font-medium', current ? 'text-ink' : 'text-ink3', current ? 'inline' : 'hidden sm:inline')}>
                   {label}
                 </span>
                 {number < STEP_LABELS.length && <span className="mx-1 h-px w-4 shrink-0 bg-s3" aria-hidden="true" />}
@@ -796,7 +796,7 @@ export default function Deploy() {
               )}
 
               <div>
-                <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">Memory</p>
+                <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">Memory</p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="Memory">
                   {ramChoices.map((value) => (
                     <button key={value} type="button" aria-pressed={ram === value} onClick={() => applyConfig({ ram: value })} className={pill(ram === value)}>
@@ -807,7 +807,7 @@ export default function Deploy() {
               </div>
 
               <div>
-                <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">
+                <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">
                   CPU <span className="font-mono font-normal text-ink3">vCPU</span>
                 </p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="vCPU cores">
@@ -820,7 +820,7 @@ export default function Deploy() {
               </div>
 
               <div>
-                <label htmlFor="deploy-disk" className="mb-3 flex items-center justify-between px-1 text-[13.5px] font-bold text-ink">
+                <label htmlFor="deploy-disk" className="mb-3 flex items-center justify-between px-1 text-[13.5px] font-medium text-ink">
                   Storage
                   <span className="font-mono font-medium text-acc">{disk} GB</span>
                 </label>
@@ -846,7 +846,7 @@ export default function Deploy() {
 
               {product.options.length > 0 && (
                 <div>
-                  <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">Add-ons</p>
+                  <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">Add-ons</p>
                   <div className="grid gap-1.5">
                     {product.options.map((option) => {
                       const checked = optionCodes.includes(option.code);
@@ -865,7 +865,7 @@ export default function Deploy() {
                             className="mt-0.5 size-5 shrink-0 accent-acc"
                           />
                           <span className="min-w-0 flex-1">
-                            <span className="block text-[15px] font-bold text-ink">{option.name}</span>
+                            <span className="block text-[15px] font-semibold text-ink">{option.name}</span>
                             {option.description && <span className="mt-0.5 block text-[13px] text-ink3">{option.description}</span>}
                           </span>
                           <span className="shrink-0 font-mono text-[13.5px] text-ink2">
@@ -880,7 +880,7 @@ export default function Deploy() {
 
               {Object.keys(customerVariables).length > 0 && (
                 <div>
-                  <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">
+                  <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">
                     What this service needs from you
                   </p>
                   <p className="mb-3 px-1 text-[12.5px] leading-relaxed text-ink3">
@@ -912,7 +912,7 @@ export default function Deploy() {
                   without it, and the add-on becomes a line of its own in the
                   order. */}
               <div className="rounded-2xl bg-s2 p-3.5">
-                <p className="text-[13.5px] font-bold text-ink">Add hosted mail</p>
+                <p className="text-[13.5px] font-medium text-ink">Add hosted mail</p>
                 {mailPlansState.error ? (
                   <p className="mt-2 text-[13px] leading-relaxed text-ink2">
                     The plans of hosted mail could not be loaded, so they cannot be added to this order.
@@ -1074,11 +1074,11 @@ export default function Deploy() {
                 {!promotion || !promotionTyped ? (
                   <p className="text-[12.5px] text-ink3">No promotion code applied.</p>
                 ) : promotion.valid ? (
-                  <p className="rounded-2xl bg-acc-bg px-3.5 py-3 text-[13.5px] font-bold text-acc">
+                  <p className="rounded-2xl bg-acc-bg px-3.5 py-3 text-[13.5px] font-medium text-acc">
                     {promotion.code} applied.
                   </p>
                 ) : (
-                  <p role="alert" className="rounded-2xl bg-bad/12 px-3.5 py-3 text-[13.5px] font-bold text-bad">
+                  <p role="alert" className="rounded-2xl bg-bad/12 px-3.5 py-3 text-[13.5px] font-medium text-bad">
                     {promotion.reason || `${promotion.code} is not valid.`}
                   </p>
                 )}
@@ -1102,20 +1102,20 @@ export default function Deploy() {
                     {serverBreakdown && <Breakdown breakdown={serverBreakdown} currency={quote.currency} />}
                     <div className="flex items-center justify-between rounded-2xl bg-s2 px-3.5 py-3">
                       <span className="text-[13.5px] text-ink2">Subtotal</span>
-                      <span className="text-[14.5px] font-bold text-ink">
+                      <span className="text-[14.5px] font-medium text-ink">
                         <Money amount={quote.subtotal} currency={quote.currency} />
                       </span>
                     </div>
                     {quote.discount > 0 && (
                       <div className="flex items-center justify-between rounded-2xl bg-acc-bg px-3.5 py-3">
                         <span className="text-[13.5px] text-ink2">Discount</span>
-                        <span className="text-[14.5px] font-bold text-acc">
+                        <span className="text-[14.5px] font-medium text-acc">
                           -<Money amount={quote.discount} currency={quote.currency} />
                         </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between rounded-2xl bg-s3 px-3.5 py-3.5">
-                      <span className="text-[14px] font-bold text-ink">Total per {periodWord(quote.period)}</span>
+                      <span className="text-[14px] font-medium text-ink">Total per {periodWord(quote.period)}</span>
                       <span className="font-mono text-[20px] font-semibold tracking-[-0.03em] text-ink">
                         <Money amount={quote.total} currency={quote.currency} />
                       </span>
@@ -1161,7 +1161,7 @@ export default function Deploy() {
                 </Row>
               </dl>
               {placeOrder.error && (
-                <div role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-bold text-bad">
+                <div role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
                   {placeOrder.error}
                 </div>
               )}
@@ -1234,7 +1234,7 @@ export default function Deploy() {
 
               {instanceFailed && (
                 <div role="alert" className="rounded-2xl bg-bad/12 px-4 py-3">
-                  <p className="text-[15px] font-extrabold text-bad">Provisioning failed</p>
+                  <p className="text-[15px] font-semibold text-bad">Provisioning failed</p>
                   {eventsState.loading ? (
                     <LoadingBlock rows={1} label="Reading the failure" />
                   ) : eventsState.error ? (

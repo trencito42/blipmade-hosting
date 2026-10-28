@@ -210,7 +210,7 @@ export default function Audit() {
                 {(log) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <p className="min-w-0 truncate font-mono text-[13.5px] font-bold text-ink" title={log.action}>
+                      <p className="min-w-0 truncate font-mono text-[13.5px] font-medium text-ink" title={log.action}>
                         {log.action}
                       </p>
                       <span className="shrink-0 text-[12.5px] text-ink3">{fmtDateTime(log.createdAt)}</span>

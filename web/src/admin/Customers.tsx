@@ -57,7 +57,7 @@ export default function Customers() {
           to={`/admin/customers/${customer.id}`}
           className="block min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
         >
-          <span className="block truncate text-[14px] font-bold tracking-[-0.02em] text-ink" title={customer.name ?? 'No name'}>
+          <span className="block truncate text-[14px] font-medium tracking-[-0.02em] text-ink" title={customer.name ?? 'No name'}>
             {customer.name ?? 'No name'}
             {customer.suspended && (
               <span className="ml-2 align-middle">
@@ -182,7 +182,7 @@ export default function Customers() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="w-0 min-w-0 flex-1">
                         <p
-                          className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink"
+                          className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink"
                           title={customer.name ?? 'No name'}
                         >
                           {customer.name ?? 'No name'}

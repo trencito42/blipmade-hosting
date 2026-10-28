@@ -140,7 +140,7 @@ export default function Infrastructure() {
               </section>
 
               {sync.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {sync.error}
                 </p>
               )}
@@ -233,7 +233,7 @@ export default function Infrastructure() {
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={node.name}>
+                      <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={node.name}>
                         {node.name}
                       </p>
                       <p className="truncate font-mono text-[12.5px] text-ink3" title={node.fqdn}>
@@ -325,7 +325,7 @@ export default function Infrastructure() {
             <CardList<AdminEgg> rows={eggs} rowKey={(egg) => egg.id}>
               {(egg) => (
                 <div>
-                  <p className="truncate text-[15px] font-bold tracking-[-0.02em] text-ink" title={egg.name}>
+                  <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={egg.name}>
                     {egg.name}
                   </p>
                   <p className="truncate font-mono text-[12.5px] text-ink3" title={egg.dockerImage}>

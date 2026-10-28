@@ -69,9 +69,12 @@ export function headerClass<T>(column: TableColumn<T>): string {
 export function cellClass<T>(column: TableColumn<T>, index: number, total: number): string {
   return [
     'px-3 py-3 align-middle text-[14px] text-ink',
-    'bg-s2',
-    index === 0 ? 'rounded-l-2xl' : '',
-    index === total - 1 ? 'rounded-r-2xl' : '',
+    'bg-card',
+    // The row is a card: the first and the last cell carry the ends and the
+    // line of the card, so the row reads as one box and not as loose cells.
+    'border-y border-line',
+    index === 0 ? 'rounded-l-2xl border-l' : '',
+    index === total - 1 ? 'rounded-r-2xl border-r' : '',
     alignClass(column.align),
     column.nowrap ? 'whitespace-nowrap' : '',
     column.truncate ? 'max-w-0 truncate' : '',

@@ -261,7 +261,7 @@ export default function Notifications() {
                 onChange={(event) => setUnreadOnly(event.target.checked)}
                 className="size-6 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
               />
-              <span className="text-[14.5px] font-bold text-ink">Only the unread</span>
+              <span className="text-[14.5px] font-medium text-ink">Only the unread</span>
             </label>
           </div>
 
@@ -289,7 +289,7 @@ export default function Notifications() {
                 {loadingMore ? 'Loading…' : 'Load more'}
               </SoftButton>
               {moreError && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {moreError}
                 </p>
               )}
@@ -297,17 +297,17 @@ export default function Notifications() {
           )}
 
           {markRead.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {markRead.error}
             </p>
           )}
           {markAllRead.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {markAllRead.error}
             </p>
           )}
           {removeNotification.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
               {removeNotification.error}
             </p>
           )}
