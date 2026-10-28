@@ -75,7 +75,7 @@ UNION ALL
 SELECT 'order', id, number FROM "Order"
   WHERE "userId" IN (SELECT id FROM "User" WHERE $VERIFY_USERS)
 UNION ALL
-SELECT 'subscription', id, status FROM "Subscription"
+SELECT 'subscription', id, status::text FROM "Subscription"
   WHERE "userId" IN (SELECT id FROM "User" WHERE $VERIFY_USERS)
 ORDER BY 1, 2;
 SQL
