@@ -3287,6 +3287,10 @@
           },
           {
             "t": "p",
+            "text": "The card is the price of a month. A plan of a year is the twelve months of that card, and it is only quoted for a product that has a price of a year."
+          },
+          {
+            "t": "p",
             "text": "The tab Resources of an instance shows what you bought: the purchased limits, the price of the month and, when a change is being prepared, the price the change would bring."
           },
           {

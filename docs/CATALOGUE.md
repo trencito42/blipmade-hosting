@@ -57,6 +57,10 @@ there writes it for every product of the platform at once, and the rows of the
 prices are brought back to it, so the back office shows the card that is
 really used.
 
+The card is the price of a month. A year is the twelve months of that card:
+a product without a yearly price is refused when a year is quoted, so the
+period of the price is never replaced by the price of another period.
+
 A plan of hosted mail is a subscription of a service, and it keeps its own
 base price. The mail is not a server, and the resources of a plan are part of
 what is bought.

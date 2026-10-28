@@ -329,6 +329,10 @@ export default function Deploy() {
     if (!product || seeded.current === product.id) return;
     seeded.current = product.id;
     setName(product.slug);
+    // The values of the variables of the previous product are the secrets of
+    // another product, and they are not kept when the customer chooses
+    // another one.
+    setVariables({});
   }, [product]);
 
   /**
