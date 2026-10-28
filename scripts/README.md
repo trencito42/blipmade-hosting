@@ -34,6 +34,7 @@ Two rules hold for every script in this folder:
 | `cleanup-panel.py` | Removes the verification servers and accounts from the Pterodactyl panel. | Yes, it deletes panel objects. | `PTERODACTYL_URL`, `PTERODACTYL_APP_KEY`, `CLEANUP_DRY_RUN=0` and `--confirm` for a real run. | It only prints its plan by default. See below. |
 | `cleanup-data.sh` | Removes the rows the verification runs created from the platform database. | Yes, it deletes database rows. | Docker Compose and the postgres service. | It only prints its plan by default. See below. |
 | `verify-provisioning.py` | Creates a product, a customer and an order, pays it through the local test gateway and waits for the worker to provision a real server. | Yes, it creates rows and a real panel server. | `BM_ADMIN_EMAIL`, `BM_ADMIN_PASSWORD`, `BM_INTERNAL_TOKEN`, optionally `BM_BASE_URL`. | It only prints its plan by default; `--execute` runs it. |
+| `import-catalogue.sh` | Writes the catalogue of the eggs (`pterodactyl-eggs/manifest.json`) into the database: 66 products with their resources, their egg and the values the customer fills at the order. It is idempotent and it does not touch the flag that opens a product for ordering. | Yes, it writes the products of the catalogue. | `ALLOW_PRODUCTION_SEED=true` and the database of the platform. | It refuses the live database without the flag, and it refuses any other database. See [`docs/CATALOGUE.md`](../docs/CATALOGUE.md). |
 
 ## The systemd units of the backup
 

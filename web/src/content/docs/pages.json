@@ -149,7 +149,7 @@
       "checkout",
       "first app"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-28",
     "sections": [
       {
         "id": "order-the-application",
@@ -157,7 +157,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The catalog holds the apps and the databases that can be ordered. Every entry carries its own resources and its own price."
+            "text": "The catalog holds the apps, the games, the databases and the runtimes that can be ordered. Every entry carries the resources it runs with, and its price follows those resources."
           },
           {
             "t": "steps",
@@ -171,6 +171,11 @@
                 "title": "Choose the resources",
                 "body": "Give the instance a name, choose the memory, the vCPU and the storage, and choose the options you want. The estimate follows every change.",
                 "result": "The button Review order is available."
+              },
+              {
+                "title": "Fill the values the product asks for",
+                "body": "Some products ask for a value only you have: the account of a game, a licence, a key. Fill the fields the page shows. The button Review order stays greyed out while a required value is empty.",
+                "result": "The values are kept with the order and are written into the container when it is built."
               },
               {
                 "title": "Review the order",
@@ -287,6 +292,112 @@
       "upgrade",
       "backups",
       "domains",
+      "support",
+      "order-values"
+    ]
+  },
+  {
+    "id": "order-values",
+    "group": "getting-started",
+    "title": "The values a product asks for",
+    "summary": "When a product asks for an account, a licence or a key, and what the platform does with it.",
+    "keywords": [
+      "order",
+      "variables",
+      "licence",
+      "steam",
+      "account",
+      "secret",
+      "key"
+    ],
+    "updated": "2026-10-28",
+    "sections": [
+      {
+        "id": "which-products-ask",
+        "title": "Which products ask for a value",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Most products ask for nothing: you choose the resources and the order is enough. Some products need something that only you have, and the page of the product shows a field for each of those values before the order."
+          },
+          {
+            "t": "list",
+            "items": [
+              "A game of Steam asks for the account that downloads the server and its mods.",
+              "A game that shows itself in the public list of Steam asks for the token of that list.",
+              "A search engine asks for the key that protects it.",
+              "A runtime asks for the repository of the service it has to run."
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "A value that the product does not ask for is refused by the platform. The order is never sent with a value the product does not know."
+          }
+        ]
+      },
+      {
+        "id": "what-the-platform-does-with-them",
+        "title": "What the platform does with the values",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "The value is sealed",
+                "body": "The platform encrypts the value before it is written anywhere. It is kept on the instance and it is never shown again in the clear.",
+                "result": "The value is stored encrypted, like the password of a database."
+              },
+              {
+                "title": "The value goes into the container",
+                "body": "When the instance is built, the value is written into the environment of the container, under the name the application expects.",
+                "result": "The application reads the value the way it reads any other setting of its environment."
+              },
+              {
+                "title": "The value stays out of the address",
+                "body": "A value is never put in the web address of the platform and never sent in a message.",
+                "result": "Only the encrypted value is kept."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "warning",
+            "text": "An account of Steam whose guard is on stops the download and asks again for a code. Turn the guard off for the account you give here, and keep the account for the game itself."
+          }
+        ]
+      },
+      {
+        "id": "if-a-value-is-wrong",
+        "title": "If a value is wrong",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The game did not start with the value I gave.",
+                "a": "The value is in the environment of the container. Open the tab Environment of the instance and check the name of the variable the game reads."
+              },
+              {
+                "q": "I gave the wrong value.",
+                "a": "Change it in the tab Environment of the instance and restart the service. The value of the order is the one the container was built with."
+              },
+              {
+                "q": "I do not want to give a value at all.",
+                "a": "The order cannot be reviewed while a required value is empty. A product that needs a value cannot be deployed without one."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "next": [
+      "dashboard",
+      "resources"
+    ],
+    "related": [
+      "first-app",
+      "instance-access",
       "support"
     ]
   },
@@ -3107,7 +3218,7 @@
       "disk",
       "price"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-28",
     "sections": [
       {
         "id": "the-three-resources",
@@ -3151,11 +3262,37 @@
           },
           {
             "t": "p",
-            "text": "Every product of the catalog carries a minimum of resources and a price of its own. The page of the product shows the minimum in the panel Minimum resources, and the card of the product in the catalog shows the starting price."
+            "text": "The price follows the resources and nothing else: the memory, the processors and the storage of the configuration. Every product of the catalog is priced with the same card of rates, so the same resources cost the same in every product. A product that would be cheaper because it asks for fewer resources could be bought by a customer who wants something else in it, and the resources they really use would be paid for by nobody."
+          },
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Memory",
+                "v": "The price of a gigabyte of memory, for a month."
+              },
+              {
+                "k": "vCPU",
+                "v": "The price of a processor, for a month."
+              },
+              {
+                "k": "Storage",
+                "v": "The price of a gigabyte of storage, for a month."
+              }
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Every product of the catalog carries a minimum of resources. The page of the product shows the minimum in the panel Minimum resources, and the card of the product in the catalog shows the price of that smallest configuration."
           },
           {
             "t": "p",
             "text": "The tab Resources of an instance shows what you bought: the purchased limits, the price of the month and, when a change is being prepared, the price the change would bring."
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "A plan of hosted mail is not priced by its resources: it is a subscription of a service, and it keeps the price of the plan."
           }
         ]
       },

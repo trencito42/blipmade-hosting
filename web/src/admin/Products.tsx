@@ -66,7 +66,7 @@ interface AdminProduct {
   options: { id: string; code: string; name: string; amount: number; currency: string; active: boolean }[];
 }
 
-const CATEGORIES = ['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES'];
+const CATEGORIES = ['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES', 'GAMES'];
 
 interface ToggleTarget {
   product: AdminProduct;

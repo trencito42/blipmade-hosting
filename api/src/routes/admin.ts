@@ -747,7 +747,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       .object({
         slug: z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and dashes.'),
         name: z.string().trim().min(2).max(120),
-        category: z.enum(['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES', 'EMAIL_HOSTING']),
+        category: z.enum(['WEB_CMS', 'DEVELOPER_TOOLS', 'MONITORING', 'AUTOMATION', 'BOTS', 'DATABASES', 'EMAIL_HOSTING', 'GAMES']),
         description: z.string().trim().min(10).max(2000),
         icon: z.string().trim().max(40).default('box'),
         eggId: z.number().int().positive().nullable().optional(),

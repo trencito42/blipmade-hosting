@@ -369,3 +369,53 @@ it) and the product has to be proved again before it is opened.
   yet. The check called that a failure at once, so a service that started
   normally would have been refused and the customer refunded. The check waits
   now, and a container that never starts is still a failure.
+
+## 10. The catalogue of the eggs — done, except the probes
+
+The catalogue of the platform is made of the eggs of Pterodactyl and of a
+manifest that says what each product is. The whole of it is described in
+[`docs/CATALOGUE.md`](CATALOGUE.md).
+
+**Done on the 28th of October 2026.** The eggs of the three repositories of
+Pterodactyl (`game-eggs`, `application-eggs`, `generic-eggs`) were copied into
+`pterodactyl-eggs/`, imported into the nest 5 of the panel through the service
+of the panel itself, and written into the catalog of the platform as 66
+products:
+
+| Group | Products | The eggs in the panel |
+| --- | --- | --- |
+| Games | 33 | ids 20 to 85 of the nest 5 |
+| Applications | 23 | ids 20 to 85 of the nest 5 |
+| Runtimes | 10 | ids 20 to 85 of the nest 5 |
+
+The panel holds 71 eggs in the nest 5: the five that were already there (the
+`node.js generic`, the `python generic`, the `Postgres 16`, the `Code-Server`
+and the `Uptime Kuma`) and the 66 of the catalogue. The number of an egg
+belongs to the panel, so a product names its egg and the importer fills the
+number when the panel carries it.
+
+**Every one of the 66 products is closed for ordering.** The eggs are in the
+panel and the products are listed, but a product opens only after a server of
+it was really built on a node and answered. The games that need a licence of
+the customer cannot be probed without one, so they stay closed and the reason
+is written in the catalogue.
+
+**The price is now the price of the resources.** A server costs what it uses
+and nothing else, with one card of rates for the whole platform
+(`pricing_resources`: 100 per GB of memory, 50 per vCPU, 10 per GB of disk,
+for a month). The card is changed in one place, in the back office of the
+prices, and it changes the price of every product at once. The prices that
+were on the five old products change with it: the base of a server is not used
+any more.
+
+**The values of the customer.** A game that needs a licence, an account or a
+token asks for it at the order: the product declares the variables, the
+customer fills them, and the platform seals them and writes them into the
+environment of the container. The declarations are in
+`pterodactyl-eggs/build-manifest.py`, and the generator refuses a declaration
+that names a variable the egg does not have.
+
+**What is left:** the probes. Each product has to be built on the node and
+has to answer before it is opened. The first ones to try are the runtimes and
+the small applications; the games come last, because a game that downloads
+hundreds of gigabytes takes a long time and a licence of the customer.

@@ -1,7 +1,11 @@
 import { PrismaClient } from '@prisma/client';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { hashPassword } from '../src/lib/password.js';
 import { assertSeedTargetIsSafe } from '../src/lib/seed-guard.js';
 import { seedMailPlanDrafts } from '../src/lib/mail-plan-drafts.js';
+import { importCatalogue, parseManifest } from '../src/lib/catalogue-import.js';
 
 const prisma = new PrismaClient();
 
@@ -9,12 +13,18 @@ const prisma = new PrismaClient();
  * Seeds the catalog and, when ADMIN_EMAIL and ADMIN_PASSWORD are present in the
  * environment, the first administrator. Everything is idempotent, so the seed
  * can be run on every deploy.
+ *
+ * The catalog is made of two parts: the five products that were on the
+ * platform before the eggs of the catalogue arrived, written here by hand, and
+ * the products of the manifest of the eggs, written out of the manifest. The
+ * manifest is the truth of the catalogue, so the seed and the importer of the
+ * catalogue write the same products.
  */
 
 interface SeedProduct {
   slug: string;
   name: string;
-  category: 'WEB_CMS' | 'DEVELOPER_TOOLS' | 'MONITORING' | 'AUTOMATION' | 'BOTS' | 'DATABASES';
+  category: 'WEB_CMS' | 'DEVELOPER_TOOLS' | 'MONITORING' | 'AUTOMATION' | 'BOTS' | 'DATABASES' | 'GAMES';
   description: string;
   icon: string;
   minRam: number;
@@ -279,6 +289,25 @@ async function main(): Promise<void> {
     }
   }
   console.info(`Seeded ${PRODUCTS.length} products.`);
+
+  // The products of the eggs: the games, the applications and the runtimes.
+  // The manifest is the truth of the catalogue, and it is the same file the
+  // importer of the catalogue writes into the live database.
+  const manifestPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'pterodactyl-eggs',
+    'manifest.json',
+  );
+  const catalogue = parseManifest(readFileSync(manifestPath, 'utf8'));
+  const report = await importCatalogue(prisma, catalogue, {
+    rates: { ramPerGb: 100, cpuPerUnit: 50, diskPerGb: 10 },
+  });
+  console.info(
+    `Seeded the catalogue of the eggs: ${report.created.length} products written, ${report.updated.length} brought back to the manifest.`,
+  );
+
   const mailPlans = await seedMailPlanDrafts(prisma);
   console.info(
     `Wrote ${mailPlans.written} draft plans of hosted mail and kept ${mailPlans.kept} that were already there.`,
