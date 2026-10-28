@@ -31,6 +31,7 @@ function readRate(raw: string | undefined, name: string, fallback: number): numb
 async function main(): Promise<void> {
   const [ramRaw, cpuRaw, diskRaw, feeRaw] = process.argv.slice(2);
   const before = await resourceRates();
+  const settingBefore = await prisma.setting.findUnique({ where: { key: RESOURCE_RATES_KEY } });
   const rates = {
     ramPerGb: readRate(ramRaw, 'gigabyte of memory', DEFAULT_RESOURCE_RATES.ramPerGb),
     cpuPerUnit: readRate(cpuRaw, 'processor', DEFAULT_RESOURCE_RATES.cpuPerUnit),
@@ -41,7 +42,14 @@ async function main(): Promise<void> {
   const saved = await saveResourceRates(rates);
   const setting = await prisma.setting.findUnique({ where: { key: RESOURCE_RATES_KEY } });
   console.info(`The card of the platform is written in "${RESOURCE_RATES_KEY}": ${JSON.stringify(setting?.value ?? {})}`);
-  console.info(`Before: ${JSON.stringify(before)}`);
+  console.info(
+    `Before: ${
+      settingBefore
+        ? JSON.stringify(settingBefore.value)
+        : 'the card was not written, so the default of the platform was in use'
+    }`,
+  );
+  console.info(`The card in use before the write: ${JSON.stringify(before)}`);
   console.info(`After:  ${JSON.stringify(saved)}`);
 }
 
