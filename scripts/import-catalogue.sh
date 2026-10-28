@@ -18,9 +18,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# The environment file only fills a gap, it never overrides a value that is
-# already in the environment.
 source "$ROOT/scripts/lib/load-env.sh"
+
+# The import writes into the catalogue, so it needs the credentials of the
+# owner of the database: the role of the application cannot write a product.
+# The file of the owner is read first, and the file of the platform fills the
+# gaps: the panel, the settings and the rest.
+if [[ -f .env.db-admin ]]; then
+  load_env_file "$ROOT/.env.db-admin"
+fi
 load_env_file "$ROOT/.env"
 
 if [[ -z "${DATABASE_URL:-}" ]]; then

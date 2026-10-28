@@ -315,7 +315,7 @@ describe('the check of the content', () => {
   it('accepts the content of the repository', () => {
     const content = parseDocs(groupsInput, pagesInput);
     assert.equal(content.groups.length, 15);
-    assert.equal(content.pages.length, 45);
+    assert.equal(content.pages.length, 46);
   });
 
   it('refuses a group that is written twice', () => {
