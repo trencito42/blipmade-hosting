@@ -312,6 +312,7 @@ enum Category {
   BOTS
   DATABASES
   EMAIL_HOSTING
+  GAMES
 }
 
 enum BillingPeriod {
@@ -356,6 +357,12 @@ model Product {
   // container and shown to the owner of the instance:
   // { "PGPASSWORD": { "length": 20 } }
   generatedVariables Json?
+  // The variables of the egg that the customer has to fill at the order: the
+  // licence of a game, the key of an API, the name of the administrator.
+  // The platform asks for them, keeps them sealed and puts them in the
+  // environment of the container:
+  // { "STEAM_USER": { "label": "Steam account", "required": true } }
+  customerVariables Json?
   // The command the container runs. Overrides the egg default when set.
   startupCommand String?
   // Minimum resources required to run.
@@ -793,6 +800,10 @@ model Instance {
   // they can be shown to the owner of the instance without being written in
   // the clear. The value is empty for an instance that needs no such variable.
   generatedVariables String?
+  // The values the customer gave for the variables of the product, such as
+  // the licence of a game. They are encrypted with the same secret, because
+  // they are secrets of the customer and not of the platform.
+  customerVariables  String?
   // Set while a worker holds the instance, so two jobs cannot provision it.
   provisionLockAt   DateTime?
   suspendedAt       DateTime?

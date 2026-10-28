@@ -1473,7 +1473,13 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       // runs with them and the owner of the instance can read them in the
       // console of the service.
       const made = await generatedVariablesFor(instance);
-      const environment: Record<string, string> = { ...egg.environment, ...made };
+      // The values the customer gave for the variables of the product — the
+      // licence of a game, the account of a vendor — are opened here and put
+      // in the environment of the container. They are the last word: they are
+      // what the customer asked for, and the defaults of the egg are only the
+      // values of nobody.
+      const customer = openVariables(instance.customerVariables) ?? {};
+      const environment: Record<string, string> = { ...egg.environment, ...made, ...customer };
 
       const created = await ptero.createServer({
         name: instance.name,

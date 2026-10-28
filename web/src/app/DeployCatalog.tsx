@@ -34,6 +34,7 @@ import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, Sof
 const CATEGORY_ORDER = [
   'WEB_CMS',
   'DEVELOPER_TOOLS',
+  'GAMES',
   'MONITORING',
   'AUTOMATION',
   'BOTS',

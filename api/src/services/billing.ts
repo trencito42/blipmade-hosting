@@ -21,7 +21,7 @@ import { normalizeAmount } from '../lib/money.js';
 import * as client from './pterodactyl/client.js';
 import { resolveCustomerCredential } from './panel/credentials.js';
 import { stripeLive, upsertInvoice, removeStripeSubscriptionItem } from './stripe.js';
-import { loadOptions, priceConfiguration } from './pricing.js';
+import { loadOptions, priceConfiguration, resourceRates } from './pricing.js';
 import type { BillingPeriod } from '@prisma/client';
 
 /**
@@ -124,7 +124,7 @@ export function monthsOfInterval(interval: BillingInterval): number {
  * part of it, so a service that was ordered with options is priced with them.
  */
 export async function configurationPrice(
-  product: { id: string; minRam: number; minCpu: number; minDisk: number },
+  product: { id: string; minRam: number; minCpu: number; minDisk: number; fulfilment: string },
   config: { ram: number; cpu: number; disk: number },
   period: BillingPeriod = 'MONTHLY',
   optionCodes: string[] = [],
@@ -135,7 +135,7 @@ export async function configurationPrice(
   });
   if (!price) return null;
   const options = optionCodes.length ? await loadOptions(product.id, optionCodes) : [];
-  return priceConfiguration(price, product, config, options);
+  return priceConfiguration(price, product, config, options, await resourceRates());
 }
 
 /**

@@ -4,6 +4,7 @@ import { badRequest, notFound } from '../lib/errors.js';
 import { normalizeAmount } from '../lib/money.js';
 import { deploymentAvailability, unavailableMessage } from './availability.js';
 import { assertValidMailDomain } from './mail.js';
+import { checkCustomerVariables, parseCustomerVariableSpecs, sealVariables } from './instance-credentials.js';
 import type { BillingPeriod, Prisma, Product, ProductFulfilment, ProductOption, ProductPrice } from '@prisma/client';
 
 export interface ResourceConfig {
@@ -30,6 +31,8 @@ export interface OrderLineInput {
   quantity?: number;
   /** The domain of mail the line brings. */
   mailDomain?: string;
+  /** The values of the variables the product asks the customer for. */
+  variables?: Record<string, string>;
 }
 
 export interface PricedItem extends ResourceConfig {
@@ -45,6 +48,8 @@ export interface PricedItem extends ResourceConfig {
   fulfilment: ProductFulfilment;
   /** The domain of mail the line brings, when the line is a line of mail. */
   mailDomain?: string;
+  /** The values the customer gave for the variables of the product, sealed. */
+  sealedVariables?: string;
 }
 
 export interface PromotionResult {
@@ -61,21 +66,151 @@ export interface PromotionResult {
  * + cpuPerUnit * extra vCPU above the product minimum
  * + diskPerGb * extra gigabytes of storage above the product minimum
  * + selected paid options
+ *
+ * That card prices a **plan of mail**: a plan is a subscription of a service,
+ * and the plan itself is what the customer buys.
+ *
+ * A **server** is priced by what it uses, and by nothing else:
+ *
+ *   ramPerGb  * gigabytes of memory
+ * + cpuPerUnit * vCPU
+ * + diskPerGb * gigabytes of storage
+ *
+ * The same resources cost the same in every product. A product that is cheap
+ * because it asks for few resources would otherwise be bought by the customers
+ * that want something else, and the price of the resources they really use
+ * would be paid by nobody. The rates are one rate card for the whole
+ * platform, and they are read from the settings.
  */
 export function priceConfiguration(
   price: Pick<ProductPrice, 'baseAmount' | 'ramPerGb' | 'cpuPerUnit' | 'diskPerGb'>,
-  product: Pick<Product, 'minRam' | 'minCpu' | 'minDisk'>,
+  product: { minRam: number; minCpu: number; minDisk: number; fulfilment: string },
   config: { ram: number; cpu: number; disk: number },
   options: ProductOption[] = [],
+  rates: ResourceRates = DEFAULT_RESOURCE_RATES,
 ): number {
-  const extraRamGb = Math.max(0, (config.ram - product.minRam) / 1024);
+  const addons = options.reduce((sum, option) => sum + option.amount, 0);
+
+  // A plan of mail is a subscription of a service: the plan is what the
+  // customer buys, and the resources of the plan are part of it.
+  if (product.fulfilment === 'EMAIL') {
+    const extraRamGb = Math.max(0, (config.ram - product.minRam) / 1024);
+    return normalizeAmount(
+      price.baseAmount +
+        normalizeAmount(extraRamGb * price.ramPerGb) +
+        normalizeAmount(Math.max(0, config.cpu - product.minCpu) * price.cpuPerUnit) +
+        normalizeAmount(Math.max(0, config.disk - product.minDisk) * price.diskPerGb) +
+        addons,
+    );
+  }
+
+  return normalizeAmount(resourcePrice(config, rates) + addons);
+}
+
+/**
+ * The price of what a server uses.
+ *
+ * The price is the price of the resources and nothing else: the same
+ * gigabytes, the same processors and the same gigabytes of disk cost the
+ * same in every product of the platform.
+ */
+export function resourcePrice(
+  config: { ram: number; cpu: number; disk: number },
+  rates: ResourceRates = DEFAULT_RESOURCE_RATES,
+): number {
   return normalizeAmount(
-    price.baseAmount +
-      normalizeAmount(extraRamGb * price.ramPerGb) +
-      normalizeAmount(Math.max(0, config.cpu - product.minCpu) * price.cpuPerUnit) +
-      normalizeAmount(Math.max(0, config.disk - product.minDisk) * price.diskPerGb) +
-      options.reduce((sum, option) => sum + option.amount, 0),
+    normalizeAmount((config.ram / 1024) * rates.ramPerGb) +
+      normalizeAmount(config.cpu * rates.cpuPerUnit) +
+      normalizeAmount(config.disk * rates.diskPerGb),
   );
+}
+
+/** The rate card of the resources, in minor units. */
+export interface ResourceRates {
+  /** The price of a gigabyte of memory, for a month. */
+  ramPerGb: number;
+  /** The price of a processor, for a month. */
+  cpuPerUnit: number;
+  /** The price of a gigabyte of storage, for a month. */
+  diskPerGb: number;
+}
+
+/**
+ * The rate card of the platform when the operator has not written another
+ * one. A bot of half a gigabyte, one processor and five gigabytes of disk
+ * comes to a euro and fifty, and a game of four gigabytes, one processor and
+ * thirty gigabytes of disk comes to seven euros and fifty.
+ */
+export const DEFAULT_RESOURCE_RATES: ResourceRates = {
+  ramPerGb: 100,
+  cpuPerUnit: 50,
+  diskPerGb: 10,
+};
+
+/** The setting where the rate card of the platform is kept. */
+export const RESOURCE_RATES_KEY = 'pricing_resources';
+
+/** How long the rate card is kept in memory. */
+const RATES_CACHE_MS = 30_000;
+
+let cachedRates: { rates: ResourceRates; at: number } | null = null;
+
+/**
+ * The rate card of the platform.
+ *
+ * The card is one card for every product, and it lives in the settings so
+ * that the operator can change it in one place. A card that is not readable
+ * is replaced by the default one: the platform never refuses to price
+ * because of a setting that is wrong.
+ */
+export async function resourceRates(): Promise<ResourceRates> {
+  if (cachedRates && Date.now() - cachedRates.at < RATES_CACHE_MS) return cachedRates.rates;
+  let rates = DEFAULT_RESOURCE_RATES;
+  try {
+    const setting = await prisma.setting.findUnique({ where: { key: RESOURCE_RATES_KEY } });
+    const value = setting?.value as Record<string, unknown> | undefined;
+    if (value && typeof value === 'object') {
+      const read = (name: keyof ResourceRates, fallback: number): number => {
+        const raw = value[name];
+        return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : fallback;
+      };
+      rates = {
+        ramPerGb: read('ramPerGb', DEFAULT_RESOURCE_RATES.ramPerGb),
+        cpuPerUnit: read('cpuPerUnit', DEFAULT_RESOURCE_RATES.cpuPerUnit),
+        diskPerGb: read('diskPerGb', DEFAULT_RESOURCE_RATES.diskPerGb),
+      };
+    }
+  } catch {
+    rates = DEFAULT_RESOURCE_RATES;
+  }
+  cachedRates = { rates, at: Date.now() };
+  return rates;
+}
+
+/**
+ * Writes the rate card of the platform.
+ *
+ * The card of every product of a server is written with it, so the rows of the
+ * prices show the card that is really used.
+ */
+export async function saveResourceRates(rates: ResourceRates): Promise<ResourceRates> {
+  const value: ResourceRates = {
+    ramPerGb: Math.max(0, Math.trunc(rates.ramPerGb)),
+    cpuPerUnit: Math.max(0, Math.trunc(rates.cpuPerUnit)),
+    diskPerGb: Math.max(0, Math.trunc(rates.diskPerGb)),
+  };
+  const document = { ramPerGb: value.ramPerGb, cpuPerUnit: value.cpuPerUnit, diskPerGb: value.diskPerGb };
+  await prisma.setting.upsert({
+    where: { key: RESOURCE_RATES_KEY },
+    create: { key: RESOURCE_RATES_KEY, value: document },
+    update: { value: document },
+  });
+  await prisma.productPrice.updateMany({
+    where: { product: { fulfilment: 'SERVER' } },
+    data: { ramPerGb: value.ramPerGb, cpuPerUnit: value.cpuPerUnit, diskPerGb: value.diskPerGb },
+  });
+  cachedRates = { rates: value, at: Date.now() };
+  return value;
 }
 
 /**
@@ -109,11 +244,20 @@ export interface PricedConfiguration {
  * chosen by the customer and are priced when they are picked.
  */
 export function priceBook(
-  product: Pick<
-    Product,
-    'minRam' | 'minCpu' | 'minDisk' | 'defaultRam' | 'defaultCpu' | 'defaultDisk' | 'maxRam' | 'maxCpu' | 'maxDisk'
-  >,
+  product: {
+    minRam: number;
+    minCpu: number;
+    minDisk: number;
+    defaultRam: number;
+    defaultCpu: number;
+    defaultDisk: number;
+    maxRam: number;
+    maxCpu: number;
+    maxDisk: number;
+    fulfilment: string;
+  },
   price: Pick<ProductPrice, 'baseAmount' | 'ramPerGb' | 'cpuPerUnit' | 'diskPerGb' | 'currency' | 'period'>,
+  rates: ResourceRates = DEFAULT_RESOURCE_RATES,
 ): {
   currency: string;
   period: BillingPeriod;
@@ -133,8 +277,8 @@ export function priceBook(
   return {
     currency: price.currency,
     period: price.period,
-    minimum: { ...minimum, amount: priceConfiguration(price, product, minimum) },
-    recommended: { ...recommended, amount: priceConfiguration(price, product, recommended) },
+    minimum: { ...minimum, amount: priceConfiguration(price, product, minimum, [], rates) },
+    recommended: { ...recommended, amount: priceConfiguration(price, product, recommended, [], rates) },
   };
 }
 
@@ -239,6 +383,13 @@ export async function priceItems(
       mailDomain = assertValidMailDomain(item.mailDomain);
     }
 
+    // The values the customer gives for the variables of the product are
+    // checked here, in the place that prices the line, and they are sealed
+    // before they are written anywhere: they are the secrets of the customer.
+    const specs = parseCustomerVariableSpecs(product.customerVariables);
+    const accepted = checkCustomerVariables(specs, item.variables);
+    const sealedVariables = Object.keys(accepted).length > 0 ? sealVariables(accepted) : undefined;
+
     const price = await loadPrice(product.id, period);
     const optionCodes = item.optionCodes ?? [];
     const options = await loadOptions(product.id, optionCodes);
@@ -246,12 +397,13 @@ export async function priceItems(
     const missing = optionCodes.filter((code) => !found.has(code));
     if (missing.length) throw badRequest(`Unknown option: ${missing.join(', ')}`);
 
-    const unitAmount = priceConfiguration(price, product, config, options);
+    const unitAmount = priceConfiguration(price, product, config, options, await resourceRates());
     const quantity = Math.max(1, item.quantity ?? 1);
     priced.push({
       productId: product.id,
       productSlug: product.slug,
       name: product.name,
+      sealedVariables,
       ram: config.ram,
       cpu: config.cpu,
       disk: config.disk,

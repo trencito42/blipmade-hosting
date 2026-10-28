@@ -347,6 +347,7 @@ export async function fulfilOrder(orderId: string): Promise<void> {
       disk?: number;
       fulfilment?: string;
       mailDomain?: string | null;
+      sealedVariables?: string | null;
     };
 
     // A line of mail is delivered by the mail system and not by the panel.
@@ -377,6 +378,10 @@ export async function fulfilOrder(orderId: string): Promise<void> {
           price: unitPrices[index] ?? item.unitAmount,
           currency: order.currency,
           provisioningKey,
+          // The values the customer gave for the variables of the product
+          // travel with the instance, sealed. They are the secrets of the
+          // customer, and the provisioning opens them for the container.
+          customerVariables: config.sealedVariables ?? null,
         },
       });
 

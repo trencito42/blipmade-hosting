@@ -305,6 +305,19 @@ export interface CatalogProduct {
   /** Whether the product can be ordered, and why not. */
   availability: DeploymentAvailability;
   options: ProductOption[];
+  /**
+   * The variables the customer has to fill at the order, such as the licence
+   * of a game. A product that asks for nothing has none.
+   */
+  customerVariables: Record<string, CustomerVariableSpec>;
+}
+
+/** What a product says about one variable the customer fills. */
+export interface CustomerVariableSpec {
+  label: string;
+  required: boolean;
+  type: 'text' | 'password';
+  description?: string;
 }
 
 export interface QuoteItem {

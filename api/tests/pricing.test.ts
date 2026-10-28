@@ -52,7 +52,7 @@ async function seedProduct(overrides: Record<string, unknown> = {}) {
 }
 
 describe('server-side pricing', () => {
-  it('charges the base amount for the minimum configuration', async () => {
+  it('charges a server by the resources it uses', async () => {
     await seedProduct();
     const client = makeClient(app);
     const response = await client.request('POST', '/api/catalog/quote', {
@@ -60,23 +60,50 @@ describe('server-side pricing', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body.subtotal).toBe(149);
-    expect(response.body.total).toBe(149);
-    expect(response.body.items[0].unitAmount).toBe(149);
+    // Half a gigabyte of memory at 100 cents, one processor at 50 cents and
+    // five gigabytes of disk at 10 cents.
+    expect(response.body.subtotal).toBe(150);
+    expect(response.body.total).toBe(150);
+    expect(response.body.items[0].unitAmount).toBe(150);
   });
 
-  it('charges extra memory, cpu and storage above the minimum', async () => {
+  it('charges every resource, and not only the ones above the minimum', async () => {
     await seedProduct();
     const client = makeClient(app);
-    // The product minimum is 512 MB, 1 vCPU and 5 GB. 2048 MB is 1.5 GB above
-    // the minimum: 90. One extra vCPU: 40. Five extra GB: 10.
     const response = await client.request('POST', '/api/catalog/quote', {
       items: [{ productSlug: 'wordpress', ram: 2048, cpu: 2, disk: 10 }],
     });
 
     expect(response.status).toBe(200);
-    // 149 base + 90 for the extra memory + 40 for the extra vCPU + 10 for 5 GB.
-    expect(response.body.total).toBe(289);
+    // Two gigabytes of memory at 100 cents, two processors at 50 cents and ten
+    // gigabytes of disk at 10 cents.
+    expect(response.body.total).toBe(400);
+  });
+
+  it('charges the same price for the same resources in every product', async () => {
+    // A cheap product and an expensive one, with another minimum and another
+    // base. The price of the resources is the same, because the price of a
+    // server is the price of what it uses.
+    await seedProduct();
+    await seedProduct({
+      slug: 'minecraft',
+      name: 'Minecraft',
+      category: 'GAMES',
+      minRam: 2048,
+      minDisk: 20,
+      defaultRam: 4096,
+      defaultDisk: 30,
+      baseAmount: 0,
+    });
+
+    const client = makeClient(app);
+    const response = await client.request('POST', '/api/catalog/quote', {
+      items: [{ productSlug: 'minecraft', ram: 4096, cpu: 1, disk: 30 }],
+    });
+
+    expect(response.status).toBe(200);
+    // Four gigabytes of memory, one processor and thirty gigabytes of disk.
+    expect(response.body.total).toBe(750);
   });
 
   it('keeps every amount an integer number of minor units', async () => {
@@ -129,7 +156,8 @@ describe('server-side pricing', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(response.body.total).toBe(349);
+    // The resources of the configuration and the add-on.
+    expect(response.body.total).toBe(350);
   });
 
   it('applies a percentage promotion', async () => {
@@ -145,7 +173,7 @@ describe('server-side pricing', () => {
     expect(response.status).toBe(200);
     expect(response.body.promotion.valid).toBe(true);
     expect(response.body.discount).toBe(15);
-    expect(response.body.total).toBe(134);
+    expect(response.body.total).toBe(135);
   });
 
   it('reports an unknown promotion without failing the quote', async () => {
@@ -206,7 +234,9 @@ describe('catalog', () => {
     const { client } = await registerAndLogin(app, 'catalog2@example.com');
     const response = await client.request('GET', '/api/catalog/products/wordpress');
     expect(response.status).toBe(200);
-    expect(response.body.product.price.amount).toBe(149);
+    // The starting price of the catalogue is the price of the smallest
+    // configuration of the product, and a server is priced by its resources.
+    expect(response.body.product.price.amount).toBe(150);
     expect(response.body.product.price.currency).toBe('EUR');
   });
 });

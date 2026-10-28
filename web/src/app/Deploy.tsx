@@ -61,6 +61,12 @@ export interface DeployServerOrderItem {
   cpu: number;
   disk: number;
   optionCodes: string[];
+  /**
+   * The values of the variables the product asks the customer for, such as the
+   * licence of a game. They are secrets of the customer: they never travel in
+   * the address of the page, only in the order.
+   */
+  variables?: Record<string, string>;
 }
 
 /**
@@ -82,6 +88,7 @@ export function buildDeployOrderItems(
       cpu: server.cpu,
       disk: server.disk,
       optionCodes: server.optionCodes,
+      ...(server.variables && Object.keys(server.variables).length > 0 ? { variables: server.variables } : {}),
     },
   ];
   if (mail) {
@@ -256,6 +263,10 @@ export default function Deploy() {
   const [name, setName] = useState('');
   const [promotionCode, setPromotionCode] = useState('');
   const [checkoutIssue, setCheckoutIssue] = useState<string | null>(null);
+  // The values of the variables the product asks the customer for. They are
+  // the secrets of the customer, so they live in the page and never in the
+  // address of it.
+  const [variables, setVariables] = useState<Record<string, string>>({});
 
   // The add-on of hosted mail. It is never preselected: the customer chooses
   // the plan and the domain, and the order carries them as a line of its own.
@@ -468,7 +479,15 @@ export default function Deploy() {
       // customer chose one. Nothing is priced here: the server prices the
       // order.
       items: buildDeployOrderItems(
-        { productSlug: product.slug, name: name.trim() || product.slug, ram, cpu, disk, optionCodes },
+        {
+          productSlug: product.slug,
+          name: name.trim() || product.slug,
+          ram,
+          cpu,
+          disk,
+          optionCodes,
+          variables,
+        },
         mailLine,
       ),
       ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
@@ -561,11 +580,20 @@ export default function Deploy() {
   const primaryLabel =
     step === 1 ? 'Review order' : step === 2 ? 'Continue to payment' : step === 3 ? 'Pay and deploy' : orderFinished ? 'Open instance' : 'Deploying…';
 
+  // The variables the product asks the customer for. A product that asks for
+  // nothing has none, and the order is free to go.
+  const customerVariables = product.customerVariables ?? {};
+  const missingVariables = Object.entries(customerVariables)
+    .filter(([name, spec]) => spec.required && !(variables[name] ?? '').trim())
+    .map(([name]) => name);
+
   const primaryDisabled =
     (step === 3 && (!quote || placeOrder.pending)) ||
     (step === 4 && !orderFinished) ||
     // The order is never sent with a hosted mail add-on that has no hostname.
-    (mailPlan !== null && mailDomainProblem !== null);
+    (mailPlan !== null && mailDomainProblem !== null) ||
+    // The order is never sent without the values the product asks for.
+    missingVariables.length > 0;
 
   const onPrimary = () => {
     if (step === 1) goToStep(2);
@@ -745,6 +773,35 @@ export default function Deploy() {
                         </label>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {Object.keys(customerVariables).length > 0 && (
+                <div>
+                  <p className="mb-2 px-1 text-[13.5px] font-bold text-ink">
+                    What this service needs from you
+                  </p>
+                  <p className="mb-3 px-1 text-[12.5px] leading-relaxed text-ink3">
+                    These values are the secret of your account and they are kept
+                    encrypted. They are put in the container of your service and
+                    nobody else reads them.
+                  </p>
+                  <div className="grid gap-3">
+                    {Object.entries(customerVariables).map(([name, spec]) => (
+                      <TextInput
+                        key={name}
+                        id={`deploy-variable-${name}`}
+                        label={spec.label}
+                        hint={spec.description}
+                        type={spec.type === 'password' ? 'password' : 'text'}
+                        autoComplete="off"
+                        value={variables[name] ?? ''}
+                        onChange={(event) =>
+                          setVariables((current) => ({ ...current, [name]: event.target.value }))
+                        }
+                      />
+                    ))}
                   </div>
                 </div>
               )}

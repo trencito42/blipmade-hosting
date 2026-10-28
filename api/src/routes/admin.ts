@@ -25,6 +25,7 @@ import {
 } from '../services/panel/credentials.js';
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { saveResourceRates } from '../services/pricing.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
 import { defaultLimitPerUser, promotionRisk } from '../services/pricing.js';
 import {
@@ -754,6 +755,19 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         dockerImage: z.string().trim().max(300).nullable().optional(),
         startup: z.record(z.string()).nullable().optional(),
         startupCommand: z.string().trim().max(4000).nullable().optional(),
+        // The variables of the egg that the customer has to fill at the order,
+        // such as the licence of a game.
+        customerVariables: z
+          .record(
+            z.object({
+              label: z.string().trim().max(120).optional(),
+              required: z.boolean().optional(),
+              type: z.enum(['text', 'password']).optional(),
+              description: z.string().trim().max(300).optional(),
+            }),
+          )
+          .nullable()
+          .optional(),
         minRam: z.number().int().positive().default(512),
         minCpu: z.number().int().positive().default(1),
         minDisk: z.number().int().positive().default(5),
@@ -798,6 +812,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         dockerImage: body.dockerImage ?? null,
         startup: (body.startup ?? undefined) as never,
         startupCommand: body.startupCommand ?? null,
+        customerVariables: (body.customerVariables ?? undefined) as never,
         minRam: body.minRam,
         minCpu: body.minCpu,
         minDisk: body.minDisk,
@@ -840,6 +855,17 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         eggName: z.string().trim().min(1).max(120).nullable().optional(),
         dockerImage: z.string().trim().max(300).nullable().optional(),
         startupCommand: z.string().trim().max(4000).nullable().optional(),
+        customerVariables: z
+          .record(
+            z.object({
+              label: z.string().trim().max(120).optional(),
+              required: z.boolean().optional(),
+              type: z.enum(['text', 'password']).optional(),
+              description: z.string().trim().max(300).optional(),
+            }),
+          )
+          .nullable()
+          .optional(),
         minRam: z.number().int().positive().optional(),
         minCpu: z.number().int().positive().optional(),
         minDisk: z.number().int().positive().optional(),
@@ -892,7 +918,19 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/pricing', { preHandler: requirePermission('pricing.read') }, async () => {
     const prices = await prisma.productPrice.findMany({
-      include: { product: { select: { id: true, name: true, slug: true, minRam: true, minCpu: true, minDisk: true } } },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            minRam: true,
+            minCpu: true,
+            minDisk: true,
+            fulfilment: true,
+          },
+        },
+      },
       orderBy: [{ product: { name: 'asc' } }, { period: 'asc' }],
     });
     return {
@@ -927,8 +965,35 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       })
       .parse(request.body);
 
-    const existing = await prisma.productPrice.findUnique({ where: { id } });
+    const existing = await prisma.productPrice.findUnique({
+      where: { id },
+      include: { product: { select: { fulfilment: true } } },
+    });
     if (!existing) throw notFound('Price not found.');
+
+    // The price of a server is the price of its resources, and the rate card
+    // is one card for the whole platform. A change of the rates is therefore
+    // written in the card and in every row of a server, so that no two
+    // products can drift apart. The base of a server is not part of its
+    // price and is not kept: the resources are the price.
+    if (existing.product.fulfilment === 'SERVER') {
+      const rates = {
+        ramPerGb: body.ramPerGb ?? existing.ramPerGb,
+        cpuPerUnit: body.cpuPerUnit ?? existing.cpuPerUnit,
+        diskPerGb: body.diskPerGb ?? existing.diskPerGb,
+      };
+      await saveResourceRates(rates);
+      await prisma.productPrice.updateMany({
+        where: { product: { fulfilment: 'SERVER' } },
+        data: { baseAmount: 0 },
+      });
+      const price = await prisma.productPrice.update({
+        where: { id },
+        data: { ...body, baseAmount: 0 },
+      });
+      await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: body, ip: request.ip });
+      return { price };
+    }
 
     const price = await prisma.productPrice.update({ where: { id }, data: body });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: body, ip: request.ip });

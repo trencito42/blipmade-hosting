@@ -60,6 +60,7 @@ export const ICONS = {
   flow: { name: "diagram-project" },
   code: { name: "code" },
   doc: { name: "file-lines" },
+  game: { name: "gamepad" },
   mail: { name: "envelope" },
   bell: { name: "bell" },
   heart: { name: "heart-pulse" },

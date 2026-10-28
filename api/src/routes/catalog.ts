@@ -5,7 +5,8 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { notFound } from '../lib/errors.js';
 import { addressRateLimitKey } from '../plugins/auth.js';
-import { buildQuote, priceBook } from '../services/pricing.js';
+import { buildQuote, priceBook, resourceRates } from '../services/pricing.js';
+import { parseCustomerVariableSpecs } from '../services/instance-credentials.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
@@ -23,7 +24,7 @@ const quoteItemSchema = z.object({
   mailDomain: z.string().trim().max(253).optional(),
 });
 
-function serializeProduct(product: {
+async function serializeProduct(product: {
   id: string;
   slug: string;
   name: string;
@@ -45,6 +46,7 @@ function serializeProduct(product: {
   eggName: string | null;
   docsUrl: string | null;
   fulfilment: string;
+  customerVariables: unknown;
   mailMaxDomains: number | null;
   mailMaxMailboxes: number | null;
   mailMaxAliases: number | null;
@@ -93,7 +95,7 @@ function serializeProduct(product: {
         diskPerGb: price.diskPerGb,
         currency: price.currency,
         period: price.period,
-      })
+      }, await resourceRates())
     : null;
   return {
     id: product.id,
@@ -118,6 +120,9 @@ function serializeProduct(product: {
     // What the platform delivers: a server on a node, or a mail service that
     // needs no server at all.
     fulfilment: product.fulfilment,
+    // The variables the customer has to fill at the order, such as the
+    // licence of a game. A product that asks for nothing has none.
+    customerVariables: parseCustomerVariableSpecs(product.customerVariables),
     // The limits of a mail plan. They are empty for a product of servers.
     mail: {
       maxDomains: product.mailMaxDomains,
@@ -129,7 +134,16 @@ function serializeProduct(product: {
       sendLimit: product.mailSendLimit,
       sendInterval: product.mailSendInterval,
     },
-    price: price ? { amount: price.baseAmount, currency: price.currency, period: price.period } : null,
+    // The starting price of the catalogue is the price of the smallest
+    // configuration of the product. A server is priced by its resources, so
+    // the price of the minimum configuration is not the base of the product.
+    price: price
+      ? {
+          amount: book?.minimum.amount ?? price.baseAmount,
+          currency: price.currency,
+          period: price.period,
+        }
+      : null,
     pricing: book
       ? {
           currency: book.currency,
@@ -220,7 +234,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         throw notFound('This product has no active price.');
       }
     }
-    return { product: serializeProduct(product) };
+    return { product: await serializeProduct(product) };
   });
 
   app.post('/catalog/quote', {

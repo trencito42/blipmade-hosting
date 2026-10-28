@@ -20,7 +20,15 @@ import { pricingGate } from './permissions';
 interface AdminPrice {
   id: string;
   productId: string;
-  product: { id: string; name: string; slug: string; minRam: number; minCpu: number; minDisk: number };
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    minRam: number;
+    minCpu: number;
+    minDisk: number;
+    fulfilment: string;
+  };
   period: string;
   baseAmount: number;
   ramPerGb: number;
@@ -146,28 +154,49 @@ function PriceEditor({
   const ramPerGb = parseMinor(ram);
   const cpuPerUnit = parseMinor(cpu);
   const diskPerGb = parseMinor(disk);
-  const valid = baseAmount !== null && ramPerGb !== null && cpuPerUnit !== null && diskPerGb !== null;
+  // A server is priced by what it uses: the same resources cost the same in
+  // every product, and the card of the rates is one card for the platform. A
+  // plan of mail is a subscription of a service, and it keeps its own base.
+  const byResources = price.product.fulfilment === 'SERVER';
+  const valid =
+    (byResources || baseAmount !== null) && ramPerGb !== null && cpuPerUnit !== null && diskPerGb !== null;
 
   const numberError = touched && !valid ? 'Use whole cents only. 0 is allowed.' : undefined;
 
-  // The server prices the minimum configuration at the base amount and adds the
-  // extra resources above the product minimum. The minimum configuration has
-  // no extra resources, so the preview is the base amount.
-  const preview = baseAmount === null ? null : baseAmount;
+  // The preview is the price of the smallest configuration of the product: the
+  // base for a plan of mail, the resources themselves for a server.
+  const preview =
+    byResources && ramPerGb !== null && cpuPerUnit !== null && diskPerGb !== null
+      ? Math.round((price.product.minRam / 1024) * ramPerGb) +
+        price.product.minCpu * cpuPerUnit +
+        price.product.minDisk * diskPerGb
+      : baseAmount;
 
   /** The changes the confirmation states, one line for every amount that moves. */
   const changes: string[] = [];
-  if (baseAmount !== null && baseAmount !== price.baseAmount) {
+  if (!byResources && baseAmount !== null && baseAmount !== price.baseAmount) {
     changes.push(`The base price goes from ${price.baseAmount} to ${baseAmount} cents.`);
   }
   if (ramPerGb !== null && ramPerGb !== price.ramPerGb) {
-    changes.push(`The price of an extra gigabyte of memory goes from ${price.ramPerGb} to ${ramPerGb} cents.`);
+    changes.push(
+      byResources
+        ? `The price of a gigabyte of memory goes from ${price.ramPerGb} to ${ramPerGb} cents, for every product.`
+        : `The price of an extra gigabyte of memory goes from ${price.ramPerGb} to ${ramPerGb} cents.`,
+    );
   }
   if (cpuPerUnit !== null && cpuPerUnit !== price.cpuPerUnit) {
-    changes.push(`The price of an extra vCPU goes from ${price.cpuPerUnit} to ${cpuPerUnit} cents.`);
+    changes.push(
+      byResources
+        ? `The price of a processor goes from ${price.cpuPerUnit} to ${cpuPerUnit} cents, for every product.`
+        : `The price of an extra vCPU goes from ${price.cpuPerUnit} to ${cpuPerUnit} cents.`,
+    );
   }
   if (diskPerGb !== null && diskPerGb !== price.diskPerGb) {
-    changes.push(`The price of an extra gigabyte of disk goes from ${price.diskPerGb} to ${diskPerGb} cents.`);
+    changes.push(
+      byResources
+        ? `The price of a gigabyte of disk goes from ${price.diskPerGb} to ${diskPerGb} cents, for every product.`
+        : `The price of an extra gigabyte of disk goes from ${price.diskPerGb} to ${diskPerGb} cents.`,
+    );
   }
   if (active !== price.active) {
     changes.push(
@@ -221,15 +250,23 @@ function PriceEditor({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Base price (cents)" htmlFor={`base-${price.id}`}>
+        <Field
+          label={byResources ? 'Priced by the resources' : 'Base price (cents)'}
+          htmlFor={`base-${price.id}`}
+        >
           <input
             id={`base-${price.id}`}
             type="text"
             inputMode="numeric"
             autoComplete="off"
-            value={base}
+            value={byResources ? '0' : base}
             onChange={(event) => setBase(event.target.value)}
-            disabled={!mayWrite}
+            disabled={!mayWrite || byResources}
+            title={
+              byResources
+                ? 'The price of a server is the price of its resources: the same resources cost the same in every product.'
+                : undefined
+            }
             className={denseInput}
           />
         </Field>
@@ -279,19 +316,25 @@ function PriceEditor({
           </p>
         </div>
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Extra GB memory</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
+            {byResources ? 'Per GB memory' : 'Extra GB memory'}
+          </p>
           <p className="mt-1 text-[14px] text-ink">
             {ramPerGb === null ? DASH : <Money amount={ramPerGb} currency={price.currency} period="month" />}
           </p>
         </div>
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Extra vCPU</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
+            {byResources ? 'Per vCPU' : 'Extra vCPU'}
+          </p>
           <p className="mt-1 text-[14px] text-ink">
             {cpuPerUnit === null ? DASH : <Money amount={cpuPerUnit} currency={price.currency} period="month" />}
           </p>
         </div>
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Extra GB disk</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
+            {byResources ? 'Per GB disk' : 'Extra GB disk'}
+          </p>
           <p className="mt-1 text-[14px] text-ink">
             {diskPerGb === null ? DASH : <Money amount={diskPerGb} currency={price.currency} period="month" />}
           </p>

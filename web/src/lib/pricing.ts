@@ -187,6 +187,7 @@ const CATEGORY_CODE: Record<string, string> = {
   Automation: 'AUTOMATION',
   Bots: 'BOTS',
   Databases: 'DATABASES',
+  Games: 'GAMES',
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -197,6 +198,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   BOTS: 'Bots',
   DATABASES: 'Databases',
   EMAIL_HOSTING: 'Email Hosting',
+  GAMES: 'Games',
 };
 
 /** The code of a category of the interface. */
@@ -231,7 +233,7 @@ export function periodLabel(period: string): string {
 const ICONS: readonly IconName[] = [
   'globe', 'db', 'folder', 'term', 'chart', 'card',
   'rocket', 'shield', 'restart', 'box', 'bolt', 'bot',
-  'mon', 'flow', 'code', 'doc',
+  'mon', 'flow', 'code', 'doc', 'game',
 ];
 
 /** A product may carry an icon the interface does not know. It still gets one. */

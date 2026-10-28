@@ -2,7 +2,7 @@ import { prisma } from '../db.js';
 import { nextOrderNumber } from './order-numbers.js';
 import { badRequest } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
-import { priceConfiguration, validateConfiguration } from './pricing.js';
+import { priceConfiguration, resourceRates, validateConfiguration } from './pricing.js';
 import { refundPayment, updateSubscriptionAmount } from './stripe.js';
 import { notifyUpgradeCompleted, notifyUpgradeFailed } from './notifications.js';
 import * as pteroApp from './pterodactyl/application.js';
@@ -198,7 +198,7 @@ export async function quoteResourceChange(
 
   validateConfiguration(instance.product, request);
 
-  const newPrice = priceConfiguration(price, instance.product, request);
+  const newPrice = priceConfiguration(price, instance.product, request, [], await resourceRates());
   const priceDelta = newPrice - instance.price;
 
   return {
@@ -482,7 +482,7 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
     orderBy: { createdAt: 'desc' },
   });
   const newPrice = price
-    ? priceConfiguration(price, instance.product, request)
+    ? priceConfiguration(price, instance.product, request, [], await resourceRates())
     : instance.price;
 
   await prisma.instance.update({
