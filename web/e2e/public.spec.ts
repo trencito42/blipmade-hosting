@@ -71,8 +71,10 @@ test.describe('the home page', () => {
     const product = products.find((entry) => entry.slug === 'discord-bot');
     expect(product?.pricing).toBeTruthy();
 
+    // The configurator opens on the configuration the platform recommends, and
+    // the price of that configuration is the price the server sent for it.
     const total = page.getByRole('status');
-    await expect(total).toHaveText(euros(product!.pricing!.minimum.amount));
+    await expect(total).toHaveText(euros(product!.pricing!.recommended.amount));
   });
 
   test('moving a slider moves the price, and the price is the one of the server', async ({ page }) => {
@@ -82,8 +84,14 @@ test.describe('the home page', () => {
     expect(product?.pricing).toBeTruthy();
 
     const ram = page.getByLabel('RAM');
-    await ram.fill('2048');
-    await ram.dispatchEvent('input');
+    // The value of a slider is set the way a browser sets it, so the page
+    // sees the change.
+    await ram.evaluate((element: HTMLInputElement) => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(element, '2048');
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 
     const expected = price(2048, 1, 1, { ramPerGb: 200, cpuPerUnit: 75, diskPerGb: 5, baseFee: 49 });
     await expect(page.getByRole('status')).toHaveText(euros(expected));
@@ -121,7 +129,7 @@ test.describe('the catalog of the apps', () => {
 
     await expect(page.getByRole('region', { name: 'Price configurator' })).toBeVisible();
     if (product?.pricing) {
-      await expect(page.getByRole('status')).toHaveText(euros(product.pricing.minimum.amount));
+      await expect(page.getByRole('status')).toHaveText(euros(product.pricing.recommended.amount));
     }
     // The product cannot be changed on the page of the product.
     await expect(page.getByRole('radio', { name: 'Code Server' })).toHaveCount(0);

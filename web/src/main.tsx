@@ -6,6 +6,7 @@ import AppRoutes from './routes';
 import { SessionProvider } from './session';
 import { ToastProvider } from './ui-app';
 import { ErrorBoundary } from './ErrorBoundary';
+import { refreshCatalog } from './site/catalog';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -24,3 +25,9 @@ createRoot(document.getElementById('root')!).render(
     </Router>
   </StrictMode>,
 );
+
+// The catalog of the platform is read once, after the page is drawn. The page
+// starts from the snapshot that the build wrote, so a visitor sees the
+// products and their prices at once, and the live catalog replaces the
+// snapshot when the API answers.
+refreshCatalog();

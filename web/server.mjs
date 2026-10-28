@@ -208,7 +208,8 @@ function send(res, status, message) {
 /**
  * The typefaces of the interface.
  *
- * The interface asks for Geist and for Geist Mono, and it asks this site for
+ * The interface asks for Hanken Grotesk, Funnel Display and JetBrains Mono,
+ * and it asks this site for
  * them: the files are part of the build and are served from here, so the
  * visitor is never sent to a third party for a letter. The health of the site
  * says so, so the operator can see where the typeface of the interface comes

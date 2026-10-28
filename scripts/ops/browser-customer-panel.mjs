@@ -341,9 +341,9 @@ for (const [label, target] of [
 
   note(`typefaces: ${fonts.faces.length} faces, body = ${fonts.body}`);
   check(fonts.faces.length > 0, 'no font face was loaded at all');
-  check(/Geist/i.test(fonts.body), `the interface does not ask for Geist: ${fonts.body}`);
+  check(/Hanken Grotesk/i.test(fonts.body), `the interface does not ask for Hanken Grotesk: ${fonts.body}`);
   check(/Proxima/i.test(fonts.body), `the interface does not ask for proxima nova: ${fonts.body}`);
-  check(/Geist Mono/i.test(fonts.mono), `the technical values do not use Geist Mono: ${fonts.mono}`);
+  check(/JetBrains Mono/i.test(fonts.mono), `the technical values do not use JetBrains Mono: ${fonts.mono}`);
   check(
     requested.length === 0,
     `the page asked for a typeface of Adobe without a kit being configured: ${requested.join(', ')}`,
