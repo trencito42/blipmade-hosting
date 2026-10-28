@@ -1,6 +1,15 @@
 # Blipmade — implementation status
 
-Last updated: 2026-10-28 18:20 UTC
+Last updated: 2026-10-28 19:40 UTC
+
+> **Update 2026-10-28 — the site wears the design of the archive.** The public
+> site and the zone of the customer were rebuilt on the reference of the
+> redesign: the same tokens, the same cards, the same motion and the same
+> type. The mark of the platform stays the one that was already there, and
+> the prices still come from the API — the frontend prices nothing of its own.
+> The browser tests walk the site and axe finds no violation on the five
+> public pages. The details are in
+> [`FRONTEND_REVIEW.md`](FRONTEND_REVIEW.md).
 
 > **Update 2026-10-28 — the price of the resources.** A server is priced by
 > what it holds and by the fee of the instance itself, with one card for the
@@ -144,10 +153,11 @@ labelled Studio simulation are **unchanged**.
 
 | Area | State |
 |---|---|
+| Design | The tokens of the reference live in `src/index.css`: the colours of the scale of the interface, the type of Geist, the motion and the classes of the animation. The whole surface moves at once, because the public site and the zone of the customer share the same scale. |
 | Shell | `src/ui-app.tsx` — sidebar on desktop, bottom tab bar on phone, loading / empty / error / populated states for every panel, forms, tables, toasts and confirm dialogs. |
 | Customer area | Overview, instances, instance detail, deploy, domains, billing, tickets, ticket detail, settings (`src/app/*`). |
 | Admin area | Overview, customers, customer detail, orders, services, catalog, pricing, tickets, promotions, infrastructure, audit log, staff, settings (`src/admin/*`). |
-| Public pages | Login, register, forgot password, reset password, verify email, documentation, status, not found (`src/pages/*`). |
+| Public pages | The home page (hero, plans on tabs, the six cells, the panel, the use cases, the questions, the call), the catalog, the page of a product, the documentation with its index, the status, the six legal pages, the five screens of the account and the pages of an error (`src/pages/*`, `src/home/*`). |
 | Routing | `src/router.tsx` — path parameters, query strings, `safeNext` for post-login redirects, guarded areas. |
 | API client | `src/lib/api.ts` — typed client, CSRF header from the readable cookie, session refresh. |
 | Scrollbars | One treatment for the whole interface: a flat 10 px track that is invisible, a 6 px thumb in `--color-ink3` (5:1 against the page, so it stays visible without being loud) that turns `--color-acc` on hover and `--color-acc-h` while it is dragged. Chromium and Safari get the `::-webkit-scrollbar` pseudo-elements, Firefox gets `scrollbar-width: thin` with `scrollbar-color` inside a `@supports (-moz-appearance: none)` block, so neither engine ignores the other. `scrollbar-gutter: stable` keeps the layout from shifting between pages. The sideways chip strips keep their bar hidden in every engine through the `bm-hide-scroll` class. |
@@ -160,7 +170,7 @@ A round of frontend work followed the audit of the platform. The details are in
 
 | Area | State |
 |---|---|
-| Typeface | proxima nova is the typeface of the interface. It is **served from this machine** under `/fonts/`, never from a third party: the three licensed web files are placed under `web/public/fonts/` and the health of the site names the ones that are missing. No font file is committed and the desktop `.otf` files are never converted. Geist stays the fallback until the files are there. The weights are normalized in the theme tokens to 400, 600 and 700, so nothing is synthesised. Geist Mono still carries the ports, the console and the numbers. |
+| Typeface | The typeface of the interface is **Geist**, and the site serves it: the files are in the build of the page, next to the other files of the site, so the visitor asks this site for a letter and never a third party. The typeface of the machine is the last name of the stack, so the page keeps reading when the files did not load. The weights of the typeface are all there, so nothing is synthesised. Geist Mono carries the ports, the console and the numbers. The change is written down in [`TYPOGRAPHY.md`](TYPOGRAPHY.md). |
 | Focus | One indicator per control. The global indicator sits in the base layer, so a control with a ring of its own switches the outline off with `focus-visible:outline-none`. A field shows the ring of its container, never an outline on top of it. |
 | Autofill | The fill of the browser is painted with the colour of the field (`--bm-field-bg`), so the text stays readable and the rounded shape of the field survives. |
 | Auth screens | Five screens share one field (`src/pages/auth-field.tsx`): the password can be shown and hidden, the error and the disabled state are the same everywhere, the attributes of the password manager are correct, no field is focused on arrival, and an empty field is not an error before the form was sent. The resend of the verification mail now carries the address the API asks for. |

@@ -1,11 +1,52 @@
-# The frontend review of 2026-10-23
+# The frontend review
 
-A round of frontend work on the Blipmade interface: the typeface, the forms of
-the five auth screens, the path that leads to the first deployment, the
-overview of the customer, the phone, and the states of every route.
+Two rounds of frontend work on the Blipmade interface. The first one
+(2026-10-23) took the typeface, the forms of the five auth screens, the path
+that leads to the first deployment, the overview of the customer, the phone,
+and the states of every route. The second one (2026-10-28) rebuilt the public
+site and the zone of the customer on the design of the reference of the
+redesign.
 
 Everything below was checked on VM 103 (`10.77.0.13`) with the build that was
-deployed before this round and the build that was deployed after it.
+deployed before the round and the build that was deployed after it.
+
+---
+
+## 0. The redesign of the site (2026-10-28)
+
+The public site and the zone of the customer were rebuilt on the reference of
+the redesign. The reference is the measure of everything below: the tokens of
+the colours, the shape of the cards, the motion, the type and the size of the
+type. The mark of the platform is the one that was already there.
+
+| Area | State |
+|---|---|
+| Tokens | The scale of the colours of the reference lives in `web/src/index.css` under the names the interface already used (`bg`, `s1`, `s2`, `s3`, `line`, `acc`, `acc-h`, `ink`, `ink2`, `ink3`, `bad`, `warn`), with `card` and `surface` as aliases. The whole surface moves at once, because the public site and the zone of the customer read the same scale. |
+| Type | Geist Variable and Geist Mono Variable, self-hosted by the site: the files are in the build, next to the other files. The typeface of the machine is the last name of the stack. See [`TYPOGRAPHY.md`](TYPOGRAPHY.md). |
+| Motion | The entrance of the blocks (`.rv`), the cards of the catalogue (`.card-in`), the rings of the buttons and the art of the screens of the account (`.auth-in`), all of them under `prefers-reduced-motion`. |
+| The home page | Hero with the terminal, the plans on four tabs, the six cells, the preview of the panel, the use cases, the questions and the call at the end. The old sections (ticker, story, studio, platform, configurator, rest, the old catalog) are gone. |
+| The catalog | The search, the pastilles of the categories and the cards of the products, with the price of the smallest configuration of every product, read from `GET /api/catalog/products`. |
+| The documentation | The index of the sections opens the page, and a page of it keeps the sixteen sections and the real text. The search is in the bar of the page. |
+| The account | The five screens share a shell with a picture of their own, and the rules of the password are counted while they are typed. The words of the server are shown as they came. |
+| The zone of the customer | The panels, the fields, the buttons, the tables and the states wear the same cards as the public site. |
+
+### What was checked
+
+| Check | How |
+|---|---|
+| The tests of the interface | `npm test` in `web/` — 308 of 308 pass. |
+| The browser tests | `./scripts/run-e2e.sh` — 30 of 30 pass: the account (the refusals of the server and the answer that carries a session), the plans on their tabs, the filters of the catalog, the navigation of the documentation, the menu of a phone. |
+| The accessibility | axe on `/`, `/apps`, `/docs`, `/login` and `/register`, in the theme of the system as well: no violation. |
+| The type | `npx tsc --noEmit` for the site and `npx tsc --noEmit -p tsconfig.e2e.json` for the browser tests: no error. |
+
+### What the tests found
+
+- The catalog had lost the bar of the site, the footer and the landmark of the
+  main area when it was rebuilt. The axe check found the landmark; the bar and
+  the footer came back with it.
+- The rule of the password is now in one place (`web/src/lib/password-rules.ts`)
+  and it is the rule of the API: ten characters, a lowercase letter, an
+  uppercase letter, a number, and no more than two hundred characters.
 
 ---
 
