@@ -92,6 +92,7 @@ function misspelledBrand(text: string): string | null {
 const KNOWN_PAGES = [
   'getting-started',
   'first-app',
+  'order-values',
   'account',
   'dashboard',
   'wordpress',
@@ -215,9 +216,9 @@ function writeContent(content: { groups: unknown[]; pages: unknown[] }): string 
 }
 
 describe('the content of the documentation', () => {
-  it('has fifteen groups and forty-five pages', () => {
+  it('has fifteen groups and forty-six pages', () => {
     assert.equal(DOC_GROUPS.length, 15);
-    assert.equal(DOC_PAGES.length, 45);
+    assert.equal(DOC_PAGES.length, 46);
     assert.deepEqual(
       DOC_GROUPS.map((group) => group.id),
       KNOWN_GROUPS,
