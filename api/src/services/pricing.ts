@@ -337,6 +337,19 @@ export async function resourceRates(): Promise<ResourceRates> {
 }
 
 /**
+ * Forgets the card that was read.
+ *
+ * The card is a row of the settings and it is kept in memory for a short
+ * while, so the platform does not read the settings on every quote. The cache
+ * is dropped when the card is written, and the tests drop it when they empty
+ * the database: a card that was read before the tables were emptied does not
+ * exist any more.
+ */
+export function clearResourceRatesCache(): void {
+  cachedRates = null;
+}
+
+/**
  * Writes the rate card of the platform.
  *
  * The card of every product of a server is written with it, so the rows of the

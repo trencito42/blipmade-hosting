@@ -1,5 +1,6 @@
 import { prisma } from '../src/db.js';
 import { assertDisposableDatabase } from '../src/lib/test-target.js';
+import { clearResourceRatesCache } from '../src/services/pricing.js';
 
 /**
  * Safety net. The suite truncates every table, so it must never be pointed at
@@ -54,4 +55,8 @@ const TABLES = [
 
 export async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${TABLES.map((table) => `"${table}"`).join(', ')} CASCADE;`);
+  // The card of the platform is a row of the settings and it is kept in
+  // memory for a short while. The row is gone, so the memory has to forget
+  // it too, or a test would see a card that no longer exists.
+  clearResourceRatesCache();
 }

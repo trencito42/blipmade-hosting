@@ -26,12 +26,19 @@ import { canHoldProcessor, DEFAULT_CPU_OVERSUBLICATION, DEFAULT_NODE_CORES, node
 
 let app: FastifyInstance;
 
+// The sale of hosted mail is closed by default. A line of mail is priced
+// like any other line, so the sale is opened for the file of the test.
+const originalMailSales = process.env.MAIL_SALES_ENABLED;
+
 beforeAll(async () => {
+  process.env.MAIL_SALES_ENABLED = 'true';
   app = await getApp();
 });
 
 afterAll(async () => {
   await closeApp();
+  if (originalMailSales === undefined) delete process.env.MAIL_SALES_ENABLED;
+  else process.env.MAIL_SALES_ENABLED = originalMailSales;
 });
 
 beforeEach(async () => {
@@ -68,14 +75,24 @@ async function seedProduct(overrides: Record<string, unknown> = {}) {
       deployable: true,
       eggId: 1,
       prices: {
-        create: {
-          period: 'MONTHLY',
-          baseAmount: 149,
-          ramPerGb: 60,
-          cpuPerUnit: 40,
-          diskPerGb: 2,
-          currency: 'EUR',
-        },
+        create: [
+          {
+            period: 'MONTHLY',
+            baseAmount: 149,
+            ramPerGb: 60,
+            cpuPerUnit: 40,
+            diskPerGb: 2,
+            currency: 'EUR',
+          },
+          {
+            period: 'YEARLY',
+            baseAmount: 149,
+            ramPerGb: 60,
+            cpuPerUnit: 40,
+            diskPerGb: 2,
+            currency: 'EUR',
+          },
+        ],
       },
       ...overrides,
     } as never,
@@ -103,6 +120,14 @@ async function seedMailPlan() {
       maxDisk: 5,
       deployable: true,
       visible: true,
+      mailMaxDomains: 2,
+      mailMaxMailboxes: 5,
+      mailMaxAliases: 50,
+      mailMaxForwarding: 5,
+      mailTotalStorageMb: 5120,
+      mailMailboxQuotaMb: 1024,
+      mailSendLimit: 200,
+      mailSendInterval: 'HOURLY',
       prices: {
         create: {
           period: 'MONTHLY',
