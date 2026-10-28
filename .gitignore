@@ -28,3 +28,9 @@ screenshots/
 # files are written by scripts/set-discord-webhook.sh and never travel with
 # the history of the repository.
 secrets/
+
+# The screenshots of the live site, taken for the report of a round.
+.shots/
+# The results of the browser tests.
+web/test-results/
+web/playwright-report/
