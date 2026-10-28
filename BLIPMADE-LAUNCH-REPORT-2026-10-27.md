@@ -255,6 +255,29 @@ printf '%s' "$PANEL_KEY" | ./scripts/apply-panel-key.sh
 
 ---
 
+## 2 octies. Starea panoului, măsurată pe 28 octombrie (09:2x)
+
+Ai spus că pe `stefan@xodo.ro` nu mai ești admin în Pterodactyl. Am măsurat panoul ca să nu lucrăm pe presupuneri:
+
+| Ce am încercat | Ce a răspuns | Ce înseamnă |
+| --- | --- | --- |
+| `GET /api/application/servers` cu cheia din `.env` | `401 Unauthenticated` | cheia Application API nu mai există în panou |
+| bridge-ul de chei cu `external_id`-ul contului creat de platformă pentru `nissqbv@gmail.com` | `404 not_found` | contul nu mai există în panou |
+| bridge-ul de chei cu un `external_id` inventat | `404 not_found` | bridge-ul e viu, PHP-ul panoului e viu, baza lui de date răspunde |
+| pagina `/setup` a panoului | `200` | panoul e instalat (nu așteaptă instalare) |
+
+Concluzia: **codul panoului e în continuare acolo (bridge-ul nostru răspunde), dar datele lui nu mai sunt datele de care platforma are nevoie.** Conturile și cheia au dispărut din `users` și `api_keys` — fie pentru că baza panoului a fost înlocuită cu o copie mai veche, fie pentru că au fost șterse din interfața panoului. Contul de platformă al lui `nissqbv@gmail.com` nu mai există, deci nu e o problemă de „flag" pe un cont: contul nu mai este.
+
+**Consecința pentru lansare:** provisionarea este blocată (nu există cheie), ouăle trebuie importate din nou în panoul nou, iar șablonul de runtime (serverul din care se clonează fiecare instanță) trebuie recreat.
+
+**Ce am nevoie de la tine, ca să repar singur:** acces SSH la mașina panoului (`10.77.0.10`) sau la panoul de administrare al furnizorului. Cu el fac eu tot: îmi fac un cont root admin, creez cheia Application API cu permisiunea de creare servere, o aplic cu `scripts/apply-panel-key.sh` și verific că provisionarea chiar merge.
+
+**Dacă intri în panou cu un cont care e admin:** Administration → Users → îți ridici `stefan@xodo.ro` la root admin (dacă mai există), apoi Administration → API Keys → Application API → creezi cheia cu permisiunea de creare servere și mi dai cheia (sau o aplici tu cu comanda de mai sus).
+
+**Stripe — e făcut, cu o lipsă măsurată.** Endpointul există, e `enabled` și indică `https://blipmade.com/api/webhooks/stripe`. Trimite `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `payment_intent.payment_failed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted` și `charge.refunded`. **Lipsește `checkout.session.expired`** — eveniment pe care platforma îl citește (`routes/webhooks.ts:781`) și fără el o comandă abandonată rămâne „payment required" la nesfârșit. În plus, `charge.refunded` nu e citit deloc de platformă (refundul se face din panoul de administrare), deci cerința lui din checklist era greșită — am corectat documentația.
+
+---
+
 ## 3. Ce mai trebuie făcut pentru lansare
 
 | # | Acțiune | Cine | Cum se verifică |
@@ -263,7 +286,7 @@ printf '%s' "$PANEL_KEY" | ./scripts/apply-panel-key.sh
 | 0 bis | Fă o cheie Application API nouă în panou și aplic-o: `printf '%s' "$PANEL_KEY" \| ./scripts/apply-panel-key.sh` — fără ea nicio comandă nouă nu poate fi provisionată | **operator** | check-ul `panel` din `/admin/ops` trece din `critical` în `ok` |
 | 1 | Importă cele trei ouă în panou | **operator** | API-ul panoului răspunde cu `Postgres 16`, `Code-Server`, `Uptime Kuma` |
 | 2 | ~~Trimite cheile Stripe live~~ — **făcut** (18:44) | — | `/api/health` arată `stripe: live`; o livrare semnată primește `200` |
-| 3 | În dashboard-ul Stripe: endpointul `https://blipmade.com/api/webhooks/stripe` și evenimentele `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `charge.refunded` | **operator** | o comandă reală de plată ajunge la platformă și marchează comanda plătită |
+| 3 | În dashboard-ul Stripe: endpointul e deja legat (`https://blipmade.com/api/webhooks/stripe`, `enabled`) — **mai adaugă evenimentul `checkout.session.expired`**, care lipsește și pe care platforma îl citește | **operator** | o comandă reală de plată ajunge la platformă și marchează comanda plătită |
 | 4 | Pe `mail.xodo.ro`: căsuța (sau aliasul) `no-reply@blipmade.com`, ori `smtpd_reject_unlisted_sender = no` + `postfix reload` | **operator** | resetul de parolă ajunge la `stefan@xodo.ro` |
 | 5 | DNS: `MX 10 mail.blipmade.com` pentru `blipmade.com`, PTR pentru `193.34.214.20` și `193.34.214.143` | **operator** | mesajele din domeniu primesc răspuns și nu cad în spam |
 | 6 | Wildcard `*.apps.blipmade.com` → `A 193.34.214.143`, DNS only | **operator** | adresa de instanță se deschide pe HTTPS |

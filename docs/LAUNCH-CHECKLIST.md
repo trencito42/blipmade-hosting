@@ -59,9 +59,29 @@ https://blipmade.com/api/webhooks/stripe
 
 **Still on the operator:** the endpoint of the webhook in the dashboard of
 Stripe has to point at `https://blipmade.com/api/webhooks/stripe`, and the
-events it sends have to be `checkout.session.completed`, `invoice.paid`,
-`invoice.payment_failed` and `charge.refunded`. The secret of the webhook is
-the one that was given to the script.
+events it sends have to be the ones the platform really reads:
+
+| Event | Why |
+| --- | --- |
+| `checkout.session.completed` | the order is paid |
+| `checkout.session.async_payment_succeeded` | the order is paid, when the payment needed more time |
+| `checkout.session.async_payment_failed` | the order failed, when the payment needed more time |
+| `checkout.session.expired` | the customer gave the checkout up; the order is closed instead of waiting forever |
+| `payment_intent.payment_failed` | the payment itself failed |
+| `invoice.paid` | the invoice of the subscription is paid |
+| `invoice.payment_failed` | the invoice of the subscription failed |
+| `customer.subscription.updated`, `customer.subscription.deleted` | the subscription of the customer changed |
+
+`charge.refunded` is **not** among them: the platform does not read that event.
+A refund is made from the back office, and that is where the customer is told
+about it. The secret of the webhook is the one that was given to the script.
+
+**Checked on the 28th of October 2026, at 09:2x:** the endpoint exists, it is
+`enabled` and it points at the right address. It sends every event of the table
+above **except `checkout.session.expired`**, which the platform does read and
+which is missing: a customer who gives the checkout up leaves the order in
+„payment required" forever. It also sends `charge.refunded`, which the platform
+ignores — harmless, and it can stay.
 
 The events that came before the change belong to the sandbox and are not read
 any more: the platform verifies every delivery with the live secret.
