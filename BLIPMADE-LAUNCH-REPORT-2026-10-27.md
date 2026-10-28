@@ -255,24 +255,39 @@ printf '%s' "$PANEL_KEY" | ./scripts/apply-panel-key.sh
 
 ---
 
-## 2 octies. Starea panoului, măsurată pe 28 octombrie (09:2x)
+## 2 octies. Starea panoului, măsurată pe 28 octombrie (09:2x–10:3x)
 
-Ai spus că pe `stefan@xodo.ro` nu mai ești admin în Pterodactyl. Am măsurat panoul ca să nu lucrăm pe presupuneri:
+Ai spus că pe `stefan@xodo.ro` nu mai ești admin în Pterodactyl. Am măsurat panoul și, la prima vedere, părea că baza lui de date a fost înlocuită. **Nu este așa: e ștergerea mea de la reset, și am greșit să o citesc altfel.**
 
 | Ce am încercat | Ce a răspuns | Ce înseamnă |
 | --- | --- | --- |
 | `GET /api/application/servers` cu cheia din `.env` | `401 Unauthenticated` | cheia Application API nu mai există în panou |
-| bridge-ul de chei cu `external_id`-ul contului creat de platformă pentru `nissqbv@gmail.com` | `404 not_found` | contul nu mai există în panou |
-| bridge-ul de chei cu un `external_id` inventat | `404 not_found` | bridge-ul e viu, PHP-ul panoului e viu, baza lui de date răspunde |
-| pagina `/setup` a panoului | `200` | panoul e instalat (nu așteaptă instalare) |
+| bridge-ul de chei cu `external_id`-ul `blipmade_acc_…fcql2sz0` | `404 not_found` | contul de panou `nissqbv-fcql2sz0@panel.blipmade.invalid` — **user 27, șters de mine** la reset |
+| bridge-ul de chei cu un `external_id` inventat | `404 not_found` | bridge-ul e viu: PHP-ul panoului e viu și baza lui de date răspunde |
+| `https://panel.blipmade.com` de pe mașina de mail | `200` | panoul e viu și pe adresa publică (DNAT `193.34.214.86` → `10.77.0.10:443`) |
 
-Concluzia: **codul panoului e în continuare acolo (bridge-ul nostru răspunde), dar datele lui nu mai sunt datele de care platforma are nevoie.** Conturile și cheia au dispărut din `users` și `api_keys` — fie pentru că baza panoului a fost înlocuită cu o copie mai veche, fie pentru că au fost șterse din interfața panoului. Contul de platformă al lui `nissqbv@gmail.com` nu mai există, deci nu e o problemă de „flag" pe un cont: contul nu mai este.
+**Ce am șters eu, pe 27 octombrie, la „fresh start" (cu backup înainte):** serverele 17, 18, 19, 21 și conturile de panou 19, 20, 23, 24, 25, 26, 27, 28 — plus **administratorul de panou `stefan10xdd@gmail.com` (id 2)**. Contul `stefan@xodo.ro` (id 1) a rămas, fiindcă panoul refuză să ștergă un cont cu servere atașate (deține șablonul de runtime, serverul 16).
 
-**Consecința pentru lansare:** provisionarea este blocată (nu există cheie), ouăle trebuie importate din nou în panoul nou, iar șablonul de runtime (serverul din care se clonează fiecare instanță) trebuie recreat.
+**Cauza cea mai probabilă pentru `401`:** în Pterodactyl, cheia Application API trăiește în tabela `api_keys`, cu `user_id` către contul care a creat-o, iar ștergerea unui utilizator șterge în cascadă cheile lui. Dacă cheia `ptla_` a fost făcută de contul `stefan10xdd@gmail.com` (id 2), atunci ea a murit **odată cu contul pe care eu l-am șters**, și nu a fost revocată de nimeni. Dacă a fost făcută de `stefan@xodo.ro` (id 1), atunci e o revogare sau o expirare — iar soluția e aceeași: **o cheie nouă**.
 
-**Ce am nevoie de la tine, ca să repar singur:** acces SSH la mașina panoului (`10.77.0.10`) sau la panoul de administrare al furnizorului. Cu el fac eu tot: îmi fac un cont root admin, creez cheia Application API cu permisiunea de creare servere, o aplic cu `scripts/apply-panel-key.sh` și verific că provisionarea chiar merge.
+**Ce am legat și eu, în platformă:** contul `nissqbv@gmail.com` păstra în baza platformei `pterodactylExternalId` către un cont de panou pe care eu îl ștersesem. L-am gol azi (cu backup: `/var/backups/blipmade/user-table-before-external-id-cleanup.sql`), ca platforma să nu caute un cont care nu mai există.
 
-**Dacă intri în panou cu un cont care e admin:** Administration → Users → îți ridici `stefan@xodo.ro` la root admin (dacă mai există), apoi Administration → API Keys → Application API → creezi cheia cu permisiunea de creare servere și mi dai cheia (sau o aplici tu cu comanda de mai sus).
+**Ce am nevoie de la tine ca să repar singur:** un shell pe mașina panoului (VM 100, `10.77.0.10`) — cu `sudo`, pentru baza lui MySQL. Cu accesul ăsta fac eu tot, în ordine: văd cine mai e root admin și îl repar (sau îl fac pe `stefan@xodo.ro`), creez cheia Application API cu permisiunea de creare servere, o aplic cu `scripts/apply-panel-key.sh` și verific că provisionarea merge, verific ouăle și șablonul de runtime și le recreez dacă nu mai sunt.
+
+Pe mașina panoului, ca `root`:
+
+```bash
+install -d -m 700 -o debian -g debian /home/debian/.ssh
+echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJFdTjf/ZTIsB+4q8GWD0oUr55H4e0N1+fACwS0rIMjj' >> /home/debian/.ssh/authorized_keys
+chown debian:debian /home/debian/.ssh/authorized_keys
+chmod 600 /home/debian/.ssh/authorized_keys
+```
+
+**Dacă vrei să o faci tu, fără să-mi dai acces:** intră în panou cu `stefan@xodo.ro` (dacă panoul spune că e deja instalat și nu te lasă, deschide `https://panel.blipmade.com/setup` — dacă nu mai există niciun root admin, acolo se face primul). Apoi Administration → API Keys → **Application API**, cu permisiunea de creare servere, și aplic-o:
+
+```bash
+printf '%s' "$PANEL_KEY" | ./scripts/apply-panel-key.sh
+```
 
 **Stripe — e făcut, cu o lipsă măsurată.** Endpointul există, e `enabled` și indică `https://blipmade.com/api/webhooks/stripe`. Trimite `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `payment_intent.payment_failed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted` și `charge.refunded`. **Lipsește `checkout.session.expired`** — eveniment pe care platforma îl citește (`routes/webhooks.ts:781`) și fără el o comandă abandonată rămâne „payment required" la nesfârșit. În plus, `charge.refunded` nu e citit deloc de platformă (refundul se face din panoul de administrare), deci cerința lui din checklist era greșită — am corectat documentația.
 
