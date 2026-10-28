@@ -21,14 +21,22 @@ interface CatalogProduct {
     minimum: { ram: number; cpu: number; disk: number; amount: number };
     recommended: { ram: number; cpu: number; disk: number; amount: number };
   } | null;
+  availability?: { state?: string; orderable?: boolean };
 }
 
-/** The catalog the API answers with. */
+/**
+ * The products that can really be ordered.
+ *
+ * The catalog of the API holds every product of the platform, and the answer
+ * says which of them can be deployed. The site shows the ones that can be
+ * ordered, and only those.
+ */
 async function catalog(page: Page): Promise<CatalogProduct[]> {
   const answer = await page.request.get('/api/catalog/products');
   expect(answer.ok()).toBeTruthy();
   const body = (await answer.json()) as { products: CatalogProduct[] } | CatalogProduct[];
-  return Array.isArray(body) ? body : body.products;
+  const products = Array.isArray(body) ? body : body.products;
+  return products.filter((product) => product.availability?.state === 'DEPLOYABLE' && product.availability?.orderable);
 }
 
 /** The price of a configuration, with the arithmetic of the platform. */
@@ -49,10 +57,10 @@ test.describe('the home page', () => {
     await expect(page.getByRole('heading', { name: 'One card of rates. Every app.' })).toBeVisible();
 
     // The four rates of the card are the rates of the platform.
-    await expect(page.getByText('per GB of RAM')).toBeVisible();
-    await expect(page.getByText('per vCPU')).toBeVisible();
-    await expect(page.getByText('per GB of disk')).toBeVisible();
-    await expect(page.getByText('base fee')).toBeVisible();
+    await expect(page.getByText('per GB of RAM', { exact: true })).toBeVisible();
+    await expect(page.getByText('per vCPU', { exact: true })).toBeVisible();
+    await expect(page.getByText('per GB of disk', { exact: true })).toBeVisible();
+    await expect(page.getByText('base fee', { exact: true })).toBeVisible();
   });
 
   test('shows the smallest price of every product of the catalog', async ({ page }) => {
@@ -73,7 +81,7 @@ test.describe('the home page', () => {
 
     // The configurator opens on the configuration the platform recommends, and
     // the price of that configuration is the price the server sent for it.
-    const total = page.getByRole('status');
+    const total = page.getByRole('region', { name: 'Price configurator' }).locator('p[role="status"]');
     await expect(total).toHaveText(euros(product!.pricing!.recommended.amount));
   });
 
@@ -83,7 +91,7 @@ test.describe('the home page', () => {
     const product = products.find((entry) => entry.slug === 'discord-bot');
     expect(product?.pricing).toBeTruthy();
 
-    const ram = page.getByLabel('RAM');
+    const ram = page.getByRole('slider', { name: 'RAM' });
     // The value of a slider is set the way a browser sets it, so the page
     // sees the change.
     await ram.evaluate((element: HTMLInputElement) => {
@@ -94,7 +102,7 @@ test.describe('the home page', () => {
     });
 
     const expected = price(2048, 1, 1, { ramPerGb: 200, cpuPerUnit: 75, diskPerGb: 5, baseFee: 49 });
-    await expect(page.getByRole('status')).toHaveText(euros(expected));
+    await expect(page.getByRole('region', { name: 'Price configurator' }).locator('p[role="status"]')).toHaveText(euros(expected));
     // The price of the server for the same resources is the price of the site.
     expect(expected).toBeGreaterThan(product!.pricing!.minimum.amount);
   });
@@ -129,7 +137,9 @@ test.describe('the catalog of the apps', () => {
 
     await expect(page.getByRole('region', { name: 'Price configurator' })).toBeVisible();
     if (product?.pricing) {
-      await expect(page.getByRole('status')).toHaveText(euros(product.pricing.recommended.amount));
+      await expect(page.getByRole('region', { name: 'Price configurator' }).locator('p[role="status"]')).toHaveText(
+        euros(product.pricing.recommended.amount),
+      );
     }
     // The product cannot be changed on the page of the product.
     await expect(page.getByRole('radio', { name: 'Code Server' })).toHaveCount(0);

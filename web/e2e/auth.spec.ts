@@ -119,13 +119,14 @@ test.describe('the account screen', () => {
 
     const rules = page.getByRole('list', { name: 'Password rules' });
     await expect(rules).toBeVisible();
-    await expect(rules.getByText('10 characters or more')).toHaveClass(/text-ink-3/);
+    const rule = (text: string) => rules.getByRole('listitem').filter({ hasText: text });
+    await expect(rule('10 characters or more')).toHaveClass(/text-ink-3/);
 
     await page.getByLabel('Password', { exact: true }).fill('Str0ngPassword');
-    await expect(rules.getByText('10 characters or more')).toHaveClass(/text-green/);
-    await expect(rules.getByText('a lowercase letter')).toHaveClass(/text-green/);
-    await expect(rules.getByText('an uppercase letter')).toHaveClass(/text-green/);
-    await expect(rules.getByText('a number')).toHaveClass(/text-green/);
+    await expect(rule('10 characters or more')).toHaveClass(/text-green/);
+    await expect(rule('a lowercase letter')).toHaveClass(/text-green/);
+    await expect(rule('an uppercase letter')).toHaveClass(/text-green/);
+    await expect(rule('a number')).toHaveClass(/text-green/);
   });
 
   test('does not send a password that misses a rule', async ({ page }) => {

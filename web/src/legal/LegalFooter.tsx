@@ -17,7 +17,7 @@ export function LegalFooter({ className }: { className?: string }) {
     'inline-flex min-h-11 items-center text-[13.5px] text-ink2 transition-colors duration-[180ms] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
   return (
     <div className={cn('border-t border-line', className)}>
-      <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-1">
+      <nav aria-label="Legal documents" className="flex flex-wrap gap-x-5 gap-y-1">
         {LEGAL_PAGE_LIST.map((page) => (
           <Link key={page.to} to={page.to} className={link}>
             {page.nav}

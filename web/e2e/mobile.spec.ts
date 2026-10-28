@@ -68,6 +68,13 @@ test.describe('the bar of the site', () => {
     await page.goto('/');
     const header = page.getByRole('banner');
     await expect(header.getByRole('link', { name: 'Blipmade' })).toBeVisible();
+    // On a phone the two actions are in the menu, not in the bar.
+    const menu = page.getByRole('navigation', { name: 'Mobile' });
+    if (await menu.isVisible()) {
+      await expect(menu.getByRole('link', { name: 'Log in' })).toBeVisible();
+      await expect(menu.getByRole('link', { name: 'Get started' })).toBeVisible();
+      return;
+    }
     await expect(header.getByRole('link', { name: 'Log in' })).toBeVisible();
     await expect(header.getByRole('link', { name: 'Get started' })).toBeVisible();
   });

@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { precompressFile } from '../src/lib/perf-precompress.mjs';
 
 const dist = path.resolve('dist');
 const ssrDir = path.resolve('dist-ssr');
@@ -51,19 +52,32 @@ const page = (route) => {
   return base.replace('<!--head-->', head).replace('<!--app-->', html);
 };
 
+/**
+ * Writes a file of the site, with its compressed forms.
+ *
+ * The build compresses the site before the pages are written, so the forms of
+ * the file that is written here are the forms of the template. They are
+ * written again, so the server hands out the page that was written and not the
+ * page of the template.
+ */
+const write = (file, content) => {
+  fs.writeFileSync(file, content);
+  precompressFile(file);
+};
+
 const routes = allRoutes();
 const urls = [];
 
 for (const route of routes) {
   const out = route === '/' ? path.join(dist, 'index.html') : path.join(dist, route, 'index.html');
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  fs.writeFileSync(out, page(route));
+  write(out, page(route));
   if (!metaFor(route).noindex) urls.push(route);
 }
 
 // The page of an address that does not exist. The server sends it with the
 // answer 404.
-fs.writeFileSync(path.join(dist, '404.html'), page('/__404'));
+write(path.join(dist, '404.html'), page('/__404'));
 
 const today = new Date().toISOString().slice(0, 10);
 const priority = (route) =>
@@ -80,7 +94,7 @@ const sitemap = [
   '',
 ].join('\n');
 
-fs.writeFileSync(path.join(dist, 'sitemap.xml'), sitemap);
+write(path.join(dist, 'sitemap.xml'), sitemap);
 
 const robots = [
   'User-agent: *',
@@ -92,6 +106,6 @@ const robots = [
   '',
 ].join('\n');
 
-fs.writeFileSync(path.join(dist, 'robots.txt'), robots);
+write(path.join(dist, 'robots.txt'), robots);
 
 console.log(`prerendered ${routes.length} pages, ${urls.length} in the sitemap`);

@@ -66,7 +66,7 @@ export function LegalPage({ slug }: { slug: string }) {
 
   return (
     <Wrap className="grid gap-10 pt-10 pb-24 sm:pt-14 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-14">
-      <nav aria-label="Legal documents" className="hidden lg:block">
+      <nav aria-label="The legal pages" className="hidden lg:block">
         <div className="sticky top-24">
           <p className="mb-3 font-display text-[19px] font-semibold">Legal</p>
           <ul className="grid gap-px border-l border-line">

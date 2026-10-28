@@ -7,6 +7,8 @@ import { DocsArticle, DocsIndex } from './Docs';
 import { AuthForgot, AuthLogin, AuthRegister, AuthReset, AuthVerify } from './Auth';
 import { LegalPage } from './Legal';
 import NotFound from './NotFound';
+import Status from '../pages/Status';
+import EmailHosting from '../app/EmailHosting';
 import { matchPublic } from './public-routes';
 import { allRoutes, metaFor } from './seo';
 import { headHtml } from './head';
@@ -76,8 +78,22 @@ function PublicPage({ path }: { path: string }) {
     case 'verify':
       return <AuthVerify />;
     default:
-      return <NotFound />;
+      return <OtherPage path={path} />;
   }
+}
+
+/**
+ * The page of an address that the matcher of the public site does not know.
+ *
+ * The status page and the storefront of the hosted mail are public, and they
+ * carry their own frame. They are written to the disk like the other pages,
+ * so a reader without JavaScript finds them, and a crawler reads their title
+ * and their address.
+ */
+function OtherPage({ path }: { path: string }) {
+  if (path === '/status') return <Status />;
+  if (path === '/email') return <EmailHosting />;
+  return <NotFound />;
 }
 
 /**
@@ -96,5 +112,4 @@ export function render(path: string, search = '') {
   const meta = metaFor(path);
   return { html, head: headHtml(meta), noindex: meta.noindex };
 }
-
 export { allRoutes, metaFor };
