@@ -104,6 +104,20 @@ Until the eggs are imported, the three products stay closed in the catalog and
 cannot be ordered. This is on purpose: a product that is opened before it was
 proved fails in front of a customer.
 
+**Done on the 28th of October 2026, at 12:30.** The three eggs are in the panel
+of the nest 5 (**Discord Bots**), imported through the service of the panel
+itself (`panel-bridge/tools/blipmade-import-egg.php`):
+
+| Egg | Id in the panel | The product that runs on it |
+| --- | --- | --- |
+| `Postgres 16` | 17 | PostgreSQL |
+| `Code-Server` | 18 | Code Server |
+| `Uptime Kuma` | 19 | Uptime Kuma |
+
+The eggs 15 (`node.js generic`) and 16 (`python generic`) were already there.
+The variables of every new egg are exactly the ones the platform writes for the
+product that runs on it, so the environment of a container is complete.
+
 ## 3. The mail of the platform — the operator
 
 Two different things are in the way, and only one of them is on the platform.
@@ -248,3 +262,53 @@ of the operations (`/admin/ops`) while the key is refused, and the alarm
 reaches the channel of Discord and the mail of the operator. A key that the
 panel accepts but that may not read the servers is a different problem, and
 the summary says so: that one is fixed by giving the key the permission.
+
+**Done on the 28th of October 2026, at 12:27.** The cause was measured in the
+database of the panel: the table `api_keys` was empty. The key of the platform
+had been made by the account `stefan10xdd@gmail.com`, and the keys of a user go
+away with the user — that account was deleted at the reset of the 27th of
+October 2026, and the key of the platform died with it. The panel itself was
+alive all the time, and the accounts of the administrators were never touched.
+
+A new key was made through the service of the panel
+(`panel-bridge/tools/blipmade-create-key.php`), applied with
+`scripts/apply-panel-key.sh` and verified with the code of the platform:
+
+| | |
+| --- | --- |
+| The key of the platform | id 26, of the account `stefan@xodo.ro` |
+| The permissions | servers, customers: read and write; nodes, allocations, nests, eggs, locations, databases: read |
+| The addresses it is accepted from | `10.77.0.13`, the machine of the platform |
+| The copy of the key | `/root/panel-key.txt` on the panel (mode 600) |
+| The check `panel` | `ok` — "The panel answered with 1 server(s)." |
+
+## 9. What was proved, and what stays closed
+
+Four products of the catalog were built for real, on the node of the platform,
+with the orders and the customers of a test. What the browser of the test
+answered was written down in the journal of every instance.
+
+| Product | Result | In the catalog |
+| --- | --- | --- |
+| Discord Bot | the container is alive and the instance is `ONLINE` | orderable |
+| PostgreSQL | the database answers on the port of the node, the instance is `ONLINE` | orderable |
+| Code Server | the editor answers with HTTP 302, the instance is `ONLINE` | orderable |
+| Uptime Kuma | the container exits at the start, the port never opens | **closed** |
+| WordPress | there is no egg for it in the panel | **closed** |
+
+**Uptime Kuma stays closed, and the reason was measured.** The container holds
+uptime-kuma 2.5.8, whose `package.json` asks for Node **>= 20.4.0**, and the egg
+installs and runs it in `node:18-alpine`. The application leaves at once, the
+node says the container is `offline`, and nothing listens on the port. The egg
+has to be changed (a container of Node 20 or later, and an image that runs on
+it) and the product has to be proved again before it is opened.
+
+**Two bugs of the platform were found by these tests and are fixed:**
+
+- A product that is a database was checked over HTTP, so a PostgreSQL that
+  worked was called broken. The probe of the product is now a TCP connection
+  (`{"kind": "tcp"}`).
+- A container that was started a second ago is `starting` and uses no memory
+  yet. The check called that a failure at once, so a service that started
+  normally would have been refused and the customer refunded. The check waits
+  now, and a container that never starts is still a failure.

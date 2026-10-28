@@ -34,9 +34,9 @@ import urllib.error
 import urllib.request
 
 # --- objects that have to survive every run -------------------------------
-PROTECTED_SERVER_ID = 2
-PROTECTED_SERVER_UUID = "aec52a41-0445-4c03-bab9-82f1af8ed621"
-PROTECTED_SERVER_NAME = "Blipmade App Test"
+PROTECTED_SERVER_ID = 16
+PROTECTED_SERVER_UUID = "60eabad4-1e0c-4c4f-9e04-bd593d2bc5ed"
+PROTECTED_SERVER_NAME = "Blipmade runtime template (node.js generic)"
 # The two accounts of the people who run the platform. The accounts of the
 # first round (the addresses of the old administrators) are not protected any
 # more: the fresh start leaves only these two.
@@ -62,6 +62,14 @@ ALLOWED_SERVERS = {
     18: {"uuid": "ba96f30a-9894-4b09-9173-e0e5717fe4f2", "name": "1"},
     19: {"uuid": "c6d7070a-dfb7-4410-9218-05712edd4a3d", "name": "Discord Bot"},
     21: {"uuid": "47884b45-9cd2-4852-afeb-3a9610d73f17", "name": "Discord Bot"},
+    # The containers of the verification runs of the 28th of October 2026. The
+    # name of every one of them says "Verify", the way the rows of the test
+    # carry the mark "verify" in the database of the platform.
+    25: {"uuid": "b82beee6-b126-45a6-96d5-5471164caa4d", "name": "Verify postgresql"},
+    26: {"uuid": "7c62238b-0cfe-42b8-99fc-4351507c5361", "name": "Verify code-server"},
+    27: {"uuid": "ae32543d-1ef6-4229-bea5-8ef7378c02f3", "name": "Verify uptime-kuma"},
+    28: {"uuid": "a29a839b-fa58-4f0e-80ed-889f7975c3e8", "name": "Verify discord-bot"},
+    29: {"uuid": "0635ea39-9da7-481b-aafa-3e94b20ae9f3", "name": "Verify discord-bot"},
 }
 ALLOWED_USERS = {
     # The four accounts that the verification runs created on the panel. The
@@ -73,6 +81,14 @@ ALLOWED_USERS = {
     # them as the accounts of the incident, and none of them owns a server:
     # the panel reports zero servers.
     19: {"email": "qa-headless-one-e4xeztm7@panel.blipmade.invalid", "username": "bm-01e4xeztm7"},
+    # The accounts of the verification runs of the 28th of October 2026. The
+    # address of every one of them ends in ".invalid" and the name follows the
+    # pattern of the accounts the platform creates.
+    29: {"email": "verify-20261028123109-28123109@panel.blipmade.invalid", "username": "bm-1028123109"},
+    30: {"email": "verify-20261028123658-28123658@panel.blipmade.invalid", "username": "bm-1028123658"},
+    31: {"email": "verify-20261028123802-28123802@panel.blipmade.invalid", "username": "bm-1028123802"},
+    32: {"email": "verify-20261028124210-28124210@panel.blipmade.invalid", "username": "bm-1028124210"},
+    33: {"email": "verify-20261028130723-28130723@panel.blipmade.invalid", "username": "bm-1028130723"},
     20: {"email": "qa-headless-two-eefha38m@panel.blipmade.invalid", "username": "bm-01eefha38m"},
     23: {"email": "browser-customer-qhrka12o@panel.blipmade.invalid", "username": "bm-3cqhrka12o"},
     24: {"email": "browser-customer-jm9c7zmu@panel.blipmade.invalid", "username": "bm-d8jm9c7zmu"},
@@ -83,9 +99,15 @@ ALLOWED_USERS = {
     26: {"email": "steph-1mx42ney@panel.blipmade.invalid", "username": "bm-011mx42ney"},
     27: {"email": "nissqbv-fcql2sz0@panel.blipmade.invalid", "username": "bm-01fcql2sz0"},
     28: {"email": "browser-customer-czrgy3iu@panel.blipmade.invalid", "username": "bm-i5czrgy3iu"},
-    # The two administrator accounts of the first round. The accounts that stay
-    # are the two of the people who run the platform.
-    1: {"email": "stefan@xodo.ro", "username": "adm"},
+    # The administrator account of the first round, stefan10xdd@gmail.com,
+    # was deleted on the 27th of October 2026, together with the Application
+    # API key that the account had made: the keys of a user go with the user.
+    #
+    # The account of stefan@xodo.ro is NOT in this list, on purpose. It owns
+    # the runtime template of the panel and the Application API key that the
+    # platform uses, so it has to stay. A cleanup that takes it away leaves
+    # the panel without an administrator and without a key, which is what
+    # happened on the 27th of October 2026.
     2: {"email": "stefan10xdd@gmail.com", "username": "adm1"},
 }
 

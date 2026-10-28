@@ -12,7 +12,7 @@ Runda aceasta a fost despre trei lucruri: activarea produselor care nu puteau fi
 | --- | --- |
 | `main` pe GitHub | pushat, fast-forward, fără force-push |
 | CI | **7/7 joburi verzi** pe ultimul commit |
-| Suita API | **112 fișiere, 1047 teste trecute, 6 sărite** |
+| Suita API | **112 fișiere, 1048 teste trecute, 6 sărite** |
 | Suita web | **305/305** |
 | Typecheck API + teste | curat |
 | Migrări în producție | **18 aplicate, 0 în așteptare, 0 eșuate** |
@@ -293,15 +293,51 @@ printf '%s' "$PANEL_KEY" | ./scripts/apply-panel-key.sh
 
 ---
 
+## 2 nonies. Panoul reparat și probele de deployment (28 octombrie, 12:27–13:15)
+
+Ai spus că pe `stefan@xodo.ro` nu mai ești admin în Pterodactyl. Am măsurat baza de date a panoului (shell pe VM 100, cu acordul tău) și am aflat cauza exactă: **tabela `api_keys` era goală**. Conturile de administrator erau toate trei intacte (`stefan@xodo.ro`, `horja3i@gmail.com`, `nissqbv@gmail.com`, toate cu `root_admin = 1`) — tu erai admin în continuare. Ce murise era **cheia**: fusese făcută de contul `stefan10xdd@gmail.com`, iar în Pterodactyl cheile unui utilizator dispar odată cu utilizatorul — contul ăla l-am șters eu la resetul din 27 octombrie, și cheia a murit odată cu el.
+
+**Ce am făcut, în ordine:**
+
+1. **Cheie nouă**, făcută prin serviciul panoului (nu SQL manual): id 26, al contului `stefan@xodo.ro`, cu permisiunea de a crea servere și conturi de client și de a citi nodurile, ouăle, cuiburile și locațiile; acceptată doar de la `10.77.0.13`. Copie la `/root/panel-key.txt` pe panou (mod 600).
+2. **Aplicată platformei** cu `scripts/apply-panel-key.sh` (cheia a mers prin canalul standard, nu prin ecran și nici prin lista proceselor). Răspunsul platformei: „the panel answered: 1 server(s)".
+3. **Check-ul `panel` a trecut din `critical` în `ok`** — verificat de două ori: prin codul platformei și prin API-ul de administrator (`GET /api/ops/health` → 12 check-uri, `panel` în `ok`).
+4. **Trei ouă importate** prin serviciul de import al panoului: `Postgres 16` (17), `Code-Server` (18), `Uptime Kuma` (19), toate în cuibul 5. Variabilele lor sunt exact cele pe care platforma le scrie în mediu.
+5. **Unelte puse în repo** (`panel-bridge/tools/`), ca reparația să se poată repeta: `blipmade-create-key.php` și `blipmade-import-egg.php`.
+
+**Probele reale de deployment** (clienți și comenzi de test, marcate „verify", curățate la sfârșit):
+
+| Produs | Rezultat | Catalog |
+| --- | --- | --- |
+| Discord Bot | containerul e viu, instanța `ONLINE` | comandabil |
+| PostgreSQL | baza de date răspunde pe portul nodului, instanța `ONLINE` | comandabil |
+| Code Server | editorul răspunde cu HTTP 302, instanța `ONLINE` | comandabil |
+| Uptime Kuma | containerul moare la pornire, portul nu se deschide | **închis** |
+| WordPress | nu există oul lui în panou | **închis** |
+
+**De ce Uptime Kuma rămâne închis:** containerul conține uptime-kuma 2.5.8, al cărui `package.json` cere Node **>= 20.4.0**, iar oul îl instalează și îl rulează în `node:18-alpine`. Aplicația iese imediat, nodul spune `offline`, portul nu se deschide niciodată. Nu am deschis un produs care nu merge — trebuie schimbat oul (un container de Node 20+) și probat din nou.
+
+**Două bug-uri reale ale platformei, găsite de aceste probe și reparate:**
+
+- **PostgreSQL era verificat cu HTTP** — o bază de date care funcționa era declarată stricată, iar clientul ar fi primit banii înapoi pentru un serviciu sănătos. Proba produsului e acum o conexiune TCP (`{"kind": "tcp"}`).
+- **Un container pornit cu o secundă înainte** e „starting" și nu folosește încă memorie. Verificarea dădea faliment imediat, deci o livrare care pornea normal ar fi fost refuzată și clientul ar fi fost rambursat. Verificarea așteaptă acum, iar un container care nu pornește rămâne o eroare, cu starea nodului în motiv.
+
+**Curățat după probe:** cele 5 servere și cele 5 conturi de test din panou (prin lista albă a `scripts/cleanup-panel.py`, cu `--confirm`) și toate rândurile „verify" din baza platformei (138 de rânduri). Panoul are acum: șablonul de runtime (serverul 16), cei trei administratori și cheia de aplicație. Baza platformei are: 3 utilizatori, 0 comenzi, 0 instanțe.
+
+**O greșeală a mea, prinsă înainte de ștergere:** lista albă a curățării voia să ștergă contul tău (`stefan@xodo.ro`), care era încă acolo de la prima rundă. L-am scos înainte de orice ștergere și am scris în cod de ce: contul tine șablonul de runtime și cheia de aplicație. Constantele care protejau șablonul arătau spre un server șters din prima rundă; le-am îndreptat spre cel viu (id 16).
+
+---
+
 ## 3. Ce mai trebuie făcut pentru lansare
 
 | # | Acțiune | Cine | Cum se verifică |
 | --- | --- | --- | --- |
 | 0 | Schimbă parolele celor trei conturi de administrator (`nissqbv@gmail.com`, `horja3i@gmail.com`, `stefan@xodo.ro`) — acum toate trei au parola veche de administrator | **operator** | fiecare intră cu parola lui |
-| 0 bis | Fă o cheie Application API nouă în panou și aplic-o: `printf '%s' "$PANEL_KEY" \| ./scripts/apply-panel-key.sh` — fără ea nicio comandă nouă nu poate fi provisionată | **operator** | check-ul `panel` din `/admin/ops` trece din `critical` în `ok` |
+| 0 bis | ~~Fă o cheie Application API nouă în panou~~ — **rezolvat pe 28 octombrie**: cheia e făcută, aplicată și verificată; check-ul `panel` e `ok` | **gata** | provisionarea funcționează: PostgreSQL, Code Server și Discord Bot au fost construite pe nod și au răspuns `ONLINE` |
 | 1 | Importă cele trei ouă în panou | **operator** | API-ul panoului răspunde cu `Postgres 16`, `Code-Server`, `Uptime Kuma` |
 | 2 | ~~Trimite cheile Stripe live~~ — **făcut** (18:44) | — | `/api/health` arată `stripe: live`; o livrare semnată primește `200` |
 | 3 | În dashboard-ul Stripe: endpointul e deja legat (`https://blipmade.com/api/webhooks/stripe`, `enabled`) — **mai adaugă evenimentul `checkout.session.expired`**, care lipsește și pe care platforma îl citește | **operator** | o comandă reală de plată ajunge la platformă și marchează comanda plătită |
+| 3 bis | Pentru Uptime Kuma: schimbă oul (container de Node 20+, imagine care rulează pe el) și probă produsul din nou — acum e închis, pentru că aplicația cere Node >= 20.4 și oul o rulează pe node:18 | **agent + operator** | containerul rămâne pornit și portul răspunde |
 | 4 | Pe `mail.xodo.ro`: căsuța (sau aliasul) `no-reply@blipmade.com`, ori `smtpd_reject_unlisted_sender = no` + `postfix reload` | **operator** | resetul de parolă ajunge la `stefan@xodo.ro` |
 | 5 | DNS: `MX 10 mail.blipmade.com` pentru `blipmade.com`, PTR pentru `193.34.214.20` și `193.34.214.143` | **operator** | mesajele din domeniu primesc răspuns și nu cad în spam |
 | 6 | Wildcard `*.apps.blipmade.com` → `A 193.34.214.143`, DNS only | **operator** | adresa de instanță se deschide pe HTTPS |
