@@ -215,15 +215,29 @@ describe('the markers of the content', () => {
 });
 
 describe('the pages of the products', () => {
-  it('are the pages of the products the platform can deploy', () => {
+  it('has a page for every product the platform can deploy', () => {
     const deployable = new Set(snapshot.map((product) => product.slug));
-    for (const page of pages) {
-      if (!page.catalogSlug) continue;
-      assert.equal(deployable.has(page.catalogSlug), true, `the page ${page.id} is about a product that cannot be deployed`);
+    assert.ok(deployable.size > 0, 'the snapshot of the catalog is empty');
+    for (const slug of deployable) {
+      const page = pages.find((entry) => entry.id === slug);
+      assert.ok(page, `the product ${slug} has no page of the documentation`);
+      assert.equal(page!.catalogSlug, slug, `the page of ${slug} is not the page of the product`);
     }
   });
 
-  it('are named after the product they are about', () => {
+  it('keeps the pages of the products the platform cannot deploy in the content', () => {
+    // The content is written ahead of the catalog: a product that cannot be
+    // deployed today has its page written, and the site does not publish it.
+    // The site never describes something that cannot be ordered.
+    const deployable = new Set(snapshot.map((product) => product.slug));
+    const waiting = pages.filter((page) => page.catalogSlug && !deployable.has(page.catalogSlug));
+    assert.ok(waiting.length > 0, 'the content has no page of a product that is waiting');
+    for (const page of waiting) {
+      assert.equal(page.id, page.catalogSlug, `the page ${page.id} does not carry the name of its product`);
+    }
+  });
+
+  it('names every page of the content after the product it is about', () => {
     for (const page of pages) {
       if (!page.catalogSlug) continue;
       assert.equal(page.id, page.catalogSlug, `the page ${page.id} does not carry the name of its product`);

@@ -83,6 +83,14 @@ export interface Breakdown {
   disk: number;
   /** The price of the instance itself. */
   base: number;
+  /**
+   * The price of the add-ons of the configuration.
+   *
+   * The public site does not sell add-ons, so the number is always zero. The
+   * field is here because the breakdown of the server has it, and the two
+   * breakdowns have to be the same shape.
+   */
+  options: number;
   /** The price of the configuration. */
   total: number;
 }
@@ -114,7 +122,7 @@ export function breakdownOfResources(resources: Resources, rates: Rates = DEFAUL
     .map((part, index) => ({ index, lost: part.exact - floors[index]! * PRICE_DENOMINATOR }))
     .sort((left, right) => right.lost - left.lost || left.index - right.index);
 
-  const breakdown: Breakdown = { ram: 0, cpu: 0, disk: 0, base: 0, total };
+  const breakdown: Breakdown = { ram: 0, cpu: 0, disk: 0, base: 0, options: 0, total };
   parts.forEach((part, index) => {
     breakdown[part.key] = floors[index]!;
   });

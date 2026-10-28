@@ -17,25 +17,57 @@
  *      readable.
  */
 
-import test from 'node:test';
+import { after, before, describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createServer, type ViteDevServer } from 'vite';
 
-import { allRoutes, metaFor, SITE } from '../src/site/seo.ts';
-import { headHtml } from '../src/site/head.ts';
-import { matchPublic } from '../src/site/public-routes.ts';
+const here = dirname(fileURLToPath(import.meta.url));
+const webRoot = join(here, '..');
 
-const routes = allRoutes();
+type Meta = { title: string; description: string; canonical: string; noindex: boolean; jsonld: object[] };
+
+let server: ViteDevServer;
+let metaFor: (path: string) => Meta;
+let allRoutes: () => string[];
+let headHtml: (meta: Meta) => string;
+let matchPublic: (path: string) => { kind: string; param?: string };
+
+before(async () => {
+  server = await createServer({
+    root: webRoot,
+    server: { middlewareMode: true },
+    appType: 'custom',
+    logLevel: 'silent',
+  });
+  const seo = (await server.ssrLoadModule('/src/site/seo.ts')) as { metaFor: typeof metaFor; allRoutes: typeof allRoutes; SITE: string };
+  metaFor = seo.metaFor;
+  allRoutes = seo.allRoutes;
+  SITE = seo.SITE;
+  const head = (await server.ssrLoadModule('/src/site/head.ts')) as { headHtml: typeof headHtml };
+  headHtml = head.headHtml;
+  const routesModule = (await server.ssrLoadModule('/src/site/public-routes.ts')) as { matchPublic: typeof matchPublic };
+  matchPublic = routesModule.matchPublic;
+});
+
+after(async () => {
+  await server.close();
+});
+
+let SITE = 'https://blipmade.com';
+const routes = (): string[] => allRoutes();
 
 test('the site writes a page for every address it lists', () => {
-  assert.ok(routes.length > 40, `only ${routes.length} addresses are listed`);
-  assert.equal(new Set(routes).size, routes.length, 'an address is listed twice');
-  for (const route of routes) {
+  assert.ok(routes().length > 40, `only ${routes().length} addresses are listed`);
+  assert.equal(new Set(routes()).size, routes().length, 'an address is listed twice');
+  for (const route of routes()) {
     assert.match(route, /^\//, `${route} is not an address of the site`);
   }
 });
 
 test('every page has a title and a description of a length a search engine shows', () => {
-  for (const route of routes) {
+  for (const route of routes()) {
     const meta = metaFor(route);
     assert.ok(meta.title.length > 0, `${route} has no title`);
     assert.ok(meta.title.length <= 60, `the title of ${route} is ${meta.title.length} characters long`);
@@ -46,7 +78,7 @@ test('every page has a title and a description of a length a search engine shows
 
 test('every page names its own address', () => {
   const seen = new Map<string, string>();
-  for (const route of routes) {
+  for (const route of routes()) {
     const meta = metaFor(route);
     assert.equal(meta.canonical, `${SITE}${route === '/' ? '/' : route}`, `${route} names another address`);
     const other = seen.get(meta.canonical);
@@ -56,7 +88,7 @@ test('every page names its own address', () => {
 });
 
 test('the pages of the public site are in the index, the pages of the account are not', () => {
-  for (const route of routes) {
+  for (const route of routes()) {
     const meta = metaFor(route);
     const kind = matchPublic(route).kind;
     if (kind === 'login' || kind === 'register' || kind === 'forgot' || kind === 'reset' || kind === 'verify') {
@@ -109,7 +141,7 @@ test('a page of the documentation is an article with its sections', () => {
 });
 
 test('the structured data of every page can be read', () => {
-  for (const route of routes) {
+  for (const route of routes()) {
     for (const entry of metaFor(route).jsonld) {
       const text = JSON.stringify(entry);
       assert.doesNotThrow(() => JSON.parse(text), `the structured data of ${route} is not readable`);
@@ -119,7 +151,7 @@ test('the structured data of every page can be read', () => {
 });
 
 test('the head of a page carries the words of a shared link', () => {
-  for (const route of routes) {
+  for (const route of routes()) {
     const head = headHtml(metaFor(route));
     assert.match(head, /<title>[^<]+<\/title>/, `${route} has no title in the head`);
     assert.match(head, /<meta name="description" content="[^"]+" \/>/, `${route} has no description in the head`);
@@ -145,14 +177,14 @@ test('the address of the documentation of the site is the one the content uses',
   // The content was written with the old form of the address. The site names
   // a page with a part of the address, and the old form is sent to the new
   // one. The pages of the list are therefore the new form.
-  for (const route of routes) {
+  for (const route of routes()) {
     if (!route.startsWith('/docs/')) continue;
     assert.doesNotMatch(route, /\?/, `${route} carries a question in its address`);
   }
 });
 
 test('a page of the documentation of a product that cannot be deployed is not written', () => {
-  const pages = routes.filter((route) => route.startsWith('/docs/'));
+  const pages = routes().filter((route) => route.startsWith('/docs/'));
   // The catalog carries three products that can be deployed today, and every
   // one of them has its page of the documentation.
   for (const slug of ['code-server', 'discord-bot', 'postgresql']) {

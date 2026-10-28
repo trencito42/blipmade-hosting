@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from '../router';
 import { LEGAL_DOCUMENTS } from '../legal/documents';
+import { LegalFooter } from '../legal/LegalFooter';
 import { LEGAL_PAGES, legalUnresolved } from './legal';
 import { Crumbs, Wrap, cx } from './ui';
 
@@ -114,6 +115,11 @@ export function LegalPage({ slug }: { slug: string }) {
               </div>
             </section>
           ))}
+        </div>
+        {/* The note of the footer of the platform: the identity of the operator
+            is not settled yet, and the page says so. */}
+        <div className="mt-14">
+          <LegalFooter />
         </div>
       </article>
     </Wrap>

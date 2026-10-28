@@ -80,7 +80,6 @@ const PLAIN = new Set([
   "system-ui",
   "-apple-system",
   "BlinkMacSystemFont",
-  "Segoe UI",
   "Roboto",
   "Arial",
   "sans-serif",
