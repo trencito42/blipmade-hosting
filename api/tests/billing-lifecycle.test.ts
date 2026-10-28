@@ -544,19 +544,20 @@ describe('the price of a service is the price of its configuration', () => {
     });
 
     // The import wrote the price of the product instead of the price of the
-    // configuration: 200 (memory) + 100 (cpu) + 200 (disk).
+    // configuration: 49 (the fee of the instance) + 400 (memory) + 150 (cpu)
+    // + 100 (disk).
     const result = await reconcileInstancePrices();
     expect(result.checked).toBe(1);
     expect(result.corrected).toBe(1);
     expect(result.differences[0]?.previousPrice).toBe(100);
-    expect(result.differences[0]?.price).toBe(500);
+    expect(result.differences[0]?.price).toBe(699);
 
     const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
-    expect(updated?.price).toBe(500);
+    expect(updated?.price).toBe(699);
 
     const journal = await prisma.auditLog.findFirst({ where: { action: 'instance.price_reconciled' } });
     expect(journal).toBeTruthy();
-    expect((journal?.meta as { delta?: number })?.delta).toBe(400);
+    expect((journal?.meta as { delta?: number })?.delta).toBe(599);
 
     // The estimate of the panel is the price of the configuration.
     const summary = await client.request('GET', '/api/billing/summary');

@@ -259,6 +259,35 @@ export interface PricedConfiguration {
 }
 
 /**
+ * The rate card of the platform, in minor units, for a month.
+ *
+ * The card is one card for every product of a server: the price of a
+ * gigabyte of memory, the price of a processor, the price of a gigabyte of
+ * disk and the fee of the instance itself.
+ */
+export interface ResourceRates {
+  ramPerGb: number;
+  cpuPerUnit: number;
+  diskPerGb: number;
+  baseFee: number;
+}
+
+/**
+ * The price of a configuration, broken down into what it is made of.
+ *
+ * The parts add up to the total, so the customer sees a breakdown that adds
+ * up. The prices are in minor units.
+ */
+export interface ResourceBreakdown {
+  ram: number;
+  cpu: number;
+  disk: number;
+  base: number;
+  options: number;
+  total: number;
+}
+
+/**
  * What the catalog and the ordering know about a product.
  *
  * `state` is the answer that counts: a product that is listed and priced but
@@ -301,6 +330,15 @@ export interface CatalogProduct {
     period: string;
     minimum: PricedConfiguration;
     recommended: PricedConfiguration;
+    /**
+     * The card of the platform that prices this product.
+     *
+     * The page shows the parts of the price with it, and the server recalculates
+     * the same numbers: the price of an order is never derived on the client.
+     */
+    rates?: ResourceRates;
+    /** The parts of the price of the two configurations of the book. */
+    breakdown?: { minimum: ResourceBreakdown; recommended: ResourceBreakdown };
   } | null;
   /** Whether the product can be ordered, and why not. */
   availability: DeploymentAvailability;
@@ -331,6 +369,30 @@ export interface QuoteItem {
   unitAmount: number;
   total: number;
   currency: string;
+  /** The parts of the price of the line. Null for a line of mail. */
+  breakdown?: ResourceBreakdown | null;
+  /** What the line delivers: a server on a node, or a mail service. */
+  fulfilment?: string;
+}
+
+/**
+ * The tax of the invoice.
+ *
+ * The platform adds the tax to the invoices it writes itself. The rate is the
+ * one the operator wrote in the settings, and the tax is only added when
+ * there is a rate and a tax identifier: the note says why it is zero.
+ */
+export interface QuoteTax {
+  /** The rate of the tax, as a percentage. Null when none is configured. */
+  rate: number | null;
+  /** The tax of the quote, in minor units. */
+  amount: number;
+  /** Whether the tax is added to the invoice. */
+  applies: boolean;
+  /** Why the tax is zero, when it is. */
+  note: string | null;
+  /** The quote and its tax. */
+  total: number;
 }
 
 export interface Quote {
@@ -349,6 +411,8 @@ export interface Quote {
    * code: an empty field is not a wrong code, so it never carries an error.
    */
   promotion: { code: string; valid: boolean; reason?: string } | null;
+  /** The tax that the invoice of this quote carries. */
+  tax?: QuoteTax;
 }
 
 export interface OrderItem {

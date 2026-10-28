@@ -33,6 +33,38 @@ DATA = (1024, 2048, 1, 1, 10, 20, 16384, 4, 200)
 SMALL_GAME = (2048, 4096, 1, 1, 20, 30, 16384, 4, 100)
 BIG_GAME = (4096, 8192, 2, 2, 40, 60, 32768, 8, 250)
 
+# The resources of the products whose egg states what it needs.
+#
+# The tiers above are the floor of the platform: they are a commercial
+# choice, not a measurement. When the egg of a product states a requirement of
+# its own, that requirement wins: a customer must not be able to buy a
+# configuration that the egg of the product says is too small.
+#
+# Every entry below carries the line of the upstream file it was read from.
+# name: (minRam, defaultRam, minCpu, defaultCpu, maxRam, maxCpu, evidence)
+EVIDENCE = {
+    "cs2d": (1024, 2048, 1, 1, 4096, 2,
+             "game-eggs/cs2d/README.md:17, one gigabyte of memory is recommended"),
+    "conan-exiles": (6144, 8192, 2, 2, 32768, 8,
+                     "game-eggs/conan_exiles/README.md:9, about six gigabytes of memory"),
+    "loki": (3072, 4096, 1, 1, 8192, 4,
+             "application-eggs/loki/README.md:15, a minimum of three gigabytes of memory"),
+    "palworld": (16384, 16384, 4, 4, 32768, 8,
+                 "game-eggs/palworld/README.md:86 and :90, sixteen gigabytes of memory and four processors"),
+    "prometheus": (3072, 4096, 1, 1, 8192, 4,
+                   "application-eggs/prometheus/README.md:10, a minimum of three gigabytes of memory"),
+    "redis": (4096, 4096, 1, 1, 4096, 2,
+              "application-eggs/redis/README.md:13, four gigabytes of memory are recommended"),
+    "satisfactory": (8192, 8192, 2, 2, 32768, 8,
+                     "game-eggs/satisfactory/README.md:111, eight gigabytes of memory"),
+    "sons-of-the-forest": (8192, 8192, 2, 2, 32768, 8,
+                           "game-eggs/sons_of_the_forest/README.md:29, a minimum of eight gigabytes of memory"),
+    "space-engineers": (6144, 8192, 2, 2, 32768, 8,
+                        "game-eggs/space_engineers/README.md:33, about six gigabytes of memory"),
+    "team-fortress-2": (2048, 4096, 2, 2, 16384, 4,
+                        "game-eggs/team_fortress_2/README.md:11, two processors"),
+}
+
 # slug: (egg file in the upstream repository, name, category, icon, resources,
 #         description, price band)
 # The price band is one of the three that the platform already uses:
@@ -731,6 +763,16 @@ def main():
                 raise SystemExit(f"the egg of {slug} has no variable named {', '.join(unknown)}")
 
             min_ram, default_ram, min_cpu, default_cpu, min_disk, default_disk, max_ram, max_cpu, max_disk = resources
+            evidence = EVIDENCE.get(slug)
+            if evidence:
+                # The egg states what it needs: its requirement wins over the
+                # tier of the platform. The storage is not touched: no egg
+                # states how much disk it needs.
+                min_ram, default_ram, min_cpu, default_cpu, max_ram, max_cpu = evidence[:6]
+                if default_ram > max_ram:
+                    default_ram = max_ram
+                if min_ram > default_ram:
+                    min_ram = default_ram
             manifest.append({
                 "slug": slug,
                 "name": name,

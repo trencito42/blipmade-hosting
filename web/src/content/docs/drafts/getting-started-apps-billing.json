@@ -3095,7 +3095,7 @@
       "disk",
       "price"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-28",
     "sections": [
       {
         "id": "the-three-resources",
@@ -3114,7 +3114,7 @@
               },
               {
                 "k": "vCPU",
-                "v": "The number of processors the container may use."
+                "v": "The number of processors the container may use. A processor may be a half: a bot of half a processor is a thing the platform can build."
               },
               {
                 "k": "Storage",
@@ -3139,7 +3139,45 @@
           },
           {
             "t": "p",
+            "text": "The price is made of two parts: the resources you buy, and the fee of the instance itself. The fee is the same for every instance, whatever it holds."
+          },
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Memory",
+                "v": "The price of the memory the instance holds."
+              },
+              {
+                "k": "vCPU",
+                "v": "The price of the processor the instance holds. A processor may be a half."
+              },
+              {
+                "k": "Storage",
+                "v": "The price of the storage the instance holds."
+              },
+              {
+                "k": "Instance fee",
+                "v": "The price of the instance itself, the same for every configuration."
+              }
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The configurator shows this breakdown under the estimate, and the parts add up to the amount that is charged."
+          },
+          {
+            "t": "p",
             "text": "Every product of the catalog carries a minimum of resources and a price of its own. The page of the product shows the minimum in the panel Minimum resources, and the card of the product in the catalog shows the starting price."
+          },
+          {
+            "t": "p",
+            "text": "The same resources cost the same in every product of the catalog. A product that asks for less of them is not cheaper to run."
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "The invoice of the platform adds the tax of the country the platform is registered in, when the platform is registered for it. The configurator shows the tax of the invoice and the total it brings."
           },
           {
             "t": "p",
@@ -3204,7 +3242,7 @@
             "items": [
               {
                 "q": "The minimum of the product is not enough for my application.",
-                "a": "The minimum is the smallest configuration the catalog allows for this product, and the platform refuses a configuration that is under it. Change the product, or put the application on an instance of a product with a smaller minimum."
+                "a": "The minimum is the smallest configuration the catalog allows for this product, and the platform refuses a configuration that is under it. It is set from what the application of the product needs. Change the product, or put the application on an instance of a product with a smaller minimum."
               },
               {
                 "q": "The price of my instance did not change with the resources.",

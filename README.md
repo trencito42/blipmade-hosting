@@ -417,6 +417,7 @@ round, with the evidence for every line.
 |---|---|
 | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | The incident procedures: the panel is unreachable, the node is down, the worker has a backlog, a webhook failed, a restore, a drill, a credential rotation. |
 | [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | Every route of the API, with its parameters and its answers. |
+| [`docs/PRICING.md`](docs/PRICING.md) | The card of the platform, the arithmetic of the price, the policy of the prices that already exist and the policy of the shared processors. |
 | [`docs/FRONTEND_CONTRACT.md`](docs/FRONTEND_CONTRACT.md) | Every screen of the frontend and the calls it makes. |
 | [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) | What is finished, what is implemented but unverified and what is blocked, with the command that proves each claim. |
 | [`docs/FRONTEND_REVIEW.md`](docs/FRONTEND_REVIEW.md) | The review of the interface of 2026-10-23: the typeface, the auth screens, the path to the first deployment, the customer overview, the phone and the states of every route. |

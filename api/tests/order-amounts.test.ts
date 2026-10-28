@@ -190,10 +190,10 @@ describe('an order paid with a promotion', () => {
     });
 
     expect(response.status).toBe(201);
-    // 150 cents, half of it taken away: 75 cents off, 75 cents to pay.
-    expect(response.body.order.total).toBe(75);
-    expect(response.body.order.discount).toBe(75);
-    expect(response.body.order.items[0].unitAmount).toBe(150);
+    // 249 cents, half of it taken away: 125 cents off, 124 cents to pay.
+    expect(response.body.order.total).toBe(124);
+    expect(response.body.order.discount).toBe(125);
+    expect(response.body.order.items[0].unitAmount).toBe(249);
   });
 
   it('confirms an order that a promotion covers completely, without a payment', async () => {
@@ -207,7 +207,7 @@ describe('an order paid with a promotion', () => {
     });
     expect(created.status).toBe(201);
     expect(created.body.order.total).toBe(0);
-    expect(created.body.order.discount).toBe(150);
+    expect(created.body.order.discount).toBe(249);
 
     const checkout = await client.request('POST', `/api/orders/${created.body.order.id}/checkout`);
 

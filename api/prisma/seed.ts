@@ -302,7 +302,7 @@ async function main(): Promise<void> {
   );
   const catalogue = parseManifest(readFileSync(manifestPath, 'utf8'));
   const report = await importCatalogue(prisma, catalogue, {
-    rates: { ramPerGb: 100, cpuPerUnit: 50, diskPerGb: 10 },
+    rates: { ramPerGb: 200, cpuPerUnit: 75, diskPerGb: 5 },
   });
   console.info(
     `Seeded the catalogue of the eggs: ${report.created.length} products written, ${report.updated.length} brought back to the manifest.`,

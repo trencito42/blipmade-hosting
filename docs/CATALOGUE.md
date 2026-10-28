@@ -30,12 +30,44 @@ same way the button of the interface does it
 number of an egg belongs to the panel: a product names its egg, and the
 importer of the catalogue fills the number when the panel carries it.
 
+### The resources of a product
+
+Every product carries the resources it runs with: the least it runs with, what
+it gets by default and the most the platform lets it have.
+
+The floor of the platform is a commercial choice: the products are put in
+bands (a light service, an application, a database, a small game, a big game)
+and every product of a band starts with the same resources. When the egg of a
+product states what it needs, that requirement wins over the band, because a
+customer must not be able to buy a configuration that the egg says is too
+small. Ten products were checked against their own upstream file on
+2026-10-28 and their floor was raised:
+
+| product | memory | processors | what the egg says |
+| --- | --- | --- | --- |
+| CS2D | 1024 MiB | 1 | one gigabyte of memory is recommended (`game-eggs/cs2d/README.md:17`) |
+| Conan Exiles | 6144 MiB | 2 | about six gigabytes of memory (`game-eggs/conan_exiles/README.md:9`) |
+| Loki | 3072 MiB | 1 | a minimum of three gigabytes of memory (`application-eggs/loki/README.md:15`) |
+| Palworld | 16384 MiB | 4 | sixteen gigabytes of memory and four processors (`game-eggs/palworld/README.md:86` and `:90`) |
+| Prometheus | 3072 MiB | 1 | a minimum of three gigabytes of memory (`application-eggs/prometheus/README.md:10`) |
+| Redis | 4096 MiB | 1 | four gigabytes of memory are recommended (`application-eggs/redis/README.md:13`) |
+| Satisfactory | 8192 MiB | 2 | eight gigabytes of memory (`game-eggs/satisfactory/README.md:111`) |
+| Sons of the Forest | 8192 MiB | 2 | a minimum of eight gigabytes of memory (`game-eggs/sons_of_the_forest/README.md:29`) |
+| Space Engineers | 6144 MiB | 2 | about six gigabytes of memory (`game-eggs/space_engineers/README.md:33`) |
+| Team Fortress 2 | 2048 MiB | 2 | two processors (`game-eggs/team_fortress_2/README.md:11`) |
+
+The other fifty-six products keep the floor of their band: their egg states
+no requirement of memory, of processor or of storage, so nothing was invented
+for them. The storage is the floor of the band everywhere: no egg of the
+catalogue states how much disk it needs.
+
 ## The price of a server
 
 A server is priced by what it uses, and by nothing else:
 
 ```
-ramPerGb  × gigabytes of memory
+baseFee
++ ramPerGb  × gigabytes of memory
 + cpuPerUnit × vCPU
 + diskPerGb × gigabytes of storage
 ```
@@ -48,14 +80,19 @@ kept in the settings under the key `pricing_resources`:
 
 | rate | default | meaning |
 | --- | --- | --- |
-| `ramPerGb` | 100 | the price of a gigabyte of memory, for a month |
-| `cpuPerUnit` | 50 | the price of a processor, for a month |
-| `diskPerGb` | 10 | the price of a gigabyte of storage, for a month |
+| `ramPerGb` | 200 | the price of a gigabyte of memory, for a month |
+| `cpuPerUnit` | 75 | the price of a processor, for a month |
+| `diskPerGb` | 5 | the price of a gigabyte of storage, for a month |
+| `baseFee` | 49 | the fee of the instance itself, whatever it holds, for a month |
 
 The card is changed in the back office, in the page of the prices. Writing it
 there writes it for every product of the platform at once, and the rows of the
 prices are brought back to it, so the back office shows the card that is
 really used.
+
+The card, the arithmetic, the policy of the prices that already exist and the
+policy of the shared processors are described in
+[`PRICING.md`](PRICING.md).
 
 The card is the price of a month. A year is the twelve months of that card:
 a product without a yearly price is refused when a year is quoted, so the

@@ -73,13 +73,13 @@ async function main(): Promise<void> {
         const raw = value[name];
         return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 ? raw : rates[name];
       };
-      rates = { ramPerGb: read('ramPerGb'), cpuPerUnit: read('cpuPerUnit'), diskPerGb: read('diskPerGb') };
+      rates = { ramPerGb: read('ramPerGb'), cpuPerUnit: read('cpuPerUnit'), diskPerGb: read('diskPerGb'), baseFee: read('baseFee') };
     }
   } catch {
     console.info('The card of the platform could not be read; the default one is used.');
   }
   console.info(
-    `The rate card of the platform: ${rates.ramPerGb} per GB of memory, ${rates.cpuPerUnit} per vCPU, ${rates.diskPerGb} per GB of disk.`,
+    `The rate card of the platform: ${rates.ramPerGb} per GB of memory, ${rates.cpuPerUnit} per vCPU, ${rates.diskPerGb} per GB of disk, ${rates.baseFee} of fee per instance.`,
   );
 
   const report = await importCatalogue(prisma, manifest, { rates, eggIds });

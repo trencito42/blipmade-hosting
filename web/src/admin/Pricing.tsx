@@ -4,6 +4,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
 import { DASH, LiveRegion, denseGhost, denseInput, densePrimary, denseSoft, useAdminSession } from './Overview';
 import { pricingGate } from './permissions';
+import Capacity from './Capacity';
 
 /**
  * Staff pricing — GET /api/admin/pricing, PUT /api/admin/pricing/:id
@@ -38,6 +39,21 @@ interface AdminPrice {
   active: boolean;
 }
 
+/**
+ * The card of the platform.
+ *
+ * One card for every product of a server: the price of a gigabyte of memory,
+ * the price of a processor, the price of a gigabyte of disk and the fee of the
+ * instance itself. The same resources cost the same in every product, in
+ * every category and for every egg.
+ */
+interface ResourceRates {
+  ramPerGb: number;
+  cpuPerUnit: number;
+  diskPerGb: number;
+  baseFee: number;
+}
+
 /** Only whole minor units are accepted. */
 function parseMinor(value: string): number | null {
   if (!/^\d+$/.test(value.trim())) return null;
@@ -52,11 +68,12 @@ export default function Pricing() {
   const state = useAsync(
     (signal) =>
       mayRead
-        ? get<{ prices: AdminPrice[] }>('/admin/pricing', undefined, signal)
-        : Promise.resolve({ prices: [] as AdminPrice[] }),
+        ? get<{ rates: ResourceRates; prices: AdminPrice[] }>('/admin/pricing', undefined, signal)
+        : Promise.resolve({ rates: null as ResourceRates | null, prices: [] as AdminPrice[] }),
     [mayRead],
   );
   const prices = state.data?.prices ?? [];
+  const rates = state.data?.rates ?? null;
 
   if (session.loading) {
     return (
@@ -88,6 +105,8 @@ export default function Pricing() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`${prices.length} price${prices.length === 1 ? '' : 's'}`} />
+      {rates && <RateCard rates={rates} mayWrite={mayWrite} onSaved={state.reload} />}
+      {mayRead && <Capacity />}
       <Panel
         title="Pricing"
         description="Base price for the minimum configuration plus the rate for every extra gigabyte of memory, vCPU and disk."
@@ -118,6 +137,181 @@ export default function Pricing() {
         by this page.
       </p>
     </div>
+  );
+}
+
+/**
+ * The card of the platform.
+ *
+ * The card is one card for every product of a server, and it is written in
+ * the settings of the platform and in every row of a server, so that no two
+ * products can drift apart.
+ *
+ * The prices the customers already have are not touched: a running instance
+ * keeps the price it was sold at, until an operator reconciles them on
+ * purpose.
+ */
+function RateCard({
+  rates,
+  mayWrite,
+  onSaved,
+}: {
+  rates: ResourceRates;
+  mayWrite: boolean;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [ram, setRam] = useState(String(rates.ramPerGb));
+  const [cpu, setCpu] = useState(String(rates.cpuPerUnit));
+  const [disk, setDisk] = useState(String(rates.diskPerGb));
+  const [fee, setFee] = useState(String(rates.baseFee));
+  const [touched, setTouched] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const save = useAction(async () =>
+    put<{ rates: ResourceRates }>('/admin/pricing/rates', {
+      ramPerGb: parseMinor(ram),
+      cpuPerUnit: parseMinor(cpu),
+      diskPerGb: parseMinor(disk),
+      baseFee: parseMinor(fee),
+    }),
+  );
+
+  const ramPerGb = parseMinor(ram);
+  const cpuPerUnit = parseMinor(cpu);
+  const diskPerGb = parseMinor(disk);
+  const baseFee = parseMinor(fee);
+  const valid = ramPerGb !== null && cpuPerUnit !== null && diskPerGb !== null && baseFee !== null;
+  const numberError = touched && !valid ? 'Use whole cents only. 0 is allowed.' : undefined;
+
+  const changes: string[] = [];
+  if (ramPerGb !== null && ramPerGb !== rates.ramPerGb) {
+    changes.push(`The price of a gigabyte of memory goes from ${rates.ramPerGb} to ${ramPerGb} cents.`);
+  }
+  if (cpuPerUnit !== null && cpuPerUnit !== rates.cpuPerUnit) {
+    changes.push(`The price of a processor goes from ${rates.cpuPerUnit} to ${cpuPerUnit} cents.`);
+  }
+  if (diskPerGb !== null && diskPerGb !== rates.diskPerGb) {
+    changes.push(`The price of a gigabyte of disk goes from ${rates.diskPerGb} to ${diskPerGb} cents.`);
+  }
+  if (baseFee !== null && baseFee !== rates.baseFee) {
+    changes.push(`The fee of the instance goes from ${rates.baseFee} to ${baseFee} cents.`);
+  }
+  const changed = changes.length > 0;
+
+  const submit = async () => {
+    setTouched(true);
+    if (!valid) return;
+    const result = await save.run();
+    if (!result) return;
+    toast.push('The rate card of the platform is saved', 'ok');
+    setConfirming(false);
+    onSaved();
+  };
+
+  return (
+    <Panel
+      title="Rate card of the platform"
+      description="One card for every server. The price of a server is its resources plus the fee of the instance."
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Field label="Per GB memory (cents)" htmlFor="card-ram">
+          <input
+            id="card-ram"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={ram}
+            onChange={(event) => setRam(event.target.value)}
+            disabled={!mayWrite}
+            className={denseInput}
+          />
+        </Field>
+        <Field label="Per vCPU (cents)" htmlFor="card-cpu">
+          <input
+            id="card-cpu"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={cpu}
+            onChange={(event) => setCpu(event.target.value)}
+            disabled={!mayWrite}
+            className={denseInput}
+          />
+        </Field>
+        <Field label="Per GB disk (cents)" htmlFor="card-disk">
+          <input
+            id="card-disk"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={disk}
+            onChange={(event) => setDisk(event.target.value)}
+            disabled={!mayWrite}
+            className={denseInput}
+          />
+        </Field>
+        <Field label="Instance fee (cents)" htmlFor="card-fee">
+          <input
+            id="card-fee"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={fee}
+            onChange={(event) => setFee(event.target.value)}
+            disabled={!mayWrite}
+            className={denseInput}
+          />
+        </Field>
+      </div>
+
+      <p className="mt-3 text-[12.5px] leading-relaxed text-ink3">
+        The price of a server is <span className="font-mono">fee + GB memory × rate + vCPU × rate + GB disk × rate</span>, for a
+        month. A year is twelve months of that card. The same resources cost the same in every product of the platform.
+      </p>
+
+      {numberError && (
+        <p role="alert" className="mt-3 px-1 text-[12.5px] font-medium text-bad">
+          {numberError}
+        </p>
+      )}
+      {save.error && (
+        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-bold text-bad">
+          {save.error}
+        </p>
+      )}
+
+      {mayWrite && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setConfirming(true)} disabled={!changed || save.pending} className={densePrimary}>
+            {save.pending ? 'Saving…' : 'Save the card'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRam(String(rates.ramPerGb));
+              setCpu(String(rates.cpuPerUnit));
+              setDisk(String(rates.diskPerGb));
+              setFee(String(rates.baseFee));
+              setTouched(false);
+            }}
+            className={denseSoft}
+          >
+            Reset
+          </button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirming}
+        title="Save the rate card of the platform"
+        description={`${changes.join(' ')} The prices the running instances already carry are not changed: they keep the price they were sold at until you reconcile them on purpose.`}
+        confirmLabel="Save the card"
+        onConfirm={submit}
+        onCancel={() => setConfirming(false)}
+        busy={save.pending}
+      />
+    </Panel>
   );
 }
 

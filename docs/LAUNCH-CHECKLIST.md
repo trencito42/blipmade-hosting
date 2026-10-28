@@ -416,11 +416,30 @@ is written in the catalogue.
 
 **The price is now the price of the resources.** A server costs what it uses
 and nothing else, with one card of rates for the whole platform
-(`pricing_resources`: 100 per GB of memory, 50 per vCPU, 10 per GB of disk,
-for a month). The card is changed in one place, in the back office of the
-prices, and it changes the price of every product at once. The prices that
-were on the five old products change with it: the base of a server is not used
-any more.
+(`pricing_resources`: 200 per GB of memory, 75 per vCPU, 5 per GB of disk
+and 49 of fee per instance, for a month). The card is changed in one place, in
+the back office of the prices, and it changes the price of every product at
+once. The base of a server is not used any more.
+
+**The prices the customers already have are not touched.** A running instance
+keeps the price it was sold at. The reconciliation is an action of the
+operator (`POST /api/admin/instances/reconcile-prices`), and it writes every
+difference to the journal of the instance and to the audit trail.
+
+**Half of a processor is a thing the platform sells.** A bot of half a vCPU
+is a thing the panel can build, so the limits of a product can say "half a
+processor" and the selector of the customer offers halves. The price is the
+same formula in every case: the fee of the instance, plus the memory, the
+processor and the storage.
+
+**The capacity of the platform is measured, not assumed.** The panel does not
+publish the processor of a node, so the operator declares the cores of a node
+(`capacity.node_cores`) and the platform sells the cores of the node
+multiplied by the factor of the oversubscription
+(`capacity.cpu_oversubscription`, 4 by default). A node that was never
+declared sells four cores, so it cannot be filled to the brim by accident.
+
+The whole model is described in [`PRICING.md`](PRICING.md).
 
 **The values of the customer.** A game that needs a licence, an account or a
 token asks for it at the order: the product declares the variables, the

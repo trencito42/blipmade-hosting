@@ -25,7 +25,15 @@ import {
 } from '../services/panel/credentials.js';
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
-import { saveResourceRates } from '../services/pricing.js';
+import { resourceRates, saveResourceRates, RESOURCE_RATES_KEY } from '../services/pricing.js';
+import {
+  cpuOversubscription,
+  declaredNodeCosts,
+  declaredNodeCores,
+  DEFAULT_NODE_CORES,
+  nodeCpuCapacity,
+  revenueSummary,
+} from '../services/capacity.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
 import { defaultLimitPerUser, promotionRisk } from '../services/pricing.js';
 import {
@@ -934,6 +942,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       orderBy: [{ product: { name: 'asc' } }, { period: 'asc' }],
     });
     return {
+      // The card of the platform: one card for every product of a server. It
+      // is here so that the back office shows the rates that are really used
+      // and not the rates of a row that drifted.
+      rates: await resourceRates(),
       prices: prices.map((price) => ({
         id: price.id,
         productId: price.productId,
@@ -949,6 +961,52 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * The card of the platform.
+   *
+   * One card for every product of a server: the price of a gigabyte of
+   * memory, the price of a processor, the price of a gigabyte of disk and the
+   * fee of the instance itself. It is written here and in every row of a
+   * server, so that no two products can drift apart.
+   *
+   * The prices the customers already have are not touched: a running instance
+   * keeps the price it was sold at, until an operator reconciles them on
+   * purpose.
+   */
+  app.put('/admin/pricing/rates', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('pricing.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const body = z
+      .object({
+        ramPerGb: z.number().int().min(0).optional(),
+        cpuPerUnit: z.number().int().min(0).optional(),
+        diskPerGb: z.number().int().min(0).optional(),
+        baseFee: z.number().int().min(0).optional(),
+      })
+      .parse(request.body ?? {});
+
+    const current = await resourceRates();
+    const rates = {
+      ramPerGb: body.ramPerGb ?? current.ramPerGb,
+      cpuPerUnit: body.cpuPerUnit ?? current.cpuPerUnit,
+      diskPerGb: body.diskPerGb ?? current.diskPerGb,
+      baseFee: body.baseFee ?? current.baseFee,
+    };
+    const saved = await saveResourceRates(rates);
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'pricing.rates_updated',
+      targetType: 'setting',
+      targetId: RESOURCE_RATES_KEY,
+      meta: { before: current, after: saved },
+      ip: request.ip,
+    });
+    return { rates: saved };
+  });
+
   app.put('/admin/pricing/:id', {
     config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
     preHandler: [requirePermission('pricing.write'), customerLimit(app, LIMITS.adminWrite)],
@@ -961,6 +1019,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         ramPerGb: z.number().int().min(0).optional(),
         cpuPerUnit: z.number().int().min(0).optional(),
         diskPerGb: z.number().int().min(0).optional(),
+        // The fee of the instance is part of the card of the platform, like
+        // the three rates are.
+        baseFee: z.number().int().min(0).optional(),
         active: z.boolean().optional(),
       })
       .parse(request.body);
@@ -977,10 +1038,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     // products can drift apart. The base of a server is not part of its
     // price and is not kept: the resources are the price.
     if (existing.product.fulfilment === 'SERVER') {
+      const current = await resourceRates();
       const rates = {
-        ramPerGb: body.ramPerGb ?? existing.ramPerGb,
-        cpuPerUnit: body.cpuPerUnit ?? existing.cpuPerUnit,
-        diskPerGb: body.diskPerGb ?? existing.diskPerGb,
+        ramPerGb: body.ramPerGb ?? current.ramPerGb,
+        cpuPerUnit: body.cpuPerUnit ?? current.cpuPerUnit,
+        diskPerGb: body.diskPerGb ?? current.diskPerGb,
+        baseFee: body.baseFee ?? current.baseFee,
       };
       await saveResourceRates(rates);
       await prisma.productPrice.updateMany({
@@ -998,6 +1061,112 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const price = await prisma.productPrice.update({ where: { id }, data: body });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: body, ip: request.ip });
     return { price };
+  });
+
+  /**
+   * The capacity of the platform and the revenue it carries.
+   *
+   * The memory and the disk come from the panel, the processors come from the
+   * policy of the shared processors, and the revenue comes from the prices of
+   * the running instances. The cost of the nodes is what the operator
+   * declared: when he declared none, the margin is unknown and the panel says
+   * so instead of showing a number that would be made up.
+   */
+  app.get('/admin/capacity', { preHandler: requirePermission('pricing.read') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const [nodes, revenue, oversubscription, cores, costs] = await Promise.all([
+      ptero.listNodes(),
+      revenueSummary(),
+      cpuOversubscription(),
+      declaredNodeCores(),
+      declaredNodeCosts(),
+    ]);
+
+    const rows = await Promise.all(
+      nodes.map(async (node) => {
+        const memoryTotalMb = node.memory + node.memory_overallocate;
+        const diskTotalMb = node.disk + node.disk_overallocate;
+        const cpu = await nodeCpuCapacity(node.id);
+        return {
+          id: node.id,
+          name: node.name,
+          maintenance: node.maintenance_mode,
+          memoryTotalMb,
+          memoryAllocatedMb: node.allocated_resources.memory,
+          memoryFreeMb: Math.max(0, memoryTotalMb - node.allocated_resources.memory),
+          diskTotalMb,
+          diskAllocatedMb: node.allocated_resources.disk,
+          diskFreeMb: Math.max(0, diskTotalMb - node.allocated_resources.disk),
+          cores: cpu.cores,
+          coresDeclared: cpu.declared,
+          sellableVcpu: cpu.sellableVcpu,
+          allocatedVcpu: cpu.allocatedVcpu,
+          freeVcpu: cpu.freeVcpu,
+          // The cost of the node, when the operator declared it.
+          monthlyCost: costs.get(node.id) ?? null,
+        };
+      }),
+    );
+
+    const totals = rows.reduce(
+      (sum, row) => ({
+        memoryTotalMb: sum.memoryTotalMb + row.memoryTotalMb,
+        memoryAllocatedMb: sum.memoryAllocatedMb + row.memoryAllocatedMb,
+        diskTotalMb: sum.diskTotalMb + row.diskTotalMb,
+        diskAllocatedMb: sum.diskAllocatedMb + row.diskAllocatedMb,
+        sellableVcpu: sum.sellableVcpu + row.sellableVcpu,
+        allocatedVcpu: sum.allocatedVcpu + row.allocatedVcpu,
+      }),
+      {
+        memoryTotalMb: 0,
+        memoryAllocatedMb: 0,
+        diskTotalMb: 0,
+        diskAllocatedMb: 0,
+        sellableVcpu: 0,
+        allocatedVcpu: 0,
+      },
+    );
+
+    // The cost of the nodes is only known when every node that holds an
+    // instance was declared. A node that was not declared makes the margin
+    // unknown, and the panel says so.
+    const declaredNodes = rows.filter((row) => row.monthlyCost !== null);
+    const allDeclared = rows.length > 0 && declaredNodes.length === rows.length;
+    const monthlyCost = allDeclared ? rows.reduce((sum, row) => sum + (row.monthlyCost ?? 0), 0) : null;
+
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'capacity.read', targetType: 'platform', targetId: 'capacity' });
+
+    return {
+      nodes: rows,
+      totals: {
+        ...totals,
+        memoryFreeMb: Math.max(0, totals.memoryTotalMb - totals.memoryAllocatedMb),
+        diskFreeMb: Math.max(0, totals.diskTotalMb - totals.diskAllocatedMb),
+        freeVcpu: Math.max(0, totals.sellableVcpu - totals.allocatedVcpu),
+      },
+      policy: {
+        oversubscription,
+        defaultNodeCores: DEFAULT_NODE_CORES,
+        declaredNodes: cores.size,
+      },
+      revenue,
+      costs: {
+        // The cost of the nodes, in the currency of the platform, for a month.
+        monthly: monthlyCost,
+        declared: allDeclared,
+        note: allDeclared
+          ? null
+          : 'The cost of the nodes is not declared for every node, so the margin of the platform is unknown.',
+      },
+      margin: {
+        // The margin of a month, in the currency of the platform.
+        monthly: monthlyCost === null ? null : revenue.mrr - monthlyCost,
+        percent:
+          monthlyCost === null || revenue.mrr === 0
+            ? null
+            : Math.round(((revenue.mrr - monthlyCost) / revenue.mrr) * 10_000) / 100,
+      },
+    };
   });
 
   app.get('/admin/tickets', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {

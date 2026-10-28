@@ -1,5 +1,6 @@
 import { connect } from 'node:net';
 import { prisma } from '../db.js';
+import { canHoldProcessor, nodeCpuCapacity, processorRefusal } from './capacity.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
 import { unavailable } from '../lib/errors.js';
@@ -549,7 +550,7 @@ export function capacityRefusal(
 async function chooseNode(instance: { ram: number; disk: number; cpu: number }, product: Product): Promise<NodeChoice> {
   const required = requiredCapacity(instance);
 
-  if (instance.cpu < 1 || instance.cpu > product.maxCpu) {
+  if (instance.cpu <= 0 || instance.cpu > product.maxCpu) {
     throw new ProvisioningError(
       'node_selected',
       `This configuration asks for ${instance.cpu} vCPU (${required.cpuPercent}%), but ${product.name} allows at most ${product.maxCpu} vCPU.`,
@@ -567,6 +568,17 @@ async function chooseNode(instance: { ram: number; disk: number; cpu: number }, 
     const capacity = nodeCapacity(node);
     if (capacity.freeMemoryMb < required.memoryMb || capacity.freeDiskMb < required.diskMb) {
       refusals.push(capacityRefusal(node, capacity, required));
+      continue;
+    }
+
+    // The processor of the node is checked against the policy of the shared
+    // processors: a node sells the cores it has, multiplied by the factor of
+    // the oversubscription, and never more. The panel does not publish the
+    // processor of a node, so the platform counts the processors that it sold
+    // itself.
+    const cpu = await nodeCpuCapacity(node.id);
+    if (!canHoldProcessor(cpu, instance.cpu)) {
+      refusals.push(processorRefusal(cpu, instance.cpu));
       continue;
     }
 

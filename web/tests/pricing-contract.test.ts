@@ -18,11 +18,13 @@ import {
   clampConfiguration,
   configurationFromQuery,
   configurationToQuery,
+  cpuOptions,
   deployPathFor,
   isOrderable,
   minimumConfiguration,
   optionCodesFromQuery,
   orderBlockers,
+  ramOptions,
   recommendedConfiguration,
   recommendedPreset,
   recommendedPrice,
@@ -180,4 +182,47 @@ test('an old server without an availability falls back to the flag', () => {
 test('two configurations are the same when their resources are the same', () => {
   assert.equal(sameConfiguration({ ram: 512, cpu: 1, disk: 5 }, { ram: 512, cpu: 1, disk: 5 }), true);
   assert.equal(sameConfiguration({ ram: 512, cpu: 1, disk: 5 }, { ram: 1024, cpu: 1, disk: 5 }), false);
+});
+
+test('a half of a processor is a thing the customer can pick', () => {
+  // A bot of half a processor is a thing the panel can build, so the grid of
+  // the selector holds halves.
+  const product = wordpress({ minCpu: 0.5, maxCpu: 4, defaultCpu: 1 });
+  const options = cpuOptions(product);
+
+  assert.ok(options.includes(0.5), 'the smallest share is offered');
+  assert.ok(options.includes(1.5), 'a half between two whole processors is offered');
+  assert.ok(options.includes(4), 'the biggest share the product allows is offered');
+  // Every share of the grid is a whole or a half, and nothing is outside the
+  // limits of the product.
+  for (const option of options) {
+    assert.equal(Math.round(option * 2) / 2, option);
+    assert.ok(option >= product.minCpu && option <= product.maxCpu);
+  }
+  // The grid is sorted, so the control shows the shares in order.
+  assert.deepEqual([...options].sort((a, b) => a - b), options);
+});
+
+test('the address keeps a half of a processor and refuses a quarter of one', () => {
+  const product = wordpress({ minCpu: 0.5, maxCpu: 4, defaultCpu: 1 });
+
+  assert.deepEqual(configurationFromQuery({ cpu: '0.5' }, product), { ram: 512, cpu: 0.5, disk: 5 });
+  assert.deepEqual(configurationFromQuery({ cpu: '1.5' }, product), { ram: 512, cpu: 1.5, disk: 5 });
+  // A quarter of a processor is not a configuration the platform sells: the
+  // address falls back on the configuration the deployment starts from.
+  assert.deepEqual(configurationFromQuery({ cpu: '0.25' }, product), { ram: 512, cpu: 0.5, disk: 5 });
+  assert.deepEqual(configurationFromQuery({ cpu: '0.75' }, product), { ram: 512, cpu: 0.5, disk: 5 });
+  // The memory and the storage stay whole numbers.
+  assert.deepEqual(configurationFromQuery({ ram: '1.5' }, product), { ram: 512, cpu: 0.5, disk: 5 });
+});
+
+test('the grid of the memory holds the limits of the product', () => {
+  const product = wordpress({ minRam: 512, maxRam: 8192, defaultRam: 1024 });
+  const options = ramOptions(product);
+  assert.equal(options[0], 512);
+  assert.equal(options[options.length - 1], 8192);
+  assert.ok(options.includes(1024));
+  for (const option of options) {
+    assert.equal(Number.isInteger(option), true);
+  }
 });

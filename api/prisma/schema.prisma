@@ -366,15 +366,19 @@ model Product {
   // The command the container runs. Overrides the egg default when set.
   startupCommand String?
   // Minimum resources required to run.
+  //
+  // The processor is counted in vCPU and it may be a half: a small bot of half
+  // a processor is a thing the panel can build, and the price of the
+  // resources is the same for every product.
   minRam      Int      @default(512)
-  minCpu      Int      @default(1)
+  minCpu      Float    @default(1)
   minDisk     Int      @default(5)
   // Default resources used when deploying.
   defaultRam  Int      @default(512)
-  defaultCpu  Int      @default(1)
+  defaultCpu  Float    @default(1)
   defaultDisk Int      @default(5)
   maxRam      Int      @default(16384)
-  maxCpu      Int      @default(4)
+  maxCpu      Float    @default(4)
   maxDisk     Int      @default(100)
   visible     Boolean  @default(true)
   // Only genuinely validated products may be ordered.
@@ -784,7 +788,7 @@ model Instance {
   pterodactylAllocation Int?
   pterodactylNodeId     Int?
   ram               Int
-  cpu               Int
+  cpu               Float
   disk              Int
   price             Int
   currency          String         @default("EUR")

@@ -5,7 +5,8 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { notFound } from '../lib/errors.js';
 import { addressRateLimitKey } from '../plugins/auth.js';
-import { buildQuote, priceBook, resourceRates } from '../services/pricing.js';
+import { breakdownOfResources, buildQuote, priceBook, resourceRates } from '../services/pricing.js';
+import { companyDetails, taxOf } from '../services/billing.js';
 import { parseCustomerVariableSpecs } from '../services/instance-credentials.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { priceRowFor } from '../services/pricing.js';
@@ -16,7 +17,9 @@ const quoteItemSchema = z.object({
   // A line of servers carries its resources. A line of mail carries none:
   // the plan of the line is the whole configuration.
   ram: z.number().int().positive().optional(),
-  cpu: z.number().int().positive().optional(),
+  // The processor is a share of a processor, and a share may be a half. The
+  // limits of the product are checked when the line is priced.
+  cpu: z.number().positive().optional(),
   disk: z.number().int().positive().optional(),
   optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
@@ -87,6 +90,7 @@ async function serializeProduct(product: {
   // The price book: what the minimum configuration costs (the starting price
   // of the catalog) and what the recommended one costs. Both are calculated
   // with the function that prices an order.
+  const rates = await resourceRates();
   const book = price
     ? priceBook(product, {
         baseAmount: price.baseAmount,
@@ -95,7 +99,7 @@ async function serializeProduct(product: {
         diskPerGb: price.diskPerGb,
         currency: price.currency,
         period: price.period,
-      }, await resourceRates())
+      }, rates)
     : null;
   return {
     id: product.id,
@@ -150,6 +154,16 @@ async function serializeProduct(product: {
           period: book.period,
           minimum: book.minimum,
           recommended: book.recommended,
+          // The card of the platform and the parts of the price. The
+          // configurator shows the breakdown of the configuration the
+          // customer chooses, and it needs the rates to do it: the server
+          // recalculates the same numbers and the order is priced by the
+          // server, never by the page.
+          rates,
+          breakdown: {
+            minimum: breakdownOfResources(book.minimum, rates),
+            recommended: breakdownOfResources(book.recommended, rates),
+          },
         }
       : null,
     availability,
@@ -258,6 +272,12 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       // campaign per account is checked while the quote is made. A code that
       // the customer has already used is refused here, not later at the order.
       const quote = await buildQuote(body.items, body.promotionCode, request.user?.id ?? null, body.period);
+      // The tax of the platform is the one the operator wrote in the settings:
+      // a rate and a tax identifier, or nothing. The same rule the invoice
+      // uses is used here, so the amount the configurator shows is the amount
+      // that lands on the invoice.
+      const company = await companyDetails();
+      const tax = company.taxApplies && company.taxRate !== null ? taxOf(quote.total, company.taxRate) : 0;
       return {
         period: body.period,
         items: quote.items.map((item) => ({
@@ -273,12 +293,23 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           currency: item.currency,
           fulfilment: item.fulfilment,
           mailDomain: item.mailDomain ?? null,
+          // The parts of the price of the line, for the lines of servers.
+          breakdown: item.breakdown ?? null,
         })),
         subtotal: quote.subtotal,
         discount: quote.discount,
         total: quote.total,
         currency: quote.currency,
         promotion: quote.promotion,
+        // The tax of the invoice. It is zero as long as the operator has not
+        // written a rate and a tax identifier.
+        tax: {
+          rate: company.taxRate,
+          amount: tax,
+          applies: company.taxApplies,
+          note: company.taxNote,
+          total: quote.total + tax,
+        },
       };
     },
   });

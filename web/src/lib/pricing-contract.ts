@@ -103,8 +103,13 @@ export function recommendedPreset(product: CatalogProduct): ResourceConfiguratio
 /** The memory sizes the catalogue knows, in megabytes. */
 const RAM_STEPS_MB = [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072];
 
-/** The vCPU counts the catalogue knows. */
-const CPU_STEPS = [1, 2, 4, 8, 16];
+/**
+ * The vCPU counts the catalogue knows.
+ *
+ * A processor is a share of a processor, and a share may be a half: a small
+ * bot of half a processor is a thing the platform can build and to sell.
+ */
+const CPU_STEPS = [0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16];
 
 /** The memory sizes the customer can pick, in megabytes. */
 export function ramOptions(product: CatalogProduct): number[] {
@@ -115,12 +120,20 @@ export function ramOptions(product: CatalogProduct): number[] {
   return [...values].filter((value) => value >= min && value <= max).sort((a, b) => a - b);
 }
 
-/** The vCPU counts the customer can pick. */
+/**
+ * The vCPU counts the customer can pick.
+ *
+ * The step of the selector is a half, so every half between the smallest and
+ * the largest count of the product is one of the options.
+ */
 export function cpuOptions(product: CatalogProduct): number[] {
   const min = product.minCpu;
   const max = Math.max(min, product.maxCpu);
   const values = new Set<number>([min, max, recommendedPreset(product).cpu]);
   for (const step of CPU_STEPS) if (step >= min && step <= max) values.add(step);
+  // Every half between the limits, so the maximum the catalogue announces is
+  // reachable with the step of the selector.
+  for (let value = Math.ceil(min * 2) / 2; value <= max + 1e-9; value += 0.5) values.add(value);
   return [...values].filter((value) => value >= min && value <= max).sort((a, b) => a - b);
 }
 
@@ -187,6 +200,9 @@ export function sameConfiguration(a: ResourceConfiguration, b: ResourceConfigura
  * never shows a configuration the server would refuse. A value that the
  * control cannot show is moved onto the grid of the options, so the control
  * and the estimate always describe the same configuration.
+ *
+ * The processor is the one exception: a share of a processor may be a half,
+ * so a quarter is refused and a half is kept.
  */
 export function configurationFromQuery(
   query: Record<string, string | undefined>,
@@ -200,9 +216,19 @@ export function configurationFromQuery(
     if (!Number.isInteger(value)) return fallbackValue;
     return nearestOption(options, value);
   };
+  // The processor is read in halves: a quarter of a processor is not a
+  // configuration the platform sells.
+  const readCpu = (options: number[], fallbackValue: number): number => {
+    const raw = query.cpu;
+    if (raw === undefined || raw === '') return fallbackValue;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return fallbackValue;
+    if (Math.abs(value * 2 - Math.round(value * 2)) > 1e-9) return fallbackValue;
+    return nearestOption(options, value);
+  };
   return selectableConfiguration(product, {
     ram: read('ram', ramOptions(product), fallback.ram),
-    cpu: read('cpu', cpuOptions(product), fallback.cpu),
+    cpu: readCpu(cpuOptions(product), fallback.cpu),
     disk: read('disk', diskOptions(product), fallback.disk),
   });
 }

@@ -28,10 +28,11 @@ beforeEach(async () => {
 });
 
 // The price of a server is the price of its resources, with the rate card of
-// the platform: one gigabyte of memory, one processor and ten gigabytes of
-// disk. A year is the twelve months of that price.
-const MONTHLY = 250;
-const YEARLY = 3000;
+// the platform: the fee of the instance, one gigabyte of memory, one
+// processor and ten gigabytes of disk. A year is the twelve months of that
+// price.
+const MONTHLY = 374;
+const YEARLY = 374 * 12;
 
 /** A counter, so that no two cases share a payment intent. */
 let sequence = 0;

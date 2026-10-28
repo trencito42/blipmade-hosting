@@ -363,4 +363,39 @@ describe('provisioning', () => {
     // not be created a second time when the job is retried.
     expect(panel.servers).toHaveLength(1);
   });
+
+  it('refuses a node that cannot hold the processors of the instance', async () => {
+    // The operator declared a quarter of a core for the node, and the factor
+    // of the oversubscription is four, so the node sells one shared
+    // processor. The instance asks for two.
+    await prisma.setting.create({
+      data: { key: 'capacity.node_cores', value: { 1: 0.25 } },
+    });
+    const instance = await seedInstance();
+    await prisma.instance.update({ where: { id: instance.id }, data: { cpu: 2 } });
+
+    await expect(provisionInstance(instance.id)).rejects.toThrow(/shared processors/i);
+
+    const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(updated?.status).toBe('FAILED');
+    expect(updated?.provisionError).toContain('shared processors are sold');
+    // No server was created: the node was refused before the container.
+    expect(panel.servers).toHaveLength(0);
+  });
+
+  it('accepts a node that has a shared processor left', async () => {
+    // The same node, with one shared processor left and an instance that asks
+    // for one of them.
+    await prisma.setting.create({
+      data: { key: 'capacity.node_cores', value: { 1: 0.25 } },
+    });
+    const instance = await seedInstance();
+    await prisma.instance.update({ where: { id: instance.id }, data: { cpu: 1 } });
+
+    await provisionInstance(instance.id);
+
+    const updated = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(updated?.status).toBe('ONLINE');
+    expect(panel.servers).toHaveLength(1);
+  });
 });

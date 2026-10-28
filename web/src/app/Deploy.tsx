@@ -9,6 +9,8 @@ import {
   type MailPlanView,
   type Order,
   type Quote,
+  type QuoteTax,
+  type ResourceBreakdown,
 } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
@@ -218,6 +220,89 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
+ * The parts of the price of a line of server.
+ *
+ * The price of a server is the price of what it holds, plus the fee of the
+ * instance itself. The parts come from the server, and they add up to the
+ * price that was quoted: the page never derives an amount of its own.
+ */
+function Breakdown({
+  breakdown,
+  currency,
+}: {
+  breakdown: ResourceBreakdown;
+  currency: string;
+}) {
+  return (
+    <dl className="grid gap-2">
+      <Row label="Memory">
+        <Money amount={breakdown.ram} currency={currency} />
+      </Row>
+      <Row label="Processor">
+        <Money amount={breakdown.cpu} currency={currency} />
+      </Row>
+      <Row label="Storage">
+        <Money amount={breakdown.disk} currency={currency} />
+      </Row>
+      <Row label="Instance fee">
+        <Money amount={breakdown.base} currency={currency} />
+      </Row>
+      {breakdown.options > 0 && (
+        <Row label="Add-ons">
+          <Money amount={breakdown.options} currency={currency} />
+        </Row>
+      )}
+    </dl>
+  );
+}
+
+/**
+ * The period of a quote, in words.
+ *
+ * The card of the resources is the price of a month, and a year is twelve
+ * months of it, so the label of a total follows the period that was quoted.
+ */
+function periodWord(period: string | undefined): string {
+  return period === 'YEARLY' ? 'year' : 'month';
+}
+
+/**
+ * The tax of the invoice.
+ *
+ * The platform adds the tax to the invoices it writes itself, and only when
+ * the operator wrote a rate and a tax identifier. The note says why the line
+ * is zero, so the customer is never left guessing.
+ */
+function TaxLine({ tax, currency }: { tax: QuoteTax | undefined; currency: string }) {
+  if (!tax) return null;
+  if (!tax.applies) {
+    return (
+      <div className="rounded-2xl bg-s2 px-3.5 py-3">
+        <p className="text-[12.5px] leading-relaxed text-ink3">
+          {tax.note ?? 'No tax is added to this invoice.'}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="flex items-center justify-between rounded-2xl bg-s2 px-3.5 py-3">
+        <span className="text-[13.5px] text-ink2">VAT ({tax.rate}%)</span>
+        <span className="text-[14.5px] font-bold text-ink">
+          <Money amount={tax.amount} currency={currency} />
+        </span>
+      </div>
+      <div className="flex items-center justify-between rounded-2xl bg-s2 px-3.5 py-3">
+        <span className="text-[13.5px] text-ink2">Total on the invoice</span>
+        <span className="text-[14.5px] font-bold text-ink">
+          <Money amount={tax.total} currency={currency} />
+        </span>
+      </div>
+    </>
+  );
+}
+
+/**
  * A configuration the customer can take in one click, with its price.
  *
  * The price is the price of that configuration, calculated by the server. It
@@ -413,6 +498,18 @@ export default function Deploy() {
   }, [product?.slug, ram, cpu, disk, optionKey, trimmedPromo, mailLineKey]);
 
   const quote = quoteState.data ?? null;
+
+  /**
+   * The parts of the price of the line of the server.
+   *
+   * They come from the server, with the rest of the quote, so the customer
+   * sees the price of the memory, of the processor, of the storage and of the
+   * instance itself, and they add up to the amount that is charged.
+   */
+  const serverBreakdown = useMemo(() => {
+    const line = quote?.items.find((item) => item.fulfilment === 'SERVER') ?? quote?.items[0];
+    return line?.breakdown ?? null;
+  }, [quote]);
 
   /** The price of the line of mail, as the server priced it. */
   const mailQuoteItem = mailPlan ? quote?.items.find((item) => item.productSlug === mailPlan.slug) : undefined;
@@ -872,7 +969,7 @@ export default function Deploy() {
 
           <Panel title="Estimate">
             <div aria-live="polite" className="grid gap-2.5">
-              <p className="text-[13px] uppercase tracking-[0.08em] text-ink3">Per month</p>
+              <p className="text-[13px] uppercase tracking-[0.08em] text-ink3">Per {periodWord(quote?.period)}</p>
               {quoteState.loading && !quote ? (
                 <LoadingBlock rows={1} label="Getting your price" />
               ) : quoteState.error && !quote ? (
@@ -915,6 +1012,14 @@ export default function Deploy() {
               <p className="text-[12.5px] text-ink3">
                 The amount above is the price of the configuration you chose. Priced by the server on every change.
               </p>
+              {/* The parts of the price. The server calculates them, and they
+                  add up to the amount that is charged. */}
+              {serverBreakdown && (
+                <div className="mt-1 grid gap-2">
+                  <p className="text-[12.5px] uppercase tracking-[0.08em] text-ink3">What the price is made of</p>
+                  <Breakdown breakdown={serverBreakdown} currency={currency} />
+                </div>
+              )}
             </div>
           </Panel>
         </div>
@@ -992,6 +1097,9 @@ export default function Deploy() {
                   />
                 ) : quote ? (
                   <>
+                    {/* The parts of the price of the line of the server, so
+                        the customer sees what the amount is made of. */}
+                    {serverBreakdown && <Breakdown breakdown={serverBreakdown} currency={quote.currency} />}
                     <div className="flex items-center justify-between rounded-2xl bg-s2 px-3.5 py-3">
                       <span className="text-[13.5px] text-ink2">Subtotal</span>
                       <span className="text-[14.5px] font-bold text-ink">
@@ -1007,11 +1115,14 @@ export default function Deploy() {
                       </div>
                     )}
                     <div className="flex items-center justify-between rounded-2xl bg-s3 px-3.5 py-3.5">
-                      <span className="text-[14px] font-bold text-ink">Total per month</span>
+                      <span className="text-[14px] font-bold text-ink">Total per {periodWord(quote.period)}</span>
                       <span className="font-mono text-[20px] font-semibold tracking-[-0.03em] text-ink">
                         <Money amount={quote.total} currency={quote.currency} />
                       </span>
                     </div>
+                    {/* The tax of the invoice. It is added by the platform to
+                        the invoices it writes itself. */}
+                    <TaxLine tax={quote.tax} currency={quote.currency} />
                   </>
                 ) : (
                   <p className="text-[14px] text-ink3">Not available yet</p>
@@ -1045,7 +1156,7 @@ export default function Deploy() {
                   period={mailPeriod}
                   hostname={mailHostname}
                 />
-                <Row label="Total per month">
+                <Row label={`Total per ${periodWord(quote?.period)}`}>
                   {quote ? <Money amount={quote.total} currency={quote.currency} /> : 'Not available yet'}
                 </Row>
               </dl>

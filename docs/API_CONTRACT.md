@@ -46,8 +46,13 @@ CSRF: send `X-CSRF-Token` header on every state-changing request, value = `bm_cs
 
 - `GET /api/catalog/products?category=&search=` → `200 { products: Product[] }`
 - `GET /api/catalog/products/:slug` → `200 { product: Product }`
-- `POST /api/catalog/quote` → body `{ items: [{ productSlug, ram, cpu, disk, optionCodes?, quantity? }], promotionCode? }`
-  → `200 { items: QuoteItem[], subtotal, discount, total, currency, promotion?: { code, valid, reason } }`
+- `POST /api/catalog/quote` → body `{ items: [{ productSlug, ram, cpu, disk, optionCodes?, quantity? }], promotionCode?, period? }`
+  → `200 { items: QuoteItem[], subtotal, discount, total, currency, promotion?: { code, valid, reason }, tax: QuoteTax }`
+
+The processor of a line is a share of a processor and it may be a half: `cpu`
+is a number, not a whole number. The quote carries the parts of the price of
+every line of a server and the tax of the invoice, so the configurator shows
+the breakdown and the tax without calculating anything of its own.
 
 ```
 Product = {
@@ -59,14 +64,26 @@ Product = {
   availability: Availability,
   options: { code, name, description, amount, currency }[]
 }
-QuoteItem = { productSlug, name, ram, cpu, disk, optionCodes, quantity, unitAmount, total, currency }
+QuoteItem = { productSlug, name, ram, cpu, disk, optionCodes, quantity, unitAmount, total, currency, fulfilment, breakdown: Breakdown | null }
 
 // Every amount is in minor units (cents) of the currency of the row.
 PriceBook = {
   currency, period,
   minimum:    { ram, cpu, disk, amount },   // the configuration the starting price is for
-  recommended: { ram, cpu, disk, amount }    // a bigger configuration, with its own price
+  recommended: { ram, cpu, disk, amount },  // a bigger configuration, with its own price
+  rates: ResourceRates,                     // the card of the platform that priced it
+  breakdown: { minimum: Breakdown, recommended: Breakdown }
 }
+
+// The card of the platform, for a month. One card for every server.
+ResourceRates = { ramPerGb, cpuPerUnit, diskPerGb, baseFee }
+
+// The parts of the price of a configuration. The parts add up to the total.
+Breakdown = { ram, cpu, disk, base, options, total }
+
+// The tax of the invoice of the platform. It is added to the invoices the
+// platform writes itself, and only when there is a rate and a tax identifier.
+QuoteTax = { rate: number | null, amount, applies, note: string | null, total }
 Availability = {
   state: 'DEPLOYABLE' | 'COMING_SOON' | 'TEMPORARILY_UNAVAILABLE' | 'UNPUBLISHED',
   enabled,        // the operator marked the product as validated
@@ -228,8 +245,11 @@ TicketMessage = { id, body, internal, author: { id, name, role }, createdAt, att
 - `POST /api/admin/products` → body → `201 { product }`
 - `PATCH /api/admin/products/:id` → body → `200 { product }`
 - `DELETE /api/admin/products/:id` → `204`
-- `GET /api/admin/pricing` → `200 { prices: ProductPrice[] }`
+- `GET /api/admin/pricing` → `200 { rates: ResourceRates, prices: ProductPrice[] }`
+- `PUT /api/admin/pricing/rates` → body `{ ramPerGb?, cpuPerUnit?, diskPerGb?, baseFee? }` → `200 { rates: ResourceRates }`
 - `PUT /api/admin/pricing/:id` → body → `200 { price }`
+- `GET /api/admin/capacity` → `200 { nodes, totals, policy, revenue, costs, margin }`
+- `POST /api/admin/instances/reconcile-prices` → `200 { checked, corrected, differences }`
 - `GET /api/admin/tickets` → `200 { tickets: Ticket[] }`
 - `GET /api/admin/promotions` → `200 { promotions: Promotion[] }`
 - `POST /api/admin/promotions` → body → `201 { promotion }`
