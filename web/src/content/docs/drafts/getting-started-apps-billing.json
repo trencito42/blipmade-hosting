@@ -149,7 +149,7 @@
       "checkout",
       "first app"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-28",
     "sections": [
       {
         "id": "order-the-application",
@@ -157,7 +157,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The catalog holds the apps and the databases that can be ordered. Every entry carries its own resources and its own price."
+            "text": "The catalog holds the apps, the games, the databases and the runtimes that can be ordered. Every entry carries the resources it runs with, and its price follows those resources."
           },
           {
             "t": "steps",
@@ -171,6 +171,11 @@
                 "title": "Choose the resources",
                 "body": "Give the instance a name, choose the memory, the vCPU and the storage, and choose the options you want. The estimate follows every change.",
                 "result": "The button Review order is available."
+              },
+              {
+                "title": "Fill the values the product asks for",
+                "body": "Some products ask for a value only you have: the account of a game, a licence, a key. Fill the fields the page shows. The button Review order stays greyed out while a required value is empty.",
+                "result": "The values are kept with the order and are written into the container when it is built."
               },
               {
                 "title": "Review the order",
@@ -287,6 +292,112 @@
       "upgrade",
       "backups",
       "domains",
+      "support",
+      "order-values"
+    ]
+  },
+  {
+    "id": "order-values",
+    "group": "getting-started",
+    "title": "The values a product asks for",
+    "summary": "When a product asks for an account, a licence or a key, and what the platform does with it.",
+    "keywords": [
+      "order",
+      "variables",
+      "licence",
+      "steam",
+      "account",
+      "secret",
+      "key"
+    ],
+    "updated": "2026-10-28",
+    "sections": [
+      {
+        "id": "which-products-ask",
+        "title": "Which products ask for a value",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Most products ask for nothing: you choose the resources and the order is enough. Some products need something that only you have, and the page of the product shows a field for each of those values before the order."
+          },
+          {
+            "t": "list",
+            "items": [
+              "A game of Steam asks for the account that downloads the server and its mods.",
+              "A game that shows itself in the public list of Steam asks for the token of that list.",
+              "A search engine asks for the key that protects it.",
+              "A runtime asks for the repository of the service it has to run."
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "A value that the product does not ask for is refused by the platform. The order is never sent with a value the product does not know."
+          }
+        ]
+      },
+      {
+        "id": "what-the-platform-does-with-them",
+        "title": "What the platform does with the values",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "The value is sealed",
+                "body": "The platform encrypts the value before it is written anywhere. It is kept on the instance and it is never shown again in the clear.",
+                "result": "The value is stored encrypted, like the password of a database."
+              },
+              {
+                "title": "The value goes into the container",
+                "body": "When the instance is built, the value is written into the environment of the container, under the name the application expects.",
+                "result": "The application reads the value the way it reads any other setting of its environment."
+              },
+              {
+                "title": "The value stays out of the address",
+                "body": "A value is never put in the web address of the platform and never sent in a message.",
+                "result": "Only the encrypted value is kept."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "warning",
+            "text": "An account of Steam whose guard is on stops the download and asks again for a code. Turn the guard off for the account you give here, and keep the account for the game itself."
+          }
+        ]
+      },
+      {
+        "id": "if-a-value-is-wrong",
+        "title": "If a value is wrong",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The game did not start with the value I gave.",
+                "a": "The value is in the environment of the container. Open the tab Environment of the instance and check the name of the variable the game reads."
+              },
+              {
+                "q": "I gave the wrong value.",
+                "a": "Change it in the tab Environment of the instance and restart the service. The value of the order is the one the container was built with."
+              },
+              {
+                "q": "I do not want to give a value at all.",
+                "a": "The order cannot be reviewed while a required value is empty. A product that needs a value cannot be deployed without one."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "next": [
+      "dashboard",
+      "resources"
+    ],
+    "related": [
+      "first-app",
+      "instance-access",
       "support"
     ]
   },
@@ -474,14 +585,14 @@
           {
             "t": "list",
             "items": [
-              "Overview — the state of the account: the services, what needs your attention and the last events.",
-              "Deploy — the catalog of the apps and the databases that can be ordered.",
-              "Apps & databases — the services you have, with the state of each one.",
-              "Domains — the hostnames of your services and their certificates.",
-              "Email — the mailboxes of the platform and the hosted mail.",
-              "Billing — the estimate of the month, the subscriptions and the invoices.",
-              "Support — the tickets you opened and the answers of the team.",
-              "Settings — the profile, the address, the password, the sessions and the notifications."
+              "Overview \u2014 the state of the account: the services, what needs your attention and the last events.",
+              "Deploy \u2014 the catalog of the apps and the databases that can be ordered.",
+              "Apps & databases \u2014 the services you have, with the state of each one.",
+              "Domains \u2014 the hostnames of your services and their certificates.",
+              "Email \u2014 the mailboxes of the platform and the hosted mail.",
+              "Billing \u2014 the estimate of the month, the subscriptions and the invoices.",
+              "Support \u2014 the tickets you opened and the answers of the team.",
+              "Settings \u2014 the profile, the address, the password, the sessions and the notifications."
             ]
           }
         ]
@@ -497,10 +608,10 @@
           {
             "t": "list",
             "items": [
-              "Deploy your first app — the panel that is there when you have no service yet.",
-              "Needs attention — the services that need you: a service whose status is failed, degraded or suspended, and a service whose subscription payment is past due.",
-              "Your services — the list of your instances, with the state of each one.",
-              "Recent activity — the last event of every service."
+              "Deploy your first app \u2014 the panel that is there when you have no service yet.",
+              "Needs attention \u2014 the services that need you: a service whose status is failed, degraded or suspended, and a service whose subscription payment is past due.",
+              "Your services \u2014 the list of your instances, with the state of each one.",
+              "Recent activity \u2014 the last event of every service."
             ]
           }
         ]
@@ -516,18 +627,18 @@
           {
             "t": "list",
             "items": [
-              "Overview — the state, the address and the actions of the service.",
-              "Console — the output of the container and the field to send a command.",
-              "Files — the file browser of the container.",
-              "Databases — the databases that belong to the instance.",
-              "Backups — the copies of the files that you made.",
-              "Network — the address and the port of the service.",
-              "Startup — the image, the command and the environment of the container.",
-              "Schedules — the tasks that run in the container.",
-              "Settings — the name of the instance and the cancellation.",
-              "Activity — the events of the instance.",
-              "Resources — the memory, the vCPU and the storage of the instance.",
-              "Domains — the hostnames that point at the instance."
+              "Overview \u2014 the state, the address and the actions of the service.",
+              "Console \u2014 the output of the container and the field to send a command.",
+              "Files \u2014 the file browser of the container.",
+              "Databases \u2014 the databases that belong to the instance.",
+              "Backups \u2014 the copies of the files that you made.",
+              "Network \u2014 the address and the port of the service.",
+              "Startup \u2014 the image, the command and the environment of the container.",
+              "Schedules \u2014 the tasks that run in the container.",
+              "Settings \u2014 the name of the instance and the cancellation.",
+              "Activity \u2014 the events of the instance.",
+              "Resources \u2014 the memory, the vCPU and the storage of the instance.",
+              "Domains \u2014 the hostnames that point at the instance."
             ]
           }
         ]
@@ -787,7 +898,8 @@
       "backups",
       "domains",
       "support"
-    ]
+    ],
+    "catalogSlug": "wordpress"
   },
   {
     "id": "ghost",
@@ -1007,7 +1119,8 @@
       "backups",
       "postgresql",
       "support"
-    ]
+    ],
+    "catalogSlug": "ghost"
   },
   {
     "id": "forgejo",
@@ -1227,7 +1340,8 @@
       "backups",
       "postgresql",
       "support"
-    ]
+    ],
+    "catalogSlug": "forgejo"
   },
   {
     "id": "code-server",
@@ -1451,7 +1565,8 @@
       "backups",
       "console",
       "support"
-    ]
+    ],
+    "catalogSlug": "code-server"
   },
   {
     "id": "uptime-kuma",
@@ -1675,7 +1790,8 @@
       "backups",
       "status",
       "support"
-    ]
+    ],
+    "catalogSlug": "uptime-kuma"
   },
   {
     "id": "grafana",
@@ -1895,7 +2011,8 @@
       "backups",
       "status",
       "support"
-    ]
+    ],
+    "catalogSlug": "grafana"
   },
   {
     "id": "n8n",
@@ -2115,7 +2232,8 @@
       "backups",
       "logs",
       "support"
-    ]
+    ],
+    "catalogSlug": "n8n"
   },
   {
     "id": "discord-bot",
@@ -2339,7 +2457,8 @@
       "backups",
       "console",
       "support"
-    ]
+    ],
+    "catalogSlug": "discord-bot"
   },
   {
     "id": "postgresql",
@@ -2527,7 +2646,8 @@
       "backups",
       "mysql",
       "support"
-    ]
+    ],
+    "catalogSlug": "postgresql"
   },
   {
     "id": "mysql",
@@ -2711,7 +2831,8 @@
       "backups",
       "postgresql",
       "support"
-    ]
+    ],
+    "catalogSlug": "mysql"
   },
   {
     "id": "redis",
@@ -2895,7 +3016,8 @@
       "backups",
       "postgresql",
       "support"
-    ]
+    ],
+    "catalogSlug": "redis"
   },
   {
     "id": "mongodb",
@@ -3079,7 +3201,8 @@
       "backups",
       "postgresql",
       "support"
-    ]
+    ],
+    "catalogSlug": "mongodb"
   },
   {
     "id": "resources",
@@ -3114,7 +3237,7 @@
               },
               {
                 "k": "vCPU",
-                "v": "The number of processors the container may use. A processor may be a half: a bot of half a processor is a thing the platform can build."
+                "v": "The number of processors the container may use."
               },
               {
                 "k": "Storage",
@@ -3139,49 +3262,41 @@
           },
           {
             "t": "p",
-            "text": "The price is made of two parts: the resources you buy, and the fee of the instance itself. The fee is the same for every instance, whatever it holds."
+            "text": "The price follows the resources and nothing else: the memory, the processors and the storage of the configuration. Every product of the catalog is priced with the same card of rates, so the same resources cost the same in every product. A product that would be cheaper because it asks for fewer resources could be bought by a customer who wants something else in it, and the resources they really use would be paid for by nobody."
           },
           {
             "t": "spec",
             "rows": [
               {
                 "k": "Memory",
-                "v": "The price of the memory the instance holds."
+                "v": "The price of a gigabyte of memory, for a month."
               },
               {
                 "k": "vCPU",
-                "v": "The price of the processor the instance holds. A processor may be a half."
+                "v": "The price of a processor, for a month."
               },
               {
                 "k": "Storage",
-                "v": "The price of the storage the instance holds."
-              },
-              {
-                "k": "Instance fee",
-                "v": "The price of the instance itself, the same for every configuration."
+                "v": "The price of a gigabyte of storage, for a month."
               }
             ]
           },
           {
             "t": "p",
-            "text": "The configurator shows this breakdown under the estimate, and the parts add up to the amount that is charged."
+            "text": "Every product of the catalog carries a minimum of resources. The page of the product shows the minimum in the panel Minimum resources, and the card of the product in the catalog shows the price of that smallest configuration."
           },
           {
             "t": "p",
-            "text": "Every product of the catalog carries a minimum of resources and a price of its own. The page of the product shows the minimum in the panel Minimum resources, and the card of the product in the catalog shows the starting price."
-          },
-          {
-            "t": "p",
-            "text": "The same resources cost the same in every product of the catalog. A product that asks for less of them is not cheaper to run."
-          },
-          {
-            "t": "callout",
-            "tone": "note",
-            "text": "The invoice of the platform adds the tax of the country the platform is registered in, when the platform is registered for it. The configurator shows the tax of the invoice and the total it brings."
+            "text": "The card is the price of a month. A plan of a year is the twelve months of that card, and it is only quoted for a product that has a price of a year."
           },
           {
             "t": "p",
             "text": "The tab Resources of an instance shows what you bought: the purchased limits, the price of the month and, when a change is being prepared, the price the change would bring."
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "A plan of hosted mail is not priced by its resources: it is a subscription of a service, and it keeps the price of the plan."
           }
         ]
       },
@@ -3242,7 +3357,7 @@
             "items": [
               {
                 "q": "The minimum of the product is not enough for my application.",
-                "a": "The minimum is the smallest configuration the catalog allows for this product, and the platform refuses a configuration that is under it. It is set from what the application of the product needs. Change the product, or put the application on an instance of a product with a smaller minimum."
+                "a": "The minimum is the smallest configuration the catalog allows for this product, and the platform refuses a configuration that is under it. Change the product, or put the application on an instance of a product with a smaller minimum."
               },
               {
                 "q": "The price of my instance did not change with the resources.",
@@ -3290,11 +3405,11 @@
           {
             "t": "list",
             "items": [
-              "This month (estimate) — the sum of the prices of the services you have today.",
-              "Current period ends — the day your current period ends.",
-              "Payment method — the method on the account, with the action Manage payment method.",
-              "Subscriptions — one subscription per instance, with the period, the state, the amount and the action Cancel at period end.",
-              "Invoices — the invoices of the account, with the number, the date, the amount, the state and the link to the invoice."
+              "This month (estimate) \u2014 the sum of the prices of the services you have today.",
+              "Current period ends \u2014 the day your current period ends.",
+              "Payment method \u2014 the method on the account, with the action Manage payment method.",
+              "Subscriptions \u2014 one subscription per instance, with the period, the state, the amount and the action Cancel at period end.",
+              "Invoices \u2014 the invoices of the account, with the number, the date, the amount, the state and the link to the invoice."
             ]
           }
         ]
@@ -3328,7 +3443,7 @@
           },
           {
             "t": "p",
-            "text": "The whole chain is in place — the order, the subscription, the invoice, the deployment and the message that tells you it is done — but the payment itself is finished with the team."
+            "text": "The whole chain is in place \u2014 the order, the subscription, the invoice, the deployment and the message that tells you it is done \u2014 but the payment itself is finished with the team."
           },
           {
             "t": "p",
@@ -3567,7 +3682,7 @@
           },
           {
             "t": "p",
-            "text": "The export describes the service and the records of the account: the name of the instance, its product, its limits, its price, its hostnames, its events, its invoices and its payments. It is not a copy of the files of the container — a copy of the files is a [backup](/docs?p=backups)."
+            "text": "The export describes the service and the records of the account: the name of the instance, its product, its limits, its price, its hostnames, its events, its invoices and its payments. It is not a copy of the files of the container \u2014 a copy of the files is a [backup](/docs?p=backups)."
           }
         ]
       },

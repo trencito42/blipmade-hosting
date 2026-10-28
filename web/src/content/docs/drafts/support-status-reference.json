@@ -1,5 +1,140 @@
 [
   {
+    "id": "troubleshooting",
+    "group": "troubleshooting",
+    "title": "Common problems",
+    "summary": "What to check, in the order that usually finds the cause.",
+    "keywords": [
+      "troubleshooting",
+      "problem",
+      "error",
+      "not working",
+      "stopped",
+      "help"
+    ],
+    "updated": "2026-10-27",
+    "sections": [
+      {
+        "id": "check-the-status",
+        "title": "Check the state of the instance",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Look at the state",
+                "body": "Open the instance. The state is shown next to its name, and the Overview tab tells you what it may use against what it uses right now.",
+                "result": "You see whether it is Pending, Provisioning, Online, Restarting, Stopped, Failed, Suspended or Cancelled, and how much memory, disk and processor it uses."
+              },
+              {
+                "title": "Start it if it is stopped",
+                "body": "Use the Start action of the instance. It is offered when the instance is Stopped or Failed.",
+                "result": "The container is started again and the state follows it."
+              },
+              {
+                "title": "Read the console",
+                "body": "Open the Console tab. It shows the output of the application, and the reason it did not start is written there.",
+                "result": "You see the error that stopped the application, in the words of the program itself."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "The state you read is the real state of the container: when it reads Online, your container is answering."
+          }
+        ]
+      },
+      {
+        "id": "check-the-resources",
+        "title": "Check the resources",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The Overview tab shows the memory, the disk and the processor of the instance against the limits it was given, and the state of the container. An application that asks for more memory than the limit of the container is stopped by the container itself; that is the usual reason an instance that worked yesterday is stopped today."
+          },
+          {
+            "t": "p",
+            "text": "The disk of an instance is one disk. The database, the logs and the uploads end up on the same one, and a full disk stops the application."
+          },
+          {
+            "t": "callout",
+            "tone": "tip",
+            "text": "Give the application the memory it needs. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance."
+          }
+        ]
+      },
+      {
+        "id": "check-the-activity",
+        "title": "Check the activity",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The Activity tab records what happened to the instance: when it was started, stopped, resized or renamed. It is the fastest way to see whether something changed on our side."
+          }
+        ]
+      },
+      {
+        "id": "check-billing",
+        "title": "Check the billing",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "If the instance stopped on its own and the payment method is old, the subscription may be past due. An invoice that was not paid puts the subscription in Past due, and after a grace of seven days the instance is stopped and marked Suspended. The data is kept while it is suspended."
+          },
+          {
+            "t": "p",
+            "text": "The Billing page shows the state of every subscription and lets you update the card. It also shows the state of every invoice, so you never have to ask where a payment stands."
+          }
+        ]
+      },
+      {
+        "id": "ask",
+        "title": "Ask us",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Still stuck? Open a ticket and attach the instance. Include what you expected, what happened, and the relevant part of the console output. That context is what makes the difference between a question and an answer. The page [Support tickets](/docs?p=tickets) describes the ticket in full."
+          },
+          {
+            "t": "p",
+            "text": "If the problem is the platform and not your instance, the [status page](/docs?p=status) says whether other customers are seeing it too."
+          }
+        ]
+      },
+      {
+        "id": "problems-that-do-not-happen-yet",
+        "title": "Problems that do not happen yet",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Some problems are heard a lot but do not exist in the platform today. They are written here so nobody looks for them."
+          },
+          {
+            "t": "list",
+            "items": [
+              "There is no metrics page. The dashboard has no page of metrics, and the numbers of the instance are read in the Overview tab of the instance, against the limits it was given.",
+              "An instance is never shown as degraded because it is short of memory. The platform writes the state the container is really in; an application that wants more memory than the limit is stopped by the container, and the console says so.",
+              "There is no page of the uptime history. The status page shows the state of the moment and no history of it.",
+              "No answer time is published for a ticket, so a ticket that waits is not a fault of the platform."
+            ]
+          }
+        ]
+      }
+    ],
+    "next": [
+      "limits",
+      "tickets",
+      "status"
+    ],
+    "related": [
+      "status",
+      "support",
+      "faq",
+      "common-errors"
+    ]
+  },
+  {
     "id": "support",
     "group": "support",
     "title": "Support",
@@ -624,141 +759,6 @@
     ]
   },
   {
-    "id": "troubleshooting",
-    "group": "troubleshooting",
-    "title": "Common problems",
-    "summary": "What to check, in the order that usually finds the cause.",
-    "keywords": [
-      "troubleshooting",
-      "problem",
-      "error",
-      "not working",
-      "stopped",
-      "help"
-    ],
-    "updated": "2026-10-27",
-    "sections": [
-      {
-        "id": "check-the-status",
-        "title": "Check the state of the instance",
-        "blocks": [
-          {
-            "t": "steps",
-            "items": [
-              {
-                "title": "Look at the state",
-                "body": "Open the instance. The state is shown next to its name, and the Overview tab tells you what it may use against what it uses right now.",
-                "result": "You see whether it is Pending, Provisioning, Online, Restarting, Stopped, Failed, Suspended or Cancelled, and how much memory, disk and processor it uses."
-              },
-              {
-                "title": "Start it if it is stopped",
-                "body": "Use the Start action of the instance. It is offered when the instance is Stopped or Failed.",
-                "result": "The container is started again and the state follows it."
-              },
-              {
-                "title": "Read the console",
-                "body": "Open the Console tab. It shows the output of the application, and the reason it did not start is written there.",
-                "result": "You see the error that stopped the application, in the words of the program itself."
-              }
-            ]
-          },
-          {
-            "t": "callout",
-            "tone": "note",
-            "text": "The state you read is the real state of the container: when it reads Online, your container is answering."
-          }
-        ]
-      },
-      {
-        "id": "check-the-resources",
-        "title": "Check the resources",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "The Overview tab shows the memory, the disk and the processor of the instance against the limits it was given, and the state of the container. An application that asks for more memory than the limit of the container is stopped by the container itself; that is the usual reason an instance that worked yesterday is stopped today."
-          },
-          {
-            "t": "p",
-            "text": "The disk of an instance is one disk. The database, the logs and the uploads end up on the same one, and a full disk stops the application."
-          },
-          {
-            "t": "callout",
-            "tone": "tip",
-            "text": "Give the application the memory it needs. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance."
-          }
-        ]
-      },
-      {
-        "id": "check-the-activity",
-        "title": "Check the activity",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "The Activity tab records what happened to the instance: when it was started, stopped, resized or renamed. It is the fastest way to see whether something changed on our side."
-          }
-        ]
-      },
-      {
-        "id": "check-billing",
-        "title": "Check the billing",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "If the instance stopped on its own and the payment method is old, the subscription may be past due. An invoice that was not paid puts the subscription in Past due, and after a grace of seven days the instance is stopped and marked Suspended. The data is kept while it is suspended."
-          },
-          {
-            "t": "p",
-            "text": "The Billing page shows the state of every subscription and lets you update the card. It also shows the state of every invoice, so you never have to ask where a payment stands."
-          }
-        ]
-      },
-      {
-        "id": "ask",
-        "title": "Ask us",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "Still stuck? Open a ticket and attach the instance. Include what you expected, what happened, and the relevant part of the console output. That context is what makes the difference between a question and an answer. The page [Support tickets](/docs?p=tickets) describes the ticket in full."
-          },
-          {
-            "t": "p",
-            "text": "If the problem is the platform and not your instance, the [status page](/docs?p=status) says whether other customers are seeing it too."
-          }
-        ]
-      },
-      {
-        "id": "problems-that-do-not-happen-yet",
-        "title": "Problems that do not happen yet",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "Some problems are heard a lot but do not exist in the platform today. They are written here so nobody looks for them."
-          },
-          {
-            "t": "list",
-            "items": [
-              "There is no metrics page. The dashboard has no page of metrics, and the numbers of the instance are read in the Overview tab of the instance, against the limits it was given.",
-              "An instance is never shown as degraded because it is short of memory. The platform writes the state the container is really in; an application that wants more memory than the limit is stopped by the container, and the console says so.",
-              "There is no page of the uptime history. The status page shows the state of the moment and no history of it.",
-              "No answer time is published for a ticket, so a ticket that waits is not a fault of the platform."
-            ]
-          }
-        ]
-      }
-    ],
-    "next": [
-      "limits",
-      "tickets",
-      "status"
-    ],
-    "related": [
-      "status",
-      "support",
-      "faq",
-      "common-errors"
-    ]
-  },
-  {
     "id": "limits",
     "group": "limits-fair-use",
     "title": "Limits and fair use",
@@ -903,7 +903,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for."
+            "text": "An instance that is used only as it was deployed \u2014 the application, its configuration and its data \u2014 is what the platform is built for."
           }
         ]
       },

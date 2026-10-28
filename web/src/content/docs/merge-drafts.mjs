@@ -12,7 +12,7 @@
  * a dead end for the customer, and the validation of the documentation has to
  * catch it.
  */
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -76,7 +76,25 @@ if (broken.length) {
   process.exit(1);
 }
 
-writeFileSync(join(contentDir, 'pages.json'), `${JSON.stringify(pages, null, 2)}\n`);
+// The guard of the content that is already published.
+//
+// The script writes the whole file of the pages, so a page that is only in
+// `pages.json` and not in a draft would be lost without a word. That happens
+// when a page is written by hand in the published file. The script stops
+// instead, and it names the pages that would be lost.
+const publishedPath = join(contentDir, 'pages.json');
+if (existsSync(publishedPath)) {
+  const published = JSON.parse(readFileSync(publishedPath, 'utf8'));
+  const lost = published.filter((page) => !ids.has(page.id)).map((page) => page.id);
+  if (lost.length) {
+    console.error('These pages are published and are not in any draft, so they would be lost:');
+    for (const id of lost) console.error(`  ${id}`);
+    console.error('Put them in a draft, or merge them by hand. Nothing was written.');
+    process.exit(1);
+  }
+}
+
+writeFileSync(publishedPath, `${JSON.stringify(pages, null, 2)}\n`);
 console.log(`pages written : ${pages.length}`);
 console.log(`groups        : ${groups.length}`);
 const perGroup = new Map();

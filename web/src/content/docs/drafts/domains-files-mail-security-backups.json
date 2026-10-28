@@ -859,6 +859,409 @@
     ]
   },
   {
+    "id": "account-security",
+    "group": "security",
+    "title": "Account security",
+    "summary": "Your password, your sessions and the mail of your account.",
+    "keywords": [
+      "security",
+      "password",
+      "sessions",
+      "sign out",
+      "verification",
+      "reset"
+    ],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "your-session",
+        "title": "Your session",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Signing in creates a session on the server and hands the browser an HttpOnly cookie. Scripts in the page cannot read it. The session lasts fourteen days from the moment you signed in, and your activity does not make it last longer."
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "After fourteen days the session ends on its own and you sign in again. You can end it earlier from the Sessions panel of the settings page, one session at a time."
+          }
+        ]
+      },
+      {
+        "id": "the-sessions",
+        "title": "The sessions",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Open the settings",
+                "body": "Go to the Settings page of your account and open the Sessions panel.",
+                "result": "You see every session that is open, with the browser and the system it runs on."
+              },
+              {
+                "title": "Read the line of a session",
+                "body": "The line shows the address of the session, the moment you signed in and the last activity of that session. The session you are on is marked This device.",
+                "result": "You know which session is the one in front of you."
+              },
+              {
+                "title": "Close the ones you do not want",
+                "body": "Press Close session on the session you do not recognise, or Close the other sessions to end every session but this one.",
+                "result": "The session ends on the server at once, and the cookie of that browser stops working."
+              }
+            ]
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "# the sessions that are open for your account\ncurl -X GET \"$BASE/api/settings/sessions\" -b cookies.txt\n"
+          }
+        ]
+      },
+      {
+        "id": "change-your-password",
+        "title": "Change your password",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Open the Password panel",
+                "body": "The settings page of your account has a Password panel.",
+                "result": "The form asks for the current password and for the new one, twice."
+              },
+              {
+                "title": "Choose a password of ten characters or more",
+                "body": "The password needs at least ten characters, with a lowercase letter, an uppercase letter and a digit.",
+                "result": "The form refuses a password that does not have them."
+              },
+              {
+                "title": "Save it",
+                "body": "Press Change the password.",
+                "result": "The password is changed and the other sessions of the account end. The device you are on stays signed in."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "warning",
+            "text": "Changing the password closes the other sessions of the account, and a script that holds your cookie stops working at the same moment."
+          }
+        ]
+      },
+      {
+        "id": "reset-your-password",
+        "title": "Reset your password",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "When you cannot sign in, the password is reset with a link that the platform mails to the address of the account. The reset link opens the reset page of the platform with a token in it, not the settings page."
+          },
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Ask for a reset link",
+                "body": "Open the forgot password page, which is linked from the sign-in page.",
+                "result": "The platform emails a link to the address on the account."
+              },
+              {
+                "title": "Open the link",
+                "body": "The link opens the reset page with the token of the request.",
+                "result": "The page switches to the new password form."
+              },
+              {
+                "title": "Choose the new password",
+                "body": "Enter the new password twice and confirm. The new password needs ten characters, a lowercase letter, an uppercase letter and a digit.",
+                "result": "You are signed out of the old session and the new password works from now on."
+              }
+            ]
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "# the API answers the same way either way, so nobody can learn whether the address exists\n# and it says whether the message could really be sent\ncurl -X POST \"$BASE/api/auth/forgot-password\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"email\":\"you@example.com\"}'\n"
+          }
+        ]
+      },
+      {
+        "id": "verify-your-email",
+        "title": "Verify your email address",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Open the verification email",
+                "body": "The link in the email carries a token that verifies the address.",
+                "result": "The account shows the address as verified."
+              },
+              {
+                "title": "Request a new email if it expired",
+                "body": "Ask for a new verification email on the registration page or on the verification page of the address. There is no control for it in the dashboard.",
+                "result": "A new link arrives. The answer is the same whether or not the address exists."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sign-out",
+        "title": "Sign out",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Signing out ends the session on the server and clears the cookie in the browser. The settings page has a button for it, and the Sessions panel signs out the device you are on."
+          }
+        ]
+      }
+    ],
+    "next": [
+      "instance-access",
+      "permissions"
+    ],
+    "related": [
+      "notifications",
+      "permissions",
+      "limits"
+    ]
+  },
+  {
+    "id": "instance-access",
+    "group": "security",
+    "title": "Instance access and secrets",
+    "summary": "How you reach an instance, where its environment is read, and why there are no keys.",
+    "keywords": [
+      "api",
+      "environment variables",
+      "secrets",
+      "startup command",
+      "csrf",
+      "sftp",
+      "access"
+    ],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "the-ways-in",
+        "title": "The ways in",
+        "blocks": [
+          {
+            "t": "list",
+            "items": [
+              "The file browser of the dashboard reads and writes the files of the container. It is described in [Browse and edit files](/docs?p=files).",
+              "The console of the dashboard runs commands in the container. It is described in [Open the console](/docs?p=console).",
+              "The panel that runs the instances offers an SFTP access to the container on node1.blipmade.com:2022. The platform does not manage that access and does not show it in the dashboard, so it is not something your account carries."
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "note",
+            "text": "Everything you do to an instance goes through the account you signed in with. The credential of the platform stays on the server, in your account only."
+          }
+        ]
+      },
+      {
+        "id": "environment-variables",
+        "title": "Environment variables",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Open the instance",
+                "body": "Go to the startup and environment section of the instance.",
+                "result": "You see the current variables and the startup command."
+              },
+              {
+                "title": "Set the variables",
+                "body": "Add or change the variables the application needs and save.",
+                "result": "The environment of the server holds the new values."
+              },
+              {
+                "title": "Wait for the next start",
+                "body": "Saving the environment does not restart the instance. The values that are running are the ones the instance had when it started.",
+                "result": "The new values are in place after the next start."
+              }
+            ]
+          },
+          {
+            "t": "callout",
+            "tone": "warning",
+            "text": "Environment variables are readable by anyone who can open the instance and by everything that runs inside it. Keep tokens and database passwords out of your code."
+          }
+        ]
+      },
+      {
+        "id": "the-startup-command",
+        "title": "The startup command",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The startup command is what the instance runs when it starts. Put your migrations and your installs in it, so a restart comes back in a working state. Saving it does not restart the instance either."
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "npm ci --include=dev && npm run build && npm run migrate && exec node server.mjs\n"
+          }
+        ]
+      },
+      {
+        "id": "using-the-api",
+        "title": "Using the API",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The API lives under /api of the same address you use for the dashboard. Requests are same-origin and carry your session cookie. Every request that changes something also needs the X-CSRF-Token header, whose value is the readable bm_csrf cookie."
+          },
+          {
+            "t": "code",
+            "lang": "bash",
+            "code": "# read the token out of the cookie jar\nCSRF=$(awk '/bm_csrf/ {print $7}' cookies.txt)\n\ncurl -X POST \"$BASE/api/tickets\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-CSRF-Token: $CSRF\" \\\n  -b cookies.txt \\\n  -d '{\"subject\":\"The instance does not answer\",\"category\":\"technical\",\"priority\":\"normal\",\"body\":\"The console shows nothing after the restart.\"}'\n"
+          }
+        ]
+      },
+      {
+        "id": "api-keys",
+        "title": "API keys",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Programmatic keys are {{planned}}. The API does not expose key management, so the dashboard does not offer a button to create one. Until then, scripts use the session of an account, which means they need the cookie and the CSRF token of a signed-in user."
+          },
+          {
+            "t": "callout",
+            "tone": "danger",
+            "text": "Do not put the session cookie of a real account into a script that runs unattended. Treat every cookie like a password."
+          }
+        ]
+      }
+    ],
+    "next": [
+      "files",
+      "console"
+    ],
+    "related": [
+      "account-security",
+      "files",
+      "console",
+      "permissions"
+    ]
+  },
+  {
+    "id": "permissions",
+    "group": "security",
+    "title": "Who can do what",
+    "summary": "What your account can do in the dashboard, and how the back office of the platform is split.",
+    "keywords": [
+      "permissions",
+      "roles",
+      "owner",
+      "staff",
+      "admin",
+      "access",
+      "account"
+    ],
+    "updated": "2026-10-26",
+    "sections": [
+      {
+        "id": "in-your-own-account",
+        "title": "In your own account",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Everything in the dashboard belongs to the account you signed in with. The instances, the hostnames, the tickets, the subscriptions and the files are checked against the owner on every request, and an instance of somebody else answers like an instance that does not exist."
+          },
+          {
+            "t": "p",
+            "text": "There is no second level of permission in the customer area. An account that can open an instance can read its files, run commands in it, change its environment, take a backup of it and remove it."
+          }
+        ]
+      },
+      {
+        "id": "what-your-account-can-do",
+        "title": "What your account can do",
+        "blocks": [
+          {
+            "t": "list",
+            "items": [
+              "Open, change and remove your own instances, and start and stop them.",
+              "Claim a hostname for one of them, prove that it is yours and remove it again.",
+              "Read and write the files of your instances, run commands in them and take a backup of them.",
+              "Open a support ticket, attach one of your instances to it and read the answers.",
+              "Change the password, the mail address and the sessions of your account, and close your account."
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-roles-of-the-back-office",
+        "title": "The roles of the back office",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The staff of the platform works in a back office that is separate from the customer area. It has two roles."
+          },
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "ADMIN",
+                "v": "Holds every permission of the platform."
+              },
+              {
+                "k": "STAFF",
+                "v": "Holds only the permissions that were granted to that person."
+              }
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Every permission comes in two: one to read and one to write. The areas are the customers, the orders, the services, the catalog, the prices, the tickets, the promotions, the infrastructure, the mail, the audit log, the staff and the settings of the platform."
+          },
+          {
+            "t": "p",
+            "text": "A staff member who does not hold a permission cannot hand it out either: nobody can grant more than they hold. The access to the container of a customer always goes through the credential of the customer, so the staff of the platform never reaches your files with its own privileges."
+          }
+        ]
+      },
+      {
+        "id": "when-something-is-not-yours",
+        "title": "When something is not yours",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "I see an instance, a hostname or a ticket that is not mine",
+                "a": "Everything the dashboard shows belongs to the account you signed in with. If a page shows something of somebody else, sign out and open a ticket: it is a fault of the platform, not something you are allowed to see."
+              },
+              {
+                "q": "A colleague needs the same instance",
+                "a": "There is no second user on an account. Every person who needs access needs an account of their own, and every account owns its own instances."
+              },
+              {
+                "q": "I lost the session of a device and I do not know which one",
+                "a": "The Sessions panel of the settings page lists every session with its address and its last activity. Close the one you do not recognise, or close the other sessions at once. The details are in [Account security](/docs?p=account-security)."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "next": [
+      "account",
+      "tickets"
+    ],
+    "related": [
+      "account-security",
+      "instance-access",
+      "dashboard"
+    ]
+  },
+  {
     "id": "email-hosting",
     "group": "email-hosting",
     "title": "Email hosting",
@@ -1434,409 +1837,6 @@
     "related": [
       "account-security",
       "status",
-      "dashboard"
-    ]
-  },
-  {
-    "id": "account-security",
-    "group": "security",
-    "title": "Account security",
-    "summary": "Your password, your sessions and the mail of your account.",
-    "keywords": [
-      "security",
-      "password",
-      "sessions",
-      "sign out",
-      "verification",
-      "reset"
-    ],
-    "updated": "2026-10-26",
-    "sections": [
-      {
-        "id": "your-session",
-        "title": "Your session",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "Signing in creates a session on the server and hands the browser an HttpOnly cookie. Scripts in the page cannot read it. The session lasts fourteen days from the moment you signed in, and your activity does not make it last longer."
-          },
-          {
-            "t": "callout",
-            "tone": "note",
-            "text": "After fourteen days the session ends on its own and you sign in again. You can end it earlier from the Sessions panel of the settings page, one session at a time."
-          }
-        ]
-      },
-      {
-        "id": "the-sessions",
-        "title": "The sessions",
-        "blocks": [
-          {
-            "t": "steps",
-            "items": [
-              {
-                "title": "Open the settings",
-                "body": "Go to the Settings page of your account and open the Sessions panel.",
-                "result": "You see every session that is open, with the browser and the system it runs on."
-              },
-              {
-                "title": "Read the line of a session",
-                "body": "The line shows the address of the session, the moment you signed in and the last activity of that session. The session you are on is marked This device.",
-                "result": "You know which session is the one in front of you."
-              },
-              {
-                "title": "Close the ones you do not want",
-                "body": "Press Close session on the session you do not recognise, or Close the other sessions to end every session but this one.",
-                "result": "The session ends on the server at once, and the cookie of that browser stops working."
-              }
-            ]
-          },
-          {
-            "t": "code",
-            "lang": "bash",
-            "code": "# the sessions that are open for your account\ncurl -X GET \"$BASE/api/settings/sessions\" -b cookies.txt\n"
-          }
-        ]
-      },
-      {
-        "id": "change-your-password",
-        "title": "Change your password",
-        "blocks": [
-          {
-            "t": "steps",
-            "items": [
-              {
-                "title": "Open the Password panel",
-                "body": "The settings page of your account has a Password panel.",
-                "result": "The form asks for the current password and for the new one, twice."
-              },
-              {
-                "title": "Choose a password of ten characters or more",
-                "body": "The password needs at least ten characters, with a lowercase letter, an uppercase letter and a digit.",
-                "result": "The form refuses a password that does not have them."
-              },
-              {
-                "title": "Save it",
-                "body": "Press Change the password.",
-                "result": "The password is changed and the other sessions of the account end. The device you are on stays signed in."
-              }
-            ]
-          },
-          {
-            "t": "callout",
-            "tone": "warning",
-            "text": "Changing the password closes the other sessions of the account, and a script that holds your cookie stops working at the same moment."
-          }
-        ]
-      },
-      {
-        "id": "reset-your-password",
-        "title": "Reset your password",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "When you cannot sign in, the password is reset with a link that the platform mails to the address of the account. The reset link opens the reset page of the platform with a token in it, not the settings page."
-          },
-          {
-            "t": "steps",
-            "items": [
-              {
-                "title": "Ask for a reset link",
-                "body": "Open the forgot password page, which is linked from the sign-in page.",
-                "result": "The platform emails a link to the address on the account."
-              },
-              {
-                "title": "Open the link",
-                "body": "The link opens the reset page with the token of the request.",
-                "result": "The page switches to the new password form."
-              },
-              {
-                "title": "Choose the new password",
-                "body": "Enter the new password twice and confirm. The new password needs ten characters, a lowercase letter, an uppercase letter and a digit.",
-                "result": "You are signed out of the old session and the new password works from now on."
-              }
-            ]
-          },
-          {
-            "t": "code",
-            "lang": "bash",
-            "code": "# the API answers the same way either way, so nobody can learn whether the address exists\n# and it says whether the message could really be sent\ncurl -X POST \"$BASE/api/auth/forgot-password\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"email\":\"you@example.com\"}'\n"
-          }
-        ]
-      },
-      {
-        "id": "verify-your-email",
-        "title": "Verify your email address",
-        "blocks": [
-          {
-            "t": "steps",
-            "items": [
-              {
-                "title": "Open the verification email",
-                "body": "The link in the email carries a token that verifies the address.",
-                "result": "The account shows the address as verified."
-              },
-              {
-                "title": "Request a new email if it expired",
-                "body": "Ask for a new verification email on the registration page or on the verification page of the address. There is no control for it in the dashboard.",
-                "result": "A new link arrives. The answer is the same whether or not the address exists."
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "id": "sign-out",
-        "title": "Sign out",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "Signing out ends the session on the server and clears the cookie in the browser. The settings page has a button for it, and the Sessions panel signs out the device you are on."
-          }
-        ]
-      }
-    ],
-    "next": [
-      "instance-access",
-      "permissions"
-    ],
-    "related": [
-      "notifications",
-      "permissions",
-      "limits"
-    ]
-  },
-  {
-    "id": "instance-access",
-    "group": "security",
-    "title": "Instance access and secrets",
-    "summary": "How you reach an instance, where its environment is read, and why there are no keys.",
-    "keywords": [
-      "api",
-      "environment variables",
-      "secrets",
-      "startup command",
-      "csrf",
-      "sftp",
-      "access"
-    ],
-    "updated": "2026-10-26",
-    "sections": [
-      {
-        "id": "the-ways-in",
-        "title": "The ways in",
-        "blocks": [
-          {
-            "t": "list",
-            "items": [
-              "The file browser of the dashboard reads and writes the files of the container. It is described in [Browse and edit files](/docs?p=files).",
-              "The console of the dashboard runs commands in the container. It is described in [Open the console](/docs?p=console).",
-              "The panel that runs the instances offers an SFTP access to the container on node1.blipmade.com:2022. The platform does not manage that access and does not show it in the dashboard, so it is not something your account carries."
-            ]
-          },
-          {
-            "t": "callout",
-            "tone": "note",
-            "text": "Everything you do to an instance goes through the account you signed in with. The credential of the platform stays on the server, in your account only."
-          }
-        ]
-      },
-      {
-        "id": "environment-variables",
-        "title": "Environment variables",
-        "blocks": [
-          {
-            "t": "steps",
-            "items": [
-              {
-                "title": "Open the instance",
-                "body": "Go to the startup and environment section of the instance.",
-                "result": "You see the current variables and the startup command."
-              },
-              {
-                "title": "Set the variables",
-                "body": "Add or change the variables the application needs and save.",
-                "result": "The environment of the server holds the new values."
-              },
-              {
-                "title": "Wait for the next start",
-                "body": "Saving the environment does not restart the instance. The values that are running are the ones the instance had when it started.",
-                "result": "The new values are in place after the next start."
-              }
-            ]
-          },
-          {
-            "t": "callout",
-            "tone": "warning",
-            "text": "Environment variables are readable by anyone who can open the instance and by everything that runs inside it. Keep tokens and database passwords out of your code."
-          }
-        ]
-      },
-      {
-        "id": "the-startup-command",
-        "title": "The startup command",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "The startup command is what the instance runs when it starts. Put your migrations and your installs in it, so a restart comes back in a working state. Saving it does not restart the instance either."
-          },
-          {
-            "t": "code",
-            "lang": "bash",
-            "code": "npm ci --include=dev && npm run build && npm run migrate && exec node server.mjs\n"
-          }
-        ]
-      },
-      {
-        "id": "using-the-api",
-        "title": "Using the API",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "The API lives under /api of the same address you use for the dashboard. Requests are same-origin and carry your session cookie. Every request that changes something also needs the X-CSRF-Token header, whose value is the readable bm_csrf cookie."
-          },
-          {
-            "t": "code",
-            "lang": "bash",
-            "code": "# read the token out of the cookie jar\nCSRF=$(awk '/bm_csrf/ {print $7}' cookies.txt)\n\ncurl -X POST \"$BASE/api/tickets\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-CSRF-Token: $CSRF\" \\\n  -b cookies.txt \\\n  -d '{\"subject\":\"The instance does not answer\",\"category\":\"technical\",\"priority\":\"normal\",\"body\":\"The console shows nothing after the restart.\"}'\n"
-          }
-        ]
-      },
-      {
-        "id": "api-keys",
-        "title": "API keys",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "Programmatic keys are {{planned}}. The API does not expose key management, so the dashboard does not offer a button to create one. Until then, scripts use the session of an account, which means they need the cookie and the CSRF token of a signed-in user."
-          },
-          {
-            "t": "callout",
-            "tone": "danger",
-            "text": "Do not put the session cookie of a real account into a script that runs unattended. Treat every cookie like a password."
-          }
-        ]
-      }
-    ],
-    "next": [
-      "files",
-      "console"
-    ],
-    "related": [
-      "account-security",
-      "files",
-      "console",
-      "permissions"
-    ]
-  },
-  {
-    "id": "permissions",
-    "group": "security",
-    "title": "Who can do what",
-    "summary": "What your account can do in the dashboard, and how the back office of the platform is split.",
-    "keywords": [
-      "permissions",
-      "roles",
-      "owner",
-      "staff",
-      "admin",
-      "access",
-      "account"
-    ],
-    "updated": "2026-10-26",
-    "sections": [
-      {
-        "id": "in-your-own-account",
-        "title": "In your own account",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "Everything in the dashboard belongs to the account you signed in with. The instances, the hostnames, the tickets, the subscriptions and the files are checked against the owner on every request, and an instance of somebody else answers like an instance that does not exist."
-          },
-          {
-            "t": "p",
-            "text": "There is no second level of permission in the customer area. An account that can open an instance can read its files, run commands in it, change its environment, take a backup of it and remove it."
-          }
-        ]
-      },
-      {
-        "id": "what-your-account-can-do",
-        "title": "What your account can do",
-        "blocks": [
-          {
-            "t": "list",
-            "items": [
-              "Open, change and remove your own instances, and start and stop them.",
-              "Claim a hostname for one of them, prove that it is yours and remove it again.",
-              "Read and write the files of your instances, run commands in them and take a backup of them.",
-              "Open a support ticket, attach one of your instances to it and read the answers.",
-              "Change the password, the mail address and the sessions of your account, and close your account."
-            ]
-          }
-        ]
-      },
-      {
-        "id": "the-roles-of-the-back-office",
-        "title": "The roles of the back office",
-        "blocks": [
-          {
-            "t": "p",
-            "text": "The staff of the platform works in a back office that is separate from the customer area. It has two roles."
-          },
-          {
-            "t": "spec",
-            "rows": [
-              {
-                "k": "ADMIN",
-                "v": "Holds every permission of the platform."
-              },
-              {
-                "k": "STAFF",
-                "v": "Holds only the permissions that were granted to that person."
-              }
-            ]
-          },
-          {
-            "t": "p",
-            "text": "Every permission comes in two: one to read and one to write. The areas are the customers, the orders, the services, the catalog, the prices, the tickets, the promotions, the infrastructure, the mail, the audit log, the staff and the settings of the platform."
-          },
-          {
-            "t": "p",
-            "text": "A staff member who does not hold a permission cannot hand it out either: nobody can grant more than they hold. The access to the container of a customer always goes through the credential of the customer, so the staff of the platform never reaches your files with its own privileges."
-          }
-        ]
-      },
-      {
-        "id": "when-something-is-not-yours",
-        "title": "When something is not yours",
-        "blocks": [
-          {
-            "t": "trouble",
-            "items": [
-              {
-                "q": "I see an instance, a hostname or a ticket that is not mine",
-                "a": "Everything the dashboard shows belongs to the account you signed in with. If a page shows something of somebody else, sign out and open a ticket: it is a fault of the platform, not something you are allowed to see."
-              },
-              {
-                "q": "A colleague needs the same instance",
-                "a": "There is no second user on an account. Every person who needs access needs an account of their own, and every account owns its own instances."
-              },
-              {
-                "q": "I lost the session of a device and I do not know which one",
-                "a": "The Sessions panel of the settings page lists every session with its address and its last activity. Close the one you do not recognise, or close the other sessions at once. The details are in [Account security](/docs?p=account-security)."
-              }
-            ]
-          }
-        ]
-      }
-    ],
-    "next": [
-      "account",
-      "tickets"
-    ],
-    "related": [
-      "account-security",
-      "instance-access",
       "dashboard"
     ]
   },
