@@ -150,6 +150,27 @@ needs to sell the products that work.
 The games that need a licence of the customer cannot be probed without one.
 They stay closed, and the reason is written in the catalogue.
 
+The EULA of Minecraft is the one that matters here, because the eggs of
+Minecraft declare the feature `eula` and their install script has to write the
+acceptance in the container. An egg that declares the feature and does not
+write it starts a server that reads no acceptance and stops with the line "You
+need to agree to the EULA in order to run the server.", so the product never
+answers on its port. The eggs of the platform carry the variable `EULA`, which
+the host sets for the instances it runs, and the lines of the install script
+that write the acceptance.
+
+An egg of the panel is changed through the service of the panel, so it keeps
+the number the products point at:
+
+```bash
+php /root/blipmade-panel-tools/blipmade-update-egg.php \
+  /tmp/minecraft-paper.json "Paper" 5
+```
+
+The file the panel is given ends its lines with LF, the shape the live eggs
+already have: a script with CRLF stops at its first line, because the
+carriage return becomes part of the command.
+
 ### The probe is a script, not a habit
 
 The probe is `scripts/probe-eggs.mjs`. It does the same steps as the
@@ -189,6 +210,18 @@ sudo docker exec --env-file /home/debian/probe.env \
 products that answered, with the check that fits the service, and writes what
 it did in the journal of the platform. It does nothing without `--apply`.
 
+A product that is opened has to follow into the site, otherwise the customer
+sees a product that cannot be ordered:
+
+1. the measurement is written in `scripts/product-probes.json`, so the guide of
+   the product is written from it and not from the hand of a writer;
+2. `node scripts/build-product-guides.mjs` writes the guide of the product, and
+   `node web/scripts/sync-docs-meta.mjs` refreshes the summary of the
+   documentation;
+3. `node web/scripts/sync-catalog.mjs` refreshes the snapshot of the catalogue
+   the site is built with;
+4. the web image is built and deployed.
+
 ### The environment of an egg
 
 The panel refuses to create a server whose environment does not carry the
@@ -201,6 +234,15 @@ An egg the platform does not know is read from the panel, which knows the
 variables of every egg it has (`include=variables`). This is what lets the
 first server of an egg be created by the platform and not only by hand
 through the panel.
+
+The panel refuses a server whose variable is marked as required and left
+empty. The eggs of the games ask for such a variable and give it no value of
+its own: the token of the server of Unturned is the one, and that server was
+refused with "The GSLT variable field is required" before it ever started. The
+platform makes the value of those variables (`api/src/services/pterodactyl/
+environment.ts`), the same way it makes the passwords of the products it
+sells, and the probe does the same, so the probe measures the product and not
+the refusal of the panel.
 
 ### The mirror of the eggs
 
