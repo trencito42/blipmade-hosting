@@ -381,13 +381,72 @@ async function eggNameOf(eggId: number): Promise<string | null> {
 }
 
 /**
+ * The variables of an egg, as the panel knows them.
+ *
+ * The Application API does not put the variables of an egg in the list of the
+ * eggs, but it does when they are asked for with `include=variables`. The values
+ * are the ones the panel uses itself when a server of the egg is made by hand,
+ * so a server of an egg the platform has never used is created with the
+ * environment the panel expects.
+ */
+export interface PteroEggVariable {
+  /** The name of the variable, as the egg writes it. */
+  env_variable: string;
+  /** The value the variable has when nobody says otherwise. */
+  default_value: string | null;
+}
+
+/** The answer of the panel for one egg, with its variables. */
+interface PteroEggWithVariables {
+  attributes: {
+    id: number;
+    name: string;
+    relationships?: {
+      variables?: { data?: { attributes: PteroEggVariable }[] };
+    };
+  };
+}
+
+/**
+ * Reads the variables of an egg from the panel.
+ *
+ * The egg is looked up in the nests of the panel, because the number of an egg
+ * is only meaningful inside its nest. An egg that the panel does not have
+ * gives an empty template, and the caller falls back to what it knows.
+ */
+export async function eggVariables(eggId: number): Promise<Record<string, string>> {
+  const nests = await listNests();
+  for (const nest of nests) {
+    const eggs = await listEggs(nest.id);
+    if (!eggs.some((candidate) => candidate.id === eggId)) continue;
+
+    const detail = await applicationRequest<PteroEggWithVariables>(
+      'GET',
+      `/api/application/nests/${nest.id}/eggs/${eggId}?include=variables`,
+    );
+    const variables = detail.attributes?.relationships?.variables?.data ?? [];
+    const template: Record<string, string> = {};
+    for (const variable of variables) {
+      template[variable.attributes.env_variable] = String(variable.attributes.default_value ?? '');
+    }
+    return template;
+  }
+  return {};
+}
+
+/**
  * Returns the default environment variables for an egg.
  *
- * Pterodactyl 1.15 does not expose the egg variables through the Application
- * API, but the panel refuses to create a server without them. The template
- * that the platform knows is used, and for an egg that is not known the
- * variables of an existing server on the same egg are used, minus the
- * per-server values the panel sets itself.
+ * The panel refuses to create a server whose environment does not carry the
+ * variables of the egg. The eggs the platform knows have their template kept
+ * here, and they are used exactly as they are: the password of the database of
+ * a customer and the name of its user are part of what the customer is told.
+ *
+ * An egg the platform does not know is read from the panel, which does know
+ * the variables of every egg it has. This is what lets the first server of an
+ * egg be created by the platform, and not only by hand through the panel: the
+ * fallback of reading the variables of a server that already exists only works
+ * for the second server of an egg.
  *
  * The name of the egg may be given by the caller, which already knows it. If
  * it is not given, the name is read from the panel.
@@ -401,6 +460,12 @@ export async function eggEnvironmentTemplate(
   if (known) {
     return { ...known };
   }
+
+  const live = await eggVariables(eggId).catch(() => null);
+  if (live && Object.keys(live).length > 0) {
+    return live;
+  }
+
   const servers = await listServers();
   const sample = servers.find((server) => server.egg === eggId);
   if (!sample) {
