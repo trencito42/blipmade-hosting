@@ -9110,5 +9110,164 @@
         ]
       }
     ]
+  },
+  {
+    "id": "minecraft-paper",
+    "group": "apps",
+    "title": "Minecraft Paper",
+    "summary": "The most played sandbox in the world, on Paper: the server that runs the plugins. What a deployment of Minecraft Paper does today, and what the platform checks.",
+    "keywords": [
+      "minecraft paper",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "minecraft-paper",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Minecraft Paper runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "java -Xms128M -XX:MaxRAMPercentage=95.0 -Dterminal.jline=false -Dterminal.ansi=true -jar {{SERVER_JARFILE}}"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:java_25`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Games"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:java_25"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 5 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`MINECRAFT_VERSION` — the default is `latest` — the customer can change it",
+              "`SERVER_JARFILE` — the default is `server.jar` — the customer can change it",
+              "`DL_PATH`",
+              "`BUILD_NUMBER` — the default is `latest` — the customer can change it",
+              "`EULA` — the default is `TRUE` — the customer can change it"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-eula",
+        "title": "The EULA of the game",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The game of this product asks the person who starts it to accept its EULA, and the server does not start until the acceptance is there. The host accepts it for the instances it runs, so the container of the instance starts with the acceptance already written in it."
+          },
+          {
+            "t": "p",
+            "text": "The customer accepts the EULA of the game as well by ordering the product: https://aka.ms/MinecraftEULA"
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the node whether the port of the allocation accepts a connection. The service of the product is not one that speaks HTTP, so the connection is the answer."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]

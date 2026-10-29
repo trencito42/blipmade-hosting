@@ -924,5 +924,19 @@
     ],
     "updated": "2026-10-29",
     "catalogSlug": "garrys-mod"
+  },
+  {
+    "id": "minecraft-paper",
+    "title": "Minecraft Paper",
+    "summary": "The most played sandbox in the world, on Paper: the server that runs the plugins. What a deployment of Minecraft Paper does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "minecraft paper",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "minecraft-paper"
   }
 ]

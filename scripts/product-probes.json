@@ -9,6 +9,7 @@
   "mariadb": { "kind": "tcp" },
   "meilisearch": { "kind": "http", "path": "/" },
   "minecraft-bedrock": { "kind": "http", "path": "/", "expectStatus": [404] },
+  "minecraft-paper": { "kind": "tcp" },
   "nats": { "kind": "tcp" },
   "nodejs": { "kind": "http", "path": "/" },
   "prometheus": { "kind": "http", "path": "/" }
