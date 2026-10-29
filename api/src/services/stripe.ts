@@ -415,6 +415,11 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
       currentPeriodEnd = remote.currentPeriodEnd ?? currentPeriodEnd;
       stripeItems = remote.items;
     }
+  } else {
+    // A fully discounted order skips Stripe Checkout. It still buys a real
+    // term, so the subscription must have the same dates as its invoice.
+    currentPeriodStart ??= order.paidAt ?? new Date();
+    currentPeriodEnd ??= addOrderPeriod(currentPeriodStart, order.items[0]?.config);
   }
 
   const subscriptions: Subscription[] = [];
@@ -502,9 +507,14 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
  * One month after a date. The period of an invoice that the provider did not
  * tell us about is a month, because that is what a monthly price means.
  */
-function addOneMonth(date: Date): Date {
+function addOrderPeriod(date: Date, config: unknown): Date {
+  const months = (config as { period?: string } | null)?.period === 'YEARLY' ? 12 : 1;
   const next = new Date(date);
-  next.setMonth(next.getMonth() + 1);
+  const day = next.getUTCDate();
+  next.setUTCDate(1);
+  next.setUTCMonth(next.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+  next.setUTCDate(Math.min(day, lastDay));
   return next;
 }
 
@@ -524,8 +534,8 @@ async function writeOrderInvoice(
   const existing = await prisma.invoice.findFirst({ where: { orderId: order.id } });
   if (existing) return;
 
-  const periodStart = params.currentPeriodStart ?? new Date();
-  const periodEnd = params.currentPeriodEnd ?? addOneMonth(periodStart);
+  const periodStart = subscriptions[0]?.currentPeriodStart ?? params.currentPeriodStart ?? new Date();
+  const periodEnd = subscriptions[0]?.currentPeriodEnd ?? params.currentPeriodEnd ?? addOrderPeriod(periodStart, order.items[0]?.config);
   // The tax of the invoice is the tax the provider charged, and nothing else.
   const tax = params.tax ?? 0;
 

@@ -44,6 +44,7 @@ interface Subscription {
   amount: number;
   currency: string;
   currentPeriodEnd: string | null;
+  stripeManaged?: boolean;
   cancelAtPeriodEnd: boolean;
 }
 
@@ -98,6 +99,7 @@ function subscription(overrides: Partial<Subscription> = {}): Subscription {
     amount: 1490,
     currency: 'EUR',
     currentPeriodEnd: '2026-11-15T12:00:00.000Z',
+    stripeManaged: true,
     cancelAtPeriodEnd: false,
     ...overrides,
   };
@@ -257,6 +259,13 @@ test('a subscription that renews says that it renews', () => {
   const sentence = page.subscriptionPeriod(subscription());
   assert.match(sentence, /^Renews /);
   assert.doesNotMatch(sentence, /Cancels/);
+});
+
+test('a free first term does not claim an automatic renewal', () => {
+  const sentence = page.subscriptionPeriod(subscription({ amount: 0, stripeManaged: false }));
+  assert.match(sentence, /Paid through 15 Nov 2026/);
+  assert.match(sentence, /Automatic renewal is not set up/);
+  assert.doesNotMatch(sentence, /^Renews /);
 });
 
 test('the resume is offered only while the subscription ends at the close of the paid period', () => {

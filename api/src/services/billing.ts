@@ -788,6 +788,25 @@ async function renew(subscriptionId: string): Promise<{ renewed: boolean; pendin
   });
   if (!subscription) return { renewed: false, pending: false, invoiceId: null, reason: 'The subscription does not exist.' };
 
+  // A free first term did not create a Stripe subscription or collect a card.
+  // Stripe cannot renew a subscription it has never seen. Write a real
+  // renewal order at the configuration price and wait for payment instead.
+  if (stripeLive() && !subscription.stripeSubscriptionId) {
+    const start = subscription.currentPeriodEnd ?? new Date();
+    const written = await writtenInvoiceForPeriod(subscription, start);
+    if (written || (subscription.lastRenewalCheckAt && subscription.lastRenewalCheckAt.getTime() >= start.getTime())) {
+      return { renewed: false, pending: true, invoiceId: written?.id ?? null, reason: 'The renewal of this period was already written.' };
+    }
+    const renewal = await createLocalRenewal(subscription.id);
+    await prisma.subscription.update({ where: { id: subscription.id }, data: { status: 'PAST_DUE' } });
+    await notifyInstanceExpired({
+      userId: subscription.userId,
+      instanceName: subscription.instance?.name ?? 'the service',
+      occurrence: start.toISOString(),
+    });
+    return { renewed: false, pending: true, invoiceId: renewal.invoiceId, reason: 'No automatic Stripe subscription exists; the renewal waits for payment.' };
+  }
+
   // With a provider the renewal is collected by the provider, so the local
   // period is only extended when its invoice is paid.
   if (stripeLive()) {

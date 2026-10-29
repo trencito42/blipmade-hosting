@@ -62,7 +62,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         take: 200,
       }),
       prisma.invoice.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 50 }),
-      prisma.payment.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 1 }),
+      prisma.payment.findMany({ where: { userId: user.id, stripeCustomerId: { not: null } }, orderBy: { createdAt: 'desc' }, take: 1 }),
       prisma.instance.findMany({
         where: { userId: user.id, cancelledAt: { not: null } },
         select: { id: true, name: true, cancelledAt: true },
@@ -77,9 +77,11 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     const monthlyEstimate = instanceSum._sum.price ?? 0;
     const currentPeriodEnd = periodEnd._max.currentPeriodEnd ?? null;
 
-    const paymentMethod = payments.length
-      ? { status: payments[0]!.status, lastPaidAt: payments[0]!.createdAt, currency: payments[0]!.currency }
-      : null;
+    // A payment row is a ledger entry, not evidence that a card is on file.
+    // In particular a free promotion writes a zero-amount row without ever
+    // contacting Stripe. Card details are not stored locally.
+    const paymentMethod = null;
+    const hasStripeCustomer = payments.length > 0;
 
     // The services that were cancelled are kept for a term, and the export of
     // the data stays available after the deletion.
@@ -94,6 +96,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         total: invoice.total,
         currency: invoice.currency,
         dueDate: invoice.dueDate,
+        orderId: invoice.orderId,
         periodStart: invoice.periodStart,
         periodEnd: invoice.periodEnd,
       }));
@@ -103,6 +106,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       monthlyEstimate,
       currentPeriodEnd,
       paymentMethod,
+      hasStripeCustomer,
       instances: instances.map((instance) => ({ id: instance.id, name: instance.name, price: instance.price, status: instance.status.toLowerCase() })),
       subscriptions: subscriptions.map((subscription) => ({
         id: subscription.id,
@@ -112,6 +116,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         amount: subscription.amount,
         currency: subscription.currency,
         currentPeriodEnd: subscription.currentPeriodEnd,
+        stripeManaged: Boolean(subscription.stripeSubscriptionId),
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
       })),
       cancellations: cancellations.map((instance) => ({

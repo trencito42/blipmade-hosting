@@ -539,6 +539,7 @@ export interface Subscription {
   amount: number;
   currency: string;
   currentPeriodEnd: string | null;
+  stripeManaged?: boolean;
   cancelAtPeriodEnd: boolean;
 }
 

@@ -41,6 +41,7 @@ interface BillingSummary {
   monthlyEstimate: number;
   currentPeriodEnd: string | null;
   paymentMethod: PaymentMethod | null;
+  hasStripeCustomer: boolean;
   subscriptions: Subscription[];
 }
 
@@ -255,8 +256,12 @@ export function checkoutNotice(options: {
  */
 export function subscriptionPeriod(subscription: Subscription): string {
   const date = formatDate(subscription.currentPeriodEnd);
+  if (!subscription.currentPeriodEnd) return 'The end of this billing period is not available yet.';
   if (subscription.cancelAtPeriodEnd) {
     return `Cancels at the end of the paid period — ${date}. The service keeps running until then.`;
+  }
+  if (subscription.stripeManaged === false) {
+    return `Paid through ${date}. Automatic renewal is not set up.`;
   }
   return `Renews ${date}`;
 }
@@ -333,7 +338,7 @@ export default function Billing() {
   // A card is only on file when a payment could really have been taken, so
   // the claim is only withdrawn when the platform says that no payment is
   // possible.
-  const cardCanBeManaged = !availability.simulated && (payments === null || availability.available);
+  const cardCanBeManaged = Boolean(summary?.hasStripeCustomer) && !availability.simulated && (payments === null || availability.available);
   // What the page says about the payment the customer just came back from.
   const checkoutCopy = checkoutNotice({
     cancelled: paymentCancelled,
@@ -438,13 +443,11 @@ export default function Billing() {
             />
             <StatTile
               label="Payment method"
-              value={cardCanBeManaged ? describePaymentMethod(summary.paymentMethod) : '—'}
+              value={summary.paymentMethod ? describePaymentMethod(summary.paymentMethod) : summary.hasStripeCustomer ? 'Check in Stripe' : 'None'}
               hint={
-                cardCanBeManaged
-                  ? summary.paymentMethod
-                    ? undefined
-                    : 'No payment method on file. Add one to be able to pay your invoices.'
-                  : (unavailableReason ?? undefined)
+                summary.hasStripeCustomer
+                  ? 'Use the Stripe billing portal to check or change your payment method.'
+                  : 'No payment method was collected with a fully discounted order.'
               }
             />
           </>
@@ -462,7 +465,7 @@ export default function Billing() {
           <div>
             <PrimaryButton
               onClick={() => void paymentMethodAction.run()}
-              disabled={!paymentAvailable || paymentMethodAction.pending}
+              disabled={!paymentAvailable || !cardCanBeManaged || paymentMethodAction.pending}
               className="w-full sm:w-auto"
             >
               {paymentMethodAction.pending ? 'Working…' : 'Manage payment method'}
@@ -471,6 +474,11 @@ export default function Billing() {
           {unavailableReason && (
             <p role="status" className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">
               {unavailableReason}
+            </p>
+          )}
+          {summary && !summary.hasStripeCustomer && (
+            <p className="text-[14px] text-ink2">
+              A free first term does not set up automatic Stripe renewal. <ButtonLink to="/app/tickets">Contact support about renewal</ButtonLink> before the period ends.
             </p>
           )}
           {paymentNotice && (
@@ -528,6 +536,7 @@ export default function Billing() {
                     />
                     <span className="font-mono text-[14px] font-semibold text-ink">
                       <Money amount={subscription.amount} currency={subscription.currency} />
+                      {subscription.stripeManaged === false && <span className="ml-1 text-[12px] font-normal text-ink3">this period</span>}
                     </span>
                   </div>
                 </div>
