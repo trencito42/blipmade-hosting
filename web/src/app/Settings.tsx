@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { BillingAddressFields, emptyBillingAddress, type BillingAddressValue } from './BillingAddressFields';
 import {
   ApiError,
   del,
@@ -46,6 +47,7 @@ interface SettingsResponse {
     role: string;
     createdAt: string;
   };
+  billingAddress: BillingAddressValue | null;
   pendingEmail: string | null;
   pendingEmailExpiresAt: string | null;
   sessions: AccountSession[];
@@ -153,11 +155,28 @@ export default function Settings() {
         setEmailNotice={setEmailNotice}
         onChanged={state.reload}
       />
+      <BillingAddressPanel address={data.billingAddress} onChanged={state.reload} />
       <PasswordPanel />
       <SessionsPanel sessions={data.sessions} onChanged={state.reload} />
       <NotificationsPanel />
       <AccountPanel account={data.account} />
     </div>
+  );
+}
+
+function BillingAddressPanel({ address, onChanged }: { address: BillingAddressValue | null; onChanged: () => void }) {
+  const { push } = useToast();
+  const [value, setValue] = useState<BillingAddressValue>(address ?? emptyBillingAddress);
+  const save = useAction(async () => { await put('/settings/billing-address', value); return true; });
+  useEffect(() => { setValue(address ?? emptyBillingAddress); }, [address]);
+  return (
+    <Panel title="Billing address" description="These details are saved to your account and copied onto new invoices.">
+      <div className="grid gap-4">
+        <BillingAddressFields value={value} onChange={setValue} />
+        <div><PrimaryButton onClick={async () => { const result = await save.run(); if (result) { push('Billing address saved'); onChanged(); } }} disabled={save.pending}>{save.pending ? 'Saving…' : 'Save billing address'}</PrimaryButton></div>
+        {save.error && <p role="alert" className="text-[13px] text-bad">{save.error}</p>}
+      </div>
+    </Panel>
   );
 }
 

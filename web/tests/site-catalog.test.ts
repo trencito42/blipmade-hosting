@@ -194,9 +194,11 @@ describe('the page of the catalogue', () => {
 
   it('shows every product of the catalogue', () => {
     const page = words(html());
-    for (const product of snapshot) {
+    for (const product of snapshot.filter((entry) => !entry.slug.startsWith('minecraft-'))) {
       assert.ok(page.includes(product.name), `the product ${product.slug} is not on the page`);
     }
+    assert.ok(page.includes('Minecraft'), 'the Minecraft family is missing');
+    assert.equal(page.includes('Minecraft Paper'), false, 'Minecraft editions should share one catalog card');
   });
 
   it('marks a product that cannot be ordered as coming soon', () => {
@@ -213,8 +215,11 @@ describe('the page of the catalogue', () => {
 
   it('says how many apps can be deployed today and how many are still coming', () => {
     const page = words(html());
-    const available = snapshot.filter((product) => product.availability.orderable).length;
-    const coming = snapshot.length - available;
+    const cards = snapshot.filter((product) => !product.slug.startsWith('minecraft-'));
+    const minecraft = snapshot.find((product) => product.slug === 'minecraft-paper');
+    if (minecraft) cards.push(minecraft);
+    const available = cards.filter((product) => product.availability.orderable).length;
+    const coming = cards.length - available;
     assert.ok(
       page.includes(`${available} apps can be deployed today, and ${coming} are still coming`),
       'the page does not count the apps that can be deployed and the ones that are coming',
@@ -258,11 +263,14 @@ describe('the page of a product', () => {
 describe('the configurator', () => {
   it('offers only the products that can be ordered', () => {
     const page = words(renderToStaticMarkup(createElement(Configurator as never)));
-    for (const product of snapshot.filter((entry) => !entry.availability.orderable)) {
+    for (const product of snapshot.filter((entry) => !entry.availability.orderable && !entry.slug.startsWith('minecraft-'))) {
       assert.equal(page.includes(product.name), false, `the configurator offers ${product.slug}, which cannot be ordered`);
     }
-    for (const product of snapshot.filter((entry) => entry.availability.orderable)) {
+    for (const product of snapshot.filter((entry) => entry.availability.orderable && !entry.slug.startsWith('minecraft-'))) {
       assert.ok(page.includes(product.name), `the configurator does not offer ${product.slug}`);
     }
+    assert.ok(page.includes('Minecraft'), 'the Minecraft family is missing from the configurator');
+    const minecraftPage = words(renderToStaticMarkup(createElement(Configurator as never, { slug: 'minecraft-paper' })));
+    assert.ok(minecraftPage.includes('Bedrock'), 'the orderable Bedrock edition is missing');
   });
 });

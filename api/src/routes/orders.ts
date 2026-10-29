@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { billingAddressSchema } from '../lib/billing-address.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
@@ -103,6 +104,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         .object({
           items: z.array(orderItemSchema).min(1, 'Choose at least one app.').max(MAX_ORDER_LINES),
           promotionCode: z.string().trim().optional(),
+          billingAddress: billingAddressSchema.optional(),
           // The period of the price that is ordered. It has to be the same
           // period as the one that was quoted, otherwise the order would be
           // priced with another period than the one the customer was shown.
@@ -127,10 +129,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
+      const savedAddress = await prisma.user.findUnique({ where: { id: user.id }, select: { billingAddress: true } });
+      const billingAddress = body.billingAddress ?? savedAddress?.billingAddress ?? null;
+
       const order = await prisma.order.create({
         data: {
           number: await nextOrderNumber(),
           userId: user.id,
+          billingAddress: billingAddress as never,
           status: 'PENDING',
           total: quote.total,
           discount: quote.discount,
@@ -188,6 +194,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
+      if (body.billingAddress) await prisma.user.update({ where: { id: user.id }, data: { billingAddress: body.billingAddress } });
       await audit({ actorId: user.id, actorEmail: user.email, action: 'order.created', targetType: 'order', targetId: order.id, meta: { total: order.total } });
 
       // The customer is told that the order exists. The payment demand is a

@@ -656,7 +656,20 @@ export default function Billing() {
                   key: 'number',
                   header: 'Number',
                   nowrap: true,
-                  render: (invoice) => <span className="font-mono text-[13px]">{invoice.number}</span>,
+                  render: (invoice) => (
+                    <span className="grid gap-1">
+                      <span className="font-mono text-[13px]">{invoice.number}</span>
+                      {invoice.billingAddress && (
+                        <address className="max-w-[260px] whitespace-normal text-[12px] not-italic text-ink3">
+                          {invoice.billingAddress.companyName && <>{invoice.billingAddress.companyName}<br /></>}
+                          {invoice.billingAddress.fullName}<br />
+                          {invoice.billingAddress.line1}{invoice.billingAddress.line2 ? `, ${invoice.billingAddress.line2}` : ''}<br />
+                          {invoice.billingAddress.postalCode} {invoice.billingAddress.city}, {invoice.billingAddress.country}
+                          {invoice.billingAddress.taxId && <><br />Tax ID: {invoice.billingAddress.taxId}</>}
+                        </address>
+                      )}
+                    </span>
+                  ),
                 },
                 {
                   key: 'date',

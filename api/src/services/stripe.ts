@@ -262,6 +262,8 @@ export async function createCheckout(
   const session = await stripe.checkout.sessions.create({
     mode: isUpgrade ? 'payment' : 'subscription',
     ...(customer ? { customer } : customerEmail ? { customer_email: customerEmail } : {}),
+    billing_address_collection: 'required',
+    ...(customer ? { customer_update: { address: 'auto' as const, name: 'auto' as const } } : {}),
     client_reference_id: order.id,
     metadata: { orderId: order.id, orderNumber: order.number, orderKind: order.kind },
     ...(isUpgrade
@@ -544,6 +546,7 @@ async function writeOrderInvoice(
       number: await nextInvoiceNumber(),
       userId: order.userId,
       orderId: order.id,
+      billingAddress: order.billingAddress as never,
       stripeInvoiceId: null,
       status: 'PAID',
       amount: order.total,
@@ -642,10 +645,16 @@ export async function upsertInvoice(params: {
   const tax = params.tax ?? 0;
 
   const existing = await prisma.invoice.findUnique({ where: { stripeInvoiceId: params.stripeInvoiceId } });
+  const invoiceOrderId = params.orderId ?? existing?.orderId;
+  const [invoiceOrder, buyer] = await Promise.all([
+    invoiceOrderId ? prisma.order.findUnique({ where: { id: invoiceOrderId }, select: { billingAddress: true } }) : Promise.resolve(null),
+    prisma.user.findUnique({ where: { id: params.userId }, select: { billingAddress: true } }),
+  ]);
   const data = {
     userId: params.userId,
     orderId: params.orderId ?? existing?.orderId ?? null,
     stripeInvoiceId: params.stripeInvoiceId,
+    billingAddress: (existing?.billingAddress ?? invoiceOrder?.billingAddress ?? buyer?.billingAddress) as never,
     status: params.status ?? existing?.status ?? ('OPEN' as const),
     amount: total,
     tax,

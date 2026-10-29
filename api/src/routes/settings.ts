@@ -7,6 +7,7 @@ import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
+import { billingAddressSchema } from '../lib/billing-address.js';
 import { sendMail } from '../lib/mailer.js';
 import { emailChangeTemplate } from '../lib/email-templates.js';
 import { notifyAccountDeletionRequested, notifyEmailChanged } from '../services/notifications.js';
@@ -233,6 +234,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
           lastName: true,
           email: true,
           emailVerifiedAt: true,
+          billingAddress: true,
           role: true,
           createdAt: true,
           deletionRequestedAt: true,
@@ -266,6 +268,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
         role: account?.role ?? user.role,
         createdAt: (account?.createdAt ?? new Date()).toISOString(),
       },
+      billingAddress: account?.billingAddress ?? null,
       pendingEmail: pending?.email ?? null,
       pendingEmailExpiresAt: pending?.expiresAt.toISOString() ?? null,
       preferences: serializePreferences(
@@ -281,6 +284,17 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
         subscriptions,
       },
     };
+  });
+
+  app.put('/settings/billing-address', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const address = billingAddressSchema.parse(request.body ?? {});
+    await prisma.user.update({ where: { id: user.id }, data: { billingAddress: address } });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.billing_address_updated', targetType: 'user', targetId: user.id, ip: request.ip });
+    return { billingAddress: address };
   });
 
   /** The name of the customer. */

@@ -302,6 +302,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         currency: invoice.currency,
         hostedUrl: invoice.hostedUrl,
         pdfUrl: invoice.pdfUrl,
+        billingAddress: invoice.billingAddress,
         createdAt: invoice.createdAt,
         periodStart: invoice.periodStart,
         periodEnd: invoice.periodEnd,

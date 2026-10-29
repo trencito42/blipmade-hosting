@@ -30,6 +30,7 @@ model User {
   lastName       String
   role           Role      @default(CUSTOMER)
   emailVerifiedAt DateTime?
+  billingAddress Json?
   // The panel account that belongs to this customer. The mapping is
   // permanent and is never derived from an address.
   pterodactylUserId String?
@@ -528,6 +529,7 @@ model Order {
   fulfillmentStatus FulfillmentStatus @default(NOT_STARTED)
   total      Int
   currency   String      @default("EUR")
+  billingAddress Json?
   promotionId String?
   promotion  Promotion?  @relation(fields: [promotionId], references: [id], onDelete: SetNull)
   discount   Int         @default(0)
@@ -654,6 +656,7 @@ model Invoice {
   tax            Int           @default(0)
   total          Int
   currency       String        @default("EUR")
+  billingAddress Json?
   hostedUrl      String?
   pdfUrl         String?
   paidAt         DateTime?

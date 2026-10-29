@@ -836,6 +836,7 @@ async function renew(subscriptionId: string): Promise<{ renewed: boolean; pendin
       number: await nextInvoiceNumber(),
       userId: subscription.userId,
       orderId: subscription.orderItem?.orderId ?? null,
+      billingAddress: (await prisma.user.findUnique({ where: { id: subscription.userId }, select: { billingAddress: true } }))?.billingAddress as never,
       stripeInvoiceId: null,
       // The invoice is open: nobody paid it yet.
       status: 'OPEN',
@@ -1155,6 +1156,7 @@ export async function createLocalRenewal(
       number: await nextInvoiceNumber(),
       userId: subscription.userId,
       orderId: order.id,
+      billingAddress: (await prisma.user.findUnique({ where: { id: subscription.userId }, select: { billingAddress: true } }))?.billingAddress as never,
       stripeInvoiceId: null,
       status: 'OPEN',
       amount,

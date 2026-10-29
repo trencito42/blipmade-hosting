@@ -516,6 +516,18 @@ export interface TicketMessage {
   attachments: { name: string; size: number; type: string }[];
 }
 
+export interface BillingAddress {
+  fullName: string;
+  companyName: string;
+  line1: string;
+  line2: string;
+  city: string;
+  region: string;
+  postalCode: string;
+  country: string;
+  taxId: string;
+}
+
 export interface Invoice {
   id: string;
   number: string;
@@ -526,6 +538,7 @@ export interface Invoice {
   currency: string;
   hostedUrl: string | null;
   pdfUrl: string | null;
+  billingAddress: BillingAddress | null;
   createdAt: string;
   periodStart: string | null;
   periodEnd: string | null;

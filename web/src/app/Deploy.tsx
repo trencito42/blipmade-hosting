@@ -1,3 +1,4 @@
+import { BillingAddressFields, emptyBillingAddress, type BillingAddressValue } from './BillingAddressFields';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   api,
@@ -347,6 +348,8 @@ export default function Deploy() {
 
   const [name, setName] = useState('');
   const [promotionCode, setPromotionCode] = useState('');
+  const [billingAddress, setBillingAddress] = useState<BillingAddressValue>(emptyBillingAddress);
+  const [billingTouched, setBillingTouched] = useState(false);
   const [checkoutIssue, setCheckoutIssue] = useState<string | null>(null);
   // The values of the variables the product asks the customer for. They are
   // the secrets of the customer, so they live in the page and never in the
@@ -405,6 +408,13 @@ export default function Deploy() {
   const optionCodes = useMemo(() => (product ? optionCodesFromQuery(query, product) : []), [product, query]);
   const orderId = query.order ?? null;
   const step = useMemo(() => stepFromQuery(query, orderId), [query.step, orderId]);
+  useEffect(() => {
+    if (step !== 3 || billingTouched) return;
+    void get<{ billingAddress: BillingAddressValue | null }>('/settings').then((answer) => {
+      if (answer.billingAddress) setBillingAddress(answer.billingAddress);
+    }).catch(() => {});
+  }, [step, billingTouched]);
+
 
   const ram = config?.ram ?? 0;
   const cpu = config?.cpu ?? 0;
@@ -492,6 +502,7 @@ export default function Deploy() {
           ...(mailLine ? [mailLine] : []),
         ],
         ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
+      ...(billingAddress.line1.trim() ? { billingAddress } : {}),
       },
       signal,
     });
@@ -1160,6 +1171,11 @@ export default function Deploy() {
                   {quote ? <Money amount={quote.total} currency={quote.currency} /> : 'Not available yet'}
                 </Row>
               </dl>
+              <div className="grid gap-3 border-t border-line pt-4">
+                <h3 className="font-display text-[18px] font-semibold">Billing address</h3>
+                <p className="text-[13px] text-ink3">Optional for now. If you enter it, we save it to your account and use it on new invoices.</p>
+                <BillingAddressFields value={billingAddress} onChange={(value) => { setBillingAddress(value); setBillingTouched(true); }} />
+              </div>
               {placeOrder.error && (
                 <div role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
                   {placeOrder.error}

@@ -28,6 +28,7 @@ describe('a first term covered completely by a promotion', () => {
     const order = await prisma.order.create({
       data: {
         number: 'BM-FREE-TERM', userId, total: 0, discount: 349, currency: 'EUR',
+        billingAddress: { fullName: 'Test Customer', companyName: '', line1: '1 Test St', line2: '', city: 'Bucharest', region: '', postalCode: '010101', country: 'RO', taxId: '' },
         items: { create: { productId: product.id, name: 'Test app', quantity: 1, unitAmount: 349, total: 349, currency: 'EUR', config: { period: 'MONTHLY' } } },
       },
       include: { items: true },
@@ -42,6 +43,7 @@ describe('a first term covered completely by a promotion', () => {
     expect(subscription?.currentPeriodEnd?.getTime()).toBe(invoice?.periodEnd?.getTime());
     expect(invoice?.status).toBe('PAID');
     expect(invoice?.total).toBe(0);
+    expect(invoice?.billingAddress).toMatchObject({ fullName: 'Test Customer', country: 'RO' });
 
     const summary = await client.request('GET', '/api/billing/summary');
     expect(summary.status).toBe(200);

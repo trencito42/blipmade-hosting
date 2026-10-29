@@ -32,6 +32,15 @@ describe('the profile of an account', () => {
     expect(response.body.preferences.billing).toBe(true);
   });
 
+  it('saves billing details on the account', async () => {
+    const { client, userId } = await registerAndLogin(app, 'billing-address@example.com');
+    const address = { fullName: 'Ada Lovelace', companyName: 'Analytical Engine', line1: '1 Computing St', line2: '', city: 'London', region: '', postalCode: 'SW1A 1AA', country: 'GB', taxId: '' };
+    const saved = await client.request('PUT', '/api/settings/billing-address', address);
+    expect(saved.status).toBe(200);
+    expect((await client.request('GET', '/api/settings')).body.billingAddress).toMatchObject(address);
+    expect((await prisma.user.findUnique({ where: { id: userId } }))?.billingAddress).toMatchObject(address);
+  });
+
   it('changes the name of the customer', async () => {
     const { client, userId } = await registerAndLogin(app, 'rename@example.com');
 
