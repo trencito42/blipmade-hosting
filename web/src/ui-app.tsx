@@ -576,6 +576,9 @@ const STATUS_TONE: Record<string, string> = {
   pending: 'bg-warn/12 text-warn',
   deploying: 'bg-warn/12 text-warn',
   restarting: 'bg-warn/12 text-warn',
+  // The container is coming up: it is not broken yet, so it is drawn like
+  // the other states that are not settled.
+  starting: 'bg-warn/12 text-warn',
   degraded: 'bg-warn/12 text-warn',
   awaiting_customer: 'bg-warn/12 text-warn',
   awaiting_staff: 'bg-warn/12 text-warn',

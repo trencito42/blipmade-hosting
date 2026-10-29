@@ -290,83 +290,15 @@ export async function checkDeadLetters(options: DeadLetterMonitorOptions = {}): 
 }
 
 /**
- * The module that reads the real state of the running containers.
+ * Looks at the failures that wait for an operator.
  *
- * The module is written by another agent and this branch does not have it
- * yet, so it is loaded when it is needed and not when this module is
- * loaded. The path is kept in a constant: a path that is written in the
- * import itself is checked by the type checker, and the type checker of
- * this branch would refuse to build the worker because the file is not
- * there yet.
- */
-const RUNTIME_STATE_MODULE: string = '../services/runtime-state.js';
-
-/** The part of the module of the running services that the watch uses. */
-interface RuntimeStateModule {
-  reconcileRuntimeState?: (options?: { limit?: number }) => Promise<unknown> | unknown;
-}
-
-/**
- * Reads the real state of the running containers.
- *
- * The module is loaded here and not at the top of the file, because it is
- * not part of this branch: a static import of a file that is not there stops
- * the worker from starting at all. A module that is missing, a function that
- * is not there and a failure of the module are all written down, and none of
- * them stops the worker.
- */
-/**
- * What the watch says about the state of the running services.
- *
- * The module of the running services answers with the numbers of the
- * services it looked at, of the ones that are not in the state the platform
- * believes and of the ones it could not ask about. The words are built here,
- * apart from the watch, so the rule can be proved without a node.
- */
-export function runtimeStateWarning(result: unknown): string | null {
-  const summary = (result ?? {}) as {
-    observed?: unknown;
-    notRunning?: unknown;
-    unconfirmed?: unknown;
-    unreachable?: unknown;
-  };
-  const notRunning = typeof summary.notRunning === 'number' ? summary.notRunning : 0;
-  const unconfirmed = typeof summary.unconfirmed === 'number' ? summary.unconfirmed : 0;
-  const unreachable = typeof summary.unreachable === 'number' ? summary.unreachable : 0;
-  if (notRunning > 0) {
-    return `[running-state] ${notRunning} service(s) were not in the state the platform believes`;
-  }
-  if (unconfirmed > 0) {
-    return `[running-state] ${unconfirmed} service(s) are alive, but the node does not confirm the running state`;
-  }
-  if (unreachable > 0) {
-    return `[running-state] ${unreachable} service(s) could not be asked about`;
-  }
-  return null;
-}
-
-async function reconcileRunningServices(log: DeadLetterMonitorLogger): Promise<void> {
-  try {
-    const module = (await import(RUNTIME_STATE_MODULE)) as RuntimeStateModule;
-    if (typeof module.reconcileRuntimeState !== 'function') {
-      log.error('[running-state] the module of the running services does not offer reconcileRuntimeState');
-      return;
-    }
-    const result = await module.reconcileRuntimeState({ limit: 100 });
-    const warning = runtimeStateWarning(result);
-    if (warning) log.warn(warning);
-  } catch (error) {
-    log.error(`[running-state] the state of the running services could not be read: ${(error as Error).message}`);
-  }
-}
-
-/**
- * Looks at the failures that wait for an operator and at the state of the
- * running services.
- *
- * This is what the timer of the worker calls. Neither of the two may stop
- * the worker: a module that is missing is written down in the log and the
+ * This is what the timer of the worker calls. The watch never stops the
+ * worker: a failure of the observation is written down in the log and the
  * timer goes on to the next tick.
+ *
+ * The state of the running containers is not watched here. That is the state
+ * the customer zone shows, so it has a timer of its own in the worker and it
+ * does not depend on a watch that is about the failures of the operator.
  */
 export async function watchDeadLetterQueue(options: DeadLetterMonitorOptions = {}): Promise<DeadLetterMonitorState> {
   const log = options.log ?? consoleLogger;
@@ -384,6 +316,5 @@ export async function watchDeadLetterQueue(options: DeadLetterMonitorOptions = {
     log.error(`[dead-letter] the failures of the instances that are gone could not be closed: ${(error as Error).message}`);
   }
   const observed = await checkDeadLetters({ ...options, log });
-  await reconcileRunningServices(log);
   return observed;
 }

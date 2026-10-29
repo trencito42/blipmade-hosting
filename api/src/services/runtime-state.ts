@@ -5,8 +5,8 @@ import { withCustomerKey } from './provisioning.js';
 import { judgeContainer } from './pterodactyl/types.js';
 
 /**
- * The state of the containers of the customers, compared with what the platform
- * believes.
+ * The state of the containers of the customers, compared with what the
+ * platform believes.
  *
  * The platform marks an instance as online when the provisioning finished. That
  * is what the platform saw at the moment of the provisioning, and it is not
@@ -16,10 +16,25 @@ import { judgeContainer } from './pterodactyl/types.js';
  * was never recorded.
  *
  * This module asks the node about the instances the platform believes are
- * running and writes down what the node says. It never changes an instance: a
- * customer instance is not suspended, withdrawn or deleted because of a check
- * of the node. The decision to act on a broken container belongs to the
- * operator, and this module gives that operator the truth to decide with.
+ * running and writes down what the node says. It never breaks a customer
+ * instance: a customer instance is not suspended, withdrawn or deleted because
+ * of a check of the node. The decision to act on a broken container belongs to
+ * the operator, and this module gives that operator the truth to decide with.
+ *
+ * What the node says is written on the instance itself, and the customer zone
+ * shows that state and not the state the platform believes. Before, the
+ * customer zone showed a state that was frozen at the moment of the
+ * provisioning, so a service whose container was running was shown as
+ * restarting for ever.
+ *
+ * Two rules keep that state honest:
+ *
+ *  - a node that cannot be asked does not break anything. The last known
+ *    state is kept, the instance is marked as not fresh, and the platform
+ *    keeps showing what it believed before;
+ *  - a state has to be seen for a while before it replaces the one that is
+ *    shown, so a container that flaps between two states does not make the
+ *    customer zone blink between two labels.
  */
 
 /** What the node says about the container of one instance. */
@@ -46,9 +61,25 @@ export interface RuntimeStateObservation {
    * container in that state is alive even though the node does not say so.
    */
   unconfirmed: boolean;
+  /**
+   * True when the container may still serve the customer if the check waits.
+   *
+   * A container that was started a moment ago is "starting" and uses no memory
+   * yet: it is not serving, but it is not broken either.
+   */
+  pending: boolean;
   /** True when the node could not be asked at all. */
   unreachable: boolean;
 }
+
+/**
+ * What the platform concludes from what the node says.
+ *
+ * The condition is the state the customer zone shows. It is not the state of
+ * the node: a container that is alive but that the node does not confirm
+ * serves the customer, and the customer paid for it.
+ */
+export type RuntimeCondition = 'serving' | 'starting' | 'stopped';
 
 /** The type of the event that records what the node says about an instance. */
 const RUNTIME_STATE_EVENT = 'runtime_state';
@@ -64,6 +95,39 @@ const RUNTIME_STATE_AUDIT = 'instance.runtime_state';
  * run looks at the instances that were not looked at yet.
  */
 const DEFAULT_LIMIT = 25;
+
+/**
+ * How long a state has to be seen before it replaces the one that is shown.
+ *
+ * The worker asks the node about every instance once a minute, so a hold of
+ * one minute means that a state has to be seen by two questions in a row
+ * before the customer sees it. A container that flaps between two states
+ * never passes that hold, so the customer zone keeps the state it had and
+ * does not blink between two labels.
+ */
+export const RUNTIME_STATE_HOLD_MS = 60_000;
+
+/**
+ * The states of the platform that the state of the node speaks for.
+ *
+ * A service that is suspended or cancelled does not run because the platform
+ * says so, and not because the node says so, so the state of the node is not
+ * shown for it. The states that are deployed are the ones the run looks at.
+ */
+const DEPLOYED_STATUSES = ['ONLINE', 'RESTARTING', 'DEGRADED'];
+
+/**
+ * The label of the customer zone for every condition.
+ *
+ * A container that serves is online for the customer, even when the node does
+ * not confirm it: the doubt is written down in the journal of the instance,
+ * and the customer is not shown a service that works as a broken one.
+ */
+const CONDITION_LABEL: Record<RuntimeCondition, string> = {
+  serving: 'online',
+  starting: 'starting',
+  stopped: 'stopped',
+};
 
 /**
  * Asks the node about the container of an instance.
@@ -89,7 +153,15 @@ export async function observeRuntimeState(instanceId: string): Promise<RuntimeSt
   if (!uuid) {
     // The platform shows the instance as online, but there is no server on the
     // panel to ask the node about.
-    return { instanceId, nodeState: '', running: false, serving: false, unconfirmed: false, unreachable: true };
+    return {
+      instanceId,
+      nodeState: '',
+      running: false,
+      serving: false,
+      unconfirmed: false,
+      pending: false,
+      unreachable: true,
+    };
   }
 
   try {
@@ -112,14 +184,62 @@ export async function observeRuntimeState(instanceId: string): Promise<RuntimeSt
       running: verdict.serving && verdict.confirmed,
       serving: verdict.serving,
       unconfirmed: verdict.serving && !verdict.confirmed,
+      pending: verdict.pending,
       unreachable: false,
     };
   } catch {
     // The panel or the node did not answer. That is not a reason to fail the
     // run: the truth is not known right now, and the run goes on with the
     // next instance.
-    return { instanceId, nodeState: '', running: false, serving: false, unconfirmed: false, unreachable: true };
+    return {
+      instanceId,
+      nodeState: '',
+      running: false,
+      serving: false,
+      unconfirmed: false,
+      pending: false,
+      unreachable: true,
+    };
   }
+}
+
+/**
+ * What the platform concludes from what the node says.
+ *
+ * The answer is null when nothing is known at all: a node that could not be
+ * asked says nothing about the container, and the last known state is kept
+ * instead of being replaced by a guess.
+ */
+export function conditionOf(observation: RuntimeStateObservation): RuntimeCondition | null {
+  if (observation.unreachable) return null;
+  // A container that serves is serving, whether the node confirms it or not.
+  if (observation.running || observation.serving) return 'serving';
+  // A container that is still coming up is not broken: it is starting.
+  if (observation.pending) return 'starting';
+  return 'stopped';
+}
+
+/**
+ * The state the customer zone shows for an instance.
+ *
+ * The state of the node speaks for a service that is deployed: a service that
+ * is suspended or cancelled does not run because the platform says so, and
+ * not because the node says so, so the state of the node is not shown for it.
+ *
+ * The state of the node is the last known state, so it is kept when the node
+ * cannot be asked. The answer says then that the state is not fresh any more,
+ * and the customer zone shows it: a node that is quiet is not a service that
+ * is broken.
+ */
+export function customerStatusOf(instance: {
+  status: string;
+  runtimeCondition: string | null;
+}): string {
+  const platform = instance.status.toLowerCase();
+  if (!DEPLOYED_STATUSES.includes(instance.status)) return platform;
+  const condition = instance.runtimeCondition as RuntimeCondition | null;
+  if (!condition) return platform;
+  return CONDITION_LABEL[condition] ?? platform;
 }
 
 /**
@@ -178,6 +298,93 @@ async function recordRuntimeState(observation: RuntimeStateObservation): Promise
   });
 }
 
+/** What the run needs to know about an instance to hold its state steady. */
+interface RuntimeRow {
+  id: string;
+  status: string;
+  runtimeState: string | null;
+  runtimeCondition: string | null;
+  runtimeConditionCandidate: string | null;
+  runtimeConditionCandidateSince: Date | null;
+}
+
+/**
+ * Writes what the node says on the instance, and keeps the state that is
+ * shown steady.
+ *
+ * The state the node reports is written every time, so the operator always
+ * sees the last word of the node. The state the customer zone shows is held:
+ * a condition that was not seen before waits for its hold, and only replaces
+ * the one that is shown when it was seen for the whole hold. A container that
+ * flaps between two states therefore keeps the state it had.
+ *
+ * A node that cannot be asked changes nothing but the freshness: the last
+ * known state is kept and the instance is marked as not fresh. The status of
+ * the instance is never touched here.
+ */
+async function applyObservation(
+  row: RuntimeRow,
+  observation: RuntimeStateObservation,
+  holdMs: number,
+  now: Date = new Date(),
+): Promise<RuntimeCondition | null> {
+  const condition = conditionOf(observation);
+
+  if (!condition) {
+    // The node could not be asked. The last known state is kept, the instance
+    // is marked as not fresh, and a state that was waiting for its hold
+    // starts its hold again when the node answers.
+    await prisma.instance.update({
+      where: { id: row.id },
+      data: {
+        runtimeStateStale: true,
+        runtimeConditionCandidate: null,
+        runtimeConditionCandidateSince: null,
+      },
+    });
+    return null;
+  }
+
+  let shown = row.runtimeCondition as RuntimeCondition | null;
+  let candidate = row.runtimeConditionCandidate;
+  let candidateSince = row.runtimeConditionCandidateSince;
+
+  if (condition !== shown) {
+    if (condition !== candidate) {
+      // A condition that was not seen before waits for its hold.
+      candidate = condition;
+      candidateSince = now;
+    } else {
+      // The same condition was seen again: it replaces the one that is shown
+      // once it has been seen for the whole hold.
+      const held = now.getTime() - (candidateSince ?? now).getTime();
+      if (held >= holdMs) {
+        shown = condition;
+        candidate = null;
+        candidateSince = null;
+      }
+    }
+  } else {
+    // The condition that is shown is the one the node reports: nothing waits.
+    candidate = null;
+    candidateSince = null;
+  }
+
+  await prisma.instance.update({
+    where: { id: row.id },
+    data: {
+      runtimeState: observation.nodeState,
+      runtimeCondition: shown,
+      runtimeConditionCandidate: candidate,
+      runtimeConditionCandidateSince: candidateSince,
+      runtimeStateCheckedAt: now,
+      runtimeStateStale: false,
+    },
+  });
+
+  return shown;
+}
+
 /**
  * Asks the node about the instances the platform believes are running, and
  * writes down what the node says.
@@ -187,9 +394,12 @@ async function recordRuntimeState(observation: RuntimeStateObservation): Promise
  * looked at is counted, and every instance the node does not report as running
  * is written down in the journal of the instance and in the audit journal.
  *
- * The status of an instance is never changed here. A node that cannot be
- * reached is counted and reported, never fatal: a run that gave up because one
- * node is down would leave every other instance unchecked.
+ * The status of an instance is only moved when it is a state that is
+ * transitional and the node says that the container serves: an instance that
+ * the platform shows as restarting is online again when the node says that it
+ * runs. A node that cannot be reached is counted and reported, never fatal: a
+ * run that gave up because one node is down would leave every other instance
+ * unchecked.
  *
  * The numbers that are returned say what the run saw:
  *
@@ -202,7 +412,7 @@ async function recordRuntimeState(observation: RuntimeStateObservation): Promise
  *   - `unreachable` is the number of those the node could not be asked about.
  */
 export async function reconcileRuntimeState(
-  options: { limit?: number } = {},
+  options: { limit?: number; holdMs?: number } = {},
 ): Promise<{
   observed: number;
   notRunning: number;
@@ -211,6 +421,7 @@ export async function reconcileRuntimeState(
   reconciled: number;
 }> {
   const limit = options.limit ?? DEFAULT_LIMIT;
+  const holdMs = options.holdMs ?? RUNTIME_STATE_HOLD_MS;
   const instances = await prisma.instance.findMany({
     // The instances the platform promised to the customers are the ones that
     // have to be true. An instance that the platform shows as restarting or
@@ -218,8 +429,20 @@ export async function reconcileRuntimeState(
     // in the platform moves it, so it has to be resolved by what the node
     // says.
     where: { status: { in: ['ONLINE', 'RESTARTING', 'DEGRADED'] } },
-    select: { id: true, status: true },
-    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      status: true,
+      runtimeState: true,
+      runtimeCondition: true,
+      runtimeConditionCandidate: true,
+      runtimeConditionCandidateSince: true,
+    },
+    // The instances that were looked at the longest time ago are looked at
+    // first. The row of an instance is written on every run, so the moment it
+    // was touched is the moment it was last asked about, and every instance
+    // is asked about in turn: a run that always looked at the same instances
+    // would leave the others without a fresh state for ever.
+    orderBy: [{ updatedAt: 'asc' }, { createdAt: 'asc' }],
     take: limit,
   });
 
@@ -238,20 +461,26 @@ export async function reconcileRuntimeState(
     else if (observation.unconfirmed) unconfirmed += 1;
     else if (!observation.running) notRunning += 1;
 
-    // A container that runs is what the platform promised, so there is nothing
-    // to write down.
-    if (observation.running) continue;
+    // What the node says is written down first, whatever it is. The state the
+    // customer zone shows is the one that was seen long enough to be trusted.
+    const condition = await applyObservation(instance, observation, holdMs);
 
     // A state that is transitional is resolved by what the node says: an
     // instance the platform shows as restarting, whose container serves, is
-    // online again. Before, the state stayed "restarting" for good when the
-    // egg of the product has no health check, and the customer saw a service
-    // that was up and running as broken.
-    if (observation.serving && instance.status === 'RESTARTING') {
+    // online again. Before, the run skipped every instance whose container
+    // was healthy, so an instance whose container ran stayed "restarting" for
+    // good and the customer saw a service that was up and running as broken.
+    if (condition === 'serving' && instance.status === 'RESTARTING') {
       await resolveRestartingInstance(instance.id, observation);
       reconciled += 1;
       continue;
     }
+
+    // A container that runs and that the node confirms is what the platform
+    // promised: there is nothing to write down. Everything else is written
+    // down, so an operator sees a container that does not serve and the doubt
+    // of a container that serves but is not confirmed.
+    if (observation.running) continue;
 
     await recordRuntimeState(observation);
   }
@@ -300,4 +529,34 @@ async function resolveRestartingInstance(
       reconciled: true,
     },
   });
+}
+
+/**
+ * What the watch says about the state of the running services.
+ *
+ * The run answers with the numbers of the services it looked at, of the ones
+ * that are not in the state the platform believes and of the ones it could not
+ * ask about. The words are built here, apart from the watch, so the rule can
+ * be proved without a node.
+ */
+export function runtimeStateWarning(result: unknown): string | null {
+  const summary = (result ?? {}) as {
+    observed?: unknown;
+    notRunning?: unknown;
+    unconfirmed?: unknown;
+    unreachable?: unknown;
+  };
+  const notRunning = typeof summary.notRunning === 'number' ? summary.notRunning : 0;
+  const unconfirmed = typeof summary.unconfirmed === 'number' ? summary.unconfirmed : 0;
+  const unreachable = typeof summary.unreachable === 'number' ? summary.unreachable : 0;
+  if (notRunning > 0) {
+    return `[running-state] ${notRunning} service(s) were not in the state the platform believes`;
+  }
+  if (unconfirmed > 0) {
+    return `[running-state] ${unconfirmed} service(s) are alive, but the node does not confirm the running state`;
+  }
+  if (unreachable > 0) {
+    return `[running-state] ${unreachable} service(s) could not be asked about`;
+  }
+  return null;
 }

@@ -199,13 +199,25 @@ key of the panel is never sent to the browser.
 
 ```
 Instance = {
-  id, name, status, product: { slug, name, icon }, ram, cpu, disk,
+  id, name, status, runtime: { state, condition, checkedAt, stale },
+  product: { slug, name, icon }, ram, cpu, disk,
   price, currency, url, createdAt, node: { name } | null, subscription: { status, currentPeriodEnd } | null
 }
 FileEntry = { name, isDirectory, isFile, isSymlink, size, modifiedAt, createdAt, mode }
 ```
 
-`status` is one of `pending|provisioning|online|restarting|stopped|degraded|failed|suspended|cancelled`.
+`status` is one of `pending|provisioning|online|starting|restarting|stopped|degraded|failed|suspended|cancelled`.
+
+For a service that is deployed (`online`, `starting`, `restarting` or `degraded`)
+the status is the state the node reports for the container, not the state the
+platform believed when the service was provisioned. A service that is suspended,
+cancelled or that is not deployed yet keeps the status of the platform.
+
+`runtime` says what the node said the last time it was asked: `state` is the
+state of the node in its own words, `condition` is what the platform concludes
+from it (`serving`, `starting` or `stopped`), `checkedAt` is the moment of
+that answer and `stale` says that the node could not be asked. A stale state is
+the last known state: a node that cannot be reached never breaks a service.
 
 ## Domains
 

@@ -38,6 +38,24 @@ function stateLabel(state: string): string {
   return state.replace(/_/g, ' ').replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
+/**
+ * The state of an instance, as the customer sees it.
+ *
+ * The state comes from the node. When the node could not be asked, the last
+ * known state is kept and the customer is told that it is not fresh any more:
+ * a node that is quiet is not a service that is broken.
+ */
+function InstanceStatus({ instance }: { instance: Instance }) {
+  return (
+    <span className="inline-flex flex-col items-start gap-1 sm:items-end">
+      <StatusPill status={instance.status} />
+      {instance.runtime?.stale ? (
+        <span className="text-[11.5px] text-ink3">Last known state · node not reachable</span>
+      ) : null}
+    </span>
+  );
+}
+
 function limitsOf(instance: Instance): string {
   return `${fmtRam(instance.ram)} · ${instance.cpu} vCPU · ${instance.disk} GB disk`;
 }
@@ -232,7 +250,7 @@ export default function Instances() {
                 key: 'status',
                 header: 'Status',
                 nowrap: true,
-                render: (instance: Instance) => <StatusPill status={instance.status} />,
+                render: (instance: Instance) => <InstanceStatus instance={instance} />,
               },
               {
                 key: 'limits',
@@ -288,7 +306,7 @@ export default function Instances() {
                   {/* The status gets a line of its own on a phone, so a long
                       name is not cut to make room for the pill. */}
                   <div className="w-full sm:w-auto">
-                    <StatusPill status={instance.status} />
+                    <InstanceStatus instance={instance} />
                   </div>
                 </div>
                 <p className="font-mono text-[13px] text-ink2">{limitsOf(instance)}</p>

@@ -812,6 +812,26 @@ model Instance {
   provisionLockAt   DateTime?
   suspendedAt       DateTime?
   cancelledAt       DateTime?
+  // The state of the container, as the node reports it. The customer zone
+  // shows this state and not the state the platform believes, so a service
+  // whose container runs is not shown as restarting for ever.
+  runtimeState String?
+  // What the platform concludes from what the node says: the container
+  // serves, it is still coming up, or it does not serve. This is the state
+  // the customer zone shows.
+  runtimeCondition String?
+  // When the node answered about this instance for the last time.
+  runtimeStateCheckedAt DateTime?
+  // True when the node could not be asked: the last known state is kept and
+  // this says that it is not fresh any more. An instance whose node is not
+  // reachable is never broken by that: it is only not known.
+  runtimeStateStale Boolean @default(false)
+  // The condition that was seen last but is not shown yet, and the moment it
+  // was seen for the first time. A condition has to be seen for a while
+  // before it replaces the one that is shown, so a container that flaps does
+  // not make the customer zone blink between two labels.
+  runtimeConditionCandidate String?
+  runtimeConditionCandidateSince DateTime?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 

@@ -4,9 +4,9 @@ import {
   checkDeadLetters,
   deadLetterMonitorState,
   resetDeadLetterMonitor,
-  runtimeStateWarning,
   watchDeadLetterQueue,
 } from '../src/services/dead-letter-monitor.js';
+import { runtimeStateWarning } from '../src/services/runtime-state.js';
 import { PROVISION_QUEUE } from '../src/services/queue.js';
 import { createMetricsServer, registry } from '../src/lib/perf-metrics.js';
 import { resetDatabase } from './helpers.js';

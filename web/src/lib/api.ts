@@ -229,6 +229,7 @@ export type InstanceStatus =
   | 'pending'
   | 'provisioning'
   | 'online'
+  | 'starting'
   | 'restarting'
   | 'stopped'
   | 'degraded'
@@ -440,6 +441,19 @@ export interface Instance {
   id: string;
   name: string;
   status: InstanceStatus;
+  /**
+   * What the node said about the container of this instance.
+   *
+   * The state is the one of the node, in the words of the node. It is stale
+   * when the node could not be asked: the last known state is kept and the
+   * customer is told that it is not fresh any more.
+   */
+  runtime: {
+    state: string | null;
+    condition: 'serving' | 'starting' | 'stopped' | null;
+    checkedAt: string | null;
+    stale: boolean;
+  };
   product: { slug: string; name: string; icon: string };
   ram: number;
   cpu: number;

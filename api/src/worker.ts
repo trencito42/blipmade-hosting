@@ -22,6 +22,7 @@ import {
 } from './services/queue.js';
 import { noteJobCompleted, noteJobFailure } from './services/dead-letter.js';
 import { watchDeadLetterQueue } from './services/dead-letter-monitor.js';
+import { reconcileRuntimeState, runtimeStateWarning } from './services/runtime-state.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
   PaymentRequiredError,
@@ -319,12 +320,6 @@ async function retryWebhooks(): Promise<void> {
  * say it itself. The watch counts the open failures, says a word the first
  * time a failure appears, and gives the number of the queue to the measures
  * of the process.
- *
- * The watch also reads the real state of the running services, when the
- * module that reads it is there. That module is loaded when the watch runs
- * and not when the worker starts, because it is written in a branch of its
- * own: a static import of a file that is not there yet would stop the
- * worker from starting at all.
  */
 async function watchDeadLetters(): Promise<void> {
   const observed = await watchDeadLetterQueue();
@@ -333,6 +328,24 @@ async function watchDeadLetters(): Promise<void> {
       `[worker] dead letters waiting for an operator: ${observed.pending} (the highest was ${observed.peakPending})`,
     );
   }
+}
+
+/**
+ * Asks the node about the containers of the instances and writes down what it
+ * says.
+ *
+ * The state the customer zone shows comes from here, so this run is not a
+ * watch of the failures of the operator: it is the truth about the services
+ * that were promised. It has a timer of its own and runs every minute, so a
+ * service that runs is shown as running long before the customer writes in.
+ *
+ * The run never breaks an instance: a node that cannot be asked leaves the
+ * last known state alone and only says that it is not fresh any more.
+ */
+async function watchRuntimeState(): Promise<void> {
+  const result = await reconcileRuntimeState({ limit: 100 });
+  const warning = runtimeStateWarning(result);
+  if (warning) console.warn(warning);
 }
 
 const timers: NodeJS.Timeout[] = [];
@@ -407,6 +420,9 @@ async function main(): Promise<void> {
   // so the queue is known from the first moment of the life of the worker
   // and not only after the first tick.
   await watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error));
+  // The state of the containers is asked for right away as well, so the
+  // customer zone shows what the node says from the first moment.
+  await watchRuntimeState().catch((error) => console.error('[worker] the state of the containers could not be read', error));
   timers.push(setInterval(() => void reconcile().catch((error) => console.error('[worker] reconcile failed', error)), 60_000));
   // The routes of the customers are checked every minute: the configuration of
   // the gateway is not a file of the platform, so a change on the edge takes
@@ -428,6 +444,9 @@ async function main(): Promise<void> {
   // that a failure is seen while the customer is still waiting, and rare
   // enough that the log of the worker stays readable.
   timers.push(setInterval(() => void watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error)), 3 * 60_000));
+  // The containers are asked about every minute: the customer zone shows
+  // what the node says, so the state of a service that runs has to be fresh.
+  timers.push(setInterval(() => void watchRuntimeState().catch((error) => console.error('[worker] the state of the containers could not be read', error)), 60_000));
 }
 
 const shutdown = async () => {

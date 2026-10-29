@@ -16,6 +16,7 @@ import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeU
 import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
 import { parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
 import { createCheckout } from '../services/stripe.js';
+import { customerStatusOf } from '../services/runtime-state.js';
 
 /**
  * The routes of the instances carry a limit.
@@ -41,6 +42,10 @@ function serializeInstance(instance: {
   orderItem?: { subscription: { status: string; currentPeriodEnd: Date | null } | null } | null;
   pterodactylServerId: number | null;
   domains?: { hostname: string; status: string }[];
+  runtimeState: string | null;
+  runtimeCondition: string | null;
+  runtimeStateCheckedAt: Date | null;
+  runtimeStateStale: boolean;
 }) {
   const subscription = subscriptionOf(instance);
   // The address the customer reaches the instance at. It is the domain that
@@ -49,7 +54,19 @@ function serializeInstance(instance: {
   return {
     id: instance.id,
     name: instance.name,
-    status: instance.status.toLowerCase(),
+    // The state the customer sees is the state the node reports, and not the
+    // state the platform believed when the service was provisioned. A service
+    // whose container runs is not shown as restarting for ever.
+    status: customerStatusOf(instance),
+    // What the node said the last time it was asked, and when it said it.
+    // The state is stale when the node could not be asked: the last known
+    // state is kept and the customer is told that it is not fresh.
+    runtime: {
+      state: instance.runtimeState,
+      condition: instance.runtimeCondition,
+      checkedAt: instance.runtimeStateCheckedAt,
+      stale: instance.runtimeStateStale,
+    },
     product: instance.product,
     ram: instance.ram,
     cpu: instance.cpu,
@@ -210,7 +227,9 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
           networkRx: resources.network?.rx ?? 0,
           networkTx: resources.network?.tx ?? 0,
           diskBytes: resources.disk?.used ?? 0,
-          uptimeMs: (resources.uptime ?? 0) * 1000,
+          // The panel counts the time the container has been up in
+          // milliseconds, and that is what the console shows.
+          uptimeMs: resources.uptime ?? 0,
         },
       };
     } catch (error) {
