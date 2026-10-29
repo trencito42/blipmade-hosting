@@ -114,6 +114,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
       const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
 
+      // A fully sponsored service provisions real compute without ever going
+      // through the payment provider. Require control of the account's email
+      // before reserving that capacity, otherwise disposable unverified
+      // accounts could each consume one LAUNCH redemption.
+      if (quote.promotionRecord && quote.total === 0 && !user.emailVerified) {
+        throw badRequest('Verify your email address before using a promotion that covers the whole order.');
+      }
+
       // A domain that another customer already hosts is refused here, before
       // the customer is charged for it. The platform would refuse it later
       // anyway, at the moment of the provisioning, and a customer that paid

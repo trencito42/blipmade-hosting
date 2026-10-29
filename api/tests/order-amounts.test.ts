@@ -200,6 +200,7 @@ describe('an order paid with a promotion', () => {
     await seedProduct();
     const promotion = await seedPromotion('FULL', 10000);
     const { client, userId } = await registerAndLogin(app, 'promotion.full@example.test');
+    await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
 
     const created = await client.request('POST', '/api/orders', {
       items: [{ productSlug: 'wordpress', ram: 512, cpu: 1, disk: 5 }],
@@ -239,7 +240,8 @@ describe('an order paid with a promotion', () => {
   it('does not send a paid order to the payment provider again', async () => {
     await seedProduct();
     await seedPromotion('FULL', 10000);
-    const { client } = await registerAndLogin(app, 'promotion.paid@example.test');
+    const { client, userId } = await registerAndLogin(app, 'promotion.paid@example.test');
+    await prisma.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
 
     const created = await client.request('POST', '/api/orders', {
       items: [{ productSlug: 'wordpress', ram: 512, cpu: 1, disk: 5 }],
@@ -253,6 +255,21 @@ describe('an order paid with a promotion', () => {
     // The order is paid now, so there is nothing left to collect.
     const second = await client.request('POST', `/api/orders/${created.body.order.id}/checkout`);
     expect(second.status).toBe(400);
+  });
+
+  it('requires a verified email before a promotion can cover the whole order', async () => {
+    await seedProduct();
+    await seedPromotion('FULL', 10000);
+    const { client } = await registerAndLogin(app, 'promotion.unverified@example.test');
+
+    const response = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'wordpress', ram: 512, cpu: 1, disk: 5 }],
+      promotionCode: 'FULL',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.message).toMatch(/verify your email/i);
+    expect(await prisma.order.count()).toBe(0);
   });
 
   it('sends an unpaid order to the payment provider with the discounted amount', async () => {
