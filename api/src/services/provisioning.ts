@@ -1719,6 +1719,34 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       });
     }
 
+    // The service gets an address under the base of the platform, so the
+    // customer has a public one from the start and does not have to wait for
+    // a domain of their own to be proven and routed. The name of the service
+    // is the beginning of it, and the identifier of the instance keeps two
+    // services with the same name apart.
+    const platformHost = platformHostname(instance.name, instance.id);
+    if (platformHost) {
+      await prisma.instanceDomain.upsert({
+        where: { hostname: platformHost },
+        create: {
+          instanceId: instance.id,
+          hostname: platformHost,
+          targetPort: port,
+          status: 'PENDING_DNS',
+          // The platform owns the base of the platform, so the proof of
+          // ownership that a hostname of a customer needs is not needed here.
+          verifiedAt: new Date(),
+          verificationHost: env.DOMAIN_BASE,
+        },
+        update: {
+          instanceId: instance.id,
+          targetPort: port,
+          verifiedAt: new Date(),
+          verificationHost: env.DOMAIN_BASE,
+        },
+      });
+    }
+
     await beginProvisioning(instance, 'activated');
     await prisma.instance.update({
       where: { id: instance.id },
@@ -1834,3 +1862,30 @@ export const instanceBaseUrl = (ip: string, port: number) => `http://${ip}:${por
 
 export const defaultDomain = (hostname: string) =>
   env.DOMAIN_BASE ? `${hostname}.${env.DOMAIN_BASE}` : hostname;
+
+/**
+ * The hostname of an instance under the base of the platform.
+ *
+ * Every service gets one, so the customer has an address that works the
+ * moment the container answers, without waiting for a domain of their own.
+ * The name of the service is the beginning of the hostname, and the last
+ * characters of the identifier of the instance are what keeps two services
+ * with the same name apart.
+ *
+ * The base of the platform owns the zone, so the proof of ownership that a
+ * hostname of a customer needs is not needed here: the platform knows that
+ * the name is its own.
+ */
+export function platformHostname(name: string, instanceId: string): string | null {
+  const base = (env.DOMAIN_BASE ?? '').trim();
+  if (!base) return null;
+  const label = name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  const suffix = instanceId.replace(/[^a-z0-9]/gi, '').slice(-5).toLowerCase();
+  if (!label || !suffix) return null;
+  return `${label}-${suffix}.${base}`;
+}
