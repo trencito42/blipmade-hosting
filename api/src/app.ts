@@ -112,10 +112,10 @@ export async function buildApp(): Promise<FastifyInstance> {
      * set that header. Without that list every request would carry the
      * address of the web container and every visitor would share one counter.
      *
-     * The key of the counter is the address of the client when that address is
-     * known, and the connection when it is not, so a limit is never a limit
-     * for the whole platform and one visitor can never lock every other
-     * visitor out of a page or of the sign-in.
+     * The key comes from Fastify's resolved IP. If the reverse proxy is
+     * absent from TRUSTED_PROXIES, the peer's IP is used until the deployment
+     * configuration is fixed. A TCP source port or an untrusted forwarded
+     * header must never reset the limiter.
      */
     keyGenerator: (request) => addressRateLimitKey(request),
     errorResponseBuilder: (_request, context) => ({
