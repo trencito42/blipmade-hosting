@@ -25,7 +25,14 @@ import {
 } from '../services/panel/credentials.js';
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
-import { resourceRates, saveResourceRates, RESOURCE_RATES_KEY } from '../services/pricing.js';
+import {
+  countEffectiveRedemptions,
+  defaultLimitPerUser,
+  promotionRisk,
+  resourceRates,
+  saveResourceRates,
+  RESOURCE_RATES_KEY,
+} from '../services/pricing.js';
 import {
   cpuOversubscription,
   declaredNodeCosts,
@@ -35,7 +42,6 @@ import {
   revenueSummary,
 } from '../services/capacity.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
-import { defaultLimitPerUser, promotionRisk } from '../services/pricing.js';
 import {
   notifyAccountReinstated,
   notifyAccountSuspended,
@@ -1252,6 +1258,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       take: limit + 1,
     });
     const page = pageOf(rows, limit, 'createdAt');
+    const effectiveCounts = new Map(
+      await Promise.all(page.rows.map(async (promotion) => [promotion.id, await countEffectiveRedemptions(promotion.id)] as const)),
+    );
     // The number of promotions there really are, so the list can say that it
     // shows only the first rows of them.
     const total = await prisma.promotion.count();
@@ -1267,7 +1276,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         // The risk of the campaign, so the operator sees a campaign that
         // gives the whole order away without a limit per account.
         warning: promotionRisk(promotion),
-        usedCount: promotion.usedCount,
+        // This is the capacity the campaign really consumes: paid uses plus
+        // non-expired reservations. The legacy counter is not authoritative.
+        usedCount: effectiveCounts.get(promotion.id) ?? 0,
         active: promotion.active,
         startsAt: promotion.startsAt,
         endsAt: promotion.endsAt,

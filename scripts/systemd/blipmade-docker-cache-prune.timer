@@ -1,0 +1,11 @@
+[Unit]
+Description=Prune old Blipmade Docker build cache daily
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=blipmade-docker-cache-prune.service
+
+[Install]
+WantedBy=timers.target

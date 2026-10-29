@@ -201,8 +201,43 @@ function compressedForms(filename) {
 
 
 function send(res, status, message) {
-  res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.writeHead(status, { ...securityHeaders(), 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(message);
+}
+
+/** Browser policy shared by pages, API responses and errors. */
+function securityHeaders() {
+  return {
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "script-src 'self' https://challenges.cloudflare.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self'",
+      "connect-src 'self' https://challenges.cloudflare.com",
+      "frame-src https://challenges.cloudflare.com",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
+    ].join('; '),
+    'Permissions-Policy': 'camera=(), geolocation=(), microphone=(), payment=(self), usb=()',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+  };
+}
+
+/** HSTS is only sent when the visitor really reached the public HTTPS site. */
+function responseSecurityHeaders(req) {
+  return {
+    ...securityHeaders(),
+    ...(clientProtocol(req) === 'https'
+      ? { 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }
+      : {}),
+  };
 }
 
 /**
@@ -276,7 +311,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
 
 const server = createServer(async (req, res) => {
   if (req.url === '/healthz') {
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.writeHead(200, { ...responseSecurityHeaders(req), 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     // The health of the site names the typeface of the interface and the
     // files that are still missing, so the operator does not have to look
     // into the container to find out.
@@ -314,7 +349,7 @@ const server = createServer(async (req, res) => {
         headers,
       },
       (upstream) => {
-        const headers = { ...upstream.headers };
+        const headers = { ...upstream.headers, ...responseSecurityHeaders(req) };
         const compressible = !headers['content-encoding'] && isCompressible(headers['content-type']);
         // An answer that carries its own validator is passed on as it is: the
         // validator describes the bytes of the API, and the API is the one
@@ -348,7 +383,7 @@ const server = createServer(async (req, res) => {
       },
     );
     proxy.on('error', () => {
-      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.writeHead(502, { ...responseSecurityHeaders(req), 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: { code: 'upstream_error', message: 'The API is not reachable.' } }));
     });
     req.pipe(proxy);
@@ -374,7 +409,7 @@ const server = createServer(async (req, res) => {
   if (pathname === '/docs') {
     const asked = new URLSearchParams(search).get('p');
     if (asked) {
-      res.writeHead(301, { Location: `/docs/${encodeURIComponent(asked)}`, 'Cache-Control': 'no-store' });
+      res.writeHead(301, { ...responseSecurityHeaders(req), Location: `/docs/${encodeURIComponent(asked)}`, 'Cache-Control': 'no-store' });
       return res.end();
     }
   }
@@ -432,6 +467,7 @@ const server = createServer(async (req, res) => {
     // take the bytes of one encoding for the bytes of another one.
     const etag = entityTag(served.size, served.mtimeMs);
     const headers = {
+      ...responseSecurityHeaders(req),
       'Content-Type': type,
       'Content-Length': served.size,
       'Cache-Control': cacheControl,
@@ -446,6 +482,7 @@ const server = createServer(async (req, res) => {
     // and no body is sent.
     if (clientHasTheBytes(req.headers['if-none-match'], etag)) {
       res.writeHead(304, {
+        ...responseSecurityHeaders(req),
         ETag: etag,
         'Cache-Control': cacheControl,
         ...(compressible ? { Vary: 'Accept-Encoding' } : {}),

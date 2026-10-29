@@ -76,6 +76,12 @@ const schema = z.object({
    * written down is always the number the provider charged.
    */
   STRIPE_TAX_ENABLED: bool(false),
+  /** Require a real card for an order fully covered by a promotion. */
+  PROMOTION_CARD_CHECK_ENABLED: bool(false),
+  /** HMAC key used to pseudonymise Stripe card fingerprints in the database. */
+  PROMOTION_FINGERPRINT_SECRET: z.string().default(''),
+  /** Comma-separated domains that may not create customer accounts. */
+  DISPOSABLE_EMAIL_DOMAINS: z.string().default(''),
 
   SMTP_URL: z.string().default(''),
   /**
@@ -375,6 +381,15 @@ if (!parsed.success) {
 }
 
 const raw = parsed.data;
+
+if (raw.PROMOTION_CARD_CHECK_ENABLED) {
+  if (!raw.STRIPE_SECRET_KEY.startsWith('sk_')) {
+    throw new Error('PROMOTION_CARD_CHECK_ENABLED requires a Stripe secret key.');
+  }
+  if (raw.PROMOTION_FINGERPRINT_SECRET.length < 32) {
+    throw new Error('PROMOTION_FINGERPRINT_SECRET must contain at least 32 characters when promotion card checks are enabled.');
+  }
+}
 
 export const env = {
   ...raw,

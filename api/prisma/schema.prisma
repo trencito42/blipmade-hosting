@@ -23,6 +23,8 @@ enum Role {
 model User {
   id             String    @id @default(cuid())
   email          String    @unique
+  /// Provider-aware canonical address used to stop trivial alias accounts.
+  emailIdentity  String?   @unique
   passwordHash   String
   // The name of the customer in two parts. The panel account of this customer
   // carries the same two parts, so no name is ever invented.
@@ -748,8 +750,12 @@ model PromotionRedemption {
   order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   /// The discounted amount, in minor units.
   amount      Int
+  /// HMAC-SHA256 of Stripe's card fingerprint. The raw card fingerprint is
+  /// never stored, while the unique pair still enforces one card per campaign.
+  cardFingerprintHash String?
   createdAt   DateTime  @default(now())
 
+  @@unique([promotionId, cardFingerprintHash])
   @@index([promotionId, userId])
   @@index([userId])
 }

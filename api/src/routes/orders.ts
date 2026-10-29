@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { env } from '../env.js';
 import { billingAddressSchema } from '../lib/billing-address.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
@@ -8,7 +9,7 @@ import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
-import { createCheckout, markOrderPaid, stripeTestGateway } from '../services/stripe.js';
+import { createCheckout, createSponsoredSubscriptionCheckout, markOrderPaid, stripeTestGateway } from '../services/stripe.js';
 import { fulfilOrder } from './webhooks.js';
 import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
@@ -266,10 +267,32 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       throw conflict(`This order cannot be paid: its status is ${order.status.toLowerCase()}.`);
     }
 
-    // An order that a promotion covers completely costs nothing, so there is
-    // no amount to collect. The order is confirmed and provisioned without a
-    // payment provider, instead of sending the customer to a checkout of zero.
+    // A fully sponsored order can still be required to prove one real card.
+    // Stripe creates the subscription with a one-use 100% discount, collects
+    // the card for renewal, and the signed webhook performs fulfilment only
+    // after the card fingerprint has passed the campaign-wide uniqueness gate.
     if (order.total === 0) {
+      if (env.PROMOTION_CARD_CHECK_ENABLED && order.promotionId) {
+        const checkout = await createSponsoredSubscriptionCheckout(order, user.email);
+        await prisma.order.update({ where: { id: order.id }, data: { status: 'AWAITING_PAYMENT' } });
+        await audit({
+          actorId: user.id,
+          actorEmail: user.email,
+          action: 'order.promotion_card_check_started',
+          targetType: 'order',
+          targetId: order.id,
+        });
+        return {
+          url: checkout.url,
+          sessionId: checkout.sessionId,
+          message: 'No charge is due today. Stripe verifies and saves the card for renewal.',
+          free: true,
+          cardCheck: true,
+          testGateway: false,
+        };
+      }
+
+      // Local/test installations can keep the original no-provider flow.
       await markOrderPaid({ orderId: order.id, amount: 0 });
       await fulfilOrder(order.id);
       await audit({

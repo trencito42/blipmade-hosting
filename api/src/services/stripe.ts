@@ -134,6 +134,12 @@ export interface CheckoutResult {
   reason: string | null;
 }
 
+export interface PromotionCardIdentity {
+  customerId: string;
+  paymentMethodId: string;
+  fingerprint: string;
+}
+
 /**
  * The Stripe customer of a Blipmade account. It is what the billing portal
  * needs, so it is stored as soon as a checkout session exposes it.
@@ -279,6 +285,101 @@ export async function createCheckout(
   });
   await prisma.order.update({ where: { id: order.id }, data: { stripeCheckoutSessionId: session.id } });
   return { url: session.url, sessionId: session.id, reason: null };
+}
+
+/**
+ * Starts a real Stripe subscription for an order covered entirely by a
+ * promotion. The first invoice is discounted by a one-use 100% coupon, but
+ * Checkout still collects a card and the following term renews at the normal
+ * catalogue amount. Fulfilment waits for the signed webhook.
+ */
+export async function createSponsoredSubscriptionCheckout(
+  order: Order & { items: OrderItem[]; promotionId: string | null },
+  customerEmail: string,
+): Promise<CheckoutResult> {
+  if (!env.paymentsEnabled) throw paymentsUnavailable();
+  if (!order.promotionId || order.total !== 0) {
+    throw badRequest('This checkout is only available for a fully sponsored promotion order.');
+  }
+
+  const stripe = getClient();
+  let customerId = await findStripeCustomerId(order.userId);
+  if (!customerId) {
+    const customer = await stripe.customers.create(
+      { email: customerEmail, metadata: { blipmadeUserId: order.userId } },
+      { idempotencyKey: `blipmade-customer-${order.userId}` },
+    );
+    customerId = customer.id;
+  }
+
+  const coupon = await stripe.coupons.create(
+    {
+      percent_off: 100,
+      duration: 'once',
+      name: `Blipmade promotion · ${order.number}`,
+      metadata: { orderId: order.id, promotionId: order.promotionId },
+    },
+    { idempotencyKey: `blipmade-promotion-coupon-${order.id}` },
+  );
+  const grossTotal = order.items.reduce((sum, item) => sum + item.total, 0);
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: 'subscription',
+      customer: customerId,
+      billing_address_collection: 'required',
+      customer_update: { address: 'auto', name: 'auto' },
+      payment_method_types: ['card'],
+      payment_method_collection: 'always',
+      client_reference_id: order.id,
+      metadata: {
+        orderId: order.id,
+        orderNumber: order.number,
+        orderKind: 'PROMOTION_CARD_CHECK',
+        promotionId: order.promotionId,
+      },
+      subscription_data: {
+        metadata: {
+          orderId: order.id,
+          orderNumber: order.number,
+          orderKind: 'PROMOTION_CARD_CHECK',
+          promotionId: order.promotionId,
+        },
+      },
+      discounts: [{ coupon: coupon.id }],
+      ...(env.stripeTaxEnabled
+        ? { automatic_tax: { enabled: true }, tax_id_collection: { enabled: true } }
+        : {}),
+      line_items: buildCheckoutLineItems(order.items, grossTotal),
+      success_url: `${publicOrigin()}/app/billing?checkout=success`,
+      cancel_url: `${publicOrigin()}/app/billing?checkout=cancelled`,
+    },
+    { idempotencyKey: `blipmade-sponsored-checkout-${order.id}` },
+  );
+  await prisma.order.update({ where: { id: order.id }, data: { stripeCheckoutSessionId: session.id } });
+  return { url: session.url, sessionId: session.id, reason: null };
+}
+
+/** Reads the card Stripe attached to a successful sponsored subscription. */
+export async function promotionCardIdentity(stripeSubscriptionId: string): Promise<PromotionCardIdentity | null> {
+  const subscription = await getClient().subscriptions.retrieve(stripeSubscriptionId, {
+    expand: ['default_payment_method'],
+  });
+  const customerId = typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id;
+  const method = subscription.default_payment_method;
+  const paymentMethod = typeof method === 'string'
+    ? await getClient().paymentMethods.retrieve(method)
+    : method;
+  if (!paymentMethod || paymentMethod.type !== 'card' || !paymentMethod.card?.fingerprint) return null;
+  return {
+    customerId,
+    paymentMethodId: paymentMethod.id,
+    fingerprint: paymentMethod.card.fingerprint,
+  };
+}
+
+/** Cancels the remote subscription created for an abusive duplicate claim. */
+export async function cancelRemoteSubscription(stripeSubscriptionId: string): Promise<void> {
+  await getClient().subscriptions.cancel(stripeSubscriptionId, { prorate: false });
 }
 
 /**

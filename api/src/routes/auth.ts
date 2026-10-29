@@ -18,6 +18,7 @@ import {
 } from '../services/notifications.js';
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
+import { emailIdentity, isDisposableEmail } from '../lib/email-identity.js';
 import {
   addressRateLimitKey,
   createSession,
@@ -303,18 +304,26 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     preHandler: registerGuard,
     handler: async (request: FastifyRequest, reply) => {
       const body = registerSchema.parse(request.body);
+      if (isDisposableEmail(body.email, env.DISPOSABLE_EMAIL_DOMAINS)) {
+        throw badRequest('Use a permanent email address.', { email: 'Temporary email addresses cannot create an account.' });
+      }
       const problems = passwordProblems(body.password);
       if (problems.length) {
         throw badRequest(problems.join(' '), { password: problems.join(' ') });
       }
 
-      const existing = await prisma.user.findUnique({ where: { email: body.email } });
+      const identity = emailIdentity(body.email);
+      const existing = await prisma.user.findFirst({
+        where: { OR: [{ email: body.email }, { emailIdentity: identity }] },
+        select: { id: true },
+      });
       if (existing) throw conflict('An account already uses this email address.');
 
       const passwordHash = await hashPassword(body.password);
       const user = await prisma.user.create({
         data: {
           email: body.email,
+          emailIdentity: identity,
           passwordHash,
           firstName: body.firstName,
           lastName: body.lastName,

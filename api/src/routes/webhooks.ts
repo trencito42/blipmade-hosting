@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { createHmac } from 'node:crypto';
 import { z } from 'zod';
-import type { SubscriptionStatus } from '@prisma/client';
+import { Prisma, type SubscriptionStatus } from '@prisma/client';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import {
@@ -10,6 +11,8 @@ import {
   stripeTestGateway,
   upsertInvoice,
   cancelSubscription,
+  cancelRemoteSubscription,
+  promotionCardIdentity,
   STRIPE_API_VERSION,
 } from '../services/stripe.js';
 import { enqueueProvisioning, enqueueMailProvisioning } from '../services/queue.js';
@@ -132,6 +135,76 @@ function readSessionAmounts(object: Record<string, unknown>): { amount: number |
     return { amount: subtotal, tax: Math.max(0, total - subtotal) };
   }
   return { amount: total, tax: 0 };
+}
+
+function promotionCardHash(fingerprint: string): string {
+  return createHmac('sha256', env.PROMOTION_FINGERPRINT_SECRET)
+    .update(`stripe-card:${fingerprint}`)
+    .digest('hex');
+}
+
+/**
+ * Completes a fully sponsored checkout only after one card has been bound to
+ * the campaign. The unique database index is the final concurrency guard: two
+ * accounts completing Checkout at the same time cannot both claim one card.
+ */
+async function completeSponsoredCheckout(
+  order: { id: string; number: string; userId: string; total: number; currency: string; promotionId: string | null; status: string },
+  object: Record<string, unknown>,
+  eventId: string,
+): Promise<void> {
+  if (!order.promotionId || order.total !== 0) throw new Error('Sponsored checkout does not match a zero-total promotion order.');
+  if (order.status === 'PAID' || order.status === 'FULFILLED') return;
+  if (order.status === 'CANCELLED' || order.status === 'REFUNDED') return;
+
+  const stripeSubscriptionId = typeof object.subscription === 'string' ? object.subscription : null;
+  if (!stripeSubscriptionId) throw new DeferredWebhookError('The sponsored checkout has no Stripe subscription yet.');
+  const identity = await promotionCardIdentity(stripeSubscriptionId);
+  if (!identity) throw new DeferredWebhookError('Stripe has not attached a card to the sponsored subscription yet.');
+
+  try {
+    await prisma.promotionRedemption.update({
+      where: { orderId: order.id },
+      data: { cardFingerprintHash: promotionCardHash(identity.fingerprint) },
+    });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+    await cancelRemoteSubscription(stripeSubscriptionId);
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+    await releaseCancelledOrderPromotion({ id: order.id, promotionId: order.promotionId, promotionRedeemedAt: null });
+    await audit({
+      actorId: order.userId,
+      action: 'promotion.card_reused',
+      targetType: 'order',
+      targetId: order.id,
+      meta: { promotionId: order.promotionId, stripeSubscriptionId },
+    });
+    await notifyPaymentFailed({
+      userId: order.userId,
+      number: order.number,
+      amount: 0,
+      currency: order.currency,
+      reason: 'This promotion has already been claimed with this card.',
+      occurrence: eventId,
+    });
+    return;
+  }
+
+  await markOrderPaid({
+    orderId: order.id,
+    stripeSubscriptionId,
+    stripeCustomerId: identity.customerId,
+    amount: 0,
+    tax: 0,
+  });
+  await fulfilOrder(order.id);
+  await notifyPaymentSucceeded({
+    userId: order.userId,
+    number: order.number,
+    amount: 0,
+    currency: order.currency,
+    occurrence: eventId,
+  });
 }
 
 /** Parses a JSON payload without throwing on malformed input. */
@@ -709,6 +782,14 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
         // The order is not there yet. The event waits in the ledger, so it can
         // be replayed instead of being dropped.
         throw new DeferredWebhookError(`The order ${orderId} does not exist (yet).`);
+      }
+
+      const metadata = object.metadata as { orderKind?: string } | undefined;
+      if (metadata?.orderKind === 'PROMOTION_CARD_CHECK') {
+        if (event.type === 'checkout.session.completed') {
+          await completeSponsoredCheckout(order, object, event.id);
+        }
+        break;
       }
 
       // A session that is not paid yet waits for the async confirmation.

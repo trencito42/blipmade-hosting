@@ -130,6 +130,23 @@ function plain(answer) {
   return answer.body.toString('utf8');
 }
 
+test('static responses carry the browser security policy', async () => {
+  const instance = await start();
+  try {
+    const answer = await ask(instance.base, '/');
+    assert.match(answer.headers['content-security-policy'], /frame-ancestors 'none'/);
+    assert.match(answer.headers['content-security-policy'], /https:\/\/challenges\.cloudflare\.com/);
+    assert.equal(answer.headers['x-frame-options'], 'DENY');
+    assert.equal(answer.headers['referrer-policy'], 'strict-origin-when-cross-origin');
+    assert.match(answer.headers['permissions-policy'], /camera=\(\)/);
+    // The test server is plain HTTP. HSTS is deliberately reserved for the
+    // trusted HTTPS path in production.
+    assert.equal(answer.headers['strict-transport-security'], undefined);
+  } finally {
+    instance.stop();
+  }
+});
+
 test('the bytes of a script travel compressed when the client accepts them', async () => {
   const instance = await start();
   try {
