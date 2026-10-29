@@ -76,6 +76,9 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
   // The control prices an order, so it only carries the products that can be
   // ordered today.
   const products = orderableOf(useProducts());
+  const minecraft = products.find((product) => product.slug === 'minecraft-paper') ?? products.find((product) => product.slug.startsWith('minecraft-'));
+  const choices = products.filter((product) => !product.slug.startsWith('minecraft-'));
+  if (minecraft) choices.push(minecraft);
   const [selected, setSelected] = useState(slug);
   const current = products.find((product) => product.slug === selected) ?? products[0];
   const [raw, setResources] = useState<Resources | null>(null);
@@ -98,6 +101,7 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
     setResources(null);
     choicesRef.current?.removeAttribute('open');
   };
+  const choiceSelected = (productSlug: string) => productSlug.startsWith('minecraft-') ? current.slug.startsWith('minecraft-') : current.slug === productSlug;
   const set = (key: keyof Resources) => (value: number) => setResources({ ...resources, [key]: value });
   const rates: Rates = current.rates;
   const b = breakdownOfResources(resources, rates);
@@ -125,28 +129,41 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
           <legend className="font-display text-[26px] leading-tight font-semibold tracking-[-0.03em]">What are you running?</legend>
           <details ref={choicesRef} className="group rounded-2xl border border-night-line bg-night-2">
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[15px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0 truncate">{current.name}</span>
+              <span className="min-w-0 truncate">{current.slug.startsWith('minecraft-') ? 'Minecraft' : current.name}</span>
               <span className="flex shrink-0 items-center gap-2 text-[12px] font-medium text-snow-2">
                 Change app <span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span>
               </span>
             </summary>
             <div className="max-h-60 overflow-y-auto overscroll-contain border-t border-night-line p-2" role="radiogroup" aria-label="Choose an app">
-              {products.map((product) => (
+              {choices.map((product) => (
                 <label
                   key={product.slug}
                   className={cx(
                     'flex min-h-11 cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-[14px] font-medium transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-mint',
-                    current.slug === product.slug ? 'bg-mint text-night' : 'text-snow hover:bg-night-3',
+                    choiceSelected(product.slug) ? 'bg-mint text-night' : 'text-snow hover:bg-night-3',
                   )}
                 >
-                  <span>{product.name}</span>
-                  {current.slug === product.slug && <span aria-hidden="true">✓</span>}
-                  <input type="radio" name={name} className="sr-only" checked={current.slug === product.slug} onChange={() => pick(product.slug)} />
+                  <span>{product.slug.startsWith('minecraft-') ? 'Minecraft' : product.name}</span>
+                  {choiceSelected(product.slug) && <span aria-hidden="true">✓</span>}
+                  <input type="radio" name={name} className="sr-only" checked={choiceSelected(product.slug)} onChange={() => pick(product.slug)} />
                 </label>
               ))}
             </div>
           </details>
         </fieldset>
+      )}
+      {!lock && current.slug.startsWith('minecraft-') && (
+        <div className="mt-4 grid gap-2">
+          <label htmlFor={`${name}-edition`} className="text-[14px] font-semibold text-snow">Minecraft edition</label>
+          <select id={`${name}-edition`} value={current.slug} onChange={(event) => pick(event.target.value)} className="min-h-11 rounded-xl border border-night-line bg-night-2 px-3 text-[14px] text-snow focus-visible:outline-2 focus-visible:outline-mint">
+            {[
+              ['minecraft-paper', 'Paper'], ['minecraft-forge', 'Forge'], ['minecraft-vanilla', 'Vanilla'],
+              ['minecraft-bedrock', 'Bedrock'], ['minecraft-folia', 'Folia'],
+            ].map(([value, label]) => (
+              <option key={value} value={value} disabled={!products.some((product) => product.slug === value)}>{label}{products.some((product) => product.slug === value) ? '' : ' — coming soon'}</option>
+            ))}
+          </select>
+        </div>
       )}
       <div className="mt-7 grid gap-5">
         <Slider

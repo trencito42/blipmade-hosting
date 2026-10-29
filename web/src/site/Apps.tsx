@@ -6,6 +6,14 @@ import { eur, fmtRam } from './pricing';
 import { Link } from '../router';
 import { Btn, Crumbs, Eyebrow, Wrap } from './ui';
 
+const MINECRAFT_EDITIONS = [
+  { slug: 'minecraft-paper', label: 'Paper' },
+  { slug: 'minecraft-forge', label: 'Forge' },
+  { slug: 'minecraft-vanilla', label: 'Vanilla' },
+  { slug: 'minecraft-bedrock', label: 'Bedrock' },
+  { slug: 'minecraft-folia', label: 'Folia' },
+];
+
 /**
  * The categories of the catalog, in the order a reader walks through them.
  *
@@ -116,11 +124,14 @@ function Card({ product }: { product: Product }) {
  */
 export function Apps() {
   const products = useProducts();
-  const groups = groupByCategory(products);
+  const minecraft = products.find((product) => product.slug === 'minecraft-paper') ?? products.find((product) => product.slug.startsWith('minecraft-'));
+  const displayProducts = products.filter((product) => !product.slug.startsWith('minecraft-'));
+  if (minecraft) displayProducts.push({ ...minecraft, slug: 'minecraft', name: 'Minecraft', description: 'Choose Paper, Forge, Vanilla, Bedrock or Folia.' });
+  const groups = groupByCategory(displayProducts);
   const [category, setCategory] = useState('all');
   const visibleGroups = category === 'all' ? groups : groups.filter((group) => group.id === category);
-  const available = products.filter((product) => isOrderable(product)).length;
-  const coming = products.length - available;
+  const available = displayProducts.filter((product) => isOrderable(product)).length;
+  const coming = displayProducts.length - available;
 
   return (
     <>
@@ -195,6 +206,22 @@ export function Apps() {
  */
 export function AppDetail({ slug }: { slug: string }) {
   const products = useProducts();
+  const [edition, setEdition] = useState('minecraft-paper');
+  if (slug === 'minecraft') {
+    return (
+      <>
+        <Wrap className="grid gap-3 pt-10 sm:pt-14">
+          <label htmlFor="minecraft-edition" className="font-display text-[19px] font-semibold">Minecraft edition</label>
+          <select id="minecraft-edition" value={edition} onChange={(event) => setEdition(event.target.value)} className="min-h-12 max-w-md rounded-xl border border-line bg-paper px-4 py-2 text-[16px] font-medium text-ink focus-visible:outline-2 focus-visible:outline-green">
+            {MINECRAFT_EDITIONS.map((item) => (
+              <option key={item.slug} value={item.slug}>{item.label}{products.some((product) => product.slug === item.slug) ? '' : ' — coming soon'}</option>
+            ))}
+          </select>
+        </Wrap>
+        <AppDetail slug={edition} />
+      </>
+    );
+  }
   const product = products.find((entry) => entry.slug === slug);
   const copy = APP_COPY[slug];
 
@@ -203,7 +230,7 @@ export function AppDetail({ slug }: { slug: string }) {
       <section aria-labelledby="app-h">
         <Wrap className="grid gap-6 pt-14 pb-12 sm:pt-20">
           <Crumbs items={[['Home', '/'], ['Apps', '/apps'], [slug, `/apps/${slug}`]]} />
-          <h1 id="app-h" className="text-[clamp(42px,6.4vw,84px)] leading-[0.95] font-semibold tracking-[-0.05em]">This product is not on sale today.</h1>
+          <h1 id="app-h" className="text-[clamp(42px,6.4vw,84px)] leading-[0.95] font-semibold tracking-[-0.05em]">{slug === 'minecraft-vanilla' ? 'Minecraft Vanilla is coming soon.' : 'This product is not on sale today.'}</h1>
           <p className="max-w-[34em] text-[18px] text-ink-2">The catalog carries more products than the platform can deploy. Tell us what you want to run and we will look at it.</p>
           <div>
             <Btn to="/apps" variant="outline">See what you can deploy</Btn>
