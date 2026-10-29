@@ -495,12 +495,27 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const passwordHash = await hashPassword(body.password);
-      await prisma.$transaction([
-        prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
-        prisma.verificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+      // Claim the token and change the password in one transaction. The earlier
+      // read alone cannot prevent two concurrent reset requests from both
+      // using the same token: the conditional update takes the row lock and
+      // guarantees that only one request consumes it.
+      await prisma.$transaction(async (tx) => {
+        const claimed = await tx.verificationToken.updateMany({
+          where: {
+            id: record.id,
+            type: 'PASSWORD_RESET',
+            usedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+          data: { usedAt: new Date() },
+        });
+        if (claimed.count !== 1) {
+          throw badRequest('This reset link is invalid or has expired.');
+        }
+        await tx.user.update({ where: { id: record.userId }, data: { passwordHash } });
         // Changing a password ends every existing session.
-        prisma.session.deleteMany({ where: { userId: record.userId } }),
-      ]);
+        await tx.session.deleteMany({ where: { userId: record.userId } });
+      });
       await audit({ actorId: record.userId, action: 'auth.password_reset', targetType: 'user', targetId: record.userId, ip: request.ip });
       const changed = await prisma.user.findUnique({
         where: { id: record.userId },
