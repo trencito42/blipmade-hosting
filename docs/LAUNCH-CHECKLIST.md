@@ -252,6 +252,29 @@ no longer shadows.
 well, so its key is in the same place as the one it replaced. It has to be
 rotated one more time, with a pair that does not pass through a conversation.
 
+### 4.2 The state of the 29th of October of 2026 — measured
+
+Everything that is under the control of the platform was measured again, and
+the only thing that is missing is the certificate that **Cloudflare** shows
+to the visitor:
+
+| What | Where | State |
+|---|---|---|
+| The certificate of the origin | `/etc/caddy/certs/blipmade-origin.crt` on the edge | in place, covers `*.apps.blipmade.com` and `apps.blipmade.com`, verifies against the root of Cloudflare |
+| The certificate of the visitor | Cloudflare, zone `blipmade.com` | **missing for the base**: the zone holds `blipmade.com` and `*.blipmade.com`, so a name under `*.apps.blipmade.com` is refused with the alert 40 |
+| The route of a customer | the routes of the server `blipmade` of the edge | written, and it answers: the request for `code-server-exeuw.apps.blipmade.com` reaches the container and is answered with `302 → ./login` |
+| The order of the routes | the same list | the routes of the customers are put in front of the routes of the operator, or the site of the base would answer before them (see `docs/DOMAIN_ROUTING.md`, 2.6) |
+
+The pair of the certificate that was sent on the 29th of October was compared
+with the pair that is installed: the two certificates are **not** the same
+(`89:FF:BB:55:…` against `89:FF:50:A8:…`), but they carry the same names,
+the same issuer and the same validity, so both are certificates of the origin
+for the base of the platform. **The one that is installed does not have to be
+replaced**, and the key that is in place matches its own certificate.
+
+The only step that is left is on the side of Cloudflare, and it is the one of
+the table above: the certificate of the visitor for the base of the platform.
+
 ## 5. The webhook of Discord — done
 
 The channel of the alarms is set since the 27th of October 2026, at 18:50.
