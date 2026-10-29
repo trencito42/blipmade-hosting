@@ -75,6 +75,10 @@ async function withInstance<T>(
 function translatePanelError(error: unknown): never {
   if (error instanceof client.ClientApiError) {
     if (error.status === 404) throw notFound('That resource does not exist on this server.');
+    if (error.status === 400 || error.status === 422) {
+      const detail = error.message.split(/failed with \d+\. /)[1];
+      throw badRequest(detail || 'The panel rejected this operation.');
+    }
     if (error.status === 401 || error.status === 403) {
       throw unavailable('The panel refused this operation for this server.');
     }

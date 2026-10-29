@@ -601,6 +601,12 @@ export default function InstanceDetail() {
   const { id } = useParams();
   const { push } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
+  const [powerCooldown, setPowerCooldown] = useState(0);
+  useEffect(() => {
+    if (powerCooldown <= 0) return;
+    const timer = window.setTimeout(() => setPowerCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [powerCooldown]);
 
   const { data, loading, error, reload, setData } = useAsync(
     (signal) => get<{ instance: Instance }>(`/instances/${id}`, undefined, signal),
@@ -617,7 +623,10 @@ export default function InstanceDetail() {
 
   const onPower = async (action: PowerAction) => {
     const done = await power.run(action);
-    if (done) push(`${POWER_LABEL[action]} requested.`, 'ok');
+    if (done) {
+      setPowerCooldown(30);
+      push(`${POWER_LABEL[action]} requested.`, 'ok');
+    }
   };
 
   if (loading) {
@@ -690,13 +699,13 @@ export default function InstanceDetail() {
             <span className="text-[13.5px] text-ink3">No public URL yet</span>
           )}
 
-          <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending}>
+          <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending || powerCooldown > 0}>
             Start
           </SoftButton>
-          <SoftButton onClick={() => onPower('restart')} disabled={!canRestart || power.pending}>
-            Restart
+          <SoftButton onClick={() => onPower('restart')} disabled={!canRestart || power.pending || powerCooldown > 0}>
+            {powerCooldown > 0 ? `Restart (${powerCooldown}s)` : 'Restart'}
           </SoftButton>
-          <SoftButton onClick={() => onPower('stop')} disabled={!canStop || power.pending}>
+          <SoftButton onClick={() => onPower('stop')} disabled={!canStop || power.pending || powerCooldown > 0}>
             Stop
           </SoftButton>
         </div>

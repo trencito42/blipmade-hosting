@@ -2,9 +2,10 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import WebSocket from 'ws';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { redis } from '../redis.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { env } from '../env.js';
-import { badRequest, notFound, unavailable } from '../lib/errors.js';
+import { AppError, badRequest, notFound, unavailable } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
@@ -189,8 +190,16 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     // customer is told that it works again.
     const wasSuspended = instance.status === 'SUSPENDED';
 
-    const token = await clientTokenFor(instance);
-    await client.sendPower(token, instance.pterodactylUuid, action);
+    const cooldownKey = `instance:power:${instance.id}`;
+    const acquired = await redis.set(cooldownKey, action, 'EX', 30, 'NX');
+    if (acquired !== 'OK') throw new AppError(429, 'power_cooldown', 'Wait 30 seconds before another power action.');
+    try {
+      const token = await clientTokenFor(instance);
+      await client.sendPower(token, instance.pterodactylUuid, action);
+    } catch (error) {
+      await redis.del(cooldownKey);
+      throw error;
+    }
 
     const status = action === 'stop' ? 'STOPPED' : action === 'start' ? 'ONLINE' : 'RESTARTING';
     await prisma.instance.update({ where: { id: instance.id }, data: { status } });
@@ -497,7 +506,8 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
     return;
   }
 
-  const separator = credentials.socket.includes('?') ? '&' : '?';
+  // Wings authenticates with an auth event after the socket opens.
+  // A token in the URL query is ignored by Wings.
   // The panel answers with the address of the node as it is known on the
   // internet. That address is not always the one that can be reached from
   // here, so the operator can name the address that works. The name of the
@@ -507,7 +517,7 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
   const targetUrl = new URL(credentials.socket);
   targetUrl.host = address.host;
   const target = new WebSocket(
-    `${targetUrl.toString()}${separator}token=${encodeURIComponent(credentials.token)}`,
+    targetUrl.toString(),
     {
       // The library reads the name of the node for the certificate of the
       // connection, even when the connection is opened to another address. The
@@ -520,10 +530,24 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
   );
 
   target.on('open', () => {
-    socket.send(JSON.stringify({ event: 'connected' }));
+    target.send(JSON.stringify({ event: 'auth', args: [credentials.token] }));
   });
   target.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
-    if (socket.readyState === socket.OPEN) socket.send(data.toString());
+    let packet: { event?: string; args?: string[] };
+    try { packet = JSON.parse(data.toString()); } catch { return; }
+    if (packet.event === 'auth success') {
+      target.send(JSON.stringify({ event: 'send logs', args: [null] }));
+      if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ event: 'connected' }));
+    } else if (packet.event === 'console output') {
+      if (socket.readyState === socket.OPEN) socket.send(packet.args?.[0] ?? '');
+    } else if (packet.event === 'token expiring' || packet.event === 'token expired') {
+      void resolveCustomerCredential(user.id).then((customer) => client.consoleWebsocket(client.clientToken(customer.token), instance.pterodactylUuid!)).then((fresh) => {
+        credentials = fresh;
+        if (target.readyState === target.OPEN) target.send(JSON.stringify({ event: 'auth', args: [fresh.token] }));
+      }).catch(() => target.close());
+    } else if (packet.event === 'auth error' || packet.event === 'daemon error') {
+      if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ event: 'error', message: 'The node rejected the console connection.' }));
+    }
   });
   target.on('close', (code: number, reason: Buffer) => {
     if (socket.readyState === socket.OPEN) {
@@ -537,9 +561,6 @@ async function relayConsole(socket: WebSocket, request: FastifyRequest): Promise
     }
   });
 
-  socket.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
-    if (target.readyState === target.OPEN) target.send(data.toString());
-  });
   socket.on('close', () => {
     if (target.readyState === target.OPEN) target.close();
   });

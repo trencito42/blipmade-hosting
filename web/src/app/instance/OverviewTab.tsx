@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { getResources, listEvents } from '../../lib/instance-api';
 import CredentialsCard from './CredentialsCard';
@@ -27,6 +28,11 @@ import {
 export default function OverviewTab({ instance, onGoTo }: TabProps) {
   const resources = useAsync((signal) => getResources(instance.id, signal), [instance.id]);
   const events = useAsync((signal) => listEvents(instance.id, signal), [instance.id]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => { resources.reload(); events.reload(); }, 10000);
+    return () => window.clearInterval(timer);
+  }, [instance.id, resources.reload, events.reload]);
 
   const sample = resources.data;
   const recent = events.data?.events ?? [];
@@ -152,7 +158,7 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
               {recent.slice(0, 6).map((event, index) => (
                 <ListRow
                   key={`${event.type}-${event.createdAt}-${index}`}
-                  title={<span className="break-words" title={event.type}>{event.type}</span>}
+                  title={<span className="break-words" title={event.type}>{event.type === 'runtime_state' ? 'Container status' : event.type.replaceAll('_', ' ')}</span>}
                   meta={<span className="break-words" title={event.message}>{event.message}</span>}
                   right={<span className="whitespace-nowrap font-mono text-[12px] text-ink3">{fmtDateTime(event.createdAt)}</span>}
                 />

@@ -1522,7 +1522,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
           io: 500,
           cpu: instance.cpu * 100,
         },
-        feature_limits: { databases: 0, backups: 0 },
+        feature_limits: { databases: 0, backups: 1 },
         // The panel expects the id of the allocation that becomes the primary
         // address, plus the list of assigned allocations.
         allocation: { default: choice.allocationId, allocations: [choice.allocationId] },
