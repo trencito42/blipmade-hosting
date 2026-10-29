@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Configurator } from './Configurator';
 import { APP_COPY, FALLBACK } from './content';
 import { isOrderable, useProducts, type Product } from './catalog';
@@ -116,6 +117,8 @@ function Card({ product }: { product: Product }) {
 export function Apps() {
   const products = useProducts();
   const groups = groupByCategory(products);
+  const [category, setCategory] = useState('all');
+  const visibleGroups = category === 'all' ? groups : groups.filter((group) => group.id === category);
   const available = products.filter((product) => isOrderable(product)).length;
   const coming = products.length - available;
 
@@ -136,7 +139,24 @@ export function Apps() {
         </Wrap>
       </section>
       <Wrap className="pb-20">
-        {groups.map((group) => (
+        <nav aria-label="Filter apps by category" className="mb-10 overflow-x-auto border-b border-line">
+          <div className="flex w-max min-w-full gap-1 sm:gap-3">
+            {[{ id: 'all', label: 'All apps', count: products.length }, ...groups.map((group) => ({ id: group.id, label: group.label, count: group.products.length }))].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                aria-pressed={category === tab.id}
+                onClick={() => setCategory(tab.id)}
+                className={`min-h-11 shrink-0 border-b-2 px-4 py-3 text-[15px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-green ${
+                  category === tab.id ? 'border-green text-ink' : 'border-transparent text-ink-3 hover:text-ink'
+                }`}
+              >
+                {tab.label} <span className="num ml-1 text-[13px] opacity-70">{tab.count}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+        {visibleGroups.map((group) => (
           <section key={group.id} aria-labelledby={`cat-${group.id}`} className="mb-12 last:mb-0">
             <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line pb-4">
               <h2 id={`cat-${group.id}`} className="font-display text-[26px] font-semibold tracking-[-0.03em]">

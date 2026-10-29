@@ -121,6 +121,23 @@ test.describe('the home page', () => {
 });
 
 test.describe('the catalog of the apps', () => {
+  test('filters the catalog by category and returns to every app', async ({ page }) => {
+    await page.goto('/apps');
+    const filters = page.getByRole('navigation', { name: 'Filter apps by category' });
+    const games = filters.getByRole('button', { name: /^Games\s+\d+$/ });
+    const all = filters.getByRole('button', { name: /^All apps\s+\d+$/ });
+
+    await expect(games).toHaveAttribute('aria-pressed', 'false');
+    await games.click();
+    await expect(games).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('heading', { name: 'Games', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Developer tools', exact: true })).toHaveCount(0);
+
+    await all.click();
+    await expect(all).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('heading', { name: 'Developer tools', exact: true })).toBeVisible();
+  });
+
   test('shows every product that can be deployed, and only those', async ({ page }) => {
     await page.goto('/apps');
     const products = (await catalog(page)).filter((product) => product.pricing);
