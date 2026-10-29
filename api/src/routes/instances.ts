@@ -18,6 +18,7 @@ import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/n
 import { parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
 import { createCheckout } from '../services/stripe.js';
 import { customerStatusOf } from '../services/runtime-state.js';
+import { isAllowedWebSocketOrigin } from '../lib/websocket-origin.js';
 
 /**
  * The routes of the instances carry a limit.
@@ -278,7 +279,19 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
    * directions. The panel token never reaches the browser, and the socket is
    * only opened for an instance the caller owns.
    */
-  app.get('/instances/:id/console/stream', { websocket: true }, (socket, request: FastifyRequest) => {
+  app.get('/instances/:id/console/stream', {
+    websocket: true,
+    preValidation: async (request: FastifyRequest, reply) => {
+      // A WebSocket GET cannot carry the CSRF header from a browser fetch().
+      // Reject foreign origins *before* upgrading the authenticated socket.
+      if (!isAllowedWebSocketOrigin(request.headers.origin, env.APP_ORIGIN)) {
+        return reply.code(403).send({ error: { code: 'forbidden', message: 'Console origin is not allowed.' } });
+      }
+      if (!request.user) {
+        return reply.code(401).send({ error: { code: 'unauthorized', message: 'Sign in to use the console.' } });
+      }
+    },
+  }, (socket, request: FastifyRequest) => {
     void relayConsole(socket, request);
   });
 
@@ -297,7 +310,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const token = await clientTokenFor(instance);
     await client.sendCommand(token, instance.pterodactylUuid, command);
     await prisma.instanceEvent.create({
-      data: { instanceId: instance.id, type: 'command', message: `Command sent: ${command}` },
+      data: { instanceId: instance.id, type: 'command', message: 'Console command sent.' },
     });
     await audit({
       actorId: user.id,
