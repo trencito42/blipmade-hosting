@@ -50,7 +50,18 @@ const summary = JSON.parse(readFileSync(join(webRoot, 'src', 'site', 'data', 'me
   keywords: string[];
   catalogSlug?: string;
 }[];
-const snapshot = JSON.parse(readFileSync(join(webRoot, 'src', 'site', 'data', 'products.json'), 'utf8')) as { slug: string }[];
+const snapshot = JSON.parse(readFileSync(join(webRoot, 'src', 'site', 'data', 'products.json'), 'utf8')) as {
+  slug: string;
+  availability: { state: string; orderable: boolean };
+}[];
+
+/**
+ * The products the platform can deploy today.
+ *
+ * The snapshot holds every product the platform lists, so the products that
+ * can be deployed are the ones the server marks as orderable.
+ */
+const deployable = new Set(snapshot.filter((product) => product.availability.orderable).map((product) => product.slug));
 
 let server: ViteDevServer;
 let Blocks: (props: { blocks: unknown[]; product?: unknown }) => unknown;
@@ -216,7 +227,6 @@ describe('the markers of the content', () => {
 
 describe('the pages of the products', () => {
   it('has a page for every product the platform can deploy', () => {
-    const deployable = new Set(snapshot.map((product) => product.slug));
     assert.ok(deployable.size > 0, 'the snapshot of the catalog is empty');
     for (const slug of deployable) {
       const page = pages.find((entry) => entry.id === slug);
@@ -229,7 +239,6 @@ describe('the pages of the products', () => {
     // The content is written ahead of the catalog: a product that cannot be
     // deployed today has its page written, and the site does not publish it.
     // The site never describes something that cannot be ordered.
-    const deployable = new Set(snapshot.map((product) => product.slug));
     const waiting = pages.filter((page) => page.catalogSlug && !deployable.has(page.catalogSlug));
     assert.ok(waiting.length > 0, 'the content has no page of a product that is waiting');
     for (const page of waiting) {

@@ -6,15 +6,37 @@
  * anything. Then the live catalog is fetched and the snapshot is replaced by
  * it, when the API answers.
  *
- * Only the products that can really be ordered are kept. A product that is
- * listed but cannot be deployed must not be shown as something a customer can
- * order, and the API says which is which.
+ * The catalog holds every product the platform lists, not only the ones that
+ * can be ordered today. A product that is listed but is not validated for
+ * deployment yet is named, priced and marked as coming soon, so a visitor sees
+ * what the platform is preparing. The API says which is which, and the site
+ * never decides on its own: a product that cannot be ordered is never shown
+ * with something that orders it.
  */
 
 import { useSyncExternalStore } from 'react';
 import { get } from '../lib/api';
 import { DEFAULT_RATES, type Rates } from './pricing';
 import snapshot from './data/products.json' with { type: 'json' };
+
+/**
+ * The state of a product, as the server names it.
+ *
+ * The four states are the ones of the platform: a product that can be
+ * deployed, one that is coming, one that cannot be built at the moment and
+ * one that is not listed at all.
+ */
+export type AvailabilityState = 'DEPLOYABLE' | 'COMING_SOON' | 'TEMPORARILY_UNAVAILABLE' | 'UNPUBLISHED';
+
+/** What the site knows about the availability of a product. */
+export interface ProductAvailability {
+  /** The state of the product, seen from the outside. */
+  state: AvailabilityState;
+  /** The product can be ordered right now. */
+  orderable: boolean;
+  /** Why the product cannot be ordered. Empty when it can. */
+  blockers: string[];
+}
 
 /** A product of the catalog, as the site holds it. */
 export interface Product {
@@ -35,6 +57,8 @@ export interface Product {
   currency: string;
   /** The card of rates of the platform, as the catalog carries it. */
   rates: Rates;
+  /** What the server says about the availability of the product. */
+  availability: ProductAvailability;
 }
 
 /** The product, as the API sends it. */
@@ -58,7 +82,9 @@ interface ApiProduct {
     recommended: { amount: number };
     rates: Rates;
   };
-  availability?: { state?: string; orderable?: boolean };
+  availability?: { state?: AvailabilityState; orderable?: boolean; visible?: boolean; blockers?: string[] };
+  visible?: boolean;
+  deployable?: boolean;
 }
 
 /**
@@ -81,6 +107,26 @@ const fromSnapshot = (list: Product[]): Product[] => list.slice().sort((a, b) =>
 let current: Product[] = fromSnapshot(snapshot as Product[]);
 const subscribers = new Set<() => void>();
 
+/**
+ * The availability of a product, as the site holds it.
+ *
+ * The API sends the state of the product, and the state is the answer: a
+ * product that is not published is not in the catalog, and a product that is
+ * not deployable is listed but cannot be ordered.
+ *
+ * A server that does not send the availability yet is answered with the flag
+ * of the product: a product that is not listed is not published, and a
+ * product that is listed but cannot be ordered is coming.
+ */
+export const availabilityOf = (product: ApiProduct): ProductAvailability => {
+  const sent = product.availability;
+  const visible = sent?.visible ?? product.visible ?? true;
+  const orderable = sent?.orderable ?? (product.deployable ?? true);
+  const state: AvailabilityState = sent?.state ?? (visible ? (orderable ? 'DEPLOYABLE' : 'COMING_SOON') : 'UNPUBLISHED');
+  const blockers = sent?.blockers ?? (orderable ? [] : ['It has not been validated for deployment yet.']);
+  return { state, orderable, blockers };
+};
+
 /** The product of the API, in the shape the site holds it. */
 export const mapApi = (product: ApiProduct): Product => ({
   slug: product.slug,
@@ -94,7 +140,14 @@ export const mapApi = (product: ApiProduct): Product => ({
   recPrice: product.pricing.recommended.amount,
   currency: product.pricing.currency,
   rates: product.pricing.rates,
+  availability: availabilityOf(product),
 });
+
+/** True when the product can be ordered right now. */
+export const isOrderable = (product: Product): boolean => product.availability.orderable;
+
+/** The products of a list that can be ordered right now. */
+export const orderableOf = (list: Product[]): Product[] => list.filter((product) => product.availability.orderable);
 
 let started = false;
 
@@ -110,7 +163,7 @@ export async function refreshCatalog(): Promise<void> {
   try {
     const { products } = await get<{ products: ApiProduct[] }>('/catalog/products');
     const live = products
-      .filter((product) => product.availability?.state === 'DEPLOYABLE' && product.availability?.orderable)
+      .filter((product) => availabilityOf(product).state !== 'UNPUBLISHED')
       .map(mapApi)
       .sort((a, b) => rank(a.slug) - rank(b.slug));
     if (live.length) {

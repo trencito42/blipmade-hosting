@@ -5,7 +5,7 @@ import { PASSWORD_RULES, passwordIssues } from '../lib/password-rules';
 import { postLoginTarget } from '../auth-guard';
 import { useSession } from '../session';
 import { Link, useRouter } from '../router';
-import { useProducts } from './catalog';
+import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtRam } from './pricing';
 import { Btn, Logo, cx } from './ui';
 
@@ -130,7 +130,9 @@ const PW_MESSAGE = 'Choose a password with at least 10 characters, an uppercase 
  * on the right, and it is the only thing that moves.
  */
 function Frame({ children, search }: { children: ReactNode; search: string }) {
-  const products = useProducts();
+  // The account carries the configuration the visitor chose. Only a product
+  // that can be ordered has a configuration to carry.
+  const products = orderableOf(useProducts());
   const query = new URLSearchParams(search);
   const product = products.find((entry) => entry.slug === query.get('app'));
   const summary = product

@@ -200,8 +200,8 @@ export const getServer = (id: string, signal?: AbortSignal) =>
 /**
  * The live usage of the instance.
  *
- * The counters are the ones of the panel: the uptime is in seconds and the
- * memory and the disk are in bytes.
+ * The counters are the ones of the panel: the uptime is in milliseconds and
+ * the memory and the disk are in bytes.
  */
 export interface ResourceSample {
   state: string;
@@ -235,7 +235,8 @@ export async function getResources(id: string, signal?: AbortSignal): Promise<Re
     diskBytes: disk.used ?? raw.diskBytes ?? null,
     networkRx: network.rx ?? raw.networkRx ?? null,
     networkTx: network.tx ?? raw.networkTx ?? null,
-    uptimeMs: raw.uptime === undefined ? (raw.uptimeMs ?? null) : raw.uptime * 1000,
+    // The panel counts the time the container has been up in milliseconds.
+    uptimeMs: raw.uptime === undefined ? (raw.uptimeMs ?? null) : raw.uptime,
   };
 }
 

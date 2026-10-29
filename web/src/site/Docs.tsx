@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from '../router';
 import { articleById, articles, docGroups, type Article } from './data';
-import { productBySlug } from './catalog';
+import { isOrderable, productBySlug } from './catalog';
 import { Blocks } from './Blocks';
 import { Btn, Crumbs, Lead, Wrap, cx } from './ui';
 
@@ -16,13 +16,16 @@ import { Btn, Crumbs, Lead, Wrap, cx } from './ui';
 /**
  * The pages that are published.
  *
- * A page that is about a product is published when the catalog of the
- * platform carries that product. A page about a product the platform cannot
- * deploy yet would be a page that describes something that cannot be ordered,
- * so it stays out of the site.
+ * A page that is about a product is published when the product can be
+ * ordered: a page about a product the platform cannot deploy yet would
+ * describe something that cannot be ordered, so it stays out of the site.
  */
 export function publishedArticles(): Article[] {
-  return articles.filter((article) => !article.catalogSlug || Boolean(productBySlug(article.catalogSlug)));
+  return articles.filter((article) => {
+    if (!article.catalogSlug) return true;
+    const product = productBySlug(article.catalogSlug);
+    return Boolean(product && isOrderable(product));
+  });
 }
 
 /** The pages of a group, in the order they are read. */

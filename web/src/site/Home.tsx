@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Configurator } from './Configurator';
 import { APP_COPY, FALLBACK, NOT_YET, TODAY, faqFor } from './content';
-import { useProducts, useRates } from './catalog';
+import { orderableOf, useProducts, useRates } from './catalog';
 import { priceOfResources, eur, fmtRam } from './pricing';
 import { Link } from '../router';
 import { Btn, Wrap, cx } from './ui';
@@ -16,7 +16,9 @@ import { Btn, Wrap, cx } from './ui';
  */
 
 function Hero() {
-  const products = useProducts();
+  // The page quotes the price of what can be ordered today, so it reads the
+  // products the visitor can actually buy.
+  const products = orderableOf(useProducts());
   const from = products.length ? Math.min(...products.map((product) => product.minPrice)) : 0;
   return (
     <section aria-labelledby="h1">
@@ -106,7 +108,9 @@ function Rates() {
 }
 
 function AppsRow() {
-  const products = useProducts();
+  // The row shows the apps that can be deployed today. The whole catalogue,
+  // with the apps that are still coming, is on the page of the apps.
+  const products = orderableOf(useProducts());
   return (
     <section aria-labelledby="apps-h">
       <Wrap className="py-20 sm:py-28">

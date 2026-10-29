@@ -1,5 +1,40 @@
 [
   {
+    "slug": "wordpress",
+    "name": "WordPress",
+    "category": "WEB_CMS",
+    "description": "The most widely used CMS. It runs on a WordPress image of the panel, and that image is not installed on the platform yet, so it is listed but cannot be deployed.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
     "slug": "code-server",
     "name": "Code Server",
     "category": "DEVELOPER_TOOLS",
@@ -27,7 +62,12 @@
       "diskPerGb": 5,
       "baseFee": 49
     },
-    "currency": "EUR"
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
   },
   {
     "slug": "discord-bot",
@@ -57,7 +97,49 @@
       "diskPerGb": 5,
       "baseFee": 49
     },
-    "currency": "EUR"
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "uptime-kuma",
+    "name": "Uptime Kuma",
+    "category": "MONITORING",
+    "description": "Simple uptime monitoring with public status pages.",
+    "min": {
+      "ram": 256,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 199,
+    "recPrice": 274,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
   },
   {
     "slug": "postgresql",
@@ -87,6 +169,2425 @@
       "diskPerGb": 5,
       "baseFee": 49
     },
-    "currency": "EUR"
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "7-days-to-die",
+    "name": "7 Days to Die",
+    "category": "GAMES",
+    "description": "The survival of the horde, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "ark-survival-evolved",
+    "name": "ARK: Survival Evolved",
+    "category": "GAMES",
+    "description": "The survival of the dinosaurs, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "cs2d",
+    "name": "CS2D",
+    "category": "GAMES",
+    "description": "The two dimensional counterpart of Counter-Strike, light and free.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 349,
+    "recPrice": 574,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "conan-exiles",
+    "name": "Conan Exiles",
+    "category": "GAMES",
+    "description": "The survival of the age of Conan, on the server of Steam.",
+    "min": {
+      "ram": 6144,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1599,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "core-keeper",
+    "name": "Core Keeper",
+    "category": "GAMES",
+    "description": "The mining of the dungeon, with the guardians of the core.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "counter-strike-1-6",
+    "name": "Counter-Strike 1.6",
+    "category": "GAMES",
+    "description": "The classic of the competitive shooters, on the reHLDS engine.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "counter-strike-2",
+    "name": "Counter-Strike 2",
+    "category": "GAMES",
+    "description": "The competitive shooter, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "dayz",
+    "name": "DayZ",
+    "category": "GAMES",
+    "description": "The survival of Chernarus, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "dont-starve-together",
+    "name": "Don't Starve Together",
+    "category": "GAMES",
+    "description": "The survival of the dark, with the seasons of the world.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "factorio",
+    "name": "Factorio",
+    "category": "GAMES",
+    "description": "The factory that has to be free of itself.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "5e-tools",
+    "name": "5e Tools",
+    "category": "AUTOMATION",
+    "description": "The tools of the counter-strike, for the server that plays it.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "fivem",
+    "name": "FiveM",
+    "category": "GAMES",
+    "description": "The server of the role play of Grand Theft Auto, with the resources of the community.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "elasticsearch",
+    "name": "Elasticsearch",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The search of the documents, with the index of the text.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 200
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "garrys-mod",
+    "name": "Garry's Mod",
+    "category": "GAMES",
+    "description": "The sandbox of Valve, where the server is a playground of contraptions.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "folding-at-home",
+    "name": "Folding@Home",
+    "category": "AUTOMATION",
+    "description": "The computing that helps the research, with the team of the projects.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "hytale",
+    "name": "Hytale",
+    "category": "GAMES",
+    "description": "The sandbox that Hypixel is building, with the worlds of the players.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "forgejo",
+    "name": "Forgejo",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The git of the code, on your own server, without a licence.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "left-4-dead-2",
+    "name": "Left 4 Dead 2",
+    "category": "GAMES",
+    "description": "The cooperative shooter of Valve, with the survivors and the infected.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "gitea",
+    "name": "Gitea",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The git of the code, with the wiki and the issues.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "minecraft-bedrock",
+    "name": "Minecraft Bedrock",
+    "category": "GAMES",
+    "description": "The edition of Minecraft that runs on phones and consoles, playable with the Java edition too.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "grafana",
+    "name": "Grafana",
+    "category": "MONITORING",
+    "description": "The panels of the metrics, with the graphs of everything the platform measures.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "minecraft-folia",
+    "name": "Minecraft Folia",
+    "category": "GAMES",
+    "description": "The version of Minecraft built for many players at once, with the regions of the world spread over many cores.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "haste-server",
+    "name": "Haste",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The paste of the code, the files that are shared with a link.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "minecraft-forge",
+    "name": "Minecraft Forge",
+    "category": "GAMES",
+    "description": "Minecraft with the mod loader, for the servers that run mods.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "languagetool",
+    "name": "LanguageTool",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The proofreader of the text, in the language of the reader.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "minecraft-paper",
+    "name": "Minecraft Paper",
+    "category": "GAMES",
+    "description": "The most played sandbox in the world, on Paper: the server that runs the plugins.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "lavalink",
+    "name": "Lavalink",
+    "category": "AUTOMATION",
+    "description": "The music of the bots of Discord, served from your own node.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "palworld",
+    "name": "Palworld",
+    "category": "GAMES",
+    "description": "The survival of the creatures, with the factories of the bases.",
+    "min": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 40
+    },
+    "def": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 3749,
+    "recPrice": 3849,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "loki",
+    "name": "Loki",
+    "category": "MONITORING",
+    "description": "The logs of the services, gathered where the metrics live.",
+    "min": {
+      "ram": 3072,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 774,
+    "recPrice": 1024,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "project-zomboid",
+    "name": "Project Zomboid",
+    "category": "GAMES",
+    "description": "The survival of the zombies that tells a story, on the server of Steam.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "dotnet",
+    "name": ".NET",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of .NET, for the service that is built with C#.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "mariadb",
+    "name": "MariaDB",
+    "category": "DATABASES",
+    "description": "The database of MySQL, for the applications that ask for it.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 200
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "rust",
+    "name": "Rust",
+    "category": "GAMES",
+    "description": "The survival of the raiders, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "dart",
+    "name": "Dart",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Dart, for the service that is built with Flutter.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "meilisearch",
+    "name": "Meilisearch",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The search that is fast and that forgives a typo.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "samp",
+    "name": "SA-MP",
+    "category": "GAMES",
+    "description": "The multiplayer of Grand Theft Auto that runs on a small server.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "deno",
+    "name": "Deno",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Deno, for the service of your own code.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "minio",
+    "name": "MinIO",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The storage of the objects, with the API of S3.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 200
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "satisfactory",
+    "name": "Satisfactory",
+    "category": "GAMES",
+    "description": "The factory of the planets, on the server of Steam.",
+    "min": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1999,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "elixir",
+    "name": "Elixir",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Elixir, for the service that is built with the BEAM.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "mongodb",
+    "name": "MongoDB",
+    "category": "DATABASES",
+    "description": "The database of the documents, for the data that has no shape.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 200
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "sons-of-the-forest",
+    "name": "Sons of the Forest",
+    "category": "GAMES",
+    "description": "The survival of the forest that followed The Forest, on the server of Steam.",
+    "min": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1999,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "golang",
+    "name": "Go",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Go, for the service that is built in Go.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "nats",
+    "name": "NATS",
+    "category": "AUTOMATION",
+    "description": "The messages between the services, with the subject of the message.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "space-engineers",
+    "name": "Space Engineers",
+    "category": "GAMES",
+    "description": "The engineering in space, on the server of Steam.",
+    "min": {
+      "ram": 6144,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1599,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "java",
+    "name": "Java",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Java, for the service that runs on a jar.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "owncast",
+    "name": "Owncast",
+    "category": "AUTOMATION",
+    "description": "The streaming of the video, with the page of the channel.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "stationeers",
+    "name": "Stationeers",
+    "category": "GAMES",
+    "description": "The engineering of the station, in the universe of Kerbal.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "lua",
+    "name": "Lua",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Lua, for the script of the game and for the small service.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "prometheus",
+    "name": "Prometheus",
+    "category": "MONITORING",
+    "description": "The collection of the metrics that the monitoring reads.",
+    "min": {
+      "ram": 3072,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 774,
+    "recPrice": 1024,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "subnautica",
+    "name": "Subnautica",
+    "category": "GAMES",
+    "description": "The survival under the water, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "nodejs",
+    "name": "Node.js",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Node.js, for the service of your own code.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "rabbitmq",
+    "name": "RabbitMQ",
+    "category": "AUTOMATION",
+    "description": "The queue of the messages, with the consumers that wait for them.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "team-fortress-2",
+    "name": "Team Fortress 2",
+    "category": "GAMES",
+    "description": "The free shooter of Valve, with its classes and its modes.",
+    "min": {
+      "ram": 2048,
+      "cpu": 2,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 699,
+    "recPrice": 1149,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "python",
+    "name": "Python",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Python, for the script and for the service of your own code.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "redis",
+    "name": "Redis",
+    "category": "DATABASES",
+    "description": "The cache and the queue in memory, for the fast part of an application.",
+    "min": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 949,
+    "recPrice": 974,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "terraria",
+    "name": "Terraria",
+    "category": "GAMES",
+    "description": "The two dimensional adventure of sandbox and of bosses, on TShock.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "reposilite",
+    "name": "Reposilite",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The repository of the packages, for the teams that build with them.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "rust-runtime",
+    "name": "Rust Runtime",
+    "category": "DEVELOPER_TOOLS",
+    "description": "The runtime of Rust, for the service that is built in Rust.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "the-forest",
+    "name": "The Forest",
+    "category": "GAMES",
+    "description": "The survival of the cannibal, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "sftp-share",
+    "name": "SFTP Share",
+    "category": "AUTOMATION",
+    "description": "The files of the team, reached over SFTP and over the browser.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 249,
+    "recPrice": 374,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "unturned",
+    "name": "Unturned",
+    "category": "GAMES",
+    "description": "The survival of the zombies that runs on any machine.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "teamspeak-6",
+    "name": "TeamSpeak 6",
+    "category": "BOTS",
+    "description": "The voice of the teams and of the games, with the channels of your own server.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "valheim",
+    "name": "Valheim",
+    "category": "GAMES",
+    "description": "The survival of the vikings, on the server of Steam.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 40
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 2,
+      "disk": 60
+    },
+    "max": {
+      "ram": 32768,
+      "cpu": 8,
+      "disk": 250
+    },
+    "minPrice": 1199,
+    "recPrice": 2099,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "vintage-story",
+    "name": "Vintage Story",
+    "category": "GAMES",
+    "description": "The voxel survival that asks for a long craft, and it is free.",
+    "min": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 1,
+      "disk": 30
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 624,
+    "recPrice": 1074,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
+  },
+  {
+    "slug": "yarr",
+    "name": "Yarr",
+    "category": "AUTOMATION",
+    "description": "The manager of the downloads, with the search of what was wanted.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 10
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 374,
+    "recPrice": 624,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "COMING_SOON",
+      "orderable": false,
+      "blockers": [
+        "It has not been validated for deployment yet."
+      ]
+    }
   }
 ]

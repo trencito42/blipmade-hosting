@@ -1,5 +1,5 @@
 import { useId, useState, type CSSProperties } from 'react';
-import { useProducts } from './catalog';
+import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtDisk, fmtRam, type Rates, type Resources } from './pricing';
 import { Btn, cx } from './ui';
 
@@ -10,6 +10,10 @@ import { Btn, cx } from './ui';
  * sees what the configuration costs before they order anything. The product
  * is a radio group, so it is reachable with the keyboard and it says what is
  * chosen.
+ *
+ * Only a product that can be ordered is offered here. The catalog holds every
+ * product the platform lists, and a product that is still coming cannot be
+ * sized, so it is not a choice of this control.
  *
  * The price is the arithmetic of the platform, written for the browser: the
  * same card of rates, the same rounding. The test of the repository checks
@@ -69,7 +73,9 @@ export interface ConfiguratorProps {
 }
 
 export function Configurator({ slug = 'discord-bot', lock = false, className }: ConfiguratorProps) {
-  const products = useProducts();
+  // The control prices an order, so it only carries the products that can be
+  // ordered today.
+  const products = orderableOf(useProducts());
   const [selected, setSelected] = useState(slug);
   const current = products.find((product) => product.slug === selected) ?? products[0];
   const [raw, setResources] = useState<Resources | null>(null);

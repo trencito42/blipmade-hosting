@@ -1,5 +1,5 @@
 import { LEGAL_PAGES, legalUnresolved } from './legal';
-import { productBySlug, productsNow } from './catalog';
+import { isOrderable, productBySlug, productsNow } from './catalog';
 import { APP_COPY, faqFor } from './content';
 import { DEFAULT_RATES, eur } from './pricing';
 import summary from './data/meta.json' with { type: 'json' };
@@ -44,8 +44,11 @@ const crumbs = (items: [string, string][]) => ({
 /** Cuts a sentence to a number of characters, on a word. */
 const cut = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, max - 1).replace(/\s+\S*$/, '')}…`);
 
-/** The products the platform can deploy today. */
+/** Every product the platform lists, the ones that can be ordered and the ones that are coming. */
 const products = productsNow();
+
+/** The products that can be ordered today. */
+const orderable = products.filter((product) => isOrderable(product));
 
 /**
  * The pages of the documentation, as the head needs them.
@@ -70,10 +73,19 @@ const articles = summary as ArticleMeta[];
 
 const articleById = (id: string): ArticleMeta | undefined => articles.find((article) => article.id === id);
 
-/** The pages of the documentation that are published. */
-const published = articles.filter((article) => !article.catalogSlug || Boolean(productBySlug(article.catalogSlug)));
+/**
+ * The pages of the documentation that are published.
+ *
+ * The page of a product is published when the product can be ordered: the
+ * site does not describe how to deploy something that cannot be deployed yet.
+ */
+const published = articles.filter((article) => {
+  if (!article.catalogSlug) return true;
+  const product = productBySlug(article.catalogSlug);
+  return Boolean(product && isOrderable(product));
+});
 
-const fromPrice = products.length ? Math.min(...products.map((product) => product.minPrice)) : 0;
+const fromPrice = orderable.length ? Math.min(...orderable.map((product) => product.minPrice)) : 0;
 
 /**
  * The one line of every legal page.
@@ -113,7 +125,7 @@ export function metaFor(path: string): Meta {
               provider: { '@id': `${SITE}/#org` },
               serviceType: 'Application hosting',
               areaServed: 'Worldwide',
-              offers: { '@type': 'AggregateOffer', priceCurrency: 'EUR', lowPrice: (fromPrice / 100).toFixed(2), offerCount: products.length },
+              offers: { '@type': 'AggregateOffer', priceCurrency: 'EUR', lowPrice: (fromPrice / 100).toFixed(2), offerCount: orderable.length },
             },
           ],
         },
@@ -131,10 +143,11 @@ export function metaFor(path: string): Meta {
   }
 
   if (path === '/apps') {
+    const coming = products.length - orderable.length;
     return {
       ...base,
-      title: 'Apps you can deploy, priced by resources | Blipmade',
-      description: `Start a Discord bot, Code Server or PostgreSQL service on Blipmade. One card of rates for every app, from ${eur(fromPrice)} a month.`,
+      title: `The catalogue: ${products.length} apps, one price card | Blipmade`,
+      description: `${orderable.length} apps can be deployed today and ${coming} more are coming soon. One card of rates for every app, from ${eur(fromPrice)} a month.`,
       jsonld: [
         crumbs([['Home', '/'], ['Apps', '/apps']]),
         {
@@ -155,10 +168,12 @@ export function metaFor(path: string): Meta {
     const product = productBySlug(path.slice(6));
     if (product) {
       const copy = APP_COPY[product.slug];
+      const open = isOrderable(product);
+      const reason = product.availability.blockers[0] ?? 'It is not on sale yet.';
       return {
         ...base,
-        title: `${product.name} hosting from ${eur(product.minPrice)} a month | Blipmade`,
-        description: cut(`${copy?.tagline ?? product.description} ${copy?.lead ?? ''}`.trim(), 158),
+        title: open ? `${product.name} hosting from ${eur(product.minPrice)} a month | Blipmade` : `${product.name} hosting: coming soon | Blipmade`,
+        description: cut(open ? `${copy?.tagline ?? product.description} ${copy?.lead ?? ''}`.trim() : `${product.description} ${reason}`, 158),
         jsonld: [
           crumbs([['Home', '/'], ['Apps', '/apps'], [product.name, `/apps/${product.slug}`]]),
           {
@@ -171,7 +186,7 @@ export function metaFor(path: string): Meta {
               '@type': 'Offer',
               priceCurrency: 'EUR',
               price: (product.minPrice / 100).toFixed(2),
-              availability: 'https://schema.org/InStock',
+              availability: open ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
               url: `${SITE}/apps/${product.slug}`,
               priceSpecification: {
                 '@type': 'UnitPriceSpecification',
@@ -265,7 +280,13 @@ export function metaFor(path: string): Meta {
   return { ...base, title: 'Page not found | Blipmade', description: 'This page does not exist.', noindex: true, canonical: SITE };
 }
 
-/** Every address of the site that is written to the disk. */
+/**
+ * Every address of the site that is written to the disk.
+ *
+ * Every product of the catalog has its own page, the ones that can be
+ * ordered today and the ones that are still coming, so a crawler and a
+ * visitor read the same catalogue.
+ */
 export function allRoutes(): string[] {
   return [
     '/',
