@@ -272,8 +272,41 @@ the same issuer and the same validity, so both are certificates of the origin
 for the base of the platform. **The one that is installed does not have to be
 replaced**, and the key that is in place matches its own certificate.
 
-The only step that is left is on the side of Cloudflare, and it is the one of
-the table above: the certificate of the visitor for the base of the platform.
+**The edge answers from the internet only through Cloudflare.** Measured on
+the 29th of October of 2026 from a host on the internet: the connection to the
+public address of the edge is refused on the ports 80 and 443. The traffic of
+the base of the platform therefore has to go through Cloudflare, and the
+certificate that the visitor sees is the one of Cloudflare. The only step that
+is left is on the side of Cloudflare, and it is the one of the table above:
+the certificate of the visitor for the base of the platform.
+
+**What the operator has to do, in the panel of Cloudflare:**
+
+1. `apps.blipmade.com` is added as a zone of Cloudflare. Cloudflare answers
+   with the two name servers of the new zone. A subdomain of a zone is a zone
+   of its own on the paid plans; on a free plan the zone is added on a second
+   account, also free, and the delegation by name servers is the same.
+2. In the zone `blipmade.com`, two records `NS` are added for the name
+   `apps`, with the two name servers of the new zone.
+3. In the new zone, one record `A` is added for the name `*`, with the
+   address `193.34.214.143`, and the proxy of Cloudflare is left on.
+4. The certificate is waited for: Universal SSL of the new zone covers
+   `apps.blipmade.com` and `*.apps.blipmade.com` (about fifteen minutes).
+5. The mode of the SSL of the new zone is **Full (strict)**: the certificate
+   of the origin is trusted by Cloudflare and by nothing else.
+
+Nothing else is waited for: the certificate of the origin is in place, the
+route of the customer answers, and the state of the containers comes from the
+node.
+
+**The other way, if the zone of its own is not wanted.** The firewall of the
+provider opens the ports 80 and 443 of the edge to the world, the record of
+the base is changed from "proxied" to "DNS only", and the edge is put in the
+direct mode with `switch-apps-tls.sh direct` on the edge. In that mode Caddy
+obtains a public certificate for every host name of a route, and the visitor
+reaches the container without Cloudflare in front of it. The mode was measured
+on the 29th of October of 2026 and it works; it is prepared in
+`deploy/edge/Caddyfile.direct`.
 
 ## 5. The webhook of Discord — done
 

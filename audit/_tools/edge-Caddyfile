@@ -1,219 +1,63 @@
-# The edge of Blipmade — reference configuration
+# The edge of Blipmade.
 #
-# This file is the reference for the reverse proxy that stands in front of the
-# platform. The edge itself runs on another host (10.77.0.12) and its real
-# configuration is not in this repository; this file states the convention the
-# platform depends on, so that the convention is a fact that can be checked
-# and not only a belief.
+# Two kinds of traffic are answered here:
 #
-# WHAT CADDY 2.11.2 CAN AND CANNOT DO
+#   1. the public site of the platform, and
+#   2. the domains of the customers, whose routes the platform writes through
+#      the administrative API of Caddy.
 #
-# Everything below was checked against the version of Caddy that runs on the
-# edge (2.11.2), because two things that this file used to say are not true of
-# that version:
-#
-#   1. There is no `apps` block in the Caddyfile. The option is refused with
-#      "unrecognized global option: apps". The server of the platform is
-#      therefore named with the global option `servers`, and the routes of the
-#      customers are written into that server through the administrative API.
-#
-#      Caddy allows only ONE server per listening address. A second server on
-#      the same address is refused with "listener address repeated: tcp/:443
-#      (already claimed by server 'blipmade')". The routes of the customers
-#      therefore live in the same server as the routes of the operator, and
-#      they are told apart by the host name they answer for.
-#
-#   2. The administrative API of Caddy does NOT check a bearer token. The
-#      struct of the configuration (`caddy.AdminConfig`) has `listen`,
-#      `enforce_origin`, `origins`, `config`, `identity` and `remote`, and no
-#      token at all. The token of the platform is therefore checked by a
-#      gateway that stands in front of the administrative API, and that gateway
-#      is the only way in.
-#
-# WHY THE TOKEN IS CHECKED IN A GATEWAY
-#
-# The platform sends the token in the authorization header of every call it
-# makes to the administrative API. Caddy ignores that header, so a gateway
-# that compares it is what turns the token into something that is checked. The
-# gateway is plain HTTP on the private address of the edge, and the firewall
-# lets only the platform (10.77.0.13) reach it. The administrative API itself
-# stays on the loopback interface, so the port 2019 is not reachable at all.
-#
-# The gateway also drops the headers of a browser (`Sec-Fetch-Mode` and the
-# others). Caddy answers a request that carries `Sec-Fetch-Mode` or `Origin`
-# with "client is not allowed to access from origin" when it cannot match the
-# origin, and the client of the platform is not a browser: it sends
-# `Sec-Fetch-Mode` with every request and no origin at all. The
-# administrative API is not a page of a browser, so those headers mean nothing
-# there.
-#
-# THE ROUTES OF THE CUSTOMER DOMAINS
-#
-# The platform creates a route for every customer hostname that proved its
-# ownership. The route is written through the administrative API of Caddy,
-# into the namespace of the server named in `CADDY_APP_SERVER` (the default is
-# `blipmade`):
-#
-#     GET  {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes
-#     POST {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes
-#          { "match": [ { "host": [ "witch.pw" ] } ],
-#            "handle": [ { "handler": "reverse_proxy",
-#                          "upstreams": [ { "dial": "10.77.0.11:30001" } ] } ],
-#            "terminal": true }
-#     PATCH   {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes/{index}
-#     DELETE  {CADDY_ADMIN_URL}/config/apps/http/servers/blipmade/routes/{index}
-#
-# The routes of a server are a LIST, and the administrative API addresses a
-# route by its place in that list. Three things follow from that, and each of
-# them was a defect before it was found:
-#
-#   * A route cannot be asked for by its name. `GET .../routes/blipmade-route-
-#     1234` is refused with "invalid array index". The list is read as a whole
-#     and the route of a host name is found by the host name it answers for.
-#   * The body of a `POST` is ONE route and not a list of routes. The list is
-#     the field the API appends to. A list in the body is refused with
-#     "cannot unmarshal array into Go struct field Server.servers.routes of
-#     type caddyhttp.Route".
-#   * The `PATCH` and the `DELETE` of a route need the index of the route in
-#     the list, and the list is read again before every change.
-#
-# THE ADDRESS OF THE CLIENT
-#
-# The server resolves the address of the client from the chain of the
-# `X-Forwarded-For` header, reading the chain from the right: the last
-# address of the chain that is not a known proxy is the address of the client.
-#
-# That only works if the edge REPLACES the header. The default behaviour of a
-# reverse proxy is to APPEND the address of the client to whatever the client
-# sent, so a visitor that sends its own `X-Forwarded-For` keeps its forged
-# values at the head of the chain. A chain with a single element — the one
-# the client forged himself — is then indistinguishable from the chain the
-# edge wrote, and the platform believes the forged address.
-#
-# The list of the proxies that are believed belongs to the SERVER and not to
-# the route: the server is what resolves the address of the client, and the
-# route only writes it down. With the list at the route, the address the
-# edge resolved was the address of the CDN, and the platform wrote that one
-# down instead of the address of the visitor.
-#
-# `trusted_proxies_strict` makes the chain be read from the right. Without
-# it, the chain is read from the left, and the first address of the chain —
-# the one the visitor wrote himself — is the one that is believed.
-#
-# The verification is in the audit log: the address of the visitor is the one
-# that is written down, and it is never a range of the proxy.
-#
-#     docker exec blipmade-postgres-1 psql -U blipmade -d blipmade \
-#       -c "SELECT ip, count(*) FROM \"AuditLog\" GROUP BY ip ORDER BY count(*) DESC LIMIT 10;"
-#
-# CHECKLIST FOR THE OPERATOR
-#
-#  1. The list of the trusted proxies is the list of the network of the
-#     visitor (below: the ranges of the CDN). It must be as narrow as
-#     possible: a wide list means the addresses of other networks are
-#     believed too.
-#  2. `header_up X-Forwarded-For {client_ip}` writes the resolved address and
-#     nothing else, so the chain that reaches the platform has one element
-#     that the platform can trust.
-#  3. `header_up X-Forwarded-Proto {scheme}` is what makes the cookie of the
-#     session `Secure` behind a TLS edge.
-#  4. After the change, restart the web container and send one request with a
-#     forged header:
-#
-#         curl -s -H 'X-Forwarded-For: 9.9.9.9' https://blipmade.com/api/health
-#
-#     and check that the address written in the audit log is the address of
-#     the caller and not `9.9.9.9`.
-#
-# The ranges below are the published ranges of the CDN. Check them against
-# the current list of the operator before applying them.
-#
-# NOTE ON THE SYNTAX OF `trusted_proxies`: the ranges are written directly in
-# the route, and with the name of the module of the source of the ranges
-# (`static`) at the server. The route refuses the name of the module with
-# "invalid IP address: 'static'".
-#
-# ---------------------------------------------------------------------------
-# THE CERTIFICATE OF A CUSTOMER HOSTNAME
-#
-# The host names of the customers are not known in advance, so the certificate
-# is obtained when the route is written. Caddy asks for it on its own, with
-# HTTP-01, and the challenge reaches the edge over the port 80 — which means
-# that the A record of the host name has to point at the address of the edge
-# BEFORE the certificate can be obtained. A host name whose record still
-# points somewhere else never gets a certificate, and the route answers with
-# an error of the certificate.
-#
-# The name of the server of Caddy that holds the routes is `blipmade`, and
-# `CADDY_APP_SERVER` on the platform carries the same name.
-# ---------------------------------------------------------------------------
-# THE CERTIFICATE OF THE ORIGIN
-#
-# The zone of the platform is in front of a CDN. The CDN asks this edge for
-# the certificate of the origin, and the only certificate it trusts for that
-# is the certificate of Cloudflare Origin CA — a certificate that a browser
-# does NOT trust, and that is never used between a visitor and the CDN.
-#
-# The certificate lives in `/etc/caddy/certs/`:
-#
-#     blipmade-origin.crt   root:root, 644
-#     blipmade-origin.key   root:caddy, 640
-#
-# It is put in place by `scripts/edge/apply-origin-cert.py`, which reads the
-# pair from the standard input, refuses a pair that does not belong together,
-# writes the files, puts the routes of the customers back after the reload of
-# Caddy and then checks the handshake.
-#
-# A certificate of the origin that covers the zone of the platform as well
-# (`blipmade.com` and `*.blipmade.com`) takes the place of the certificate of
-# the site of the platform at the origin, because Caddy offers every
-# certificate that covers the name it is asked for. The site of the platform
-# still works through the CDN, but a host name under `*.blipmade.com` that
-# points straight at the edge would then be answered with a certificate that
-# only the CDN trusts. The certificate of the origin is therefore asked for
-# with the wildcard of the base of the platform only.
-# ---------------------------------------------------------------------------
-
+# The administrative API itself is not reachable from the network. It listens on
+# the loopback interface, and the only way in is the gateway that is defined
+# below, which checks the token of the platform.
 {
-	# The administrative API of Caddy. It is not exposed publicly: it listens
-	# on the loopback interface of the edge, so the port 2019 cannot be
-	# reached from the internet, and not from the private network either.
+	# The administrative API of Caddy. It is bound to the loopback interface,
+	# so the port 2019 is not reachable from the internet, and not from the
+	# private network either. The platform reaches it through the gateway that
+	# is defined below, and that gateway checks the token.
 	admin 127.0.0.1:2019
 
 	# The server that answers the public addresses has a name of its own, so
 	# the platform can write the routes of the customer domains into it
 	# without guessing the name that the adapter would give to it.
+	#
+	# Caddy allows only one server per listening address: a second server on
+	# the same address is refused with "listener address repeated". The routes
+	# of the customers therefore live in the same server as the routes of the
+	# operator, and they are told apart by the name of the route, which always
+	# begins with "blipmade-route-".
 	servers :443 {
 		name blipmade
 
-		# The visitors arrive through the CDN, so the CDN is the proxy that is
-		# believed. Everything else is a client that writes its own header.
+		# The address of the visitor is resolved here, and not in the route:
+		# the server is what knows which proxies are believed, and the
+		# address it resolves is the one that is written to the platform.
 		#
 		# The chain is read from the right, so the address that the visitor
-		# wrote himself is dropped.
+		# wrote himself is dropped and the address that the CDN resolved is
+		# the one that is believed.
 		trusted_proxies static \
-			173.245.48.0/20 \
-			103.21.244.0/22 \
-			103.22.200.0/22 \
-			103.31.4.0/22 \
-			141.101.64.0/18 \
-			108.162.192.0/18 \
-			190.93.240.0/20 \
-			188.114.96.0/20 \
-			197.234.240.0/22 \
-			198.41.128.0/17 \
-			162.158.0.0/16 \
-			104.16.0.0/13 \
-			104.24.0.0/14 \
-			172.64.0.0/13 \
-			131.0.72.0/22 \
-			2400:cb00::/32 \
-			2606:4700::/32 \
-			2803:f800::/32 \
-			2405:b500::/32 \
-			2405:8100::/32 \
-			2a06:98c0::/29 \
-			2c0f:f248::/32
+ 173.245.48.0/20 \
+ 103.21.244.0/22 \
+ 103.22.200.0/22 \
+ 103.31.4.0/22 \
+ 141.101.64.0/18 \
+ 108.162.192.0/18 \
+ 190.93.240.0/20 \
+ 188.114.96.0/20 \
+ 197.234.240.0/22 \
+ 198.41.128.0/17 \
+ 162.158.0.0/16 \
+ 104.16.0.0/13 \
+ 104.24.0.0/14 \
+ 172.64.0.0/13 \
+ 131.0.72.0/22 \
+ 2400:cb00::/32 \
+ 2606:4700::/32 \
+ 2803:f800::/32 \
+ 2405:b500::/32 \
+ 2405:8100::/32 \
+ 2a06:98c0::/29 \
+ 2c0f:f248::/32
 		trusted_proxies_strict
 	}
 
@@ -233,6 +77,12 @@
 				request>headers>Cookie delete
 				request>headers>Authorization delete
 				request>headers>Cf-Access-Token delete
+				# The administrative API of the gateway writes the headers at
+				# the root of the record and not under the request, so the
+				# paths above do not reach the token of the platform. These
+				# two paths are the ones that do.
+				headers>Cookie delete
+				headers>Authorization delete
 			}
 		}
 	}
@@ -240,17 +90,22 @@
 
 # The administrative API of Caddy, for the platform only.
 #
-# The token is read from the environment of the service, so it never appears in
-# this file, nor in the process list, nor in the output of `caddy adapt`.
+# Caddy does not check an authorization header on its own, so the token is
+# checked here: a request that does not carry the token of the platform never
+# reaches the administrative API. The listener is on the private address of the
+# edge, and the firewall lets only the platform (10.77.0.13) reach it.
 http://10.77.0.12:2020 {
 	@gateway header Authorization "Bearer {env.CADDY_ADMIN_TOKEN}"
 	handle @gateway {
 		reverse_proxy 127.0.0.1:2019 {
 			header_up Host 127.0.0.1:2019
 
-			# The headers of a browser are dropped, because the client of the
-			# platform sends them and the administrative API refuses a request
-			# that carries them and no origin.
+			# The headers of a browser are dropped. Caddy answers a request
+			# that carries "Sec-Fetch-Mode" or "Origin" with "not allowed to
+			# access from origin" when it cannot match the origin, and the
+			# platform is not a browser: its client sends "Sec-Fetch-Mode"
+			# with every request and no origin at all. The administrative API
+			# is not a page of a browser, so those headers mean nothing there.
 			header_up -Origin
 			header_up -Referer
 			header_up -Sec-Fetch-Mode
@@ -264,6 +119,7 @@ http://10.77.0.12:2020 {
 	}
 }
 
+# The site of the platform.
 blipmade.com, www.blipmade.com {
 	encode zstd gzip
 
@@ -279,6 +135,14 @@ blipmade.com, www.blipmade.com {
 }
 
 # The applications of the platform, under the base of the platform.
+#
+# The zone of the platform is in front of a CDN, and the CDN is what the
+# visitor reaches. The CDN asks this edge for the certificate of the origin,
+# and the certificate of Cloudflare is the one that the CDN trusts, so the
+# edge answers with it and not with a certificate of its own.
+#
+# The certificate covers the wildcard of the base of the platform, so every
+# application that the platform deploys under that base is served through it.
 #
 # The routes of the customers are written by the platform through the
 # administrative API and they live in the same server as this one. Caddy

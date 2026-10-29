@@ -117,6 +117,28 @@ certificate it trusts for that is the certificate of **Cloudflare Origin CA** �
 a certificate that a browser does not trust, and that is never used between a
 visitor and the CDN.
 
+**The edge is only reachable through the CDN.** Measured on the 29th of
+October of 2026 from a host on the internet: the connection to the public
+address of the edge is refused on both ports, 80 and 443. The certificate of
+the origin is therefore the only certificate that can be served for the base
+of the platform, and the traffic of the base has to go through Cloudflare.
+Two consequences follow, and both are facts about the design and not
+preferences:
+
+1. Cloudflare has to hold a certificate that covers the base of the platform,
+   because the certificate the visitor sees is the one of Cloudflare.
+2. The edge has to keep the certificate of Cloudflare Origin CA for the base,
+   because that is the certificate Cloudflare asks for at the origin.
+
+The second mode of the base — the traffic goes straight to the edge and Caddy
+obtains a public certificate for every host name of a route — is prepared in
+`deploy/edge/Caddyfile.direct` and is put in place with
+`switch-apps-tls.sh direct` on the edge. It was measured on the 29th of
+October of 2026: it works (the handshake answers with a certificate of Let's
+Encrypt and the container is reached), but it needs the firewall of the
+provider to open the ports of the edge to the world, and the name has to point
+at the edge without the proxy of Cloudflare in front of it.
+
 The certificate of the origin lives on the edge:
 
 | File | Rights | What |
