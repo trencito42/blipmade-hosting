@@ -424,10 +424,22 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     if (!record || record.type !== 'EMAIL_VERIFY' || record.usedAt || record.expiresAt < new Date()) {
       throw badRequest('This confirmation link is invalid or has expired.');
     }
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
-      prisma.verificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-    ]);
+    // Email verification links are single-use even when requests race.
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.verificationToken.updateMany({
+        where: {
+          id: record.id,
+          type: 'EMAIL_VERIFY',
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw badRequest('This confirmation link is invalid or has expired.');
+      }
+      await tx.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } });
+    });
     await audit({ actorId: record.userId, action: 'auth.email_verified', targetType: 'user', targetId: record.userId, ip: request.ip });
     const verified = await prisma.user.findUnique({
       where: { id: record.userId },
