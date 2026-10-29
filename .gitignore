@@ -16,6 +16,14 @@ tmp/
 *.tsbuildinfo
 # Scratch tooling installed on the server (playwright-core, ws)
 tools/
+# The tools of the panel bridge are the scripts the operator runs on the panel
+# host. The one that creates a key stays out of the history, because it names
+# the account of the owner of the panel. The ones that import and update an egg
+# are part of the history, because they change the eggs the products run on.
+!panel-bridge/tools/
+panel-bridge/tools/*
+!panel-bridge/tools/blipmade-import-egg.php
+!panel-bridge/tools/blipmade-update-egg.php
 # The icon font of Font Awesome Pro is licensed and the repository is
 # public, so the files are placed on the machine by
 # scripts/download-fontawesome-pro.py and are not in the history.

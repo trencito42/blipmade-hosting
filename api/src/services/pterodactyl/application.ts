@@ -394,6 +394,8 @@ export interface PteroEggVariable {
   env_variable: string;
   /** The value the variable has when nobody says otherwise. */
   default_value: string | null;
+  /** The rules the panel checks the value with. */
+  rules?: string;
 }
 
 /** The answer of the panel for one egg, with its variables. */
@@ -415,6 +417,27 @@ interface PteroEggWithVariables {
  * gives an empty template, and the caller falls back to what it knows.
  */
 export async function eggVariables(eggId: number): Promise<Record<string, string>> {
+  const specs = await eggVariableSpecs(eggId);
+  const template: Record<string, string> = {};
+  for (const spec of specs) {
+    template[spec.env_variable] = String(spec.default_value ?? '');
+  }
+  return template;
+}
+
+/**
+ * Reads what the panel knows about the variables of an egg.
+ *
+ * The rules matter as much as the values: the panel refuses a server whose
+ * variable is marked as required and left empty, so the platform has to know
+ * which variables those are before it creates anything.
+ *
+ * The variables come in the relationships of the egg when they are asked for
+ * with `include=variables`. The relations of the panel sit under the
+ * attributes of the egg, and the list of the eggs puts them in the same
+ * place, so both are read the same way.
+ */
+export async function eggVariableSpecs(eggId: number): Promise<PteroEggVariable[]> {
   const nests = await listNests();
   for (const nest of nests) {
     const eggs = await listEggs(nest.id);
@@ -425,13 +448,13 @@ export async function eggVariables(eggId: number): Promise<Record<string, string
       `/api/application/nests/${nest.id}/eggs/${eggId}?include=variables`,
     );
     const variables = detail.attributes?.relationships?.variables?.data ?? [];
-    const template: Record<string, string> = {};
-    for (const variable of variables) {
-      template[variable.attributes.env_variable] = String(variable.attributes.default_value ?? '');
-    }
-    return template;
+    return variables.map((variable) => ({
+      env_variable: variable.attributes.env_variable,
+      default_value: variable.attributes.default_value,
+      rules: variable.attributes.rules,
+    }));
   }
-  return {};
+  return [];
 }
 
 /**

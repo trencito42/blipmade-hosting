@@ -138,6 +138,9 @@ async function loadEggs() {
         variables: Object.fromEntries(
           variables.map((variable) => [variable.attributes.env_variable, variable.attributes.default_value ?? '']),
         ),
+        variableRules: Object.fromEntries(
+          variables.map((variable) => [variable.attributes.env_variable, variable.attributes.rules ?? '']),
+        ),
       };
       byId.set(record.id, record);
       const key = record.name.trim().toLowerCase();
@@ -340,6 +343,47 @@ function generatedValues(product) {
   return values;
 }
 
+/**
+ * The value the platform makes for a variable that has to be filled and that
+ * carries no value of its own.
+ *
+ * The panel refuses a server whose variable is marked as required and left
+ * empty, so the probe cannot ask for one: the server of the game would be
+ * refused before it starts, and the probe would say nothing about the game.
+ * The rule is the one of the platform, in `api/src/services/pterodactyl/
+ * environment.ts`: the token of a Steam server is a number, a password is a
+ * text of letters and digits, and anything else is a short text.
+ */
+function generatedValueForVariable(name) {
+  const upper = name.toUpperCase();
+  const alphabet =
+    upper.includes('GSLT')
+      ? '0123456789'
+      : 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const length = upper.includes('GSLT') ? 10 : /PASS|SECRET|TOKEN|KEY/.test(upper) ? 20 : 12;
+  return Array.from(
+    { length },
+    () => alphabet[Math.floor(Math.random() * alphabet.length)],
+  ).join('');
+}
+
+/**
+ * Fills the variables of the egg that have to be filled and that are empty.
+ */
+function fillRequiredVariables(environment, rules) {
+  const filled = { ...environment };
+  for (const [name, rule] of Object.entries(rules ?? {})) {
+    const segments = String(rule ?? '')
+      .split('|')
+      .map((segment) => segment.trim());
+    if (!segments.includes('required')) continue;
+    const value = filled[name];
+    if (value !== undefined && value !== '') continue;
+    filled[name] = generatedValueForVariable(name);
+  }
+  return filled;
+}
+
 async function probeOne(product, eggs, allocations) {
   const record = {
     slug: product.slug,
@@ -362,12 +406,15 @@ async function probeOne(product, eggs, allocations) {
   record.egg = `${egg.id} ${egg.name}`;
 
   const overrides = product.startup && typeof product.startup === 'object' ? product.startup : {};
-  const environment = {
-    ...egg.variables,
-    ...overrides,
-    ...generatedValues(product),
-    ...customerValues(product),
-  };
+  const environment = fillRequiredVariables(
+    {
+      ...egg.variables,
+      ...overrides,
+      ...generatedValues(product),
+      ...customerValues(product),
+    },
+    egg.variableRules,
+  );
   const startup = product.startupCommand || egg.startup;
   const image = product.dockerImage || Object.values(egg.dockerImages)[0] || '';
   record.startup = startup;

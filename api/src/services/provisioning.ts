@@ -7,6 +7,7 @@ import { unavailable } from '../lib/errors.js';
 import { notifyInstanceProvisioned, notifyProvisioningFailed, notifyProvisioningStarted } from './notifications.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
+import { fillRequiredVariables } from './pterodactyl/environment.js';
 import { reconcilePanelIdentity } from './panel/identity.js';
 import {
   hasCustomerCredential,
@@ -628,11 +629,16 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
     if (egg) {
       const template = await ptero.eggEnvironmentTemplate(egg.id, egg.name);
       const overrides = (product.startup as Record<string, string> | undefined) ?? {};
+      // The eggs of the games ask for a variable that has to be filled and
+      // that carries no value of their own, such as the token of the server
+      // of Unturned. The panel refuses such a server, so the value is made
+      // here, the same way the passwords of the products are made.
+      const specs = await ptero.eggVariableSpecs(egg.id).catch(() => []);
       return {
         egg: egg.id,
         image: product.dockerImage ?? egg.docker_image,
         startup: product.startupCommand ?? egg.startup,
-        environment: { ...template, ...overrides },
+        environment: fillRequiredVariables({ ...template, ...overrides }, specs),
       };
     }
   }
