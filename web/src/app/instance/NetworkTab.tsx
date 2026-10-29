@@ -41,6 +41,9 @@ export default function NetworkTab({ instance }: TabProps) {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: number; address: string } | null>(null);
+  const [editingAliasId, setEditingAliasId] = useState<number | null>(null);
+  const [aliasValue, setAliasValue] = useState('');
+  const [aliasBusy, setAliasBusy] = useState(false);
 
   const rows = allocations.data?.allocations ?? [];
 
@@ -74,15 +77,21 @@ export default function NetworkTab({ instance }: TabProps) {
     }
   };
 
-  const rename = async (id: number, current: string | null) => {
-    const alias = window.prompt('The name of this address.', current ?? '');
-    if (alias === null) return;
+  const rename = (id: number, current: string | null) => {
+    setEditingAliasId(id);
+    setAliasValue(current ?? '');
+  };
+
+  const saveAlias = async () => {
+    if (editingAliasId === null) return;
+    setAliasBusy(true);
     try {
-      await updateAllocation(instance.id, id, { alias: alias || null });
+      await updateAllocation(instance.id, editingAliasId, { alias: aliasValue.trim() || null });
+      setEditingAliasId(null);
       allocations.reload();
     } catch (error) {
       push(error instanceof Error ? error.message : 'The address was not changed.', 'error');
-    }
+    } finally { setAliasBusy(false); }
   };
 
   const remove = async (id: number) => {
@@ -227,6 +236,18 @@ export default function NetworkTab({ instance }: TabProps) {
           </>
         )}
       </Panel>
+
+      {editingAliasId !== null && (
+        <Panel title="Rename address" description="Choose a label for this server address.">
+          <div className="grid max-w-md gap-3">
+            <TextInput label="Address label" value={aliasValue} onChange={(event) => setAliasValue(event.target.value)} />
+            <div className="flex gap-2">
+              <PrimaryButton onClick={() => void saveAlias()} disabled={aliasBusy}>{aliasBusy ? 'Saving…' : 'Save label'}</PrimaryButton>
+              <SoftButton onClick={() => setEditingAliasId(null)} disabled={aliasBusy}>Cancel</SoftButton>
+            </div>
+          </div>
+        </Panel>
+      )}
 
       <ConfirmDialog
         open={pendingDelete !== null}

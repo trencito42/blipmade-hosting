@@ -41,6 +41,9 @@ export default function DatabasesTab({ instance }: TabProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ id: string; label: string; text: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [editingPasswordId, setEditingPasswordId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
 
   const rows = databases.data?.databases ?? [];
 
@@ -79,16 +82,23 @@ export default function DatabasesTab({ instance }: TabProps) {
     }
   };
 
-  const changePassword = async (id: string) => {
-    const password = window.prompt('The new password of the database.');
-    if (!password) return;
+  const changePassword = (id: string) => {
+    setEditingPasswordId(id);
+    setNewPassword('');
+  };
+
+  const savePassword = async () => {
+    if (!editingPasswordId || !newPassword) return;
+    setPasswordBusy(true);
     try {
-      await updateDatabase(instance.id, id, { password });
+      await updateDatabase(instance.id, editingPasswordId, { password: newPassword });
       push('The password was changed.', 'ok');
+      setEditingPasswordId(null);
+      setNewPassword('');
       databases.reload();
     } catch (error) {
       push(error instanceof Error ? error.message : 'The password was not changed.', 'error');
-    }
+    } finally { setPasswordBusy(false); }
   };
 
   const remove = async (id: string) => {
@@ -258,6 +268,18 @@ export default function DatabasesTab({ instance }: TabProps) {
           }
         >
           <pre className="overflow-x-auto rounded-2xl bg-s2 p-3.5 font-mono text-[13px] text-ink">{credentials.text}</pre>
+        </Panel>
+      )}
+
+      {editingPasswordId && (
+        <Panel title="Change database password" description="Enter a new password for this database.">
+          <div className="grid max-w-md gap-3">
+            <TextInput label="New password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" />
+            <div className="flex gap-2">
+              <PrimaryButton onClick={() => void savePassword()} disabled={passwordBusy || !newPassword}>{passwordBusy ? 'Saving…' : 'Save password'}</PrimaryButton>
+              <SoftButton onClick={() => { setEditingPasswordId(null); setNewPassword(''); }} disabled={passwordBusy}>Cancel</SoftButton>
+            </div>
+          </div>
         </Panel>
       )}
 

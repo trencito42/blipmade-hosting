@@ -28,6 +28,16 @@ import {
  * payments. An action that cannot work is never shown as if it worked.
  */
 
+interface PendingOrder {
+  id: string;
+  number: string;
+  status: string;
+  total: number;
+  currency: string;
+  createdAt: string;
+  items: { name: string }[];
+}
+
 interface PaymentMethod {
   brand?: string;
   last4?: string;
@@ -300,6 +310,10 @@ export default function Billing() {
     (signal) => get<{ invoices: Invoice[] }>('/billing/invoices', undefined, signal),
     [],
   );
+  const ordersState = useAsync<{ orders: PendingOrder[] }>(
+    (signal) => get<{ orders: PendingOrder[] }>('/orders', undefined, signal),
+    [],
+  );
   const subscriptionsState = useAsync<{ subscriptions: Subscription[] }>(
     (signal) => get<{ subscriptions: Subscription[] }>('/billing/subscriptions', undefined, signal),
     [],
@@ -313,12 +327,14 @@ export default function Billing() {
   );
 
   const [pendingCancel, setPendingCancel] = useState<Subscription | null>(null);
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
   const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
 
   const summary = summaryState.data;
   const invoices = useMemo(() => invoicesState.data?.invoices ?? [], [invoicesState.data]);
+  const unpaidOrders = (ordersState.data?.orders ?? []).filter((order) => order.status === 'AWAITING_PAYMENT' || order.status === 'PENDING');
   const subscriptions = useMemo(() => subscriptionsState.data?.subscriptions ?? [], [subscriptionsState.data]);
 
   // What the platform says about the payments. The page shows that answer
@@ -375,6 +391,30 @@ export default function Billing() {
   const refreshAll = () => {
     subscriptionsState.reload();
     summaryState.reload();
+    invoicesState.reload();
+    ordersState.reload();
+  };
+
+  useEffect(() => {
+    if (!paymentSucceeded) return;
+    const timer = window.setInterval(() => {
+      invoicesState.reload();
+      ordersState.reload();
+      summaryState.reload();
+    }, 3000);
+    const stop = window.setTimeout(() => window.clearInterval(timer), 30000);
+    return () => { window.clearInterval(timer); window.clearTimeout(stop); };
+  }, [paymentSucceeded, invoicesState.reload, ordersState.reload, summaryState.reload]);
+
+  const payOrder = async (id: string) => {
+    setPayingOrderId(id);
+    try {
+      const checkout = await post<{ url: string | null; message?: string }>(`/orders/${id}/checkout`);
+      if (checkout.url) location.assign(checkout.url);
+      else push(checkout.message ?? 'Checkout is unavailable.', 'error');
+    } catch (error) {
+      push(error instanceof Error ? error.message : 'Checkout could not be opened.', 'error');
+    } finally { setPayingOrderId(null); }
   };
 
   const cancel = useAction(async (id: string) => {
@@ -577,6 +617,24 @@ export default function Billing() {
           </div>
         )}
       </Panel>
+
+      {unpaidOrders.length > 0 && (
+        <Panel title="Orders awaiting payment" description="Complete checkout to activate these services. The final invoice appears after payment is confirmed.">
+          <div className="grid gap-2">
+            {unpaidOrders.map((order) => (
+              <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line p-4">
+                <div>
+                  <p className="font-semibold text-ink">Order #{order.number} · {order.items.map((item) => item.name).join(', ')}</p>
+                  <p className="text-[13px] text-ink3">Created {formatDate(order.createdAt)} · <Money amount={order.total} currency={order.currency} /></p>
+                </div>
+                <PrimaryButton onClick={() => void payOrder(order.id)} disabled={payingOrderId === order.id || !paymentAvailable}>
+                  {payingOrderId === order.id ? 'Opening checkout…' : 'Pay now'}
+                </PrimaryButton>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
 
       {/* Invoices */}
       <Panel title="Invoices">

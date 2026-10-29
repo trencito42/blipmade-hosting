@@ -72,7 +72,14 @@ export function Router({ children }: { children: ReactNode }) {
       setState(readLocation());
       // A page that changes its own address without leaving it does not want
       // to jump to the top: the customer is in the middle of the page.
-      if (options?.scroll !== false && typeof scrollTo === 'function') scrollTo(0, 0);
+      if (options?.scroll !== false && typeof scrollTo === 'function') {
+        // Wait for the destination to render before moving the viewport.
+        requestAnimationFrame(() => {
+          const anchor = url.hash ? document.getElementById(decodeURIComponent(url.hash.slice(1))) : null;
+          if (anchor) anchor.scrollIntoView();
+          else scrollTo(0, 0);
+        });
+      }
     };
     return { path: state.path, search: state.search, query, navigate };
   }, [state.path, state.search]);

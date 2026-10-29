@@ -614,6 +614,15 @@ export default function InstanceDetail() {
   );
 
   const instance = data?.instance;
+  const provisioning = instance?.status === 'pending' || instance?.status === 'provisioning';
+
+  useEffect(() => {
+    if (!provisioning || !id) return;
+    const timer = window.setInterval(() => {
+      void get<{ instance: Instance }>(`/instances/${id}`).then((fresh) => setData(fresh)).catch(() => {});
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [id, provisioning, setData]);
 
   const power = useAction(async (action: PowerAction) => {
     const res = await post<{ instance: Instance }>(`/instances/${id}/power`, { action });
@@ -723,6 +732,11 @@ export default function InstanceDetail() {
       <Segmented options={TABS} value={tab} onChange={setTab} ariaLabel="Instance sections" />
 
       <section role="tabpanel" aria-label={TABS.find((entry) => entry.value === tab)?.label ?? 'Instance section'}>
+        {provisioning ? (
+          <Panel title="Your service is being prepared" description="The panel will open automatically when provisioning finishes.">
+            <LoadingBlock rows={2} label="Provisioning the instance" />
+          </Panel>
+        ) : (
         <Suspense fallback={<LoadingBlock rows={4} label="Loading section" />}>
           {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} />}
           {tab === 'console' && <ConsoleTab instance={instance} />}
@@ -737,6 +751,7 @@ export default function InstanceDetail() {
           {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
           {tab === 'domains' && <DomainsTab instance={instance} />}
         </Suspense>
+        )}
       </section>
 
       <SettingsPanel
