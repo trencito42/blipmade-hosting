@@ -150,6 +150,65 @@ needs to sell the products that work.
 The games that need a licence of the customer cannot be probed without one.
 They stay closed, and the reason is written in the catalogue.
 
+### The probe is a script, not a habit
+
+The probe is `scripts/probe-eggs.mjs`. It does the same steps as the
+provisioning of the platform, on the panel itself:
+
+1. the egg of the product is resolved the way `resolveEgg()` does it, by
+   number and by name;
+2. the environment of the egg is read from the panel, and the values of the
+   customer are laid over it;
+3. the server is created with the image of the product, and the node installs
+   it, which pulls the image and runs the install script of the egg;
+4. the application of the platform is written into the container, so the
+   start-up command of the egg finds something to run;
+5. the container is started, and the port of the allocation is asked;
+6. the server is deleted, and the address is given back to the panel.
+
+The verdict is read the way the platform checks a deployment:
+
+| what the probe saw | what it means | what the platform does |
+| --- | --- | --- |
+| the service answers on the port with HTTP | the product is ready | the product is opened, with the default check |
+| the port takes a connection but the service does not speak HTTP | the service is a database or a game | the product is opened, with a check of the connection |
+| the container was built and started, and nothing answers on the port | the product needs something the platform does not have yet | the product stays closed |
+| the panel refused the server | the egg wants a value that nobody was asked for | the product stays closed |
+
+The probe runs inside the API container, where the key of the panel and the
+database are:
+
+```bash
+sudo docker exec --env-file /home/debian/probe.env \
+  -e PROBE_OUTPUT=/tmp/probe.json -e PROBE_WAIT_MS=420000 \
+  blipmade-api-1 node /app/scripts/probe-eggs.mjs \
+  --concurrency 4 --products nodejs,redis,minecraft-paper
+```
+
+`scripts/open-products.mjs` reads the result of the probes and opens the
+products that answered, with the check that fits the service, and writes what
+it did in the journal of the platform. It does nothing without `--apply`.
+
+### The environment of an egg
+
+The panel refuses to create a server whose environment does not carry the
+variables of the egg. The eggs the platform knows have their template kept in
+`api/src/services/pterodactyl/application.ts`, and they are used exactly as
+they are: the password of the database of a customer and the name of its user
+are part of what the customer is told.
+
+An egg the platform does not know is read from the panel, which knows the
+variables of every egg it has (`include=variables`). This is what lets the
+first server of an egg be created by the platform and not only by hand
+through the panel.
+
+### The mirror of the eggs
+
+The back office keeps a copy of the eggs of the panel, so it can show them
+without asking the panel for every page. The copy is refreshed with
+`scripts/sync-eggs.mjs`, which does the work of the button of the back office
+without a session of an administrator.
+
 ## The import of the catalogue
 
 The importer reads the manifest and writes the products into the database. It

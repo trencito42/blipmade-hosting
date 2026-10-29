@@ -726,6 +726,28 @@ CUSTOMER_VARIABLES = {
 # group, and by name inside the group.
 SORT_ORDER = {"games": 100, "apps": 200, "generics": 300}
 
+# The products whose egg does not come from the three repositories of
+# Pterodactyl. Their egg file is kept in the repository as it is, and the
+# entry of the manifest is written here, so that a rebuild of the catalogue
+# does not lose the product.
+#
+# WordPress is served by the egg of Nginx with PHP of Ym0T: it is the one egg
+# of the catalogue that carries a site, and it comes with its own image.
+EXTRA = {
+    "wordpress": {
+        "group": "apps",
+        "category": "WEB_CMS",
+        "icon": "globe",
+        "name": "WordPress",
+        "description": "The publishing platform, with Nginx and PHP, for the site of a business or of a blog.",
+        "resources": APP,
+        "band": "tool",
+        "upstream": "https://github.com/Ym0T/pterodactyl-nginx-egg",
+        "upstreamPath": "egg-nginx-v3.json",
+        "customerVariables": {},
+    },
+}
+
 
 def main():
     os.makedirs(TARGET, exist_ok=True)
@@ -799,6 +821,52 @@ def main():
                 "variables": [v.get("env_variable") for v in egg.get("variables", []) if v.get("env_variable")],
                 "customerVariables": variables,
             })
+
+    # The products whose egg does not come from the three repositories of
+    # Pterodactyl. Their egg file is kept in the repository as it is, and the
+    # entry of the manifest is written here, so that a rebuild of the
+    # catalogue does not lose the product.
+    for slug, entry in EXTRA.items():
+        group = entry["group"]
+        target_name = f"{slug}.json"
+        path = os.path.join(TARGET, target_name)
+        if not os.path.isfile(path):
+            raise SystemExit(f"the egg {path} does not exist")
+        egg = json.load(open(path))
+
+        variables = entry.get("customerVariables", {})
+        unknown = [name for name in variables if name not in [v.get("env_variable") for v in egg.get("variables", [])]]
+        if unknown:
+            raise SystemExit(f"the egg of {slug} has no variable named {', '.join(unknown)}")
+
+        min_ram, default_ram, min_cpu, default_cpu, min_disk, default_disk, max_ram, max_cpu, max_disk = entry["resources"]
+        band = entry["band"]
+        manifest.append({
+            "slug": slug,
+            "name": entry["name"],
+            "group": group,
+            "category": entry["category"],
+            "icon": entry["icon"],
+            "description": entry["description"],
+            "eggFile": target_name,
+            "eggName": egg.get("name"),
+            "dockerImage": list(egg.get("docker_images", {}).values())[0] if egg.get("docker_images") else None,
+            "priceBand": band,
+            "baseAmount": PRICE_BANDS[band],
+            "minRam": min_ram,
+            "defaultRam": default_ram,
+            "minCpu": min_cpu,
+            "defaultCpu": default_cpu,
+            "minDisk": min_disk,
+            "defaultDisk": default_disk,
+            "maxRam": max_ram,
+            "maxCpu": max_cpu,
+            "maxDisk": max_disk,
+            "upstream": entry["upstream"],
+            "upstreamPath": entry["upstreamPath"],
+            "variables": [v.get("env_variable") for v in egg.get("variables", []) if v.get("env_variable")],
+            "customerVariables": variables,
+        })
 
     manifest.sort(key=lambda entry: (entry["group"], entry["name"]))
     # The order of the catalogue: by group, then by name.

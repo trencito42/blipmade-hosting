@@ -804,6 +804,58 @@
       "sortOrder": 420
     },
     {
+      "slug": "wordpress",
+      "name": "WordPress",
+      "group": "apps",
+      "category": "WEB_CMS",
+      "icon": "globe",
+      "description": "The publishing platform, with Nginx and PHP, for the site of a business or of a blog.",
+      "eggFile": "wordpress.json",
+      "eggName": "Pterodactyl Nginx Egg v3",
+      "dockerImage": "ghcr.io/ym0t/pterodactyl-nginx-egg:8.5-latest",
+      "priceBand": "tool",
+      "baseAmount": 299,
+      "minRam": 1024,
+      "defaultRam": 2048,
+      "minCpu": 1,
+      "defaultCpu": 1,
+      "minDisk": 10,
+      "defaultDisk": 20,
+      "maxRam": 8192,
+      "maxCpu": 4,
+      "maxDisk": 100,
+      "upstream": "https://github.com/Ym0T/pterodactyl-nginx-egg",
+      "upstreamPath": "egg-nginx-v3.json",
+      "variables": [
+        "AUTOUPDATE_STATUS",
+        "AUTOUPDATE_FORCE",
+        "PHP_VERSION",
+        "PHP_STATUS",
+        "PHP_DISABLED_EXTENSIONS",
+        "WORDPRESS",
+        "LOGCLEANER_STATUS",
+        "GIT_STATUS",
+        "GIT_ADDRESS",
+        "GIT_BRANCH",
+        "USERNAME",
+        "ACCESS_TOKEN",
+        "CLOUDFLARED_STATUS",
+        "CLOUDFLARED_TOKEN",
+        "COMPOSER_STATUS",
+        "COMPOSER_MODULES",
+        "CRON_STATUS",
+        "CRON_CONFIG_FILE",
+        "CERTBOT_STATUS",
+        "CERTBOT_EMAIL",
+        "CERTBOT_DOMAIN",
+        "CERTBOT_WEBROOT_PATH",
+        "CERTBOT_STAGING",
+        "CERTBOT_FORCE_RENEWAL"
+      ],
+      "customerVariables": {},
+      "sortOrder": 430
+    },
+    {
       "slug": "yarr",
       "name": "Yarr",
       "group": "apps",
@@ -842,7 +894,7 @@
           "description": "The password of the interface."
         }
       },
-      "sortOrder": 430
+      "sortOrder": 440
     },
     {
       "slug": "7-days-to-die",

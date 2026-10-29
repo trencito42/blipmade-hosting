@@ -35,3 +35,7 @@ secrets/
 # The results of the browser tests.
 web/test-results/
 web/playwright-report/
+
+# The cache of the Python of the generator of the manifest.
+__pycache__/
+*.pyc
