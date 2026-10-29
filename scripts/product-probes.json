@@ -1,0 +1,14 @@
+{
+  "elasticsearch": { "kind": "tcp" },
+  "folding-at-home": { "kind": "tcp" },
+  "gitea": { "kind": "http", "path": "/" },
+  "languagetool": { "kind": "http", "path": "/", "expectStatus": [400] },
+  "lavalink": { "kind": "http", "path": "/", "expectStatus": [401] },
+  "left-4-dead-2": { "kind": "tcp" },
+  "mariadb": { "kind": "tcp" },
+  "meilisearch": { "kind": "http", "path": "/" },
+  "minecraft-bedrock": { "kind": "http", "path": "/", "expectStatus": [404] },
+  "nats": { "kind": "tcp" },
+  "nodejs": { "kind": "http", "path": "/" },
+  "prometheus": { "kind": "http", "path": "/" }
+}

@@ -19,6 +19,7 @@
 
 import { after, before, describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer, type ViteDevServer } from 'vite';
@@ -185,14 +186,22 @@ test('the address of the documentation of the site is the one the content uses',
 
 test('a page of the documentation of a product that cannot be deployed is not written', () => {
   const pages = routes().filter((route) => route.startsWith('/docs/'));
-  // The catalog carries three products that can be deployed today, and every
-  // one of them has its page of the documentation.
-  for (const slug of ['code-server', 'discord-bot', 'postgresql']) {
-    assert.ok(pages.includes(`/docs/${slug}`), `the page of ${slug} is not written`);
+  // The catalogue says which products can be ordered today, and the guide of
+  // every one of them is written.
+  const snapshot = JSON.parse(readFileSync(join(webRoot, 'src', 'site', 'data', 'products.json'), 'utf8')) as {
+    slug: string;
+    availability: { state: string; orderable: boolean };
+  }[];
+  const orderable = snapshot.filter((product) => product.availability.orderable);
+  assert.ok(orderable.length > 0, 'the catalogue carries no product that can be ordered');
+  for (const product of orderable) {
+    assert.ok(pages.includes(`/docs/${product.slug}`), `the page of ${product.slug} is not written`);
   }
   // A product the platform cannot deploy has no page: the site does not
   // describe something that cannot be ordered.
-  for (const slug of ['wordpress', 'grafana', 'n8n', 'mongodb']) {
-    assert.equal(pages.includes(`/docs/${slug}`), false, `the page of ${slug} is written`);
+  const waiting = snapshot.filter((product) => !product.availability.orderable);
+  assert.ok(waiting.length > 0, 'the catalogue carries no product that is still coming');
+  for (const product of waiting) {
+    assert.equal(pages.includes(`/docs/${product.slug}`), false, `the page of ${product.slug} is written`);
   }
 });

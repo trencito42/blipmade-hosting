@@ -709,7 +709,7 @@
           },
           {
             "t": "p",
-            "text": "{{planned}} WordPress itself is not installed today. When it is, the instance will run a WordPress installation with its own PHP, its own web server and its own database. Until then, what runs in the container is a minimal application of the platform."
+            "text": "The container runs the web server and the PHP of the platform, with the WordPress files in it. The database of the site is not part of the container: the instance needs a database of its own."
           }
         ]
       },
@@ -1367,8 +1367,8 @@
           },
           {
             "t": "callout",
-            "tone": "warning",
-            "text": "Code Server cannot be ordered today. The platform does not install it yet."
+            "tone": "note",
+            "text": "Code Server runs in the container of the instance: the editor is in the browser, and the code runs on the node of the platform."
           },
           {
             "t": "p",
@@ -1376,7 +1376,7 @@
           },
           {
             "t": "p",
-            "text": "{{planned}} Code Server itself is not installed today. When it is, the instance will run a Code Server installation. Until then, what runs in the container is a minimal application of the platform."
+            "text": "Code Server itself is installed in the container of the instance. The editor is in the browser, and the code that is written in it runs on the node of the platform."
           }
         ]
       },
@@ -1818,7 +1818,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "Grafana cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
+            "text": "Grafana runs in the container of the instance and asks for the account of the administrator on the first start."
           },
           {
             "t": "p",
@@ -1826,7 +1826,7 @@
           },
           {
             "t": "p",
-            "text": "{{planned}} Grafana itself is not installed today. When it is, the instance will run a Grafana installation. Until then, what runs in the container is a minimal application of the platform."
+            "text": "Grafana itself is installed in the container of the instance: the panels of the metrics are served from the node of the platform."
           }
         ]
       },
@@ -2484,8 +2484,8 @@
           },
           {
             "t": "callout",
-            "tone": "warning",
-            "text": "PostgreSQL cannot be ordered today. The platform does not install it yet."
+            "tone": "note",
+            "text": "The database of the instance is a PostgreSQL server in the container. The password of the user is the one the platform made and showed in the console."
           },
           {
             "t": "p",
@@ -2493,7 +2493,7 @@
           },
           {
             "t": "p",
-            "text": "{{planned}} PostgreSQL itself is not installed today. When it is, the instance will run a PostgreSQL server in the container. Until then, what runs in the container is a minimal application of the platform."
+            "text": "PostgreSQL itself is installed in the container of the instance: the database is a server of its own."
           }
         ]
       },
@@ -2859,7 +2859,7 @@
           {
             "t": "callout",
             "tone": "note",
-            "text": "Redis cannot be ordered today: the platform does not offer it yet. This page shows what it will be when it is."
+            "text": "Redis runs in the container of the instance. It is the cache and the queue of an application that is built on it."
           },
           {
             "t": "p",
@@ -2867,7 +2867,7 @@
           },
           {
             "t": "p",
-            "text": "{{planned}} Redis itself is not installed today. When it is, the instance will run a Redis server in the container. Until then, what runs in the container is a minimal application of the platform."
+            "text": "Redis itself is installed in the container of the instance. It keeps its data in the memory of the container."
           }
         ]
       },
@@ -7216,6 +7216,1747 @@
       "glossary",
       "support",
       "limits"
+    ]
+  },
+  {
+    "id": "elasticsearch",
+    "group": "apps",
+    "title": "Elasticsearch",
+    "summary": "The search of the documents, with the index of the text. What a deployment of Elasticsearch does today, and what the platform checks.",
+    "keywords": [
+      "elasticsearch",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "elasticsearch",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Elasticsearch runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./bin/elasticsearch -E network.host=0.0.0.0 -E http.port={{SERVER_PORT}} -E discovery.type={{DISCOVERY_SEED_HOSTS}}"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:debian`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:debian"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 2 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`DISCOVERY_SEED_HOSTS` — the default is `single-node` — the customer can change it",
+              "`VERSION` — the default is `8.13.0` — the customer can change it"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the node whether the port of the allocation accepts a connection. The service of the product is not one that speaks HTTP, so the connection is the answer."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "folding-at-home",
+    "group": "apps",
+    "title": "Folding@Home",
+    "summary": "The computing that helps the research, with the team of the projects. What a deployment of Folding@Home does today, and what the platform checks.",
+    "keywords": [
+      "folding@home",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "folding-at-home",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Folding@Home runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./FAHClient --user={{FAH_USERNAME}} --team={{FAH_TEAM}} --passkey={{FAH_PASSKEY}} $(if {{FAH_ANON}}; then echo \"--fold-anon=true\"; fi) --command-port={{SERVER_PORT}} --password={{FAH_PASSWORD}} --power={{FAH_POWER}}"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:debian`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Automation"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:debian"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 7 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`FAH_USERNAME` — the default is `Anonymous` — the customer can change it",
+              "`FAH_TEAM` — the default is `0` — the customer can change it",
+              "`FAH_PASSKEY` — the customer can change it",
+              "`FAH_ANON` — the default is `true` — the customer can change it",
+              "`FAH_VERSION` — the default is `7.6.21` — the customer can change it",
+              "`FAH_PASSWORD` — the default is `SetPasswordHere` — the customer can change it",
+              "`FAH_POWER` — the default is `medium` — the customer can change it"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The customer fills in `FAH_USERNAME`, `FAH_PASSKEY`, `FAH_PASSWORD` when the order is placed."
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the node whether the port of the allocation accepts a connection. The service of the product is not one that speaks HTTP, so the connection is the answer."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gitea",
+    "group": "apps",
+    "title": "Gitea",
+    "summary": "The git of the code, with the wiki and the issues. What a deployment of Gitea does today, and what the platform checks.",
+    "keywords": [
+      "gitea",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "gitea",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Gitea runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./gitea web -p {{SERVER_PORT}} -c ./app.ini"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:debian`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:debian"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 3 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`DISABLE_SSH` — the default is `false`",
+              "`SSH_PORT` — the default is `2020`",
+              "`VERSION` — the default is `latest` — the customer can change it"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the service on the port of the allocation and accepts the answers that a browser would accept: 200, 201, 204, 301, 302, 307 and 308."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "languagetool",
+    "group": "apps",
+    "title": "LanguageTool",
+    "summary": "The proofreader of the text, in the language of the reader. What a deployment of LanguageTool does today, and what the platform checks.",
+    "keywords": [
+      "languagetool",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "languagetool",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "LanguageTool runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "java -cp languagetool-server.jar org.languagetool.server.HTTPServer --port {{SERVER_PORT}} --allow-origin --public --config config.properties"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:java_17`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:java_17"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 1 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`TRAIN_MODELS` — the customer can change it"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the service on the port of the allocation and accepts the answers that a browser would accept (200, 201, 204, 301, 302, 307, 308) and the answer 400 that this service gives on its port."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lavalink",
+    "group": "apps",
+    "title": "Lavalink",
+    "summary": "The music of the bots of Discord, served from your own node. What a deployment of Lavalink does today, and what the platform checks.",
+    "keywords": [
+      "lavalink",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "lavalink",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Lavalink runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "java -jar Lavalink.jar"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:java_21`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Automation"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:java_21"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 3 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`VERSION` — the default is `latest` — the customer can change it",
+              "`GITHUB_PACKAGE` — the default is `lavalink-devs/Lavalink`",
+              "`MATCH` — the default is `Lavalink.jar`"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the service on the port of the allocation and accepts the answers that a browser would accept (200, 201, 204, 301, 302, 307, 308) and the answer 401 that this service gives on its port."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "left-4-dead-2",
+    "group": "apps",
+    "title": "Left 4 Dead 2",
+    "summary": "The cooperative shooter of Valve, with the survivors and the infected. What a deployment of Left 4 Dead 2 does today, and what the platform checks.",
+    "keywords": [
+      "left 4 dead 2",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "left-4-dead-2",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Left 4 Dead 2 runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./srcds_run -console -port {{SERVER_PORT}} +map {{SRCDS_MAP}} +ip 0.0.0.0 -strictportbind -norestart"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/games:source`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Games"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/games:source"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 3 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`SRCDS_APPID` — the default is `222860`",
+              "`SRCDS_MAP` — the default is `c1m1_hotel` — the customer can change it",
+              "`AUTO_UPDATE` — the default is `1` — the customer can change it"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the node whether the port of the allocation accepts a connection. The service of the product is not one that speaks HTTP, so the connection is the answer."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mariadb",
+    "group": "databases",
+    "title": "MariaDB",
+    "summary": "The database of MySQL, for the applications that ask for it. What a deployment of MariaDB does today, and what the platform checks.",
+    "keywords": [
+      "mariadb",
+      "databases",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "mariadb",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "postgresql",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "MariaDB runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "${MARIADB_EXECUTABLE}"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:mariadb_11.8`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Databases"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:mariadb_11.8"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 0 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the node whether the port of the allocation accepts a connection. The service of the product is not one that speaks HTTP, so the connection is the answer."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "meilisearch",
+    "group": "apps",
+    "title": "Meilisearch",
+    "summary": "The search that is fast and that forgives a typo. What a deployment of Meilisearch does today, and what the platform checks.",
+    "keywords": [
+      "meilisearch",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "meilisearch",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Meilisearch runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./meilisearch --http-addr \"0.0.0.0:{{SERVER_PORT}}\"  --max-indexing-memory=\"{{SERVER_MEMORY}}mb\" $([ \"$NO_ANALYTICS\" -eq 1 ] && echo \"--no-analytics\")"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:debian`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:debian"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 8 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`MEILI_MASTER_KEY` — the customer can change it",
+              "`MEILI_ENV` — the default is `development` — the customer can change it",
+              "`NO_ANALYTICS` — the default is `0` — the customer can change it",
+              "`MEILI_DUMP_DIR` — the default is `/home/container/dumps`",
+              "`MEILI_DB_PATH` — the default is `/home/container/data.ms`",
+              "`MEILI_LOG_LEVEL` — the default is `INFO` — the customer can change it",
+              "`MEILI_CONFIG_FILE_PATH` — the default is `/home/container/config.toml`",
+              "`MEILI_MAX_INDEXING_THREADS` — the default is `2`"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The customer fills in `MEILI_MASTER_KEY` when the order is placed."
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the service on the port of the allocation and accepts the answers that a browser would accept: 200, 201, 204, 301, 302, 307 and 308."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "minecraft-bedrock",
+    "group": "apps",
+    "title": "Minecraft Bedrock",
+    "summary": "The edition of Minecraft that runs on phones and consoles, playable with the Java edition too. What a deployment of Minecraft Bedrock does today, and what the platform checks.",
+    "keywords": [
+      "minecraft bedrock",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "minecraft-bedrock",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Minecraft Bedrock runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./bedrock_server"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:debian`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Games"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:debian"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 6 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`BEDROCK_VERSION` — the default is `latest` — the customer can change it",
+              "`LD_LIBRARY_PATH` — the default is `.`",
+              "`SERVERNAME` — the default is `Bedrock Dedicated Server` — the customer can change it",
+              "`GAMEMODE` — the default is `survival` — the customer can change it",
+              "`DIFFICULTY` — the default is `easy` — the customer can change it",
+              "`CHEATS` — the default is `false` — the customer can change it"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the service on the port of the allocation and accepts the answers that a browser would accept (200, 201, 204, 301, 302, 307, 308) and the answer 404 that this service gives on its port."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nats",
+    "group": "apps",
+    "title": "NATS",
+    "summary": "The messages between the services, with the subject of the message. What a deployment of NATS does today, and what the platform checks.",
+    "keywords": [
+      "nats",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "nats",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "NATS runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./nats-server --port {{SERVER_PORT}} --store_dir $HOME/data ${JETSTREAM:+-js} ${USERNAME:+--user \"{{USERNAME}}\"}  ${PASSWORD:+--pass \"{{PASSWORD}}\"}  ${AUTH_TOKEN:+--auth \"{{AUTH_TOKEN}}\"}"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:alpine`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Automation"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:alpine"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 5 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`USERNAME` — the customer can change it",
+              "`PASSWORD` — the customer can change it",
+              "`AUTH_TOKEN` — the customer can change it",
+              "`JETSTREAM` — the default is `1` — the customer can change it",
+              "`VERSION` — the default is `latest` — the customer can change it"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The customer fills in `USERNAME`, `PASSWORD`, `AUTH_TOKEN` when the order is placed."
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the node whether the port of the allocation accepts a connection. The service of the product is not one that speaks HTTP, so the connection is the answer."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "nodejs",
+    "group": "apps",
+    "title": "Node.js",
+    "summary": "The runtime of Node.js, for the service of your own code. What a deployment of Node.js does today, and what the platform checks.",
+    "keywords": [
+      "node.js",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "nodejs",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Node.js runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "if [[ -d .git ]] && [[ {{AUTO_UPDATE}} == \"1\" ]]; then git pull; fi; if [[ ! -z ${NODE_PACKAGES} ]]; then /usr/local/bin/npm install ${NODE_PACKAGES}; fi; if [[ ! -z ${UNNODE_PACKAGES} ]]; then /usr/local/bin/npm uninstall ${UNNODE_PACKAGES}; fi; if [ -f /home/container/package.json ]; then /usr/local/bin/npm install; fi; if [[ \"${MAIN_FILE}\" == \"*.js\" ]]; then /usr/local/bin/node \"/home/container/${MAIN_FILE}\" ${NODE_ARGS}; else /usr/local/bin/ts-node --esm \"/home/container/${MAIN_FILE}\" ${NODE_ARGS}; fi"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:nodejs_25`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:nodejs_25"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 10 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`GIT_ADDRESS` — the customer can change it",
+              "`BRANCH` — the customer can change it",
+              "`USER_UPLOAD` — the default is `0` — the customer can change it",
+              "`AUTO_UPDATE` — the default is `0` — the customer can change it",
+              "`NODE_PACKAGES` — the customer can change it",
+              "`USERNAME` — the customer can change it",
+              "`ACCESS_TOKEN` — the customer can change it",
+              "`UNNODE_PACKAGES` — the customer can change it",
+              "`MAIN_FILE` — the default is `index.js` — the customer can change it",
+              "`NODE_ARGS` — the customer can change it"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The customer fills in `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN` when the order is placed."
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the service on the port of the allocation and accepts the answers that a browser would accept: 200, 201, 204, 301, 302, 307 and 308."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "prometheus",
+    "group": "apps",
+    "title": "Prometheus",
+    "summary": "The collection of the metrics that the monitoring reads. What a deployment of Prometheus does today, and what the platform checks.",
+    "keywords": [
+      "prometheus",
+      "monitoring",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "prometheus",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Prometheus runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./prometheus --web.listen-address=0.0.0.0:{{SERVER_PORT}} --config.file=/home/container/prometheus.yml --storage.tsdb.path=/home/container/data --web.console.templates=/home/container/consoles --web.console.libraries=/home/container/console_libraries --web.config.file=/home/container/prometheus.web.yml --storage.tsdb.retention.time={{DATA_SAVE_TIME}}"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/yolks:debian`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Monitoring"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/yolks:debian"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 2 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`PROMETHEUS_VERSION` — the default is `latest` — the customer can change it",
+              "`DATA_SAVE_TIME` — the default is `15d` — the customer can change it"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the service on the port of the allocation and accepts the answers that a browser would accept: 200, 201, 204, 301, 302, 307 and 308."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
     ]
   }
 ]

@@ -742,5 +742,173 @@
       "status code"
     ],
     "updated": "2026-10-26"
+  },
+  {
+    "id": "elasticsearch",
+    "title": "Elasticsearch",
+    "summary": "The search of the documents, with the index of the text. What a deployment of Elasticsearch does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "elasticsearch",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "elasticsearch"
+  },
+  {
+    "id": "folding-at-home",
+    "title": "Folding@Home",
+    "summary": "The computing that helps the research, with the team of the projects. What a deployment of Folding@Home does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "folding@home",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "folding-at-home"
+  },
+  {
+    "id": "gitea",
+    "title": "Gitea",
+    "summary": "The git of the code, with the wiki and the issues. What a deployment of Gitea does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "gitea",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "gitea"
+  },
+  {
+    "id": "languagetool",
+    "title": "LanguageTool",
+    "summary": "The proofreader of the text, in the language of the reader. What a deployment of LanguageTool does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "languagetool",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "languagetool"
+  },
+  {
+    "id": "lavalink",
+    "title": "Lavalink",
+    "summary": "The music of the bots of Discord, served from your own node. What a deployment of Lavalink does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "lavalink",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "lavalink"
+  },
+  {
+    "id": "left-4-dead-2",
+    "title": "Left 4 Dead 2",
+    "summary": "The cooperative shooter of Valve, with the survivors and the infected. What a deployment of Left 4 Dead 2 does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "left 4 dead 2",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "left-4-dead-2"
+  },
+  {
+    "id": "mariadb",
+    "title": "MariaDB",
+    "summary": "The database of MySQL, for the applications that ask for it. What a deployment of MariaDB does today, and what the platform checks.",
+    "group": "databases",
+    "groupLabel": "Databases",
+    "keywords": [
+      "mariadb",
+      "databases",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "mariadb"
+  },
+  {
+    "id": "meilisearch",
+    "title": "Meilisearch",
+    "summary": "The search that is fast and that forgives a typo. What a deployment of Meilisearch does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "meilisearch",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "meilisearch"
+  },
+  {
+    "id": "minecraft-bedrock",
+    "title": "Minecraft Bedrock",
+    "summary": "The edition of Minecraft that runs on phones and consoles, playable with the Java edition too. What a deployment of Minecraft Bedrock does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "minecraft bedrock",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "minecraft-bedrock"
+  },
+  {
+    "id": "nats",
+    "title": "NATS",
+    "summary": "The messages between the services, with the subject of the message. What a deployment of NATS does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "nats",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "nats"
+  },
+  {
+    "id": "nodejs",
+    "title": "Node.js",
+    "summary": "The runtime of Node.js, for the service of your own code. What a deployment of Node.js does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "node.js",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "nodejs"
+  },
+  {
+    "id": "prometheus",
+    "title": "Prometheus",
+    "summary": "The collection of the metrics that the monitoring reads. What a deployment of Prometheus does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "prometheus",
+      "monitoring",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "prometheus"
   }
 ]

@@ -136,6 +136,18 @@ const KNOWN_PAGES = [
   'glossary',
   'faq',
   'common-errors',
+  'elasticsearch',
+  'folding-at-home',
+  'gitea',
+  'languagetool',
+  'lavalink',
+  'left-4-dead-2',
+  'mariadb',
+  'meilisearch',
+  'minecraft-bedrock',
+  'nats',
+  'nodejs',
+  'prometheus',
 ];
 
 /** The groups the documentation is read in, in the order of the journey. */
@@ -216,9 +228,9 @@ function writeContent(content: { groups: unknown[]; pages: unknown[] }): string 
 }
 
 describe('the content of the documentation', () => {
-  it('has fifteen groups and forty-six pages', () => {
+  it('has fifteen groups and fifty-eight pages', () => {
     assert.equal(DOC_GROUPS.length, 15);
-    assert.equal(DOC_PAGES.length, 46);
+    assert.equal(DOC_PAGES.length, 58);
     assert.deepEqual(
       DOC_GROUPS.map((group) => group.id),
       KNOWN_GROUPS,
@@ -250,7 +262,7 @@ describe('the content of the documentation', () => {
 
   it('leaves the price and the resources of a product to the catalog', () => {
     const products = DOC_PAGES.filter((page) => page.catalogSlug);
-    assert.equal(products.length, 12);
+    assert.equal(products.length, 24);
     for (const page of products) {
       const text = pageTexts(page).join(' ');
       assert.match(text, /\{\{catalog\.price\}\}/, `the page ${page.id} has no price of the catalog`);
@@ -264,18 +276,16 @@ describe('the content of the documentation', () => {
     // Every badge marks a thing the platform does not do today. The list is
     // written here so that a badge that appears or disappears is a change
     // that is seen.
+    // The badge says that the thing is designed and not built yet, so it is
+    // only on the pages of the things the platform does not build today. The
+    // products that were validated on the node do not carry it any more.
     const expected = [
-      'wordpress',
       'ghost',
       'forgejo',
-      'code-server',
       'uptime-kuma',
-      'grafana',
       'n8n',
       'discord-bot',
-      'postgresql',
       'mysql',
-      'redis',
       'mongodb',
       'ssl',
       'instance-access',
@@ -316,7 +326,7 @@ describe('the check of the content', () => {
   it('accepts the content of the repository', () => {
     const content = parseDocs(groupsInput, pagesInput);
     assert.equal(content.groups.length, 15);
-    assert.equal(content.pages.length, 46);
+    assert.equal(content.pages.length, 58);
   });
 
   it('refuses a group that is written twice', () => {
