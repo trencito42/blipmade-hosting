@@ -35,6 +35,10 @@
 # the loopback interface, and the only way in is the gateway that is defined
 # below, which checks the token of the platform.
 {
+	on_demand_tls {
+		ask http://10.77.0.13:3000/api/caddy/allow-certificate
+	}
+
 	# The administrative API of Caddy. It is bound to the loopback interface,
 	# so the port 2019 is not reachable from the internet, and not from the
 	# private network either. The platform reaches it through the gateway that
@@ -177,4 +181,14 @@ blipmade.com, www.blipmade.com {
 # the host name of the customer is. The platform therefore puts its own
 # routes in front, on every run, and this site answers only for the host
 # names that have no route.
+
+# A route is added only after the platform verifies its hostname. On the first
+# TLS connection, Caddy asks the platform whether that verified row still
+# exists and obtains a public certificate only when the answer is yes.
+https:// {
+	tls {
+		on_demand
+	}
+	respond "This hostname has no verified route." 404
+}
 

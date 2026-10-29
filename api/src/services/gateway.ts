@@ -355,6 +355,14 @@ export async function applyCaddyRoute(route: CaddyRoute): Promise<GatewayResult>
     if (!created.ok) {
       return { applied: false, reason: `The gateway answered with HTTP ${created.status}.`, routeId };
     }
+    // A catch-all route terminates TLS for on-demand application hostnames.
+    // Put the new exact route in front immediately, otherwise the certificate
+    // works but the first requests see the catch-all until the repair worker
+    // performs its next ordering pass.
+    const ordered = await prioritiseCustomerRoutes([route.hostname]);
+    if (!ordered.applied) {
+      return { applied: false, reason: ordered.reason, routeId };
+    }
     return { applied: true, reason: null, routeId };
   } catch (error) {
     return {
