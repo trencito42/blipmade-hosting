@@ -48,6 +48,12 @@ export interface CatalogueEntry {
    * for them: the platform makes them and shows them to the owner.
    */
   generatedVariables?: Record<string, GeneratedVariableDeclaration> | null;
+  /**
+   * The values of the variables of the egg that the product names, such as the
+   * version of PHP that a site runs with. They are written over the defaults
+   * of the egg.
+   */
+  startup?: Record<string, string> | null;
   sortOrder: number;
 }
 
@@ -152,6 +158,7 @@ export async function importCatalogue(
       maxDisk: entry.maxDisk,
       customerVariables: (entry.customerVariables ?? undefined) as never,
       generatedVariables: (entry.generatedVariables ?? undefined) as never,
+      startup: (entry.startup ?? undefined) as never,
       sortOrder: entry.sortOrder,
     };
 

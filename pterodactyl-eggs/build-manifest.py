@@ -773,6 +773,15 @@ EXTRA = {
         "upstream": "https://github.com/Ym0T/pterodactyl-nginx-egg",
         "upstreamPath": "egg-nginx-v3.json",
         "customerVariables": {},
+        # The version of PHP that the site runs with, and the switch that
+        # installs WordPress itself. The egg asks for both, and the panel
+        # refuses a server whose environment does not carry them.
+        "startup": {
+            "PHP_VERSION": "8.5",
+            "WORDPRESS": "1",
+            "AUTOUPDATE_STATUS": "0",
+            "GIT_STATUS": "0",
+        },
     },
 }
 

@@ -853,7 +853,13 @@
         "CERTBOT_FORCE_RENEWAL"
       ],
       "customerVariables": {},
-      "sortOrder": 430
+      "sortOrder": 430,
+      "startup": {
+        "PHP_VERSION": "8.5",
+        "WORDPRESS": "1",
+        "AUTOUPDATE_STATUS": "0",
+        "GIT_STATUS": "0"
+      }
     },
     {
       "slug": "yarr",
