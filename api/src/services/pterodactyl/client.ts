@@ -129,7 +129,7 @@ interface ClientRequestOptions {
   /** Body that is sent as JSON. */
   body?: unknown;
   /** Body that is sent as it is, used by the file write endpoint. */
-  rawBody?: string;
+  rawBody?: string | Buffer;
   timeoutMs?: number;
   query?: Record<string, string | number | undefined>;
   /** The answer is binary and is returned as it is. */
@@ -162,9 +162,9 @@ async function clientRequest<T>(
     Authorization: `Bearer ${options.token}`,
     Accept: MEDIA,
   };
-  let body: string | undefined;
+  let body: string | Buffer | undefined;
   if (options.rawBody !== undefined) {
-    headers['Content-Type'] = 'text/plain; charset=utf-8';
+    headers['Content-Type'] = Buffer.isBuffer(options.rawBody) ? 'application/octet-stream' : 'text/plain; charset=utf-8';
     body = options.rawBody;
   } else if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -575,7 +575,7 @@ export function uploadFile(
   return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/write`, {
     token,
     query: { file: joinPath(directory, filename) },
-    rawBody: content.toString('binary'),
+    rawBody: content,
   });
 }
 

@@ -478,6 +478,22 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     return reply.send(content);
   });
 
+  app.post('/tickets/:id/close', {
+    config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.mail),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = parse(z.object({ id: z.string() }), request.params);
+    const ticket = await prisma.ticket.findFirst({ where: { id, userId: user.id } });
+    if (!ticket) throw notFound('Ticket not found.');
+    if (ticket.status === 'CLOSED') return { closed: true };
+    await prisma.ticket.update({ where: { id }, data: { status: 'CLOSED', closedAt: new Date() } });
+    const event = await prisma.ticketEvent.create({ data: { ticketId: id, type: 'closed', message: 'Customer closed the ticket.', actorId: user.id } });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.closed_by_customer', targetType: 'ticket', targetId: id });
+    await notifyTicketClosed({ userId: user.id, ticketId: id, ticketNumber: String(ticket.number), subject: ticket.subject, occurrence: event.id });
+    return { closed: true };
+  });
+
   app.post('/tickets/:id/status', {
     config: { rateLimit: { max: LIMITS.mail.address, timeWindow: LIMITS.mail.window, keyGenerator: addressRateLimitKey } },
     preHandler: customerLimit(app, LIMITS.mail),

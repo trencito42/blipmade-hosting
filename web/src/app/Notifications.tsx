@@ -432,7 +432,7 @@ export function NotificationRow({
 
         {notification.actionUrl ? (
           <div className="mt-2">
-            <ButtonLink variant="soft" {...actionTarget(notification.actionUrl)}>
+            <ButtonLink variant="soft" {...actionTarget(notification.actionUrl)} onClick={() => { if (unread) onMarkRead?.(notification); }}>
               {notification.actionLabel ?? 'Open'}
             </ButtonLink>
           </div>

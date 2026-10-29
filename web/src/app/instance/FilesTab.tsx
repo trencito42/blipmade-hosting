@@ -73,18 +73,10 @@ function decodeContent(content: string, encoding: string): { text: string; binar
   return { text: content, binary: false };
 }
 
-/** Reads a file of the disk as base64, so it can be sent to the API. */
-function readAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('The file could not be read.'));
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      const comma = result.indexOf(',');
-      resolve(comma === -1 ? result : result.slice(comma + 1));
-    };
-    reader.readAsDataURL(file);
-  });
+/** Browser preview type for common image files. */
+function imageMime(name: string): string | null {
+  const extension = name.toLowerCase().split('.').pop();
+  return ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', svg: 'image/svg+xml' } as Record<string, string>)[extension ?? ''] ?? null;
 }
 
 /** Puts a downloaded file on the disk of the browser. */
@@ -289,17 +281,42 @@ function FilePanel({
 }) {
   const { push } = useToast();
   const { path, entry } = selection;
+  const imageType = imageMime(entry.name);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mode, setMode] = useState<ActionPanel>('none');
   const [value, setValue] = useState('');
   const [content, setContent] = useState('');
   const [dirty, setDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const file = useAsync((signal) => readFile(instanceId, path, signal), [instanceId, path]);
+  const file = useAsync((signal) => imageType ? Promise.resolve({ content: '', encoding: 'binary' }) : readFile(instanceId, path, signal), [instanceId, path]);
   const decoded = useMemo(() => {
     if (!file.data) return { text: '', binary: false };
     return decodeContent(file.data.content ?? '', file.data.encoding ?? '');
   }, [file.data]);
+
+  useEffect(() => {
+    if (!imageType) { setPreviewUrl(null); return; }
+    let active = true;
+    let url: string | null = null;
+    void downloadFile(instanceId, path).then(async (blob) => {
+      let image = blob;
+      // Earlier uploads accidentally stored the base64 text itself. Show those too.
+      if (blob.size < 10_000_000) {
+        const text = await blob.text();
+        if (/^(iVBOR|\/9j\/|R0lGOD|UklGR)/.test(text.trim())) {
+          try {
+            const bytes = Uint8Array.from(atob(text.trim()), (char) => char.charCodeAt(0));
+            image = new Blob([bytes], { type: imageType });
+          } catch { /* Keep the original download. */ }
+        }
+      }
+      if (!active) return;
+      url = URL.createObjectURL(new Blob([image], { type: imageType }));
+      setPreviewUrl(url);
+    }).catch(() => { if (active) setPreviewUrl(null); });
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [instanceId, path, imageType]);
 
   useEffect(() => {
     setContent(decoded.text);
@@ -477,8 +494,8 @@ function FilePanel({
           </div>
           <div className="grid gap-0.5">
             <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Type</dt>
-            <dd className="break-words text-[14px] text-ink" title={entry.mime_type ?? 'unknown'}>
-              {entry.mime_type ?? 'unknown'}
+            <dd className="break-words text-[14px] text-ink" title={entry.mime_type ?? imageType ?? 'File'}>
+              {entry.mime_type ?? imageType ?? 'File'}
             </dd>
           </div>
         </dl>
@@ -489,6 +506,8 @@ function FilePanel({
           <p role="alert" className="break-words rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {file.error.message}
           </p>
+        ) : imageType ? (
+          previewUrl ? <img src={previewUrl} alt={entry.name} className="max-h-[480px] max-w-full rounded-2xl border border-line object-contain" /> : <p className="text-[14px] text-ink3">Loading image preview…</p>
         ) : decoded.binary ? (
           <EmptyState
             title="This file is not text."
@@ -674,7 +693,7 @@ export default function FilesTab({ instance }: TabProps) {
     if (!file) return;
     setUploading(true);
     try {
-      const content = await readAsBase64(file);
+      const content = await file.arrayBuffer();
       await uploadFile(instance.id, folder, file.name, content);
       push(`${file.name} uploaded.`, 'ok');
       refresh();

@@ -16,19 +16,19 @@ import {
 } from '../ui-app';
 
 const STATUS_OPTIONS = [
-  { value: 'open', label: 'Open' },
-  { value: 'awaiting_customer', label: 'Awaiting your reply' },
-  { value: 'awaiting_staff', label: 'Awaiting support' },
-  { value: 'on_hold', label: 'On hold' },
-  { value: 'closed', label: 'Closed' },
+  { value: 'OPEN', label: 'Open' },
+  { value: 'AWAITING_CUSTOMER', label: 'Awaiting your reply' },
+  { value: 'AWAITING_STAFF', label: 'Awaiting support' },
+  { value: 'ON_HOLD', label: 'On hold' },
+  { value: 'CLOSED', label: 'Closed' },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
-  open: 'Open',
-  awaiting_customer: 'Awaiting your reply',
-  awaiting_staff: 'Awaiting support',
-  on_hold: 'On hold',
-  closed: 'Closed',
+  OPEN: 'Open',
+  AWAITING_CUSTOMER: 'Awaiting your reply',
+  AWAITING_STAFF: 'Awaiting support',
+  ON_HOLD: 'On hold',
+  CLOSED: 'Closed',
 };
 
 const ACCEPTED_TYPES = [
@@ -104,6 +104,11 @@ export default function TicketDetail() {
     return result.message;
   });
 
+  const closeTicket = useAction(async () => {
+    await post<{ closed: boolean }>(`/tickets/${id}/close`);
+    return true;
+  });
+
   const changeStatus = useAction(async (status: string) => {
     const result = await post<{ ticket: Ticket }>(`/tickets/${id}/status`, { status });
     return result.ticket;
@@ -163,6 +168,7 @@ export default function TicketDetail() {
   }
 
   const currentStatus = statusChoice ?? ticket.status;
+  const isStaff = user?.role === 'STAFF' || user?.role === 'ADMIN';
 
   return (
     <div className="grid gap-4">
@@ -196,6 +202,15 @@ export default function TicketDetail() {
       </Panel>
 
       <Panel title="Status">
+        {!isStaff && ticket.status !== 'CLOSED' && (
+          <PrimaryButton onClick={async () => {
+            const closed = await closeTicket.run();
+            if (closed) { state.reload(); toast.push('Ticket closed', 'ok'); }
+          }} disabled={closeTicket.pending}>
+            {closeTicket.pending ? 'Closing…' : 'Close ticket'}
+          </PrimaryButton>
+        )}
+        {isStaff && (
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,260px)_auto] sm:items-end">
             <Select
@@ -232,6 +247,7 @@ export default function TicketDetail() {
             </p>
           )}
         </div>
+        )}
       </Panel>
 
       <Panel title="Conversation" description={`${messages.length} message${messages.length === 1 ? '' : 's'}.`}>

@@ -103,6 +103,21 @@ describe('support tickets', () => {
     expect(events.some((event) => event.type === 'status')).toBe(true);
   });
 
+  it('lets the owner close a ticket but refuses another customer', async () => {
+    const { client: owner } = await registerAndLogin(app, 'closer@example.com');
+    const { client: stranger } = await registerAndLogin(app, 'stranger@example.com');
+    const created = await owner.request('POST', '/api/tickets', { subject: 'Resolved issue', body: 'It works now.' });
+    const ticketId = created.body.ticket.id as string;
+
+    expect((await stranger.request('POST', `/api/tickets/${ticketId}/close`)).status).toBe(404);
+    expect((await owner.request('POST', `/api/tickets/${ticketId}/status`, { status: 'CLOSED' })).status).toBe(403);
+    const closed = await owner.request('POST', `/api/tickets/${ticketId}/close`);
+    expect(closed.status).toBe(200);
+    expect((await prisma.ticket.findUnique({ where: { id: ticketId } }))?.status).toBe('CLOSED');
+    expect((await owner.request('POST', `/api/tickets/${ticketId}/close`)).status).toBe(200);
+    expect(await prisma.ticketEvent.count({ where: { ticketId, type: 'closed' } })).toBe(1);
+  });
+
   it('rejects an attachment with a file type that is not allowed', async () => {
     const { client } = await registerAndLogin(app, 'asker6@example.com');
     const response = await client.request('POST', '/api/tickets', {

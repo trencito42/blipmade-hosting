@@ -1145,8 +1145,8 @@ const CATALOGUE: TemplateDefinition[] = [
     id: 'ticket-created',
     version: 1,
     category: 'support',
-    heading: 'We received your request {{ticket.reference}}',
-    subject: 'We received your request {{ticket.reference}}',
+    heading: 'Ticket #{{ticket.reference}} received',
+    subject: 'Ticket #{{ticket.reference}}: {{ticket.subject}}',
     preheader: 'The request {{ticket.reference}} is in the queue of the support.',
     facts: [
       ['ticket.reference', 'ticket'],
@@ -1154,8 +1154,8 @@ const CATALOGUE: TemplateDefinition[] = [
     ],
     status: { tone: 'neutral', label: 'Open' },
     paragraphs: [
-      'Our support team received your request {{ticket.reference}} and we answer on this address.',
-      'The subject of the request is {{ticket.subject}}.',
+      'Our support team received your ticket and will reply to this email address.',
+      'Subject: {{ticket.subject}}',
     ],
     action: { label: 'Open the request', path: '/app/tickets' },
     details: [
