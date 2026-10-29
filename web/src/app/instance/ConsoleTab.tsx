@@ -23,6 +23,7 @@ const STATE_TEXT: Record<SocketState, string> = {
 
 export default function ConsoleTab({ instance }: TabProps) {
   const { push } = useToast();
+  const isCodeServer = instance.product.slug.includes('code-server');
   const [lines, setLines] = useState<string[]>([]);
   const [state, setState] = useState<SocketState>('connecting');
   const [command, setCommand] = useState('');
@@ -155,13 +156,13 @@ export default function ConsoleTab({ instance }: TabProps) {
                   value={command}
                   onChange={(event) => setCommand(event.target.value)}
                   placeholder="Send a command to the server"
-                  disabled={state !== 'open' || sending}
+                  disabled={isCodeServer || state !== 'open' || sending}
                   autoComplete="off"
                   spellCheck={false}
                   className="scroll-mt-16 font-mono"
                 />
               </div>
-              <PrimaryButton onClick={() => void onSend()} disabled={state !== 'open' || sending || !command.trim()}>
+              <PrimaryButton onClick={() => void onSend()} disabled={isCodeServer || state !== 'open' || sending || !command.trim()}>
                 {sending ? 'Sending…' : 'Send'}
               </PrimaryButton>
               {state !== 'open' && (
@@ -171,6 +172,12 @@ export default function ConsoleTab({ instance }: TabProps) {
               )}
             </div>
 
+            {isCodeServer && (
+              <p className="mt-2 text-[12.5px] text-ink3">
+                Shell commands run in the Code Server integrated terminal.
+                {instance.url && <> <a className="text-acc underline" href={instance.url} target="_blank" rel="noopener noreferrer">Open Code Server</a></>}
+              </p>
+            )}
             <p className="mt-2 text-[12.5px] text-ink3">
               {state === 'open'
                 ? 'The console is connected. Commands are sent through the Blipmade API.'

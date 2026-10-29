@@ -36,6 +36,10 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
 
   const sample = resources.data;
   const recent = events.data?.events ?? [];
+  const containerState = instance.runtime.condition === 'serving' ? 'Running'
+    : instance.runtime.condition === 'stopped' ? 'Stopped'
+    : instance.runtime.condition === 'starting' ? 'Starting'
+    : sample?.state ?? 'Unknown';
 
   const memoryLimitBytes = instance.ram * 1024 * 1024;
   const diskLimitBytes = instance.disk * 1024 * 1024 * 1024;
@@ -70,7 +74,7 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
         <StatTile
           label="Uptime"
           value={sample ? fmtUptime(sample.uptimeMs) : '—'}
-          hint={sample?.state ? `Container: ${sample.state}` : 'Waiting for the panel'}
+          hint={sample ? `Container: ${containerState}` : 'Waiting for the panel'}
         />
       </div>
 
@@ -114,7 +118,7 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
                 {instance.cpu} vCPU
               </Detail>
               <Detail label="Container state" mono>
-                {sample?.state || 'unknown'}
+                {containerState}
               </Detail>
             </dl>
           </div>
@@ -138,7 +142,7 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
                 {fmtBytes(sample.networkTx)}
               </Detail>
               <Detail label="Container state" mono>
-                {sample.state || 'unknown'}
+                {containerState}
               </Detail>
             </dl>
           ) : (
