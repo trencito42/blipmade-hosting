@@ -54,6 +54,13 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
     USERNAME: '',
     ACCESS_TOKEN: '',
   })),
+  // The panel refuses a server whose variable is marked as required and left
+  // empty. The fake egg asks for one that has no value of its own, the way
+  // the eggs of the games do.
+  eggVariableSpecs: vi.fn(async () => [
+    { env_variable: 'MAIN_FILE', default_value: 'index.js', rules: 'required|string' },
+    { env_variable: 'SERVICE_TOKEN', default_value: null, rules: 'required|string|max:32' },
+  ]),
   getServer: vi.fn(async (id: number) => {
     const server = panel.servers.find((entry) => entry.id === id);
     if (!server) throw new Error('server not found');

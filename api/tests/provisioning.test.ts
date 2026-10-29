@@ -34,6 +34,13 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
     USERNAME: '',
     ACCESS_TOKEN: '',
   })),
+  // The panel refuses a server whose variable is marked as required and left
+  // empty. The fake egg asks for one that has no value of its own, the way
+  // the eggs of the games do.
+  eggVariableSpecs: vi.fn(async () => [
+    { env_variable: 'MAIN_FILE', default_value: 'index.js', rules: 'required|string' },
+    { env_variable: 'SERVICE_TOKEN', default_value: null, rules: 'required|string|max:32' },
+  ]),
   getServer: vi.fn(async (id: number) => {
     const server = panel.servers.find((entry) => entry.id === id);
     if (!server) throw new Error('server not found');
@@ -279,6 +286,21 @@ describe('provisioning', () => {
 
     const events = await prisma.instanceEvent.findMany({ where: { instanceId: instance.id } });
     expect(events.some((event) => event.type === 'provisioned')).toBe(true);
+  });
+
+  it('fills the variable the egg requires and the panel would refuse', async () => {
+    const instance = await seedInstance();
+    const application = await import('../src/services/pterodactyl/application.js');
+
+    await provisionInstance(instance.id);
+
+    // The panel refuses a server whose variable is marked as required and
+    // left empty, so the platform makes the value before the server is made.
+    expect(application.createServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        environment: expect.objectContaining({ SERVICE_TOKEN: expect.any(String) }),
+      }),
+    );
   });
 
   it('does not create a second server when it is retried', async () => {

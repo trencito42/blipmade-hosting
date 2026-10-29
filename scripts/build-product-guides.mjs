@@ -179,6 +179,24 @@ function guideFor(slug, probe) {
           : []),
       ],
     },
+    ...(Array.isArray(egg?.features) && egg.features.includes('eula')
+      ? [
+          {
+            id: 'the-eula',
+            title: 'The EULA of the game',
+            blocks: [
+              {
+                t: 'p',
+                text: 'The game of this product asks the person who starts it to accept its EULA, and the server does not start until the acceptance is there. The host accepts it for the instances it runs, so the container of the instance starts with the acceptance already written in it.',
+              },
+              {
+                t: 'p',
+                text: 'The customer accepts the EULA of the game as well by ordering the product: https://aka.ms/MinecraftEULA',
+              },
+            ],
+          },
+        ]
+      : []),
     {
       id: 'the-checks',
       title: 'The checks of the platform',
