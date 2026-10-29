@@ -365,6 +365,57 @@ export async function applyCaddyRoute(route: CaddyRoute): Promise<GatewayResult>
   }
 }
 
+/**
+ * Puts the routes of the customers in front of the routes of the operator.
+ *
+ * Caddy answers with the routes of a server in the order they are in, and the
+ * order is the order they were written in. A site of the operator that
+ * matches the wildcard of the base of the platform therefore answers before
+ * the route of a customer, however exact the host name of the customer is:
+ * the wildcard catches the host name first and the route of the customer is
+ * never reached. The route of the customer has to be written in front.
+ *
+ * The routes are read as a whole and written back as a whole, because the
+ * administrative API of Caddy does not know the names of the routes: it
+ * addresses a route by its place in the list. The routes of the operator keep
+ * the order they had, so a change on the edge is not undone by this.
+ */
+export async function prioritiseCustomerRoutes(hostnames: string[]): Promise<GatewayResult> {
+  if (!gatewayConfigured()) {
+    return { applied: false, reason: gatewayConfigurationProblem(), routeId: null };
+  }
+  const wanted = new Set(hostnames.map((hostname) => hostname.trim().toLowerCase()).filter(Boolean));
+  if (!wanted.size) return { applied: true, reason: null, routeId: null };
+
+  try {
+    const routes = await fetchRoutes();
+    const isCustomer = (route: unknown) => hostsOf(route).some((host) => wanted.has(host.toLowerCase()));
+    const customers = routes.filter(isCustomer);
+    const operator = routes.filter((route) => !isCustomer(route));
+    const ordered = [...customers, ...operator];
+
+    // The routes are already in the order they have to be in.
+    if (ordered.length === routes.length && ordered.every((route, index) => route === routes[index])) {
+      return { applied: true, reason: null, routeId: null };
+    }
+
+    const response = await adminFetch(routesPath(), {
+      method: 'PATCH',
+      body: JSON.stringify(ordered),
+    });
+    if (!response.ok) {
+      return { applied: false, reason: `The gateway answered with HTTP ${response.status}.`, routeId: null };
+    }
+    return { applied: true, reason: null, routeId: null };
+  } catch (error) {
+    return {
+      applied: false,
+      reason: error instanceof Error ? error.message : 'The gateway could not be reached.',
+      routeId: null,
+    };
+  }
+}
+
 /** Removes a hostname route from the gateway. */
 export async function removeCaddyRoute(hostname: string): Promise<GatewayResult> {
   if (!gatewayConfigured()) throw new GatewayNotConfiguredError();

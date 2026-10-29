@@ -124,6 +124,34 @@ function handleAdminApi(request: IncomingMessage, response: ServerResponse): voi
       });
       return;
     }
+    // A patch of the whole list replaces the list. The patch of a list is a
+    // merge of the fields of the list, and the fields of a list are its
+    // entries, so the entries of the body are the entries of the list.
+    if (request.method === 'PATCH') {
+      let body = '';
+      request.on('data', (chunk) => {
+        body += chunk;
+      });
+      request.on('end', () => {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(body);
+        } catch {
+          response.writeHead(400, { 'content-type': 'application/json' });
+          response.end(JSON.stringify({ error: 'the body is not JSON' }));
+          return;
+        }
+        if (!Array.isArray(parsed)) {
+          response.writeHead(400, { 'content-type': 'application/json' });
+          response.end(JSON.stringify({ error: 'the body is not a list of routes' }));
+          return;
+        }
+        state.routes = parsed as FakeRoute[];
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify(state.routes));
+      });
+      return;
+    }
     response.writeHead(405, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ error: 'method not allowed' }));
     return;
@@ -327,6 +355,60 @@ describe('the routes of the customers in Caddy', () => {
 
     expect(removed.applied).toBe(true);
     expect(state.routes).toHaveLength(0);
+  });
+
+  it('puts the route of a customer in front of the route of the operator', async () => {
+    // The site of the operator answers for the whole base of the platform and
+    // it is written before the route of the customer, because it comes from
+    // the file of the edge. Caddy walks the routes in the order they are in,
+    // so the route of the customer has to be moved in front, or the customer
+    // reaches the "no route yet" of the operator.
+    state.routes = [
+      {
+        match: [{ host: ['blipmade.com', 'www.blipmade.com'] }],
+        handle: [{ handler: 'reverse_proxy', upstreams: [{ dial: '10.77.0.13:3000' }] }],
+        terminal: true,
+      },
+      {
+        match: [{ host: ['*.apps.blipmade.com', 'apps.blipmade.com'] }],
+        handle: [{ handler: 'static_response' }],
+        terminal: true,
+      },
+    ];
+
+    await gateway.applyCaddyRoute({
+      hostname: 'code-server-exeuw.apps.blipmade.com',
+      target: '10.77.0.11',
+      targetPort: 30000,
+      verifiedAt: new Date(),
+    });
+    const ordered = await gateway.prioritiseCustomerRoutes(['code-server-exeuw.apps.blipmade.com']);
+
+    expect(ordered.applied, ordered.reason ?? 'the gateway gave no reason').toBe(true);
+    expect(state.routes.map((route) => route.match?.[0]?.host?.[0])).toEqual([
+      'code-server-exeuw.apps.blipmade.com',
+      'blipmade.com',
+      '*.apps.blipmade.com',
+    ]);
+    // The route of the customer still points at its container.
+    expect(state.routes[0]?.handle?.[0]?.upstreams?.[0]?.dial).toBe('10.77.0.11:30000');
+  });
+
+  it('does not write the routes again when they are already in the right order', async () => {
+    await gateway.applyCaddyRoute({
+      hostname: 'witch.pw',
+      target: '10.77.0.11',
+      targetPort: 30001,
+      verifiedAt: new Date(),
+    });
+    await gateway.prioritiseCustomerRoutes(['witch.pw']);
+    const writes = () => state.calls.filter((call) => call.method === 'PATCH').length;
+    const before = writes();
+
+    const ordered = await gateway.prioritiseCustomerRoutes(['witch.pw']);
+
+    expect(ordered.applied).toBe(true);
+    expect(writes()).toBe(before);
   });
 
   it('does not fail when the hostname has no route', async () => {

@@ -208,6 +208,30 @@ sees follows the state of the gateway.
 > restart would ignore the file of the operator. The repair of the worker is
 > the mechanism that keeps the routes, and it also covers a reload.
 
+### 2.6 The routes of the customers come first
+
+Caddy answers with the routes of a server **in the order they are in**, and the
+order is the order they were written in. It does not sort them by how exact
+their host name is.
+
+The file of the edge holds a site for the whole base of the platform
+(`*.apps.blipmade.com`), and that site answers with "this hostname has no
+route yet" for every host name of the base. The routes of the customers are
+written through the API, and the API appends them to the end of the list, so
+the site of the operator answered before the route of the customer: the
+request never reached the container, and the customer saw the 404 of the
+operator.
+
+The platform therefore puts its own routes in front
+(`prioritiseCustomerRoutes` in `api/src/services/gateway.ts`, called at the end
+of every run of the worker). The routes of the operator keep the order they
+had, and the list is written back as a whole, because the API of Caddy
+addresses a route by its place in the list and not by its name.
+
+The order is checked on every run, so a reload of the edge, which puts the
+routes of the customers behind the site of the operator again, is repaired
+within a minute.
+
 ---
 
 ## 3. The configuration of the platform

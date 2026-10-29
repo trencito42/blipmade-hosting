@@ -281,9 +281,13 @@ blipmade.com, www.blipmade.com {
 # The applications of the platform, under the base of the platform.
 #
 # The routes of the customers are written by the platform through the
-# administrative API and they live in the same server as this one. The route
-# of a host name that was proven answers before this one, because a route
-# that answers for an exact host name is more specific than a wildcard.
+# administrative API and they live in the same server as this one. Caddy
+# answers with the routes of a server in the order they are in, and the order
+# is the order they were written in: a route of the operator that matches the
+# wildcard of the base answers before the route of a customer, however exact
+# the host name of the customer is. The platform therefore puts its own
+# routes in front, on every run, and this site answers only for the host
+# names that have no route.
 *.apps.blipmade.com, apps.blipmade.com {
 	tls /etc/caddy/certs/blipmade-origin.crt /etc/caddy/certs/blipmade-origin.key
 

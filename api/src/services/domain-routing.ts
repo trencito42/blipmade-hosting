@@ -88,6 +88,7 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
 
   const outcomes: DomainRouteOutcome[] = [];
   const allocationsByNode = new Map<number, Awaited<ReturnType<typeof ptero.listAllocations>>>();
+  const routed: string[] = [];
 
   for (const domain of domains) {
     // A route to an instance that is not served any more is a route to
@@ -104,6 +105,7 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
         verifiedAt: domain.verifiedAt,
       });
       outcomes.push({ hostname: domain.hostname, applied: result.applied, reason: result.reason });
+      if (result.applied) routed.push(domain.hostname);
 
       // The state that the customer sees follows the state of the gateway.
       const status = result.applied ? 'ACTIVE' : 'PENDING_DNS';
@@ -127,6 +129,16 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
         })
         .catch(() => undefined);
     }
+  }
+
+  // The routes of the customers are put in front of the routes of the
+  // operator. A route that is written behind the site of the operator never
+  // answers, because Caddy walks the routes of a server in the order they
+  // are in and the wildcard of the base of the platform catches the host
+  // name of the customer first.
+  const ordered = await gateway.prioritiseCustomerRoutes(routed);
+  if (!ordered.applied) {
+    console.error(`[worker] the routes of the customers could not be put in front: ${ordered.reason}`);
   }
 
   return outcomes;
