@@ -272,13 +272,31 @@ async function writeStarter(uuid, product, port) {
   }
 }
 
-async function waitInstalled(serverId, timeoutMs = Number(process.env.PROBE_INSTALL_MS ?? 1_500_000)) {
+/**
+ * Waits until the node has installed the server.
+ *
+ * The state of the node is the truth here, not the flag of the panel: the
+ * panel answers "installed" for a server whose installation was only asked
+ * for a moment ago, because the request of the installation travels to the
+ * node in the background. A probe that believes that flag starts the server
+ * while the installation is still running, and then finds nothing on the
+ * port and says that the product does not answer. The games that install for
+ * half an hour were all closed that way.
+ *
+ * The node knows the states: "installing" while it installs, "installed"
+ * when it is done, "install_failed" when the installation broke.
+ */
+async function waitInstalled(uuid, timeoutMs = Number(process.env.PROBE_INSTALL_MS ?? 1_500_000)) {
   const deadline = Date.now() + timeoutMs;
+  let last = 'unknown';
   while (Date.now() < deadline) {
-    const server = await appRequest('GET', `/api/application/servers/${serverId}`);
-    if (server.attributes.container.installed === 1) return true;
+    last = await serverState(uuid);
+    if (last === 'installed') return true;
+    if (last === 'install_failed' || last === 'update_failed') return false;
     await new Promise((resolve) => setTimeout(resolve, 8000));
   }
+  last = await serverState(uuid);
+  if (last === 'installed') return true;
   return false;
 }
 
@@ -454,10 +472,11 @@ async function probeOne(product, eggs, allocations) {
 
     await appRequest('POST', `/api/application/servers/${serverId}/reinstall`);
 
-    const installed = await waitInstalled(serverId);
+    const installed = await waitInstalled(uuid);
     record.installed = installed;
+    record.installState = await serverState(uuid);
     if (!installed) {
-      record.error = 'the node did not finish the installation in time';
+      record.error = `the node did not finish the installation in time (the node says "${record.installState}")`;
       return record;
     }
 
