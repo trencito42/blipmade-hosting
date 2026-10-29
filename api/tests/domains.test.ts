@@ -426,6 +426,30 @@ describe('the reserved hostnames', () => {
   });
 });
 
+describe('on-demand certificates', () => {
+  it('allows only a hostname that the platform has verified', async () => {
+    const { userId } = await registerAndLogin(app, 'certificate-owner@example.test');
+    const instance = await seedInstance(userId);
+    await prisma.instanceDomain.create({
+      data: {
+        instanceId: instance.id,
+        hostname: 'verified.example.com',
+        status: 'ACTIVE',
+        verifiedAt: new Date(),
+        targetPort: 30123,
+      },
+    });
+
+    const allowed = await app.inject({ method: 'GET', url: '/api/caddy/allow-certificate?domain=verified.example.com' });
+    const unknown = await app.inject({ method: 'GET', url: '/api/caddy/allow-certificate?domain=unknown.example.com' });
+    const wildcard = await app.inject({ method: 'GET', url: '/api/caddy/allow-certificate?domain=*.example.com' });
+
+    expect(allowed.statusCode).toBe(204);
+    expect(unknown.statusCode).toBe(403);
+    expect(wildcard.statusCode).toBe(403);
+  });
+});
+
 describe('the gateway', () => {
   it('refuses to route a hostname that was never verified', async () => {
     const actual = await vi.importActual<typeof import('../src/services/gateway.js')>(

@@ -254,6 +254,27 @@ function serializeDomain(domain: DomainRow) {
 }
 
 export async function registerDomainRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Caddy asks this endpoint before issuing an on-demand certificate. The
+   * answer comes from the same domain table that owns the reverse-proxy
+   * routes, so arbitrary SNI values can never make the edge request a
+   * certificate. This endpoint is called from the private network and carries
+   * no customer session.
+   */
+  app.get('/caddy/allow-certificate', {
+    config: { rateLimit: { max: 300, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
+  }, async (request: FastifyRequest, reply) => {
+    const parsed = z.object({ domain: z.string().trim().toLowerCase() }).safeParse(request.query);
+    if (!parsed.success || !gateway.isValidHostname(parsed.data.domain)) {
+      return reply.code(403).send();
+    }
+    const domain = await prisma.instanceDomain.findFirst({
+      where: { hostname: parsed.data.domain, verifiedAt: { not: null } },
+      select: { id: true },
+    });
+    return domain ? reply.code(204).send() : reply.code(403).send();
+  });
+
   app.get('/domains', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const domains = await prisma.instanceDomain.findMany({
