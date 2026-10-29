@@ -42,6 +42,12 @@ export interface CatalogueEntry {
   maxCpu: number;
   maxDisk: number;
   customerVariables?: Record<string, CustomerVariableDeclaration> | null;
+  /**
+   * The variables the platform makes for every instance of the product, such
+   * as the password of the administration of a game. The customer is not asked
+   * for them: the platform makes them and shows them to the owner.
+   */
+  generatedVariables?: Record<string, GeneratedVariableDeclaration> | null;
   sortOrder: number;
 }
 
@@ -51,6 +57,14 @@ export interface CustomerVariableDeclaration {
   required?: boolean;
   type?: 'text' | 'password';
   description?: string;
+}
+
+/** What a product says about one variable the platform makes. */
+export interface GeneratedVariableDeclaration {
+  /** How long the value is. */
+  length?: number;
+  /** The label the customer sees. */
+  label?: string;
 }
 
 /** The rate card of the platform, in minor units. */
@@ -137,6 +151,7 @@ export async function importCatalogue(
       maxCpu: entry.maxCpu,
       maxDisk: entry.maxDisk,
       customerVariables: (entry.customerVariables ?? undefined) as never,
+      generatedVariables: (entry.generatedVariables ?? undefined) as never,
       sortOrder: entry.sortOrder,
     };
 

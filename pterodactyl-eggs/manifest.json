@@ -576,12 +576,6 @@
         "GITHUB_OAUTH_TOKEN"
       ],
       "customerVariables": {
-        "STREAM_KEY": {
-          "label": "Stream key",
-          "required": true,
-          "type": "password",
-          "description": "The key that opens the page of the channel and that the encoder sends."
-        },
         "GITHUB_USER": {
           "label": "GitHub account",
           "type": "text",
@@ -593,7 +587,13 @@
           "description": "Only needed when the platform asks GitHub more than the anonymous account may."
         }
       },
-      "sortOrder": 360
+      "sortOrder": 360,
+      "generatedVariables": {
+        "STREAM_KEY": {
+          "length": 32,
+          "label": "Key of the administration"
+        }
+      }
     },
     {
       "slug": "prometheus",
@@ -1177,7 +1177,13 @@
           "description": "The token that makes the server appear in the public list of Steam. You get it from https://steamcommunity.com/dev/managegameservers"
         }
       },
-      "sortOrder": 170
+      "sortOrder": 170,
+      "generatedVariables": {
+        "RCON_PASSWORD": {
+          "length": 20,
+          "label": "Password of the remote console"
+        }
+      }
     },
     {
       "slug": "dayz",
@@ -1250,7 +1256,13 @@
           "description": "Turn the Steam Guard off for this account, or the download stops and asks again for the code."
         }
       },
-      "sortOrder": 180
+      "sortOrder": 180,
+      "generatedVariables": {
+        "RCON_PASSWORD": {
+          "length": 16,
+          "label": "Password of the remote console"
+        }
+      }
     },
     {
       "slug": "dont-starve-together",
@@ -1671,7 +1683,13 @@
         "ALLOW_CONNECT_PLATFORM"
       ],
       "customerVariables": {},
-      "sortOrder": 290
+      "sortOrder": 290,
+      "generatedVariables": {
+        "ADMIN_PASSWORD": {
+          "length": 20,
+          "label": "Password of the administration"
+        }
+      }
     },
     {
       "slug": "project-zomboid",
@@ -1769,7 +1787,13 @@
         "AUTO_UPDATE"
       ],
       "customerVariables": {},
-      "sortOrder": 310
+      "sortOrder": 310,
+      "generatedVariables": {
+        "RCON_PASS": {
+          "length": 20,
+          "label": "Password of the remote console"
+        }
+      }
     },
     {
       "slug": "samp",
@@ -1799,7 +1823,13 @@
         "RCON_PASS"
       ],
       "customerVariables": {},
-      "sortOrder": 320
+      "sortOrder": 320,
+      "generatedVariables": {
+        "RCON_PASS": {
+          "length": 20,
+          "label": "Password of the remote console"
+        }
+      }
     },
     {
       "slug": "satisfactory",
@@ -2558,6 +2588,12 @@
           "required": true,
           "type": "text",
           "description": "The package the container builds and runs, such as github.com/you/your-service."
+        },
+        "EXECUTABLE": {
+          "label": "Name of the executable",
+          "required": true,
+          "type": "text",
+          "description": "The name of the binary the container runs, such as main."
         }
       },
       "sortOrder": 350

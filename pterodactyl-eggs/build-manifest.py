@@ -248,6 +248,32 @@ CATEGORIES = {
 #
 # The names are the names of the variables of the egg: the value the customer
 # gives replaces the value of the egg of the same name.
+# The variables the platform makes for every instance of a product. The
+# customer is not asked for them: the platform makes the value and shows it to
+# the owner of the instance. They are the secrets that an egg asks for and
+# that nobody would type: the password of the administration of a game, the
+# key of the stream of a video.
+GENERATED_VARIABLES = {
+    "counter-strike-2": {
+        "RCON_PASSWORD": {"length": 20, "label": "Password of the remote console"},
+    },
+    "dayz": {
+        "RCON_PASSWORD": {"length": 16, "label": "Password of the remote console"},
+    },
+    "palworld": {
+        "ADMIN_PASSWORD": {"length": 20, "label": "Password of the administration"},
+    },
+    "rust": {
+        "RCON_PASS": {"length": 20, "label": "Password of the remote console"},
+    },
+    "samp": {
+        "RCON_PASS": {"length": 20, "label": "Password of the remote console"},
+    },
+    "owncast": {
+        "STREAM_KEY": {"length": 32, "label": "Key of the administration"},
+    },
+}
+
 CUSTOMER_VARIABLES = {
     # --- the games that need something from the customer ---------------------
     "counter-strike-2": {
@@ -416,12 +442,6 @@ CUSTOMER_VARIABLES = {
         },
     },
     "owncast": {
-        "STREAM_KEY": {
-            "label": "Stream key",
-            "required": True,
-            "type": "password",
-            "description": "The key that opens the page of the channel and that the encoder sends.",
-        },
         "GITHUB_USER": {
             "label": "GitHub account",
             "type": "text",
@@ -563,6 +583,14 @@ CUSTOMER_VARIABLES = {
             "label": "Token of the repository",
             "type": "password",
             "description": "Only for a repository that is not public. A token of the account is better than its password.",
+        },
+    },
+    "golang": {
+        "EXECUTABLE": {
+            "label": "Name of the executable",
+            "required": True,
+            "type": "text",
+            "description": "The name of the binary the container runs, such as main.",
         },
     },
     "dotnet": {
@@ -780,7 +808,11 @@ def main():
                 handle.write("\n")
 
             variables = CUSTOMER_VARIABLES.get(slug, {})
+            generated = GENERATED_VARIABLES.get(slug, {})
             unknown = [name for name in variables if name not in [v.get("env_variable") for v in egg.get("variables", [])]]
+            if unknown:
+                raise SystemExit(f"the egg of {slug} has no variable named {', '.join(unknown)}")
+            unknown = [name for name in generated if name not in [v.get("env_variable") for v in egg.get("variables", [])]]
             if unknown:
                 raise SystemExit(f"the egg of {slug} has no variable named {', '.join(unknown)}")
 
@@ -820,6 +852,7 @@ def main():
                 "upstreamPath": source,
                 "variables": [v.get("env_variable") for v in egg.get("variables", []) if v.get("env_variable")],
                 "customerVariables": variables,
+                "generatedVariables": generated,
             })
 
     # The products whose egg does not come from the three repositories of

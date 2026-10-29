@@ -68,6 +68,7 @@ function log(step, detail) {
 async function appRequest(method, path, body) {
   const response = await fetch(`${APP_URL}${path}`, {
     method,
+    signal: AbortSignal.timeout(Number(process.env.PROBE_HTTP_TIMEOUT_MS ?? 30_000)),
     headers: {
       Authorization: `Bearer ${APP_KEY}`,
       Accept: MEDIA,
@@ -89,6 +90,7 @@ async function clientRequest(method, path, options = {}) {
   }
   const response = await fetch(url, {
     method,
+    signal: AbortSignal.timeout(Number(process.env.PROBE_HTTP_TIMEOUT_MS ?? 30_000)),
     headers: {
       Authorization: `Bearer ${CLIENT_KEY}`,
       Accept: MEDIA,
@@ -267,7 +269,7 @@ async function writeStarter(uuid, product, port) {
   }
 }
 
-async function waitInstalled(serverId, timeoutMs = 1_500_000) {
+async function waitInstalled(serverId, timeoutMs = Number(process.env.PROBE_INSTALL_MS ?? 1_500_000)) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const server = await appRequest('GET', `/api/application/servers/${serverId}`);
@@ -462,21 +464,41 @@ async function main() {
     where: wanted ? { slug: { in: wanted } } : { deployable: false },
     orderBy: { slug: 'asc' },
   });
+
+  // The file of the results is read first: a run that was interrupted picks
+  // up where it stopped instead of building the same product twice.
+  const outputFile = process.env.PROBE_OUTPUT ?? '/tmp/probe-results.json';
+  const { readFile, writeFile } = await import('node:fs/promises');
+  let results = [];
+  try {
+    results = JSON.parse(await readFile(outputFile, 'utf-8'));
+  } catch {
+    results = [];
+  }
+  const done = new Set(results.map((entry) => entry.slug));
+  if (done.size && !args.includes('--force')) {
+    log('resume', `${done.size} products were already probed`);
+  }
+  const pending = products.filter((product) => !done.has(product.slug) || args.includes('--force'));
+
   if (wanted) {
     const missing = wanted.filter((slug) => !products.some((product) => product.slug === slug));
     if (missing.length) log('warning', `unknown products: ${missing.join(', ')}`);
     // The order of the list is the order of the work: the small products are
     // probed first, so that the answer of the catalogue arrives before the
     // games that take an hour to install.
-    products.sort((a, b) => wanted.indexOf(a.slug) - wanted.indexOf(b.slug));
+    pending.sort((a, b) => wanted.indexOf(a.slug) - wanted.indexOf(b.slug));
   }
-  log('products', `${products.length} to probe`);
+  log('products', `${pending.length} to probe`);
 
   const allocations = await freeAllocations();
   log('addresses', `${allocations.length} free on the panel`);
 
   const concurrency = Number(args[args.indexOf('--concurrency') + 1]) || 3;
-  const queue = [...products];
+  const queue = [...pending];
+  const writeResults = async () => {
+    await writeFile(outputFile, JSON.stringify(results, null, 2));
+  };
   const worker = async () => {
     while (queue.length) {
       const product = queue.shift();
@@ -484,6 +506,7 @@ async function main() {
       log('probe', `starting ${product.slug}`);
       const record = await probeOne(product, eggs, allocations);
       results.push(record);
+      await writeResults();
       log(
         'probe',
         `${product.slug}: installed=${record.installed} started=${record.started} port=${record.portOpen} http=${record.httpStatus ?? '-'} state=${record.state}${record.error ? ` error=${record.error}` : ''}`,
@@ -492,11 +515,7 @@ async function main() {
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, products.length) }, worker));
 
-  const file = process.env.PROBE_OUTPUT ?? '/tmp/probe-results.json';
-  await import('node:fs/promises').then((fs) =>
-    fs.writeFile(file, JSON.stringify(results, null, 2)),
-  );
-  log('done', `${results.length} probes written to ${file}`);
+  log('done', `${results.length} probes written to ${outputFile}`);
   await prisma.$disconnect();
 }
 
