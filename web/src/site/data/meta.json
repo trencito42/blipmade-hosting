@@ -910,5 +910,19 @@
     ],
     "updated": "2026-10-29",
     "catalogSlug": "prometheus"
+  },
+  {
+    "id": "garrys-mod",
+    "title": "Garry's Mod",
+    "summary": "The sandbox of Valve, where the server is a playground of contraptions. What a deployment of Garry's Mod does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "garry's mod",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "garrys-mod"
   }
 ]

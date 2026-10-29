@@ -1,6 +1,7 @@
 {
   "elasticsearch": { "kind": "tcp" },
   "folding-at-home": { "kind": "tcp" },
+  "garrys-mod": { "kind": "tcp" },
   "gitea": { "kind": "http", "path": "/" },
   "languagetool": { "kind": "http", "path": "/", "expectStatus": [400] },
   "lavalink": { "kind": "http", "path": "/", "expectStatus": [401] },

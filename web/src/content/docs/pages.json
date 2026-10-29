@@ -8958,5 +8958,157 @@
         ]
       }
     ]
+  },
+  {
+    "id": "garrys-mod",
+    "group": "apps",
+    "title": "Garry's Mod",
+    "summary": "The sandbox of Valve, where the server is a playground of contraptions. What a deployment of Garry's Mod does today, and what the platform checks.",
+    "keywords": [
+      "garry's mod",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "garrys-mod",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "what-a-deployment-does",
+        "title": "What a deployment does today",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Garry's Mod runs on the node of the platform in a container of its own, with the resources the customer chooses. The container is built from the image of the egg of the product and it is started with the command of the egg."
+          },
+          {
+            "t": "code",
+            "lang": "sh",
+            "code": "./srcds_run -game garrysmod -console -port {{SERVER_PORT}} +ip 0.0.0.0 +host_workshop_collection {{WORKSHOP_ID}} +map {{SRCDS_MAP}} +gamemode {{GAMEMODE}} -strictportbind -norestart +sv_setsteamaccount {{STEAM_TOKEN}} +maxplayers {{MAX_PLAYERS}}  -tickrate {{TICKRATE}}  $( [ \"$LUA_REFRESH\" == \"1\" ] || printf %s '-disableluarefresh' )"
+          },
+          {
+            "t": "p",
+            "text": "The image is `ghcr.io/ptero-eggs/games:source`. The platform reads it from the panel when the server is created, so the image of the product is the one that the panel holds."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "The entry in the catalog",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Games"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              },
+              {
+                "k": "Image",
+                "v": "ghcr.io/ptero-eggs/games:source"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-first-run",
+        "title": "The first run",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "The product is ordered with the resources it needs. The price is the card of rates of the platform: only the resources change it.",
+                "result": "The instance is created and its container is built on the node."
+              },
+              {
+                "title": "Open the address of the instance",
+                "body": "The address of the instance is on the page of the instance. Every service also gets an address under the base of the platform.",
+                "result": "The service of the product answers on its port."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "the-variables",
+        "title": "The variables of the product",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The egg of the product carries 8 variables. The ones the platform sets are the ones the product needs to start, and the ones the customer fills in are asked for when the order is placed."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`SRCDS_MAP` — the default is `gm_flatgrass` — the customer can change it",
+              "`STEAM_TOKEN` — the customer can change it",
+              "`SRCDS_APPID` — the default is `4020`",
+              "`WORKSHOP_ID` — the customer can change it",
+              "`GAMEMODE` — the default is `sandbox` — the customer can change it",
+              "`MAX_PLAYERS` — the default is `32` — the customer can change it",
+              "`TICKRATE` — the default is `22` — the customer can change it",
+              "`LUA_REFRESH` — the default is `0` — the customer can change it"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "The customer fills in `STEAM_TOKEN` when the order is placed."
+          }
+        ]
+      },
+      {
+        "id": "the-checks",
+        "title": "The checks of the platform",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The platform asks the node whether the port of the allocation accepts a connection. The service of the product is not one that speaks HTTP, so the connection is the answer."
+          },
+          {
+            "t": "p",
+            "text": "A deployment that does not pass the check is not shown as working, and the customer is told what the check found. The check runs again on every restart of the container."
+          }
+        ]
+      },
+      {
+        "id": "when-it-does-not-work",
+        "title": "When it does not work",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "The state of the container comes from the node. If the page of the instance says that the node could not be reached, the last known state is kept and the container is still running."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The check of the product is the one that was measured on the node when the product was opened. The console of the instance shows what the service writes, and the files of the instance show what it installed."
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]
