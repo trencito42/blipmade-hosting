@@ -98,6 +98,7 @@ const {
   createBillingPortal,
   createCheckout,
   refundPayment,
+  upsertInvoice,
   resumeSubscription,
   updateSubscriptionAmount,
 } = await import('../src/services/stripe.js');
@@ -345,6 +346,24 @@ describe('the amount of a subscription that changes', () => {
 
     expect(calls.prices[0]!.recurring).toEqual({ interval: 'year', interval_count: 1 });
     expect(calls.prices[0]!.product).toBe('prod_read');
+  });
+});
+
+describe('concurrent Stripe invoice numbering', () => {
+  it('assigns distinct invoice numbers when separate invoices arrive together', async () => {
+    const user = await seedUser();
+    await Promise.all([
+      upsertInvoice({ stripeInvoiceId: 'in_parallel_number_1', userId: user.id, amount: 700, status: 'PAID' }),
+      upsertInvoice({ stripeInvoiceId: 'in_parallel_number_2', userId: user.id, amount: 800, status: 'PAID' }),
+    ]);
+
+    const invoices = await prisma.invoice.findMany({
+      where: { userId: user.id },
+      select: { number: true, stripeInvoiceId: true },
+    });
+    expect(invoices).toHaveLength(2);
+    expect(new Set(invoices.map((invoice) => invoice.number)).size).toBe(2);
+    expect(invoices.every((invoice) => /^BM-INV-[0-9]+$/.test(invoice.number))).toBe(true);
   });
 });
 
