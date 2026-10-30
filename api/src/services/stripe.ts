@@ -901,7 +901,7 @@ export async function refundPayment(params: {
   if (alreadyRefunded) return true;
 
   try {
-    await getClient().refunds.create(
+    const refund = await getClient().refunds.create(
       {
         payment_intent: params.stripePaymentIntentId,
         ...(params.amount ? { amount: params.amount } : {}),
@@ -910,6 +910,18 @@ export async function refundPayment(params: {
       },
       { idempotencyKey: params.idempotencyKey ?? `blipmade-refund-${params.orderId}` },
     );
+    // Stripe can accept an asynchronous refund without completing it. A
+    // pending or failed refund is NOT money already returned to the customer.
+    // Keep the order/payment unchanged and require provider reconciliation.
+    if (refund.status !== 'succeeded') {
+      await audit({
+        action: 'payment.refund_not_completed',
+        targetType: 'order',
+        targetId: params.orderId,
+        meta: { stripeRefundId: refund.id, status: refund.status ?? 'unknown' },
+      });
+      return false;
+    }
     // The payment of the order is marked as refunded, so a refund that comes
     // later finds the money back and does nothing.
     const marked = await prisma.payment.updateMany({
