@@ -26,25 +26,17 @@ function Hero() {
   const from = products.length ? Math.min(...products.map((product) => product.minPrice)) : 0;
   return (
     <section aria-labelledby="h1">
-      <Wrap className="grid items-start gap-12 pt-12 pb-16 sm:pt-20 sm:pb-24 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-14">
-        <div className="grid content-start gap-8 lg:pt-6">
-          <h1 id="h1" className="rise text-[clamp(46px,8.2vw,104px)] leading-[0.94] font-semibold tracking-[-0.05em]">Hosting for everything you run.</h1>
+      <Wrap className="grid items-start gap-12 pt-12 pb-16 sm:pt-20 sm:pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-16">
+        <div className="grid content-start gap-7 lg:pt-8">
+          <h1 id="h1" className="rise text-[clamp(42px,6.4vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]">Hosting for everything you run.</h1>
           <p className="rise max-w-[34em] text-[clamp(18px,1.6vw,21px)] text-ink-2" style={{ '--i': 2 } as CSSProperties}>
-            Discord bots, apps, databases and developer tools on one platform. Pick the RAM, CPU and disk, see the monthly price as you go, and
-            run it all from one dashboard. From {eur(from)} a month.
+            Bots, game servers, databases and developer tools. Pick the RAM, CPU and disk, watch the price move, and run it all from one dashboard.
+            From {eur(from)} a month.
           </p>
           <div className="rise flex flex-wrap gap-3" style={{ '--i': 3 } as CSSProperties}>
             <Btn to="/register" size="lg">Get started</Btn>
             <Btn to="/apps" variant="outline" size="lg">Browse the catalog</Btn>
           </div>
-          <ul className="rise grid gap-2 text-[15.5px] text-ink-2 sm:grid-cols-2" style={{ '--i': 4 } as CSSProperties}>
-            {['One price card for every app', 'Resize whenever you grow', 'Console and files in your browser', 'Real people answer your tickets'].map((t) => (
-              <li key={t} className="flex items-center gap-2.5">
-                <Icon name="check" size={14} className="shrink-0 text-green" />
-                {t}
-              </li>
-            ))}
-          </ul>
         </div>
         <Configurator className="rise lg:sticky lg:top-24" />
       </Wrap>
@@ -336,7 +328,7 @@ function Closing() {
             <Btn to="/docs" variant="outline-night" size="lg">Read the docs</Btn>
           </div>
         </div>
-        <RadarLogo className="mx-auto aspect-[800/656] w-full max-w-[560px] md:-mr-6" />
+        <RadarLogo className="mx-auto aspect-square w-full max-w-[520px]" />
       </Wrap>
     </section>
   );

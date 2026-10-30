@@ -279,22 +279,29 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(
   *, *::before, *::after { transition-duration: 0.01ms !important; }
 }
 
-/* The radar of the closing call to action. Every part is a loop of the same
-   length family, so the sweep and the dots stay in step. The dots take their
-   delay from the angle they stand at, so each one lights as the line passes. */
+/* The radar of the closing call to action. The sweep, the markers and the ping
+   share one period, and a marker takes its delay from the angle it stands at,
+   so it lights as the line passes. */
 @keyframes radar-sweep { to { transform: rotate(360deg); } }
-@keyframes radar-ring { from { opacity: 0.55; transform: scale(1); } to { opacity: 0; transform: scale(5.2); } }
-@keyframes radar-dot { 0% { opacity: 1; transform: scale(1.6); } 40% { opacity: 0.25; transform: scale(1); } 100% { opacity: 0.1; transform: scale(1); } }
-@keyframes radar-arc { 0%, 100% { fill: #f3f6f2; } 20%, 45% { fill: #4ee595; } }
-@keyframes radar-core { 0%, 100% { transform: scale(1); } 8% { transform: scale(1.08); } }
-.radar-sweep { animation: radar-sweep 7s linear infinite; }
-.radar-ring { transform-box: fill-box; transform-origin: center; animation: radar-ring 4.2s ease-out infinite; }
-.radar-dot { transform-box: fill-box; transform-origin: center; opacity: 0.1; animation: radar-dot 7s linear infinite; }
+@keyframes radar-ping { from { opacity: 0.5; transform: scale(1); } to { opacity: 0; transform: scale(6); } }
+@keyframes radar-blip { 0% { opacity: 1; } 55% { opacity: 0.5; } 100% { opacity: 0.12; } }
+@keyframes radar-arc { 0%, 100% { fill: #f3f6f2; } 25%, 50% { fill: #4ee595; } }
+.radar-sweep { animation: radar-sweep 8s linear infinite; }
+.radar-ping { transform-box: fill-box; transform-origin: center; animation: radar-ping 4s ease-out infinite; }
+.radar-blip { opacity: 0.12; animation: radar-blip 8s linear infinite; }
 .radar-arc { animation: radar-arc 2.8s ease-in-out infinite; }
-.radar-arc-2 { animation-delay: 0.35s; }
-.radar-core { transform-box: fill-box; transform-origin: center; animation: radar-core 2.8s ease-out infinite; }
+.radar-arc-2 { animation-delay: 0.3s; }
 @media (prefers-reduced-motion: reduce) {
-  .radar-sweep, .radar-ring, .radar-dot, .radar-arc, .radar-core { animation: none; }
-  .radar-ring { opacity: 0.25; transform: scale(2.4); }
-  .radar-dot { opacity: 0.6; }
+  .radar-sweep, .radar-ping, .radar-blip, .radar-arc { animation: none; }
+  .radar-ping { opacity: 0.2; transform: scale(3); }
+  .radar-blip { opacity: 0.8; }
+}
+
+/* The sheet of the phone menu rises from the bottom edge. */
+@keyframes sheet-up { from { transform: translateY(100%); } }
+@keyframes sheet-fade { from { opacity: 0; } }
+.sheet-panel { animation: sheet-up 380ms cubic-bezier(0.22, 1, 0.36, 1); }
+.sheet-backdrop { animation: sheet-fade 240ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel, .sheet-backdrop { animation: none; }
 }

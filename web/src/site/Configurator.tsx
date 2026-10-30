@@ -146,7 +146,7 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
           </select>
         </div>
       )}
-      <div className="mt-7 grid gap-5">
+      <div className="mt-6 grid gap-4">
         <Slider
           label="RAM"
           value={resources.ram}
@@ -187,13 +187,13 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
           <span key={index} className="h-full transition-[width] duration-300 ease-out" style={{ width: `${(value / b.total) * 100}%`, background: SEG[index] }} />
         ))}
       </div>
-      <dl className="mt-5 grid gap-3">
+      <dl className="mt-5 grid gap-2.5">
         {rows.map(([k, d, v, c], index) => (
           <div key={k} className="rise grid grid-cols-[1fr_auto] items-baseline gap-4" style={{ '--i': index } as CSSProperties}>
             <dt className="flex items-baseline gap-2.5">
               <span aria-hidden="true" className="size-2.5 translate-y-px rounded-full" style={{ background: c }} />
               <span className="font-medium">{k}</span>
-              <span className="num text-[13px] text-snow-2">{d}</span>
+              <span className="num hidden text-[12.5px] text-snow-2 sm:inline">{d}</span>
             </dt>
             <dd className="num text-[16px]">{eur(v)}</dd>
           </div>
@@ -201,7 +201,7 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
       </dl>
       <div className="mt-6 flex items-end justify-between gap-4 border-t border-night-line pt-5">
         <p className="font-display text-[17px] font-semibold">Total per month</p>
-        <p className="big text-[44px] sm:text-[52px]" role="status" aria-live="polite">{eur(b.total)}</p>
+        <p className="big text-[40px] sm:text-[46px]" role="status" aria-live="polite">{eur(b.total)}</p>
       </div>
       <Btn to={`/register?${query}`} variant="mint" size="lg" className="mt-6 w-full">Create account and deploy</Btn>
       <p className="mt-4 text-[13.5px] leading-relaxed text-snow-2">

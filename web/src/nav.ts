@@ -17,8 +17,8 @@ const SETTINGS: NavEntry = { to: '/app/settings', label: 'Settings', shortLabel:
 
 export const CUSTOMER_NAV: NavEntry[] = [OVERVIEW, DEPLOY, INSTANCES, DOMAINS, MAIL, BILLING, SUPPORT, SETTINGS];
 
-/** Phone bottom bar: Overview, Apps, Billing, Support. */
-export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, INSTANCES, BILLING, SUPPORT];
+/** Phone bottom bar: Overview, Apps, the round Deploy button, Support. The rest opens from More. */
+export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, INSTANCES, { ...DEPLOY, primary: true }, SUPPORT];
 
 export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin', label: 'Dashboard', shortLabel: 'Home', icon: 'chart', exact: true },

@@ -17,6 +17,7 @@ import { cellClass, headerClass, type TableColumn } from './lib/table';
 import { get, relativeTime, type NotificationView } from './lib/api';
 import { Icon, type IconName } from './icons';
 import { Link, useRouter } from './router';
+import { useSession } from './session';
 import logo from './logo.svg';
 import { LegalFooter } from './legal/LegalFooter';
 
@@ -85,6 +86,8 @@ export interface NavEntry {
   exact?: boolean;
   /** Shorter label for the phone tab bar, when the full label does not fit. */
   shortLabel?: string;
+  /** The main action of the phone bar: a round button of the accent colour. */
+  primary?: boolean;
 }
 
 /**
@@ -154,7 +157,8 @@ export function AppShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const moreButton = useRef<HTMLButtonElement>(null);
   const sheet = useRef<HTMLDivElement>(null);
-  const rest = useMemo(() => nav.filter((entry) => !tabs.includes(entry)), [nav, tabs]);
+  const rest = useMemo(() => nav.filter((entry) => !tabs.some((tab) => tab.to === entry.to)), [nav, tabs]);
+  const { user, logout } = useSession();
   const restActive = rest.some(isActive);
 
   // A new page closes the sheet.
@@ -275,38 +279,43 @@ export function AppShell({
         </div>
       </div>
 
-      {/* Phone bottom tabs */}
+      {/* Phone bottom bar: a floating pill, so the page keeps its width and the
+          thumb has one place to go. The main action is the round button. */}
       <nav
         aria-label="Primary"
         data-bottom-nav=""
         className={cn(
-          'fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-bg/90 px-1 pt-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] backdrop-blur-md transition-transform duration-200 lg:hidden',
-          rest.length > 0 ? 'grid-cols-5' : 'grid-cols-4',
-          keyboardOpen && 'pointer-events-none translate-y-full',
+          'fixed inset-x-2.5 bottom-[max(10px,env(safe-area-inset-bottom))] z-30 flex h-[66px] items-center justify-between rounded-full border border-line bg-s1/95 p-1.5 backdrop-blur-md transition-transform duration-200 lg:hidden',
+          keyboardOpen && 'pointer-events-none translate-y-[200%]',
         )}
       >
         {tabs.map((entry) => {
           const active = isActive(entry);
+          if (entry.primary) {
+            return (
+              <Link
+                key={entry.to}
+                to={entry.to}
+                aria-label={entry.label}
+                aria-current={active ? 'page' : undefined}
+                className="grid h-[54px] w-[58px] shrink-0 place-items-center rounded-full bg-acc text-on-acc transition-transform duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
+              >
+                <Icon name={entry.icon} size={23} />
+              </Link>
+            );
+          }
           return (
             <Link
               key={entry.to}
               to={entry.to}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                // One cell of the grid is the whole touch target: 64px wide
-                // at 320px and 56px tall, well over the 44px minimum.
-                'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-xl px-1 py-1 text-[11.5px] font-medium leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
-                active ? 'bg-card text-ink' : 'text-ink3',
+                'flex h-[54px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-full text-[10.5px] font-semibold transition-[color,background,transform] duration-200 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                active ? 'bg-s3 text-ink' : 'text-ink3',
               )}
             >
-              {/* The bar marks the active tab without relying on colour. It
-                  sits in the padding above the tab, like a tab indicator. */}
-              {active && <span aria-hidden="true" className="absolute inset-x-4 -top-1.5 h-[3px] rounded-full bg-acc" />}
-              <Icon name={entry.icon} size={20} className={active ? 'text-acc' : undefined} />
-              {/* The label wraps onto a second line rather than being cut. */}
-              <span className="flex min-h-[26px] min-w-0 max-w-full items-center justify-center break-words text-center">
-                {entry.shortLabel ?? entry.label}
-              </span>
+              <Icon name={entry.icon} size={21} className={active ? 'text-acc' : undefined} />
+              <span className="max-w-full truncate px-1">{entry.shortLabel ?? entry.label}</span>
             </Link>
           );
         })}
@@ -319,65 +328,71 @@ export function AppShell({
             aria-controls="phone-more-sheet"
             onClick={() => setMoreOpen((open) => !open)}
             className={cn(
-              'relative flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-[3px] rounded-xl px-1 py-1 text-[11.5px] font-medium leading-[13px] transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
-              moreOpen || restActive ? 'bg-card text-ink' : 'text-ink3',
+              'flex h-[54px] min-w-0 flex-1 flex-col items-center justify-center gap-[3px] rounded-full text-[10.5px] font-semibold transition-[color,background,transform] duration-200 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+              moreOpen || restActive ? 'bg-s3 text-ink' : 'text-ink3',
             )}
           >
-            {(moreOpen || restActive) && <span aria-hidden="true" className="absolute inset-x-4 -top-1.5 h-[3px] rounded-full bg-acc" />}
-            <Icon name="menu" size={20} className={moreOpen || restActive ? 'text-acc' : undefined} />
-            <span className="flex min-h-[26px] min-w-0 max-w-full items-center justify-center break-words text-center">
-              More
-            </span>
+            <Icon name="menu" size={21} className={moreOpen || restActive ? 'text-acc' : undefined} />
+            More
           </button>
         )}
       </nav>
 
-      {/* The sheet with the entries that do not fit in the bar. */}
+      {/* The sheet with every page: a bottom sheet with a handle, the pages as
+          tiles, and the account at the foot. */}
       {rest.length > 0 && moreOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="absolute inset-0 bg-bg/80"
-            onClick={closeMore}
-            aria-hidden="true"
-          />
+          <div className="sheet-backdrop absolute inset-0 bg-black/70" onClick={closeMore} aria-hidden="true" />
           <div
             ref={sheet}
             id="phone-more-sheet"
             role="dialog"
             aria-modal="true"
-            aria-label="More pages"
-            className="absolute inset-x-0 bottom-0 max-h-[86dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-line bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            aria-label="All pages"
+            className="sheet-panel absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-[28px] border-t border-line bg-bg px-3 pt-2 pb-[max(14px,env(safe-area-inset-bottom))]"
           >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-ink">All pages</h2>
-              <button
-                type="button"
-                onClick={closeMore}
-                aria-label="Close"
-                className="grid h-11 w-11 place-items-center rounded-xl border border-line bg-card text-ink transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-            <nav aria-label="All pages" className="grid gap-1">
-              {nav.map((entry) => {
-                const active = isActive(entry);
-                return (
-                  <Link
-                    key={entry.to}
-                    to={entry.to}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
-                      active ? 'bg-s2 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
-                    )}
-                  >
-                    <Icon name={entry.icon} size={18} className={active ? 'text-acc' : 'text-ink3'} />
-                    {entry.label}
-                  </Link>
-                );
-              })}
+            <button type="button" onClick={closeMore} aria-label="Close" className="mx-auto mb-2 grid h-8 w-24 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
+              <span aria-hidden="true" className="h-1.5 w-10 rounded-full bg-s3" />
+            </button>
+            <nav aria-label="All pages" className="min-h-0 overflow-y-auto overscroll-contain">
+              <ul className="grid grid-cols-2 gap-2">
+                {nav.map((entry) => {
+                  const active = isActive(entry);
+                  return (
+                    <li key={entry.to}>
+                      <Link
+                        to={entry.to}
+                        aria-current={active ? 'page' : undefined}
+                        className={cn(
+                          'grid min-h-[88px] content-between gap-3 rounded-2xl border p-3.5 text-[15px] font-semibold transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                          active ? 'border-acc/40 bg-acc-bg text-ink' : 'border-line bg-s1 text-ink2 active:bg-s2',
+                        )}
+                      >
+                        <Icon name={entry.icon} size={22} className={active ? 'text-acc' : 'text-ink3'} />
+                        {entry.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </nav>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-s1 p-2.5">
+              <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-acc-bg text-[14px] font-bold text-acc">
+                {(user?.firstName?.[0] ?? user?.email?.[0] ?? '?').toUpperCase()}
+              </span>
+              <span className="grid min-w-0 flex-1 leading-tight">
+                <b className="truncate text-[14.5px] font-semibold text-ink">{user ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email : 'Signed out'}</b>
+                {user && <small className="truncate text-[12.5px] text-ink3">{user.email}</small>}
+              </span>
+              <Link to="/" className="grid h-10 shrink-0 place-items-center rounded-xl px-3 text-[13.5px] font-semibold text-ink2 hover:bg-s2">
+                Site
+              </Link>
+              {user && (
+                <button type="button" onClick={() => void logout()} className="grid h-10 shrink-0 place-items-center rounded-xl border border-line px-3 text-[13.5px] font-semibold text-ink2 hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
+                  Sign out
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
