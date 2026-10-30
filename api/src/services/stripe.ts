@@ -484,23 +484,34 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
     }
   }
 
-  // The promotion is consumed here, when the money arrives. Until then it is
-  // only reserved, so an unpaid order cannot exhaust a campaign.
-  if (order.promotionId && !order.promotionRedeemedAt) {
-    await prisma.$transaction([
-      prisma.order.update({ where: { id: order.id }, data: { promotionRedeemedAt: new Date() } }),
-      prisma.promotion.update({ where: { id: order.promotionId }, data: { usedCount: { increment: 1 } } }),
-    ]);
-  }
-
+  // The paid transition is a compare-and-set in the database, not a read-then-
+  // write. A cancellation, a duplicate webhook or a second concurrent checkout
+  // must not convert a terminal order back to PAID, nor consume the same
+  // promotion twice. Both changes commit or roll back together.
   if (!alreadyPaid) {
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: 'PAID',
-        paidAt: new Date(),
-        stripePaymentIntentId: params.stripePaymentIntentId ?? undefined,
-      },
+    await prisma.$transaction(async (tx) => {
+      const moved = await tx.order.updateMany({
+        where: { id: order.id, status: { in: ['PENDING', 'AWAITING_PAYMENT', 'FAILED'] } },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          stripePaymentIntentId: params.stripePaymentIntentId ?? undefined,
+          ...(order.promotionId && !order.promotionRedeemedAt
+            ? { promotionRedeemedAt: new Date() }
+            : {}),
+        },
+      });
+      if (moved.count !== 1) {
+        // A retry can process this event again and reconcile the paid row.
+        // Never overwrite a concurrently cancelled or refunded order.
+        throw conflict(`Order ${order.number} changed state before the payment could be applied.`);
+      }
+      if (order.promotionId && !order.promotionRedeemedAt) {
+        await tx.promotion.update({
+          where: { id: order.promotionId },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
     });
   }
 
