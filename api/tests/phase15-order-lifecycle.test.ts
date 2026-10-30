@@ -212,6 +212,22 @@ describe('the life of an order', () => {
     expect(event?.payload).toMatchObject({ plan: 'WordPress' });
   });
 
+  it('recovers an invoice missing after an earlier paid-state commit', async () => {
+    await seedProduct();
+    const { orderId } = await placeOrder('invoice-recovery@example.com');
+    await markOrderPaid({ orderId, amount: MONTHLY });
+    await prisma.invoice.deleteMany({ where: { orderId } });
+
+    // Simulates a worker interrupted after payment commit but before invoice
+    // persistence. A subsequent provider replay reconciles the invoice.
+    await markOrderPaid({ orderId, amount: MONTHLY });
+    const invoices = await prisma.invoice.findMany({ where: { orderId } });
+    expect(invoices).toHaveLength(1);
+    expect(invoices[0]?.status).toBe('PAID');
+    expect(invoices[0]?.amount).toBe(MONTHLY);
+    expect(await statusOf(orderId)).toBe('PAID');
+  });
+
   it('does not tell the customer twice when the same payment is reported twice', async () => {
     await seedProduct();
     const { orderId } = await placeOrder('twice@example.com');
