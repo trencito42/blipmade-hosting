@@ -15,7 +15,7 @@ import type { TestClient } from './helpers.js';
  */
 
 const mocks = vi.hoisted(() => ({
-  refundCreate: vi.fn(async () => ({ id: 're_test' })),
+  refundCreate: vi.fn(async () => ({ id: 're_test', status: 'succeeded' as const })),
 }));
 
 // The payment provider is replaced, so the test needs no Stripe account. The
