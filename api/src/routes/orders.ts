@@ -390,14 +390,23 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const order = await prisma.order.findFirst({ where: { id, userId: user.id } });
     if (!order) throw notFound('Order not found.');
+    if (order.status === 'CANCELLED') return reply.code(204).send();
     if (order.status === 'FULFILLED') throw badRequest('This order has already been fulfilled.');
     if (order.status === 'PAID') throw badRequest('A paid order cannot be cancelled. Cancel the subscription instead.');
-    // A refunded order keeps the trace of the refund. Cancelling it again
-    // would erase the state that says the money was returned, and the guard
-    // that refuses a dead order reads that state.
     if (order.status === 'REFUNDED') throw badRequest('This order was refunded and cannot be cancelled.');
+    if (order.status === 'FAILED') {
+      throw conflict('This failed order requires payment reconciliation before it can be cancelled.');
+    }
 
-    await prisma.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } });
+    // The status check above is only advisory. The actual state transition
+    // must refuse an order that was paid between the read and this update.
+    const cancelled = await prisma.order.updateMany({
+      where: { id: order.id, userId: user.id, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+      data: { status: 'CANCELLED' },
+    });
+    if (cancelled.count !== 1) {
+      throw conflict('The order changed while cancellation was requested. Reload its status.');
+    }
     // The campaign slot goes back into the pool.
     await releasePromotionReservation(order.id);
     await audit({ actorId: user.id, actorEmail: user.email, action: 'order.cancelled', targetType: 'order', targetId: order.id });

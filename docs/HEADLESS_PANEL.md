@@ -155,3 +155,39 @@ The full shape of every answer is in `docs/API_CONTRACT.md`.
 
 Both are the same blocker: the panel cannot issue a client key by itself. See
 `docs/PANEL_BRIDGE.md` for the installation.
+
+
+## Secure file and backup downloads
+
+Pterodactyl 1.x `/files/download` and `/backups/{backup}/download`
+return a temporary signed URL as JSON, not the actual bytes. Blipmade
+reads the signed URL on the API server, validates its HTTPS destination and
+streams the actual download to the authenticated customer. The bearer token
+of the panel and the signed URL never leave the backend.
+
+Configure exact signed download hosts in the platform API and worker:
+
+```dotenv
+# The source node hostname used by the Pterodactyl signed URL:
+PTERODACTYL_DOWNLOAD_HOSTS=node1.example.com:8080
+```
+
+`PANEL_NODE_ADDRESSES` source node hosts are accepted automatically as an
+additional allowlist. Add other hosts (for example a strictly designated
+object-storage hostname) only when needed, separated by commas. Enter the
+*exact host and port* that appears in the signed HTTPS URL. No wildcard
+hosts, public HTTP, arbitrary redirects, loopback or cloud metadata
+endpoints are trusted by default.
+
+The API must be able to reach the allowed HTTPS host with valid TLS. If the
+node is reachable only through a private address, configure the network path
+and certificate deliberately; do not disable TLS verification. A missing
+allowlist causes downloads to fail closed with a configuration error.
+
+**Validation on staging:** download a small file, a large file and a backup;
+verify correct bytes/checksum, an interrupted download, and rejection of a
+signed link/redirect to an unlisted host. Validate the size and browser
+behavior through the complete Cloudflare → Caddy → API chain.
+
+Do not expose signed Wings URLs or Pterodactyl credentials in logs, API
+responses, application telemetry or support tickets.

@@ -13,6 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  */
 
 const panel = {
+  generatedPasswords: [] as string[],
   accounts: [] as {
     id: number;
     username: string;
@@ -41,6 +42,7 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
       first_name: string;
       last_name: string;
     }) => {
+      panel.generatedPasswords.push(input.password);
       const taken = panel.accounts.find((account) => account.username === input.username);
       if (taken) throw new Error('The username has already been taken.');
       const account = {
@@ -74,6 +76,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetDatabase();
   panel.accounts = [];
+  panel.generatedPasswords = [];
   panel.nextId = 40;
   vi.clearAllMocks();
 });
@@ -171,6 +174,21 @@ describe('the identity of a customer on the panel', () => {
     expect(identity.panelUserId).toBe(9);
     // No second account is created for a customer that already has one.
     expect(panel.accounts).toHaveLength(1);
+  });
+
+  it('creates panel credentials with 32 bytes of cryptographic randomness', async () => {
+    const first = await makeCustomer('random-first@example.com');
+    const second = await makeCustomer('random-second@example.com');
+
+    await reconcilePanelIdentity(first);
+    await reconcilePanelIdentity(second);
+
+    expect(panel.generatedPasswords).toHaveLength(2);
+    for (const password of panel.generatedPasswords) {
+      // 32 bytes = 43 unpadded base64url characters after the prefix.
+      expect(password).toMatch(/^bm-[A-Za-z0-9_-]{43}$/);
+    }
+    expect(panel.generatedPasswords[0]).not.toBe(panel.generatedPasswords[1]);
   });
 
   it('gives every customer an account of their own', async () => {

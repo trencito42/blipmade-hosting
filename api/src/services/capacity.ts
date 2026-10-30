@@ -91,11 +91,10 @@ export interface NodeCpuCapacity {
 /**
  * The capacity of the processor of a node.
  *
- * The sold processors are the ones of the instances of the platform that hold
- * the node and are not cancelled: a cancelled instance is waiting to be
- * removed, and its processor is not sold any more, but the server of the
- * panel may still be there. The memory and the disk of the panel count that
- * one, and so does the processor.
+ * Count all instances whose allocation still names this node. A cancelled
+ * subscription does not automatically stop or remove a running container;
+ * ignoring it before deprovisioning would sell the same CPU twice. Retaining
+ * a stale node allocation errs conservatively until cleanup reconciles it.
  */
 export async function nodeCpuCapacity(nodeId: number): Promise<NodeCpuCapacity> {
   const cores = (await declaredNodeCores()).get(nodeId) ?? DEFAULT_NODE_CORES;
@@ -103,7 +102,7 @@ export async function nodeCpuCapacity(nodeId: number): Promise<NodeCpuCapacity> 
   const sellableVcpu = cores * oversubscription;
 
   const allocated = await prisma.instance.aggregate({
-    where: { pterodactylNodeId: nodeId, status: { not: 'CANCELLED' } },
+    where: { pterodactylNodeId: nodeId },
     _sum: { cpu: true },
   });
 

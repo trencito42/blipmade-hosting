@@ -73,45 +73,26 @@ export function resolveCookieSecure(request: FastifyRequest): boolean {
 }
 
 /**
- * The key the rate limit counts by.
+ * The IP address Fastify resolved after applying the explicitly trusted proxy
+ * configuration. Untrusted X-Forwarded-For headers must NEVER turn the limit
+ * into a per-connection limit: clients can choose a new source port for each
+ * request and bypass rate limits.
  *
- * The address of the caller is the key. Fastify resolves that address out of
- * the chain of the forwarding header, but only when the request came through
- * a proxy the API knows. When the request comes from a proxy that is not
- * trusted, the resolved address is the address of that proxy and every
- * visitor shares it, so one counter would be the counter of the whole
- * platform and one visitor could lock every other visitor out of the sign-in.
- *
- * The counter is then taken per connection, which is the smallest unit that
- * can be told apart when the address of the client is not known. The limit of
- * the account is a counter of its own and is not weakened by this: it is the
- * limit that protects an account from a guessing of the password.
- *
- * A request that carries no chain of the forwarding header comes from a
- * client that speaks for itself, and it keeps the counter of its address.
+ * When a deployment proxy is not trusted, this uses the immediate peer's IP
+ * (which may rate-limit multiple users together). The operator must configure
+ * TRUSTED_PROXIES correctly instead of trading abuse prevention for per-port
+ * counters.
  */
 export function rateLimitKey(request: FastifyRequest): string {
-  const peer = request.socket?.remoteAddress ?? '';
-  const address = request.ip;
-  // The address of the client was resolved out of the chain, so it is known.
-  if (address && address !== peer) return address;
-
-  const forwarded = request.headers['x-forwarded-for'];
-  const chain = typeof forwarded === 'string' ? forwarded.split(',').map((entry) => entry.trim()).filter(Boolean) : [];
-  if (!chain.length) return address;
-
-  // The request came through a proxy that the API does not know, so the
-  // address of the client cannot be told apart from the address of the proxy.
-  return `${address}:${request.socket?.remotePort ?? 0}`;
+  return request.ip || request.socket?.remoteAddress || 'unknown-peer';
 }
 
 /**
  * The key the counters of the addresses are kept under.
  *
- * The counter of an address is the counter of the client when the address is
- * known, and the counter of the connection when it is not. Either way the
- * counter belongs to one visitor and never to the whole platform, so a limit
- * can no longer lock every visitor out of a page or of the sign-in.
+ * The counter belongs to the IP resolved by Fastify. If an edge proxy is
+ * untrusted, this is the proxy's address until the operator adds it to
+ * TRUSTED_PROXIES. Never key by an ephemeral TCP source port.
  *
  * In the test environment the key carries the number of the run, so the
  * counters of one test do not count against the next one.

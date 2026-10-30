@@ -320,6 +320,24 @@ describe('the operations of a customer on their own server', () => {
     expect(JSON.stringify(response.body)).not.toContain('wss://');
   });
 
+  it('never stores a console command containing a credential in customer-visible events', async () => {
+    const { client, userId } = await registerAndLogin(await getApp(), 'command-privacy@example.com');
+    panel.tokens.set(userId, panelKey('g'));
+    const instance = await makeInstance(userId);
+    const password = 'sensitive-value-never-persist';
+    const response = await client.request('POST', `/api/instances/${instance.id}/command`, {
+      command: `setpassword ${password}`,
+    });
+
+    expect(response.status).toBe(200);
+    const events = await prisma.instanceEvent.findMany({ where: { instanceId: instance.id } });
+    expect(events.some((event) => event.type === 'command')).toBe(true);
+    expect(JSON.stringify(events)).not.toContain(password);
+    expect(JSON.stringify(events)).not.toContain('setpassword');
+    const auditLog = await prisma.auditLog.findMany({ where: { targetId: instance.id } });
+    expect(JSON.stringify(auditLog)).not.toContain(password);
+  });
+
   it('says that the panel cannot issue a key when the bridge is not installed', async () => {
     const { client, userId } = await registerAndLogin(await getApp(), 'owner@example.com');
     // No key for this customer: the bridge of the panel is not installed.

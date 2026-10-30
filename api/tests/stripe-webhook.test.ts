@@ -304,6 +304,73 @@ describe('the state of a subscription', () => {
   });
 });
 
+describe('out-of-order payment failure protection', () => {
+  it('does not demote a PAID order when async payment failure arrives later', async () => {
+    const user = await seedUser();
+    const { order } = await seedOrder(user.id, { status: 'PAID' });
+    const response = await deliver({
+      id: 'evt_async_failure_after_paid',
+      type: 'checkout.session.async_payment_failed',
+      data: { object: { client_reference_id: order.id } },
+    });
+    expect(response.status).toBe(200);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('PAID');
+  });
+
+  it('keeps a successful payment intact after a late payment_intent.payment_failed event', async () => {
+    const user = await seedUser();
+    const { order } = await seedOrder(user.id, { status: 'PAID' });
+    const payment = await prisma.payment.create({
+      data: {
+        userId: user.id,
+        orderId: order.id,
+        stripePaymentIntentId: 'pi_success_then_failed',
+        amount: order.total,
+        currency: 'EUR',
+        status: 'SUCCEEDED',
+      },
+    });
+    const response = await deliver({
+      id: 'evt_intent_failure_after_success',
+      type: 'payment_intent.payment_failed',
+      data: {
+        object: {
+          id: 'pi_success_then_failed',
+          last_payment_error: { message: 'Old failure' },
+        },
+      },
+    });
+    expect(response.status).toBe(200);
+    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe('SUCCEEDED');
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('PAID');
+  });
+
+  it('does mark a genuinely awaiting order as failed', async () => {
+    const user = await seedUser();
+    const { order } = await seedOrder(user.id);
+    const response = await deliver({
+      id: 'evt_async_failure_waiting',
+      type: 'checkout.session.async_payment_failed',
+      data: { object: { client_reference_id: order.id } },
+    });
+    expect(response.status).toBe(200);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('FAILED');
+  });
+
+  it('does not downgrade a REFUNDED order after late async failure', async () => {
+    const user = await seedUser();
+    const { order } = await seedOrder(user.id);
+    await prisma.order.update({ where: { id: order.id }, data: { status: 'REFUNDED' } });
+    const response = await deliver({
+      id: 'evt_async_failure_after_refund',
+      type: 'checkout.session.async_payment_failed',
+      data: { object: { client_reference_id: order.id } },
+    });
+    expect(response.status).toBe(200);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('REFUNDED');
+  });
+});
+
 describe('a checkout that was abandoned', () => {
   it('releases the order and the campaign slot it was holding', async () => {
     const user = await seedUser();

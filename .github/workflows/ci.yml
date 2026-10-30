@@ -270,15 +270,11 @@ jobs:
 
       - name: Scan the history for secrets
         uses: gitleaks/gitleaks-action@v3
-        with:
-          # Leave the findings out of the pull request, the job result is the
-          # signal that the run is interested in.
+        env:
+          # Gitleaks v3 requires the GitHub token when scanning a PR.
+          # Comment posting remains disabled; the job fails on findings.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: 'false'
-          # Optional. A personal repository needs no license. When the
-          # repository belongs to an organisation, add a GITLEAKS_LICENSE
-          # secret to the repository settings. Without it the action still
-          # runs on a public repository, so the run never breaks on a missing
-          # secret.
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
   # ---------------------------------------------------------------------------

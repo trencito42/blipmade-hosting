@@ -11,7 +11,7 @@ import type { FastifyInstance } from 'fastify';
  */
 
 const mocks = vi.hoisted(() => ({
-  refundCreate: vi.fn(async () => ({ id: 're_test' })),
+  refundCreate: vi.fn(async () => ({ id: 're_test', status: 'succeeded' as const })),
   panel: {
     /** The error the panel raises, when it refuses the new limits. */
     buildError: null as string | null,
@@ -249,7 +249,7 @@ describe('a paid resource change that the panel refuses', () => {
   beforeEach(async () => {
     await resetDatabase();
     mocks.refundCreate.mockClear();
-    mocks.refundCreate.mockImplementation(async () => ({ id: 're_test' }));
+    mocks.refundCreate.mockImplementation(async () => ({ id: 're_test', status: 'succeeded' as const }));
     mocks.panel.buildError = null;
     mocks.panel.builds = 0;
     mocks.panel.arrivals = 0;
