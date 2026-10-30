@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { get, post, type Invoice, type Subscription } from '../lib/api';
+import { formatPrice } from '../lib/pricing';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useRouter } from '../router';
 import {
@@ -49,6 +50,10 @@ interface PaymentMethod {
 interface BillingSummary {
   currency: string;
   monthlyEstimate: number;
+  /** One total for each currency: amounts in different currencies are never added. */
+  monthlyByCurrency?: { currency: string; amount: number }[];
+  /** The nearest renewal that costs something. */
+  nextRenewal?: { at: string; amount: number; currency: string; subscriptionId: string } | null;
   currentPeriodEnd: string | null;
   paymentMethod: PaymentMethod | null;
   hasStripeCustomer: boolean;
@@ -472,14 +477,28 @@ export default function Billing() {
         ) : summary ? (
           <>
             <StatTile
-              label="This month (estimate)"
-              value={<Money amount={summary.monthlyEstimate} currency={summary.currency} />}
-              hint={`Estimated from your current subscriptions in ${summary.currency}.`}
+              label="Monthly total"
+              value={
+                summary.monthlyByCurrency && summary.monthlyByCurrency.length > 1 ? (
+                  <span className="grid gap-1 text-[20px]">
+                    {summary.monthlyByCurrency.map((line) => (
+                      <Money key={line.currency} amount={line.amount} currency={line.currency} />
+                    ))}
+                  </span>
+                ) : (
+                  <Money amount={summary.monthlyEstimate} currency={summary.currency} />
+                )
+              }
+              hint="Every subscription you pay for: apps, servers and email. A yearly plan counts as a twelfth a month."
             />
             <StatTile
-              label="Current period ends"
-              value={formatDate(summary.currentPeriodEnd)}
-              hint={summary.currentPeriodEnd ? undefined : 'Not available yet'}
+              label="Next renewal"
+              value={summary.nextRenewal ? formatDate(summary.nextRenewal.at) : 'None'}
+              hint={
+                summary.nextRenewal
+                  ? `${formatPrice(summary.nextRenewal.amount, summary.nextRenewal.currency)} is charged on that day.`
+                  : 'No payment is scheduled.'
+              }
             />
             <StatTile
               label="Payment method"

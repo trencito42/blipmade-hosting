@@ -119,7 +119,7 @@ export function LegalPage({ slug }: { slug: string }) {
         {/* The note of the footer of the platform: the identity of the operator
             is not settled yet, and the page says so. */}
         <div className="mt-14">
-          <LegalFooter />
+          <LegalFooter operatorNote />
         </div>
       </article>
     </Wrap>

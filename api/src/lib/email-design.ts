@@ -2102,7 +2102,7 @@ function renderFooter(operator: boolean): string {
   const linkStyle = `color:${BRAND.muted};text-decoration:underline;`;
   return `<span style="color:${BRAND.text};font-weight:700;">blipmade</span><br />
               ${reason}<br />
-              Need a hand? Write to <a href="mailto:${support}" style="${linkStyle}">${support}</a> or open a ticket in your dashboard.<br /><br />
+              Need a hand? Write to <a href="mailto:${support}" style="color:${BRAND.accent};text-decoration:underline;">${support}</a> or open a ticket in your dashboard.<br /><br />
               <a href="${origin}/terms" style="${linkStyle}">Terms</a> &middot; <a href="${origin}/privacy" style="${linkStyle}">Privacy</a> &middot; <a href="${origin}/aup" style="${linkStyle}">Acceptable use</a> &middot; <a href="${origin}/docs/status" style="${linkStyle}">Status</a>`;
 }
 

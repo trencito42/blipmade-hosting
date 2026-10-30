@@ -1,48 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ProductTile } from '../ui';
 import { Icon, type IconName } from '../icons';
-import { get, type Instance } from '../lib/api';
+import { get, type AccountBillingSummary, type Instance, type MailServiceView, type VpsServerView } from '../lib/api';
+import { describeEvent, type ServiceEvent } from '../lib/activity';
+import { countLine, latePayments, serviceRows, type ServiceRow } from '../lib/services';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
-import {
-  ButtonLink,
-  EmptyState,
-  ErrorState,
-  ListRow,
-  LoadingBlock,
-  Money,
-  Panel,
-  StatTile,
-  StatusPill,
-} from '../ui-app';
+import { ButtonLink, EmptyState, ErrorState, ListRow, LoadingBlock, Money, Panel, StatTile, StatusPill } from '../ui-app';
 import { catalogPath, useDeployableProducts } from '../lib/pricing';
 import { deployPathFor, startingConfiguration } from '../lib/pricing-contract';
 
 /**
- * Customer overview. Reads the real instance list only: every number on this
- * page comes from GET /api/instances. Nothing here is simulated.
+ * The overview of the account.
  *
- * A new account gets one onboarding panel instead of three empty panels, and
- * an account with services gets the facts that are worth a panel.
+ * It reads the real data of the account: the apps and databases, the servers, the
+ * plans of mail and the summary of what the account pays. A source that cannot be
+ * read is said to be unavailable; it is never drawn as zero.
  */
-
-const KNOWN_ICONS: readonly IconName[] = [
-  'arrow', 'arrowUR', 'check', 'search', 'menu', 'close', 'eye', 'eyeOff', 'globe', 'db',
-  'folder', 'term', 'chart', 'card', 'rocket', 'shield', 'restart', 'box', 'bolt', 'bot',
-  'mon', 'flow', 'code', 'doc',
-];
-
-function productIcon(icon: string): IconName {
-  return KNOWN_ICONS.includes(icon as IconName) ? (icon as IconName) : 'box';
-}
-
-/** Purchased memory, never live usage. */
-function fmtRam(mb: number): string {
-  if (!Number.isFinite(mb)) return '—';
-  if (mb < 1024) return `${mb} MB`;
-  const gb = Math.round((mb / 1024) * 100) / 100;
-  return `${gb} GB`;
-}
 
 function fmtDate(iso: string): string {
   const date = new Date(iso);
@@ -50,82 +24,83 @@ function fmtDate(iso: string): string {
   return date.toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/** Reasons this instance needs the customer to act. Empty when all is well. */
-function attentionReasons(instance: Instance): string[] {
-  const reasons: string[] = [];
-  if (instance.status === 'failed') reasons.push('Status is failed.');
-  else if (instance.status === 'degraded') reasons.push('Status is degraded.');
-  else if (instance.status === 'suspended') reasons.push('Status is suspended.');
-  if (instance.subscription?.status === 'past_due') reasons.push('Subscription payment is past due.');
-  return reasons;
+function relativeTime(iso: string): string {
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return '';
+  const minutes = Math.round((Date.now() - then) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return days < 30 ? `${days} d ago` : fmtDate(iso);
 }
 
-interface InstanceEvent {
-  id: string;
-  type: string;
-  message: string;
-  createdAt: string;
+/** The mark of a service: the logo of an app, or the icon of a server or of mail. */
+function ServiceTile({ row, size = 40 }: { row: ServiceRow; size?: number }) {
+  if (row.kind === 'app') return <ProductTile slug={row.slug ?? ''} icon={row.icon ?? 'box'} size={size} />;
+  return (
+    <span aria-hidden="true" style={{ width: size, height: size }} className="grid shrink-0 place-items-center rounded-xl bg-acc-bg text-acc">
+      <Icon name={(row.icon as IconName) ?? 'box'} size={Math.round(size * 0.42)} />
+    </span>
+  );
 }
 
 interface ActivityRow {
-  instanceId: string;
-  instanceName: string;
-  event: InstanceEvent;
+  key: string;
+  to: string;
+  title: string;
+  detail: string | null;
+  serviceName: string;
+  at: string;
 }
 
 /**
- * The events endpoint is per instance, so the overview asks each of the most
- * recent instances for its latest event. Failures are reported, never hidden.
+ * The events endpoint belongs to one app, so the overview asks the most recent apps for
+ * their latest event. It says what it covers, and a failure is reported, not hidden.
  */
 function useRecentActivity(instances: Instance[] | undefined) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [rows, setRows] = useState<ActivityRow[]>([]);
+  const [state, setState] = useState<{ loading: boolean; error: Error | null; rows: ActivityRow[] }>({ loading: true, error: null, rows: [] });
   const [nonce, setNonce] = useState(0);
-
   const ids = useMemo(() => (instances ?? []).slice(0, 5).map((instance) => instance.id), [instances]);
   const key = ids.join(',');
 
   useEffect(() => {
     if (!instances) return;
     if (!ids.length) {
-      setRows([]);
-      setError(null);
-      setLoading(false);
+      setState({ loading: false, error: null, rows: [] });
       return;
     }
     const controller = new AbortController();
     let active = true;
-    setLoading(true);
-    setError(null);
-
+    setState((current) => ({ ...current, loading: true, error: null }));
     Promise.all(
       ids.map(async (id) => {
         try {
-          const res = await get<{ events: InstanceEvent[] }>(`/instances/${id}/events`, undefined, controller.signal);
+          const res = await get<{ events: ServiceEvent[] }>(`/instances/${id}/events`, undefined, controller.signal);
           return { id, events: res.events ?? [], ok: true };
         } catch {
-          return { id, events: [] as InstanceEvent[], ok: false };
+          return { id, events: [] as ServiceEvent[], ok: false };
         }
       }),
     ).then((results) => {
       if (!active) return;
-      const names = new Map<string, string>(instances.map((instance) => [instance.id, instance.name] as const));
-      const latest: ActivityRow[] = [];
+      const names = new Map(instances.map((instance) => [instance.id, instance.name] as const));
+      const rows: ActivityRow[] = [];
       for (const result of results) {
-        const sorted = result.events
-          .slice()
-          .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-        const event = sorted[0];
-        if (event) latest.push({ instanceId: result.id, instanceName: names.get(result.id) ?? result.id, event });
+        const latest = result.events.slice().sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+        if (!latest) continue;
+        const name = names.get(result.id) ?? 'The service';
+        const text = describeEvent(latest, name);
+        rows.push({ key: result.id, to: `/app/instances/${result.id}`, title: text.title, detail: text.detail, serviceName: name, at: latest.createdAt });
       }
-      latest.sort((a, b) => Date.parse(b.event.createdAt) - Date.parse(a.event.createdAt));
-      setRows(latest);
-      const allFailed = results.every((result) => !result.ok);
-      setError(allFailed ? new Error('The activity feed could not be loaded from the API.') : null);
-      setLoading(false);
+      rows.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+      setState({
+        loading: false,
+        error: results.every((result) => !result.ok) ? new Error('The activity could not be loaded from the API.') : null,
+        rows,
+      });
     });
-
     return () => {
       active = false;
       controller.abort();
@@ -133,204 +108,226 @@ function useRecentActivity(instances: Instance[] | undefined) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, nonce]);
 
-  return { loading, error, rows, reload: () => setNonce((n) => n + 1) };
+  return { ...state, reload: () => setNonce((value) => value + 1) };
+}
+
+/** The sum of money of the account, one line for each currency. */
+function MonthlyCost({ summary }: { summary: AccountBillingSummary }) {
+  const lines = summary.monthlyByCurrency && summary.monthlyByCurrency.length > 1 ? summary.monthlyByCurrency : null;
+  if (!lines) return <Money amount={summary.monthlyEstimate} currency={summary.currency} />;
+  return (
+    <span className="grid gap-1 text-[20px]">
+      {lines.map((line) => (
+        <Money key={line.currency} amount={line.amount} currency={line.currency} />
+      ))}
+    </span>
+  );
+}
+
+function ServiceLine({ row }: { row: ServiceRow }) {
+  return (
+    <li>
+      <Link
+        to={row.to}
+        className="grid items-center gap-x-4 gap-y-2 rounded-2xl bg-s2 p-3.5 transition-colors duration-150 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:grid-cols-[minmax(0,1.6fr)_auto_minmax(0,1.3fr)_minmax(86px,auto)] md:p-3"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <ServiceTile row={row} />
+          <span className="min-w-0">
+            <span className="block truncate text-[14.5px] font-semibold tracking-[-0.01em] text-ink">{row.name}</span>
+            <span className="block truncate text-[12.5px] text-ink3">{row.typeLabel}</span>
+          </span>
+        </span>
+        <span className="justify-self-start md:justify-self-auto">
+          <StatusPill status={row.status} label={row.statusLabel ?? undefined} />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-mono text-[12.5px] text-ink2">{row.limits.join(' · ')}</span>
+          {row.address && <span className="block truncate font-mono text-[12px] text-ink3">{row.address.replace(/^https?:\/\//, '')}</span>}
+        </span>
+        <span className="text-[13.5px] text-ink2 md:text-right">
+          {row.price !== null && row.currency ? <Money amount={row.price} currency={row.currency} period="mo" /> : <span className="text-ink3">—</span>}
+        </span>
+      </Link>
+    </li>
+  );
 }
 
 export default function Overview() {
-  const { data, loading, error, reload } = useAsync(
-    (signal) => get<{ instances: Instance[] }>('/instances', undefined, signal),
-    [],
-  );
+  const instancesState = useAsync((signal) => get<{ instances: Instance[] }>('/instances', undefined, signal), []);
+  const summaryState = useAsync((signal) => get<AccountBillingSummary>('/billing/summary', undefined, signal), []);
+  const serversState = useAsync((signal) => get<{ servers: VpsServerView[] }>('/vps', undefined, signal), []);
+  const mailState = useAsync((signal) => get<{ services: MailServiceView[] }>('/mail/services', undefined, signal), []);
 
-  const instances = data?.instances;
+  const instances = instancesState.data?.instances;
   const activity = useRecentActivity(instances);
   const { products: deployable, loading: catalogLoading } = useDeployableProducts();
 
-  const attention = (instances ?? []).filter((instance) => attentionReasons(instance).length > 0);
-  const total = (instances ?? []).reduce((sum, instance) => sum + (instance.price ?? 0), 0);
-  const currency = instances?.[0]?.currency ?? 'EUR';
-  const count = instances?.length ?? 0;
+  const rows = useMemo(
+    () =>
+      serviceRows({
+        instances: instances ?? [],
+        servers: serversState.data?.servers ?? [],
+        mail: mailState.data?.services ?? [],
+        summary: summaryState.data ?? null,
+      }),
+    [instances, serversState.data, mailState.data, summaryState.data],
+  );
 
-  if (loading) {
-    return (
-      <div className="grid gap-4">
-        <LoadingBlock rows={3} label="Loading your dashboard" />
-      </div>
-    );
+  // The sources are read apart, so one that fails is said to be unavailable and the rest still show.
+  const unavailable = [
+    serversState.error ? 'servers' : null,
+    mailState.error ? 'email hosting' : null,
+    summaryState.error ? 'billing' : null,
+  ].filter(Boolean) as string[];
+
+  const problems = rows.filter((row) => row.problem);
+  const late = latePayments(summaryState.data ?? null).filter((subscription) => !rows.some((row) => row.problem && row.id === subscription.serviceId));
+
+  if (instancesState.loading || (serversState.loading && mailState.loading && summaryState.loading)) {
+    return <LoadingBlock rows={3} label="Loading your dashboard" />;
+  }
+  if (instancesState.error) {
+    return <ErrorState title="We could not load your dashboard" message={instancesState.error.message} onRetry={instancesState.reload} />;
   }
 
-  if (error) {
-    return (
-      <ErrorState
-        title="We could not load your dashboard"
-        message={error.message}
-        onRetry={reload}
-      />
-    );
-  }
-
-  // A new account gets one panel that explains the next step, not three empty
-  // panels that each say there is nothing here.
-  if (count === 0) {
+  // A new account gets one panel that explains the next step.
+  if (rows.length === 0) {
     return (
       <div className="grid gap-4">
-        <Panel
-          title="Deploy your first app"
-          description="Pick an app, choose the resources, and it runs on its own."
-        >
-          <p className="text-[15px] leading-relaxed text-ink2">
-            Every service is billed monthly for the memory, CPU and storage you choose. Nothing is billed before you
-            order, and you can change the size of a service whenever you need more room.
+        <Panel title="Welcome to Blipmade" description="Pick what you want to run, choose the resources, and it starts on its own.">
+          <p className="max-w-[60ch] text-[14px] leading-relaxed text-ink2">
+            Services are billed monthly for the resources you choose. Nothing is billed before you order, and you can change the size of a service later.
           </p>
-
-          {/* The next step is one button on a phone, both of them within reach
-              of a thumb instead of side by side in a narrow row. */}
           <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap">
             <ButtonLink to="/app/deploy" className="w-full sm:w-auto">
               <Icon name="rocket" size={16} />
-              Choose an app
+              Deploy your first service
             </ButtonLink>
-            <ButtonLink to={catalogPath()} variant="soft" className="w-full sm:w-auto">
-              Browse the public catalog
+            <ButtonLink to="/app/vps/new" variant="soft" className="w-full sm:w-auto">
+              Order a server
             </ButtonLink>
           </div>
-
           {catalogLoading ? (
             <p className="mt-4 text-[13px] text-ink3">Loading the catalog…</p>
           ) : deployable.length > 0 ? (
             <>
-              <p className="mt-5 text-[13px] text-ink3">Ready to deploy right now:</p>
+              <p className="mt-5 text-[13px] font-medium text-ink3">Ready to deploy now</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {deployable.slice(0, 4).map((product) => (
                   <Link
                     key={product.id}
                     to={deployPathFor(product.slug, startingConfiguration(product))}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    className="flex items-center gap-3 rounded-2xl bg-s2 p-3 transition-colors duration-150 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <ProductTile slug={product.slug} icon={product.icon} size={36} />
-                    <span className="w-0 min-w-0 flex-1">
-                      <span className="block truncate text-[14.5px] font-medium text-ink">{product.name}</span>
-                      <span className="block truncate text-[12.5px] text-ink3">{product.description}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-medium text-ink">{product.name}</span>
+                      {product.price && (
+                        <span className="block text-[12.5px] text-ink3">
+                          From <Money amount={product.price.amount} currency={product.price.currency} period="mo" />
+                        </span>
+                      )}
                     </span>
-                    {/* The price gets a line of its own on a phone, so the
-                        name of the product is not cut to make room for it. */}
-                    {product.price && (
-                      <span className="w-full sm:w-auto">
-                        <Money amount={product.price.amount} currency={product.price.currency} period="month" />
-                      </span>
-                    )}
                   </Link>
                 ))}
               </div>
+              <p className="mt-3 text-[13px]">
+                <Link to={catalogPath()} className="text-acc underline underline-offset-4">
+                  See the whole catalog
+                </Link>
+              </p>
             </>
           ) : (
-            <p className="mt-4 rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
-              Nothing can be ordered at the moment. The catalog on the site lists what is coming, and we will let you
-              know when the first app is ready.
-            </p>
+            <p className="mt-4 rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">Nothing can be ordered at the moment.</p>
           )}
         </Panel>
       </div>
     );
   }
 
+  const next = summaryState.data?.nextRenewal ?? null;
+
   return (
     <div className="grid gap-4">
-      {attention.length > 0 && (
-        <Panel title="Needs attention">
+      {(problems.length > 0 || late.length > 0) && (
+        <Panel title="Needs attention" description="These need you. Each one opens the place where you can fix it.">
           <div className="grid gap-1.5">
-            {attention.map((instance) => (
+            {problems.map((row) => (
+              <ListRow key={row.key} to={row.to} title={row.name} meta={row.problem} right={<StatusPill status={row.status} label={row.statusLabel ?? undefined} />} />
+            ))}
+            {late.map((subscription) => (
               <ListRow
-                key={instance.id}
-                to={`/app/instances/${instance.id}`}
-                title={instance.name}
-                meta={attentionReasons(instance).join(' ')}
-                right={<StatusPill status={instance.status} />}
+                key={subscription.id}
+                to="/app/billing"
+                title={subscription.instanceName ?? 'A subscription'}
+                meta="The payment is past due."
+                right={<StatusPill status="past_due" label="Payment due" />}
               />
             ))}
           </div>
         </Panel>
       )}
 
-      {/* The facts of the account, with the monthly total in the row where it
-          belongs instead of a panel of its own. */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatTile icon="box" label="Services" value={count} hint={count === 1 ? 'one app or database' : 'apps and databases'} />
-        <StatTile icon="card" label="Monthly total" value={<Money amount={total} currency={currency} />} hint="What your services cost per month" />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatTile icon="box" label="Services" value={rows.length} hint={countLine(rows)} />
+        {summaryState.data ? (
+          <StatTile icon="card" label="Monthly cost" value={<MonthlyCost summary={summaryState.data} />} hint="From your active subscriptions" />
+        ) : (
+          <StatTile icon="card" label="Monthly cost" value="Unavailable" hint="The billing summary could not be loaded" />
+        )}
         <StatTile
-          icon={attention.length === 0 ? 'heart' : 'warn'}
+          icon={problems.length + late.length === 0 ? 'heart' : 'warn'}
           label="Needs attention"
-          value={attention.length}
-          hint={attention.length === 0 ? 'Everything is running' : 'Open the service below'}
+          value={problems.length + late.length}
+          hint={problems.length + late.length === 0 ? 'No problem was reported' : 'See the list above'}
         />
+        {summaryState.data ? (
+          <StatTile
+            icon="restart"
+            label="Next payment"
+            value={next ? <Money amount={next.amount} currency={next.currency} /> : '—'}
+            hint={next ? `Renews on ${fmtDate(next.at)}` : 'No payment is scheduled'}
+          />
+        ) : (
+          <StatTile icon="restart" label="Next payment" value="Unavailable" hint="The billing summary could not be loaded" />
+        )}
       </div>
 
-      <Panel title="Your services">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {instances!.map((instance) => (
-            <article key={instance.id} className="grid content-start gap-3 rounded-2xl bg-s2 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <ProductTile slug={instance.product.slug} icon={instance.product.icon} />
-                  <div className="w-0 min-w-0 flex-1">
-                    <Link
-                      to={`/app/instances/${instance.id}`}
-                      className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink transition-colors duration-[180ms] hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                    >
-                      {instance.name}
-                    </Link>
-                    <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
-                  </div>
-                </div>
-                {/* On a phone the status gets a line of its own, so a long
-                    name is not cut to make room for the pill. */}
-                <div className="w-full sm:w-auto">
-                  <StatusPill status={instance.status} />
-                </div>
-              </div>
+      {unavailable.length > 0 && (
+        <p role="status" className="rounded-2xl bg-warn/12 px-4 py-3 text-[13.5px] text-ink2">
+          Some of your account could not be loaded: {unavailable.join(', ')}. What is shown below may be incomplete.
+        </p>
+      )}
 
-              <ul aria-label="Purchased limits" className="flex flex-wrap gap-1.5 font-mono text-[12.5px] text-ink">
-                {[fmtRam(instance.ram), `${instance.cpu} vCPU`, `${instance.disk} GB disk`].map((limit) => (
-                  <li key={limit} className="rounded-lg bg-s3 px-2.5 py-1">{limit}</li>
-                ))}
-              </ul>
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                {instance.url ? (
-                  <a
-                    href={instance.url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="-ml-2 inline-flex min-h-11 max-w-full items-center rounded-2xl px-2 text-[13.5px] font-medium text-acc underline underline-offset-2 transition-colors duration-[180ms] hover:text-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                  >
-                    <span className="truncate">{instance.url}</span>
-                  </a>
-                ) : (
-                  <span className="text-[13.5px] text-ink3">No public URL yet</span>
-                )}
-                <span className="text-[14px] text-ink2"><Money amount={instance.price ?? 0} currency={instance.currency} period="month" /></span>
-              </div>
-            </article>
+      <Panel title="Your services" description={countLine(rows)}>
+        <ul className="grid gap-2">
+          {rows.map((row) => (
+            <ServiceLine key={row.key} row={row} />
           ))}
-        </div>
+        </ul>
       </Panel>
 
-      <Panel title="Recent activity" description="The latest event of each service.">
+      <Panel title="Recent activity" description="The latest event of each of your most recent apps.">
         {activity.loading ? (
           <LoadingBlock rows={2} label="Loading recent activity" />
         ) : activity.error ? (
           <ErrorState title="Activity unavailable" message={activity.error.message} onRetry={activity.reload} />
         ) : activity.rows.length === 0 ? (
-          <EmptyState title="No activity yet." description="Events appear here when something changes on a service." />
+          <EmptyState title="No activity yet." description="Events appear here when something changes on an app." />
         ) : (
           <div className="grid gap-1.5">
             {activity.rows.map((row) => (
               <ListRow
-                key={row.instanceId}
-                to={`/app/instances/${row.instanceId}`}
-                title={row.instanceName}
-                meta={<><span className="text-ink2">{row.event.type.replace(/_/g, ' ')}</span> · {row.event.message}</>}
-                right={<span className="font-mono text-[12px] text-ink3">{fmtDate(row.event.createdAt)}</span>}
+                key={row.key}
+                to={row.to}
+                title={row.title}
+                meta={row.detail ?? row.serviceName}
+                right={
+                  <time dateTime={row.at} title={new Date(row.at).toLocaleString('en-IE')} className="text-[12.5px] text-ink3">
+                    {relativeTime(row.at)}
+                  </time>
+                }
               />
             ))}
           </div>

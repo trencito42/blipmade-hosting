@@ -107,6 +107,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
+  { pattern: '/app/servers', component: ServersRedirect, title: 'Servers', area: 'customer', exact: true },
+  { pattern: '/app/servers/:id', component: ServersRedirect, title: 'Servers', area: 'customer' },
   { pattern: '/app/vps', component: VpsList, title: 'Servers', area: 'customer', exact: true },
   { pattern: '/app/vps/new', component: VpsCheckout, title: 'New server', area: 'customer' },
   { pattern: '/app/vps/:id', component: VpsDetail, title: 'Server', area: 'customer' },
@@ -242,18 +244,42 @@ function GuestOnly({ children }: { children: ReactNode }) {
 /**
  * The action of the bar of the customer area.
  *
- * Deploying is the thing a customer comes to do, so the way to the catalog of
- * products is always one press away, on a phone as well as on a desktop.
+ * The bar offers what the customer most likely does on the page they are on, and nothing
+ * on a page where the action would repeat a button of the page itself. A phone has the
+ * round Deploy button in its bottom bar, so the bar shows nothing there.
  */
-function DeployAction() {
+function contextAction(path: string): { to: string; label: string; icon: 'rocket' | 'plus' } | null {
+  if (path === '/app') return { to: '/app/deploy', label: 'Deploy', icon: 'rocket' };
+  if (path === '/app/instances') return { to: '/app/deploy', label: 'New instance', icon: 'plus' };
+  if (path === '/app/vps') return { to: '/app/vps/new', label: 'New server', icon: 'plus' };
+  return null;
+}
+
+function ShellAction({ path }: { path: string }) {
+  const action = contextAction(path);
+  if (!action) return null;
   return (
     <Link
-      to="/app/deploy"
+      to={action.to}
       className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-acc px-4 text-[13.5px] max-lg:hidden font-medium text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
-      <Icon name="rocket" size={15} />
-      Deploy
+      <Icon name={action.icon} size={15} />
+      {action.label}
     </Link>
+  );
+}
+
+/** The page of the servers was first called /app/servers by some links: they land on the page of the servers. */
+function ServersRedirect() {
+  const { id } = useParams();
+  const { navigate } = useRouter();
+  useEffect(() => {
+    navigate(id ? `/app/vps/${encodeURIComponent(id)}` : '/app/vps', { replace: true });
+  }, [navigate, id]);
+  return (
+    <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
+      <LoadingBlock rows={2} label="Opening your servers" />
+    </div>
   );
 }
 
@@ -417,7 +443,7 @@ export default function AppRoutes() {
           title={route.title}
           subtitle={route.subtitle}
           environment={route.area === 'admin' ? 'Staff · Production' : undefined}
-          actions={route.area === 'customer' ? <DeployAction /> : undefined}
+          actions={route.area === 'customer' ? <ShellAction path={path} /> : undefined}
         >
           {content}
         </AppShell>

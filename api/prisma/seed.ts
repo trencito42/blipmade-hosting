@@ -77,7 +77,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'WordPress',
     category: 'WEB_CMS',
     description:
-      'The most widely used CMS. It runs on a WordPress image of the panel, and that image is not installed on the platform yet, so it is listed but cannot be deployed.',
+      'The most widely used publishing platform, for sites, blogs and shops.',
     icon: 'globe',
     minRam: 512,
     minCpu: 1,
@@ -103,7 +103,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'Code Server',
     category: 'DEVELOPER_TOOLS',
     description:
-      'Visual Studio Code in the browser, running on your own resources.',
+      'Visual Studio Code in your browser, running on the resources you choose.',
     icon: 'term',
     minRam: 1024,
     minCpu: 1,
@@ -131,7 +131,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'Discord Bot',
     category: 'BOTS',
     description:
-      'Run a Node.js bot around the clock without a home server. Runs on the verified Node.js image.',
+      'Run a Node.js Discord bot around the clock, without keeping a computer on.',
     icon: 'bot',
     minRam: 256,
     minCpu: 1,
@@ -159,7 +159,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'Uptime Kuma',
     category: 'MONITORING',
     description:
-      'Simple uptime monitoring with public status pages.',
+      'Monitor websites and services, with status pages you can share.',
     icon: 'mon',
     minRam: 256,
     minCpu: 1,
@@ -185,7 +185,7 @@ const PRODUCTS: SeedProduct[] = [
     name: 'PostgreSQL',
     category: 'DATABASES',
     description:
-      'PostgreSQL for your applications, with the connection details and a password of your own.',
+      'A PostgreSQL database for your applications, with its own connection details and password.',
     icon: 'db',
     minRam: 1024,
     minCpu: 1,

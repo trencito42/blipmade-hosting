@@ -197,14 +197,70 @@ describe('the files of the server', () => {
   });
 
   it('copies a file with the location the panel expects', async () => {
-    stubFetch(undefined, 204);
+    // The panel copies next to the original and picks the name of the copy. The client lists
+    // the folder before and after, finds the file that is new and moves it to the place that
+    // was asked for.
+    calls = [];
+    let listings = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? 'GET';
+        let body: unknown = undefined;
+        if (typeof init?.body === 'string') body = JSON.parse(init.body);
+        calls.push({ url, method, body });
+        if (method === 'GET' && url.includes('/files/list')) {
+          listings += 1;
+          const names = listings === 1 ? ['app.log'] : ['app.log', 'app copy.log'];
+          const data = names.map((name) => ({
+            object: 'file_object',
+            attributes: { name, mode: 'rw-r--r--', size: 1, is_file: true, is_symlink: false, mimetype: 'text/plain', created_at: '2026-01-01T00:00:00+00:00', modified_at: '2026-01-01T00:00:00+00:00' },
+          }));
+          return new Response(JSON.stringify({ object: 'list', data }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return new Response(null, { status: 204 });
+      }),
+    );
 
     await copyFile(CLIENT_KEY, 'server-uuid', '/logs/app.log', '/archive/app.log');
 
-    expect(calls[0]!.body).toEqual({ location: '/logs/app.log' });
-    // The panel names the copy after the original, "app copy.log", and the
-    // copy is moved to the place the customer asked for.
-    expect(calls[1]!.body).toEqual({ root: '/', files: [{ from: '/logs/app copy.log', to: '/archive/app.log' }] });
+    const copy = calls.find((call) => call.url.includes('/files/copy'));
+    expect(copy?.body).toEqual({ location: '/logs/app.log' });
+    const move = calls.find((call) => call.url.includes('/files/rename'));
+    expect(move?.body).toEqual({ root: '/', files: [{ from: '/logs/app copy.log', to: '/archive/app.log' }] });
+  });
+
+  it('copies a file next to itself under the name the panel gave the copy, even when a copy already exists', async () => {
+    calls = [];
+    let listings = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: unknown, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? 'GET';
+        let body: unknown = undefined;
+        if (typeof init?.body === 'string') body = JSON.parse(init.body);
+        calls.push({ url, method, body });
+        if (method === 'GET' && url.includes('/files/list')) {
+          listings += 1;
+          // "app copy.log" is there already, so the panel names the new one "app copy 2.log".
+          const names = listings === 1 ? ['app.log', 'app copy.log'] : ['app.log', 'app copy.log', 'app copy 2.log'];
+          const data = names.map((name) => ({
+            object: 'file_object',
+            attributes: { name, mode: 'rw-r--r--', size: 1, is_file: true, is_symlink: false, mimetype: 'text/plain', created_at: '2026-01-01T00:00:00+00:00', modified_at: '2026-01-01T00:00:00+00:00' },
+          }));
+          return new Response(JSON.stringify({ object: 'list', data }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return new Response(null, { status: 204 });
+      }),
+    );
+
+    await copyFile(CLIENT_KEY, 'server-uuid', '/logs/app.log', '/logs/app copy 3.log');
+
+    const move = calls.find((call) => call.url.includes('/files/rename'));
+    // The file that is moved is the one that is new, not the one the old code guessed.
+    expect(move?.body).toEqual({ root: '/', files: [{ from: '/logs/app copy 2.log', to: '/logs/app copy 3.log' }] });
   });
 
   it('moves a file with a rename that starts at the root', async () => {

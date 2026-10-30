@@ -15,7 +15,7 @@ export const BRAND = {
   /** The near-black the brand is built on. */
   ink: '#090a09',
   /** A flat surface, one step lighter than the background. */
-  surface: '#141615',
+  surface: '#0e1310',
   /** The green of the brand. */
   accent: '#6be598',
   /** The text on the dark surfaces. */

@@ -435,7 +435,10 @@ describe('the rendering of the templates', () => {
     for (const id of emailTemplateIds()) {
       const template = renderEmailTemplate(id, payloads[id]!);
       for (const link of linksOf(template.html)) {
-        expect(link.startsWith(env.publicWebUrl), `${id} -> ${link}`).toBe(true);
+        // A message may carry the address of the platform's own support as a mailto link; every
+        // other link is on the public origin.
+        const platformMail = link.startsWith('mailto:') && link.endsWith('@blipmade.com');
+        expect(platformMail || link.startsWith(env.publicWebUrl), `${id} -> ${link}`).toBe(true);
         expect(link, `${id} -> ${link}`).not.toContain('127.0.0.1');
         expect(link, `${id} -> ${link}`).not.toContain('localhost');
       }
@@ -498,7 +501,8 @@ describe('the safety of the templates', () => {
     // The text of the button is shown, but without a link.
     expect(template.html).toContain('Confirm my email address');
     for (const link of linksOf(template.html)) {
-      expect(link.startsWith(env.publicWebUrl), link).toBe(true);
+      const platformMail = link.startsWith('mailto:') && link.endsWith('@blipmade.com');
+      expect(platformMail || link.startsWith(env.publicWebUrl), link).toBe(true);
     }
   });
 

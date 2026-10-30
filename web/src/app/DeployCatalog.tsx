@@ -78,6 +78,7 @@ function ProductCard({ product }: { product: CatalogProduct }) {
   const amount = startingPrice(product);
   const price = product.price;
   const category = categoryOf(product.category);
+  const resources = product.category === 'EMAIL_HOSTING' ? null : startingConfiguration(product);
   const to = !state.deployable
     ? null
     : product.category === 'EMAIL_HOSTING'
@@ -98,6 +99,11 @@ function ProductCard({ product }: { product: CatalogProduct }) {
           <p className="text-[12.5px] text-ink3">{category.label}</p>
         </div>
         <p className="line-clamp-2 text-[13.5px] leading-relaxed text-ink2">{product.description}</p>
+        {resources && (
+          <p className="font-mono text-[12px] text-ink3">
+            {memLabel(resources.ram)} · {resources.cpu} vCPU · {resources.disk} GB
+          </p>
+        )}
       </div>
       <p className="flex items-end justify-between gap-3">
         {amount !== null && price ? (
@@ -172,9 +178,11 @@ export default function DeployCatalog() {
   const { products, loading } = useCatalogProducts();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
-  const [showSoon, setShowSoon] = useState(false);
+  const [sort, setSort] = useState<'recommended' | 'name' | 'price-asc' | 'price-desc'>('recommended');
+  // What is shown by default is what can be bought. The rest is one choice away, not a second list.
+  const [availability, setAvailability] = useState<'ready' | 'all'>('ready');
   const listRef = useRef<HTMLDivElement>(null);
-  useRevealOnChange(listRef, [category, query, showSoon], 20);
+  useRevealOnChange(listRef, [category, query, sort, availability], 20);
 
   // Only the categories that really exist in the catalog are offered, in the
   // order of the public catalog.
@@ -185,15 +193,31 @@ export default function DeployCatalog() {
 
   const matching = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return products.filter((product) => {
+    const found = products.filter((product) => {
       const matchesCategory = category === 'All' || product.category === category;
-      const matchesQuery = !needle || product.name.toLowerCase().includes(needle) || product.description.toLowerCase().includes(needle);
+      const label = categoryOf(product.category).label.toLowerCase();
+      const matchesQuery =
+        !needle || product.name.toLowerCase().includes(needle) || product.description.toLowerCase().includes(needle) || label.includes(needle);
       return matchesCategory && matchesQuery;
     });
-  }, [products, query, category]);
+    if (sort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'price-asc' || sort === 'price-desc') {
+      // A product with no price goes last in both directions: there is nothing to compare.
+      const price = (product: CatalogProduct) => startingPrice(product);
+      return [...found].sort((a, b) => {
+        const left = price(a);
+        const right = price(b);
+        if (left === null && right === null) return a.name.localeCompare(b.name);
+        if (left === null) return 1;
+        if (right === null) return -1;
+        return sort === 'price-asc' ? left - right : right - left;
+      });
+    }
+    return found;
+  }, [products, query, category, sort]);
 
   const ready = matching.filter((product) => isOrderable(product));
-  const soon = matching.filter((product) => !isOrderable(product));
+  const soon = availability === 'all' ? matching.filter((product) => !isOrderable(product)) : [];
   const deployableCount = useMemo(() => products.filter((product) => isOrderable(product)).length, [products]);
 
   const countOf = (code: string) => products.filter((product) => (code === 'All' ? true : product.category === code) && isOrderable(product)).length;
@@ -201,9 +225,9 @@ export default function DeployCatalog() {
   return (
     <div className="grid gap-5">
       <div className="min-w-0">
-        <h2 className="font-display text-[28px] leading-tight font-semibold tracking-[-0.04em] text-ink">What do you want to run?</h2>
+        <h2 className="font-display text-[24px] leading-tight font-semibold tracking-[-0.03em] text-ink">Choose what you want to run.</h2>
         <p className="mt-1 text-[14px] text-ink3">
-          {loading ? 'Loading the catalog.' : `${deployableCount} of ${products.length} products can be deployed right now.`}
+          {loading ? 'Loading the catalog.' : `${deployableCount} ${deployableCount === 1 ? 'product is' : 'products are'} ready to deploy.`}
         </p>
       </div>
 
@@ -244,6 +268,36 @@ export default function DeployCatalog() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label className="flex items-center gap-2 text-[13px] text-ink3">
+          Show
+          <select
+            value={availability}
+            onChange={(event) => setAvailability(event.target.value as 'ready' | 'all')}
+            className="h-9 rounded-full border border-line bg-card px-3 text-[14px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+          >
+            <option value="ready">Ready to deploy</option>
+            <option value="all">All products</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-[13px] text-ink3">
+          Sort by
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as typeof sort)}
+            className="h-9 rounded-full border border-line bg-card px-3 text-[14px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+          >
+            <option value="recommended">Recommended</option>
+            <option value="name">Name</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+          </select>
+        </label>
+        <p aria-live="polite" className="ml-auto text-[13px] text-ink3">
+          {matching.length} {matching.length === 1 ? 'match' : 'matches'}
+        </p>
+      </div>
+
       <div ref={listRef} className="grid gap-6">
         {loading ? (
           <LoadingBlock rows={4} label="Loading the catalog" />
@@ -268,19 +322,12 @@ export default function DeployCatalog() {
             )}
             {soon.length > 0 && (
               <section aria-labelledby="soon-h">
-                <div className="flex items-center justify-between gap-3 border-t border-line pt-5">
-                  <h3 id="soon-h" className="font-display text-[18px] font-semibold tracking-[-0.03em] text-ink">
-                    Coming soon <span className="num text-[14px] font-medium text-ink3">{soon.length}</span>
-                  </h3>
-                  <SoftButton onClick={() => setShowSoon((value) => !value)} aria-expanded={showSoon}>
-                    {showSoon ? 'Hide' : 'Show'}
-                  </SoftButton>
+                <h3 id="soon-h" className="border-t border-line pt-5 font-display text-[17px] font-semibold tracking-[-0.02em] text-ink">
+                  Not available yet <span className="num text-[14px] font-medium text-ink3">{soon.length}</span>
+                </h3>
+                <div className="mt-4">
+                  <ProductGrid products={soon} />
                 </div>
-                {showSoon && (
-                  <div className="mt-4">
-                    <ProductGrid products={soon} />
-                  </div>
-                )}
               </section>
             )}
           </>

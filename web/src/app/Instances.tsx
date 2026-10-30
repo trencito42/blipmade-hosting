@@ -146,6 +146,7 @@ export default function Instances() {
 
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
+  const [sort, setSort] = useState<'newest' | 'name' | 'price'>('newest');
 
   const instances = useMemo(() => data?.instances ?? [], [data]);
 
@@ -158,12 +159,15 @@ export default function Instances() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return instances.filter((instance) => {
-      const matchesQuery = !needle || instance.name.toLowerCase().includes(needle);
+    const found = instances.filter((instance) => {
+      const matchesQuery = !needle || instance.name.toLowerCase().includes(needle) || instance.product.name.toLowerCase().includes(needle);
       const matchesStatus = status === 'all' || instance.status === status;
       return matchesQuery && matchesStatus;
     });
-  }, [instances, query, status]);
+    if (sort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'price') return [...found].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+    return [...found].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  }, [instances, query, status, sort]);
 
   const filtersActive = query.trim().length > 0 || status !== 'all';
 
@@ -171,26 +175,40 @@ export default function Instances() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Instances</h2>
-          <p className="text-[13.5px] text-ink3">Your apps and databases, with the limits you bought.</p>
+          <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Apps &amp; Databases</h2>
+          <p className="text-[13.5px] text-ink3">Manage your deployed applications and databases.</p>
         </div>
         {/* The selector of the customer area, so the customer picks the
             product instead of being sent to one by surprise. */}
-        <ButtonLink to="/app/deploy" className="w-full sm:w-auto">
+        <ButtonLink to="/app/deploy" className="w-full sm:w-auto lg:hidden">
           <Icon name="rocket" size={16} />
           Deploy new
         </ButtonLink>
       </div>
 
       <div className="grid gap-3">
-        <TextInput
-          label="Search instances"
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by name"
-          autoComplete="off"
-        />
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-end">
+          <TextInput
+            label="Search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by name or product"
+            autoComplete="off"
+          />
+          <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">
+            Sort by
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as typeof sort)}
+              className="h-12 rounded-xl border border-line bg-card px-3 text-[15px] font-normal text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+            >
+              <option value="newest">Newest first</option>
+              <option value="name">Name</option>
+              <option value="price">Price: high to low</option>
+            </select>
+          </label>
+        </div>
 
         {/* The band of filters is the shared selector of the interface: it
             scrolls sideways on a phone and its right edge fades, so it is
@@ -254,7 +272,7 @@ export default function Instances() {
               },
               {
                 key: 'limits',
-                header: 'Limits',
+                header: 'Resources',
                 nowrap: true,
                 render: (instance: Instance) => (
                   <Link
@@ -280,11 +298,37 @@ export default function Instances() {
                 ),
               },
               {
-                key: 'node',
-                header: 'Node',
+                key: 'address',
+                header: 'Address',
+                truncate: true,
+                render: (instance: Instance) =>
+                  instance.url ? (
+                    <a
+                      href={instance.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="block truncate rounded-lg font-mono text-[12.5px] text-acc underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      title={instance.url}
+                    >
+                      {instance.url.replace(/^https?:\/\//, '')}
+                    </a>
+                  ) : (
+                    <span className="text-[13px] text-ink3">Not published yet</span>
+                  ),
+              },
+              {
+                key: 'actions',
+                header: 'Actions',
+                align: 'right',
                 nowrap: true,
                 render: (instance: Instance) => (
-                  <span className="text-[13.5px] text-ink2">{instance.node?.name ?? '—'}</span>
+                  <Link
+                    to={`/app/instances/${instance.id}`}
+                    aria-label={`Manage ${instance.name}`}
+                    className="inline-flex h-9 items-center rounded-full bg-s3 px-4 text-[13px] font-semibold text-ink transition-colors hover:bg-s4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  >
+                    Manage
+                  </Link>
                 ),
               },
             ]}
@@ -312,7 +356,7 @@ export default function Instances() {
                 <p className="font-mono text-[13px] text-ink2">{limitsOf(instance)}</p>
                 <div className="flex items-center justify-between gap-3">
                   <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
-                  <span className="truncate text-[13px] text-ink3">{instance.node?.name ?? '—'}</span>
+                  <span className="truncate font-mono text-[12.5px] text-ink3">{instance.url ? instance.url.replace(/^https?:\/\//, '') : 'Not published yet'}</span>
                 </div>
               </div>
             )}

@@ -73,7 +73,7 @@ export const MAIL_PLAN_DRAFTS: MailPlanDraft[] = [
     slug: 'email-hosting-starter',
     name: 'Email Hosting Starter',
     description:
-      'Hosted mail for one domain, with the mailboxes and the aliases a small team needs. The plan is not priced yet and it is not for sale.',
+      'Hosted mail for one domain, with the mailboxes and the aliases a small team needs.',
     icon: 'mail',
     maxDomains: 1,
     maxMailboxes: 2,
@@ -89,7 +89,7 @@ export const MAIL_PLAN_DRAFTS: MailPlanDraft[] = [
     slug: 'email-hosting-plus',
     name: 'Email Hosting Plus',
     description:
-      'Hosted mail for a few domains, with more space and a larger sending limit. The plan is not priced yet and it is not for sale.',
+      'Hosted mail for a few domains, with more space and a larger sending limit.',
     icon: 'mail',
     maxDomains: 2,
     maxMailboxes: 5,
@@ -105,7 +105,7 @@ export const MAIL_PLAN_DRAFTS: MailPlanDraft[] = [
     slug: 'email-hosting-business',
     name: 'Email Hosting Business',
     description:
-      'Hosted mail for a company: more domains, more space and a sending limit that follows the business. The plan is not priced yet and it is not for sale.',
+      'Hosted mail for a company: more domains, more space and a sending limit that follows the business.',
     icon: 'mail',
     maxDomains: 3,
     maxMailboxes: 10,

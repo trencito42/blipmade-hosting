@@ -567,6 +567,9 @@ export interface Invoice {
 export interface Subscription {
   id: string;
   instanceId: string | null;
+  /** What the subscription pays for, and the id of that service. */
+  serviceKind?: 'server' | 'mail' | 'vps' | null;
+  serviceId?: string | null;
   instanceName: string | null;
   status: string;
   amount: number;
@@ -1165,4 +1168,17 @@ export interface VpsServerView {
   sshCommand: string | null;
   lastError: string | null;
   createdAt: string;
+}
+
+
+/** The summary of what the account pays, as the API makes it from every subscription. */
+export interface AccountBillingSummary {
+  currency: string;
+  /** The monthly total in `currency`, in cents. */
+  monthlyEstimate: number;
+  /** One total for each currency: amounts in different currencies are never added. */
+  monthlyByCurrency?: { currency: string; amount: number }[];
+  /** The nearest renewal that costs something. */
+  nextRenewal?: { at: string; amount: number; currency: string; subscriptionId: string } | null;
+  subscriptions: Subscription[];
 }

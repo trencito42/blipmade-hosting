@@ -1,3 +1,4 @@
+import { summarizeBilling } from '../lib/billing-summary.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
@@ -45,10 +46,9 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
 
   app.get('/billing/summary', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    // The lists of the summary are bounded. The two numbers that are read
-    // from them are read from the database with an aggregate, so they stay
-    // the real numbers even when a customer has more rows than the list shows.
-    const [instances, subscriptions, invoices, payments, cancellations, instanceSum, periodEnd] = await Promise.all([
+    // The lists of the summary are bounded. The totals are made from their own queries,
+    // so they stay the real numbers even when a customer has more rows than a list shows.
+    const [instances, subscriptions, invoices, payments, cancellations] = await Promise.all([
       prisma.instance.findMany({
         where: { userId: user.id, cancelledAt: null },
         select: { id: true, name: true, price: true, currency: true, status: true },
@@ -57,7 +57,11 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       }),
       prisma.subscription.findMany({
         where: { userId: user.id },
-        include: { instance: { select: { name: true } } },
+        include: {
+          instance: { select: { name: true } },
+          mailService: { select: { id: true, product: { select: { name: true } } } },
+          vpsService: { select: { id: true, name: true, product: { select: { name: true } } } },
+        },
         orderBy: { createdAt: 'desc' },
         take: 200,
       }),
@@ -69,13 +73,25 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         orderBy: { cancelledAt: 'desc' },
         take: 50,
       }),
-      prisma.instance.aggregate({ where: { userId: user.id, cancelledAt: null }, _sum: { price: true } }),
-      prisma.subscription.aggregate({ where: { userId: user.id }, _max: { currentPeriodEnd: true } }),
     ]);
 
-    const currency = subscriptions[0]?.currency ?? instances[0]?.currency ?? 'EUR';
-    const monthlyEstimate = instanceSum._sum.price ?? 0;
-    const currentPeriodEnd = periodEnd._max.currentPeriodEnd ?? null;
+    // The total and the next renewal come from the subscriptions of the whole account
+    // (servers, mail and VPS), never from the servers alone. The rules are in one place.
+    const liveInstances = await prisma.instance.findMany({
+      where: { userId: user.id, cancelledAt: null },
+      select: { id: true, price: true, currency: true, cancelledAt: true },
+      take: 500,
+    });
+    const allSubscriptions = await prisma.subscription.findMany({
+      where: { userId: user.id },
+      select: { id: true, status: true, amount: true, currency: true, currentPeriodStart: true, currentPeriodEnd: true, cancelAtPeriodEnd: true, instanceId: true },
+      take: 500,
+    });
+    const summary = summarizeBilling(allSubscriptions, liveInstances, new Date(), subscriptions[0]?.currency ?? instances[0]?.currency ?? 'EUR');
+    const currency = summary.currency;
+    const monthlyEstimate = summary.monthlyEstimate;
+    // The nearest end of a period that is still to come: not the latest end of any subscription.
+    const currentPeriodEnd = summary.nextPeriodEnd;
 
     // A payment row is a ledger entry, not evidence that a card is on file.
     // In particular a free promotion writes a zero-amount row without ever
@@ -104,6 +120,8 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     return {
       currency,
       monthlyEstimate,
+      monthlyByCurrency: summary.monthlyByCurrency,
+      nextRenewal: summary.nextRenewal,
       currentPeriodEnd,
       paymentMethod,
       hasStripeCustomer,
@@ -111,7 +129,11 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
       subscriptions: subscriptions.map((subscription) => ({
         id: subscription.id,
         instanceId: subscription.instanceId,
-        instanceName: subscription.instance?.name ?? null,
+        // What the subscription pays for: a server, a plan of mail or a VPS. The name is the one
+        // the customer knows it by, and the id lets a page find the service it belongs to.
+        serviceKind: subscription.instanceId ? 'server' : subscription.mailService ? 'mail' : subscription.vpsService ? 'vps' : null,
+        serviceId: subscription.instanceId ?? subscription.mailService?.id ?? subscription.vpsService?.id ?? null,
+        instanceName: subscription.instance?.name ?? subscription.vpsService?.name ?? subscription.mailService?.product.name ?? null,
         status: subscription.status.toLowerCase(),
         amount: subscription.amount,
         currency: subscription.currency,
