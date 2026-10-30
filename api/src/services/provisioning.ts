@@ -1730,7 +1730,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     // a domain of their own to be proven and routed. The name of the service
     // is the beginning of it, and the identifier of the instance keeps two
     // services with the same name apart.
-    const platformHost = platformHostname(instance.name, instance.id);
+    const platformHost = await choosePlatformHostname(instance.name, instance.id);
     if (platformHost) {
       await prisma.instanceDomain.upsert({
         where: { hostname: platformHost },
@@ -1869,6 +1869,17 @@ export const instanceBaseUrl = (ip: string, port: number) => `http://${ip}:${por
 export const defaultDomain = (hostname: string) =>
   env.DOMAIN_BASE ? `${hostname}.${env.DOMAIN_BASE}` : hostname;
 
+/** The name of an instance, as a label of a hostname. */
+function platformLabel(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/g, '');
+}
+
 /**
  * The hostname of an instance under the base of the platform.
  *
@@ -1885,13 +1896,34 @@ export const defaultDomain = (hostname: string) =>
 export function platformHostname(name: string, instanceId: string): string | null {
   const base = (env.DOMAIN_BASE ?? '').trim();
   if (!base) return null;
-  const label = name
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 40);
+  const label = platformLabel(name);
   const suffix = instanceId.replace(/[^a-z0-9]/gi, '').slice(-5).toLowerCase();
   if (!label || !suffix) return null;
   return `${label}-${suffix}.${base}`;
+}
+
+/**
+ * The address the customer asked for, when it is free.
+ *
+ * The name the customer gives the instance is the address: "talent" becomes
+ * talent.apps.blipmade.com. A name that is too short, that the platform keeps
+ * for itself or that another instance already holds falls back to the name
+ * with the last characters of the identifier, so an order never fails for a
+ * name that is taken.
+ */
+export async function choosePlatformHostname(name: string, instanceId: string): Promise<string | null> {
+  const withSuffix = platformHostname(name, instanceId);
+  const base = (env.DOMAIN_BASE ?? '').trim().toLowerCase();
+  if (!withSuffix || !base) return withSuffix;
+
+  const label = platformLabel(name);
+  if (label.length < 3) return withSuffix;
+
+  const plain = `${label}.${base}`;
+  const { builtInReservedDomains } = await import('../routes/domains.js');
+  if (builtInReservedDomains().includes(plain)) return withSuffix;
+
+  const holder = await prisma.instanceDomain.findUnique({ where: { hostname: plain }, select: { instanceId: true } });
+  if (holder && holder.instanceId !== instanceId) return withSuffix;
+  return plain;
 }

@@ -31,6 +31,9 @@ function precompressAssets(): Plugin {
 export default defineConfig({
   plugins: [react(), tailwindcss(), precompressAssets()],
   build: {
+    // A font is never written into the stylesheet as a data: address: the
+    // policy of the server only lets fonts come from this site.
+    assetsInlineLimit: (file) => (/\.(woff2?|ttf|otf)$/i.test(file) ? false : undefined),
     rollupOptions: {
       output: {
         // The library of React changes when the library changes and not when

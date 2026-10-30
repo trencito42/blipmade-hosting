@@ -447,18 +447,29 @@ export async function createMailbox(
 
   const secret = password && password.length >= 10 ? password : newMailboxPassword();
 
+  // The mailbox follows the limit of the plan, and it never asks for more than
+  // the domain holds: the mail system refuses a mailbox that is larger than
+  // the quota of its domain.
+  const service = domain.serviceId
+    ? await prisma.mailService.findUnique({ where: { id: domain.serviceId }, select: { mailboxQuotaMb: true } })
+    : null;
+  const mailboxQuotaMb = Math.max(
+    1,
+    Math.min(env.MAIL_MAX_QUOTA_MB_PER_MAILBOX, service?.mailboxQuotaMb ?? Infinity, domain.quotaMb),
+  );
+
   await withMailJob({
     kind: 'mailbox.create',
     domainId: domain.id,
     // The password is not part of the journal. The platform keeps no copy of
     // it and the journal must not become one.
-    payload: { address, domain: domain.name, quotaMb: env.MAIL_MAX_QUOTA_MB_PER_MAILBOX },
+    payload: { address, domain: domain.name, quotaMb: mailboxQuotaMb },
     run: () =>
       mailcow.mailcowCreateMailbox({
         localPart,
         domain: domain.name,
         password: secret,
-        quotaMb: env.MAIL_MAX_QUOTA_MB_PER_MAILBOX,
+        quotaMb: mailboxQuotaMb,
       }),
     // The mailbox could not be made, so the customer is told. The row of the
     // journal is the occasion of the message: the failure of one attempt is
@@ -480,7 +491,7 @@ export async function createMailbox(
         domainId: domain.id,
         localPart,
         address,
-        quotaMb: env.MAIL_MAX_QUOTA_MB_PER_MAILBOX,
+        quotaMb: mailboxQuotaMb,
       },
     })
     .catch(async (error) => {

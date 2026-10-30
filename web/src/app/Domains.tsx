@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { del, get, post, type Domain, type Instance } from '../lib/api';
+import { del, get, post, put, type Domain, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import {
   ButtonLink,
@@ -37,6 +37,73 @@ const DOMAIN_TONES: Record<Domain['status'], string> = {
   active: 'active',
   error: 'error',
 };
+
+/** The base of the addresses the platform gives to every instance. */
+export const PLATFORM_BASE = 'apps.blipmade.com';
+
+/** Whether the hostname is one of the platform: it needs no proof and no DNS record. */
+function isPlatformHostname(hostname: string): boolean {
+  return hostname.toLowerCase().endsWith(`.${PLATFORM_BASE}`);
+}
+
+/**
+ * The name of the address of an instance under the base of the platform.
+ *
+ * The name may change once in seven days. The server keeps that rule, and the
+ * form only says when the next change is possible.
+ */
+function PlatformAddress({ domain, onChanged }: { domain: Domain; onChanged: () => void }) {
+  const { push } = useToast();
+  const current = domain.hostname.slice(0, -(PLATFORM_BASE.length + 1));
+  const [name, setName] = useState(current);
+  const [error, setError] = useState<string | null>(null);
+  const wait = domain.addressChangeAvailableAt ? new Date(domain.addressChangeAvailableAt) : null;
+  const locked = wait !== null && wait.getTime() > Date.now();
+
+  const save = useAction(async () => {
+    setError(null);
+    try {
+      const answer = await put<{ domain: Domain }>(`/domains/${domain.id}/address`, { name: name.trim() });
+      push(`The address is now ${answer.domain.hostname}.`, 'ok');
+      onChanged();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'The address could not be changed.');
+    }
+  });
+
+  return (
+    <div className="mt-4 grid gap-2 rounded-2xl bg-s2 p-4">
+      <p className="text-[13.5px] text-ink2">
+        This address belongs to Blipmade, so it needs no DNS record and no proof of ownership. You can change its name
+        once in 7 days.
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[12rem] flex-1">
+          <TextInput
+            label="Address name"
+            value={name}
+            onChange={(event) => setName(event.target.value.toLowerCase())}
+            disabled={locked}
+            autoComplete="off"
+            spellCheck={false}
+            hint={`${name || 'name'}.${PLATFORM_BASE}`}
+          />
+        </div>
+        <SoftButton onClick={() => void save.run()} disabled={locked || save.pending || name.trim() === current || name.trim().length < 3}>
+          {save.pending ? 'Saving' : 'Change address'}
+        </SoftButton>
+      </div>
+      {locked && wait && (
+        <p className="text-[13px] text-ink3">You can change it again on {wait.toISOString().slice(0, 10)}.</p>
+      )}
+      {error && (
+        <p role="alert" className="text-[13.5px] text-bad">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function Domains() {
   const { push } = useToast();
@@ -276,6 +343,9 @@ export default function Domains() {
                   </div>
                 )}
 
+                {domain.platform ?? isPlatformHostname(domain.hostname) ? (
+                  <PlatformAddress domain={domain} onChanged={domainsState.reload} />
+                ) : (
                 <div className="mt-4">
                   <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
                     Address record to create
@@ -370,8 +440,10 @@ export default function Domains() {
                     </p>
                   )}
                 </div>
+                )}
 
                 <div className="mt-4 flex flex-wrap gap-2">
+                  {!(domain.platform ?? isPlatformHostname(domain.hostname)) && (
                   <SoftButton
                     onClick={() => {
                       setVerifyingId(domain.id);
@@ -381,6 +453,7 @@ export default function Domains() {
                   >
                     {verifyingId === domain.id ? 'Working…' : 'Verify now'}
                   </SoftButton>
+                  )}
                   <DangerButton onClick={() => setPendingDelete(domain)}>Delete</DangerButton>
                 </div>
               </article>

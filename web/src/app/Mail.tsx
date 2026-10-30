@@ -25,6 +25,7 @@ import {
   type MailboxView,
   type Order,
 } from '../lib/api';
+import { Icon } from '../icons';
 import { useAction, useAsync } from '../lib/useAsync';
 import { categoryLabel, formatPrice, memLabel, periodSuffix } from '../lib/pricing';
 import {
@@ -234,10 +235,47 @@ export function OneTimePasswordBox({
  * The purpose of every record is written next to it, because a record
  * without a reason is a record nobody publishes.
  */
-export function MailDnsRecords({ records, verified }: { records: DnsRecordView[]; verified: boolean }) {
+export function MailDnsRecords({
+  records,
+  verified,
+  onRecheck,
+  checking = false,
+}: {
+  records: DnsRecordView[];
+  verified: boolean;
+  /** Asks the server to look the records up again. */
+  onRecheck?: () => void;
+  checking?: boolean;
+}) {
+  const { push } = useToast();
+  const copy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      push(`${label} copied.`, 'ok');
+    } catch {
+      push('Copy failed. Select the value and copy it manually.', 'error');
+    }
+  };
+  const copyButton = (value: string, label: string) => (
+    <button
+      type="button"
+      onClick={() => void copy(value, label)}
+      aria-label={`Copy the ${label.toLowerCase()}`}
+      className="grid size-7 shrink-0 place-items-center rounded-lg text-ink3 hover:bg-s2 hover:text-ink focus-visible:outline-2 focus-visible:outline-acc"
+    >
+      <Icon name="copy" size={13} />
+    </button>
+  );
   return (
     <section>
-      <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">DNS records to publish</p>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">DNS records to publish</p>
+        {onRecheck && (
+          <SoftButton onClick={onRecheck} disabled={checking} className="h-9 px-3.5">
+            {checking ? 'Checking' : 'Check DNS again'}
+          </SoftButton>
+        )}
+      </div>
 
       {verified ? (
         <p className="rounded-2xl bg-acc/12 px-3.5 py-3 text-[13.5px] font-medium text-acc">
@@ -259,10 +297,10 @@ export function MailDnsRecords({ records, verified }: { records: DnsRecordView[]
                 {
                   key: 'name',
                   header: 'Name',
-                  truncate: true,
                   render: (record: DnsRecordView) => (
-                    <span className="font-mono text-[12.5px] text-ink2" title={record.name}>
-                      {record.name}
+                    <span className="flex items-center gap-1">
+                      <span className="min-w-0 break-all font-mono text-[12.5px] text-ink2">{record.name}</span>
+                      {copyButton(record.name, 'Name')}
                     </span>
                   ),
                 },
@@ -277,10 +315,10 @@ export function MailDnsRecords({ records, verified }: { records: DnsRecordView[]
                 {
                   key: 'value',
                   header: 'Value',
-                  truncate: true,
                   render: (record: DnsRecordView) => (
-                    <span className="font-mono text-[12.5px] text-ink" title={record.value}>
-                      {record.value}
+                    <span className="flex items-center gap-1">
+                      <span className="min-w-0 break-all font-mono text-[12.5px] text-ink">{record.value}</span>
+                      {copyButton(record.value, 'Value')}
                     </span>
                   ),
                 },
@@ -319,8 +357,14 @@ export function MailDnsRecords({ records, verified }: { records: DnsRecordView[]
                     <span className="font-mono text-[11px] text-ink3">priority {record.priority}</span>
                   )}
                 </div>
-                <span className="min-w-0 break-all font-mono text-[12.5px] text-ink2">{record.name}</span>
-                <span className="min-w-0 break-all font-mono text-[12.5px] text-ink">{record.value}</span>
+                <span className="flex items-center gap-1">
+                  <span className="min-w-0 flex-1 break-all font-mono text-[12.5px] text-ink2">{record.name}</span>
+                  {copyButton(record.name, 'Name')}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="min-w-0 flex-1 break-all font-mono text-[12.5px] text-ink">{record.value}</span>
+                  {copyButton(record.value, 'Value')}
+                </span>
                 <span className="text-[13px] text-ink2">{record.purpose}</span>
               </div>
             )}
@@ -348,6 +392,8 @@ export function MailDomainSection({
   aliases,
   records,
   verified,
+  onRecheckDns,
+  checkingDns,
   oneTimePassword,
   onDismissPassword,
   onDeleteMailbox,
@@ -359,6 +405,8 @@ export function MailDomainSection({
   aliases: MailAliasView[];
   records: DnsRecordView[];
   verified: boolean;
+  onRecheckDns?: () => void;
+  checkingDns?: boolean;
   oneTimePassword: OneTimePassword | null;
   onDismissPassword?: () => void;
   onDeleteMailbox?: (mailbox: MailboxView) => void;
@@ -519,7 +567,7 @@ export function MailDomainSection({
         )}
       </section>
 
-      <MailDnsRecords records={records} verified={verified} />
+      <MailDnsRecords records={records} verified={verified} onRecheck={onRecheckDns} checking={checkingDns} />
     </div>
   );
 }
@@ -1543,7 +1591,7 @@ export default function Mail() {
           title={selected.name}
           description="The mailboxes of the domain, the aliases that reach them and the records to publish."
         >
-          {mailboxesState.loading || aliasesState.loading || dnsState.loading ? (
+          {mailboxesState.loading || aliasesState.loading || (dnsState.loading && !dnsState.data) ? (
             <LoadingBlock rows={3} label="Loading the domain" />
           ) : (
             <MailDomainSection
@@ -1552,6 +1600,8 @@ export default function Mail() {
               aliases={aliases}
               records={records}
               verified={verified}
+              onRecheckDns={dnsState.reload}
+              checkingDns={dnsState.loading}
               oneTimePassword={oneTime}
               onDismissPassword={() => setOneTime(null)}
               onDeleteMailbox={(mailbox) => setPendingDelete({ kind: 'mailbox', domain: selected, mailbox })}

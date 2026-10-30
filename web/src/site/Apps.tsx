@@ -291,6 +291,26 @@ export function AppDetail({ slug }: { slug: string }) {
     );
   }
 
+  // A plan of hosted mail is not a server: it has no memory, no vCPU and no
+  // disk to choose, so it goes to the storefront of the mail and not to the
+  // configurator of the servers.
+  if (product.category === 'EMAIL_HOSTING') {
+    return (
+      <section aria-labelledby="app-h">
+        <Wrap className="grid gap-8 pt-14 pb-20 sm:pt-20">
+          <Crumbs items={[['Home', '/'], ['Catalog', '/apps'], [product.name, `/apps/${slug}`]]} />
+          <h1 id="app-h" className="max-w-[16em] text-[clamp(42px,6.4vw,84px)] leading-[0.95] font-semibold tracking-[-0.05em]">
+            {product.name} from {eur(product.minPrice)} a month.
+          </h1>
+          <p className="max-w-[34em] text-[18px] text-ink-2">{product.description}</p>
+          <div>
+            <Btn to="/email" variant="mint" size="lg">See the mail plans</Btn>
+          </div>
+        </Wrap>
+      </section>
+    );
+  }
+
   const words = copy ?? FALLBACK(product.description);
 
   return (

@@ -49,6 +49,8 @@ import {
   StatusPill,
   TextInput,
 } from '../ui-app';
+import { mailCheckoutPath } from './EmailHosting';
+import { PLATFORM_BASE } from './Domains';
 import { mailPlanOptionLabel, onSaleMailPlans, validateMailDomainName } from './Mail';
 
 /**
@@ -404,6 +406,18 @@ function Preset({
   );
 }
 
+/** The name of an instance as the label of its address, like the server writes it. */
+function addressLabel(name: string): string {
+  const label = name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/g, '');
+  return label.length >= 3 ? label : `${label || 'name'}-xxxxx`;
+}
+
 export default function Deploy() {
   const { slug = '' } = useParams();
   const { query, navigate } = useRouter();
@@ -477,6 +491,12 @@ export default function Deploy() {
     }).catch(() => {});
   }, [step, billingTouched]);
 
+
+  // A plan of hosted mail has no memory, vCPU or disk to choose: it is ordered
+  // on the checkout of the mail, which asks for the domain first.
+  useEffect(() => {
+    if (product?.category === 'EMAIL_HOSTING') navigate(mailCheckoutPath(product.slug), { replace: true });
+  }, [product?.category, product?.slug, navigate]);
 
   const ram = config?.ram ?? 0;
   const cpu = config?.cpu ?? 0;
@@ -845,7 +865,7 @@ export default function Deploy() {
             <div className="grid gap-5">
               <TextInput
                 label="Instance name"
-                hint="Shown in your dashboard."
+                hint={`Shown in your dashboard. It is also your address: ${addressLabel(name || product.name)}.${PLATFORM_BASE} when the name is free.`}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={product.name}

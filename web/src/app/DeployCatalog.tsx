@@ -21,6 +21,7 @@ import {
   startingPrice,
 } from '../lib/pricing-contract';
 import { ProductTile } from '../ui';
+import { mailCheckoutPath } from './EmailHosting';
 import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, SoftButton, StatusPill, TextInput } from '../ui-app';
 
 /**
@@ -76,7 +77,11 @@ function ProductCard({ product }: { product: CatalogProduct }) {
   const amount = startingPrice(product);
   const price = product.price;
   const category = categoryOf(product.category);
-  const to = state.deployable ? deployPathFor(product.slug, startingConfiguration(product)) : null;
+  const to = !state.deployable
+    ? null
+    : product.category === 'EMAIL_HOSTING'
+      ? mailCheckoutPath(product.slug)
+      : deployPathFor(product.slug, startingConfiguration(product));
 
   const body = (
     <>

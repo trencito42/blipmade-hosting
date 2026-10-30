@@ -220,7 +220,28 @@ function statusFor(domain: DomainRow): string {
   return domain.status.toLowerCase();
 }
 
-function serializeDomain(domain: DomainRow) {
+/** How long the address of an instance under the base of the platform is kept before it may change again. */
+const ADDRESS_CHANGE_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Whether the hostname is an address of the platform: the base of the platform owns it. */
+function isPlatformAddress(hostname: string): boolean {
+  const base = env.DOMAIN_BASE.trim().toLowerCase();
+  return Boolean(base) && hostname.toLowerCase().endsWith(`.${base}`);
+}
+
+/** The moment the address may change again, or null when it may change now. */
+async function addressChangeAvailableAt(domainId: string): Promise<Date | null> {
+  const last = await prisma.auditLog.findFirst({
+    where: { action: 'domain.address_changed', targetType: 'instance_domain', targetId: domainId },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+  if (!last) return null;
+  const next = new Date(last.createdAt.getTime() + ADDRESS_CHANGE_INTERVAL_MS);
+  return next.getTime() > Date.now() ? next : null;
+}
+
+function serializeDomain(domain: DomainRow, changeAvailableAt: Date | null = null) {
   const target = process.env.DOMAIN_TARGET ?? '193.34.214.143';
   const records = gateway.dnsRecordsFor(domain.hostname, target);
   if (domain.verificationHost && domain.verificationToken) {
@@ -235,6 +256,10 @@ function serializeDomain(domain: DomainRow) {
     targetPort: domain.targetPort,
     dnsRecords: records,
     lastError: domain.lastError,
+    /** An address of the platform: it needs no DNS record and no proof, and its name may change. */
+    platform: isPlatformAddress(domain.hostname),
+    /** The moment the name of an address of the platform may change again, or null when it may change now. */
+    addressChangeAvailableAt: changeAvailableAt,
     verification: {
       /** The name the TXT record has to be published under. */
       host: domain.verificationHost,
@@ -282,7 +307,100 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       include: { instance: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    return { domains: domains.map((domain) => serializeDomain(domain)) };
+    const waits = await Promise.all(
+      domains.map((domain) => (isPlatformAddress(domain.hostname) ? addressChangeAvailableAt(domain.id) : Promise.resolve(null))),
+    );
+    return { domains: domains.map((domain, index) => serializeDomain(domain, waits[index] ?? null)) };
+  });
+
+  /**
+   * Changes the name of the address an instance has under the base of the
+   * platform. The address may change once in seven days, so a link that was
+   * shared does not move under the feet of the people who use it.
+   */
+  app.put('/domains/:id/address', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { name } = z.object({ name: z.string() }).parse(request.body ?? {});
+
+    const base = env.DOMAIN_BASE.trim().toLowerCase();
+    const label = name.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(label)) {
+      throw badRequest('Use 3 to 40 letters, numbers and dashes. The name cannot start or end with a dash.');
+    }
+    const hostname = `${label}.${base}`;
+
+    const domain = await prisma.instanceDomain.findUnique({
+      where: { id },
+      include: { instance: { select: { id: true, name: true, userId: true, pterodactylServerId: true, status: true } } },
+    });
+    if (!domain || domain.instance.userId !== user.id) throw notFound('Domain not found.');
+    if (!isPlatformAddress(domain.hostname)) {
+      throw badRequest('Only the address that Blipmade gives to an instance can be renamed.');
+    }
+    if (domain.hostname === hostname) throw badRequest('That is already the address of this instance.');
+
+    const staff = user.role === 'STAFF' || user.role === 'ADMIN';
+    const wait = staff ? null : await addressChangeAvailableAt(domain.id);
+    if (wait) {
+      throw conflict(`The address can change once in 7 days. You can change it again on ${wait.toISOString().slice(0, 10)}.`);
+    }
+
+    if (await isReservedHostname(hostname)) throw badRequest('That name is reserved by the platform.');
+    const taken = await prisma.instanceDomain.findUnique({ where: { hostname }, select: { id: true } });
+    if (taken) throw conflict('That name is taken. Choose another one.');
+
+    // The old route goes first, so the old address never points at the
+    // container once the name has moved.
+    try {
+      await gateway.removeCaddyRoute(domain.hostname);
+    } catch (error) {
+      request.log.warn(
+        { hostname: domain.hostname, reason: error instanceof Error ? error.message : 'unknown' },
+        'the route could not be removed from the gateway',
+      );
+    }
+
+    let status: 'ACTIVE' | 'PENDING_DNS' | 'ERROR' = 'PENDING_DNS';
+    let lastError: string | null = null;
+    let caddyRouteId: string | null = null;
+    try {
+      const target = await resolveTarget(domain.instance);
+      const result = await gateway.applyCaddyRoute({
+        hostname,
+        target: target.host,
+        targetPort: target.port,
+        verifiedAt: domain.verifiedAt ?? new Date(),
+      });
+      status = result.applied ? 'ACTIVE' : 'PENDING_DNS';
+      lastError = result.reason;
+      caddyRouteId = result.routeId ?? null;
+    } catch (error) {
+      // The worker routes the new name on its next pass.
+      lastError = error instanceof Error ? error.message : 'The gateway could not be reached.';
+    }
+
+    const updated = await prisma.instanceDomain.update({
+      where: { id: domain.id },
+      data: { hostname, status, lastError, caddyRouteId },
+      include: { instance: { select: { name: true } } },
+    });
+    await prisma.instanceEvent.create({
+      data: { instanceId: domain.instanceId, type: 'domain', message: `The address changed from ${domain.hostname} to ${hostname}.` },
+    });
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'domain.address_changed',
+      targetType: 'instance_domain',
+      targetId: domain.id,
+      meta: { from: domain.hostname, to: hostname },
+    });
+
+    return { domain: serializeDomain(updated, staff ? null : new Date(Date.now() + ADDRESS_CHANGE_INTERVAL_MS)) };
   });
 
   /**

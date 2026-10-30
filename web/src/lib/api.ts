@@ -477,6 +477,10 @@ export interface Domain {
   targetPort: number;
   dnsRecords: { name: string; type: string; value: string }[];
   lastError: string | null;
+  /** An address of the platform: it needs no DNS record and no proof, and its name may change. */
+  platform?: boolean;
+  /** The moment the name of an address of the platform may change again. Null when it may change now. */
+  addressChangeAvailableAt?: string | null;
   /**
    * The proof of ownership. The customer has to publish a TXT record with the
    * token before the hostname is routed.
