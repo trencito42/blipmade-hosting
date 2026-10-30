@@ -296,11 +296,12 @@ export default function Domains() {
 
                 {!domain.verification.verified && domain.verification.instructions && (
                   <div className="mt-3 rounded-2xl bg-acc-bg p-4">
-                    <p className="text-[14px] font-medium text-acc">Prove that you own this hostname</p>
-                    <p className="mt-1 text-[13.5px] text-ink2">
-                      An address record is not enough, because every customer points at the same address. Add a TXT
-                      record with the value below at your registrar, then press Verify now.
-                    </p>
+                    <p className="text-[14px] font-medium text-acc">Verify this domain in three steps</p>
+                    <ol className="mt-2 grid list-decimal gap-1 pl-5 text-[13.5px] text-ink2">
+                      <li>Add the TXT record below at your registrar. It proves the hostname is yours.</li>
+                      <li>Add the address record shown under it, so traffic reaches Blipmade.</li>
+                      <li>Press Verify now. DNS can take a few minutes to update.</li>
+                    </ol>
                     <dl className="mt-3 grid gap-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Name</dt>

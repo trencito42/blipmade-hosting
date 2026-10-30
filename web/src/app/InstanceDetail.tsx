@@ -752,11 +752,13 @@ export default function InstanceDetail() {
         )}
       </section>
 
-      <SettingsPanel
-        instance={instance}
-        onUpdated={(next) => setData({ instance: next })}
-        onCancelled={reload}
-      />
+      {tab === 'settings' && (
+        <SettingsPanel
+          instance={instance}
+          onUpdated={(next) => setData({ instance: next })}
+          onCancelled={reload}
+        />
+      )}
     </div>
   );
 }

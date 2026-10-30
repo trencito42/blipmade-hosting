@@ -368,6 +368,7 @@ export function VpsDetail() {
   const { push } = useToast();
   const state = useAsync<{ server: VpsServerView }>((signal) => get<{ server: VpsServerView }>(`/vps/${encodeURIComponent(id)}`, undefined, signal), [id]);
   const server = state.data?.server ?? null;
+  const [tab, setTab] = useState<(typeof VPS_TABS)[number]['id']>('overview');
 
   useEffect(() => {
     if (!server || (server.status !== 'pending' && server.status !== 'provisioning')) return;
@@ -432,13 +433,48 @@ export function VpsDetail() {
         )}
       </Panel>
 
-      {server.status === 'active' && server.power === 'running' && <UsagePanel id={server.id} />}
-      {server.status === 'active' && <SnapshotsPanel id={server.id} />}
-      {server.status === 'active' && <IsoPanel id={server.id} onChanged={state.reload} />}
-      {server.status === 'active' && <ManagePanel server={server} onChanged={state.reload} />}
+      {server.status === 'active' && (
+        <>
+          <nav aria-label="Server sections" className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ul className="flex gap-1.5">
+              {VPS_TABS.map((entry) => (
+                <li key={entry.id} className="shrink-0">
+                  <button
+                    type="button"
+                    aria-current={entry.id === tab ? 'page' : undefined}
+                    onClick={() => setTab(entry.id)}
+                    className={`min-h-11 rounded-full border px-4 text-[14.5px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acc ${
+                      entry.id === tab ? 'border-acc/40 bg-acc-bg text-ink' : 'border-line text-ink2 hover:bg-s3 hover:text-ink'
+                    }`}
+                  >
+                    {entry.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          {tab === 'overview' && server.power === 'running' && <UsagePanel id={server.id} />}
+          {tab === 'overview' && server.power !== 'running' && <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">The server is not running, so there is no usage to show. Start it above.</p>}
+          {tab === 'snapshots' && <SnapshotsPanel id={server.id} />}
+          {tab === 'boot' && (
+            <>
+              <IsoPanel id={server.id} onChanged={state.reload} />
+              <ManagePanel server={server} onChanged={state.reload} section="danger" />
+            </>
+          )}
+          {tab === 'settings' && <ManagePanel server={server} onChanged={state.reload} section="settings" />}
+        </>
+      )}
     </div>
   );
 }
+
+const VPS_TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'snapshots', label: 'Snapshots' },
+  { id: 'boot', label: 'Image and reinstall' },
+  { id: 'settings', label: 'Settings' },
+] as const;
 
 const bytesLabel = (n: number): string => {
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
@@ -608,7 +644,7 @@ function IsoPanel({ id, onChanged }: { id: string; onChanged: () => void }) {
 }
 
 /** Rename, change the key, reinstall and cancel: the things a customer does to a server that are not power. */
-function ManagePanel({ server, onChanged }: { server: VpsServerView; onChanged: () => void }) {
+function ManagePanel({ server, onChanged, section }: { server: VpsServerView; onChanged: () => void; section: 'settings' | 'danger' }) {
   const { push } = useToast();
   const [name, setName] = useState(server.name);
   const [key, setKey] = useState('');
@@ -651,6 +687,7 @@ function ManagePanel({ server, onChanged }: { server: VpsServerView; onChanged: 
 
   return (
     <>
+      {section === 'settings' && (
       <Panel title="Settings" description="The name is also the hostname of the server.">
         <div className="grid gap-5">
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -674,7 +711,9 @@ function ManagePanel({ server, onChanged }: { server: VpsServerView; onChanged: 
           </div>
         </div>
       </Panel>
+      )}
 
+      {section === 'danger' && (
       <Panel title="Reinstall and cancel" description="These two cannot be undone.">
         <div className="grid gap-5">
           <div className="grid gap-2">
@@ -703,6 +742,7 @@ function ManagePanel({ server, onChanged }: { server: VpsServerView; onChanged: 
           </div>
         </div>
       </Panel>
+      )}
 
       <ConfirmDialog
         open={confirming}

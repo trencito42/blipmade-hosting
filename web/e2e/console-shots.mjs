@@ -74,7 +74,29 @@ for (const kind of KINDS) {
           const name = `${kind}${route.replace(/\//g, '_')}-${width}.png`;
           await page.screenshot({ path: `${OUT}/${name}`, fullPage: true });
         }
-        report.push({ kind, route, width, overflow: overflow.wide, scrollWidth: overflow.scrollWidth, offenders: overflow.offenders, errors: [...errors] });
+        let keyboard = null;
+        if (width === 1280) {
+          // Tab through the page: every stop must show where the focus is, and the focus must not get stuck.
+          await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+          const stops = [];
+          for (let i = 0; i < 30; i += 1) {
+            await page.keyboard.press('Tab');
+            stops.push(await page.evaluate(() => {
+              const el = document.activeElement;
+              if (!el || el === document.body) return null;
+              const css = getComputedStyle(el);
+              const outline = css.outlineStyle !== 'none' && parseFloat(css.outlineWidth) > 0;
+              const shadow = css.boxShadow !== 'none';
+              const label = (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 30);
+              return { label, tag: el.tagName.toLowerCase(), visible: outline || shadow };
+            }));
+          }
+          const real = stops.filter(Boolean);
+          let stuck = 0;
+          for (let i = 2; i < real.length; i += 1) if (real[i].label === real[i - 1].label && real[i].label === real[i - 2].label) stuck += 1;
+          keyboard = { sample: real.map((stop) => stop.label).join(" | "), stops: real.length, withoutIndicator: real.filter((stop) => !stop.visible).map((stop) => `${stop.tag}:${stop.label}`).slice(0, 5), stuck };
+        }
+        report.push({ kind, route, width, keyboard, overflow: overflow.wide, scrollWidth: overflow.scrollWidth, offenders: overflow.offenders, errors: [...errors] });
       } catch (error) {
         // A page that cannot be opened is a finding, not the end of the run.
         console.log(`  could not check ${kind} ${route} @${width}: ${String(error).slice(0, 140)}`);
@@ -92,5 +114,9 @@ await writeFile(`${OUT}/report-${KINDS.join('-')}.json`, JSON.stringify(report, 
 const overflowing = report.filter((entry) => entry.overflow);
 const erroring = report.filter((entry) => entry.errors.length);
 console.log(`checked ${report.length} page views: ${overflowing.length} with horizontal overflow, ${erroring.length} with errors`);
+const keyed = report.filter((entry) => entry.keyboard);
+const unfocusable = keyed.filter((entry) => entry.keyboard.withoutIndicator.length || entry.keyboard.stuck || entry.keyboard.stops < 3);
+console.log(`keyboard: ${keyed.length} pages tabbed, ${unfocusable.length} with a stop that shows no focus, a trap or too few stops`);
+for (const entry of unfocusable.slice(0, 20)) console.log(`  keyboard ${entry.kind} ${entry.route}: stops=${entry.keyboard.stops} stuck=${entry.keyboard.stuck} no-indicator=${entry.keyboard.withoutIndicator.join(", ")}\n    ${entry.keyboard.sample}`);
 for (const entry of overflowing.slice(0, 12)) console.log(`  overflow ${entry.kind} ${entry.route} @${entry.width}: ${entry.scrollWidth}px ${entry.offenders.join(' | ')}`);
 for (const entry of erroring.slice(0, 8)) console.log(`  errors ${entry.kind} ${entry.route} @${entry.width}: ${entry.errors[0]}`);

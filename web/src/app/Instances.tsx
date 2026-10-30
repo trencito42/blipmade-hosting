@@ -127,7 +127,7 @@ function NoInstances() {
                   </p>
                 </div>
               </div>
-              <ButtonLink to={deployPathFor(product.slug, startingConfiguration(product))} className="w-full shrink-0 sm:w-auto">
+              <ButtonLink to={deployPathFor(product.slug, startingConfiguration(product))} aria-label={`Deploy ${product.name}`} className="w-full shrink-0 sm:w-auto">
                 Deploy
               </ButtonLink>
             </li>
