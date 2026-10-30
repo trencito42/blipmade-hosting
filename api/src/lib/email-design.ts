@@ -94,6 +94,12 @@ export interface EmailTemplateDescriptor {
   placeholders: string[];
 }
 
+/** The card of a message: the raised surface of the site. */
+const CARD = '#0e1310';
+
+/** The inset panel the facts of a message sit in: one step lighter than the card. */
+const PANEL = '#1a201c';
+
 /** What is shown when a fact is not there. */
 const DASH = '—';
 
@@ -2002,12 +2008,20 @@ function oneLine(value: string): string {
     .trim();
 }
 
-/** The header of the messages: the mark of the platform and its name. */
+/**
+ * The header of the messages: the mark of the platform and its name.
+ *
+ * The mark is the logo of the platform as an image served by the site, and
+ * the name next to it is text, so a client that blocks images still shows who
+ * the message is from. The image has a name for the same reason.
+ */
 function renderHeader(): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+  const mark = escapeHtml(`${publicOrigin()}/brand/mark-email.png`);
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
-              <td width="30" height="30" align="center" valign="middle" bgcolor="${BRAND.accent}" style="width:30px;height:30px;border-radius:7px;font-family:${BRAND.font};font-size:17px;font-weight:800;line-height:30px;color:${BRAND.ink};">B</td>
-              <td style="padding-left:10px;font-family:${BRAND.font};font-size:20px;font-weight:700;letter-spacing:-0.02em;color:${BRAND.accent};">Blipmade</td>
+              <td valign="middle" style="width:42px;"><a href="${escapeHtml(publicOrigin())}" style="text-decoration:none;"><img src="${mark}" width="38" height="34" alt="" style="display:block;width:38px;height:34px;border:0;outline:none;" /></a></td>
+              <td valign="middle" style="padding-left:10px;font-family:${BRAND.font};font-size:23px;font-weight:700;letter-spacing:-0.04em;color:${BRAND.text};"><a href="${escapeHtml(publicOrigin())}" style="color:${BRAND.text};text-decoration:none;">blipmade</a></td>
+              <td valign="middle" align="right" style="font-family:${BRAND.font};font-size:12px;letter-spacing:0.02em;color:${BRAND.muted};">Hosting for everything you run</td>
             </tr>
           </table>`;
 }
@@ -2029,7 +2043,7 @@ function renderAction(label: string, url: string): string {
   const safeLabel = escapeHtml(label);
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">
             <tr>
-              <td align="center" bgcolor="${BRAND.accent}" style="border-radius:10px;padding:13px 24px;font-family:${BRAND.font};font-size:15px;font-weight:700;line-height:1;text-align:center;">
+              <td align="center" bgcolor="${BRAND.accent}" style="border-radius:999px;padding:16px 30px;font-family:${BRAND.font};font-size:16px;font-weight:700;line-height:1;text-align:center;">
                 <a href="${safeUrl}" style="color:${BRAND.ink};text-decoration:none;display:inline-block;">${safeLabel}</a>
               </td>
             </tr>
@@ -2052,15 +2066,19 @@ function renderActionText(label: string): string {
 
 /** The table of the facts of a message. */
 function renderDetailsTable(rows: Array<{ label: string; value: string }>): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 24px;border-collapse:collapse;">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;border-collapse:separate;background:${PANEL};border-radius:14px;">
+            <tr><td style="padding:6px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
             ${rows
               .map(
-                (row) => `<tr>
-              <td style="padding:10px 0;border-bottom:1px solid ${BRAND.border};font-family:${BRAND.font};font-size:13px;line-height:1.4;color:${BRAND.muted};">${row.label}</td>
-              <td align="right" style="padding:10px 0;border-bottom:1px solid ${BRAND.border};font-family:${BRAND.font};font-size:13px;line-height:1.4;color:${BRAND.text};font-weight:700;">${row.value}</td>
+                (row, index) => `<tr>
+              <td style="padding:12px 0;${index === rows.length - 1 ? '' : `border-bottom:1px solid ${BRAND.border};`}font-family:${BRAND.font};font-size:13px;line-height:1.4;color:${BRAND.muted};">${row.label}</td>
+              <td align="right" style="padding:12px 0;${index === rows.length - 1 ? '' : `border-bottom:1px solid ${BRAND.border};`}font-family:${BRAND.font};font-size:14px;line-height:1.4;color:${BRAND.text};font-weight:700;">${row.value}</td>
             </tr>`,
               )
               .join('\n            ')}
+              </table>
+            </td></tr>
           </table>`;
 }
 
@@ -2082,10 +2100,10 @@ function renderFooter(operator: boolean): string {
     ? 'This message goes to the operator of the platform.'
     : 'You receive this message because you have an account on Blipmade.';
   const linkStyle = `color:${BRAND.muted};text-decoration:underline;`;
-  return `${reason}<br />
-              Support: ${support}<br />
-              <a href="${origin}/terms" style="${linkStyle}">Terms of service</a> &middot; <a href="${origin}/privacy" style="${linkStyle}">Privacy policy</a> &middot; <a href="${origin}/aup" style="${linkStyle}">Acceptable use policy</a><br />
-              <a href="${origin}" style="${linkStyle}">${origin}</a>`;
+  return `<span style="color:${BRAND.text};font-weight:700;">blipmade</span><br />
+              ${reason}<br />
+              Need a hand? Write to <a href="mailto:${support}" style="${linkStyle}">${support}</a> or open a ticket in your dashboard.<br /><br />
+              <a href="${origin}/terms" style="${linkStyle}">Terms</a> &middot; <a href="${origin}/privacy" style="${linkStyle}">Privacy</a> &middot; <a href="${origin}/aup" style="${linkStyle}">Acceptable use</a> &middot; <a href="${origin}/docs/status" style="${linkStyle}">Status</a>`;
 }
 
 /** The message of a template in HTML. */
@@ -2129,23 +2147,32 @@ function renderHtml(definition: TemplateDefinition, values: ValueMap): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="supported-color-schemes" content="dark" />
     <title>${heading}</title>
+    <style>
+      @media (max-width:620px) {
+        .px { padding-left: 22px !important; padding-right: 22px !important; }
+        .h1 { font-size: 26px !important; line-height: 1.2 !important; }
+        .tag { display: none !important; }
+      }
+    </style>
   </head>
-  <body style="margin:0;padding:0;background:${BRAND.ink};">
+  <body bgcolor="${BRAND.ink}" style="margin:0;padding:0;background:${BRAND.ink};">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.ink};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${BRAND.ink}" style="background:${BRAND.ink};">
       <tr>
-        <td align="center" style="padding:32px 16px;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:${BRAND.surface};border:1px solid ${BRAND.border};border-radius:16px;">
+        <td align="center" style="padding:36px 16px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="${CARD}" style="width:100%;max-width:600px;background:${CARD};border:1px solid ${BRAND.border};border-radius:24px;">
             <tr>
-              <td style="padding:24px 32px;border-bottom:1px solid ${BRAND.border};">
+              <td class="px" style="padding:26px 36px;border-bottom:1px solid ${BRAND.border};">
                 ${renderHeader()}
               </td>
             </tr>
             <tr>
-              <td style="padding:32px;">
-                <h1 style="margin:0 0 20px;font-family:${BRAND.font};font-size:22px;font-weight:700;line-height:1.3;color:${BRAND.text};">${heading}</h1>
+              <td class="px" style="padding:40px 36px 32px;">
                 ${status}
+                <h1 class="h1" style="margin:0 0 22px;font-family:${BRAND.font};font-size:32px;font-weight:700;letter-spacing:-0.035em;line-height:1.12;color:${BRAND.text};">${heading}</h1>
                 ${paragraphs}
                 ${actionHtml}
                 ${detailsHtml}
@@ -2153,7 +2180,7 @@ function renderHtml(definition: TemplateDefinition, values: ValueMap): string {
               </td>
             </tr>
             <tr>
-              <td style="padding:24px 32px;border-top:1px solid ${BRAND.border};font-family:${BRAND.font};font-size:12px;line-height:1.7;color:${BRAND.muted};">
+              <td class="px" bgcolor="${BRAND.ink}" style="padding:26px 36px;background:${BRAND.ink};border-top:1px solid ${BRAND.border};border-radius:0 0 24px 24px;font-family:${BRAND.font};font-size:12px;line-height:1.7;color:${BRAND.muted};">
                 ${renderFooter(definition.operator === true)}
               </td>
             </tr>
