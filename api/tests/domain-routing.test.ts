@@ -338,10 +338,11 @@ describe('the routes of the customers in Caddy', () => {
     });
 
     expect(state.routes).toHaveLength(2);
-    expect(state.routes.map((route) => route.match?.[0]?.host?.[0])).toEqual([
+    // Both hostnames must remain, regardless of Caddy route ordering.
+    expect(state.routes.map((route) => route.match?.[0]?.host?.[0]).sort()).toEqual([
       'witch.pw',
       'www.witch.pw',
-    ]);
+    ].sort());
   });
 
   it('removes the route of a hostname', async () => {
