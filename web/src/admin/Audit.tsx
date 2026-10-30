@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { get } from '../lib/api';
-import { useAsync } from '../lib/useAsync';
+import { useInfiniteList } from '../lib/useInfinite';
 import { Icon } from '../icons';
-import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Panel } from '../ui-app';
-import { DASH, LiveRegion, TruncationNote, denseGhost, denseInput, fmtDateTime, maskEmail } from './Overview';
+import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Panel, SoftButton } from '../ui-app';
+import { DASH, LiveRegion, denseGhost, denseInput, fmtDateTime, maskEmail } from './Overview';
 
 /**
  * Staff audit log — GET /api/admin/audit?actor=&action=&targetType=
@@ -80,22 +80,27 @@ export default function Audit() {
     return () => clearTimeout(timer);
   }, [filters]);
 
-  const state = useAsync(
-    (signal) =>
-      get<{ logs: AuditLog[]; total?: number }>(
+  const [total, setTotal] = useState<number | undefined>(undefined);
+  const list = useInfiniteList<AuditLog, string>(
+    async (cursor, signal) => {
+      const result = await get<{ logs: AuditLog[]; total?: number; pagination?: { hasMore: boolean; nextCursor: string | null } }>(
         '/admin/audit',
         {
           actor: applied.actor || undefined,
           action: applied.action || undefined,
           targetType: applied.targetType || undefined,
+          cursor: cursor ?? undefined,
+          limit: 100,
         },
         signal,
-      ),
+      );
+      if (!cursor) setTotal(result.total);
+      return { items: result.logs, next: result.pagination?.hasMore ? result.pagination.nextCursor : null };
+    },
     [applied.actor, applied.action, applied.targetType],
   );
-
-  const logs = state.data?.logs ?? [];
-  const total = state.data?.total;
+  const state = { loading: list.loading, error: list.items.length === 0 ? list.error : null, reload: list.reload };
+  const logs = list.items;
   const actor = (value: string | null) => (value === null ? DASH : showEmails ? value : maskEmail(value));
 
   return (
@@ -246,7 +251,14 @@ export default function Audit() {
                   </div>
                 )}
               </CardList>
-              <TruncationNote shown={logs.length} total={total} />
+              {list.hasMore ? (
+                <div ref={list.sentinel} className="grid justify-items-center gap-2">
+                  {list.loadingMore ? <p role="status" className="text-[13px] text-ink3">Loading more…</p> : <SoftButton onClick={list.loadMore}>Load more</SoftButton>}
+                </div>
+              ) : (
+                <p className="text-center text-[13px] text-ink3">{total !== undefined ? `All ${total} entries are shown.` : 'That is everything.'}</p>
+              )}
+              {list.error && <p role="alert" className="text-[13px] text-bad">{list.error.message}</p>}
             </div>
           )}
         </div>
