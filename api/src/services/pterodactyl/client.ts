@@ -220,6 +220,8 @@ export interface ClientServer {
   current_state: string;
   limits: { memory: number; swap: number; disk: number; io: number; cpu: number };
   features: string[];
+  /** How many databases and backups the server may have. A databases limit of 0 means none. */
+  feature_limits: { databases: number; backups: number };
   created_at: string;
 }
 
@@ -358,6 +360,10 @@ export function parseServer(payload: unknown): ClientServer {
       : Array.isArray(attributes.features)
         ? attributes.features.map((feature) => String(feature))
         : [],
+    feature_limits: {
+      databases: Number(attributes.feature_limits?.databases ?? 0),
+      backups: Number(attributes.feature_limits?.backups ?? 0),
+    },
     created_at: String(attributes.created_at ?? ''),
   };
 }

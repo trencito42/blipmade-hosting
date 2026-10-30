@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { getSettings, reinstallInstance, setSuspended, updateSettings } from '../../lib/instance-api';
+import { getSettings, reinstallInstance, updateSettings } from '../../lib/instance-api';
 import {
   ConfirmDialog,
   DangerButton,
@@ -30,11 +30,38 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmReinstall, setConfirmReinstall] = useState(false);
-  const [confirmSuspend, setConfirmSuspend] = useState(false);
-  const [confirmResume, setConfirmResume] = useState(false);
 
   useEffect(() => {
     const current = settings.data;
+    if (!current) return;
+    setName(current.name ?? '');
+    setDescription(current.description ?? '');
+  }, [settings.data]);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await updateSettings(instance.id, { name: name.trim(), description });
+      push('The settings were saved.', 'ok');
+      settings.reload();
+    } catch (error) {
+      push(error instanceof Error ? error.message : 'The settings were not saved.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reinstall = async () => {
+    try {
+      await reinstallInstance(instance.id);
+      push('The server was reinstalled. The files of the container were erased.', 'ok');
+      setConfirmReinstall(false);
+    } catch (error) {
+      push(error instanceof Error ? error.message : 'The server was not reinstalled.', 'error');
+    }
+  };
+
+  const current = settings.data;
     if (!current) return;
     setName(current.name ?? '');
     setDescription(current.description ?? '');
@@ -147,7 +174,7 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
 
           <Panel
             title="Operations on the container"
-            description="Reinstalling erases the files of the container. Suspending only stops it, and you can start it again at any time."
+            description="Reinstalling erases the files of the container. To turn the instance off, use Stop above."
           >
             <div className="grid gap-3">
               <div className="grid gap-1.5 rounded-2xl bg-s2 p-3.5">
@@ -157,26 +184,6 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
                 </p>
                 <div className="pt-1">
                   <DangerButton onClick={() => setConfirmReinstall(true)}>Reinstall the server</DangerButton>
-                </div>
-              </div>
-
-              <div className="grid gap-1.5 rounded-2xl bg-s2 p-3.5">
-                <p className="text-[14.5px] font-medium text-ink">
-                  {current?.suspended ? 'Restore the instance' : 'Suspend the instance'}
-                </p>
-                <p className="text-[13px] text-ink2">
-                  {current?.suspended
-                    ? 'The container is started again and the instance is marked as running.'
-                    : 'The container is stopped and the instance is marked as suspended. It stays on the node.'}
-                </p>
-                <div className="pt-1">
-                  {current?.suspended ? (
-                    <SoftButton onClick={() => setConfirmResume(true)}>Restore the instance</SoftButton>
-                  ) : (
-                    /* Suspending stops the container and keeps every file, so
-                       it is the same step as the restore next to it. */
-                    <SoftButton onClick={() => setConfirmSuspend(true)}>Suspend the instance</SoftButton>
-                  )}
                 </div>
               </div>
             </div>
@@ -210,24 +217,6 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
         requireText={instance.name}
         onCancel={() => setConfirmReinstall(false)}
         onConfirm={reinstall}
-      />
-
-      <ConfirmDialog
-        open={confirmSuspend}
-        title="Suspend this instance?"
-        description="The container is stopped and the instance is marked as suspended. The files stay on the node."
-        confirmLabel="Suspend the instance"
-        onCancel={() => setConfirmSuspend(false)}
-        onConfirm={suspend}
-      />
-
-      <ConfirmDialog
-        open={confirmResume}
-        title="Restore this instance?"
-        description="The container is started again and the instance is marked as running."
-        confirmLabel="Restore the instance"
-        onCancel={() => setConfirmResume(false)}
-        onConfirm={resume}
       />
     </div>
   );

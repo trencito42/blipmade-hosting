@@ -46,6 +46,8 @@ export default function DatabasesTab({ instance }: TabProps) {
   const [passwordBusy, setPasswordBusy] = useState(false);
 
   const rows = databases.data?.databases ?? [];
+  // The panel says how many databases this server may have. 0 means none, so the page says that.
+  const noDatabases = databases.data !== undefined && databases.data.limit === 0 && rows.length === 0;
 
   const create = async () => {
     setBusy(true);
@@ -55,7 +57,7 @@ export default function DatabasesTab({ instance }: TabProps) {
         database: form.database.trim(),
         username: form.username.trim(),
         password: form.password,
-        remote: form.remote.trim(),
+        remote: form.remote.trim() === '*' ? '%' : form.remote.trim(),
       });
       push('The database was created.', 'ok');
       setForm({ database: '', username: '', password: '', remote: '' });
@@ -156,9 +158,11 @@ export default function DatabasesTab({ instance }: TabProps) {
         title="Databases"
         description="The databases that belong to this instance. The panel keeps them on the node of the instance."
         action={
-          <PrimaryButton onClick={() => setCreating((value) => !value)} disabled={busy}>
-            {creating ? 'Close' : 'New database'}
-          </PrimaryButton>
+          noDatabases ? undefined : (
+            <PrimaryButton onClick={() => setCreating((value) => !value)} disabled={busy}>
+              {creating ? 'Close' : 'New database'}
+            </PrimaryButton>
+          )
         }
       >
         {creating && (
@@ -189,8 +193,8 @@ export default function DatabasesTab({ instance }: TabProps) {
                 label="Allowed address"
                 value={form.remote}
                 onChange={(event) => setForm({ ...form, remote: event.target.value })}
-                placeholder="10.0.0.0/8"
-                hint="Only this address may reach the database."
+                placeholder="%"
+                hint="Use % to allow every address. Or write one address (203.0.113.7), or a range with % (10.0.%). Empty means %."
                 autoComplete="off"
               />
             </div>
@@ -217,6 +221,11 @@ export default function DatabasesTab({ instance }: TabProps) {
           <LoadingBlock rows={2} label="Loading the databases" />
         ) : databases.error ? (
           <ApiErrorState error={databases.error} onRetry={databases.reload} title="We could not load the databases" />
+        ) : noDatabases ? (
+          <EmptyState
+            title="This instance has no database."
+            description="Its plan does not include a database. If you need one, deploy a database from the catalog and connect to it from this instance."
+          />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No databases yet."

@@ -197,6 +197,7 @@ export interface PteroClientServerAttributes {
   current_state?: string;
   is_suspended?: boolean;
   limits?: { memory: number; swap: number; disk: number; io: number; cpu: number };
+  feature_limits?: { databases?: number; backups?: number; allocations?: number };
   /** The panel names the features of a server "egg_features" on the client api. */
   egg_features?: string[];
   features?: string[];

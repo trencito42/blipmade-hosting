@@ -72,6 +72,21 @@ async function withInstance<T>(
  * A server that the panel does not show to this customer answers 404 there,
  * and it answers 404 here: the customer has no such server.
  */
+/**
+ * The address a database accepts connections from. The panel wants "%" for every address (a
+ * customer writes "*"), an address such as 203.0.113.7, or a range with "%" such as 10.0.%.
+ * A block such as 10.0.0.0/8 is not understood by the panel, so it is refused with the reason.
+ */
+export function normalizeRemote(raw: string): string {
+  const value = raw.trim();
+  if (value === '' || value === '*' || value === '0.0.0.0/0' || value === '0.0.0.0') return '%';
+  if (value.includes('/')) {
+    throw badRequest('Use % for every address, one address such as 203.0.113.7, or a range such as 10.0.%. A block like 10.0.0.0/8 is not accepted.');
+  }
+  if (!/^[0-9A-Za-z.%:_-]+$/.test(value)) throw badRequest('Use % for every address, or one address such as 203.0.113.7.');
+  return value;
+}
+
 function translatePanelError(error: unknown): never {
   if (error instanceof client.ClientApiError) {
     if (error.status === 404) throw notFound('That resource does not exist on this server.');
@@ -471,8 +486,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   app.get('/instances/:id/databases', async (request: FastifyRequest) => {
     return withInstance(request, async (token, instance) => {
       try {
-        const databases = await operations.databases(token, instance);
+        const [databases, server] = await Promise.all([operations.databases(token, instance), operations.serverInfo(token, instance)]);
         return {
+          // How many databases the panel lets this server have. 0 means the server has none to give.
+          limit: server.feature_limits.databases,
           databases: databases.map((database) => ({
             id: database.id,
             name: database.name,
@@ -499,9 +516,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
         database: z.string().trim().min(1).max(64),
         username: z.string().trim().min(1).max(64),
         password: z.string().min(1).max(128),
-        remote: z.string().trim().min(1).max(128),
+        remote: z.string().trim().max(128).default(''),
       })
       .parse(request.body);
+    body.remote = normalizeRemote(body.remote);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id);
@@ -1196,6 +1214,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   }, async (request: FastifyRequest) => {
     const body = z.object({ suspended: z.boolean() }).parse(request.body ?? {});
     const user = await requireAuth(request);
+    // A customer has Start, Stop and Restart. Suspending is the platform's own step (an unpaid
+    // plan, an abuse report), so it is no longer offered here: a customer that suspends an
+    // instance only ends up with a state that Stop already gives.
+    if (user.role === 'CUSTOMER') throw badRequest('Use Stop to turn the instance off. Suspending is done by the platform.');
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id);
     const token = await operations.customerToken(instance);

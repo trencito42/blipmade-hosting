@@ -347,7 +347,7 @@ export const chmodFile = (id: string, path: string, mode: number) =>
 // --- databases -------------------------------------------------------------
 
 export const listDatabases = (id: string, signal?: AbortSignal) =>
-  get<{ databases: InstanceDatabase[] }>(`/instances/${id}/databases`, undefined, signal);
+  get<{ databases: InstanceDatabase[]; limit?: number }>(`/instances/${id}/databases`, undefined, signal);
 
 export const createDatabase = (
   id: string,
