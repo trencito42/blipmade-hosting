@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { get, post, type Instance, type Ticket } from '../lib/api';
+import { get, post, type Instance, type MailServiceView, type Ticket } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
@@ -253,12 +253,14 @@ function NewTicketForm({
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState('');
   const [priority, setPriority] = useState('normal');
-  const [instanceId, setInstanceId] = useState('');
+  // The service the ticket is about: "instance:<id>" for a server, "mail:<id>" for a hosted mail service.
+  const [service, setService] = useState('');
   const [body, setBody] = useState('');
   const [touched, setTouched] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
   const instances = useAsync((signal) => get<{ instances: Instance[] }>('/instances', undefined, signal), []);
+  const mailServices = useAsync((signal) => get<{ services: MailServiceView[] }>('/mail/services', undefined, signal), []);
 
   // The form is a region of the page: the focus goes into it when it opens
   // and it closes with Escape.
@@ -275,13 +277,14 @@ function NewTicketForm({
   }, [onClose]);
 
   const create = useAction(async () => {
-    const payload: { subject: string; category: string; priority: string; body: string; instanceId?: string } = {
+    const payload: { subject: string; category: string; priority: string; body: string; instanceId?: string; mailServiceId?: string } = {
       subject: subject.trim(),
       category,
       priority,
       body: body.trim(),
     };
-    if (instanceId) payload.instanceId = instanceId;
+    if (service.startsWith('instance:')) payload.instanceId = service.slice('instance:'.length);
+    if (service.startsWith('mail:')) payload.mailServiceId = service.slice('mail:'.length);
     const result = await post<{ ticket: Ticket }>('/tickets', payload);
     return result.ticket;
   });
@@ -385,18 +388,31 @@ function NewTicketForm({
           </div>
 
           <Select
-            label="Related instance"
-            hint="Optional. Links the ticket to one of your apps or databases."
-            value={instanceId}
-            onChange={(e) => setInstanceId(e.target.value)}
+            label="Related service"
+            hint="Optional. Links the ticket to one of your apps, databases or mail services."
+            value={service}
+            onChange={(e) => setService(e.target.value)}
             className="scroll-mt-24"
           >
-            <option value="">No related instance</option>
-            {instances.data?.instances.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.name}
-              </option>
-            ))}
+            <option value="">No related service</option>
+            {instances.data?.instances.length ? (
+              <optgroup label="Apps and databases">
+                {instances.data.instances.map((i) => (
+                  <option key={i.id} value={`instance:${i.id}`}>
+                    {i.name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {mailServices.data?.services.length ? (
+              <optgroup label="Email hosting">
+                {mailServices.data.services.map((m) => (
+                  <option key={m.id} value={`mail:${m.id}`}>
+                    {m.plan.name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </Select>
 
           <TextArea

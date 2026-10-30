@@ -518,6 +518,8 @@ export interface Ticket {
   status: string;
   instanceId: string | null;
   instanceName: string | null;
+  /** What the ticket is about: a server or a mail service. */
+  serviceName?: string | null;
   createdAt: string;
   updatedAt: string;
   lastReplyAt: string | null;

@@ -1613,8 +1613,8 @@ export default function Mail() {
                       Open webmail
                     </ButtonLink>
                   )}
-                  <SoftButton onClick={() => setSelectedId(domain.id)}>
-                    {selectedId === domain.id ? 'Selected' : 'Manage'}
+                  <SoftButton onClick={() => setSelectedId(selectedId === domain.id ? '' : domain.id)}>
+                    {selectedId === domain.id ? 'Close' : 'Manage'}
                   </SoftButton>
                   <DangerButton onClick={() => setPendingDelete({ kind: 'domain', domain })}>Delete</DangerButton>
                 </div>

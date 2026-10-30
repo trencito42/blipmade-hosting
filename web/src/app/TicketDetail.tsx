@@ -191,8 +191,8 @@ export default function TicketDetail() {
             <dd className="mt-1 text-[14.5px] capitalize text-ink">{ticket.priority}</dd>
           </div>
           <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Related instance</dt>
-            <dd className="mt-1 text-[14.5px] text-ink">{ticket.instanceName ?? 'None'}</dd>
+            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Related service</dt>
+            <dd className="mt-1 text-[14.5px] text-ink">{ticket.serviceName ?? ticket.instanceName ?? 'None'}</dd>
           </div>
           <div className="rounded-2xl bg-s2 p-3.5">
             <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Last activity</dt>

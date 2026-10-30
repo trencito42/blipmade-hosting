@@ -937,6 +937,9 @@ model Ticket {
   status       TicketStatus   @default(OPEN)
   instanceId   String?
   instance     Instance?      @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  // The hosted mail the ticket is about, when it is about mail and not about a server.
+  mailServiceId String?
+  mailService   MailService?   @relation(fields: [mailServiceId], references: [id], onDelete: SetNull)
   assignedToId String?
   assignedTo   StaffMember?   @relation("TicketAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
   lastReplyAt  DateTime?
@@ -953,6 +956,7 @@ model Ticket {
   // The list of the tickets is ordered by the moment of the last reply and by
   // the id.
   @@index([updatedAt, id])
+  @@index([mailServiceId])
 }
 
 model TicketMessage {
@@ -1228,6 +1232,7 @@ model MailDomain {
 /// touch it.
 model MailService {
   id         String   @id @default(cuid())
+  tickets    Ticket[]
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   // The plan the customer bought.

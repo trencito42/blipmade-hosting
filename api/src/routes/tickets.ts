@@ -128,6 +128,8 @@ function serializeTicket(ticket: {
   updatedAt: Date;
   lastReplyAt: Date | null;
   instance: { name: string } | null;
+  mailServiceId?: string | null;
+  mailService?: { product: { name: string } } | null;
   assignedTo: { user: { firstName: string; lastName: string; email: string } } | null;
   _count?: { messages: number };
 }) {
@@ -140,6 +142,9 @@ function serializeTicket(ticket: {
     status: canonicalEnum(ticket.status),
     instanceId: ticket.instanceId,
     instanceName: ticket.instance?.name ?? null,
+    mailServiceId: ticket.mailServiceId ?? null,
+    // What the ticket is about, whether it is a server or a mail service.
+    serviceName: ticket.instance?.name ?? ticket.mailService?.product.name ?? null,
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
     lastReplyAt: ticket.lastReplyAt,
@@ -158,7 +163,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
     const rows = await prisma.ticket.findMany({
       where: withCursor({ userId: user.id }, cursor, 'updatedAt'),
-      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
       orderBy: pageOrder('updatedAt'),
       take: limit + 1,
     });
@@ -178,6 +183,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         priority: enumField(PRIORITIES).default('NORMAL'),
         body: z.string().trim().min(1, 'Describe the problem.').max(20_000),
         instanceId: z.string().optional(),
+        mailServiceId: z.string().optional(),
         attachments: z.array(attachmentSchema).max(5).optional(),
       }),
       request.body,
@@ -186,6 +192,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     if (body.instanceId) {
       const owned = await prisma.instance.findFirst({ where: { id: body.instanceId, userId: user.id } });
       if (!owned) throw badRequest('That instance does not belong to your account.');
+    }
+    if (body.mailServiceId) {
+      const owned = await prisma.mailService.findFirst({ where: { id: body.mailServiceId, userId: user.id } });
+      if (!owned) throw badRequest('That mail service does not belong to your account.');
     }
 
     const ticket = await prisma.ticket.create({
@@ -196,6 +206,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         priority: body.priority,
         status: 'OPEN',
         instanceId: body.instanceId ?? null,
+        mailServiceId: body.mailServiceId ?? null,
         messages: {
           create: {
             authorId: user.id,
@@ -205,7 +216,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         },
         events: { create: { type: 'created', message: 'Ticket opened.', actorId: user.id } },
       },
-      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
     });
 
     await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'created', message: 'Ticket opened.', actorId: user.id } });
@@ -240,6 +251,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       where: { id },
       include: {
         instance: { select: { name: true } },
+        mailService: { select: { product: { select: { name: true } } } },
         assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
         messages: {
           include: {
@@ -534,7 +546,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
     const updated = await prisma.ticket.findUnique({
       where: { id: ticket.id },
-      include: { instance: { select: { name: true } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
     });
     return { ticket: serializeTicket(updated!) };
   });
