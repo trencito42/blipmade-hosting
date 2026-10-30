@@ -119,6 +119,23 @@ describe('the life of an order', () => {
     expect(await statusOf(orderId)).toBe('CANCELLED');
   });
 
+  it('cancels a pending order only once without generating a second event', async () => {
+    await seedProduct();
+    const { client, orderId } = await placeOrder('cancel-once@example.com');
+    expect((await client.request('POST', `/api/orders/${orderId}/cancel`)).status).toBe(204);
+    expect((await client.request('POST', `/api/orders/${orderId}/cancel`)).status).toBe(204);
+    expect(await statusOf(orderId)).toBe('CANCELLED');
+    expect(await prisma.auditLog.count({ where: { action: 'order.cancelled', targetId: orderId } })).toBe(1);
+  });
+
+  it('refuses cancellation of a failed order pending financial reconciliation', async () => {
+    await seedProduct();
+    const { client, orderId } = await placeOrder('failed-cancel@example.com');
+    await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
+    expect((await client.request('POST', `/api/orders/${orderId}/cancel`)).status).toBe(409);
+    expect(await statusOf(orderId)).toBe('FAILED');
+  });
+
   it('does not send a refunded order to a checkout again', async () => {
     await seedProduct();
     const { client, orderId } = await placeOrder('refunded@example.com');
