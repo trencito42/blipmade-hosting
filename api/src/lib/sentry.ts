@@ -17,7 +17,6 @@ export function initErrorReporting(service: 'api' | 'worker'): void {
     dsn: env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT,
     serverName: service,
-    sendDefaultPii: false,
     tracesSampleRate: 0,
     beforeSend(event) {
       if (event.request) {

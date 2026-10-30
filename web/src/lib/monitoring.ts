@@ -15,7 +15,6 @@ export function initMonitoring(): void {
       Sentry.init({
         dsn,
         environment: (import.meta.env.VITE_SENTRY_ENVIRONMENT as string | undefined) ?? 'production',
-        sendDefaultPii: false,
         tracesSampleRate: 0,
       });
       return Sentry as unknown as Reporter;
