@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   archiveFormatOf,
   baseName,
@@ -28,6 +28,7 @@ import {
 } from '../../lib/instance-api';
 import { useAction, useAsync } from '../../lib/useAsync';
 import { Icon } from '../../icons';
+import { LANGUAGE_LABEL, languageOf } from './editor-language';
 import {
   ConfirmDialog,
   DangerButton,
@@ -40,6 +41,8 @@ import {
   TextInput,
   useToast,
 } from '../../ui-app';
+
+const CodeEditor = lazy(() => import('./CodeEditor'));
 
 /**
  * Files.
@@ -515,16 +518,25 @@ function FilePanel({
           />
         ) : (
           <div className="grid gap-2">
-            <TextArea
-              label="Content"
-              value={content}
-              onChange={(event) => {
-                setContent(event.target.value);
-                setDirty(true);
-              }}
-              className="min-h-[240px] scroll-mt-16 font-mono"
-              spellCheck={false}
-            />
+            <div className="grid gap-1.5">
+              <div className="flex items-center justify-between gap-3 px-1 text-[12.5px] text-ink3">
+                <span className="font-mono">{entry.name}</span>
+                <span>{LANGUAGE_LABEL[languageOf(entry.name)]} · Ctrl S saves, Ctrl F finds</span>
+              </div>
+              <Suspense fallback={<LoadingBlock rows={3} label="Loading the editor" />}>
+                <CodeEditor
+                  label={`Content of ${entry.name}`}
+                  value={content}
+                  language={languageOf(entry.name)}
+                  height="min(60dvh, 560px)"
+                  onChange={(next) => {
+                    setContent(next);
+                    setDirty(true);
+                  }}
+                  onSave={() => void onSave()}
+                />
+              </Suspense>
+            </div>
             <ButtonRow>
               <PrimaryButton onClick={() => void onSave()} disabled={save.pending || !dirty}>
                 {save.pending ? 'Saving…' : 'Save file'}
