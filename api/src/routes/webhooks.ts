@@ -887,7 +887,13 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       // order that was paid, refused or refunded is left exactly as it is:
       // the event is late, not the state of the order.
       if (order.status !== 'PENDING' && order.status !== 'AWAITING_PAYMENT') break;
-      await prisma.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+      const expiredTransition = await prisma.order.updateMany({
+        where: { id: orderId, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+        data: { status: 'CANCELLED' },
+      });
+      // The payment may have completed concurrently after the read.
+      // Only the event that really cancelled the order may release its slot.
+      if (expiredTransition.count !== 1) break;
       // The campaign slot of the abandoned checkout goes back into the pool,
       // so a checkout nobody finished cannot hold a promotion hostage.
       await releaseCancelledOrderPromotion(order);
