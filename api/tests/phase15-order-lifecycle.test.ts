@@ -179,6 +179,25 @@ describe('the life of an order', () => {
     expect(await statusOf(orderId)).toBe('PAID');
   });
 
+  it('never consumes one promotion twice when payment requests race', async () => {
+    await seedProduct();
+    const { orderId } = await placeOrder('promotion-race@example.com');
+    const promotion = await prisma.promotion.create({
+      data: { code: 'PROMO-RACE', type: 'FIXED', value: 1 },
+    });
+    await prisma.order.update({ where: { id: orderId }, data: { promotionId: promotion.id } });
+
+    const outcomes = await Promise.allSettled([
+      markOrderPaid({ orderId, amount: MONTHLY }),
+      markOrderPaid({ orderId, amount: MONTHLY }),
+    ]);
+
+    expect(outcomes.some((outcome) => outcome.status === 'fulfilled')).toBe(true);
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('PAID');
+    expect((await prisma.promotion.findUniqueOrThrow({ where: { id: promotion.id } })).usedCount).toBe(1);
+    expect(await prisma.subscription.count({ where: { orderItem: { orderId } } })).toBe(1);
+  });
+
   it('tells the customer that the subscription started', async () => {
     await seedProduct();
     const { orderId } = await placeOrder('activated@example.com');
