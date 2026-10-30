@@ -97,14 +97,20 @@ export default function FilesTab({ instance }: TabProps) {
   const counter = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const listing = useAsync((signal) => listFiles(instance.id, folder, signal), [instance.id, folder, version]);
+  // The answer carries the folder it is for. While another folder is loading, the
+  // list of the previous one must not be shown under the new path.
+  const listing = useAsync(
+    async (signal) => ({ folder, files: (await listFiles(instance.id, folder, signal)).files }),
+    [instance.id, folder, version],
+  );
+  const current = listing.data?.folder === folder ? listing.data : null;
   const entries = useMemo(
     () =>
-      [...(listing.data?.files ?? [])].sort((a, b) => {
+      [...(current?.files ?? [])].sort((a, b) => {
         if (a.is_directory !== b.is_directory) return a.is_directory ? -1 : 1;
         return a.name.localeCompare(b.name);
       }),
-    [listing.data],
+    [current],
   );
   const names = useMemo(() => new Set(entries.map((entry) => entry.name)), [entries]);
   const uploading = uploads.some((upload) => upload.state === 'waiting' || upload.state === 'uploading');
@@ -711,7 +717,7 @@ export default function FilesTab({ instance }: TabProps) {
               </div>
             )}
 
-            {listing.loading && !listing.data ? (
+            {!current && !listing.error ? (
               <div className="p-2"><LoadingBlock rows={4} label="Loading the folder" /></div>
             ) : listing.error ? (
               <p role="alert" className="m-2 break-words rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">{listing.error.message}</p>
