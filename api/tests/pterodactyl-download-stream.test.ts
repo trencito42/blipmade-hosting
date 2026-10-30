@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Readable } from 'node:stream';
 import { env } from '../src/env.js';
 import { ClientApiError, downloadBackup, downloadFile } from '../src/services/pterodactyl/client.js';
 
@@ -11,7 +12,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function bytes(stream: NodeJS.ReadableStream): Promise<Buffer> {
+async function bytes(stream: Readable): Promise<Buffer> {
   const parts: Buffer[] = [];
   for await (const chunk of stream) parts.push(Buffer.from(chunk));
   return Buffer.concat(parts);
@@ -23,7 +24,7 @@ describe('Pterodactyl download streaming', () => {
     const payload = Buffer.from('binary-file\x00-and-safe');
     const response = new Response(payload);
     response.arrayBuffer = vi.fn(async () => { throw new Error('Must not buffer a full file.'); });
-    const calls = vi.fn(async () => response);
+    const calls = vi.fn(async (_input: string | URL, _options?: RequestInit) => response);
     vi.stubGlobal('fetch', calls);
 
     const stream = await downloadFile(TOKEN, 'server-uuid', '/logs/test.bin');
