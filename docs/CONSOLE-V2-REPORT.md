@@ -11,7 +11,7 @@ Verification levels used below: **implemented** (code written), **typechecked**,
 | Deploy catalog: sort, availability filter, resources line, rewritten product copy (74 descriptions applied to the catalog) | implemented, browser tested, descriptions production verified (dry run 0 left) |
 | Apps & databases, Billing, Domains, Settings, Email, Notifications, Tickets, Servers pages | implemented, browser tested with fixtures; Settings now tabs, Panel header actions right-aligned |
 | Domains: three-step verification text | implemented, browser tested |
-| VPS page in tabs: Overview (usage), Console, Snapshots, Image and reinstall, Settings | implemented, typechecked, browser tested with fixtures |
+| VPS page in tabs: Overview (usage), Console, Snapshots, Image and reinstall, Settings | implemented, typechecked, browser tested with fixtures, deployed |
 | VPS backend: usage, rename, SSH key change, reinstall, snapshots, ISO mount/eject, serial console relay | implemented, typechecked. Proxmox calls verified with the platform token: usage, snapshot create/delete, ISO listing, termproxy reaching the login prompt. Key change, reinstall, ISO mount, restore **not exercised** |
 | Staff: act as a customer (1 h, marked session, sensitive routes refused, audited), admin Servers page (power, retry, reinstall, delete) | implemented, typechecked, migration applied in production; **not exercised through the UI** |
 | VPS launch prices (2.49 / 3.49 / 4.49 / 6.99 EUR, dedicated IPv4 +3.99) | applied to the catalog and read back from the public API |
