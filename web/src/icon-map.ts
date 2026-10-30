@@ -37,6 +37,7 @@ export interface IconSpec {
 export const ICONS = {
   arrow: { name: "arrow-right" },
   arrowUR: { name: "arrow-up-right-from-square" },
+  logout: { name: "right-from-bracket" },
   check: { name: "check" },
   plus: { name: "plus" },
   minus: { name: "minus" },

@@ -237,6 +237,26 @@ export function AppShell({
               <Icon name="arrowUR" size={17} />
               Back to site
             </Link>
+            {user && (
+              <div className="mt-2 flex items-center gap-2.5 rounded-2xl bg-s2 p-2.5">
+                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-acc-bg text-[13px] font-bold text-acc">
+                  {(user.firstName?.[0] ?? user.email?.[0] ?? '?').toUpperCase()}
+                </span>
+                <span className="grid min-w-0 flex-1 leading-tight">
+                  <b className="truncate text-[13.5px] font-semibold text-ink">{[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email}</b>
+                  <small className="truncate text-[12px] text-ink3">{user.email}</small>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void logout()}
+                  aria-label="Sign out"
+                  title="Sign out"
+                  className="grid size-9 shrink-0 place-items-center rounded-xl text-ink3 hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
+                >
+                  <Icon name="logout" size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </aside>
 
