@@ -168,6 +168,18 @@ export function matchesReservedEntry(hostname: string, entry: string): boolean {
   return hostname === entry || hostname.endsWith(`.${entry}`);
 }
 
+/**
+ * True when the hostname is one of the names the platform keeps for itself,
+ * under its own base. The base itself is on the list of the reserved names, so
+ * every name under it would match: here the base is left out, and only the
+ * names the platform really uses are refused.
+ */
+async function isReservedPlatformName(hostname: string): Promise<boolean> {
+  const base = env.DOMAIN_BASE.trim().toLowerCase();
+  const entries = await reservedDomains();
+  return entries.some((entry) => entry !== base && matchesReservedEntry(hostname, entry));
+}
+
 async function isReservedHostname(hostname: string): Promise<boolean> {
   const entries = await reservedDomains();
   return entries.some((entry) => matchesReservedEntry(hostname, entry));
@@ -349,7 +361,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       throw conflict(`The address can change once in 7 days. You can change it again on ${wait.toISOString().slice(0, 10)}.`);
     }
 
-    if (await isReservedHostname(hostname)) throw badRequest('That name is reserved by the platform.');
+    if (await isReservedPlatformName(hostname)) throw badRequest('That name is reserved by the platform.');
     const taken = await prisma.instanceDomain.findUnique({ where: { hostname }, select: { id: true } });
     if (taken) throw conflict('That name is taken. Choose another one.');
 

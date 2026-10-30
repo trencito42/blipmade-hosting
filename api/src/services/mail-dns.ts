@@ -99,9 +99,40 @@ export interface MailDnsLookup {
   error: string | null;
 }
 
+/**
+ * The resolver that answers for a name.
+ *
+ * The check asks the name servers of the zone themselves, so a record that the
+ * customer has just published is seen at once and an answer that a resolver
+ * kept in its cache does not hide it. When the name servers cannot be found,
+ * the public resolvers are asked, and the resolver of the machine is the last
+ * resort.
+ */
+async function resolverFor(name: string): Promise<Resolver> {
+  const options = { timeout: LOOKUP_TIMEOUT_MS, tries: 2 };
+  const fallback = new Resolver(options);
+  fallback.setServers(['1.1.1.1', '8.8.8.8']);
+  try {
+    const labels = name.toLowerCase().split('.');
+    for (let index = 0; index < labels.length - 1; index += 1) {
+      const zone = labels.slice(index).join('.');
+      const hosts = await fallback.resolveNs(zone).catch(() => [] as string[]);
+      if (!hosts.length) continue;
+      const addresses = (await Promise.all(hosts.map((host) => fallback.resolve4(host).catch(() => [] as string[])))).flat();
+      if (!addresses.length) break;
+      const own = new Resolver(options);
+      own.setServers(addresses.slice(0, 4));
+      return own;
+    }
+  } catch {
+    /* The public resolvers answer instead. */
+  }
+  return fallback;
+}
+
 /** Reads the records of a name. */
 export async function lookupRecords(name: string, type: 'MX' | 'TXT' | 'CNAME'): Promise<MailDnsLookup> {
-  const resolver = new Resolver({ timeout: LOOKUP_TIMEOUT_MS, tries: 2 });
+  const resolver = await resolverFor(name);
   try {
     if (type === 'MX') {
       const answer = await resolver.resolveMx(name);
