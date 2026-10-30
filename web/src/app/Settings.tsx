@@ -246,6 +246,7 @@ function ProfilePanel({
   onChanged: () => void;
 }) {
   const toast = useToast();
+  const { logout } = useSession();
   const [firstName, setFirstName] = useState(data.profile.firstName);
   const [lastName, setLastName] = useState(data.profile.lastName);
   const [touched, setTouched] = useState(false);
@@ -296,7 +297,7 @@ function ProfilePanel({
   };
 
   return (
-    <Panel title="Profile" description="The details of your Blipmade account.">
+    <Panel title="Profile" description="The details of your Blipmade account." action={<SoftButton onClick={() => void logout()}>Sign out</SoftButton>}>
       <div className="grid gap-4">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
           <TextInput
