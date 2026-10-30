@@ -1,13 +1,14 @@
 import type { CSSProperties } from 'react';
 import { Configurator } from './Configurator';
+import { Globe } from './Globe';
 import { APP_COPY, FALLBACK, NOT_YET, TODAY, faqFor } from './content';
 import { orderableOf, useProducts, useRates } from './catalog';
 import { priceOfResources, eur, fmtRam } from './pricing';
-import { Icon } from '../icons';
+import { Icon, ProductMark } from '../icons';
 import type { IconName } from '../icon-map';
 import { Link } from '../router';
 import { RadarLogo } from './RadarLogo';
-import { CATEGORIES } from './categories';
+import { CATEGORIES, categoryOf } from './categories';
 import { Btn, Wrap, cx } from './ui';
 import { useSession } from '../session';
 import { homeOf } from '../auth-guard';
@@ -26,23 +27,82 @@ function Hero() {
   // products the visitor can actually buy.
   const products = orderableOf(useProducts());
   const from = products.length ? Math.min(...products.map((product) => product.minPrice)) : 0;
+  const mail = products.find((product) => product.slug === 'email-hosting-starter');
   const { user } = useSession();
   return (
     <section aria-labelledby="h1">
-      <Wrap className="grid items-start gap-12 pt-12 pb-16 sm:pt-20 sm:pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-16">
-        <div className="grid content-start gap-7 lg:pt-8">
-          <h1 id="h1" className="rise text-[clamp(42px,6.4vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]">Hosting for everything you run.</h1>
-          <p className="rise max-w-[34em] text-[clamp(18px,1.6vw,21px)] text-ink-2" style={{ '--i': 2 } as CSSProperties}>
-            Bots, game servers, databases and developer tools. Pick the RAM, CPU and disk, watch the price move, and run it all from one dashboard.
-            From {eur(from)} a month.
-          </p>
-          <div className="rise flex flex-wrap gap-3" style={{ '--i': 3 } as CSSProperties}>
-            <Btn to={user ? homeOf(user.role) : '/register'} size="lg">{user ? 'Open dashboard' : 'Get started'}</Btn>
-            <Btn to="/apps" variant="outline" size="lg">Browse the catalog</Btn>
+      <div className="relative isolate overflow-hidden">
+        <Wrap className="relative z-10 pt-12 pb-4 sm:pt-20 lg:min-h-[600px] lg:pb-10">
+          <div className="grid content-start gap-7 lg:max-w-[600px] lg:pt-10">
+            {mail ? (
+              <Link
+                to="/email"
+                className="rise group inline-flex h-9 w-fit items-center gap-2.5 rounded-full border border-line bg-paper-2/70 pr-3.5 pl-2 text-[13.5px] font-medium backdrop-blur transition-colors hover:border-green"
+              >
+                <span className="rounded-full bg-green px-2 py-0.5 text-[11.5px] font-bold text-night">New</span>
+                Hosted email from {eur(mail.minPrice)} a month
+                <Icon name="arrow" size={11} className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            ) : null}
+            <h1 id="h1" className="rise text-[clamp(42px,6.4vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]" style={{ '--i': 1 } as CSSProperties}>
+              Hosting for everything you run.
+            </h1>
+            <p className="rise max-w-[32em] text-[clamp(18px,1.6vw,21px)] text-ink-2" style={{ '--i': 2 } as CSSProperties}>
+              Bots, game servers, databases and developer tools. Pick the RAM, CPU and disk, watch the price move, and run it all from one dashboard.
+              From {eur(from)} a month.
+            </p>
+            <div className="rise flex flex-wrap gap-3" style={{ '--i': 3 } as CSSProperties}>
+              <Btn to={user ? homeOf(user.role) : '/register'} size="lg">{user ? 'Open dashboard' : 'Get started'}</Btn>
+              <Btn to="/apps" variant="outline" size="lg">Browse the catalog</Btn>
+            </div>
           </div>
-        </div>
-        <Configurator className="rise lg:sticky lg:top-24" />
+        </Wrap>
+        <Globe className="relative mx-auto -mt-2 h-[340px] w-full max-w-[540px] sm:h-[440px] lg:absolute lg:inset-y-0 lg:right-[-7%] lg:z-0 lg:mt-0 lg:h-full lg:w-[58%] lg:max-w-none" />
+        <p className="pointer-events-none relative z-10 px-6 pb-2 text-center text-[12px] text-ink-3 lg:absolute lg:right-10 lg:bottom-9 lg:p-0">
+          Illustration: instances being started around the world.
+        </p>
+      </div>
+      <Wrap className="relative z-10 pb-14 lg:-mt-6 lg:pb-20">
+        <Configurator layout="bar" className="rise" />
       </Wrap>
+    </section>
+  );
+}
+
+/**
+ * The products of the catalog, drifting past: a strip of the logos the visitor
+ * can run here. It stops when the pointer is on it and it does not move for a
+ * reader who asked for less motion.
+ */
+function Strip() {
+  const products = orderableOf(useProducts()).filter((product) => !product.slug.startsWith('email-hosting'));
+  if (products.length < 6) return null;
+  const row = (hidden: boolean) => (
+    <ul aria-hidden={hidden || undefined} className="flex shrink-0 items-center gap-3 pr-3">
+      {products.map((product) => (
+        <li key={`${hidden ? 'b' : 'a'}-${product.slug}`}>
+          <Link
+            to={`/apps/${product.slug}`}
+            tabIndex={hidden ? -1 : undefined}
+            className="flex h-12 items-center gap-2.5 rounded-full border border-line bg-paper-2/60 pr-5 pl-2 text-[14.5px] font-medium text-ink-2 transition-colors hover:border-green hover:text-ink"
+          >
+            <span className="grid size-8 place-items-center rounded-full bg-night-3 text-snow">
+              <ProductMark slug={product.slug} fallback={categoryOf(product.category).icon} size={16} />
+            </span>
+            {product.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <section aria-label="Products you can run" className="border-y border-line py-5">
+      <div className="strip group flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_8%,#000_92%,transparent)]">
+        <div className="strip-track flex shrink-0 group-hover:[animation-play-state:paused]">
+          {row(false)}
+          {row(true)}
+        </div>
+      </div>
     </section>
   );
 }
@@ -342,6 +402,7 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <Strip />
       <Rates />
       <AppsRow />
       <UseCases />

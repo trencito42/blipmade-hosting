@@ -96,6 +96,7 @@ export const TODAY = [
   'Manual backups you can download',
   'Hostnames you attach to an instance',
   'Tickets answered in the same thread, plus email',
+  'Payment by card, with an invoice for every payment',
 ];
 
 /** What the platform does not do yet. */
@@ -103,7 +104,6 @@ export const NOT_YET = [
   'SSH or SFTP access',
   'Backups on a schedule',
   'Automatic HTTPS certificates for your own domains',
-  'Payments by card',
   'A phone line or live chat',
   'Published traffic or uptime guarantees',
 ];

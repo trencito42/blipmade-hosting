@@ -71,10 +71,12 @@ export interface ConfiguratorProps {
   slug?: string;
   /** The product cannot be changed: the page is about one product. */
   lock?: boolean;
+  /** `bar` lays the controls in one row, for a page that has room across. */
+  layout?: 'card' | 'bar';
   className?: string;
 }
 
-export function Configurator({ slug = 'discord-bot', lock = false, className }: ConfiguratorProps) {
+export function Configurator({ slug = 'discord-bot', lock = false, layout = 'card', className }: ConfiguratorProps) {
   // The control prices an order, so it only carries the products that can be
   // ordered today.
   const products = orderableOf(useProducts());
@@ -122,6 +124,61 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
     ['Disk', `${fmtDisk(resources.disk)} × ${eur(rates.diskPerGb)} per GB`, b.disk, SEG[2]],
     ['Base fee', 'every instance', b.base, SEG[3]],
   ];
+
+  if (layout === 'bar') {
+    return (
+      <section aria-label="Price configurator" className={cx('on-night rounded-[28px] bg-night p-5 text-snow sm:p-6 lg:rounded-[32px] lg:p-7', className)}>
+        <div className="grid gap-5 lg:grid-cols-[minmax(290px,1.35fr)_repeat(3,minmax(0,1fr))_auto] lg:items-start lg:gap-7">
+          <fieldset className="grid gap-2">
+            <legend className="mb-2 font-display text-[15px] font-semibold tracking-[-0.01em] text-snow-2">What are you running?</legend>
+            <AppPicker
+              options={choices.map((product) => ({ slug: product.slug, label: product.slug.startsWith('minecraft-') ? 'Minecraft' : product.name, product }))}
+              selected={choiceSelected(current.slug) && current.slug.startsWith('minecraft-') ? minecraft?.slug ?? current.slug : current.slug}
+              onPick={pick}
+            />
+            {current.slug.startsWith('minecraft-') && (
+              <select aria-label="Minecraft edition" value={current.slug} onChange={(event) => pick(event.target.value)} className="min-h-10 rounded-xl border border-night-line bg-night-2 px-3 text-[14px] text-snow focus-visible:outline-2 focus-visible:outline-mint">
+                {[['minecraft-paper', 'Paper'], ['minecraft-forge', 'Forge'], ['minecraft-vanilla', 'Vanilla'], ['minecraft-bedrock', 'Bedrock'], ['minecraft-folia', 'Folia']].map(([value, label]) => (
+                  <option key={value} value={value} disabled={!products.some((product) => product.slug === value)}>{label}{products.some((product) => product.slug === value) ? '' : ' — coming soon'}</option>
+                ))}
+              </select>
+            )}
+          </fieldset>
+          <Slider label="RAM" value={resources.ram} min={current.min.ram} max={current.max.ram} step={256} text={fmtRam(resources.ram)} onChange={set('ram')} hint={`${fmtRam(current.min.ram)}|${fmtRam(current.max.ram)}`} />
+          <Slider label="vCPU" value={resources.cpu} min={current.min.cpu} max={current.max.cpu} step={1} text={String(resources.cpu)} onChange={set('cpu')} hint={`${current.min.cpu}|${current.max.cpu}`} />
+          <Slider label="Disk" value={resources.disk} min={current.min.disk} max={current.max.disk} step={diskStep} text={fmtDisk(resources.disk)} onChange={set('disk')} hint={`${current.min.disk} GB|${current.max.disk} GB`} />
+          <div className="flex items-end justify-between gap-4 lg:grid lg:justify-items-end lg:gap-3">
+            <div className="lg:text-right">
+              <p className="text-[13px] text-snow-2">Total per month</p>
+              <p className="big text-[38px] leading-none" role="status" aria-live="polite">{eur(b.total)}</p>
+            </div>
+            <Btn to={user ? `/app/deploy/${current.slug}?${query}` : `/register?${query}`} variant="mint" size="lg">
+              {user ? 'Deploy' : 'Get started'}
+            </Btn>
+          </div>
+        </div>
+        <div className="mt-5 grid items-center gap-3 border-t border-night-line pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
+          <div
+            className="flex h-2 overflow-hidden rounded-full bg-night-3"
+            role="img"
+            aria-label={`Where the price goes: RAM ${eur(b.ram)}, vCPU ${eur(b.cpu)}, disk ${eur(b.disk)}, base fee ${eur(b.base)}`}
+          >
+            {parts.map((value, index) => (
+              <span key={index} className="h-full transition-[width] duration-300 ease-out" style={{ width: `${(value / b.total) * 100}%`, background: SEG[index] }} />
+            ))}
+          </div>
+          <ul className="num flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-snow-2">
+            {rows.map(([k, , v, c]) => (
+              <li key={k} className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="size-2 rounded-full" style={{ background: c }} />
+                {k} {eur(v)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section aria-label="Price configurator" className={cx('on-night rounded-[28px] bg-night p-5 text-snow sm:rounded-[32px] sm:p-8', className)}>
@@ -211,7 +268,7 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
         {user ? 'Deploy this configuration' : 'Create account and deploy'}
       </Btn>
       <p className="mt-4 text-[13.5px] leading-relaxed text-snow-2">
-        Euros per month. During launch, payment is completed with our team after you place the order.
+        Euros per month. You pay by card when you place the order.
       </p>
     </section>
   );

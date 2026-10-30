@@ -283,6 +283,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(
    share one period, and a marker takes its delay from the angle it stands at,
    so it lights as the line passes. */
 @keyframes radar-sweep { to { transform: rotate(360deg); } }
+/* The strip of products: the track holds the row twice, so moving it by half its width loops without a jump. */
+@keyframes strip-drift { to { transform: translateX(-50%); } }
+.strip-track { animation: strip-drift 60s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .strip-track { animation: none; } .strip { overflow-x: auto; } }
 @keyframes radar-ping { from { opacity: 0.5; transform: scale(1); } to { opacity: 0; transform: scale(6); } }
 @keyframes radar-blip { 0% { opacity: 1; } 55% { opacity: 0.5; } 100% { opacity: 0.12; } }
 @keyframes radar-arc { 0%, 100% { fill: #f3f6f2; } 25%, 50% { fill: #4ee595; } }
