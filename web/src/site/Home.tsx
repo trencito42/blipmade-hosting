@@ -6,7 +6,7 @@ import { priceOfResources, eur, fmtRam } from './pricing';
 import { Icon } from '../icons';
 import type { IconName } from '../icon-map';
 import { Link } from '../router';
-import { BlipField } from './BlipField';
+import { RadarLogo } from './RadarLogo';
 import { CATEGORIES } from './categories';
 import { Btn, Wrap, cx } from './ui';
 
@@ -324,15 +324,19 @@ function Faq() {
 
 function Closing() {
   return (
-    <section aria-labelledby="cta-h" className="on-night relative m-2 overflow-hidden rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[40px]">
-      <BlipField className="absolute inset-y-0 right-0 hidden h-full w-[46%] md:block" />
-      <Wrap className="relative grid justify-items-start gap-8 py-20 sm:py-28">
-        <h2 id="cta-h" className="max-w-[12em] text-[clamp(40px,6.4vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]">Size it. Order it. Put your code in.</h2>
-        <p className="max-w-[30em] text-[18px] text-snow-2">Create an account, move the sliders until the price and the specs fit, and deploy a container that is yours.</p>
-        <div className="flex flex-wrap gap-3">
-          <Btn to="/register" variant="mint" size="lg">Create account</Btn>
-          <Btn to="/docs" variant="outline-night" size="lg">Read the docs</Btn>
+    <section aria-labelledby="cta-h" className="on-night m-2 overflow-hidden rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[40px]">
+      <Wrap className="grid items-center gap-10 py-16 sm:py-24 md:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid justify-items-start gap-7">
+          <h2 id="cta-h" className="max-w-[10em] text-[clamp(40px,6vw,76px)] leading-[0.96] font-semibold tracking-[-0.05em]">Ready to get online?</h2>
+          <p className="max-w-[28em] text-[18px] text-snow-2">
+            Create an account, move the sliders until the price and the specs fit, and deploy a container that is yours. We are listening on the other end.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Btn to="/register" variant="mint" size="lg">Create account</Btn>
+            <Btn to="/docs" variant="outline-night" size="lg">Read the docs</Btn>
+          </div>
         </div>
+        <RadarLogo className="mx-auto aspect-[800/656] w-full max-w-[560px] md:-mr-6" />
       </Wrap>
     </section>
   );
