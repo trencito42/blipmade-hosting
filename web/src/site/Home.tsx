@@ -58,9 +58,6 @@ function Hero() {
           </div>
         </Wrap>
         <Globe className="relative mx-auto -mt-2 h-[340px] w-full max-w-[540px] sm:h-[440px] lg:absolute lg:inset-y-0 lg:right-[-7%] lg:z-0 lg:mt-0 lg:h-full lg:w-[58%] lg:max-w-none" />
-        <p className="pointer-events-none relative z-10 px-6 pb-2 text-center text-[12px] text-ink-3 lg:absolute lg:right-10 lg:bottom-9 lg:p-0">
-          Illustration: instances being started around the world.
-        </p>
       </div>
       <Wrap className="relative z-10 pb-14 lg:-mt-6 lg:pb-20">
         <Configurator layout="bar" className="rise" />

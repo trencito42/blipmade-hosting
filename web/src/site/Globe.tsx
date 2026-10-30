@@ -548,7 +548,7 @@ export function Globe({ className }: { className?: string }) {
   }, []);
 
   return (
-    <div ref={host} className={className} role="img" aria-label="A globe where instances are started around the world and connect to the Blipmade servers. An illustration.">
+    <div ref={host} className={className} role="img" aria-label="A globe where instances are started around the world and connect to the Blipmade servers.">
       <canvas ref={glCanvas} aria-hidden="true" className="absolute inset-0 size-full" />
       <canvas ref={overlay} aria-hidden="true" className="absolute inset-0 size-full cursor-grab touch-pan-y active:cursor-grabbing" />
     </div>
