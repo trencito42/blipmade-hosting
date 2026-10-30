@@ -278,6 +278,9 @@ export function subscriptionPeriod(subscription: Subscription): string {
   if (subscription.stripeManaged === false) {
     return `Paid through ${date}. Automatic renewal is not set up.`;
   }
+  if (subscription.status.toUpperCase() === 'PAST_DUE') {
+    return `The payment due on ${date} did not go through. Update the payment method to keep the service.`;
+  }
   return `Renews ${date}`;
 }
 
@@ -514,7 +517,7 @@ export default function Billing() {
       </section>
 
       {/* Payment method action */}
-      <Panel title="Payment method">
+      <Panel title="Card and billing portal">
         <div className="grid gap-3">
           {paymentAvailable && (
             <p className="text-[14px] text-ink2">
@@ -557,7 +560,7 @@ export default function Billing() {
       </Panel>
 
       {/* Subscriptions */}
-      <Panel title="Subscriptions" description="One subscription per instance.">
+      <Panel title="Subscriptions" description="One subscription for each app, server, VPS and mail plan.">
         {subscriptionsState.loading ? (
           <LoadingBlock rows={2} label="Loading your subscriptions" />
         ) : subscriptionsState.error ? (
@@ -602,7 +605,7 @@ export default function Billing() {
                     </span>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
                   {subscriptionAction(subscription) === 'resume' ? (
                     <SoftButton
                       onClick={() => {

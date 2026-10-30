@@ -145,7 +145,7 @@ describe('the draft plans of hosted mail', () => {
     }
   });
 
-  it('writes no price at all, and says that the plan is not priced yet', async () => {
+  it('writes no price at all', async () => {
     const rows = await prisma.product.findMany({ where: { fulfilment: 'EMAIL' }, include: { prices: true } });
 
     for (const row of rows) {
@@ -153,8 +153,10 @@ describe('the draft plans of hosted mail', () => {
       // and not written.
       expect(row.prices).toHaveLength(0);
       expect(await prisma.productPrice.count({ where: { productId: row.id } })).toBe(0);
-      // The back office says why there is no price.
-      expect(row.description).toMatch(/not priced yet/i);
+      // The description is text for the customer: it says what the plan holds and never states a
+      // price or a sale that the plan does not have. Whether a plan can be ordered is what the
+      // flags say, not the words.
+      expect(row.description).not.toMatch(/\d+\s*(€|eur)/i);
     }
   });
 

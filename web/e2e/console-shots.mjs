@@ -15,7 +15,7 @@ const OUT = process.argv[3] ?? '/tmp/console-shots';
 const ROUTES = ['/app', '/app/deploy', '/app/instances', '/app/vps', '/app/domains', '/app/mail', '/app/billing', '/app/tickets', '/app/settings', '/app/notifications'];
 const SIZES = [[320, 700], [390, 844], [768, 1024], [1280, 800], [1920, 1000]];
 const SCREENSHOT_SIZES = new Set([390, 1280]);
-const KINDS = ['full', 'new', 'down'];
+const KINDS = (process.env.KINDS ?? 'full,new,down').split(',');
 
 await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch();
@@ -55,33 +55,40 @@ for (const kind of KINDS) {
     });
 
     for (const route of ROUTES) {
-      await page.goto(`${BASE}${route}`, { waitUntil: 'networkidle' });
-      await page.waitForTimeout(500);
-      const overflow = await page.evaluate(() => {
-        const limit = window.innerWidth;
-        const wide = document.documentElement.scrollWidth > limit + 1;
-        const offenders = [];
-        if (wide) {
-          for (const element of document.querySelectorAll('body *')) {
-            const box = element.getBoundingClientRect();
-            if (box.width > 0 && box.right > limit + 1 && offenders.length < 3) offenders.push(`${element.tagName.toLowerCase()}.${String(element.className).slice(0, 50)} right=${Math.round(box.right)}`);
+      try {
+        await page.goto(`${BASE}${route}`, { waitUntil: 'networkidle', timeout: 20000 });
+        await page.waitForTimeout(500);
+        const overflow = await page.evaluate(() => {
+          const limit = window.innerWidth;
+          const wide = document.documentElement.scrollWidth > limit + 1;
+          const offenders = [];
+          if (wide) {
+            for (const element of document.querySelectorAll('body *')) {
+              const box = element.getBoundingClientRect();
+              if (box.width > 0 && box.right > limit + 1 && offenders.length < 3) offenders.push(`${element.tagName.toLowerCase()}.${String(element.className).slice(0, 50)} right=${Math.round(box.right)}`);
+            }
           }
+          return { wide, scrollWidth: document.documentElement.scrollWidth, offenders };
+        });
+        if (SCREENSHOT_SIZES.has(width)) {
+          const name = `${kind}${route.replace(/\//g, '_')}-${width}.png`;
+          await page.screenshot({ path: `${OUT}/${name}`, fullPage: true });
         }
-        return { wide, scrollWidth: document.documentElement.scrollWidth, offenders };
-      });
-      if (SCREENSHOT_SIZES.has(width)) {
-        const name = `${kind}${route.replace(/\//g, '_')}-${width}.png`;
-        await page.screenshot({ path: `${OUT}/${name}`, fullPage: true });
+        report.push({ kind, route, width, overflow: overflow.wide, scrollWidth: overflow.scrollWidth, offenders: overflow.offenders, errors: [...errors] });
+      } catch (error) {
+        // A page that cannot be opened is a finding, not the end of the run.
+        console.log(`  could not check ${kind} ${route} @${width}: ${String(error).slice(0, 140)}`);
+        report.push({ kind, route, width, overflow: false, scrollWidth: 0, offenders: [], errors: [`check failed: ${String(error).slice(0, 140)}`] });
+        break;
       }
-      report.push({ kind, route, width, overflow: overflow.wide, scrollWidth: overflow.scrollWidth, offenders: overflow.offenders, errors: [...errors] });
       errors.length = 0;
     }
-    await context.close();
+    await context.close().catch(() => undefined);
   }
 }
-await browser.close();
+await browser.close().catch(() => undefined);
 
-await writeFile(`${OUT}/report.json`, JSON.stringify(report, null, 1));
+await writeFile(`${OUT}/report-${KINDS.join('-')}.json`, JSON.stringify(report, null, 1));
 const overflowing = report.filter((entry) => entry.overflow);
 const erroring = report.filter((entry) => entry.errors.length);
 console.log(`checked ${report.length} page views: ${overflowing.length} with horizontal overflow, ${erroring.length} with errors`);

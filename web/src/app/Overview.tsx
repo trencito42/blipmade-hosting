@@ -129,7 +129,7 @@ function ServiceLine({ row }: { row: ServiceRow }) {
     <li>
       <Link
         to={row.to}
-        className="grid items-center gap-x-4 gap-y-2 rounded-2xl bg-s2 p-3.5 transition-colors duration-150 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:grid-cols-[minmax(0,1.6fr)_auto_minmax(0,1.3fr)_minmax(86px,auto)] md:p-3"
+        className="grid items-center gap-x-4 gap-y-2 rounded-2xl bg-s2 p-3.5 transition-colors duration-150 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:grid-cols-[minmax(0,1.6fr)_112px_minmax(0,1.3fr)_96px] md:p-3"
       >
         <span className="flex min-w-0 items-center gap-3">
           <ServiceTile row={row} />

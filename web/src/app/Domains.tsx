@@ -462,15 +462,15 @@ export default function Domains() {
       </Panel>
 
       <Panel
-        title="The domains of the mail are elsewhere"
-        description="This page holds the domains of your servers: the ones that are routed to an instance. The domains of the hosted mail, with their proof of ownership and their records of DNS, are in the email section."
+        title="Email domains"
+        description="This page lists the domains routed to your apps and servers. Domains used for hosted email, with their ownership proof and DNS records, are managed in the Email section."
       >
         <div className="flex flex-wrap items-center gap-3">
           <ButtonLink to="/app/mail" variant="soft">
-            The email hosting of the account
+            Go to Email
           </ButtonLink>
           <span className="text-sm text-slate-500">
-            A domain of mail and a domain of a server are two different things, and they are managed apart.
+            An email domain and an app domain are separate and managed separately.
           </span>
         </div>
       </Panel>

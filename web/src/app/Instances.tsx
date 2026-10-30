@@ -57,7 +57,7 @@ function InstanceStatus({ instance }: { instance: Instance }) {
 }
 
 function limitsOf(instance: Instance): string {
-  return `${fmtRam(instance.ram)} · ${instance.cpu} vCPU · ${instance.disk} GB disk`;
+  return `${fmtRam(instance.ram)} · ${instance.cpu} vCPU · ${instance.disk} GB`;
 }
 
 /**
@@ -254,6 +254,7 @@ export default function Instances() {
                 key: 'instance',
                 header: 'Instance',
                 truncate: true,
+                width: '24%',
                 render: (instance: Instance) => (
                   <Link
                     to={`/app/instances/${instance.id}`}
@@ -301,6 +302,7 @@ export default function Instances() {
                 key: 'address',
                 header: 'Address',
                 truncate: true,
+                width: '24%',
                 render: (instance: Instance) =>
                   instance.url ? (
                     <a
