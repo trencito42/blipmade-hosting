@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollRow } from '../ScrollRow';
 import { Link } from '../router';
 import { useRevealOnChange } from '../lib/useReveal';
 import { categoryOf, categoryOrder } from '../site/categories';
@@ -232,7 +233,7 @@ export default function DeployCatalog() {
       </div>
 
       <div className="grid gap-3 sm:flex sm:items-center">
-        <nav aria-label="Filter the catalog by category" className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
+        <ScrollRow label="Filter the catalog by category" className="flex-1">
           <div className="flex w-max gap-1.5">
             {['All', ...categories].map((code) => {
               const meta = categoryOf(code);
@@ -253,7 +254,7 @@ export default function DeployCatalog() {
               );
             })}
           </div>
-        </nav>
+        </ScrollRow>
         <div className="relative sm:w-64">
           <Icon name="search" size={14} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink3" />
           <input
