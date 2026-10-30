@@ -172,10 +172,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/admin/customers', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
-    const query = z.object({ search: z.string().trim().optional() }).parse(request.query ?? {});
+    const query = z
+      .object({ search: z.string().trim().optional(), role: z.enum(['customer', 'staff', 'all']).default('customer') })
+      .parse(request.query ?? {});
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
     const where: Prisma.UserWhereInput = {
-      role: 'CUSTOMER',
+      // Customers by default. "staff" is the staff and the administrators, "all" is every account.
+      ...(query.role === 'customer' ? { role: 'CUSTOMER' } : query.role === 'staff' ? { role: { in: ['STAFF', 'ADMIN'] } } : {}),
       ...(query.search
         ? {
             OR: [
@@ -207,6 +210,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         id: customer.id,
         email: customer.email,
         name: fullName(customer),
+        role: customer.role.toLowerCase(),
         createdAt: customer.createdAt,
         verified: Boolean(customer.emailVerifiedAt),
         suspended: Boolean(customer.suspendedAt),

@@ -19,6 +19,7 @@ interface AdminCustomer {
   id: string;
   email: string;
   name: string | null;
+  role?: string;
   createdAt: string;
   verified: boolean;
   suspended: boolean;
@@ -32,6 +33,7 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [showEmails, setShowEmails] = useState(false);
+  const [role, setRole] = useState<'all' | 'customer' | 'staff'>('all');
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(search.trim()), 300);
@@ -39,8 +41,8 @@ export default function Customers() {
   }, [search]);
 
   const state = useAsync(
-    (signal) => get<{ customers: AdminCustomer[]; total?: number }>('/admin/customers', { search: query || undefined }, signal),
-    [query],
+    (signal) => get<{ customers: AdminCustomer[]; total?: number }>('/admin/customers', { search: query || undefined, role }, signal),
+    [query, role],
   );
 
   const customers = state.data?.customers ?? [];
@@ -59,6 +61,9 @@ export default function Customers() {
         >
           <span className="block truncate text-[14px] font-medium tracking-[-0.02em] text-ink" title={customer.name ?? 'No name'}>
             {customer.name ?? 'No name'}
+            {customer.role && customer.role !== 'customer' && (
+              <span className="ml-2 rounded-full bg-s3 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[0.06em] text-ink2">{customer.role}</span>
+            )}
             {customer.suspended && (
               <span className="ml-2 align-middle">
                 <StatusPill status="suspended" label="Suspended" />
@@ -139,6 +144,13 @@ export default function Customers() {
         }
       >
         <div className="grid gap-3">
+          <Field label="Accounts" htmlFor="customer-role">
+            <select id="customer-role" value={role} onChange={(event) => setRole(event.target.value as typeof role)} className={denseInput}>
+              <option value="all">Everyone</option>
+              <option value="customer">Customers</option>
+              <option value="staff">Staff and administrators</option>
+            </select>
+          </Field>
           <Field label="Search" htmlFor="customer-search" hint="Matches the name or the e-mail address.">
             <input
               id="customer-search"
@@ -162,7 +174,7 @@ export default function Customers() {
             />
           ) : !customers.length ? (
             <EmptyState
-              title={query ? 'No customer matches that search.' : 'No customers yet.'}
+              title={query ? 'No account matches that search.' : 'No accounts yet.'}
               description={
                 query
                   ? 'Try a different name or e-mail address.'
