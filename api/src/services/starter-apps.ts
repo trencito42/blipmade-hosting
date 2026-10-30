@@ -201,7 +201,7 @@ class Handler(BaseHTTPRequestHandler):
             body = json.dumps({"status": "ok", "app": ${JSON.stringify(input.slug)}, "uptime": round(time.time() - started_at)}).encode()
             content_type = "application/json"
         else:
-            body = (${JSON.stringify(input.name)} + " is running on Blipmade.\n").encode()
+            body = (${JSON.stringify(input.name)} + " is running on Blipmade.\\n").encode()
             content_type = "text/plain; charset=utf-8"
         self.send_response(200)
         self.send_header("Content-Type", content_type)
@@ -237,7 +237,7 @@ http.createServer(function (req, res)
     body = '{"status":"ok","app":' .. ${JSON.stringify(JSON.stringify(input.slug))} .. ',"uptime":' .. (os.time() - startedAt) .. '}'
     contentType = 'application/json'
   else
-    body = ${JSON.stringify(input.name)} .. ' is running on Blipmade.\n'
+    body = ${JSON.stringify(input.name)} .. ' is running on Blipmade.\\n'
     contentType = 'text/plain; charset=utf-8'
   end
   res:setHeader('Content-Type', contentType)

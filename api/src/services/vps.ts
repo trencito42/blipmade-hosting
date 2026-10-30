@@ -246,3 +246,77 @@ export async function destroyVps(serviceId: string): Promise<void> {
   }
   await prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'CANCELLED' } });
 }
+
+/** How long a machine whose subscription ended is kept before it is deleted. */
+const RETENTION_DAYS = 14;
+/** How long a payment that failed is waited for before the machine is stopped. */
+const PAST_DUE_GRACE_DAYS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Keeps the machines in step with the subscriptions that pay for them.
+ *
+ * - A machine whose subscription was cancelled, or whose payment has failed for
+ *   longer than the grace, is stopped. Its disk is kept.
+ * - A machine that was stopped for that reason starts again when the subscription is
+ *   paid again.
+ * - A machine that has been stopped for longer than the retention is deleted.
+ *
+ * It runs on a timer, so a call that fails once is made again on the next run.
+ */
+export async function sweepVps(): Promise<{ suspended: number; resumed: number; deleted: number }> {
+  const now = new Date();
+  let suspended = 0;
+  let resumed = 0;
+  let deleted = 0;
+  if (!pve.proxmoxConfigured()) return { suspended, resumed, deleted };
+
+  const live = await prisma.vpsService.findMany({
+    where: { status: 'ACTIVE', subscriptionId: { not: null } },
+    include: { subscription: { select: { status: true, currentPeriodEnd: true } } },
+    take: 100,
+  });
+  for (const service of live) {
+    const subscription = service.subscription;
+    if (!subscription || !service.vmid) continue;
+    const graceEnd = subscription.currentPeriodEnd ? subscription.currentPeriodEnd.getTime() + PAST_DUE_GRACE_DAYS * DAY_MS : 0;
+    const unpaid =
+      subscription.status === 'CANCELLED' ||
+      subscription.status === 'INCOMPLETE_EXPIRED' ||
+      (subscription.status === 'PAST_DUE' && graceEnd < now.getTime());
+    if (!unpaid) continue;
+    try {
+      if (await pve.vmExists(service.vmid)) {
+        const status = await pve.vmStatus(service.vmid);
+        if (status.status === 'running') await pve.power(service.vmid, 'stop');
+      }
+      await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'SUSPENDED', suspendedAt: now } });
+      suspended += 1;
+    } catch (error) {
+      console.error(`[vps] could not stop ${service.id}: ${(error as Error).message}`);
+    }
+  }
+
+  const stopped = await prisma.vpsService.findMany({
+    where: { status: 'SUSPENDED' },
+    include: { subscription: { select: { status: true } } },
+    take: 100,
+  });
+  for (const service of stopped) {
+    const paid = service.subscription?.status === 'ACTIVE' || service.subscription?.status === 'TRIALING';
+    try {
+      if (paid && service.vmid) {
+        await pve.power(service.vmid, 'start');
+        await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'ACTIVE', suspendedAt: null } });
+        resumed += 1;
+      } else if (!paid && service.suspendedAt && now.getTime() - service.suspendedAt.getTime() > RETENTION_DAYS * DAY_MS) {
+        await destroyVps(service.id);
+        deleted += 1;
+      }
+    } catch (error) {
+      console.error(`[vps] could not bring ${service.id} to its state: ${(error as Error).message}`);
+    }
+  }
+
+  return { suspended, resumed, deleted };
+}

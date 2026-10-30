@@ -23,7 +23,7 @@
     "scripts": {
         "installation": {
             "script": "#!/bin/bash \r\nif [ ! -d /mnt/server/ ]; then\r\n    mkdir -p /mnt/server/\r\nfi\r\n\r\ncd /mnt/server/\r\n\r\ncp /etc/mongod.conf.orig /mnt/server/mongod.conf\r\n\r\nmkdir mongodb logs\r\n\r\nmongod --port 27017 --dbpath /mnt/server/mongodb/ --logpath /mnt/server/logs/mongo.log --fork\r\n\r\nmongosh --eval \"db.getSiblingDB('admin').createUser({user: '${MONGO_USER}', pwd: '${MONGO_USER_PASS}', roles: ['root']})\"\r\n\r\nmongosh --eval \"db.getSiblingDB('admin').shutdownServer()\"\r\n\r\n## install end\r\necho \"-----------------------------------------\"\r\necho \"Installation completed...\"\r\necho \"-----------------------------------------\"",
-            "container": "mongo:8-noble",
+            "container": "mongo:8.2-noble",
             "entrypoint": "bash"
         }
     },

@@ -33,7 +33,7 @@ import {
 import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
 import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
-import { provisionVps } from './services/vps.js';
+import { provisionVps, sweepVps } from './services/vps.js';
 import { reconcileDomainRoutes } from './services/domain-routing.js';
 import { dispatchPendingEvents } from './services/notification-dispatch.js';
 import { runOpsSweep } from './services/ops-health.js';
@@ -265,6 +265,10 @@ async function sweepBilling(): Promise<void> {
  * data of a customer is never deleted the moment a payment fails.
  */
 async function sweepMail(): Promise<void> {
+  const vps = await sweepVps().catch(() => ({ suspended: 0, resumed: 0, deleted: 0 }));
+  if (vps.suspended || vps.resumed || vps.deleted) {
+    console.info(`[worker] vps sweep: ${vps.suspended} stopped, ${vps.resumed} started again, ${vps.deleted} deleted after the retention`);
+  }
   const result = await sweepMailServices().catch(() => ({ suspended: 0, deleted: 0 }));
   if (result.suspended || result.deleted) {
     console.info(

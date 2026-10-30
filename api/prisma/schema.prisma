@@ -1395,6 +1395,8 @@ model VpsService {
   /// The public key of the customer, put in the machine at the start.
   sshPublicKey   String
   lastError      String?
+  /// When the machine was stopped because the subscription is not paid. Its data is kept until the retention ends.
+  suspendedAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
