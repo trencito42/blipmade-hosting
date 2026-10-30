@@ -697,6 +697,7 @@ function AccountTools({ customerId, name, emailVerified, onChanged }: { customer
             <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('verify', () => post(`/admin/customers/${customerId}/verify-email`), 'The address is marked as verified.')}>Mark email verified</button>
           )}
           <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('reset', () => post(`/admin/customers/${customerId}/send-password-reset`), 'The reset link was queued for the customer.')}>Send password reset link</button>
+          <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('reset2fa', () => post(`/admin/customers/${customerId}/reset-2fa`), 'Two-factor was reset and the sessions were closed.')}>Reset two-factor</button>
           <button type="button" className={denseDanger} disabled={busy !== null} onClick={() => void run('sessions', () => post(`/admin/customers/${customerId}/revoke-sessions`), 'Every session of the customer was closed.')}>Sign out everywhere</button>
         </div>
       </div>
