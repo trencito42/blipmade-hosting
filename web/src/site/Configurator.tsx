@@ -4,6 +4,7 @@ import { useSession } from '../session';
 import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtDisk, fmtRam, type Rates, type Resources } from './pricing';
 import { Btn, cx } from './ui';
+import { nearestOption, ramGrid } from '../lib/pricing-contract';
 
 /**
  * The configurator of the price.
@@ -97,8 +98,11 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
 
   const clamp = (key: keyof Resources, value: number) => Math.min(current.max[key], Math.max(current.min[key], value));
   const base = raw ?? current.def;
+  // The memory sizes are the ones the deployment page holds, so the size that is
+  // chosen here is the size the deployment opens with.
+  const ramSizes = ramGrid(current.min.ram, current.max.ram, current.def.ram);
   const resources: Resources = {
-    ram: clamp('ram', base.ram),
+    ram: nearestOption(ramSizes, clamp('ram', base.ram)),
     cpu: clamp('cpu', base.cpu),
     disk: clamp('disk', base.disk),
   };
@@ -144,7 +148,16 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
               </select>
             )}
           </fieldset>
-          <Slider label="RAM" value={resources.ram} min={current.min.ram} max={current.max.ram} step={256} text={fmtRam(resources.ram)} onChange={set('ram')} hint={`${fmtRam(current.min.ram)}|${fmtRam(current.max.ram)}`} />
+          <Slider
+          label="RAM"
+          value={ramSizes.indexOf(resources.ram)}
+          min={0}
+          max={ramSizes.length - 1}
+          step={1}
+          text={fmtRam(resources.ram)}
+          onChange={(index) => set('ram')(ramSizes[index] ?? resources.ram)}
+          hint={`${fmtRam(current.min.ram)}|${fmtRam(current.max.ram)}`}
+        />
           <Slider label="vCPU" value={resources.cpu} min={current.min.cpu} max={current.max.cpu} step={1} text={String(resources.cpu)} onChange={set('cpu')} hint={`${current.min.cpu}|${current.max.cpu}`} />
           <Slider label="Disk" value={resources.disk} min={current.min.disk} max={current.max.disk} step={diskStep} text={fmtDisk(resources.disk)} onChange={set('disk')} hint={`${current.min.disk} GB|${current.max.disk} GB`} />
           <div className="flex items-end justify-between gap-4 lg:grid lg:justify-items-end lg:gap-3">
@@ -210,12 +223,12 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
       <div className="mt-6 grid gap-4">
         <Slider
           label="RAM"
-          value={resources.ram}
-          min={current.min.ram}
-          max={current.max.ram}
-          step={256}
+          value={ramSizes.indexOf(resources.ram)}
+          min={0}
+          max={ramSizes.length - 1}
+          step={1}
           text={fmtRam(resources.ram)}
-          onChange={set('ram')}
+          onChange={(index) => set('ram')(ramSizes[index] ?? resources.ram)}
           hint={`${fmtRam(current.min.ram)}|${fmtRam(current.max.ram)}`}
         />
         <Slider

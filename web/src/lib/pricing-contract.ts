@@ -113,9 +113,19 @@ const CPU_STEPS = [0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16];
 
 /** The memory sizes the customer can pick, in megabytes. */
 export function ramOptions(product: CatalogProduct): number[] {
-  const min = product.minRam;
-  const max = Math.max(min, product.maxRam);
-  const values = new Set<number>([min, max, recommendedPreset(product).ram]);
+  return ramGrid(product.minRam, product.maxRam, recommendedPreset(product).ram);
+}
+
+/**
+ * The grid of memory sizes between two limits.
+ *
+ * The page of the catalog and the page of the deployment draw the same grid, so
+ * the size a visitor chooses on the first one is a size the second one holds.
+ */
+export function ramGrid(minRam: number, maxRam: number, recommended: number): number[] {
+  const min = minRam;
+  const max = Math.max(min, maxRam);
+  const values = new Set<number>([min, max, recommended]);
   for (const step of RAM_STEPS_MB) if (step >= min && step <= max) values.add(step);
   return [...values].filter((value) => value >= min && value <= max).sort((a, b) => a - b);
 }

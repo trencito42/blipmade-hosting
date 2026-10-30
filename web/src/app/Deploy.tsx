@@ -963,7 +963,7 @@ export default function Deploy() {
                       <TextInput
                         key={name}
                         id={`deploy-variable-${name}`}
-                        label={spec.label}
+                        label={spec.required ? spec.label : `${spec.label} (optional)`}
                         hint={spec.description}
                         type={spec.type === 'password' ? 'password' : 'text'}
                         autoComplete="off"

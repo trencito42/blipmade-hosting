@@ -266,6 +266,8 @@ export function AuthRegister() {
   const [pw, setPw] = useState('');
   const [err, setErr] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState('');
+  // The address belongs to an account already: the page says so and points at the way in.
+  const [taken, setTaken] = useState(false);
   const [busy, setBusy] = useState(false);
   const [account, setAccount] = useState('');
   const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
@@ -280,6 +282,7 @@ export function AuthRegister() {
     if (passwordIssues(pw).length) next.password = PW_MESSAGE;
     setErr(next);
     setMsg('');
+    setTaken(false);
     if (Object.keys(next).length) return;
 
     setBusy(true);
@@ -290,6 +293,9 @@ export function AuthRegister() {
       if (error instanceof ApiError) {
         if (error.status === 429 || error.code === 'rate_limited') {
           setMsg('Too many attempts. Try again in 5 minutes.');
+        } else if (error.status === 409 || error.code === 'conflict') {
+          setTaken(true);
+          setErr({ email: 'An account already uses this email address.' });
         } else if (error.fields?.email) {
           setErr({ email: error.fields.email });
         } else if (error.fields?.password) {
@@ -384,6 +390,14 @@ export function AuthRegister() {
             {msg ? (
               <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
                 {msg}
+              </p>
+            ) : null}
+            {taken ? (
+              <p role="alert" className="rounded-2xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink-2">
+                You already have an account with this address.{' '}
+                <Link to="/login" className="font-semibold text-ink underline underline-offset-4">Log in</Link>
+                {' '}or{' '}
+                <Link to="/forgot-password" className="font-semibold text-ink underline underline-offset-4">reset your password</Link>.
               </p>
             ) : null}
             <Btn type="submit" size="lg" disabled={busy} className="w-full">
