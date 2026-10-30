@@ -261,29 +261,14 @@ export default function Overview() {
 
       {/* The facts of the account, with the monthly total in the row where it
           belongs instead of a panel of its own. */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label="Services" value={count} hint={count === 1 ? 'one app or database' : 'apps and databases'} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatTile icon="box" label="Services" value={count} hint={count === 1 ? 'one app or database' : 'apps and databases'} />
+        <StatTile icon="card" label="Monthly total" value={<Money amount={total} currency={currency} />} hint="What your services cost per month" />
         <StatTile
-          label="Monthly total"
-          value={<Money amount={total} currency={currency} period="month" />}
-          hint="What your services cost per month"
-        />
-        <StatTile
+          icon={attention.length === 0 ? 'heart' : 'warn'}
           label="Needs attention"
           value={attention.length}
           hint={attention.length === 0 ? 'Everything is running' : 'Open the service below'}
-        />
-        <StatTile
-          label="Deploy"
-          value={
-            // A link that is only a word is too small for a finger, so the
-            // action in this tile is a real button of its own.
-            <ButtonLink to="/app/deploy" variant="soft" className="w-full max-w-full font-sans">
-              <Icon name="rocket" size={15} />
-              Add a service
-            </ButtonLink>
-          }
-          hint="Choose from the catalog"
         />
       </div>
 
@@ -311,12 +296,11 @@ export default function Overview() {
                 </div>
               </div>
 
-              <div className="grid gap-1">
-                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Purchased limits</p>
-                <p className="font-mono text-[13.5px] text-ink">
-                  {fmtRam(instance.ram)} · {instance.cpu} vCPU · {instance.disk} GB disk
-                </p>
-              </div>
+              <ul aria-label="Purchased limits" className="flex flex-wrap gap-1.5 font-mono text-[12.5px] text-ink">
+                {[fmtRam(instance.ram), `${instance.cpu} vCPU`, `${instance.disk} GB disk`].map((limit) => (
+                  <li key={limit} className="rounded-lg bg-s3 px-2.5 py-1">{limit}</li>
+                ))}
+              </ul>
 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {instance.url ? (
@@ -331,7 +315,7 @@ export default function Overview() {
                 ) : (
                   <span className="text-[13.5px] text-ink3">No public URL yet</span>
                 )}
-                <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
+                <span className="text-[14px] text-ink2"><Money amount={instance.price ?? 0} currency={instance.currency} period="month" /></span>
               </div>
             </article>
           ))}
@@ -352,7 +336,7 @@ export default function Overview() {
                 key={row.instanceId}
                 to={`/app/instances/${row.instanceId}`}
                 title={row.instanceName}
-                meta={`${row.event.type}: ${row.event.message}`}
+                meta={<><span className="text-ink2">{row.event.type.replace(/_/g, ' ')}</span> · {row.event.message}</>}
                 right={<span className="font-mono text-[12px] text-ink3">{fmtDate(row.event.createdAt)}</span>}
               />
             ))}

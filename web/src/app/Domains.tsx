@@ -125,20 +125,6 @@ export default function Domains() {
   return (
     <div className="grid gap-4">
       <Panel
-        title="The domains of the mail are elsewhere"
-        description="This page holds the domains of your servers: the ones that are routed to an instance. The domains of the hosted mail, with their proof of ownership and their records of DNS, are in the email section."
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <ButtonLink to="/app/mail" variant="soft">
-            The email hosting of the account
-          </ButtonLink>
-          <span className="text-sm text-slate-500">
-            A domain of mail and a domain of a server are two different things, and they are managed apart.
-          </span>
-        </div>
-      </Panel>
-
-      <Panel
         title="Add a domain"
         description="Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed."
       >
@@ -401,6 +387,20 @@ export default function Domains() {
             ))}
           </div>
         )}
+      </Panel>
+
+      <Panel
+        title="The domains of the mail are elsewhere"
+        description="This page holds the domains of your servers: the ones that are routed to an instance. The domains of the hosted mail, with their proof of ownership and their records of DNS, are in the email section."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <ButtonLink to="/app/mail" variant="soft">
+            The email hosting of the account
+          </ButtonLink>
+          <span className="text-sm text-slate-500">
+            A domain of mail and a domain of a server are two different things, and they are managed apart.
+          </span>
+        </div>
       </Panel>
 
       {verify.error && (

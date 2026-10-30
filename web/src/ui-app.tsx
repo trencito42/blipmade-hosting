@@ -452,12 +452,21 @@ export function Panel({
   );
 }
 
-export function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+export function StatTile({ label, value, hint, icon }: { label: string; value: ReactNode; hint?: string; icon?: IconName }) {
   return (
-    <div className="rounded-2xl border border-line bg-card p-4">
-      <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">{label}</p>
-      <p className="mt-1 break-words font-mono text-[22px] font-semibold leading-tight tracking-[-0.03em] tabular-nums text-ink">{value}</p>
-      {hint && <p className="mt-1 text-[12.5px] text-ink3">{hint}</p>}
+    <div className="rounded-2xl border border-line bg-card p-4 sm:p-5">
+      {icon ? (
+        <div className="flex items-center gap-2.5 text-ink3">
+          <span aria-hidden="true" className="grid size-8 place-items-center rounded-xl bg-s2 text-acc">
+            <Icon name={icon} size={15} />
+          </span>
+          <p className="text-[13.5px] font-medium">{label}</p>
+        </div>
+      ) : (
+        <p className="text-[13.5px] font-medium text-ink3">{label}</p>
+      )}
+      <p className="mt-3 break-words font-mono text-[28px] font-semibold leading-none tracking-[-0.04em] tabular-nums text-ink">{value}</p>
+      {hint && <p className="mt-2 text-[12.5px] text-ink3">{hint}</p>}
     </div>
   );
 }
