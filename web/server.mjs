@@ -9,6 +9,10 @@ import { isTrustedAddress, parseTrustedProxies, resolveClientAddress } from './s
 const root = resolve(process.cwd(), 'dist');
 const port = Number(process.env.SERVER_PORT || process.env.PORT || 30001);
 const API_URL = process.env.API_URL || 'http://127.0.0.1:3100';
+/** How long a read waits for the API to come back (a deploy): 24 tries, a third of a second apart. */
+const UPSTREAM_RETRIES = 24;
+const UPSTREAM_RETRY_MS = 350;
+const RETRYABLE = new Set(['ECONNREFUSED', 'ECONNRESET', 'EAI_AGAIN', 'EHOSTUNREACH', 'ETIMEDOUT']);
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -339,6 +343,7 @@ const server = createServer(async (req, res) => {
     // one the client chose.
     headers['x-request-id'] = requestId();
 
+    const forward = (attempt) => {
     const proxy = httpRequest(
       {
         protocol: target.protocol,
@@ -382,11 +387,23 @@ const server = createServer(async (req, res) => {
         upstream.pipe(compressor).pipe(res);
       },
     );
-    proxy.on('error', () => {
+    proxy.on('error', (error) => {
+      // A deploy replaces the API for a few seconds. A read that finds nobody there is asked
+      // again for a few seconds, so the visitor waits a moment instead of seeing an error.
+      // Only reads are repeated: a write that may have arrived must never be sent twice.
+      const reads = req.method === 'GET' || req.method === 'HEAD';
+      if (reads && attempt < UPSTREAM_RETRIES && !res.headersSent && RETRYABLE.has(error?.code)) {
+        setTimeout(() => forward(attempt + 1), UPSTREAM_RETRY_MS);
+        return;
+      }
+      if (res.headersSent) return void res.destroy();
       res.writeHead(502, { ...responseSecurityHeaders(req), 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: { code: 'upstream_error', message: 'The API is not reachable.' } }));
+      res.end(JSON.stringify({ error: { code: 'upstream_error', message: 'The API is not reachable. Try again in a moment.' } }));
     });
-    req.pipe(proxy);
+    if (req.method === 'GET' || req.method === 'HEAD') proxy.end();
+    else if (attempt === 0) req.pipe(proxy);
+    };
+    forward(0);
     return;
   }
 

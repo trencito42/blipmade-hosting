@@ -74,6 +74,14 @@ export interface EventPayloadMap {
   'account.email_change_requested': { name: string | null; token: string; email: string };
   'account.email_changed': { name: string | null; email: string };
   'account.deletion_requested': { name: string | null };
+  'account.two_factor_enabled': { name: string | null };
+  'account.two_factor_disabled': { name: string | null };
+  'account.two_factor_reset': { name: string | null };
+  'account.backup_codes_renewed': { name: string | null };
+  'account.passkey_added': { name: string | null; passkey: string };
+  'account.passkey_removed': { name: string | null; passkey: string };
+  'account.sign_in_new_device': { name: string | null; device: string; ip: string; when: string };
+  'account.staff_access': { name: string | null };
   'account.suspended': { name: string | null; reason?: string | null };
   'account.reinstated': { name: string | null };
 
@@ -310,6 +318,94 @@ export const EVENT_DEFINITIONS: EventRegistry = {
     audience: 'customer',
     title: () => 'Your account was put back',
     body: () => 'The suspension was lifted and you can sign in again.',
+  }),
+  'account.two_factor_enabled': definition({
+    type: 'account.two_factor_enabled',
+    template: 'account-two-factor-enabled',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'Two-factor authentication is on',
+    body: (()) => 'A code from your authenticator app is now asked at sign-in. If it was not you, secure your account at once.',
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
+  }),
+  'account.two_factor_disabled': definition({
+    type: 'account.two_factor_disabled',
+    template: 'account-two-factor-disabled',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'Two-factor authentication was turned off',
+    body: (()) => 'Your account is protected by the password alone again. If it was not you, change your password at once.',
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
+  }),
+  'account.two_factor_reset': definition({
+    type: 'account.two_factor_reset',
+    template: 'account-two-factor-reset',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'Two-factor authentication was reset by our team',
+    body: (()) => 'A member of our team turned two-factor off and signed you out everywhere, because you asked for help getting back in.',
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
+  }),
+  'account.backup_codes_renewed': definition({
+    type: 'account.backup_codes_renewed',
+    template: 'account-backup-codes-renewed',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'You made new backup codes',
+    body: (()) => 'The old backup codes no longer work. Keep the new ones somewhere safe.',
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
+  }),
+  'account.passkey_added': definition({
+    type: 'account.passkey_added',
+    template: 'account-passkey-added',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'A passkey was added',
+    body: ((payload)) => `The passkey “${payload.passkey}” can now sign in to your account.`,
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
+  }),
+  'account.passkey_removed': definition({
+    type: 'account.passkey_removed',
+    template: 'account-passkey-removed',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'A passkey was removed',
+    body: ((payload)) => `The passkey “${payload.passkey}” can no longer sign in to your account.`,
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
+  }),
+  'account.sign_in_new_device': definition({
+    type: 'account.sign_in_new_device',
+    template: 'account-sign-in-new-device',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'New sign-in to your account',
+    body: ((payload)) => `Someone signed in from ${payload.device} (${payload.ip}). If it was not you, change your password at once.`,
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
+  }),
+  'account.staff_access': definition({
+    type: 'account.staff_access',
+    template: 'account-staff-access',
+    channels: ['email', 'in_app'],
+    category: 'accountSecurity',
+    classification: 'essential',
+    audience: 'customer',
+    title: (()) => 'Our team opened your account',
+    body: (()) => 'A member of our team signed in as you to help with your services. Nothing of your security settings can be changed in that mode.',
+    link: () => ({ url: '/app/settings?tab=security', label: 'Open the security settings' }),
   }),
   'account.deletion_requested': definition({
     type: 'account.deletion_requested',

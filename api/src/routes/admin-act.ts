@@ -19,6 +19,7 @@ import { relayVpsConsole } from '../services/vps-console.js';
 import { cancelSubscription, resumeSubscription } from '../services/stripe.js';
 import { sendResetEmail } from './auth.js';
 import { fullName } from '../lib/people.js';
+import { notifyAccountSecurity } from '../services/notifications.js';
 
 /**
  * What the staff does on behalf of a customer.
@@ -62,6 +63,7 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
       },
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'staff.impersonation_started', targetType: 'user', targetId: customer.id, ip: request.ip });
+    await notifyAccountSecurity('account.staff_access', { userId: customer.id, name: fullName(customer) || null });
     reply.setCookie(RETURN_COOKIE, mine, cookieOptions(request, expiresAt));
     reply.setCookie(SESSION_COOKIE, token, cookieOptions(request, expiresAt));
     return { ok: true };
@@ -263,6 +265,7 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
     const removed = await prisma.userTwoFactor.deleteMany({ where: { userId: customer.id } });
     await prisma.session.deleteMany({ where: { userId: customer.id } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.reset_2fa', targetType: 'user', targetId: customer.id, meta: { hadTwoFactor: removed.count > 0 }, ip: request.ip });
+    if (removed.count > 0) await notifyAccountSecurity('account.two_factor_reset', { userId: customer.id, name: fullName(customer) || null });
     return { reset: removed.count > 0 };
   });
 }

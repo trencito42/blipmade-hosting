@@ -9,6 +9,7 @@ import {
 } from '@simplewebauthn/server';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
 import { prisma } from '../db.js';
+import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { badRequest, notFound, unauthorized } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { verifyPassword } from '../lib/password.js';
@@ -20,6 +21,9 @@ import { decryptSecret, encryptSecret } from '../lib/secrets.js';
 import { hashBackupCode, looksLikeBackupCode, newBackupCodes, newSecret, otpauthUri, verifyTotp } from '../lib/two-factor.js';
 import { endSecondStep, rpID, rpOrigin, saveChallenge, takeChallenge, takeTry } from '../services/second-factor.js';
 import { publicUser } from './auth.js';
+import { recordSignIn } from '../services/account-security.js';
+import { notifyAccountSecurity } from '../services/notifications.js';
+import { fullName } from '../lib/people.js';
 
 /**
  * Two-factor authentication and passkeys.
@@ -38,7 +42,7 @@ async function finishSignIn(request: FastifyRequest, reply: FastifyReply, userId
   if (!user) throw unauthorized('That sign-in is not valid.');
   if (user.suspendedAt) throw suspendedAccountError();
   await createSession(request, reply, user.id, user.email);
-  await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.login', targetType: 'user', targetId: user.id, meta: { via }, ip: request.ip });
+  await recordSignIn(request, user, via);
   return { user: { ...publicUser(user), permissions: user.staff?.permissions ?? [] } };
 }
 
@@ -63,6 +67,30 @@ async function checkSecondFactorCode(userId: string, raw: string): Promise<boole
   }
   return false;
 }
+
+/** What the log of the security of an account says for each action, in words. */
+const ACTIVITY_TEXT: Record<string, string> = {
+  'auth.login': 'Signed in',
+  'auth.logout': 'Signed out',
+  'auth.2fa_failed': 'A wrong two-step code was entered',
+  'auth.passkey_failed': 'A passkey sign-in failed',
+  'auth.password_reset': 'The password was reset with an e-mail link',
+  'auth.reset_requested': 'A password reset link was asked for',
+  'auth.email_verified': 'The e-mail address was confirmed',
+  'settings.password_changed': 'The password was changed',
+  'settings.email_change_requested': 'A change of the e-mail address was asked for',
+  'settings.email_changed': 'The e-mail address was changed',
+  'settings.2fa_enabled': 'Two-factor authentication was turned on',
+  'settings.2fa_disabled': 'Two-factor authentication was turned off',
+  'settings.2fa_backup_codes_renewed': 'New backup codes were made',
+  'settings.passkey_added': 'A passkey was added',
+  'settings.passkey_removed': 'A passkey was removed',
+  'settings.session_revoked': 'A session was closed',
+  'settings.sessions_closed': 'The other sessions were closed',
+  'settings.account_closure_requested': 'The closing of the account was asked for',
+  'staff.impersonation_started': 'Our team opened the account to help',
+  'admin.customer.reset_2fa': 'Our team reset two-factor authentication',
+};
 
 export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<void> {
   // --- the second step of a sign-in ------------------------------------------------
@@ -166,6 +194,44 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
     };
   });
 
+  /**
+   * The log of the security of the account, newest first, in pages: sign-ins and the device
+   * they came from, changes of the password, the address, two-factor and passkeys, and what our
+   * team did on the account. It is the account's own history, so the person can spot a change
+   * they did not make.
+   */
+  app.get('/settings/security/activity', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 30, maxSize: 100 });
+    const actions = Object.keys(ACTIVITY_TEXT);
+    const rows = await prisma.auditLog.findMany({
+      where: withCursor(
+        { action: { in: actions }, OR: [{ actorId: user.id }, { targetType: 'user', targetId: user.id }] },
+        cursor,
+        'createdAt',
+      ),
+      orderBy: pageOrder('createdAt'),
+      take: limit + 1,
+    });
+    const page = pageOf(rows, limit, 'createdAt');
+    return {
+      activity: page.rows.map((row) => {
+        const meta = (row.meta ?? {}) as { device?: string; via?: string; passkey?: string };
+        const byStaff = row.actorId !== user.id;
+        return {
+          id: row.id,
+          action: row.action,
+          text: ACTIVITY_TEXT[row.action] ?? row.action,
+          detail: [meta.passkey, meta.device, meta.via && meta.via !== 'password' ? `with ${meta.via.replace('-2fa', ' as the second step').replace('passkey', 'a passkey')}` : null].filter(Boolean).join(' · ') || null,
+          ip: row.ip,
+          byStaff,
+          createdAt: row.createdAt,
+        };
+      }),
+      pagination: page.pagination,
+    };
+  });
+
   // --- settings: the authenticator app ----------------------------------------------------
 
   const accountWrite = {
@@ -198,6 +264,7 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
       data: { enabledAt: new Date(), lastUsedStep: step, backupCodes: codes.map(hashBackupCode) },
     });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.2fa_enabled', targetType: 'user', targetId: user.id, ip: request.ip });
+    await notifyAccountSecurity('account.two_factor_enabled', { userId: user.id, name: user.name || null });
     return { enabled: true, backupCodes: codes };
   });
 
@@ -209,6 +276,7 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
     if (!(await checkSecondFactorCode(user.id, code))) throw badRequest('That code is not correct.', { code: 'That code is not correct.' });
     await prisma.userTwoFactor.delete({ where: { userId: user.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.2fa_disabled', targetType: 'user', targetId: user.id, ip: request.ip });
+    await notifyAccountSecurity('account.two_factor_disabled', { userId: user.id, name: user.name || null });
     return { enabled: false };
   });
 
@@ -219,6 +287,7 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
     const codes = newBackupCodes();
     await prisma.userTwoFactor.update({ where: { userId: user.id }, data: { backupCodes: codes.map(hashBackupCode) } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.2fa_backup_codes_renewed', targetType: 'user', targetId: user.id, ip: request.ip });
+    await notifyAccountSecurity('account.backup_codes_renewed', { userId: user.id, name: user.name || null });
     return { backupCodes: codes };
   });
 
@@ -275,7 +344,8 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
         name: body.name || `Passkey ${existing + 1}`,
       },
     });
-    await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.passkey_added', targetType: 'user', targetId: user.id, ip: request.ip });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.passkey_added', targetType: 'user', targetId: user.id, meta: { passkey: key.name }, ip: request.ip });
+    await notifyAccountSecurity('account.passkey_added', { userId: user.id, name: user.name || null, passkey: key.name });
     return { passkey: { id: key.id, name: key.name } };
   });
 
@@ -291,9 +361,11 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
   app.delete('/settings/passkeys/:id', accountWrite, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const done = await prisma.passkey.deleteMany({ where: { id, userId: user.id } });
-    if (done.count === 0) throw notFound('That passkey was not found.');
-    await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.passkey_removed', targetType: 'user', targetId: user.id, ip: request.ip });
+    const key = await prisma.passkey.findFirst({ where: { id, userId: user.id } });
+    if (!key) throw notFound('That passkey was not found.');
+    await prisma.passkey.delete({ where: { id: key.id } });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.passkey_removed', targetType: 'user', targetId: user.id, meta: { passkey: key.name }, ip: request.ip });
+    await notifyAccountSecurity('account.passkey_removed', { userId: user.id, name: user.name || null, passkey: key.name });
     return { ok: true };
   });
 }

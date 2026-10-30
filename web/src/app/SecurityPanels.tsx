@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { del, get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import { useInfiniteList } from '../lib/useInfinite';
 import { passkeyFailure, passkeysSupported, registerPasskey } from '../lib/passkeys';
 import { OtpInput } from '../OtpInput';
-import { ConfirmDialog, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, TextInput, useToast } from '../ui-app';
+import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, TextInput, useToast } from '../ui-app';
 
 interface SecurityState {
   twoFactor: { enabled: boolean; enabledAt: string | null; backupCodesLeft: number };
@@ -268,7 +269,67 @@ export function PasskeysPanel({ passkeys, reload }: { passkeys: SecurityState['p
   );
 }
 
-/** The two panels, with the state they share. */
+interface ActivityRow {
+  id: string;
+  action: string;
+  text: string;
+  detail: string | null;
+  ip: string | null;
+  byStaff: boolean;
+  createdAt: string;
+}
+
+/** The history of the security of the account: sign-ins with their device, and every change. */
+export function SecurityActivityPanel() {
+  const list = useInfiniteList<ActivityRow, string>(
+    async (cursor, signal) => {
+      const page = await get<{ activity: ActivityRow[]; pagination: { hasMore: boolean; nextCursor: string | null } }>(
+        '/settings/security/activity',
+        { cursor: cursor ?? undefined, limit: 30 },
+        signal,
+      );
+      return { items: page.activity, next: page.pagination.hasMore ? page.pagination.nextCursor : null };
+    },
+    [],
+  );
+  return (
+    <Panel title="Security activity" description="Sign-ins and changes to the security of your account. You are also told by e-mail when something important happens.">
+      {list.loading ? (
+        <LoadingBlock rows={3} label="Loading the activity" />
+      ) : list.error && list.items.length === 0 ? (
+        <ErrorState title="The activity could not be loaded" message={list.error.message} onRetry={list.reload} />
+      ) : list.items.length === 0 ? (
+        <EmptyState title="Nothing yet." description="Sign-ins and security changes appear here." />
+      ) : (
+        <ul className="grid gap-1.5">
+          {list.items.map((row) => (
+            <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-medium text-ink">
+                  {row.text}
+                  {row.byStaff && <span className="ml-2 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.06em] text-ink2">our team</span>}
+                </p>
+                <p className="text-[12.5px] text-ink3">{[row.detail, row.ip].filter(Boolean).join(' · ')}</p>
+              </div>
+              <span className="whitespace-nowrap font-mono text-[12px] text-ink3">{new Date(row.createdAt).toLocaleString()}</span>
+            </li>
+          ))}
+          <li>
+            {list.hasMore ? (
+              <div ref={list.sentinel} className="grid justify-items-center pt-2">
+                {list.loadingMore ? <p role="status" className="text-[12.5px] text-ink3">Loading more…</p> : <SoftButton onClick={list.loadMore}>Load more</SoftButton>}
+              </div>
+            ) : (
+              <p className="pt-2 text-center text-[12.5px] text-ink3">That is everything.</p>
+            )}
+          </li>
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+/** The panels, with the state they share. */
 export function SecurityPanels() {
   const state = useAsync<SecurityState>((signal) => get<SecurityState>('/settings/security', undefined, signal), []);
   if (state.loading && !state.data) return <LoadingBlock rows={2} label="Loading your security settings" />;
@@ -277,6 +338,7 @@ export function SecurityPanels() {
     <>
       <TwoFactorPanel state={state.data.twoFactor} reload={state.reload} />
       <PasskeysPanel passkeys={state.data.passkeys} reload={state.reload} />
+      <SecurityActivityPanel />
     </>
   );
 }

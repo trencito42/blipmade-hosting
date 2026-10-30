@@ -10,6 +10,7 @@ import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/fail
 import { mailEnabled, mailLogLine, mailNotice, mailTransportName, registrationNotice, type MailSendResult } from '../lib/mailer.js';
 import { suspendedAccountError } from '../lib/suspension.js';
 import { startSecondStep, twoFactorEnabled } from '../services/second-factor.js';
+import { recordSignIn } from '../services/account-security.js';
 import {
   notifyAccountRegistered,
   notifyEmailVerified,
@@ -384,7 +385,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
 
       await createSession(request, reply, user.id, user.email);
-      await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.login', targetType: 'user', targetId: user.id, ip: request.ip });
+      await recordSignIn(request, user, 'password');
 
       // The answer of the sign-in carries the permissions of the account, so
       // the interface is right from the first frame and not only after the

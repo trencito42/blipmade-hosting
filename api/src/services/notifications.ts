@@ -1308,3 +1308,35 @@ export async function notifyOpsSecurityChange(
   );
 }
 
+
+
+// --- the security of the account --------------------------------------------------------
+
+type SecurityEvent =
+  | 'account.two_factor_enabled'
+  | 'account.two_factor_disabled'
+  | 'account.two_factor_reset'
+  | 'account.backup_codes_renewed'
+  | 'account.passkey_added'
+  | 'account.passkey_removed'
+  | 'account.sign_in_new_device'
+  | 'account.staff_access';
+
+/**
+ * Tells the customer that something happened to the security of the account: two-factor on or
+ * off, a passkey added or removed, a sign-in from a new device, the team opening the account.
+ * Every message goes by e-mail and to the notification centre, and none can be switched off.
+ * Each one is its own occurrence, so the same thing happening twice is told twice.
+ */
+export async function notifyAccountSecurity(
+  type: SecurityEvent,
+  input: Recipient & { name: string | null; passkey?: string; device?: string; ip?: string; when?: string },
+): Promise<void> {
+  const { userId, ...facts } = input;
+  const payload: Record<string, unknown> = { name: facts.name };
+  if (facts.passkey !== undefined) payload.passkey = facts.passkey;
+  if (facts.device !== undefined) payload.device = facts.device;
+  if (facts.ip !== undefined) payload.ip = facts.ip;
+  if (facts.when !== undefined) payload.when = facts.when;
+  await publish(type, userId, userId, payload, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+}
