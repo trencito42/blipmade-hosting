@@ -5,7 +5,7 @@
  * never writes a price or a size of its own.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel } from '../lib/pricing';
@@ -29,6 +29,8 @@ import {
   TextInput,
   useToast,
 } from '../ui-app';
+
+const VpsConsole = lazy(() => import('./VpsConsole'));
 
 export const VPS_STOREFRONT_PATH = '/vps';
 export const VPS_NEW_PATH = '/app/vps/new';
@@ -455,6 +457,17 @@ export function VpsDetail() {
           </nav>
           {tab === 'overview' && server.power === 'running' && <UsagePanel id={server.id} />}
           {tab === 'overview' && server.power !== 'running' && <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">The server is not running, so there is no usage to show. Start it above.</p>}
+          {tab === 'console' && (
+            <Panel title="Console" description="A serial console, for when SSH does not work: a boot that fails, a firewall that locks you out.">
+              {server.power === 'running' ? (
+                <Suspense fallback={<LoadingBlock rows={2} label="Opening the console" />}>
+                  <VpsConsole path={`/api/vps/${encodeURIComponent(server.id)}/console/stream`} />
+                </Suspense>
+              ) : (
+                <p className="text-[14px] text-ink2">The server is not running. Start it to open the console.</p>
+              )}
+            </Panel>
+          )}
           {tab === 'snapshots' && <SnapshotsPanel id={server.id} />}
           {tab === 'boot' && (
             <>
@@ -471,6 +484,7 @@ export function VpsDetail() {
 
 const VPS_TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'console', label: 'Console' },
   { id: 'snapshots', label: 'Snapshots' },
   { id: 'boot', label: 'Image and reinstall' },
   { id: 'settings', label: 'Settings' },

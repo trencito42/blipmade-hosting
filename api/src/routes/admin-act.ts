@@ -15,6 +15,7 @@ import {
 } from '../plugins/auth.js';
 import { destroyVps, ownedVps, reinstallVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
+import { relayVpsConsole } from '../services/vps-console.js';
 
 /**
  * What the staff does on behalf of a customer.
@@ -154,5 +155,16 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
     await destroyVps(id);
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.vps.destroy', targetType: 'vps', targetId: id });
     return { ok: true };
+  });
+
+  app.get('/admin/vps/:id/console/stream', { websocket: true }, (socket, request: FastifyRequest) => {
+    void (async () => {
+      try {
+        await requirePermission('services.write')(request);
+      } catch {
+        return void socket.close(4403, 'Not allowed.');
+      }
+      await relayVpsConsole(socket, request, true);
+    })();
   });
 }

@@ -182,6 +182,22 @@ export async function unsetConfig(vmid: number, keys: string[]): Promise<void> {
   await request('PUT', `/nodes/${node()}/qemu/${vmid}/config`, { delete: keys.join(',') });
 }
 
+export interface TerminalTicket { port: number; ticket: string; user: string }
+
+/** Opens a serial terminal on the machine. The ticket is good for one connection. */
+export async function openTerminal(vmid: number): Promise<TerminalTicket> {
+  return request('POST', `/nodes/${node()}/qemu/${vmid}/termproxy`, {});
+}
+
+/** The address and the headers to open the websocket of a terminal that was opened. */
+export function terminalSocket(vmid: number, ticket: TerminalTicket): { url: string; headers: Record<string, string> } {
+  const url = new URL(`/api2/json/nodes/${node()}/qemu/${vmid}/vncwebsocket`, env.VPS_PROXMOX_URL);
+  url.protocol = 'wss:';
+  url.searchParams.set('port', String(ticket.port));
+  url.searchParams.set('vncticket', ticket.ticket);
+  return { url: url.toString(), headers: { Authorization: `PVEAPIToken=${env.VPS_PROXMOX_TOKEN}` } };
+}
+
 export async function deleteVm(vmid: number): Promise<void> {
   const upid = await request<string>('DELETE', `/nodes/${node()}/qemu/${vmid}?purge=1&destroy-unreferenced-disks=1`);
   await waitForTask(upid, 300_000);

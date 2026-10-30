@@ -7,6 +7,7 @@ import { audit } from '../lib/audit.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { changeVpsSshKey, ejectVpsIso, mountVpsIso, removeVpsSnapshot, restoreVpsSnapshot, takeVpsSnapshot, vpsIsos, vpsSnapshots, dedicatedAddresses, freeDedicatedAddress, ownedVps, reinstallVps, renameVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
+import { relayVpsConsole } from '../services/vps-console.js';
 
 /**
  * The virtual private servers of a customer.
@@ -153,5 +154,10 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
     await ejectVpsIso(user.id, idOf(request));
     await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.iso_eject', targetType: 'vps', targetId: idOf(request), meta: {} });
     return vpsIsos(user.id, idOf(request));
+  });
+
+  /** The serial console of the server. The browser opens it with its session cookie. */
+  app.get('/vps/:id/console/stream', { websocket: true }, (socket, request: FastifyRequest) => {
+    void relayVpsConsole(socket, request);
   });
 }
