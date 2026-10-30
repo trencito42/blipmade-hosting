@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   archiveFormatOf,
   baseName,
@@ -677,82 +677,184 @@ function FilePanel({
 
 // --- the tab ---------------------------------------------------------------
 
+/** The state of one file of the queue of uploads. */
+interface Upload {
+  id: number;
+  name: string;
+  folder: string;
+  state: 'waiting' | 'uploading' | 'done' | 'error';
+  message?: string;
+}
+
+/** The segments of a folder, each with the path that leads to it. */
+function crumbsOf(folder: string): { label: string; path: string }[] {
+  const parts = folder.split('/').filter(Boolean);
+  return [{ label: 'root', path: '/' }, ...parts.map((label, index) => ({ label, path: `/${parts.slice(0, index + 1).join('/')}` }))];
+}
+
 export default function FilesTab({ instance }: TabProps) {
   const { push } = useToast();
   const [selected, setSelected] = useState<Selection | null>(null);
   const [folder, setFolder] = useState('/');
   const [version, setVersion] = useState(0);
-  const [uploading, setUploading] = useState(false);
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [newName, setNewName] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
+  const counter = useRef(0);
+  const busy = uploads.some((upload) => upload.state === 'waiting' || upload.state === 'uploading');
 
   const refresh = useCallback(() => setVersion((value) => value + 1), []);
 
-  const onUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  // The files go one after the other, so a node that is slow is not asked
+  // for ten transfers at once.
+  const send = async (files: File[]) => {
+    if (!files.length) return;
+    const target = folder;
+    const items: Upload[] = files.map((file) => ({ id: (counter.current += 1), name: file.name, folder: target, state: 'waiting' }));
+    setUploads((previous) => [...items, ...previous].slice(0, 12));
+    const patch = (id: number, change: Partial<Upload>) => setUploads((previous) => previous.map((entry) => (entry.id === id ? { ...entry, ...change } : entry)));
+    let uploaded = 0;
+    for (const [index, file] of files.entries()) {
+      const item = items[index]!;
+      patch(item.id, { state: 'uploading' });
+      try {
+        await uploadFile(instance.id, target, file.name, await file.arrayBuffer());
+        patch(item.id, { state: 'done' });
+        uploaded += 1;
+      } catch (error) {
+        patch(item.id, { state: 'error', message: error instanceof Error ? error.message : 'The file could not be uploaded.' });
+      }
+    }
+    if (uploaded) {
+      push(uploaded === 1 ? `${files.find((_, i) => items[i]!.state !== 'error')?.name ?? 'The file'} uploaded.` : `${uploaded} files uploaded.`, 'ok');
+      refresh();
+    }
+  };
+
+  const onPick = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
-    if (!file) return;
-    setUploading(true);
+    void send(files);
+  };
+
+  const createFile = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = newName.trim();
+    if (!name || /[/\\]/.test(name) || name === '.' || name === '..') {
+      push('Use a name without slashes.', 'error');
+      return;
+    }
     try {
-      const content = await file.arrayBuffer();
-      await uploadFile(instance.id, folder, file.name, content);
-      push(`${file.name} uploaded.`, 'ok');
+      await writeFile(instance.id, `${folder === '/' ? '' : folder}/${name}`, '');
+      push(`${name} created.`, 'ok');
+      setNewName('');
+      setNaming(false);
       refresh();
     } catch (error) {
-      push(error instanceof Error ? error.message : 'The file could not be uploaded.', 'error');
-    } finally {
-      setUploading(false);
+      push(error instanceof Error ? error.message : 'The file could not be created.', 'error');
     }
   };
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-      <Panel
-        title="Folders"
-        description={`Uploading goes to ${folder}.`}
-        action={
-          <SoftButton onClick={() => fileInput.current?.click()} disabled={uploading}>
-            {uploading ? 'Uploading…' : 'Upload'}
-          </SoftButton>
+    <div
+      className="grid gap-3"
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes('Files')) {
+          event.preventDefault();
+          setDragging(true);
         }
-      >
-        <input
-          ref={fileInput}
-          type="file"
-          onChange={(event) => void onUpload(event)}
-          className="sr-only"
-          aria-label="Upload a file to the instance"
-        />
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDragging(false);
+        void send(Array.from(event.dataTransfer.files));
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-card p-2 pl-4">
+        <nav aria-label="Folder" className="flex min-w-0 flex-1 flex-wrap items-center gap-1 font-mono text-[13.5px]">
+          {crumbsOf(folder).map((crumb, index, all) => (
+            <span key={crumb.path} className="flex items-center gap-1">
+              {index > 0 && <Icon name="chevronDown" size={9} className="-rotate-90 text-ink3" />}
+              <button
+                type="button"
+                onClick={() => setFolder(crumb.path)}
+                aria-current={index === all.length - 1 ? 'page' : undefined}
+                className={`rounded-md px-1.5 py-1 transition-colors hover:bg-s2 focus-visible:outline-2 focus-visible:outline-acc ${index === all.length - 1 ? 'text-ink' : 'text-ink3'}`}
+              >
+                {crumb.label}
+              </button>
+            </span>
+          ))}
+        </nav>
+        <SoftButton onClick={() => setNaming((value) => !value)} aria-expanded={naming}>
+          <Icon name="filePlus" size={14} />
+          New file
+        </SoftButton>
+        <SoftButton onClick={() => fileInput.current?.click()} disabled={busy}>
+          <Icon name="upload" size={14} />
+          {busy ? 'Uploading…' : 'Upload'}
+        </SoftButton>
+        <input ref={fileInput} type="file" multiple onChange={onPick} className="sr-only" aria-label="Upload files to the instance" />
+      </div>
 
-        <ul className="grid gap-0.5">
-          <TreeNode
-            instanceId={instance.id}
-            path="/"
-            name="root"
-            depth={0}
-            version={version}
-            selectedPath={selected?.path ?? null}
-            onSelect={setSelected}
-            onOpenFolder={setFolder}
-          />
-        </ul>
-      </Panel>
-
-      {selected ? (
-        <FilePanel
-          key={selected.path}
-          instanceId={instance.id}
-          selection={selected}
-          onChanged={refresh}
-          onClosed={() => setSelected(null)}
-        />
-      ) : (
-        <Panel title="No file open" description="Pick a file in the tree to read it, change it or download it.">
-          <EmptyState
-            title="Nothing is open."
-            description="Open a file from the tree on the left to see its content and the actions you can run on it."
-          />
-        </Panel>
+      {naming && (
+        <form onSubmit={(event) => void createFile(event)} className="flex flex-wrap items-end gap-2 rounded-2xl border border-line bg-card p-3">
+          <div className="min-w-[200px] flex-1">
+            <TextInput label={`New file in ${folder}`} value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="server.properties" autoComplete="off" spellCheck={false} className="font-mono" />
+          </div>
+          <PrimaryButton type="submit" disabled={!newName.trim()}>Create</PrimaryButton>
+          <SoftButton onClick={() => { setNaming(false); setNewName(''); }}>Cancel</SoftButton>
+        </form>
       )}
+
+      {uploads.length > 0 && (
+        <ul aria-label="Uploads" className="grid gap-1 rounded-2xl border border-line bg-card p-2">
+          {uploads.map((upload) => (
+            <li key={upload.id} className="flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px]">
+              <Icon name={upload.state === 'done' ? 'check' : upload.state === 'error' ? 'warn' : 'upload'} size={14} className={upload.state === 'done' ? 'text-acc' : upload.state === 'error' ? 'text-bad' : 'text-ink3'} />
+              <span className="min-w-0 flex-1 truncate font-mono text-ink">{upload.name}</span>
+              <span className={`shrink-0 text-[12.5px] ${upload.state === 'error' ? 'text-bad' : 'text-ink3'}`}>
+                {upload.state === 'waiting' ? 'Waiting' : upload.state === 'uploading' ? 'Uploading' : upload.state === 'done' ? `Saved in ${upload.folder}` : upload.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className={`relative grid gap-3 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] ${dragging ? 'rounded-3xl outline-2 outline-dashed outline-acc outline-offset-4' : ''}`}>
+        {dragging && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-3xl bg-bg/80 text-[17px] font-semibold text-ink">
+            Drop the files to upload them to {folder}
+          </div>
+        )}
+        <Panel title="Folders" description={`Uploading goes to ${folder}. Drop files anywhere on this tab.`}>
+          <ul className="grid gap-0.5">
+            <TreeNode
+              instanceId={instance.id}
+              path="/"
+              name="root"
+              depth={0}
+              version={version}
+              selectedPath={selected?.path ?? null}
+              onSelect={setSelected}
+              onOpenFolder={setFolder}
+            />
+          </ul>
+        </Panel>
+
+        {selected ? (
+          <FilePanel key={selected.path} instanceId={instance.id} selection={selected} onChanged={refresh} onClosed={() => setSelected(null)} />
+        ) : (
+          <Panel title="No file open" description="Pick a file in the tree to read it, change it or download it.">
+            <EmptyState title="Nothing is open." description="Open a file from the tree on the left to see its content and the actions you can run on it." />
+          </Panel>
+        )}
+      </div>
     </div>
   );
 }
