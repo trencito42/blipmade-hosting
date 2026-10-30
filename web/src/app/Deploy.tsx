@@ -1,5 +1,5 @@
 import { BillingAddressFields, emptyBillingAddress, type BillingAddressValue } from './BillingAddressFields';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   api,
   get,
@@ -34,7 +34,7 @@ import {
   startingPrice,
   type ResourceConfiguration,
 } from '../lib/pricing-contract';
-import { rangeInput } from '../ui';
+import { ProductTile } from '../ui';
 import {
   EmptyState,
   ErrorState,
@@ -142,7 +142,20 @@ export function DeployMailLine({
 
 type DeployStep = 1 | 2 | 3 | 4;
 
-const STEP_LABELS = ['Configure', 'Review', 'Payment', 'Provisioning'] as const;
+/**
+ * The steps a customer sees. The review of the order sits beside the choices,
+ * so there is no page of its own for it: the third step of the address is the
+ * second one on the screen. An address that still says `step=2` opens the
+ * first one.
+ */
+const VISIBLE_STEPS: { step: DeployStep; label: string }[] = [
+  { step: 1, label: 'Configure' },
+  { step: 3, label: 'Payment' },
+  { step: 4, label: 'Deploy' },
+];
+
+/** The step before another one, as the customer sees them. */
+const previousStep = (step: DeployStep): DeployStep => (step === 3 ? 1 : (Math.max(1, step - 1) as DeployStep));
 
 /**
  * The step of the flow, read from the address. An order in the address means
@@ -151,7 +164,7 @@ const STEP_LABELS = ['Configure', 'Review', 'Payment', 'Provisioning'] as const;
 function stepFromQuery(query: Record<string, string>, orderId: string | null): DeployStep {
   if (orderId) return 4;
   const raw = Number(query.step);
-  if (raw === 2 || raw === 3 || raw === 4) return raw;
+  if (raw === 3 || raw === 4) return raw;
   return 1;
 }
 
@@ -310,6 +323,55 @@ function TaxLine({ tax, currency }: { tax: QuoteTax | undefined; currency: strin
  * is never the price of another one, so a shortcut can never surprise the
  * customer with a different amount later.
  */
+/**
+ * A slider over the sizes of the contract.
+ *
+ * The control walks over the sizes the server accepts and prices, like the
+ * sliders of the home page, so every size it offers is one that can be
+ * ordered. The value and the two ends are written beside it.
+ */
+function ChoiceSlider({
+  label,
+  choices,
+  value,
+  format,
+  onChange,
+}: {
+  label: string;
+  choices: number[];
+  value: number;
+  format: (value: number) => string;
+  onChange: (value: number) => void;
+}) {
+  const id = useId();
+  if (choices.length === 0) return null;
+  const found = choices.indexOf(value);
+  const position = found === -1 ? 0 : found;
+  return (
+    <div>
+      <label htmlFor={id} className="mb-3 flex items-baseline justify-between px-1 font-display text-[17px] font-semibold text-ink">
+        {label}
+        <span className="font-mono text-[16px] font-medium text-acc">{format(value)}</span>
+      </label>
+      <input
+        id={id}
+        type="range"
+        min={0}
+        max={choices.length - 1}
+        step={1}
+        value={position}
+        aria-valuetext={format(value)}
+        onChange={(event) => onChange(choices[Number(event.target.value)] ?? value)}
+        style={{ '--p': `${choices.length > 1 ? (position / (choices.length - 1)) * 100 : 100}%` } as CSSProperties}
+      />
+      <p className="mt-2 flex justify-between px-1 font-mono text-[12.5px] text-ink3">
+        <span>{format(choices[0]!)}</span>
+        <span>{format(choices[choices.length - 1]!)}</span>
+      </p>
+    </div>
+  );
+}
+
 function Preset({
   label,
   detail,
@@ -690,7 +752,7 @@ export default function Deploy() {
   const atRecommendation = config ? sameConfiguration(config, recommendation) : false;
 
   const primaryLabel =
-    step === 1 ? 'Review order' : step === 2 ? 'Continue to payment' : step === 3 ? 'Pay and deploy' : orderFinished ? 'Open instance' : 'Deploying…';
+    step <= 2 ? 'Continue to payment' : step === 3 ? 'Pay and deploy' : orderFinished ? 'Open instance' : 'Deploying…';
 
   // The variables the product asks the customer for. A product that asks for
   // nothing has none, and the order is free to go.
@@ -708,8 +770,7 @@ export default function Deploy() {
     missingVariables.length > 0;
 
   const onPrimary = () => {
-    if (step === 1) goToStep(2);
-    else if (step === 2) goToStep(3);
+    if (step <= 2) goToStep(3);
     else if (step === 3) void placeOrder.run();
   };
 
@@ -750,8 +811,7 @@ export default function Deploy() {
             side, and the step under the finger is always named below. */}
         <ScrollRow className="-mx-4 sm:mx-0" innerClassName="items-center gap-1 px-4 sm:px-0">
         <ol className="flex w-max shrink-0 items-center gap-1">
-          {STEP_LABELS.map((label, index) => {
-            const number = index + 1;
+          {VISIBLE_STEPS.map(({ step: number, label }, index) => {
             const done = number < step;
             const current = number === step;
             return (
@@ -762,19 +822,19 @@ export default function Deploy() {
                     done || current ? 'bg-acc text-on-acc' : 'border border-line bg-card text-ink3',
                   )}
                 >
-                  {done ? <Icon name="check" size={12} /> : number}
+                  {done ? <Icon name="check" size={12} /> : index + 1}
                 </span>
                 <span className={cn('text-[13px] font-medium', current ? 'text-ink' : 'text-ink3', current ? 'inline' : 'hidden sm:inline')}>
                   {label}
                 </span>
-                {number < STEP_LABELS.length && <span className="mx-1 h-px w-4 shrink-0 bg-s3" aria-hidden="true" />}
+                {index < VISIBLE_STEPS.length - 1 && <span className="mx-1 h-px w-4 shrink-0 bg-s3" aria-hidden="true" />}
               </li>
             );
           })}
         </ol>
         </ScrollRow>
         <p className="mt-2 px-1 text-[12.5px] text-ink3 sm:hidden">
-          Step {step} of {STEP_LABELS.length} · {STEP_LABELS[step - 1]}
+          Step {Math.max(1, VISIBLE_STEPS.findIndex((entry) => entry.step === step) + 1)} of {VISIBLE_STEPS.length} · {VISIBLE_STEPS.find((entry) => entry.step === step)?.label}
         </p>
       </nav>
 
@@ -806,34 +866,13 @@ export default function Deploy() {
                 />
               )}
 
-              <div>
-                <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">Memory</p>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="Memory">
-                  {ramChoices.map((value) => (
-                    <button key={value} type="button" aria-pressed={ram === value} onClick={() => applyConfig({ ram: value })} className={pill(ram === value)}>
-                      {memLabel(value)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <ChoiceSlider label="Memory" choices={ramChoices} value={ram} format={memLabel} onChange={(value) => applyConfig({ ram: value })} />
+              <ChoiceSlider label="vCPU" choices={cpuChoices} value={cpu} format={(value) => String(value)} onChange={(value) => applyConfig({ cpu: value })} />
 
               <div>
-                <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">
-                  CPU <span className="font-mono font-normal text-ink3">vCPU</span>
-                </p>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4" role="group" aria-label="vCPU cores">
-                  {cpuChoices.map((value) => (
-                    <button key={value} type="button" aria-pressed={cpu === value} onClick={() => applyConfig({ cpu: value })} className={pill(cpu === value)}>
-                      {value}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="deploy-disk" className="mb-3 flex items-center justify-between px-1 text-[13.5px] font-medium text-ink">
+                <label htmlFor="deploy-disk" className="mb-3 flex items-baseline justify-between px-1 font-display text-[17px] font-semibold text-ink">
                   Storage
-                  <span className="font-mono font-medium text-acc">{disk} GB</span>
+                  <span className="font-mono text-[16px] font-medium text-acc">{disk} GB</span>
                 </label>
                 {/* The control walks over the sizes of the contract, so every
                     size it offers is one the server accepts and prices. The
@@ -848,7 +887,7 @@ export default function Deploy() {
                   value={diskPosition}
                   aria-valuetext={`${disk} GB`}
                   onChange={(e) => onDisk(Number(e.target.value))}
-                  className={rangeInput}
+                  style={{ '--p': `${diskChoices.length > 1 ? (diskPosition / (diskChoices.length - 1)) * 100 : 100}%` } as CSSProperties}
                 />
                 <p className="mt-2 px-1 text-[12.5px] text-ink3">
                   Between {diskChoices[0] ?? product.minDisk} GB and {diskChoices[diskChoices.length - 1] ?? product.maxDisk} GB.
@@ -978,100 +1017,19 @@ export default function Deploy() {
             </div>
           </Panel>
 
-          <Panel title="Estimate">
-            <div aria-live="polite" className="grid gap-2.5">
-              <p className="text-[13px] uppercase tracking-[0.08em] text-ink3">Per {periodWord(quote?.period)}</p>
-              {quoteState.loading && !quote ? (
-                <LoadingBlock rows={1} label="Getting your price" />
-              ) : quoteState.error && !quote ? (
-                <ErrorState
-                  title="Could not price this configuration"
-                  message={quoteState.error.message}
-                  onRetry={quoteState.reload}
-                />
-              ) : quote ? (
-                <div className="font-mono text-[30px] font-semibold leading-none tracking-[-0.045em] text-ink">
-                  <Money amount={quote.total} currency={quote.currency} />
+          <div className="grid gap-4 lg:sticky lg:top-4">
+            <div className="rounded-[28px] border border-line bg-night p-5 sm:p-6">
+              <div className="flex items-center gap-3">
+                <ProductTile slug={product.slug} icon={product.icon} size={48} />
+                <div className="min-w-0">
+                  <p className="truncate font-display text-[22px] leading-tight font-semibold tracking-[-0.03em] text-ink">{product.name}</p>
+                  <p className="truncate font-mono text-[12.5px] text-ink3">
+                    {memLabel(ram)} · {cpu} vCPU · {disk} GB
+                  </p>
                 </div>
-              ) : (
-                <p className="text-[14px] text-ink3">Not available yet</p>
-              )}
-              {/* The starting price and the recommended price are two prices
-                  of two configurations. They are never mixed up. */}
-              {startAmount !== null && (
-                <p className="text-[12.5px] leading-relaxed text-ink3">
-                  Starting price{' '}
-                  <span className="font-mono text-ink2">
-                    {formatPrice(startAmount, currency)}
-                    {periodSuffix(product.price?.period ?? 'MONTHLY')}
-                  </span>{' '}
-                  for the smallest configuration: {memLabel(startConfiguration.ram)} · {startConfiguration.cpu} vCPU ·{' '}
-                  {startConfiguration.disk} GB disk.
-                </p>
-              )}
-              {recommendationAmount !== null && !atRecommendation && (
-                <p className="text-[12.5px] leading-relaxed text-ink3">
-                  Recommended configuration ({memLabel(recommendation.ram)} · {recommendation.cpu} vCPU · {recommendation.disk} GB
-                  disk):{' '}
-                  <span className="font-mono text-ink2">
-                    {formatPrice(recommendationAmount, currency)}
-                    {periodSuffix(product.price?.period ?? 'MONTHLY')}
-                  </span>
-                  .
-                </p>
-              )}
-              <p className="text-[12.5px] text-ink3">
-                The amount above is the price of the configuration you chose. Priced by the server on every change.
-              </p>
-              {/* The parts of the price. The server calculates them, and they
-                  add up to the amount that is charged. */}
-              {serverBreakdown && (
-                <div className="mt-1 grid gap-2">
-                  <p className="text-[12.5px] uppercase tracking-[0.08em] text-ink3">What the price is made of</p>
-                  <Breakdown breakdown={serverBreakdown} currency={currency} />
-                </div>
-              )}
-            </div>
-          </Panel>
-        </div>
-      )}
-
-      {/* 2. Review */}
-      {step === 2 && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-          <Panel title="Review">
-            <dl className="grid gap-2">
-              <Row label="Product">
-                <Link
-                  to={productPath(product.slug)}
-                  className="text-acc transition-colors duration-[180ms] hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                >
-                  {product.name}
-                </Link>
-              </Row>
-              <Row label="Name">{name || product.slug}</Row>
-              <Row label="Memory">{memLabel(ram)}</Row>
-              <Row label="vCPU">{cpu}</Row>
-              <Row label="Storage">{disk} GB</Row>
-              {configuredOptions.map((option) => (
-                <Row key={option.code} label={option.name}>
-                  <Money amount={option.amount} currency={option.currency} />
-                </Row>
-              ))}
-              {/* The hosted mail is a line of its own, under the line of the
-                  server, with the price the platform asks for it. */}
-              <DeployMailLine
-                plan={mailPlan}
-                amount={mailAmount}
-                currency={mailCurrency}
-                period={mailPeriod}
-                hostname={mailHostname}
-              />
-            </dl>
-          </Panel>
-
-          <div className="grid gap-4">
-            <Panel title="Promotion">
+              </div>
+              <div className="mt-5 grid gap-3">
+            <div className="grid gap-2">
               <TextInput
                 label="Promotion code"
                 hint="Optional. The server confirms whether it applies."
@@ -1094,9 +1052,9 @@ export default function Deploy() {
                   </p>
                 )}
               </div>
-            </Panel>
+            </div>
 
-            <Panel title="Price">
+            <div className="grid gap-2">
               <div aria-live="polite" className="grid gap-2">
                 {quoteState.loading && !quote ? (
                   <LoadingBlock rows={2} label="Getting your price" />
@@ -1139,7 +1097,10 @@ export default function Deploy() {
                   <p className="text-[14px] text-ink3">Not available yet</p>
                 )}
               </div>
-            </Panel>
+            </div>
+              </div>
+              <div className="mt-5 hidden lg:block [&>*]:w-full">{primary()}</div>
+            </div>
           </div>
         </div>
       )}
@@ -1286,10 +1247,10 @@ export default function Deploy() {
         </div>
       )}
 
-      {/* Desktop action row */}
-      <div className="hidden items-center justify-between gap-3 lg:flex">
-        {step > 1 && step < 4 ? (
-          <SoftButton onClick={() => goToStep(Math.max(1, step - 1) as DeployStep)}>Back</SoftButton>
+      {/* Desktop action row. The first step has its button in the summary. */}
+      <div className={cn('hidden items-center justify-between gap-3', step === 1 ? '' : 'lg:flex')}>
+        {step === 3 ? (
+          <SoftButton onClick={() => goToStep(previousStep(step))}>Back</SoftButton>
         ) : (
           <span />
         )}
@@ -1308,8 +1269,8 @@ export default function Deploy() {
               {totalBlock}
             </p>
           </div>
-          {step > 1 && step < 4 && (
-            <SoftButton onClick={() => goToStep(Math.max(1, step - 1) as DeployStep)} className="shrink-0">
+          {step === 3 && (
+            <SoftButton onClick={() => goToStep(previousStep(step))} className="shrink-0">
               Back
             </SoftButton>
           )}
