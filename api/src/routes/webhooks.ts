@@ -808,7 +808,11 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       const { amount, tax } = readSessionAmounts(object);
       const amountProblem = await verifyAmount(orderId, amount);
       if (amountProblem) {
-        await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
+        // A late or mismatched delivery must never demote a successful order.
+        await prisma.order.updateMany({
+          where: { id: orderId, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+          data: { status: 'FAILED' },
+        });
         await audit({
           action: 'order.amount_mismatch',
           targetType: 'order',
@@ -845,8 +849,17 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       const orderId =
         (object.client_reference_id as string) ?? (object.metadata as { orderId?: string })?.orderId;
       if (!orderId) break;
-      await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
-      await prisma.payment.updateMany({ where: { orderId }, data: { status: 'FAILED' } });
+      // Async failure may arrive *after* payment success. Only a waiting
+      // order may become FAILED; a PAID/FULFILLED/REFUNDED order is terminal.
+      const transitioned = await prisma.order.updateMany({
+        where: { id: orderId, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+        data: { status: 'FAILED' },
+      });
+      if (transitioned.count === 0) break;
+      await prisma.payment.updateMany({
+        where: { orderId, status: 'PENDING' },
+        data: { status: 'FAILED' },
+      });
 
       // The payment was refused by the provider. The customer is told, with
       // the reason the provider gave.
@@ -898,13 +911,16 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       const intentId = object.id as string | undefined;
       if (!intentId) break;
       const reason = (object.last_payment_error as { message?: string })?.message ?? null;
-      await prisma.payment.updateMany({
-        where: { stripePaymentIntentId: intentId },
+      // A delayed failure for the same intent cannot roll back a successful
+      // or refunded payment. Only a still-pending attempt can fail.
+      const failedUpdate = await prisma.payment.updateMany({
+        where: { stripePaymentIntentId: intentId, status: 'PENDING' },
         data: {
           status: 'FAILED',
           failureMessage: reason,
         },
       });
+      if (failedUpdate.count === 0) break;
 
       // The payment was refused. The customer is told, with the reason the
       // provider gave and with the link of the billing page.
