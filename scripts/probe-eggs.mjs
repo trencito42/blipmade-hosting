@@ -260,11 +260,16 @@ const STARTER_PACKAGE = (slug, name) =>
   ) + '\n';
 
 async function writeStarter(uuid, product, port) {
-  // The files are the ones the platform itself writes, so the probe proves the
-  // same application the customer would get.
+  // The files are the ones the platform itself writes, and they are written the
+  // way the platform writes them: a file that is already in the container, such
+  // as the package.json of an application that came with its own code, is left
+  // as it is.
   const { starterFiles } = await import('./dist/services/starter-apps.js');
   const files = starterFiles({ slug: product.slug, name: product.name, healthPath: '/', port });
+  const listing = await clientRequest('GET', `/api/client/servers/${uuid}/files/list`, { query: { directory: '/' } });
+  const names = new Set((listing?.data ?? []).map((entry) => entry.attributes?.name));
   for (const file of files) {
+    if (names.has(file.path)) continue;
     await clientRequest('POST', `/api/client/servers/${uuid}/files/write`, {
       query: { file: file.path },
       rawBody: file.content,
