@@ -27,6 +27,7 @@ const panel = {
 
 vi.mock('../src/services/pterodactyl/application.js', () => ({
   listServers: vi.fn(async () => []),
+  eggVariableSpecs: vi.fn(async () => []),
   eggEnvironmentTemplate: vi.fn(async () => ({
     USER_UPLOAD: '1',
     AUTO_UPDATE: '0',
