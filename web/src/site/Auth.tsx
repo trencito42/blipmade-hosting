@@ -188,7 +188,7 @@ function Frame({ children, search }: { children: ReactNode; search: string }) {
 /** The sign-in. */
 export function AuthLogin() {
   const { query, search, navigate } = useRouter();
-  const { login, secondStep, secondStepPasskey, passkeyLogin, suspensionNotice } = useSession();
+  const { login, secondStep, secondStepPasskey, passkeyLogin, passkeyAutofill, suspensionNotice } = useSession();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [err, setErr] = useState<Record<string, string>>({});
@@ -205,6 +205,23 @@ export function AuthLogin() {
     // to open it. Otherwise they land on the home of their role.
     navigate(postLoginTarget(role, query.next), { replace: true });
   };
+
+  // The passkeys of this site are offered in the field of the address: focus it, pick one, and
+  // the sign-in is done. The wait ends when the page is left or another prompt starts.
+  useEffect(() => {
+    let alive = true;
+    passkeyAutofill()
+      .then((user) => {
+        if (alive && user) land(user.role);
+      })
+      .catch(() => {
+        /* a prompt that was closed or replaced is not an error to show */
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fail = (error: unknown) => {
     if (error instanceof ApiError) {
@@ -349,9 +366,9 @@ export function AuthLogin() {
               {msg || suspensionNotice}
             </p>
           ) : null}
-          <Field label="Email address" type="email" value={email} set={setEmail} auto="email" error={err.email} disabled={busy} />
+          <Field label="Email address" type="email" value={email} set={setEmail} auto="username webauthn" error={err.email} disabled={busy} />
           <div className="grid gap-3">
-            <Field label="Password" type="password" value={pw} set={setPw} auto="current-password" error={err.password} disabled={busy} />
+            <Field label="Password" type="password" value={pw} set={setPw} auto="current-password webauthn" error={err.password} disabled={busy} />
             <Link to="/forgot-password" className="w-fit text-[15px] text-green underline underline-offset-4">
               Forgot password?
             </Link>

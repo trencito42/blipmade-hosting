@@ -45,8 +45,8 @@ export async function takeTry(token: string): Promise<string | null> {
 
 export const endSecondStep = (token: string) => redis.del(`2fa:login:${hashToken(token)}`);
 
-export async function saveChallenge(key: string, value: { challenge: string; userId?: string }): Promise<void> {
-  await redis.set(`webauthn:${key}`, JSON.stringify(value), 'EX', LOGIN_TTL_SECONDS);
+export async function saveChallenge(key: string, value: { challenge: string; userId?: string }, ttlSeconds = LOGIN_TTL_SECONDS): Promise<void> {
+  await redis.set(`webauthn:${key}`, JSON.stringify(value), 'EX', ttlSeconds);
 }
 
 /** A challenge is good for one answer: it is read and removed. */

@@ -106,9 +106,10 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
   // --- sign in with a passkey alone ---------------------------------------------------
 
   app.post('/auth/passkey/options', { config: stepLimit }, async () => {
-    const options = await generateAuthenticationOptions({ rpID: rpID(), userVerification: 'required' });
+    const options = await generateAuthenticationOptions({ rpID: rpID(), userVerification: 'required', timeout: 30 * 60 * 1000 });
     const challengeId = randomToken(16);
-    await saveChallenge(`auth:${challengeId}`, { challenge: options.challenge });
+    // The prompt in the field of the address waits as long as the page is open, so this challenge lives longer.
+    await saveChallenge(`auth:${challengeId}`, { challenge: options.challenge }, 30 * 60);
     return { challengeId, options };
   });
 

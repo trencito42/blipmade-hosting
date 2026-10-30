@@ -6,7 +6,7 @@
  */
 
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ApiError, del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
+import { ApiError, api, del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel } from '../lib/pricing';
 import { Link, useParams } from '../router';
@@ -154,6 +154,7 @@ export function VpsCheckout() {
   const [name, setName] = useState('');
   const [key, setKey] = useState('');
   const [dedicated, setDedicated] = useState(false);
+  const [promo, setPromo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrs, setFieldErrs] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
@@ -163,7 +164,31 @@ export function VpsCheckout() {
   }, [plans, slug]);
 
   const plan = plans.find((entry) => entry.slug === slug) ?? null;
-  const total = plan?.price ? plan.price.amount + (dedicated && plan.dedicatedIp ? plan.dedicatedIp.amount : 0) : null;
+  const listTotal = plan?.price ? plan.price.amount + (dedicated && plan.dedicatedIp ? plan.dedicatedIp.amount : 0) : null;
+
+  // The price comes from the server, with the promotion code applied, so the sum that is shown is the sum that is charged.
+  const trimmedPromo = promo.trim();
+  const quoteState = useAsync<{ total: number; subtotal: number; discount: number; currency: string; promotion: { code: string; valid: boolean; reason?: string } | null } | null>(
+    async (signal) => {
+      if (!plan || !trimmedPromo) return null;
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, 250);
+        signal.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }, { once: true });
+      });
+      return api('/catalog/quote', {
+        method: 'POST',
+        body: {
+          items: [{ productSlug: plan.slug, ...(dedicated && plan.dedicatedIp ? { optionCodes: [plan.dedicatedIp.code] } : {}) }],
+          promotionCode: trimmedPromo,
+        },
+        signal,
+      });
+    },
+    [plan?.slug, dedicated, trimmedPromo],
+  );
+  const quote = quoteState.data ?? null;
+  const promotion = quote?.promotion ?? null;
+  const total = quote && promotion?.valid ? quote.total : listTotal;
 
   const order = useAction(async () => {
     if (!plan) return;
@@ -175,6 +200,7 @@ export function VpsCheckout() {
     setFieldErrs({});
     try {
       const created = await post<{ order: Order }>('/orders', {
+        ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
         items: [
           {
             productSlug: plan.slug,
@@ -270,6 +296,29 @@ export function VpsCheckout() {
               </span>
             </label>
 
+            <div className="grid gap-2">
+              <TextInput
+                label="Promotion code"
+                hint="Optional. The price below updates when the code applies."
+                value={promo}
+                onChange={(event) => setPromo(event.target.value)}
+                placeholder="Enter a code"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <div aria-live="polite">
+                {!promotion || !trimmedPromo ? null : promotion.valid ? (
+                  <p className="rounded-2xl bg-acc-bg px-3.5 py-3 text-[13.5px] font-medium text-acc">
+                    {promotion.code} applied. You save <Money amount={quote?.discount ?? 0} currency="EUR" />.
+                  </p>
+                ) : (
+                  <p role="alert" className="rounded-2xl bg-bad/12 px-3.5 py-3 text-[13.5px] font-medium text-bad">
+                    {promotion.reason || `${promotion.code} is not valid.`}
+                  </p>
+                )}
+              </div>
+            </div>
+
             {error && (
               <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
                 {error}
@@ -280,10 +329,13 @@ export function VpsCheckout() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
               <p className="text-[14px] text-ink2">
                 Total{' '}
+                {promotion?.valid && listTotal !== null && total !== listTotal && (
+                  <span className="mr-2 text-[14px] text-ink3 line-through"><Money amount={listTotal} currency="EUR" /></span>
+                )}
                 <span className="text-[20px] font-semibold text-ink">{total !== null ? <Money amount={total} currency="EUR" /> : '—'}</span> a month
               </p>
               <PrimaryButton onClick={() => void order.run()} disabled={order.pending || !plan || !key.trim()}>
-                {order.pending ? 'Opening the payment…' : 'Continue to payment'}
+                {order.pending ? (total === 0 ? 'Placing the order…' : 'Opening the payment…') : total === 0 ? 'Place the order' : 'Continue to payment'}
               </PrimaryButton>
             </div>
           </div>

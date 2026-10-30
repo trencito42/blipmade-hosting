@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError, api, get, onUnauthorized, post, type SessionUser } from './lib/api';
-import { authenticateWithPasskey, secondStepWithPasskey } from './lib/passkeys';
+import { authenticateWithAutofill, authenticateWithPasskey, secondStepWithPasskey } from './lib/passkeys';
 
 /** What a password sign-in gives: a session, or the second step that is still to do. */
 export type LoginResult =
@@ -36,6 +36,8 @@ interface SessionState {
   secondStep: (token: string, code: string) => Promise<SessionUser>;
   secondStepPasskey: (token: string) => Promise<SessionUser>;
   passkeyLogin: () => Promise<SessionUser>;
+  /** Waits for a passkey picked from the field of the address. Null when the browser cannot offer it. */
+  passkeyAutofill: () => Promise<SessionUser | null>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<SessionUser>;
   logout: () => Promise<void>;
 }
@@ -61,6 +63,7 @@ const Ctx = createContext<SessionState>({
   passkeyLogin: async () => {
     throw new Error('not ready');
   },
+  passkeyAutofill: async () => null,
   register: async () => {
     throw new Error('not ready');
   },
@@ -156,6 +159,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [adopt],
   );
 
+  const passkeyAutofill = useCallback(async () => {
+    const answer = await authenticateWithAutofill<{ user: SessionUser }>();
+    return answer ? adopt(answer.user) : null;
+  }, [adopt]);
+
   const passkeyLogin = useCallback(async () => adopt((await authenticateWithPasskey<{ user: SessionUser }>()).user), [adopt]);
 
   const register = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
@@ -195,10 +203,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       secondStep,
       secondStepPasskey,
       passkeyLogin,
+      passkeyAutofill,
       register,
       logout,
     }),
-    [user, loading, error, registrationNotice, suspensionNotice, impersonatedBy, refresh, login, secondStep, secondStepPasskey, passkeyLogin, register, logout],
+    [user, loading, error, registrationNotice, suspensionNotice, impersonatedBy, refresh, login, secondStep, secondStepPasskey, passkeyLogin, passkeyAutofill, register, logout],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
