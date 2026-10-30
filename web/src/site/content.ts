@@ -49,7 +49,7 @@ export function faqFor(rates: Rates): Question[] {
     },
     {
       q: 'How do I pay?',
-      a: 'Payments are not available yet. Your order is created and stays unpaid, so you open a support ticket and we finish the payment with you.',
+      a: 'By card. You pay on a checkout page of Stripe, our payment provider, so your card details never reach Blipmade. Plans renew automatically, and you change the card or end a plan from Billing in your dashboard. Bank transfer and other methods are not available.',
     },
     {
       q: 'How do I reach support?',

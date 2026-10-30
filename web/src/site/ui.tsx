@@ -308,6 +308,7 @@ export function Nav() {
 
 /** The end of the page: the night panel with the four columns. */
 export function Footer() {
+  const { status } = useSession();
   const col = 'grid content-start gap-2.5';
   const a = 'text-[15px] text-snow-2 transition-colors duration-150 hover:text-snow';
   return (
@@ -327,8 +328,17 @@ export function Footer() {
         </nav>
         <nav aria-label="Account" className={col}>
           <h2 className="font-display text-[17px] font-semibold">Account</h2>
-          <Link to="/register" className={a}>Create account</Link>
-          <Link to="/login" className={a}>Log in</Link>
+          {status === 'authenticated' ? (
+            <>
+              <Link to="/app" className={a}>Dashboard</Link>
+              <Link to="/app/settings" className={a}>Account settings</Link>
+            </>
+          ) : status === 'anonymous' ? (
+            <>
+              <Link to="/register" className={a}>Create account</Link>
+              <Link to="/login" className={a}>Log in</Link>
+            </>
+          ) : null}
           <Link to="/docs/support" className={a}>Support</Link>
         </nav>
         <nav aria-label="Legal" className={col}>
