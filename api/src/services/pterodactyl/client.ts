@@ -182,16 +182,6 @@ async function clientRequest<T>(
     });
 
     const text = await response.text();
-        throw new ClientApiError(
-          response.status,
-          text,
-          `Pterodactyl client ${method} ${path} failed with ${response.status}. ${clientDetail(text)}`,
-        );
-      }
-      return (Buffer.from(await response.arrayBuffer()) as unknown) as T;
-    }
-
-    const text = await response.text();
     if (!response.ok) {
       throw new ClientApiError(
         response.status,
