@@ -307,6 +307,72 @@ export async function reinstallVps(userId: string, id: string, rawKey?: string):
   await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'PENDING', sshPublicKey: key, lastError: null } });
 }
 
+/** How many snapshots a server may keep. Each one holds the changes of the disk since it was taken. */
+export const MAX_SNAPSHOTS = 2;
+const SNAPSHOT_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+
+async function activeMachine(userId: string, id: string) {
+  const service = await ownedVps(userId, id);
+  if (service.status !== 'ACTIVE' || !service.vmid) throw badRequest('This server cannot be changed right now.');
+  return { service, vmid: service.vmid };
+}
+
+export async function vpsSnapshots(userId: string, id: string) {
+  const { vmid } = await activeMachine(userId, id);
+  const rows = await pve.listSnapshots(vmid);
+  return {
+    max: MAX_SNAPSHOTS,
+    snapshots: rows.map((row) => ({ name: row.name, description: row.description ?? '', createdAt: row.snaptime ? new Date(row.snaptime * 1000).toISOString() : null })),
+  };
+}
+
+export async function takeVpsSnapshot(userId: string, id: string, name: string, description: string) {
+  const { vmid } = await activeMachine(userId, id);
+  if (!SNAPSHOT_NAME.test(name)) throw badRequest('Use lowercase letters, numbers and dashes, starting with a letter.', { name: 'Letters, numbers and dashes.' });
+  const existing = await pve.listSnapshots(vmid);
+  if (existing.length >= MAX_SNAPSHOTS) throw badRequest(`A server keeps ${MAX_SNAPSHOTS} snapshots. Delete one to take another.`);
+  if (existing.some((row) => row.name === name)) throw badRequest('A snapshot with that name exists.');
+  await pve.createSnapshot(vmid, name, description.slice(0, 120));
+}
+
+export async function restoreVpsSnapshot(userId: string, id: string, name: string) {
+  const { vmid } = await activeMachine(userId, id);
+  if (!(await pve.listSnapshots(vmid)).some((row) => row.name === name)) throw notFound('That snapshot was not found.');
+  await pve.rollbackSnapshot(vmid, name);
+  await pve.power(vmid, 'start').catch(() => undefined);
+}
+
+export async function removeVpsSnapshot(userId: string, id: string, name: string) {
+  const { vmid } = await activeMachine(userId, id);
+  if (!(await pve.listSnapshots(vmid)).some((row) => row.name === name)) throw notFound('That snapshot was not found.');
+  await pve.deleteSnapshot(vmid, name);
+}
+
+/** The ISO files the customer may start the server from, and the one that is mounted now. */
+export async function vpsIsos(userId: string, id: string) {
+  const { vmid } = await activeMachine(userId, id);
+  const [isos, config] = await Promise.all([pve.listIsos(), pve.vmConfig(vmid)]);
+  const mounted = typeof config.ide0 === 'string' ? (/^local:iso\/([^,]+)/.exec(config.ide0)?.[1] ?? null) : null;
+  return { isos, mounted };
+}
+
+/**
+ * Puts an ISO in the virtual drive and starts the next boot from it. The graphical display is
+ * switched on, because an installer is not read through a serial line.
+ */
+export async function mountVpsIso(userId: string, id: string, file: string) {
+  const { vmid } = await activeMachine(userId, id);
+  if (!(await pve.listIsos()).some((row) => row.file === file)) throw notFound('That image is not on the list.');
+  await pve.configureVm(vmid, { ide0: `local:iso/${file},media=cdrom`, boot: 'order=ide0;scsi0', vga: 'std' });
+}
+
+/** Takes the ISO out and boots from the disk again. */
+export async function ejectVpsIso(userId: string, id: string) {
+  const { vmid } = await activeMachine(userId, id);
+  await pve.configureVm(vmid, { boot: 'order=scsi0' });
+  await pve.unsetConfig(vmid, ['ide0']);
+}
+
 /** Removes the machine and gives its address back. */
 export async function destroyVps(serviceId: string): Promise<void> {
   const service = await prisma.vpsService.findUnique({ where: { id: serviceId } });

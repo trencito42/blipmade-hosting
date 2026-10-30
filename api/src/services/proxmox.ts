@@ -143,6 +143,45 @@ export async function regenerateCloudInit(vmid: number): Promise<void> {
   await request('PUT', `/nodes/${node()}/qemu/${vmid}/cloudinit`);
 }
 
+export interface VmSnapshot { name: string; description?: string; snaptime?: number }
+
+export async function listSnapshots(vmid: number): Promise<VmSnapshot[]> {
+  const rows = await request<VmSnapshot[]>('GET', `/nodes/${node()}/qemu/${vmid}/snapshot`);
+  return rows.filter((row) => row.name !== 'current');
+}
+
+export async function createSnapshot(vmid: number, name: string, description: string): Promise<void> {
+  const upid = await request<string>('POST', `/nodes/${node()}/qemu/${vmid}/snapshot`, { snapname: name, description });
+  await waitForTask(upid, 600_000);
+}
+
+export async function rollbackSnapshot(vmid: number, name: string): Promise<void> {
+  const upid = await request<string>('POST', `/nodes/${node()}/qemu/${vmid}/snapshot/${encodeURIComponent(name)}/rollback`, {});
+  await waitForTask(upid, 600_000);
+}
+
+export async function deleteSnapshot(vmid: number, name: string): Promise<void> {
+  const upid = await request<string>('DELETE', `/nodes/${node()}/qemu/${vmid}/snapshot/${encodeURIComponent(name)}`);
+  await waitForTask(upid, 600_000);
+}
+
+/** The images that can be mounted: the .iso files of the storage. */
+export async function listIsos(): Promise<{ file: string; size: number }[]> {
+  const rows = await request<{ volid: string; size: number }[]>('GET', `/nodes/${node()}/storage/local/content?content=iso`);
+  return rows
+    .map((row) => ({ file: row.volid.replace(/^local:iso\//, ''), size: row.size }))
+    .filter((row) => /\.iso$/i.test(row.file));
+}
+
+export async function vmConfig(vmid: number): Promise<Record<string, string | number>> {
+  return request('GET', `/nodes/${node()}/qemu/${vmid}/config`);
+}
+
+/** Removes keys from the configuration of a machine. */
+export async function unsetConfig(vmid: number, keys: string[]): Promise<void> {
+  await request('PUT', `/nodes/${node()}/qemu/${vmid}/config`, { delete: keys.join(',') });
+}
+
 export async function deleteVm(vmid: number): Promise<void> {
   const upid = await request<string>('DELETE', `/nodes/${node()}/qemu/${vmid}?purge=1&destroy-unreferenced-disks=1`);
   await waitForTask(upid, 300_000);

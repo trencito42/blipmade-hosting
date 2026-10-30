@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
+import { del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel } from '../lib/pricing';
 import { Link, useParams } from '../router';
@@ -433,6 +433,8 @@ export function VpsDetail() {
       </Panel>
 
       {server.status === 'active' && server.power === 'running' && <UsagePanel id={server.id} />}
+      {server.status === 'active' && <SnapshotsPanel id={server.id} />}
+      {server.status === 'active' && <IsoPanel id={server.id} onChanged={state.reload} />}
       {server.status === 'active' && <ManagePanel server={server} onChanged={state.reload} />}
     </div>
   );
@@ -476,6 +478,130 @@ function UsagePanel({ id }: { id: string }) {
           <Spec label="Network out" value={bytesLabel(usage.networkOut)} />
           <Spec label="Disk written" value={bytesLabel(usage.diskWritten)} />
         </dl>
+      )}
+    </Panel>
+  );
+}
+
+interface SnapshotsAnswer { max: number; snapshots: { name: string; description: string; createdAt: string | null }[] }
+
+/** Snapshots of the disk: a point to go back to before a risky change. */
+function SnapshotsPanel({ id }: { id: string }) {
+  const { push } = useToast();
+  const base = `/vps/${encodeURIComponent(id)}/snapshots`;
+  const state = useAsync<SnapshotsAnswer>((signal) => get<SnapshotsAnswer>(base, undefined, signal), [id]);
+  const [name, setName] = useState('');
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const act = useAction(async (work: () => Promise<unknown>, message: string) => {
+    try {
+      await work();
+      push(message, 'ok');
+      state.reload();
+    } catch (failure) {
+      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    }
+  });
+  const data = state.data;
+  return (
+    <Panel title="Snapshots" description={data ? `A server keeps ${data.max} snapshots. Restoring one replaces the disk as it is now.` : 'Points of the disk you can go back to.'}>
+      {state.error ? (
+        <ErrorState title="The snapshots could not be read" message={state.error.message} onRetry={state.reload} />
+      ) : !data ? (
+        <LoadingBlock rows={1} label="Reading the snapshots" />
+      ) : (
+        <div className="grid gap-4">
+          {data.snapshots.length === 0 ? (
+            <p className="text-[14px] text-ink2">No snapshot yet.</p>
+          ) : (
+            <ul className="grid gap-2">
+              {data.snapshots.map((snapshot) => (
+                <li key={snapshot.name} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-[14px] font-semibold text-ink">{snapshot.name}</p>
+                    <p className="text-[12.5px] text-ink3">{snapshot.createdAt ? new Date(snapshot.createdAt).toLocaleString() : ''}{snapshot.description ? ` · ${snapshot.description}` : ''}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <SoftButton onClick={() => setRestoring(snapshot.name)} disabled={act.pending}>Restore</SoftButton>
+                    <SoftButton onClick={() => void act.run(() => del(`${base}/${encodeURIComponent(snapshot.name)}`), 'The snapshot was deleted.')} disabled={act.pending}>Delete</SoftButton>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {data.snapshots.length < data.max && (
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <TextInput label="New snapshot" value={name} onChange={(event) => setName(event.target.value.toLowerCase())} placeholder="before-upgrade" hint="Lowercase letters, numbers and dashes." autoComplete="off" />
+              <PrimaryButton onClick={() => void act.run(async () => { await post(base, { name }); setName(''); }, 'The snapshot was taken.')} disabled={act.pending || name.trim() === ''}>
+                {act.pending ? 'Working…' : 'Take a snapshot'}
+              </PrimaryButton>
+            </div>
+          )}
+        </div>
+      )}
+      <ConfirmDialog
+        open={restoring !== null}
+        title="Restore this snapshot?"
+        description="The disk goes back to the moment of the snapshot. Everything written since is lost."
+        confirmLabel="Restore"
+        onCancel={() => setRestoring(null)}
+        onConfirm={() => {
+          const target = restoring;
+          setRestoring(null);
+          if (target) void act.run(() => post(`${base}/${encodeURIComponent(target)}/restore`), 'The snapshot was restored.');
+        }}
+      />
+    </Panel>
+  );
+}
+
+interface IsoAnswer { isos: { file: string; size: number }[]; mounted: string | null }
+
+/** Boot the server from an installation image. The list is the images the platform offers. */
+function IsoPanel({ id, onChanged }: { id: string; onChanged: () => void }) {
+  const { push } = useToast();
+  const path = `/vps/${encodeURIComponent(id)}/iso`;
+  const state = useAsync<IsoAnswer>((signal) => get<IsoAnswer>(path, undefined, signal), [id]);
+  const [file, setFile] = useState('');
+  const act = useAction(async (work: () => Promise<unknown>, message: string) => {
+    try {
+      await work();
+      push(message, 'ok');
+      state.reload();
+      onChanged();
+    } catch (failure) {
+      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    }
+  });
+  const data = state.data;
+  return (
+    <Panel title="Boot from an image" description="Mount an installation image, restart the server and install from it. The display is a graphical one while an image is mounted.">
+      {state.error ? (
+        <ErrorState title="The images could not be read" message={state.error.message} onRetry={state.reload} />
+      ) : !data ? (
+        <LoadingBlock rows={1} label="Reading the images" />
+      ) : data.isos.length === 0 && !data.mounted ? (
+        <p className="text-[14px] text-ink2">No installation image is offered at the moment.</p>
+      ) : (
+        <div className="grid gap-3">
+          {data.mounted && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-acc-bg px-4 py-3">
+              <p className="text-[14px] text-ink">Mounted: <span className="font-mono">{data.mounted}</span>. Restart the server to boot from it.</p>
+              <SoftButton onClick={() => void act.run(() => del(path), 'The image was ejected. The next boot is from the disk.')} disabled={act.pending}>Eject</SoftButton>
+            </div>
+          )}
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">
+              Image
+              <select value={file} onChange={(event) => setFile(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink">
+                <option value="">Choose an image</option>
+                {data.isos.map((iso) => (
+                  <option key={iso.file} value={iso.file}>{iso.file} ({Math.round(iso.size / 1024 / 1024)} MB)</option>
+                ))}
+              </select>
+            </label>
+            <SoftButton onClick={() => void act.run(() => put(path, { file }), 'The image is mounted. Restart the server to boot from it.')} disabled={act.pending || !file}>Mount</SoftButton>
+          </div>
+        </div>
       )}
     </Panel>
   );

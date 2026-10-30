@@ -5,7 +5,7 @@ import { env } from '../env.js';
 import { requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { deploymentAvailability } from '../services/availability.js';
-import { changeVpsSshKey, dedicatedAddresses, freeDedicatedAddress, ownedVps, reinstallVps, renameVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
+import { changeVpsSshKey, ejectVpsIso, mountVpsIso, removeVpsSnapshot, restoreVpsSnapshot, takeVpsSnapshot, vpsIsos, vpsSnapshots, dedicatedAddresses, freeDedicatedAddress, ownedVps, reinstallVps, renameVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
 
 /**
@@ -102,5 +102,56 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
     await enqueueVpsProvisioning(id, { reason: 'reinstall' });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.reinstall', targetType: 'vps', targetId: id, meta: {} });
     return { server: await vpsView(await ownedVps(user.id, id)) };
+  });
+
+  const idOf = (request: FastifyRequest) => z.object({ id: z.string() }).parse(request.params).id;
+
+  app.get('/vps/:id/snapshots', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    return vpsSnapshots(user.id, idOf(request));
+  });
+
+  app.post('/vps/:id/snapshots', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { name, description } = z.object({ name: z.string().max(40), description: z.string().max(120).default('') }).parse(request.body ?? {});
+    await takeVpsSnapshot(user.id, idOf(request), name, description);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.snapshot', targetType: 'vps', targetId: idOf(request), meta: { name } });
+    return vpsSnapshots(user.id, idOf(request));
+  });
+
+  app.post('/vps/:id/snapshots/:name/restore', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { name } = z.object({ name: z.string().max(40) }).parse(request.params);
+    await restoreVpsSnapshot(user.id, idOf(request), name);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.snapshot_restore', targetType: 'vps', targetId: idOf(request), meta: { name } });
+    return vpsSnapshots(user.id, idOf(request));
+  });
+
+  app.delete('/vps/:id/snapshots/:name', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { name } = z.object({ name: z.string().max(40) }).parse(request.params);
+    await removeVpsSnapshot(user.id, idOf(request), name);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.snapshot_delete', targetType: 'vps', targetId: idOf(request), meta: { name } });
+    return vpsSnapshots(user.id, idOf(request));
+  });
+
+  app.get('/vps/:id/iso', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    return vpsIsos(user.id, idOf(request));
+  });
+
+  app.put('/vps/:id/iso', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { file } = z.object({ file: z.string().max(200) }).parse(request.body ?? {});
+    await mountVpsIso(user.id, idOf(request), file);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.iso_mount', targetType: 'vps', targetId: idOf(request), meta: { file } });
+    return vpsIsos(user.id, idOf(request));
+  });
+
+  app.delete('/vps/:id/iso', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    await ejectVpsIso(user.id, idOf(request));
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.iso_eject', targetType: 'vps', targetId: idOf(request), meta: {} });
+    return vpsIsos(user.id, idOf(request));
   });
 }
