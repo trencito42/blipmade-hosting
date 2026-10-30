@@ -29,6 +29,8 @@ const schema = z.object({
   REDIS_URL: z.string().default('redis://127.0.0.1:6379'),
 
   SESSION_SECRET: z.string().min(16, 'SESSION_SECRET must be at least 16 characters'),
+  /** Separate key for reversible customer credentials. Set before migrating v1 blobs. */
+  DATA_ENCRYPTION_SECRET: z.string().default('').refine((value) => value.length === 0 || value.length >= 32, 'DATA_ENCRYPTION_SECRET must be at least 32 characters'),
   APP_ORIGIN: z.string().default('http://localhost:5173'),
   APP_PUBLIC_URL: z.string().default('http://localhost:5173'),
   /** "true", "false" or unset. Unset means the cookie follows the origin. */
