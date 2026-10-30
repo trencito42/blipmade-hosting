@@ -150,7 +150,7 @@ export default function Settings() {
   }
 
   const tab = SETTINGS_TABS.find((entry) => entry.id === query.tab) ?? SETTINGS_TABS[0]!;
-  const choose = (id: string) => navigate(`/app/settings${id === SETTINGS_TABS[0]!.id ? '' : `?tab=${id}`}`, { replace: true, scroll: false });
+  const choose = (id: string) => navigate(`/app/settings${id === SETTINGS_TABS[0]!.id ? '' : `?tab=${id}`}`, { replace: true });
 
   return (
     <div className="grid items-start gap-5 pb-16 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8 lg:pb-0">

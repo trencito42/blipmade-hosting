@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRevealOnChange } from '../lib/useReveal';
 import { Icon, ProductMark } from '../icons';
 import { Configurator } from './Configurator';
 import { APP_COPY, FALLBACK } from './content';
@@ -97,6 +98,9 @@ export function Apps() {
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
   const router = useRouter();
+  const filtersRef = useRef<HTMLDivElement>(null);
+  // A new group or a new search starts at the top of the results, under the bar.
+  useRevealOnChange(filtersRef, [category, query], 68);
 
   // The fragment of the address chooses the group. It is read after the page
   // is shown, so the page the server wrote and the first page of the browser
@@ -144,6 +148,7 @@ export function Apps() {
         </Wrap>
       </section>
       <Wrap className="pb-20">
+        <div ref={filtersRef}>
         <div className="sticky top-[68px] z-20 -mx-5 mb-8 flex flex-col gap-3 border-b border-line bg-paper/90 px-5 py-3 backdrop-blur-md sm:-mx-8 sm:flex-row sm:items-center sm:px-8">
           <nav aria-label="Filter apps by category" className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex w-max gap-1.5">
@@ -211,6 +216,7 @@ export function Apps() {
             <p className="mt-1 max-w-[34em] text-[17px] text-ink-2">The catalog grows one verified image at a time. Open a ticket and tell us what you want to run.</p>
           </div>
           <Btn to="/docs/tickets" variant="primary">How to open a ticket</Btn>
+        </div>
         </div>
       </Wrap>
     </>

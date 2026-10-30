@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { useRevealOnChange } from '../lib/useReveal';
 import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
@@ -601,6 +602,8 @@ export default function InstanceDetail() {
   const { id } = useParams();
   const { push } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
+  const tabsRef = useRef<HTMLDivElement>(null);
+  useRevealOnChange(tabsRef, [tab], 120);
   const [powerCooldown, setPowerCooldown] = useState(0);
   useEffect(() => {
     if (powerCooldown <= 0) return;
@@ -729,7 +732,9 @@ export default function InstanceDetail() {
         </p>
       </header>
 
-      <Segmented options={TABS} value={tab} onChange={setTab} ariaLabel="Instance sections" />
+      <div ref={tabsRef} className="scroll-mt-28">
+        <Segmented options={TABS} value={tab} onChange={setTab} ariaLabel="Instance sections" />
+      </div>
 
       <section role="tabpanel" aria-label={TABS.find((entry) => entry.value === tab)?.label ?? 'Instance section'}>
         {provisioning ? (
