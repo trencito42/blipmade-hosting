@@ -978,6 +978,83 @@ export function MailServiceCard({
         </div>
       </dl>
 
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {webmailUrl ? (
+          <ButtonLink href={webmailUrl} target="_blank" rel="noreferrer noopener" variant="soft">
+            Open webmail
+          </ButtonLink>
+        ) : (
+          <span className="text-[13px] text-ink3">The webmail is not set up on this platform.</span>
+        )}
+        <SoftButton
+          onClick={() => {
+            setShowDns((open) => !open);
+            if (!showDns) onLoadDns?.(service.id);
+          }}
+        >
+          {showDns ? 'Hide the records' : 'DNS records'}
+        </SoftButton>
+        {service.status === 'ACTIVE' && (
+          <SoftButton onClick={() => onSuspend?.(service.id)} disabled={busy}>
+            Suspend
+          </SoftButton>
+        )}
+        {(service.status === 'SUSPENDED' || service.status === 'GRACE') && (
+          <SoftButton onClick={() => onResume?.(service.id)} disabled={busy}>
+            Resume
+          </SoftButton>
+        )}
+        {service.status !== 'CANCELLED' && (
+          <DangerButton onClick={() => onRequestCancel?.(service.id)} disabled={busy}>
+            Cancel
+          </DangerButton>
+        )}
+        {service.status === 'CANCELLED' && (
+          <SoftButton onClick={() => onReactivate?.(service.id)} disabled={busy}>
+            Reactivate
+          </SoftButton>
+        )}
+      </div>
+
+      {showDns && (
+        <div className="mt-3 grid gap-2">
+          {!dns ? (
+            <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] text-ink2">The records are on their way.</p>
+          ) : !dns.length ? (
+            <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] text-ink2">
+              This service has no domain yet, so it has no records.
+            </p>
+          ) : (
+            dns.map((entry) => (
+              <div key={entry.id} className="rounded-2xl bg-s3 p-3.5">
+                <p className="break-all text-[14px] font-medium text-ink">{entry.name}</p>
+                <p className="mt-0.5 text-[12.5px] text-ink3">
+                  {entry.verified
+                    ? 'The server has seen the records of this domain.'
+                    : 'The server has not seen all the records of this domain yet.'}
+                </p>
+                <ul className="mt-2 grid gap-1.5">
+                  {entry.records.map((record) => (
+                    <li
+                      key={`${record.name}-${record.type}-${record.value}`}
+                      className="break-all font-mono text-[12px] text-ink2"
+                    >
+                      {record.name} {record.type} {record.value}
+                      {record.priority === undefined ? '' : ` (${record.priority})`}
+                      {record.purpose ? ` — ${record.purpose}` : ''}
+                    </li>
+                  ))}
+                </ul>
+                {Array.isArray(entry.missing) && entry.missing.length > 0 && (
+                  <p className="mt-2 text-[12.5px] text-ink3">Still missing: {entry.missing.join(', ')}</p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+
       {(service.graceUntil || service.suspendedAt || service.cancelledAt || service.retentionUntil) && (
         <ul className="mt-3 grid gap-1">
           {service.graceUntil && (
@@ -1057,82 +1134,6 @@ export function MailServiceCard({
           }
         />
       </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {webmailUrl ? (
-          <ButtonLink href={webmailUrl} target="_blank" rel="noreferrer noopener" variant="soft">
-            Open webmail
-          </ButtonLink>
-        ) : (
-          <span className="text-[13px] text-ink3">The webmail is not set up on this platform.</span>
-        )}
-        <SoftButton
-          onClick={() => {
-            setShowDns((open) => !open);
-            if (!showDns) onLoadDns?.(service.id);
-          }}
-        >
-          {showDns ? 'Hide the records' : 'DNS records'}
-        </SoftButton>
-        {service.status === 'ACTIVE' && (
-          <SoftButton onClick={() => onSuspend?.(service.id)} disabled={busy}>
-            Suspend
-          </SoftButton>
-        )}
-        {(service.status === 'SUSPENDED' || service.status === 'GRACE') && (
-          <SoftButton onClick={() => onResume?.(service.id)} disabled={busy}>
-            Resume
-          </SoftButton>
-        )}
-        {service.status !== 'CANCELLED' && (
-          <DangerButton onClick={() => onRequestCancel?.(service.id)} disabled={busy}>
-            Cancel
-          </DangerButton>
-        )}
-        {service.status === 'CANCELLED' && (
-          <SoftButton onClick={() => onReactivate?.(service.id)} disabled={busy}>
-            Reactivate
-          </SoftButton>
-        )}
-      </div>
-
-      {showDns && (
-        <div className="mt-3 grid gap-2">
-          {!dns ? (
-            <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] text-ink2">The records are on their way.</p>
-          ) : !dns.length ? (
-            <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] text-ink2">
-              This service has no domain yet, so it has no records.
-            </p>
-          ) : (
-            dns.map((entry) => (
-              <div key={entry.id} className="rounded-2xl bg-s3 p-3.5">
-                <p className="break-all text-[14px] font-medium text-ink">{entry.name}</p>
-                <p className="mt-0.5 text-[12.5px] text-ink3">
-                  {entry.verified
-                    ? 'The server has seen the records of this domain.'
-                    : 'The server has not seen all the records of this domain yet.'}
-                </p>
-                <ul className="mt-2 grid gap-1.5">
-                  {entry.records.map((record) => (
-                    <li
-                      key={`${record.name}-${record.type}-${record.value}`}
-                      className="break-all font-mono text-[12px] text-ink2"
-                    >
-                      {record.name} {record.type} {record.value}
-                      {record.priority === undefined ? '' : ` (${record.priority})`}
-                      {record.purpose ? ` — ${record.purpose}` : ''}
-                    </li>
-                  ))}
-                </ul>
-                {Array.isArray(entry.missing) && entry.missing.length > 0 && (
-                  <p className="mt-2 text-[12.5px] text-ink3">Still missing: {entry.missing.join(', ')}</p>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
 
       {plans.length === 0 && !plansNote ? (
         <p className="mt-4 text-[13px] text-ink3">Plan changes are not available right now.</p>

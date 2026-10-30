@@ -174,6 +174,8 @@ const schema = z.object({
   VPS_PROXMOX_TOKEN: z.string().default(''),
   VPS_PROXMOX_NODE: z.string().default('n7030e1'),
   VPS_TEMPLATE_VMID: z.coerce.number().int().min(100).default(9000),
+  /** The templates of the other images, as JSON: {"ubuntu-24.04": 9001}. An image without a template is not offered. */
+  VPS_IMAGES: z.string().default(''),
   VPS_POOL: z.string().default('vps'),
   /** The address that the SSH of the VPS without an address of their own is published on. */
   VPS_SHARED_IP: z.string().default(''),

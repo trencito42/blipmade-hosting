@@ -1179,6 +1179,7 @@ export interface VpsServerView {
   publicIp: string | null;
   sshPort: number | null;
   dedicatedIp: boolean;
+  image?: { slug: string; label: string };
   sshCommand: string | null;
   lastError: string | null;
   createdAt: string;

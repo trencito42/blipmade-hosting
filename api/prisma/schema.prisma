@@ -1397,6 +1397,8 @@ model VpsService {
   disk           Int
   /// The public key of the customer, put in the machine at the start.
   sshPublicKey   String
+  /// The image the server is built from: a key of lib/vps-images.
+  image          String        @default("debian-13")
   lastError      String?
   /// When the machine was stopped because the subscription is not paid. Its data is kept until the retention ends.
   suspendedAt    DateTime?

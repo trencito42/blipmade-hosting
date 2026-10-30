@@ -16,6 +16,9 @@ import {
 import { destroyVps, ownedVps, reinstallVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
 import { relayVpsConsole } from '../services/vps-console.js';
+import { cancelSubscription, resumeSubscription } from '../services/stripe.js';
+import { sendResetEmail } from './auth.js';
+import { fullName } from '../lib/people.js';
 
 /**
  * What the staff does on behalf of a customer.
@@ -166,5 +169,91 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
       }
       await relayVpsConsole(socket, request, true);
     })();
+  });
+
+  // --- the account of a customer, for the staff ---------------------------------
+
+  const customerOf = async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const customer = await prisma.user.findUnique({ where: { id } });
+    if (!customer) throw notFound('Customer not found.');
+    assertMayActOnAccount(actor, customer.role, customer.id);
+    return { actor, customer };
+  };
+
+  app.get('/admin/customers/:id/subscriptions', { preHandler: [requirePermission('customers.read')] }, async (request) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const rows = await prisma.subscription.findMany({
+      where: { userId: id },
+      include: {
+        instance: { select: { name: true } },
+        mailService: { select: { product: { select: { name: true } } } },
+        vpsService: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return {
+      subscriptions: rows.map((row) => ({
+        id: row.id,
+        name: row.instance?.name ?? row.vpsService?.name ?? row.mailService?.product.name ?? 'Subscription',
+        kind: row.instanceId ? 'server' : row.mailService ? 'mail' : row.vpsService ? 'vps' : 'other',
+        status: row.status.toLowerCase(),
+        amount: row.amount,
+        currency: row.currency,
+        currentPeriodEnd: row.currentPeriodEnd,
+        cancelAtPeriodEnd: row.cancelAtPeriodEnd,
+      })),
+    };
+  });
+
+  app.post('/admin/subscriptions/:id/cancel', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const subscription = await prisma.subscription.findUnique({ where: { id } });
+    if (!subscription) throw notFound('Subscription not found.');
+    const updated = await cancelSubscription(subscription);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.subscription.cancel_at_period_end', targetType: 'subscription', targetId: id, ip: request.ip });
+    return { subscription: { id: updated.id, status: updated.status.toLowerCase(), cancelAtPeriodEnd: updated.cancelAtPeriodEnd, currentPeriodEnd: updated.currentPeriodEnd } };
+  });
+
+  app.post('/admin/subscriptions/:id/resume', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const subscription = await prisma.subscription.findUnique({ where: { id } });
+    if (!subscription) throw notFound('Subscription not found.');
+    const updated = await resumeSubscription(subscription);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.subscription.resume', targetType: 'subscription', targetId: id, ip: request.ip });
+    return { subscription: { id: updated.id, status: updated.status.toLowerCase(), cancelAtPeriodEnd: updated.cancelAtPeriodEnd, currentPeriodEnd: updated.currentPeriodEnd } };
+  });
+
+  app.patch('/admin/customers/:id/name', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    const body = z.object({ firstName: z.string().trim().min(1).max(60), lastName: z.string().trim().min(1).max(60) }).parse(request.body ?? {});
+    await prisma.user.update({ where: { id: customer.id }, data: body });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.rename', targetType: 'user', targetId: customer.id, ip: request.ip });
+    return { name: fullName({ ...customer, ...body }) };
+  });
+
+  app.post('/admin/customers/:id/verify-email', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    await prisma.user.update({ where: { id: customer.id }, data: { emailVerifiedAt: customer.emailVerifiedAt ?? new Date() } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.verify_email', targetType: 'user', targetId: customer.id, ip: request.ip });
+    return { ok: true };
+  });
+
+  app.post('/admin/customers/:id/send-password-reset', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    await sendResetEmail(customer.id, customer.email, fullName(customer));
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.send_password_reset', targetType: 'user', targetId: customer.id, ip: request.ip });
+    return { ok: true };
+  });
+
+  app.post('/admin/customers/:id/revoke-sessions', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    const result = await prisma.session.deleteMany({ where: { userId: customer.id } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.revoke_sessions', targetType: 'user', targetId: customer.id, meta: { closed: result.count }, ip: request.ip });
+    return { closed: result.count };
   });
 }

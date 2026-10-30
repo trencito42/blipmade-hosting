@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { get, post } from '../lib/api';
+import { get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
 import { useSession } from '../session';
@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingBlock,
   Money,
+  TextInput,
   Panel,
   StatusPill,
   useToast,
@@ -362,6 +363,9 @@ export default function CustomerDetail() {
         onChanged={state.reload}
       />
 
+      {mayWrite && <AccountTools customerId={customer.id} name={customer.name ?? ''} emailVerified={customer.emailVerified} onChanged={state.reload} />}
+      <SubscriptionsPanel customerId={customer.id} mayWrite={mayWrite} />
+
       <Panel title="Instances" description={`${instanceCount} instance${instanceCount === 1 ? '' : 's'} on this account.`}>
         {!customer.instances.length ? (
           <EmptyState
@@ -658,5 +662,107 @@ export default function CustomerDetail() {
         </Link>
       </p>
     </div>
+  );
+}
+
+/** What the staff does to the account itself: the name, the address, the password link, the sessions. */
+function AccountTools({ customerId, name, emailVerified, onChanged }: { customerId: string; name: string; emailVerified: boolean; onChanged: () => void }) {
+  const toast = useToast();
+  const [first = '', ...rest] = name.split(' ');
+  const [firstName, setFirstName] = useState(first);
+  const [lastName, setLastName] = useState(rest.join(' '));
+  const [busy, setBusy] = useState<string | null>(null);
+  const run = async (key: string, work: () => Promise<unknown>, message: string) => {
+    setBusy(key);
+    try {
+      await work();
+      toast.push(message, 'ok');
+      onChanged();
+    } catch (failure) {
+      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <Panel title="Account tools" description="Each action is written to the audit log.">
+      <div className="grid gap-4">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+          <TextInput label="First name" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+          <TextInput label="Last name" value={lastName} onChange={(event) => setLastName(event.target.value)} />
+          <button type="button" className={denseGhost} disabled={busy !== null || !firstName.trim() || !lastName.trim()} onClick={() => void run('name', () => patch(`/admin/customers/${customerId}/name`, { firstName, lastName }), 'The name was saved.')}>Save name</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {!emailVerified && (
+            <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('verify', () => post(`/admin/customers/${customerId}/verify-email`), 'The address is marked as verified.')}>Mark email verified</button>
+          )}
+          <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('reset', () => post(`/admin/customers/${customerId}/send-password-reset`), 'The reset link was queued for the customer.')}>Send password reset link</button>
+          <button type="button" className={denseDanger} disabled={busy !== null} onClick={() => void run('sessions', () => post(`/admin/customers/${customerId}/revoke-sessions`), 'Every session of the customer was closed.')}>Sign out everywhere</button>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+interface AdminSubscription {
+  id: string;
+  name: string;
+  kind: string;
+  status: string;
+  amount: number;
+  currency: string;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+/** Every subscription of the customer, with the two things the staff can do to one: end it at the end of the period, or take that back. */
+function SubscriptionsPanel({ customerId, mayWrite }: { customerId: string; mayWrite: boolean }) {
+  const toast = useToast();
+  const state = useAsync<{ subscriptions: AdminSubscription[] }>((signal) => get<{ subscriptions: AdminSubscription[] }>(`/admin/customers/${customerId}/subscriptions`, undefined, signal), [customerId]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const act = async (id: string, action: 'cancel' | 'resume') => {
+    setBusy(id);
+    try {
+      await post(`/admin/subscriptions/${id}/${action}`);
+      toast.push(action === 'cancel' ? 'The subscription ends at the end of the paid period.' : 'The subscription continues.', 'ok');
+      state.reload();
+    } catch (failure) {
+      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const rows = state.data?.subscriptions ?? [];
+  return (
+    <Panel title="Subscriptions" description="Apps, servers, VPS and mail plans of this customer.">
+      {state.loading && !state.data ? (
+        <LoadingBlock rows={2} label="Loading the subscriptions" />
+      ) : state.error ? (
+        <ErrorState title="The subscriptions could not be loaded" message={state.error.message} onRetry={state.reload} />
+      ) : rows.length === 0 ? (
+        <p className="text-[14px] text-ink2">No subscription.</p>
+      ) : (
+        <ul className="grid gap-2">
+          {rows.map((row) => (
+            <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-[14.5px] font-semibold text-ink">{row.name} <span className="font-normal text-ink3">· {row.kind}</span></p>
+                <p className="text-[12.5px] text-ink3">
+                  <Money amount={row.amount} currency={row.currency} /> · {row.cancelAtPeriodEnd ? 'ends' : 'renews'} {row.currentPeriodEnd ? fmtDate(row.currentPeriodEnd) : DASH}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusPill status={row.status} label={row.status} />
+                {mayWrite && (row.cancelAtPeriodEnd ? (
+                  <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void act(row.id, 'resume')}>Resume</button>
+                ) : (
+                  <button type="button" className={denseDanger} disabled={busy !== null} onClick={() => void act(row.id, 'cancel')}>End at period end</button>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }

@@ -79,8 +79,8 @@ export async function waitForTask(upid: string, timeoutMs = 600_000): Promise<vo
   throw new ProxmoxError('A task of Proxmox did not finish in time.');
 }
 
-export async function cloneTemplate(newId: number, name: string): Promise<void> {
-  const upid = await request<string>('POST', `/nodes/${node()}/qemu/${env.VPS_TEMPLATE_VMID}/clone`, {
+export async function cloneTemplate(newId: number, name: string, templateVmid: number = env.VPS_TEMPLATE_VMID): Promise<void> {
+  const upid = await request<string>('POST', `/nodes/${node()}/qemu/${templateVmid}/clone`, {
     newid: newId,
     name,
     full: 1,

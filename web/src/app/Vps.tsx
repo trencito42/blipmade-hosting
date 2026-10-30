@@ -399,7 +399,7 @@ export function VpsDetail() {
         <span aria-hidden="true">/</span>
         <span className="font-semibold text-ink" aria-current="page">{server.name}</span>
       </nav>
-      <Panel title={server.name} description={`${server.plan.name} · Debian 13`} action={<StatusPill status={status.tone} label={status.label} />}>
+      <Panel title={server.name} description={`${server.plan.name} · ${server.image?.label ?? 'Debian 13'}`} action={<StatusPill status={status.tone} label={status.label} />}>
         <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-3">
           <Spec label="vCPU" value={server.cpu} />
           <Spec label="Memory" value={memLabel(server.ram)} />
@@ -663,6 +663,8 @@ function ManagePanel({ server, onChanged, section }: { server: VpsServerView; on
   const [name, setName] = useState(server.name);
   const [key, setKey] = useState('');
   const [reinstallKey, setReinstallKey] = useState('');
+  const images = useAsync<{ images: { slug: string; label: string }[] }>((signal) => get<{ images: { slug: string; label: string }[] }>('/vps/images', undefined, signal), []);
+  const [image, setImage] = useState(server.image?.slug ?? 'debian-13');
   const [confirming, setConfirming] = useState(false);
   const [keyError, setKeyError] = useState<string | null>(null);
 
@@ -688,7 +690,7 @@ function ManagePanel({ server, onChanged, section }: { server: VpsServerView; on
   });
   const reinstall = useAction(async () => {
     try {
-      await post(`/vps/${encodeURIComponent(server.id)}/reinstall`, { confirm: true, ...(reinstallKey.trim() ? { sshPublicKey: reinstallKey } : {}) });
+      await post(`/vps/${encodeURIComponent(server.id)}/reinstall`, { confirm: true, image, ...(reinstallKey.trim() ? { sshPublicKey: reinstallKey } : {}) });
       push('The server is being built again.', 'ok');
       setConfirming(false);
       setReinstallKey('');
@@ -732,8 +734,16 @@ function ManagePanel({ server, onChanged, section }: { server: VpsServerView; on
         <div className="grid gap-5">
           <div className="grid gap-2">
             <p className="text-[14px] text-ink2">
-              Reinstalling builds the server again from a clean Debian 13. <strong className="text-ink">Everything on its disk is deleted.</strong> The address, the plan and the subscription stay.
+              Reinstalling builds the server again from a clean image of the system you choose. <strong className="text-ink">Everything on its disk is deleted.</strong> The address, the plan and the subscription stay.
             </p>
+            <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">
+              Operating system
+              <select value={image} onChange={(event) => setImage(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink">
+                {(images.data?.images ?? [{ slug: image, label: server.image?.label ?? 'Debian 13' }]).map((entry) => (
+                  <option key={entry.slug} value={entry.slug}>{entry.label}</option>
+                ))}
+              </select>
+            </label>
             <TextArea
               label="New SSH public key (optional)"
               value={reinstallKey}

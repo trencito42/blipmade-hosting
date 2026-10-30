@@ -7,6 +7,7 @@ import { audit } from '../lib/audit.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { changeVpsSshKey, ejectVpsIso, mountVpsIso, removeVpsSnapshot, restoreVpsSnapshot, takeVpsSnapshot, vpsIsos, vpsSnapshots, dedicatedAddresses, freeDedicatedAddress, ownedVps, reinstallVps, renameVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
+import { availableImages } from '../lib/vps-images.js';
 import { relayVpsConsole } from '../services/vps-console.js';
 
 /**
@@ -98,8 +99,8 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
   app.post('/vps/:id/reinstall', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z.object({ sshPublicKey: z.string().max(1000).optional(), confirm: z.literal(true) }).parse(request.body ?? {});
-    await reinstallVps(user.id, id, body.sshPublicKey);
+    const body = z.object({ sshPublicKey: z.string().max(1000).optional(), image: z.string().max(40).optional(), confirm: z.literal(true) }).parse(request.body ?? {});
+    await reinstallVps(user.id, id, body.sshPublicKey, body.image);
     await enqueueVpsProvisioning(id, { reason: 'reinstall' });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'vps.reinstall', targetType: 'vps', targetId: id, meta: {} });
     return { server: await vpsView(await ownedVps(user.id, id)) };
@@ -159,5 +160,11 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
   /** The serial console of the server. The browser opens it with its session cookie. */
   app.get('/vps/:id/console/stream', { websocket: true }, (socket, request: FastifyRequest) => {
     void relayVpsConsole(socket, request);
+  });
+
+  /** The operating systems a server can be built from. */
+  app.get('/vps/images', async (request: FastifyRequest) => {
+    await requireAuth(request);
+    return { images: availableImages() };
   });
 }

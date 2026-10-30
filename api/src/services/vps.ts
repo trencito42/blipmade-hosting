@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import * as pve from './proxmox.js';
+import { imageLabel, templateOfImage } from '../lib/vps-images.js';
 
 /**
  * Virtual private servers.
@@ -135,7 +136,9 @@ export async function provisionVps(serviceId: string): Promise<void> {
     await prisma.vpsService.update({ where: { id: serviceId }, data: { vmid, privateIp, publicIp, sshPort } });
 
     if (!(await pve.vmExists(vmid))) {
-      await pve.cloneTemplate(vmid, `vps-${service.slot}-${service.name}`);
+      const template = templateOfImage(service.image);
+      if (!template) throw new Error(`The image ${service.image} has no template on this platform.`);
+      await pve.cloneTemplate(vmid, `vps-${service.slot}-${service.name}`, template);
     }
 
     await pve.configureVm(vmid, {
@@ -181,6 +184,8 @@ export interface VpsView {
   publicIp: string | null;
   sshPort: number | null;
   dedicatedIp: boolean;
+  /** The operating system the server was built from. */
+  image: { slug: string; label: string };
   /** The line to type to log in. */
   sshCommand: string | null;
   lastError: string | null;
@@ -217,6 +222,7 @@ export async function vpsView(
     publicIp: service.publicIp,
     sshPort: service.sshPort,
     dedicatedIp: service.dedicatedIp,
+    image: { slug: service.image, label: imageLabel(service.image) },
     sshCommand: ssh,
     lastError: service.lastError,
     createdAt: service.createdAt,
@@ -295,16 +301,18 @@ export async function changeVpsSshKey(userId: string, id: string, rawKey: string
  * Builds the server again from the image. Everything on its disk is lost; the address, the
  * plan and the subscription stay. The new machine is made by the worker.
  */
-export async function reinstallVps(userId: string, id: string, rawKey?: string): Promise<void> {
+export async function reinstallVps(userId: string, id: string, rawKey?: string, rawImage?: string): Promise<void> {
   const service = await ownedVps(userId, id);
   if (service.status !== 'ACTIVE' || !service.vmid) throw badRequest('This server cannot be reinstalled right now.');
   const key = rawKey?.trim() ? validSshKey(rawKey) : service.sshPublicKey;
+  const image = rawImage?.trim() || service.image;
+  if (!templateOfImage(image)) throw badRequest('That operating system is not available.');
   if (await pve.vmExists(service.vmid)) {
     const live = await pve.vmStatus(service.vmid);
     if (live.status === 'running') await pve.power(service.vmid, 'stop');
     await pve.deleteVm(service.vmid);
   }
-  await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'PENDING', sshPublicKey: key, lastError: null } });
+  await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'PENDING', sshPublicKey: key, image, lastError: null } });
 }
 
 /** How many snapshots a server may keep. Each one holds the changes of the disk since it was taken. */
