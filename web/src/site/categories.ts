@@ -29,6 +29,8 @@ export const CATEGORIES: CategoryMeta[] = [
   { id: 'AUTOMATION', slug: 'automation', label: 'Automation', icon: 'flow', blurb: 'Queues, messaging and workflows that run on their own.' },
   { id: 'MONITORING', slug: 'monitoring', label: 'Monitoring', icon: 'mon', blurb: 'Dashboards and checks for everything else you run.' },
   { id: 'WEB_CMS', slug: 'web-cms', label: 'Web & CMS', icon: 'globe', blurb: 'Sites and content platforms.' },
+  { id: 'EMAIL_HOSTING', slug: 'email-hosting', label: 'Email hosting', icon: 'mail', blurb: 'Mailboxes on your own domain.' },
+  { id: 'VPS', slug: 'servers', label: 'Servers (VPS)', icon: 'server', blurb: 'A server of your own, with root access.' },
 ];
 
 const BY_ID = new Map(CATEGORIES.map((category) => [category.id, category]));

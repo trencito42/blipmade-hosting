@@ -294,7 +294,7 @@ export function AppDetail({ slug }: { slug: string }) {
   // A plan of hosted mail is not a server: it has no memory, no vCPU and no
   // disk to choose, so it goes to the storefront of the mail and not to the
   // configurator of the servers.
-  if (product.category === 'EMAIL_HOSTING') {
+  if (product.category === 'EMAIL_HOSTING' || product.category === 'VPS') {
     return (
       <section aria-labelledby="app-h">
         <Wrap className="grid gap-8 pt-14 pb-20 sm:pt-20">
@@ -304,7 +304,7 @@ export function AppDetail({ slug }: { slug: string }) {
           </h1>
           <p className="max-w-[34em] text-[18px] text-ink-2">{product.description}</p>
           <div>
-            <Btn to="/email" variant="mint" size="lg">See the mail plans</Btn>
+            <Btn to={product.category === 'VPS' ? '/vps' : '/email'} variant="mint" size="lg">{product.category === 'VPS' ? 'See the servers' : 'See the mail plans'}</Btn>
           </div>
         </Wrap>
       </section>

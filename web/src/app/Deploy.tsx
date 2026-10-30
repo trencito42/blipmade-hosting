@@ -496,6 +496,7 @@ export default function Deploy() {
   // on the checkout of the mail, which asks for the domain first.
   useEffect(() => {
     if (product?.category === 'EMAIL_HOSTING') navigate(mailCheckoutPath(product.slug), { replace: true });
+    if (product?.category === 'VPS') navigate(`/app/vps/new?plan=${encodeURIComponent(product.slug)}`, { replace: true });
   }, [product?.category, product?.slug, navigate]);
 
   const ram = config?.ram ?? 0;

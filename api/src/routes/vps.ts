@@ -18,15 +18,17 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vps/plans', async () => {
     const products = await prisma.product.findMany({
       where: { fulfilment: 'VPS', visible: true },
-      include: { prices: { where: { active: true, period: 'MONTHLY' }, take: 1 }, options: { where: { active: true } } },
+      include: { prices: { where: { active: true, period: 'MONTHLY' }, take: 1 } },
       orderBy: { sortOrder: 'asc' },
     });
+    // The address of its own is an option of the platform, not of one plan.
+    const dedicatedOption = await prisma.productOption.findFirst({ where: { code: 'dedicated-ipv4', active: true } });
     const dedicatedFree = dedicatedAddresses().length > 0 && (await freeDedicatedAddress()) !== null;
     return {
       plans: products
         .filter((product) => deploymentAvailability(product).orderable)
         .map((product) => {
-          const dedicated = product.options.find((option) => option.code === 'dedicated-ipv4');
+          const dedicated = dedicatedOption;
           return {
             slug: product.slug,
             name: product.name,

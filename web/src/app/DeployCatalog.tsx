@@ -44,6 +44,7 @@ const CATEGORY_ORDER = [
   'BOTS',
   'DATABASES',
   'EMAIL_HOSTING',
+  'VPS',
 ];
 
 function availability(product: CatalogProduct): { deployable: boolean; label: string; reason: string } {
@@ -81,7 +82,9 @@ function ProductCard({ product }: { product: CatalogProduct }) {
     ? null
     : product.category === 'EMAIL_HOSTING'
       ? mailCheckoutPath(product.slug)
-      : deployPathFor(product.slug, startingConfiguration(product));
+      : product.category === 'VPS'
+        ? `/app/vps/new?plan=${encodeURIComponent(product.slug)}`
+        : deployPathFor(product.slug, startingConfiguration(product));
 
   const body = (
     <>
