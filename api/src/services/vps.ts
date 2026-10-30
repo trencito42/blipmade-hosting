@@ -1,0 +1,248 @@
+import type { VpsService } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { prisma } from '../db.js';
+import { env } from '../env.js';
+import { badRequest, notFound } from '../lib/errors.js';
+import * as pve from './proxmox.js';
+
+/**
+ * Virtual private servers.
+ *
+ * A VPS is a machine on Proxmox, cloned from a template. Everything that the
+ * machine needs follows from its slot, a small number that is never reused: the
+ * id on Proxmox, the private address and the public SSH port. The firewall of the
+ * hypervisor is not touched from here: the machine is tagged, and a script of the
+ * hypervisor turns the tags into rules.
+ */
+
+/** The id on Proxmox of the machine of a slot. */
+export const vmidOfSlot = (slot: number): number => 1000 + slot;
+/** The address of the machine on the private network of the VPS. */
+export const privateIpOfSlot = (slot: number): string => `10.78.0.${100 + slot}`;
+/** The public port that reaches the SSH of the machine, when the address is shared. */
+export const sshPortOfSlot = (slot: number): number => 22100 + slot;
+/** How many machines the private network holds. */
+export const MAX_SLOT = 150;
+
+const KEY_PATTERN =
+  /^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com) [A-Za-z0-9+/=]{20,}(?: [^\r\n]{0,100})?$/;
+
+/** The public key of the customer, in the form that OpenSSH writes it, on one line. */
+export function validSshKey(raw: string | undefined | null): string {
+  const key = (raw ?? '').trim();
+  if (!key) throw badRequest('Paste the public SSH key you will log in with.', { sshPublicKey: 'Paste a public key.' });
+  if (key.length > 900 || !KEY_PATTERN.test(key)) {
+    throw badRequest('That is not a public SSH key. It starts with ssh-ed25519 or ssh-rsa.', {
+      sshPublicKey: 'Paste the public key, the line of the file that ends in .pub.',
+    });
+  }
+  return key;
+}
+
+/** The name of a VPS: lowercase letters, numbers and dashes, because it is also its hostname. */
+export function validVpsName(raw: string | undefined | null, fallback: string): string {
+  const name = (raw ?? '').trim().toLowerCase() || fallback;
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/.test(name)) {
+    throw badRequest('Use lowercase letters, numbers and dashes for the name of the server.', {
+      vpsName: 'Letters, numbers and dashes only.',
+    });
+  }
+  return name;
+}
+
+export function dedicatedAddresses(): string[] {
+  return env.VPS_DEDICATED_IPS.split(',').map((entry) => entry.trim()).filter(Boolean);
+}
+
+/** An address that the customer can buy and nobody holds, or nothing when they are all taken. */
+export async function freeDedicatedAddress(): Promise<string | null> {
+  const taken = await prisma.vpsService.findMany({
+    where: { dedicatedIp: true, status: { not: 'CANCELLED' }, publicIp: { not: null } },
+    select: { publicIp: true },
+  });
+  const used = new Set(taken.map((row) => row.publicIp));
+  return dedicatedAddresses().find((address) => !used.has(address)) ?? null;
+}
+
+/** Makes the row of a VPS and gives it the next slot. */
+export async function createVpsService(input: {
+  userId: string;
+  productId: string;
+  orderItemId: string;
+  subscriptionId: string | null;
+  name: string;
+  ram: number;
+  cpu: number;
+  disk: number;
+  sshPublicKey: string;
+  dedicatedIp: boolean;
+}): Promise<VpsService> {
+  const existing = await prisma.vpsService.findUnique({ where: { orderItemId: input.orderItemId } });
+  if (existing) return existing;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const last = await prisma.vpsService.aggregate({ _max: { slot: true } });
+    const slot = (last._max.slot ?? 0) + 1;
+    if (slot > MAX_SLOT) throw new Error('The private network of the VPS is full.');
+    try {
+      return await prisma.vpsService.create({
+        data: { ...input, slot, vmid: vmidOfSlot(slot), privateIp: privateIpOfSlot(slot), status: 'PENDING' },
+      });
+    } catch (error) {
+      // Two orders asked for the same slot at the same moment: the next attempt takes the next one.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') continue;
+      throw error;
+    }
+  }
+  throw new Error('A slot for the VPS could not be taken.');
+}
+
+const dashed = (address: string) => address.replace(/\./g, '-');
+
+/** The tags that tell the script of the hypervisor what to publish. */
+function tagsOf(service: { sshPort: number | null; publicIp: string; privateIp: string; dedicatedIp: boolean }): string {
+  const tags = ['bmvps', `pub${dashed(service.publicIp)}`, `ip${dashed(service.privateIp)}`];
+  if (service.dedicatedIp) tags.push('ded');
+  else if (service.sshPort) tags.push(`ssh${service.sshPort}`);
+  return tags.join(';');
+}
+
+/**
+ * Builds the machine. Safe to run again: a step that is done is not done twice, so a
+ * job that was interrupted continues where it stopped.
+ */
+export async function provisionVps(serviceId: string): Promise<void> {
+  const service = await prisma.vpsService.findUnique({ where: { id: serviceId } });
+  if (!service) throw new Error('The VPS no longer exists.');
+  if (service.status === 'ACTIVE' || service.status === 'CANCELLED') return;
+  if (!pve.proxmoxConfigured()) throw new Error('The VPS service is not set up on this platform.');
+
+  await prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'PROVISIONING', lastError: null } });
+
+  try {
+    const vmid = service.vmid ?? vmidOfSlot(service.slot);
+    const privateIp = service.privateIp ?? privateIpOfSlot(service.slot);
+
+    // The address is decided once and written down before the machine is tagged with it.
+    let publicIp = service.publicIp;
+    if (!publicIp) {
+      publicIp = service.dedicatedIp ? await freeDedicatedAddress() : env.VPS_SHARED_IP || null;
+      if (!publicIp) {
+        throw new Error(service.dedicatedIp ? 'No dedicated address is free.' : 'The shared address of the VPS is not set.');
+      }
+    }
+    const sshPort = service.dedicatedIp ? 22 : sshPortOfSlot(service.slot);
+    await prisma.vpsService.update({ where: { id: serviceId }, data: { vmid, privateIp, publicIp, sshPort } });
+
+    if (!(await pve.vmExists(vmid))) {
+      await pve.cloneTemplate(vmid, `vps-${service.slot}-${service.name}`);
+    }
+
+    await pve.configureVm(vmid, {
+      cores: service.cpu,
+      memory: service.ram,
+      ipconfig0: `ip=${privateIp}/24,gw=10.78.0.1`,
+      nameserver: '1.1.1.1',
+      ciuser: 'debian',
+      // Proxmox wants the key encoded, and one key per line.
+      sshkeys: encodeURIComponent(`${service.sshPublicKey}\n`),
+      agent: 'enabled=1',
+      tags: tagsOf({ sshPort: service.dedicatedIp ? null : sshPort, publicIp, privateIp, dedicatedIp: service.dedicatedIp }),
+      description: `Blipmade VPS ${service.id}`,
+    });
+
+    try {
+      await pve.resizeDisk(vmid, service.disk);
+    } catch (error) {
+      // A disk that already has the size is not an error: the job is a repeat.
+      if (!/shrink|same size|smaller/i.test((error as Error).message)) throw error;
+    }
+
+    const live = await pve.vmStatus(vmid);
+    if (live.status !== 'running') await pve.power(vmid, 'start');
+
+    await prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'ACTIVE', lastError: null } });
+  } catch (error) {
+    await prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'FAILED', lastError: (error as Error).message.slice(0, 500) } });
+    throw error;
+  }
+}
+
+export interface VpsView {
+  id: string;
+  name: string;
+  status: string;
+  /** What the machine says it is doing: running, stopped, or unknown when Proxmox cannot be asked. */
+  power: 'running' | 'stopped' | 'unknown';
+  plan: { slug: string; name: string };
+  ram: number;
+  cpu: number;
+  disk: number;
+  publicIp: string | null;
+  sshPort: number | null;
+  dedicatedIp: boolean;
+  /** The line to type to log in. */
+  sshCommand: string | null;
+  lastError: string | null;
+  createdAt: Date;
+}
+
+export async function vpsView(
+  service: VpsService & { product: { slug: string; name: string } },
+  live = true,
+): Promise<VpsView> {
+  let powerState: VpsView['power'] = 'unknown';
+  if (live && service.vmid && (service.status === 'ACTIVE' || service.status === 'SUSPENDED') && pve.proxmoxConfigured()) {
+    try {
+      powerState = (await pve.vmStatus(service.vmid)).status === 'running' ? 'running' : 'stopped';
+    } catch {
+      powerState = 'unknown';
+    }
+  }
+  const ssh =
+    service.publicIp && service.sshPort
+      ? service.sshPort === 22
+        ? `ssh debian@${service.publicIp}`
+        : `ssh -p ${service.sshPort} debian@${service.publicIp}`
+      : null;
+  return {
+    id: service.id,
+    name: service.name,
+    status: service.status.toLowerCase(),
+    power: powerState,
+    plan: { slug: service.product.slug, name: service.product.name },
+    ram: service.ram,
+    cpu: service.cpu,
+    disk: service.disk,
+    publicIp: service.publicIp,
+    sshPort: service.sshPort,
+    dedicatedIp: service.dedicatedIp,
+    sshCommand: ssh,
+    lastError: service.lastError,
+    createdAt: service.createdAt,
+  };
+}
+
+export async function ownedVps(userId: string, id: string) {
+  const service = await prisma.vpsService.findFirst({ where: { id, userId }, include: { product: { select: { slug: true, name: true } } } });
+  if (!service) throw notFound('That server was not found.');
+  return service;
+}
+
+export async function setVpsPower(userId: string, id: string, action: pve.PowerAction): Promise<void> {
+  const service = await ownedVps(userId, id);
+  if (service.status !== 'ACTIVE' || !service.vmid) throw badRequest('This server cannot be controlled right now.');
+  await pve.power(service.vmid, action);
+}
+
+/** Removes the machine and gives its address back. */
+export async function destroyVps(serviceId: string): Promise<void> {
+  const service = await prisma.vpsService.findUnique({ where: { id: serviceId } });
+  if (!service) return;
+  if (service.vmid && (await pve.vmExists(service.vmid))) {
+    const live = await pve.vmStatus(service.vmid);
+    if (live.status === 'running') await pve.power(service.vmid, 'stop');
+    await pve.deleteVm(service.vmid);
+  }
+  await prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'CANCELLED' } });
+}

@@ -51,6 +51,7 @@ model User {
   staff          StaffMember?
   mailDomains    MailDomain[]
   mailServices   MailService[]
+  vpsServices VpsService[]
   notifications        Notification[]
   notificationEvents   NotificationEvent[]
   orders         Order[]
@@ -316,6 +317,7 @@ enum Category {
   DATABASES
   EMAIL_HOSTING
   GAMES
+  VPS
 }
 
 enum BillingPeriod {
@@ -329,6 +331,8 @@ enum ProductFulfilment {
   SERVER
   /// A hosted mail service. The product needs no server and no panel.
   EMAIL
+  /// A virtual private server on Proxmox. The product needs neither an egg nor the panel.
+  VPS
 }
 
 /// The window in which the limit of sending of a domain is counted.
@@ -420,6 +424,7 @@ model Product {
   items       OrderItem[]
   instances   Instance[]
   mailServices MailService[]
+  vpsServices VpsService[]
 
   @@index([visible, deployable])
   @@index([category])
@@ -583,6 +588,7 @@ model OrderItem {
   subscription Subscription?
   instances    Instance[]
   mailService  MailService?
+  vpsService   VpsService?
 
   @@index([orderId])
   @@index([fulfillmentStatus])
@@ -626,6 +632,7 @@ model Subscription {
   // link is here: the subscription of the mail is the one that is renewed,
   // suspended and cancelled with the mail and not with a server.
   mailService          MailService?
+  vpsService           VpsService?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -1341,4 +1348,56 @@ model MailJob {
 
   @@index([status])
   @@index([domainId])
+}
+
+// ---------------------------------------------------------------------------
+// Virtual private servers
+// ---------------------------------------------------------------------------
+
+enum VpsStatus {
+  /// Paid for, waiting for the worker.
+  PENDING
+  PROVISIONING
+  ACTIVE
+  FAILED
+  /// Stopped by the operator, for example for an unpaid subscription.
+  SUSPENDED
+  CANCELLED
+}
+
+/// A virtual private server of a customer. The machine lives on Proxmox; the row
+/// holds what the platform has to remember about it.
+model VpsService {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id])
+  orderItemId    String        @unique
+  orderItem      OrderItem     @relation(fields: [orderItemId], references: [id])
+  subscriptionId String?       @unique
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  /// The name the customer gave it. It is also the hostname of the machine.
+  name           String
+  status         VpsStatus     @default(PENDING)
+  /// The number of the machine among the VPS. The id on Proxmox, the private
+  /// address and the public SSH port are all derived from it.
+  slot           Int           @unique
+  vmid           Int?
+  privateIp      String?
+  /// The address the customer reaches it on: the shared one, or its own.
+  publicIp       String?
+  sshPort        Int?
+  dedicatedIp    Boolean       @default(false)
+  ram            Int
+  cpu            Int
+  disk           Int
+  /// The public key of the customer, put in the machine at the start.
+  sshPublicKey   String
+  lastError      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }

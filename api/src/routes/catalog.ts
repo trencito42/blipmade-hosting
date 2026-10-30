@@ -202,7 +202,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         ? {}
         : {
             visible: true,
-            OR: [{ prices: { some: { active: true } } }, { fulfilment: 'EMAIL' }],
+            OR: [{ prices: { some: { active: true } } }, { fulfilment: 'EMAIL' }, { fulfilment: 'VPS' }],
           }),
       ...(query.category && query.category !== 'All' ? { category: query.category as never } : {}),
       ...(query.search

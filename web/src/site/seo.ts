@@ -277,6 +277,15 @@ export function metaFor(path: string): Meta {
     };
   }
 
+  if (path === '/vps') {
+    return {
+      ...base,
+      title: 'VPS with root access, from 3,99 € a month | Blipmade',
+      description: 'A virtual private server of your own, with root access and SSH, for a backend, a website or a tool.',
+      jsonld: [crumbs([['Home', '/'], ['VPS', '/vps']])],
+    };
+  }
+
   return { ...base, title: 'Page not found | Blipmade', description: 'This page does not exist.', noindex: true, canonical: SITE };
 }
 
@@ -302,5 +311,6 @@ export function allRoutes(): string[] {
     '/verify-email',
     '/status',
     '/email',
+    '/vps',
   ];
 }

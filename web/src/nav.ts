@@ -11,11 +11,12 @@ const DEPLOY: NavEntry = { to: '/app/deploy', label: 'Deploy', shortLabel: 'Depl
 const INSTANCES: NavEntry = { to: '/app/instances', label: 'Apps & databases', shortLabel: 'Apps', icon: 'box' };
 const DOMAINS: NavEntry = { to: '/app/domains', label: 'Domains', shortLabel: 'Domains', icon: 'globe' };
 const MAIL: NavEntry = { to: '/app/mail', label: 'Email', shortLabel: 'Email', icon: 'mail' };
+const VPS: NavEntry = { to: '/app/vps', label: 'Servers', shortLabel: 'Servers', icon: 'server' };
 const BILLING: NavEntry = { to: '/app/billing', label: 'Billing', shortLabel: 'Billing', icon: 'card' };
 const SUPPORT: NavEntry = { to: '/app/tickets', label: 'Support', shortLabel: 'Support', icon: 'doc' };
 const SETTINGS: NavEntry = { to: '/app/settings', label: 'Settings', shortLabel: 'Settings', icon: 'shield' };
 
-export const CUSTOMER_NAV: NavEntry[] = [OVERVIEW, DEPLOY, INSTANCES, DOMAINS, MAIL, BILLING, SUPPORT, SETTINGS];
+export const CUSTOMER_NAV: NavEntry[] = [OVERVIEW, DEPLOY, INSTANCES, VPS, DOMAINS, MAIL, BILLING, SUPPORT, SETTINGS];
 
 /** Phone bottom bar: Overview, Apps, the round Deploy button, Support. The rest opens from More. */
 export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, INSTANCES, { ...DEPLOY, primary: true }, SUPPORT];

@@ -91,6 +91,7 @@ export const ICONS = {
   ellipsis: { name: "ellipsis" },
   archive: { name: "box-archive" },
   info: { name: "circle-info" },
+  server: { name: "server" },
 } as const satisfies Record<string, IconSpec>;
 
 /** The names of the icons of the interface. */

@@ -23,6 +23,7 @@ import { registerInstanceServerRoutes } from './routes/instance-server.js';
 import { registerDomainRoutes } from './routes/domains.js';
 import { registerMailRoutes } from './routes/mail.js';
 import { registerMailCommerceRoutes } from './routes/mail-commerce.js';
+import { registerVpsRoutes } from './routes/vps.js';
 import { registerTicketRoutes } from './routes/tickets.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerAdminRoutes } from './routes/admin.js';
@@ -210,6 +211,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerDomainRoutes(api);
       await registerMailRoutes(api);
       await registerMailCommerceRoutes(api);
+      await registerVpsRoutes(api);
       await registerTicketRoutes(api);
       await registerSettingsRoutes(api);
       await registerAdminRoutes(api);

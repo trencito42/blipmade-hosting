@@ -165,6 +165,20 @@ const schema = z.object({
   /** Where the files attached to support tickets are stored. */
   ATTACHMENT_DIR: z.string().default('/data/uploads'),
   DOMAIN_BASE: z.string().default(''),
+  /**
+   * The virtual private servers. The API makes them on Proxmox with a token that
+   * may only touch the pool of the VPS, from a template that carries the system.
+   */
+  VPS_PROXMOX_URL: z.string().default(''),
+  /** The token, as `user@realm!name=secret`. */
+  VPS_PROXMOX_TOKEN: z.string().default(''),
+  VPS_PROXMOX_NODE: z.string().default('n7030e1'),
+  VPS_TEMPLATE_VMID: z.coerce.number().int().min(100).default(9000),
+  VPS_POOL: z.string().default('vps'),
+  /** The address that the SSH of the VPS without an address of their own is published on. */
+  VPS_SHARED_IP: z.string().default(''),
+  /** The addresses that a customer can buy for a VPS, separated by commas. */
+  VPS_DEDICATED_IPS: z.string().default(''),
   CADDY_ADMIN_URL: z.string().default(''),
   CADDY_ADMIN_TOKEN: z.string().default(''),
   /**

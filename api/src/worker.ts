@@ -6,6 +6,7 @@ import { env } from './env.js';
 import {
   createEmailWorker,
   createMailProvisionWorker,
+  createVpsProvisionWorker,
   createProvisionWorker,
   closeQueue,
   enqueueProvisioning,
@@ -32,6 +33,7 @@ import {
 import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
 import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
+import { provisionVps } from './services/vps.js';
 import { reconcileDomainRoutes } from './services/domain-routing.js';
 import { dispatchPendingEvents } from './services/notification-dispatch.js';
 import { runOpsSweep } from './services/ops-health.js';
@@ -162,6 +164,13 @@ mailWorker.on('failed', (job, error) => {
     console.error('[worker] could not write the failure down', (writeError as Error).message),
   );
 });
+
+/** The worker of the virtual private servers. */
+const vpsWorker = createVpsProvisionWorker(async (job) => {
+  await provisionVps(job.data.serviceId);
+});
+vpsWorker.on('completed', (job) => console.info(`[worker] vps job ${job.id} completed`));
+vpsWorker.on('failed', (job, error) => console.error(`[worker] vps job ${job?.id} failed: ${error.message}`));
 
 /** Puts instances that were left running mid-flight back into the queue. */
 async function reconcile(): Promise<void> {
@@ -456,6 +465,7 @@ const shutdown = async () => {
   await worker.close();
   await emailWorker.close();
   await mailWorker.close();
+  await vpsWorker.close();
   await closeQueue();
   await redis.quit().catch(() => undefined);
   await prisma.$disconnect().catch(() => undefined);

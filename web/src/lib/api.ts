@@ -1132,3 +1132,37 @@ export interface NotificationPreferencesResponse {
   preferences: NotificationPreferences;
   categories: NotificationCategoryView[];
 }
+
+
+// --- virtual private servers ------------------------------------------------
+
+/** A plan of a virtual private server, as the platform sells it. */
+export interface VpsPlanView {
+  slug: string;
+  name: string;
+  description: string;
+  ram: number;
+  cpu: number;
+  disk: number;
+  price: { amount: number; currency: string; period: string } | null;
+  /** The address of its own, when one can be bought. */
+  dedicatedIp: { code: string; amount: number } | null;
+}
+
+/** A virtual private server of the customer. */
+export interface VpsServerView {
+  id: string;
+  name: string;
+  status: string;
+  power: 'running' | 'stopped' | 'unknown';
+  plan: { slug: string; name: string };
+  ram: number;
+  cpu: number;
+  disk: number;
+  publicIp: string | null;
+  sshPort: number | null;
+  dedicatedIp: boolean;
+  sshCommand: string | null;
+  lastError: string | null;
+  createdAt: string;
+}

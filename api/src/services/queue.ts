@@ -206,7 +206,64 @@ export function createMailProvisionWorker(
   });
 }
 
+/* --------------------------------------------------------------------
+ * Virtual private servers
+ *
+ * A VPS is built on Proxmox, which can be slow, so it has a queue of its own
+ * and never holds a deployment of a server or of mail hostage.
+ * ------------------------------------------------------------------ */
+
+export const VPS_PROVISION_QUEUE = 'blipmade.vps.provision';
+
+export interface VpsProvisionJobData {
+  serviceId: string;
+  reason?: string;
+}
+
+let vpsProvisionQueue: Queue<VpsProvisionJobData> | null = null;
+
+export function getVpsProvisionQueue(): Queue<VpsProvisionJobData> {
+  if (!vpsProvisionQueue) {
+    vpsProvisionQueue = new Queue<VpsProvisionJobData>(VPS_PROVISION_QUEUE, {
+      connection: redis,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 10_000 },
+        removeOnComplete: { count: 200 },
+        removeOnFail: { age: FAILED_JOB_RETENTION_MS },
+      },
+    });
+  }
+  return vpsProvisionQueue;
+}
+
+/** Puts a VPS on the queue. Safe to call again: a job that is waiting is not queued twice. */
+export async function enqueueVpsProvisioning(serviceId: string, options: { reason?: string } = {}): Promise<void> {
+  const jobId = `vps-provision-${serviceId}`;
+  const existing = await getVpsProvisionQueue().getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state === 'waiting' || state === 'active' || state === 'delayed') return;
+    await existing.remove().catch(() => undefined);
+  }
+  await getVpsProvisionQueue().add('provision', { serviceId, ...options }, { jobId });
+}
+
+export function createVpsProvisionWorker(
+  handler: (job: Job<VpsProvisionJobData>) => Promise<void>,
+): Worker<VpsProvisionJobData> {
+  return new Worker<VpsProvisionJobData>(VPS_PROVISION_QUEUE, handler, {
+    connection: redis,
+    concurrency: 1,
+    lockDuration: 600_000,
+  });
+}
+
 export async function closeQueue(): Promise<void> {
+  if (vpsProvisionQueue) {
+    await vpsProvisionQueue.close();
+    vpsProvisionQueue = null;
+  }
   if (queue) {
     await queue.close();
     queue = null;

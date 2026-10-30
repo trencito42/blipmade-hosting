@@ -37,6 +37,10 @@ const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
 const AppMail = lazy(() => import('./app/Mail'));
 const EmailStorefront = lazy(() => import('./app/EmailHosting'));
+const VpsStorefront = lazy(() => import('./app/Vps'));
+const VpsCheckout = lazy(() => import('./app/Vps').then((module) => ({ default: module.VpsCheckout })));
+const VpsList = lazy(() => import('./app/Vps').then((module) => ({ default: module.VpsList })));
+const VpsDetail = lazy(() => import('./app/Vps').then((module) => ({ default: module.VpsDetail })));
 const EmailCheckout = lazy(() => import('./app/EmailHosting').then((module) => ({ default: module.EmailCheckout })));
 const AppBilling = lazy(() => import('./app/Billing'));
 const AppTickets = lazy(() => import('./app/Tickets'));
@@ -87,6 +91,7 @@ export const ROUTES: RouteDef[] = [
   // The storefront of the hosted mail. It is public: a visitor reads the
   // limits of the plans before he makes an account.
   { pattern: '/email', component: EmailStorefront, title: 'Hosted mail' },
+  { pattern: '/vps', component: VpsStorefront, title: 'VPS' },
   { pattern: '/deploy/:slug', component: DeployRedirect, title: 'Deploy' },
 
   // The page the server points at when it cannot answer. It is a route
@@ -102,6 +107,9 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
+  { pattern: '/app/vps', component: VpsList, title: 'Servers', area: 'customer', exact: true },
+  { pattern: '/app/vps/new', component: VpsCheckout, title: 'New server', area: 'customer' },
+  { pattern: '/app/vps/:id', component: VpsDetail, title: 'Server', area: 'customer' },
   { pattern: '/app/email/checkout', component: EmailCheckout, title: 'Hosted mail', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },

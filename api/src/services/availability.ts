@@ -87,19 +87,23 @@ export function deploymentAvailability(
   // the egg is what the panel turns into a server: without it there is
   // nothing to install, whatever the image of the product says.
   const isMail = product.fulfilment === 'EMAIL';
+  // A virtual private server is delivered by Proxmox: it needs no egg either. It is on
+  // sale when the operator has switched the plan on.
+  const isVps = product.fulfilment === 'VPS';
   // The egg of a product may be numbered or named. A name is enough: the
   // number of an egg belongs to the panel and is given when the egg is
   // imported, so the product is installable as soon as it names the egg it
   // runs on.
   const installable =
     isMail ||
+    isVps ||
     (product.eggId !== null && product.eggId !== undefined) ||
     (product.eggName !== null && product.eggName !== undefined);
 
   const blockers: string[] = [];
   if (!enabled) {
     blockers.push(
-      isMail
+      isMail || isVps
         ? 'It has not been put on sale yet.'
         : 'It has not been validated for deployment yet.',
     );

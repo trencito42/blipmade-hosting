@@ -37,6 +37,9 @@ const orderItemSchema = z.object({
   optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
   mailDomain: z.string().trim().max(253).optional(),
+  // A virtual private server carries the public key that opens it and its name.
+  sshPublicKey: z.string().trim().max(1000).optional(),
+  vpsName: z.string().trim().max(60).optional(),
   // The values of the variables the product asks the customer for, such as
   // the licence of a game. They are checked and sealed before they are
   // written anywhere.
@@ -172,6 +175,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 // panel, so it has to know which of the two it is.
                 fulfilment: item.fulfilment,
                 mailDomain: item.mailDomain ?? null,
+                vps: item.vps ?? null,
                 // The values the customer gave for the variables of the
                 // product, sealed. They are the secrets of the customer, and
                 // they travel with the line until the instance is built.

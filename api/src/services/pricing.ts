@@ -1,3 +1,5 @@
+import { freeDedicatedAddress, validSshKey, validVpsName } from './vps.js';
+import { randomToken } from '../lib/tokens.js';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { badRequest, notFound } from '../lib/errors.js';
@@ -45,6 +47,9 @@ export interface OrderLineInput {
   mailDomain?: string;
   /** The values of the variables the product asks the customer for. */
   variables?: Record<string, string>;
+  /** The public key and the name of a virtual private server. */
+  sshPublicKey?: string;
+  vpsName?: string;
 }
 
 export interface PricedItem extends ResourceConfig {
@@ -60,6 +65,8 @@ export interface PricedItem extends ResourceConfig {
   fulfilment: ProductFulfilment;
   /** The domain of mail the line brings, when the line is a line of mail. */
   mailDomain?: string;
+  /** The name and the key of a virtual private server, when the line is one. */
+  vps?: { name: string; sshPublicKey: string; dedicatedIp: boolean };
   /** The values the customer gave for the variables of the product, sealed. */
   sealedVariables?: string;
   /**
@@ -108,7 +115,7 @@ export function priceConfiguration(
 
   // A plan of mail is a subscription of a service: the plan is what the
   // customer buys, and the resources of the plan are part of it.
-  if (product.fulfilment === 'EMAIL') {
+  if (product.fulfilment === 'EMAIL' || product.fulfilment === 'VPS') {
     const extraRamGb = Math.max(0, (config.ram - product.minRam) / 1024);
     return normalizeAmount(
       price.baseAmount +
@@ -419,10 +426,27 @@ export async function priceItems(
     // configuration, so the price of the line is the price of the plan.
     // A line of servers has to fit the limits of its product.
     const isMail = product.fulfilment === 'EMAIL';
-    const config = isMail
+    // A virtual private server is a plan with fixed resources, like a plan of mail.
+    const isVps = product.fulfilment === 'VPS';
+    const config = isMail || isVps
       ? { ram: product.minRam, cpu: product.minCpu, disk: product.minDisk }
       : { ram: item.ram ?? product.minRam, cpu: item.cpu ?? product.minCpu, disk: item.disk ?? product.minDisk };
-    if (!isMail) validateConfiguration(product, config);
+    if (!isMail && !isVps) validateConfiguration(product, config);
+
+    // A line of a VPS carries the key that opens it and the name it will have. Both are
+    // checked here, where the price is made, so a paid order never fails for a bad key.
+    let vps: PricedItem['vps'];
+    if (isVps) {
+      const dedicatedIp = (item.optionCodes ?? []).includes('dedicated-ipv4');
+      if (dedicatedIp && !(await freeDedicatedAddress())) {
+        throw badRequest('No dedicated address is free right now. Use the shared address, or ask us for one.');
+      }
+      vps = {
+        sshPublicKey: validSshKey(item.sshPublicKey),
+        name: validVpsName(item.vpsName, `server-${randomToken(3).toLowerCase().replace(/[^a-z0-9]/g, 'x')}`),
+        dedicatedIp,
+      };
+    }
 
     // A line of mail names the domain it brings. The domain is checked here,
     // in the place that prices the order, so a line of mail cannot be created
@@ -451,11 +475,11 @@ export async function priceItems(
 
     const rates = await resourceRates();
     const unitAmount = priceConfiguration(price, product, config, options, rates, period);
-    const quantity = Math.max(1, item.quantity ?? 1);
+    const quantity = isVps ? 1 : Math.max(1, item.quantity ?? 1);
     // The line of a server is broken down into what it is made of, so the
     // customer sees the price of the memory, of the processor, of the storage
     // and of the instance itself. The parts add up to the price of the line.
-    const breakdown = isMail
+    const breakdown = isMail || isVps
       ? undefined
       : breakdownForPeriod(
           config,
@@ -479,6 +503,7 @@ export async function priceItems(
       price,
       fulfilment: product.fulfilment,
       mailDomain,
+      ...(vps ? { vps } : {}),
       ...(breakdown ? { breakdown } : {}),
     });
   }

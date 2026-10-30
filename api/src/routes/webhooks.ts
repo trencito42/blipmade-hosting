@@ -15,7 +15,8 @@ import {
   promotionCardIdentity,
   STRIPE_API_VERSION,
 } from '../services/stripe.js';
-import { enqueueProvisioning, enqueueMailProvisioning } from '../services/queue.js';
+import { enqueueProvisioning, enqueueMailProvisioning, enqueueVpsProvisioning } from '../services/queue.js';
+import { createVpsService } from '../services/vps.js';
 import * as mailCommerce from '../services/mail-commerce.js';
 import {
   notifyInvoiceFailed,
@@ -431,6 +432,12 @@ export async function fulfilOrder(orderId: string): Promise<void> {
       continue;
     }
 
+    // A virtual private server is built on Proxmox by a queue of its own.
+    if (await isVpsLine(item.productId)) {
+      await fulfilVpsLine(order.id, item, subscription?.id ?? null, order.userId);
+      continue;
+    }
+
     for (let unit = 0; unit < item.quantity; unit++) {
       // The key makes a redelivered webhook reuse the same instance.
       const provisioningKey = `order:${order.id}:item:${item.id}:unit:${unit}`;
@@ -486,6 +493,62 @@ export async function fulfilOrder(orderId: string): Promise<void> {
     where: { id: order.id },
     data: { fulfillmentStatus: allFulfilled ? 'FULFILLED' : allFailed ? 'FAILED' : 'PROVISIONING' },
   });
+}
+
+/** True when the product of a line is delivered as a virtual private server. */
+async function isVpsLine(productId: string): Promise<boolean> {
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { fulfilment: true } });
+  return product?.fulfilment === 'VPS';
+}
+
+/**
+ * Makes the VPS of a paid line and puts it on the queue.
+ *
+ * The line carries the key and the name that were checked when the order was priced.
+ * A failure is written on the line and never on the order.
+ */
+async function fulfilVpsLine(
+  orderId: string,
+  item: { id: string; productId: string; config: unknown },
+  subscriptionId: string | null,
+  userId: string,
+): Promise<void> {
+  const config = (item.config ?? {}) as {
+    ram?: number;
+    cpu?: number;
+    disk?: number;
+    vps?: { name?: string; sshPublicKey?: string; dedicatedIp?: boolean } | null;
+  };
+  try {
+    if (!config.vps?.sshPublicKey || !config.vps.name || !config.ram || !config.cpu || !config.disk) {
+      throw new Error('This line of a server has no key or no size.');
+    }
+    const service = await createVpsService({
+      userId,
+      productId: item.productId,
+      orderItemId: item.id,
+      subscriptionId,
+      name: config.vps.name,
+      ram: config.ram,
+      cpu: config.cpu,
+      disk: config.disk,
+      sshPublicKey: config.vps.sshPublicKey,
+      dedicatedIp: Boolean(config.vps.dedicatedIp),
+    });
+    await prisma.orderItem.update({ where: { id: item.id }, data: { fulfillmentStatus: 'PROVISIONING', fulfillmentError: null } });
+    await enqueueVpsProvisioning(service.id, { reason: 'order paid' });
+  } catch (error) {
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: { fulfillmentStatus: 'FAILED', fulfillmentError: (error as Error).message },
+    });
+    await audit({
+      action: 'vps.line_failed',
+      targetType: 'order_item',
+      targetId: item.id,
+      meta: { orderId, error: (error as Error).message },
+    });
+  }
 }
 
 /** True when the product of a line is delivered as a mail service. */
