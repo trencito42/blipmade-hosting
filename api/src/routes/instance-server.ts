@@ -161,10 +161,15 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
 
   /** The activity of the server, as the panel records it. */
   app.get('/instances/:id/activity', async (request: FastifyRequest) => {
+    const { page } = z.object({ page: z.coerce.number().int().min(1).max(200).default(1) }).passthrough().parse(request.query ?? {});
+    const perPage = 50;
     return withInstance(request, async (token, instance) => {
       try {
-        const entries = await operations.activity(token, instance);
+        const entries = await operations.activity(token, instance, page, perPage);
         return {
+          page,
+          // A full page means there may be another one.
+          hasMore: entries.length >= perPage,
           activity: entries.map((entry) => ({
             user: entry.user,
             action: entry.action,

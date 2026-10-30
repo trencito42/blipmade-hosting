@@ -474,5 +474,17 @@ export const setSuspended = (id: string, suspended: boolean) =>
 export const listEvents = (id: string, signal?: AbortSignal) =>
   get<{ events: InstanceEvent[] }>(`/instances/${id}/events`, undefined, signal);
 
+/** One page of the events of the instance, optionally of one kind. */
+export const listEventsPage = (id: string, query: { cursor?: string | null; type?: string }, signal?: AbortSignal) =>
+  get<{ events: InstanceEvent[]; types: { type: string; count: number }[]; pagination: { nextCursor: string | null; hasMore: boolean } }>(
+    `/instances/${id}/events`,
+    { cursor: query.cursor ?? undefined, type: query.type || undefined, limit: 40 },
+    signal,
+  );
+
 export const listActivity = (id: string, signal?: AbortSignal) =>
   get<{ activity: PanelActivity[] }>(`/instances/${id}/activity`, undefined, signal);
+
+/** One page of the activity the panel recorded. */
+export const listActivityPage = (id: string, page: number, signal?: AbortSignal) =>
+  get<{ activity: PanelActivity[]; page: number; hasMore: boolean }>(`/instances/${id}/activity`, { page }, signal);

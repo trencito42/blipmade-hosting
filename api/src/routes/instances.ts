@@ -386,22 +386,34 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     };
   });
 
+  /**
+   * The events of the instance, newest first, in pages. `type` keeps one kind of event, and the
+   * answer lists the kinds the instance has, so a screen can offer the filter without guessing.
+   */
   app.get('/instances/:id/events', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { type } = z.object({ type: z.string().max(40).optional() }).passthrough().parse(request.query ?? {});
+    const { limit, cursor } = parsePagination(request.query, { defaultSize: 40, maxSize: 100 });
     const instance = await loadInstance(user.id, id);
-    const events = await prisma.instanceEvent.findMany({
-      where: { instanceId: instance.id },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
+    const [rows, kinds] = await Promise.all([
+      prisma.instanceEvent.findMany({
+        where: withCursor({ instanceId: instance.id, ...(type ? { type } : {}) }, cursor, 'createdAt'),
+        orderBy: pageOrder('createdAt'),
+        take: limit + 1,
+      }),
+      prisma.instanceEvent.groupBy({ by: ['type'], where: { instanceId: instance.id }, _count: { _all: true } }),
+    ]);
+    const page = pageOf(rows, limit, 'createdAt');
     return {
-      events: events.map((event) => ({
+      events: page.rows.map((event) => ({
         id: event.id,
         type: event.type,
         message: event.message,
         createdAt: event.createdAt,
       })),
+      types: kinds.map((kind) => ({ type: kind.type, count: kind._count._all })),
+      pagination: page.pagination,
     };
   });
 

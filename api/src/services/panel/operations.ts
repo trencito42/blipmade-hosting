@@ -123,8 +123,8 @@ export async function resources(token: string, instance: OwnedInstance) {
   return call(instance, token, (t) => client.getResources(t, serverUuid(instance)));
 }
 
-export async function activity(token: string, instance: OwnedInstance) {
-  return call(instance, token, (t) => client.listActivity(t, serverUuid(instance)));
+export async function activity(token: string, instance: OwnedInstance, page = 1, perPage = 50) {
+  return call(instance, token, (t) => client.listActivity(t, serverUuid(instance), page, perPage));
 }
 
 // --- power and console ----------------------------------------------------

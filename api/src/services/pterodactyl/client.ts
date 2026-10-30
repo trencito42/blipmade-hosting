@@ -1016,8 +1016,8 @@ export interface ClientActivity {
  * "timestamp" and the details of the event in "properties". Older panels
  * used "action", "created_at" and "meta", so both are read.
  */
-export function listActivity(token: string, uuid: string): Promise<ClientActivity[]> {
-  return clientRequest<unknown>('GET', `/api/client/servers/${uuid}/activity`, { token }).then((payload) =>
+export function listActivity(token: string, uuid: string, page = 1, perPage = 50): Promise<ClientActivity[]> {
+  return clientRequest<unknown>('GET', `/api/client/servers/${uuid}/activity`, { token, query: { page, per_page: perPage } }).then((payload) =>
     collectionEntries<Record<string, unknown>>(payload).map((entry) => {
       const attributes = (entry?.attributes ?? {}) as Record<string, unknown>;
       const properties = (attributes.properties ?? {}) as Record<string, unknown>;
