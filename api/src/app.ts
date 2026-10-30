@@ -27,6 +27,7 @@ import { registerVpsRoutes } from './routes/vps.js';
 import { registerTicketRoutes } from './routes/tickets.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerAdminActRoutes } from './routes/admin-act.js';
 import { registerAdminMailRoutes } from './routes/admin-mail.js';
 import { registerAdminMailPlansRoutes } from './routes/admin-mail-plans.js';
 import { registerNotificationRoutes } from './routes/notifications.js';
@@ -215,6 +216,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerTicketRoutes(api);
       await registerSettingsRoutes(api);
       await registerAdminRoutes(api);
+      await registerAdminActRoutes(api);
       await registerAdminMailRoutes(api);
       await registerAdminMailPlansRoutes(api);
       await registerNotificationRoutes(api);

@@ -6,6 +6,7 @@ import { ParamsProvider, matchPath, useParams, useRouter } from './router';
 import { Link } from './router';
 import { isStaff, loginRedirect, postLoginTarget } from './auth-guard';
 import { Icon } from './icons';
+import { post } from './lib/api';
 
 // The public site. The home, the apps and the screens of the account stay in
 // the main bundle, because they are the pages a visitor lands on. The
@@ -53,6 +54,7 @@ const AdminCustomers = lazy(() => import('./admin/Customers'));
 const AdminCustomerDetail = lazy(() => import('./admin/CustomerDetail'));
 const AdminOrders = lazy(() => import('./admin/Orders'));
 const AdminServices = lazy(() => import('./admin/Services'));
+const AdminVps = lazy(() => import('./admin/Vps'));
 const AdminProducts = lazy(() => import('./admin/Products'));
 const AdminPricing = lazy(() => import('./admin/Pricing'));
 const AdminTickets = lazy(() => import('./admin/Tickets'));
@@ -124,6 +126,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/customers/:id', component: AdminCustomerDetail, title: 'Customer', area: 'admin' },
   { pattern: '/admin/orders', component: AdminOrders, title: 'Orders', area: 'admin' },
   { pattern: '/admin/services', component: AdminServices, title: 'Services', area: 'admin' },
+  { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
@@ -155,6 +158,38 @@ function DeployRedirect() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
       <LoadingBlock rows={2} label="Opening the deploy page" />
+    </div>
+  );
+}
+
+/** Shown on every page while a member of the staff acts as a customer. */
+function ImpersonationBanner() {
+  const { impersonatedBy, user, refresh } = useSession();
+  const { navigate } = useRouter();
+  const [busy, setBusy] = useState(false);
+  if (!impersonatedBy) return null;
+  const back = async () => {
+    setBusy(true);
+    try {
+      await post('/admin/impersonation/stop');
+    } finally {
+      await refresh();
+      navigate('/admin/customers');
+    }
+  };
+  return (
+    <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warn/40 bg-warn/10 px-4 py-3 text-[14px] text-ink">
+      <p>
+        You are acting as <strong>{user?.email}</strong>. This session ends after an hour and every action is recorded.
+      </p>
+      <button
+        type="button"
+        onClick={() => void back()}
+        disabled={busy}
+        className="min-h-10 rounded-full bg-s3 px-4 text-[13.5px] font-semibold text-ink hover:bg-s4 focus-visible:outline-2 focus-visible:outline-acc disabled:opacity-60"
+      >
+        {busy ? 'Returning…' : 'Return to admin'}
+      </button>
     </div>
   );
 }
@@ -445,6 +480,7 @@ export default function AppRoutes() {
           environment={route.area === 'admin' ? 'Staff · Production' : undefined}
           actions={route.area === 'customer' ? <ShellAction path={path} /> : undefined}
         >
+          {route.area === 'customer' && <ImpersonationBanner />}
           {content}
         </AppShell>
       </Guard>

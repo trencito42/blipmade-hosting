@@ -26,6 +26,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/customers', label: 'Customers', shortLabel: 'Users', icon: 'box' },
   { to: '/admin/orders', label: 'Orders', shortLabel: 'Orders', icon: 'card' },
   { to: '/admin/services', label: 'Services', shortLabel: 'Services', icon: 'rocket' },
+  { to: '/admin/vps', label: 'Servers', shortLabel: 'VPS', icon: 'server' },
   { to: '/admin/products', label: 'Catalog', shortLabel: 'Catalog', icon: 'db' },
   { to: '/admin/pricing', label: 'Pricing', shortLabel: 'Pricing', icon: 'bolt' },
   { to: '/admin/tickets', label: 'Support queue', shortLabel: 'Tickets', icon: 'doc' },

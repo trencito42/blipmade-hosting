@@ -268,6 +268,9 @@ model Session {
   // five minutes, so the list of the sessions can tell two sessions of the
   // same device apart without a write on every request.
   lastSeenAt DateTime?
+  // Set when a member of the staff opened this session to act as the customer.
+  impersonatedById    String?
+  impersonatedByEmail String?
   createdAt DateTime @default(now())
 
   @@index([userId])

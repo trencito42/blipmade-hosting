@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { Link, useParams } from '../router';
+import { Link, useParams, useRouter } from '../router';
+import { useSession } from '../session';
 import {
   CardList,
   DataTable,
@@ -108,6 +109,22 @@ function AccountAccess({
   const [reason, setReason] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reasonError, setReasonError] = useState<string | null>(null);
+  const { refresh } = useSession();
+  const { navigate } = useRouter();
+  const [acting, setActing] = useState(false);
+
+  /** Opens the customer area as this customer, for an hour. The page says so on every screen. */
+  const actAs = async () => {
+    setActing(true);
+    try {
+      await post(`/admin/customers/${customerId}/impersonate`);
+      await refresh();
+      navigate('/app');
+    } catch (failure) {
+      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+      setActing(false);
+    }
+  };
 
   const suspend = useAction(async (next: boolean) => {
     return post<{ customer: { id: string; suspended: boolean } }>(`/admin/customers/${customerId}/suspend`, {
@@ -164,6 +181,11 @@ function AccountAccess({
                 className={denseDanger}
               >
                 {suspended ? 'Reinstate customer' : 'Suspend customer'}
+              </button>
+            )}
+            {mayWrite && (
+              <button type="button" onClick={() => void actAs()} disabled={acting} className={denseGhost}>
+                {acting ? 'Opening…' : 'Act as this customer'}
               </button>
             )}
             {!mayWrite && (

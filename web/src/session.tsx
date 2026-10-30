@@ -22,6 +22,8 @@ interface SessionState {
    * instead of being sent to a login that would refuse them.
    */
   suspensionNotice: string | null;
+  /** The email of the staff member when this session was opened to act as the customer. */
+  impersonatedBy: string | null;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<SessionUser>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<SessionUser>;
@@ -35,6 +37,7 @@ const Ctx = createContext<SessionState>({
   error: null,
   registrationNotice: null,
   suspensionNotice: null,
+  impersonatedBy: null,
   refresh: async () => {},
   login: async () => {
     throw new Error('not ready');
@@ -49,6 +52,7 @@ export const useSession = () => useContext(Ctx);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [impersonatedBy, setImpersonatedBy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [registrationNotice, setRegistrationNotice] = useState<string | null>(null);
   const [suspensionNotice, setSuspensionNotice] = useState<string | null>(null);
@@ -56,8 +60,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const data = await get<{ user: SessionUser | null }>('/auth/session');
+      const data = await get<{ user: SessionUser | null; impersonatedBy?: string }>('/auth/session');
       setUser(data.user);
+      setImpersonatedBy(data.impersonatedBy ?? null);
       setError(null);
     } catch (err) {
       setUser(null);
@@ -144,12 +149,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       error,
       registrationNotice,
       suspensionNotice,
+      impersonatedBy,
       refresh,
       login,
       register,
       logout,
     }),
-    [user, loading, error, registrationNotice, suspensionNotice, refresh, login, register, logout],
+    [user, loading, error, registrationNotice, suspensionNotice, impersonatedBy, refresh, login, register, logout],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

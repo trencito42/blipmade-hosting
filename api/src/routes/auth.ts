@@ -412,6 +412,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         ...publicUser(user),
         permissions: user.staff?.permissions ?? [],
       },
+      ...(request.impersonatedBy ? { impersonatedBy: request.impersonatedBy } : {}),
     };
   });
 

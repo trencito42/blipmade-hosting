@@ -11,6 +11,12 @@ import { audit } from '../lib/audit.js';
 
 export const SESSION_COOKIE = 'bm_session';
 export const CSRF_COOKIE = 'bm_csrf';
+/** Holds the session of the staff member while they act as a customer. */
+export const RETURN_COOKIE = 'bm_return';
+export const IMPERSONATION_TTL_MS = 1000 * 60 * 60;
+
+/** What a member of the staff cannot do while they act as a customer: the keys of the account. */
+const IMPERSONATION_BLOCKED = [/^\/(api\/)?settings\/(email|password|sessions|account\/closure)/, /^\/(api\/)?billing\/payment-method/];
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 
 export interface AuthUser {
@@ -39,6 +45,8 @@ declare module 'fastify' {
      * for the customer, who has to know why they were disconnected.
      */
     accountSuspended?: boolean;
+    /** The email of the staff member who opened this session to act as the customer. */
+    impersonatedBy?: string;
   }
 }
 
@@ -301,6 +309,7 @@ export async function loadSession(request: FastifyRequest): Promise<AuthUser | u
   }
 
   request.sessionId = session.id;
+  if (session.impersonatedById) request.impersonatedBy = session.impersonatedByEmail ?? 'staff';
 
   /**
    * The moment of the last use is written at most once every five minutes
@@ -328,6 +337,9 @@ export async function loadSession(request: FastifyRequest): Promise<AuthUser | u
 }
 
 export async function requireAuth(request: FastifyRequest): Promise<AuthUser> {
+  if (request.impersonatedBy && request.method !== 'GET' && IMPERSONATION_BLOCKED.some((pattern) => pattern.test(request.url))) {
+    throw forbidden('This is not allowed while you act as the customer.');
+  }
   if (!request.user) {
     // The account was suspended while the page was open. The customer is
     // told what happened, and not that the session simply ended.
