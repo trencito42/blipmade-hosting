@@ -655,7 +655,7 @@ export function Money({ amount, currency = 'EUR', period }: { amount: number; cu
   return (
     <span className="font-mono tabular-nums">
       {formatted}
-      {period && <span className="text-ink3"> / {period}</span>}
+      {period && <span className="text-[0.75em] text-ink3"> / {period}</span>}
     </span>
   );
 }

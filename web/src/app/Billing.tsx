@@ -517,9 +517,12 @@ export default function Billing() {
             </p>
           )}
           {summary && !summary.hasStripeCustomer && (
-            <p className="text-[14px] text-ink2">
-              A free first term does not set up automatic Stripe renewal. <ButtonLink to="/app/tickets">Contact support about renewal</ButtonLink> before the period ends.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-s2 px-4 py-3">
+              <p className="min-w-0 flex-1 text-[14px] text-ink2">
+                A free first term does not set up automatic Stripe renewal. Contact support before the period ends.
+              </p>
+              <ButtonLink to="/app/tickets" variant="soft">Contact support about renewal</ButtonLink>
+            </div>
           )}
           {paymentNotice && (
             <p role="status" className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">
