@@ -31,6 +31,8 @@
  *   - https://docs.pterodactyl.io/v1/api/client-server/get-resource-usage
  */
 
+import { Readable } from 'node:stream';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { env } from '../../env.js';
 import { unavailable } from '../../lib/errors.js';
 import type {
@@ -132,8 +134,6 @@ interface ClientRequestOptions {
   rawBody?: string | Buffer;
   timeoutMs?: number;
   query?: Record<string, string | number | undefined>;
-  /** The answer is binary and is returned as it is. */
-  binary?: boolean;
   /** The answer is text and is returned as it is. */
   raw?: boolean;
 }
@@ -181,9 +181,7 @@ async function clientRequest<T>(
       signal: controller.signal,
     });
 
-    if (options.binary) {
-      if (!response.ok) {
-        const text = await response.text();
+    const text = await response.text();
         throw new ClientApiError(
           response.status,
           text,
@@ -585,22 +583,60 @@ function joinPath(directory: string, filename: string): string {
   return `${folder}/${filename}`.replace(/\/+/g, '/');
 }
 
-/** Reads a file as it is, for a download. */
 /**
- * Downloads a file.
+ * A download must not buffer the entire contents inside the API process.
+ * A multi-gigabyte backup should use bounded stream buffers, not a single
+ * arrayBuffer allocation shared by every concurrent customer.
  *
- * The panel knows an address that is signed and that points at the node, but
- * that address belongs to the node and its certificate cannot be checked
- * against it. The file therefore comes through the panel, which owns the
- * connection to the node. The panel only answers for a file of a certain size,
- * and it says so when the file is too big.
+ * The upstream credential is sent only by this server to the panel. The
+ * browser receives bytes via the authenticated Blipmade route, never a
+ * Pterodactyl token or a signed node URL.
  */
-export function downloadFile(token: string, uuid: string, path: string): Promise<Buffer> {
-  return clientRequest<Buffer>('GET', `/api/client/servers/${uuid}/files/contents`, {
-    token,
-    query: { file: path },
-    binary: true,
-  });
+async function downloadStream(
+  token: string,
+  path: string,
+  query?: Record<string, string>,
+): Promise<Readable> {
+  requirePanelUrl();
+  clientToken(token);
+  const url = new URL(`${env.PTERODACTYL_URL}${path}`);
+  for (const [name, value] of Object.entries(query ?? {})) url.searchParams.set(name, value);
+  const controller = new AbortController();
+  const handshakeTimeout = setTimeout(() => controller.abort(), 20_000);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}`, Accept: MEDIA },
+      signal: controller.signal,
+    });
+  } catch {
+    clearTimeout(handshakeTimeout);
+    throw unavailable('The Pterodactyl download endpoint could not be reached.');
+  }
+  clearTimeout(handshakeTimeout);
+  if (!response.ok) {
+    const text = (await response.text()).slice(0, 2000);
+    controller.abort();
+    throw new ClientApiError(response.status, text,
+      `Pterodactyl client GET ${path} failed with ${response.status}. ${clientDetail(text)}`);
+  }
+  if (!response.body) {
+    controller.abort();
+    throw unavailable('The panel returned an empty download stream.');
+  }
+
+  const stream = Readable.fromWeb(response.body as unknown as NodeReadableStream);
+  // Abort the upstream request when the browser disconnects or the stream
+  // finishes. The controller must remain alive while bytes are flowing.
+  stream.once('close', () => controller.abort());
+  stream.once('error', () => controller.abort());
+  return stream;
+}
+
+/** Streams a customer file without ever materializing it as one Buffer. */
+export function downloadFile(token: string, uuid: string, path: string): Promise<Readable> {
+  return downloadStream(token, `/api/client/servers/${uuid}/files/contents`, { file: path });
 }
 
 /**
@@ -730,12 +766,9 @@ export function deleteBackup(token: string, uuid: string, id: string) {
   return clientRequest<void>('DELETE', `/api/client/servers/${uuid}/backups/${id}`, { token });
 }
 
-/** Reads a backup as it is, for a download. */
-export function downloadBackup(token: string, uuid: string, id: string): Promise<Buffer> {
-  return clientRequest<Buffer>('GET', `/api/client/servers/${uuid}/backups/${id}/download`, {
-    token,
-    binary: true,
-  });
+/** Streams backup data to the authorized customer without buffering it in memory. */
+export function downloadBackup(token: string, uuid: string, id: string): Promise<Readable> {
+  return downloadStream(token, `/api/client/servers/${uuid}/backups/${id}/download`);
 }
 
 /** Restores a backup. The files of the server are replaced by the archive. */
