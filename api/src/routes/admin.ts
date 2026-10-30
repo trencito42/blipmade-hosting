@@ -1615,18 +1615,31 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/admin/staff', { preHandler: requirePermission('staff.read') }, async () => {
-    const staff = await prisma.staffMember.findMany({
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, role: true } } },
-    });
+    // Everyone who works on the platform is listed: the accounts that have a
+    // role of staff or of admin, with the permissions that were given to
+    // them. An administrator may have no row of permissions, because the role
+    // already holds all of them.
+    const [users, members] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: { in: ['STAFF', 'ADMIN'] } },
+        select: { id: true, email: true, firstName: true, lastName: true, role: true },
+        orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+      }),
+      prisma.staffMember.findMany({ select: { userId: true, title: true, permissions: true } }),
+    ]);
+    const byUser = new Map(members.map((member) => [member.userId, member]));
     return {
-      staff: staff.map((member) => ({
-        userId: member.userId,
-        email: member.user.email,
-        name: fullName(member.user),
-        role: member.user.role.toLowerCase(),
-        title: member.title,
-        permissions: member.permissions,
-      })),
+      staff: users.map((user) => {
+        const member = byUser.get(user.id);
+        return {
+          userId: user.id,
+          email: user.email,
+          name: fullName(user),
+          role: user.role.toLowerCase(),
+          title: member?.title ?? null,
+          permissions: user.role === 'ADMIN' ? [...PERMISSIONS] : (member?.permissions ?? []),
+        };
+      }),
       available: PERMISSIONS,
     };
   });

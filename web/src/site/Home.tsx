@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Configurator } from './Configurator';
-import { Globe } from './Globe';
+import { ConfigScene, type Shape } from './ConfigScene';
+import { useState } from 'react';
 import { APP_COPY, FALLBACK, NOT_YET, TODAY, faqFor } from './content';
 import { orderableOf, useProducts, useRates } from './catalog';
 import { priceOfResources, eur, fmtRam } from './pricing';
@@ -29,6 +30,7 @@ function Hero() {
   const from = products.length ? Math.min(...products.map((product) => product.minPrice)) : 0;
   const mail = products.find((product) => product.slug === 'email-hosting-starter');
   const { user } = useSession();
+  const [shape, setShape] = useState<Shape>({ slug: 'discord-bot', ram: 512, cpu: 1, disk: 5, minRam: 256, maxRam: 4096, maxCpu: 4, minDisk: 1, maxDisk: 50 });
   return (
     <section aria-labelledby="h1">
       <div className="relative isolate overflow-hidden">
@@ -57,10 +59,10 @@ function Hero() {
             </div>
           </div>
         </Wrap>
-        <Globe className="relative mx-auto -mt-2 h-[340px] w-full max-w-[540px] sm:h-[440px] lg:absolute lg:inset-y-0 lg:right-[-7%] lg:z-0 lg:mt-0 lg:h-full lg:w-[58%] lg:max-w-none" />
+        <ConfigScene shape={shape} className="relative mx-auto -mt-2 block h-[340px] w-full max-w-[540px] sm:h-[440px] lg:absolute lg:inset-y-0 lg:right-[-2%] lg:z-0 lg:mt-0 lg:h-full lg:w-[56%] lg:max-w-none" />
       </div>
       <Wrap className="relative z-10 pb-14 lg:-mt-6 lg:pb-20">
-        <Configurator layout="bar" className="rise" />
+        <Configurator layout="bar" onShape={setShape} className="rise" />
       </Wrap>
     </section>
   );

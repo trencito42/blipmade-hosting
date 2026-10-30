@@ -1,9 +1,10 @@
-import { useId, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useState, type CSSProperties } from 'react';
 import { AppPicker } from './AppPicker';
 import { useSession } from '../session';
 import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtDisk, fmtRam, type Rates, type Resources } from './pricing';
 import { Btn, cx } from './ui';
+import type { Shape } from './ConfigScene';
 import { nearestOption, ramGrid } from '../lib/pricing-contract';
 
 /**
@@ -35,6 +36,17 @@ interface SliderProps {
   text: string;
   onChange: (value: number) => void;
   hint: string;
+}
+
+/** Tells the page about the size that is chosen. It draws nothing. */
+function ShapeReporter({ shape, onShape }: { shape: Shape; onShape?: (shape: Shape) => void }) {
+  const key = `${shape.slug}|${shape.ram}|${shape.cpu}|${shape.disk}`;
+  useEffect(() => {
+    onShape?.(shape);
+    // The shape is rebuilt on every render, so its values are the key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return null;
 }
 
 /** One slider of a resource, with its value and the two ends of its track. */
@@ -74,10 +86,12 @@ export interface ConfiguratorProps {
   lock?: boolean;
   /** `bar` lays the controls in one row, for a page that has room across. */
   layout?: 'card' | 'bar';
+  /** Told whenever the size that is chosen changes, so a scene can draw it. */
+  onShape?: (shape: Shape) => void;
   className?: string;
 }
 
-export function Configurator({ slug = 'discord-bot', lock = false, layout = 'card', className }: ConfiguratorProps) {
+export function Configurator({ slug = 'discord-bot', lock = false, layout = 'card', onShape, className }: ConfiguratorProps) {
   // The control prices an order, so it only carries the products that can be
   // ordered today.
   const products = orderableOf(useProducts());
@@ -132,6 +146,10 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
   if (layout === 'bar') {
     return (
       <section aria-label="Price configurator" className={cx('on-night rounded-[28px] bg-night p-5 text-snow sm:p-6 lg:rounded-[32px] lg:p-7', className)}>
+        <ShapeReporter
+          onShape={onShape}
+          shape={{ slug: current.slug, ram: resources.ram, cpu: resources.cpu, disk: resources.disk, minRam: current.min.ram, maxRam: current.max.ram, maxCpu: current.max.cpu, minDisk: current.min.disk, maxDisk: current.max.disk }}
+        />
         <div className="grid gap-5 lg:grid-cols-[minmax(290px,1.35fr)_repeat(3,minmax(0,1fr))_auto] lg:items-start lg:gap-7">
           <fieldset className="grid gap-2">
             <legend className="mb-2 font-display text-[15px] font-semibold tracking-[-0.01em] text-snow-2">What are you running?</legend>
