@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { relativeTime } from '../../lib/api';
 import {
   archiveFormatOf,
   baseName,
@@ -27,7 +28,7 @@ import {
   type InstanceFile,
 } from '../../lib/instance-api';
 import { useAction, useAsync } from '../../lib/useAsync';
-import { Icon } from '../../icons';
+import { Icon, type IconName } from '../../icons';
 import { LANGUAGE_LABEL, languageOf } from './editor-language';
 import {
   ConfirmDialog,
@@ -57,6 +58,23 @@ type ActionPanel = 'none' | 'rename' | 'move' | 'copy' | 'permissions';
 interface Selection {
   path: string;
   entry: InstanceFile;
+}
+
+/** Files that are never text, whatever the node says about their encoding. */
+const BINARY_EXTENSIONS = new Set(['zip', 'gz', 'tgz', 'tar', 'rar', '7z', 'bz2', 'xz', 'jar', 'war', 'class', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'ico', 'pdf', 'exe', 'dll', 'so', 'bin', 'dat', 'db', 'sqlite', 'mca', 'nbt', 'woff', 'woff2', 'ttf', 'mp3', 'mp4', 'ogg', 'wav', 'webm', 'pak', 'vpk']);
+
+/**
+ * True when the content of a file is not text.
+ *
+ * The node may send the bytes of a binary file as base64 and call them text,
+ * so the name of the file and the look of the content are read as well.
+ */
+function looksBinary(name: string, content: string): boolean {
+  const extension = name.toLowerCase().split('.').pop() ?? '';
+  if (BINARY_EXTENSIONS.has(extension)) return true;
+  if (content.includes('\u0000')) return true;
+  // A long run of base64 without a space or a line break is the bytes of a file.
+  return content.length > 400 && /^[A-Za-z0-9+/=]+$/.test(content.slice(0, 400)) && !content.slice(0, 400).includes(' ');
 }
 
 /** Text files are editable, binary files are shown as read only. */
@@ -94,174 +112,99 @@ function saveBlob(blob: Blob, name: string) {
   URL.revokeObjectURL(url);
 }
 
-// --- the tree --------------------------------------------------------------
+// --- the explorer ----------------------------------------------------------
 
-function TreeNode({
-  instanceId,
-  path,
-  name,
-  depth,
-  version,
-  selectedPath,
-  onSelect,
-  onOpenFolder,
-}: {
-  instanceId: string;
-  path: string;
-  name: string;
-  depth: number;
-  version: number;
-  selectedPath: string | null;
-  onSelect: (selection: Selection) => void;
-  onOpenFolder: (path: string) => void;
-}) {
-  const [open, setOpen] = useState(depth === 0);
-  const isSelected = selectedPath === path;
-
-  return (
-    <li>
-      <div
-        className={`flex items-center gap-1 rounded-2xl p-1 transition-colors duration-[180ms] ${
-          isSelected ? 'bg-s3' : 'hover:bg-s2'
-        }`}
-        style={{ paddingLeft: `${depth * 14 + 4}px` }}
-      >
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-          aria-label={`${open ? 'Close' : 'Open'} the folder ${name}`}
-          className="grid size-11 shrink-0 place-items-center rounded-full text-ink3 transition-colors duration-[180ms] hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-        >
-          <Icon name={open ? 'close' : 'menu'} size={16} />
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(true);
-            onOpenFolder(path);
-          }}
-          className="min-w-0 flex-1 rounded-xl px-2 py-2 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-        >
-          <span className="block truncate text-[14px] font-medium text-ink" title={name}>
-            {name}
-          </span>
-          <span className="block truncate font-mono text-[11.5px] text-ink3" title={path}>
-            {path}
-          </span>
-        </button>
-      </div>
-
-      {open && (
-        <TreeChildren
-          instanceId={instanceId}
-          path={path}
-          depth={depth}
-          version={version}
-          selectedPath={selectedPath}
-          onSelect={onSelect}
-          onOpenFolder={onOpenFolder}
-        />
-      )}
-    </li>
-  );
+/** The icon of a file, from its name. */
+function iconOfFile(name: string): IconName {
+  const extension = name.toLowerCase().split('.').pop() ?? '';
+  if (['zip', 'gz', 'tgz', 'tar', 'rar', '7z', 'jar', 'bz2', 'xz'].includes(extension)) return 'fileZip';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico'].includes(extension)) return 'fileImage';
+  if (['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'json', 'yml', 'yaml', 'py', 'sh', 'lua', 'php', 'java', 'go', 'rs', 'html', 'css', 'toml', 'xml', 'sql'].includes(extension)) return 'fileCode';
+  if (extension === 'pdf') return 'filePdf';
+  if (['txt', 'md', 'log', 'cfg', 'conf', 'ini', 'properties', 'env'].includes(extension)) return 'doc';
+  return 'file';
 }
 
-function TreeChildren({
+/**
+ * The files of one folder, as a list.
+ *
+ * A folder opens in place and a file opens in the panel next to the list. The
+ * folders come first, then the files, and a row that goes one level up is on
+ * top, so the reader never needs a tree to find the way back.
+ */
+function Explorer({
   instanceId,
-  path,
-  depth,
+  folder,
   version,
   selectedPath,
-  onSelect,
   onOpenFolder,
+  onSelect,
 }: {
   instanceId: string;
-  path: string;
-  depth: number;
+  folder: string;
   version: number;
   selectedPath: string | null;
-  onSelect: (selection: Selection) => void;
   onOpenFolder: (path: string) => void;
+  onSelect: (selection: Selection) => void;
 }) {
-  const listing = useAsync((signal) => listFiles(instanceId, path, signal), [instanceId, path, version]);
+  const listing = useAsync((signal) => listFiles(instanceId, folder, signal), [instanceId, folder, version]);
   const files = listing.data?.files ?? [];
-
-  if (listing.loading) {
-    return (
-      <div className="px-3 py-1" style={{ paddingLeft: `${(depth + 1) * 14 + 4}px` }}>
-        <LoadingBlock rows={1} label="Loading the folder" />
-      </div>
-    );
-  }
-
-  if (listing.error) {
-    return (
-      <div className="px-3 py-1" style={{ paddingLeft: `${(depth + 1) * 14 + 4}px` }}>
-        <p className="break-words rounded-2xl bg-s2 px-3 py-2 text-[13px] text-ink2">
-          {listing.error.message}
-        </p>
-      </div>
-    );
-  }
-
-  if (files.length === 0) {
-    return (
-      <div className="px-3 py-1" style={{ paddingLeft: `${(depth + 1) * 14 + 4}px` }}>
-        <p className="text-[13px] text-ink3">This folder is empty.</p>
-      </div>
-    );
-  }
-
-  // Folders come first, then the files, both in the order of the panel.
   const sorted = [...files].sort((a, b) => {
     if (a.is_directory !== b.is_directory) return a.is_directory ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
+  const parent = folder === '/' ? null : folder.split('/').slice(0, -1).join('/') || '/';
+
+  if (listing.loading) return <LoadingBlock rows={4} label="Loading the folder" />;
+  if (listing.error) {
+    return (
+      <p role="alert" className="break-words rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
+        {listing.error.message}
+      </p>
+    );
+  }
+
+  const row = 'flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
 
   return (
     <ul className="grid gap-0.5">
+      {parent !== null && (
+        <li>
+          <button type="button" onClick={() => onOpenFolder(parent)} className={`${row} text-ink3 hover:bg-s2 hover:text-ink`}>
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-s2">
+              <Icon name="arrowUp" size={14} />
+            </span>
+            <span className="text-[14px] font-medium">Up one level</span>
+          </button>
+        </li>
+      )}
+      {sorted.length === 0 && <li className="px-3 py-6 text-center text-[14px] text-ink3">This folder is empty.</li>}
       {sorted.map((file) => {
-        const full = joinPath(path, file.name);
-        if (file.is_directory) {
-          return (
-            <TreeNode
-              key={full}
-              instanceId={instanceId}
-              path={full}
-              name={file.name}
-              depth={depth + 1}
-              version={version}
-              selectedPath={selectedPath}
-              onSelect={onSelect}
-              onOpenFolder={onOpenFolder}
-            />
-          );
-        }
+        const full = joinPath(folder, file.name);
+        const isFolder = file.is_directory;
+        const active = selectedPath === full;
         return (
           <li key={full}>
-            <div
-              className={`flex items-center gap-1 rounded-2xl p-1 transition-colors duration-[180ms] ${
-                selectedPath === full ? 'bg-s3' : 'hover:bg-s2'
-              }`}
-              style={{ paddingLeft: `${(depth + 1) * 14 + 4}px` }}
+            <button
+              type="button"
+              onClick={() => (isFolder ? onOpenFolder(full) : onSelect({ path: full, entry: file }))}
+              aria-current={active ? 'true' : undefined}
+              className={`${row} ${active ? 'bg-s3' : 'hover:bg-s2'}`}
             >
-              <span className="grid size-11 shrink-0 place-items-center text-ink3">
-                <Icon name="doc" size={16} />
+              <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${isFolder ? 'bg-acc-bg text-acc' : 'bg-s2 text-ink3'}`}>
+                <Icon name={isFolder ? 'folder' : iconOfFile(file.name)} size={16} />
               </span>
-              <button
-                type="button"
-                onClick={() => onSelect({ path: full, entry: file })}
-                className="min-w-0 flex-1 rounded-xl px-2 py-2 text-left transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-              >
-                <span className="block truncate text-[14px] font-medium text-ink" title={file.name}>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14.5px] font-medium text-ink" title={file.name}>
                   {file.name}
                 </span>
-                <span className="block truncate font-mono text-[11.5px] text-ink3" title={full}>
-                  {fmtBytes(file.size)} · {fmtMode(file.mode)}
+                <span className="block truncate font-mono text-[11.5px] text-ink3">
+                  {isFolder ? 'Folder' : fmtBytes(file.size)} · {relativeTime(file.modified_at)}
                 </span>
-              </button>
-            </div>
+              </span>
+              <span className="hidden shrink-0 font-mono text-[11.5px] text-ink3 sm:block">{fmtMode(file.mode)}</span>
+              {isFolder && <Icon name="arrow" size={12} className="shrink-0 text-ink3" />}
+            </button>
           </li>
         );
       })}
@@ -295,8 +238,9 @@ function FilePanel({
   const file = useAsync((signal) => imageType ? Promise.resolve({ content: '', encoding: 'binary' }) : readFile(instanceId, path, signal), [instanceId, path]);
   const decoded = useMemo(() => {
     if (!file.data) return { text: '', binary: false };
+    if (looksBinary(entry.name, file.data.content ?? '')) return { text: '', binary: true };
     return decodeContent(file.data.content ?? '', file.data.encoding ?? '');
-  }, [file.data]);
+  }, [file.data, entry.name]);
 
   useEffect(() => {
     if (!imageType) { setPreviewUrl(null); return; }
@@ -838,34 +782,27 @@ export default function FilesTab({ instance }: TabProps) {
         </ul>
       )}
 
-      <div className={`relative grid gap-3 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] ${dragging ? 'rounded-3xl outline-2 outline-dashed outline-acc outline-offset-4' : ''}`}>
+      <div className={`relative grid gap-3 ${selected ? 'xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]' : ''} ${dragging ? 'rounded-3xl outline-2 outline-dashed outline-acc outline-offset-4' : ''}`}>
         {dragging && (
           <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-3xl bg-bg/80 text-[17px] font-semibold text-ink">
             Drop the files to upload them to {folder}
           </div>
         )}
-        <Panel title="Folders" description={`Uploading goes to ${folder}. Drop files anywhere on this tab.`}>
-          <ul className="grid gap-0.5">
-            <TreeNode
-              instanceId={instance.id}
-              path="/"
-              name="root"
-              depth={0}
-              version={version}
-              selectedPath={selected?.path ?? null}
-              onSelect={setSelected}
-              onOpenFolder={setFolder}
-            />
-          </ul>
+        <Panel title="Files" description={`Drop files here to upload them to ${folder}.`}>
+          <Explorer
+            instanceId={instance.id}
+            folder={folder}
+            version={version}
+            selectedPath={selected?.path ?? null}
+            onOpenFolder={(next) => {
+              setFolder(next);
+              setSelected(null);
+            }}
+            onSelect={setSelected}
+          />
         </Panel>
 
-        {selected ? (
-          <FilePanel key={selected.path} instanceId={instance.id} selection={selected} onChanged={refresh} onClosed={() => setSelected(null)} />
-        ) : (
-          <Panel title="No file open" description="Pick a file in the tree to read it, change it or download it.">
-            <EmptyState title="Nothing is open." description="Open a file from the tree on the left to see its content and the actions you can run on it." />
-          </Panel>
-        )}
+        {selected && <FilePanel key={selected.path} instanceId={instance.id} selection={selected} onChanged={refresh} onClosed={() => setSelected(null)} />}
       </div>
     </div>
   );
