@@ -150,7 +150,7 @@ export function Apps() {
       <Wrap className="pb-20">
         <div ref={filtersRef}>
         <div className="sticky top-[68px] z-20 -mx-5 mb-8 flex flex-col gap-3 border-b border-line bg-paper/90 px-5 py-3 backdrop-blur-md sm:-mx-8 sm:flex-row sm:items-center sm:px-8">
-          <nav aria-label="Filter apps by category" className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <nav aria-label="Filter apps by category" className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
             <div className="flex w-max gap-1.5">
               {[{ id: 'all', label: 'All', icon: 'box' as const, count: displayProducts.length }, ...groups.map((group) => ({ id: group.id, label: group.label, icon: categoryOf(group.id).icon, count: group.products.length }))].map((tab) => (
                 <button

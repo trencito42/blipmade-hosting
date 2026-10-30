@@ -437,7 +437,7 @@ export function VpsDetail() {
 
       {server.status === 'active' && (
         <>
-          <nav aria-label="Server sections" className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <nav aria-label="Server sections" className="-mx-1 overflow-x-auto px-1 no-scrollbar">
             <ul className="flex gap-1.5">
               {VPS_TABS.map((entry) => (
                 <li key={entry.id} className="shrink-0">

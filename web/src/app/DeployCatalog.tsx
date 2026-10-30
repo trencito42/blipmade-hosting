@@ -232,7 +232,7 @@ export default function DeployCatalog() {
       </div>
 
       <div className="grid gap-3 sm:flex sm:items-center">
-        <nav aria-label="Filter the catalog by category" className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav aria-label="Filter the catalog by category" className="min-w-0 flex-1 overflow-x-auto no-scrollbar">
           <div className="flex w-max gap-1.5">
             {['All', ...categories].map((code) => {
               const meta = categoryOf(code);

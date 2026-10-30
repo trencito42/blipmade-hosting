@@ -4,6 +4,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
   CardList,
+  ConfirmDialog,
   DataTable,
   EmptyState,
   ErrorState,
@@ -71,6 +72,8 @@ function statusLabel(status: string): string {
 export default function Tickets() {
   const toast = useToast();
   const [creating, setCreating] = useState(false);
+  const [closing, setClosing] = useState<Ticket | null>(null);
+  const [closeBusy, setCloseBusy] = useState(false);
   const newTicketButton = useRef<HTMLButtonElement>(null);
 
   const tickets = useAsync((signal) => get<{ tickets: Ticket[] }>('/tickets', undefined, signal), []);
@@ -187,21 +190,56 @@ export default function Tickets() {
                   ),
                 },
                 {
-                  key: 'open',
-                  header: 'Open',
-                  align: 'center',
+                  key: 'actions',
+                  header: 'Quick actions',
+                  align: 'right',
                   nowrap: true,
                   render: (t) => (
-                    <Link
-                      to={`/app/tickets/${t.id}`}
-                      aria-label={`Open ticket ${t.number}`}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink3 hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                    >
-                      <span aria-hidden="true">→</span>
-                    </Link>
+                    <span className="inline-flex items-center gap-2">
+                      <Link
+                        to={`/app/tickets/${t.id}`}
+                        aria-label={`Reply to ticket ${t.number}`}
+                        className="inline-flex h-9 items-center rounded-full bg-s3 px-3.5 text-[13px] font-semibold text-ink hover:bg-s4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      >
+                        Reply
+                      </Link>
+                      {t.status !== 'closed' && (
+                        <button
+                          type="button"
+                          onClick={() => setClosing(t)}
+                          aria-label={`Close ticket ${t.number}`}
+                          className="inline-flex h-9 items-center rounded-full border border-line px-3.5 text-[13px] font-semibold text-ink2 hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                        >
+                          Close
+                        </button>
+                      )}
+                    </span>
                   ),
                 },
               ]}
+            />
+
+            <ConfirmDialog
+              open={closing !== null}
+              title={closing ? `Close ticket #${closing.number}?` : 'Close ticket?'}
+              description="Closing tells support the problem is solved. You can open a new ticket any time."
+              confirmLabel="Close ticket"
+              busy={closeBusy}
+              onCancel={() => setClosing(null)}
+              onConfirm={() => {
+                if (!closing) return;
+                setCloseBusy(true);
+                post(`/tickets/${closing.id}/close`)
+                  .then(() => {
+                    toast.push('The ticket was closed.', 'ok');
+                    tickets.reload();
+                  })
+                  .catch((failure) => toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error'))
+                  .finally(() => {
+                    setCloseBusy(false);
+                    setClosing(null);
+                  });
+              }}
             />
 
             <CardList<Ticket> rows={rows} rowKey={(t) => t.id}>

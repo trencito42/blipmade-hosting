@@ -309,3 +309,9 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(
 @media (prefers-reduced-motion: reduce) {
   .sheet-panel, .sheet-backdrop { animation: none; }
 }
+
+/* A row that scrolls sideways without drawing a bar over its content (the chips of a filter,
+   the tabs of a page). It is outside of the layers on purpose: the scrollbar rules above are
+   outside of them too, and a utility inside a layer cannot win against those. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }

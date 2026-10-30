@@ -154,7 +154,7 @@ export default function Settings() {
 
   return (
     <div className="grid items-start gap-5 pb-16 lg:pb-0">
-      <nav aria-label="Settings sections" className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav aria-label="Settings sections" className="-mx-1 overflow-x-auto px-1 no-scrollbar">
         <ul className="flex gap-1.5">
           {SETTINGS_TABS.map((entry) => {
             const active = entry.id === tab.id;

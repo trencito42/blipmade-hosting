@@ -792,7 +792,7 @@ export default function FilesTab({ instance }: TabProps) {
             </div>
           ) : (
             <>
-              <div role="tablist" aria-label="Open files" className="flex overflow-x-auto border-b border-line p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div role="tablist" aria-label="Open files" className="flex overflow-x-auto border-b border-line p-1.5 no-scrollbar">
                 {tabs.map((tab) => {
                   const isActive = tab.path === active;
                   return (
