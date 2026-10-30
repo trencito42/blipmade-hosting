@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { ICONS, iconClasses, type IconFamily, type IconName, type IconWeight } from "./icon-map";
+import { ICONS, iconClasses, productIconClasses, type IconFamily, type IconName, type IconWeight } from "./icon-map";
 
 /**
  * The icons of the interface.
@@ -97,6 +97,23 @@ export function Icon({
         .join(" ")}
       style={inline}
       {...meaning}
+    />
+  );
+}
+
+/**
+ * The icon of a product of the catalog.
+ *
+ * It is the mark of the brand when the font has one, an icon that says what
+ * the product does when it has not, and the icon of the category of the
+ * product when the table does not know it.
+ */
+export function ProductMark({ slug, fallback, size = 18, className }: { slug: string; fallback: IconName; size?: number; className?: string }) {
+  return (
+    <i
+      aria-hidden="true"
+      className={[productIconClasses(slug, fallback), "fa-icon", className].filter(Boolean).join(" ")}
+      style={{ fontSize: `${size}px` }}
     />
   );
 }

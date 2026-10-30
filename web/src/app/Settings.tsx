@@ -654,13 +654,30 @@ function NotificationsPanel() {
   const onToggle = async (group: NotificationGroupKey, channel: NotificationChannel, next: boolean) => {
     if (!preferences) return;
     const updated: NotificationPreferences = { ...preferences, [group]: next };
-    // The channel has to be on for the switch of a group to mean anything.
-    if (channel === 'email') updated.emailChannel = true;
-    else updated.inAppChannel = true;
+    // Turning a group on with every channel off would mean nothing, so the
+    // channel it is offered on is turned on with it. Turning a group off
+    // leaves the channels as they are.
+    if (next) {
+      if (channel === 'email') updated.emailChannel = true;
+      else updated.inAppChannel = true;
+    }
     setValues(updated);
     const saved = await save.run(updated);
     if (!saved) {
       // The server refused: the switches go back to what the server holds.
+      setValues(null);
+      return;
+    }
+    setValues(saved);
+    toast.push('Preferences saved', 'ok');
+  };
+
+  const onChannel = async (channel: NotificationChannel, next: boolean) => {
+    if (!preferences) return;
+    const updated: NotificationPreferences = { ...preferences, [channel === 'email' ? 'emailChannel' : 'inAppChannel']: next };
+    setValues(updated);
+    const saved = await save.run(updated);
+    if (!saved) {
       setValues(null);
       return;
     }
@@ -704,6 +721,27 @@ function NotificationsPanel() {
               {save.error}
             </p>
           )}
+
+          <fieldset className="rounded-2xl border border-line p-3.5">
+            <legend className="px-1.5 text-[13px] font-semibold text-ink3">Where messages reach you</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(['email', 'in_app'] as NotificationChannel[]).map((channel) => (
+                <label key={channel} className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={channel === 'email' ? preferences.emailChannel : preferences.inAppChannel}
+                    disabled={save.pending}
+                    onChange={(event) => void onChannel(channel, event.target.checked)}
+                    className="size-6 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  />
+                  <span className="text-[14px] font-medium text-ink">{CHANNEL_LABEL[channel]}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-[12.5px] leading-relaxed text-ink3">
+              These two apply to every group below. A group you switch off is silent on both.
+            </p>
+          </fieldset>
 
           <NotificationPreferencesPanel
             preferences={preferences}
@@ -820,31 +858,19 @@ function NotificationPreferenceGroup({
         </p>
       ) : group ? (
         <>
-          <div className="mt-2 grid gap-2">
-            {channels.map((channel) => {
-              const channelOn = channel === 'email' ? preferences.emailChannel : preferences.inAppChannel;
-              return (
-                <label key={channel} className="flex items-center gap-3">
-                  <input
-                    id={`preference-${group}-${channel}`}
-                    name={`preference-${group}-${channel}`}
-                    type="checkbox"
-                    checked={groupOn && channelOn}
-                    disabled={pending}
-                    onChange={(event) => onToggle(group, channel, event.target.checked)}
-                    aria-label={`${category.label}: ${CHANNEL_LABEL[channel]}`}
-                    className="size-6 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc disabled:cursor-not-allowed"
-                  />
-                  <span className="text-[14px] font-medium text-ink">{CHANNEL_LABEL[channel]}</span>
-                </label>
-              );
-            })}
-          </div>
-          {channels.length > 1 ? (
-            <p className="mt-2 text-[12.5px] leading-relaxed text-ink3">
-              The two switches are one setting on the server: switching one of them off stops the whole group.
-            </p>
-          ) : null}
+          <label className="mt-2 flex items-center gap-3">
+            <input
+              id={`preference-${group}`}
+              name={`preference-${group}`}
+              type="checkbox"
+              checked={groupOn}
+              disabled={pending}
+              onChange={(event) => onToggle(group, channels[0] ?? 'email', event.target.checked)}
+              aria-label={`${category.label}: receive these messages`}
+              className="size-6 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc disabled:cursor-not-allowed"
+            />
+            <span className="text-[14px] font-medium text-ink">Receive these messages</span>
+          </label>
         </>
       ) : null}
 

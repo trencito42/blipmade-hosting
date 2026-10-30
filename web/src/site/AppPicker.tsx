@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Icon } from '../icons';
+import { Icon, ProductMark } from '../icons';
 import type { Product } from './catalog';
 import { categoryOf, categoryOrder } from './categories';
 import { eur } from './pricing';
@@ -84,7 +84,7 @@ export function AppPicker({ options, selected, onPick }: AppPickerProps) {
         className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-night-line bg-night-2 px-3 py-2.5 text-left transition-colors hover:border-snow/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint"
       >
         <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-night-3 text-[17px] text-mint">
-          <Icon name={currentCategory.icon} size={17} />
+          <ProductMark slug={current.slug} fallback={currentCategory.icon} size={18} />
         </span>
         <span className="grid min-w-0 flex-1">
           <span className="truncate text-[16px] font-semibold">{current.label}</span>

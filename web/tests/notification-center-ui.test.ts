@@ -367,21 +367,21 @@ describe('the preferences of the notifications', () => {
 
   it('leaves the marketing off until the customer agrees to it', () => {
     const html = preferencesPanel();
-    const marketing = switchOf(html, 'preference-marketing-email');
+    const marketing = switchOf(html, 'preference-marketing');
     assert.doesNotMatch(marketing, /checked/);
     assert.match(html, /It is off until you agree to it\./);
     assert.match(html, /Turning it on is your agreement/);
   });
 
-  it('offers a switch for the channel of every group that travels on it', () => {
+  it('offers one switch for every group that can be switched off', () => {
     const html = preferencesPanel();
-    // A group that travels on the e-mail and on the notification centre has
-    // a switch for each of them.
-    assert.ok(switchOf(html, 'preference-support-email').includes('type="checkbox"'));
-    assert.ok(switchOf(html, 'preference-support-in_app').includes('type="checkbox"'));
-    // The marketing travels on the e-mail only.
-    assert.ok(switchOf(html, 'preference-marketing-email').includes('type="checkbox"'));
-    assert.doesNotMatch(html, /id="preference-marketing-in_app"/);
+    // A group is one setting on the server, so it has one switch. The two
+    // channels are two settings of the account, and they are not repeated in
+    // every group.
+    for (const group of ['support', 'ordersBilling', 'marketing']) {
+      assert.ok(switchOf(html, `preference-${group}`).includes('type="checkbox"'), `the group ${group} has no switch`);
+      assert.doesNotMatch(html, new RegExp(`id="preference-${group}-(email|in_app)"`));
+    }
   });
 });
 
@@ -449,15 +449,13 @@ describe('the page and its actions', () => {
   it('gives every switch of the preferences a name', () => {
     const html = preferencesPanel();
     for (const id of [
-      'preference-ordersBilling-email',
-      'preference-ordersBilling-in_app',
-      'preference-hostingServices-email',
-      'preference-support-email',
-      'preference-support-in_app',
-      'preference-domainsEmail-email',
-      'preference-incidents-email',
-      'preference-productUpdates-email',
-      'preference-marketing-email',
+      'preference-ordersBilling',
+      'preference-hostingServices',
+      'preference-support',
+      'preference-domainsEmail',
+      'preference-incidents',
+      'preference-productUpdates',
+      'preference-marketing',
     ]) {
       const input = switchOf(html, id);
       assert.match(input, /aria-label="[^"]+"/, `the switch ${id} has no name`);

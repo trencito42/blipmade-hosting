@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Icon } from '../icons';
+import { Icon, ProductMark } from '../icons';
 import { Configurator } from './Configurator';
 import { APP_COPY, FALLBACK } from './content';
 import { isOrderable, useProducts, type Product } from './catalog';
@@ -58,8 +58,8 @@ function Card({ product }: { product: Product }) {
       >
         <div className="grid gap-3">
           <div className="flex items-center justify-between gap-3">
-            <span aria-hidden="true" className="grid size-10 place-items-center rounded-xl bg-night-2 text-green">
-              <Icon name={category.icon} size={17} />
+            <span aria-hidden="true" className="grid size-11 place-items-center rounded-xl bg-night-2 text-green">
+              <ProductMark slug={product.slug} fallback={category.icon} size={19} />
             </span>
             {open ? null : <span className="rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-ink-3">Coming soon</span>}
           </div>
