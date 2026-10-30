@@ -492,13 +492,15 @@ async function probeOne(product, eggs, allocations) {
     record.serverId = serverId;
     record.port = allocation.port;
 
-    await appRequest('POST', `/api/application/servers/${serverId}/reinstall`);
-
+    // The node starts the installation by itself when the server is created. A
+    // second request to install at this point finds the lock taken, fails, and
+    // the panel marks the server as failed while the first installation is
+    // still running, so the probe only waits.
     const installed = await waitInstalled(serverId);
     record.installed = installed;
     record.installState = await serverState(uuid);
     if (!installed) {
-      record.error = 'the node did not finish the installation in time';
+      record.error = 'the installation did not finish: it failed on the node or it took longer than the time given';
       return record;
     }
 
