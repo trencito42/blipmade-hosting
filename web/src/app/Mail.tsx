@@ -231,6 +231,22 @@ export function OneTimePasswordBox({
 }
 
 /**
+ * The records are only in the way when everything is in place, so they fold away
+ * behind a line the reader can open. While something is missing they stay open.
+ */
+function Disclosure({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
+  if (!collapsed) return <>{children}</>;
+  return (
+    <details className="group mt-3">
+      <summary className="cursor-pointer list-none text-[13.5px] font-medium text-ink3 hover:text-ink focus-visible:outline-2 focus-visible:outline-acc">
+        Show the records
+      </summary>
+      {children}
+    </details>
+  );
+}
+
+/**
  * The DNS records the customer has to publish, and whether the server has
  * seen them.
  *
@@ -314,7 +330,7 @@ export function MailDnsRecords({
       )}
 
       {records.length ? (
-        <>
+        <Disclosure collapsed={verified}>
           <div className="mt-3">
             <DataTable
               columns={[
@@ -393,7 +409,7 @@ export function MailDnsRecords({
               </div>
             )}
           </CardList>
-        </>
+        </Disclosure>
       ) : (
         <p className="mt-3 rounded-2xl bg-s2 px-3.5 py-3 text-[13.5px] text-ink2">
           The server did not return DNS records for this domain yet.
