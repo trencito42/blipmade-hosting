@@ -107,3 +107,91 @@ A commercial release is **NO-GO** if any of the following is missing:
 **Next operator action:** Configure `TRUSTED_PROXIES` for the actual Caddy/Cloudflare deployment; enable branch protection, verify off-provider backups and rotate any previously exposed origin/panel secrets.
 
 **Final decision: NO-GO** until the operator evidence in section 5 is recorded. Source changes reduce risk; they do not prove the platform ready to hold third-party customer data.
+
+
+## 7. Round 2: deeper payment, capacity, encryption and CI review
+
+This section supersedes the initial "SEC-01 through SEC-05 only" implementation
+snapshot above. It records additional issues found by examining the code
+paths and GitHub Actions logs. No production service was modified.
+
+### Additional source-confirmed defects patched
+
+| ID | Priority | Evidence | Patch / regression |
+| --- | --- | --- | --- |
+| FIN-02 | P1 | `api/src/routes/webhooks.ts` used unconditional `FAILED` writes for asynchronous Checkout or PaymentIntent failure, even when payment was already successful | Conditional transitions; stale event tests in `stripe-webhook.test.ts` |
+| FIN-03 | P1 | `api/src/services/stripe.ts` read order status and wrote PAID later without atomic status check; promotion redemption was separate | Compare-and-set in transaction; promotion race test |
+| FIN-04 | P1 | `api/src/routes/orders.ts` cancellation could overwrite a concurrent paid transition; repeated cancellation issued redundant notifications | Conditional update, true idempotency and cancellation tests |
+| FIN-05 | P1 | Expired checkout event could overwrite concurrently paid order | Conditional expiration claim |
+| FIN-06 | P1 | `refundPayment` ignored Stripe Refund status, treating accepted-but-pending refunds as completed | Only `succeeded` marks local REFUNDED; pending/failure returns false and records audit metadata. Further provider reconciliation is required |
+| FIN-07 | P1 | `settleFreeUpgradeOrder` could mark CANCELLED/REFUNDED or payable orders PAID | Check ownership, UPGRADES only, zero cost, actual instance, and conditional transition; tests |
+| CAP-01 | P1 | `nodeCpuCapacity` excluded every CANCELLED instance even while the node allocation still existed | Count all node-associated allocations until their node id is cleared; regression test |
+| CRYPTO-01 | P1 | AES-GCM key for panel credentials and customer variables derived solely from SESSION_SECRET, so a normal session rotation would orphan secrets | Versioned v2 encryption using separate DATA_ENCRYPTION_SECRET with v1 legacy support; dry-run-first operator migration and tests |
+| CI-01 | P2 | Several tests were based on outdated rate-limit assumptions or mocks lacking eggVariableSpecs; domain routing assumed a particular order | Corrected three test files without disabling test coverage |
+| CI-02 | P1 launch | Gitleaks v3 on pull_request failed due to missing GITHUB_TOKEN and misplaced action inputs | Workflow action now receives token and settings as environment variables |
+
+### CI evidence (first audit run)
+
+On `cbb6966c`, GitHub Actions completed with 8 failed tests and 1,106
+passing tests. Failures were: one outdated rate-limit expectation, six tests
+with a missing Pterodactyl mock export, and one ordering-sensitive domain
+routing assertion. The errors were read from the workflow's job log and the
+tests were adjusted in subsequent commits.
+
+After additional security changes, the run on `3155ca4c` revealed that
+the Gitleaks PR action required GITHUB_TOKEN. The failure did not establish
+that a secret was found. The workflow wiring was then fixed.
+
+**Never treat these prior runs as confirmation that the final HEAD passes.**
+Use the final SHA's own CI run results as launch evidence.
+
+### Important open engineering risks requiring design work
+
+- **CAP-02 (P1):** `chooseNode()` checks CPU using a read from the database,
+  while the BullMQ provisioning worker has concurrency 2 and the allocation
+  is recorded later. Different instances can therefore observe the same
+  free capacity. A durable per-node reservation or cross-worker
+  synchronization scheme is needed, with parallel provisioning tests.
+- **PROV-02 (P1):** The provisioning lock is a timestamp with a 30-minute TTL,
+  with no demonstrated heartbeat/fencing token across long-running
+  provisioning. A stale holder might overlap with a recovery worker.
+- **FIN-08 (P1):** Asynchronous Stripe refunds now fail closed but still
+  require reconciliation on `refund.updated`/`refund.failed` and a durable
+  refund-state ledger so operators can finish pending cases without
+  duplicate refunds.
+- **FIN-09 (P1):** Concurrent upgrades on the same instance need exclusive
+  per-instance financial and provisioning control to prevent conflicting
+  active quotes/orders and resource changes.
+- **SEC-06 (P1 policy):** Administrator MFA/step-up and distributed
+  anti-brute-force counters need verification before real-money launch.
+  Existing in-process failed-attempt counters are not shared across replicas.
+- **OPS-03 (P1):** GitHub reports main branch protection disabled. Enable
+  required checks, no direct pushes and review/approval; app-code CI cannot
+  enforce repository rules itself.
+- **DR-03 (P0 operational):** A completed restore of encrypted platform
+  backups *and customer volumes* on a host at another provider remains
+  unverified, as do recovery keys and RTO/RPO.
+- **TLS-03 (P1):** Current wildcard customer-app TLS and customer-origin
+  routability have not been tested externally on this exact release.
+- **CRYPTO-02 (P1 rollout):** v2 encryption must be deployed to all API and
+  worker processes before operator migration, followed by a complete dry
+  run and database backup. No credential re-encryption was executed by this
+  audit. Older code cannot read v2 ciphertext, so the rollback plan is
+  constrained.
+
+### Public website check
+
+The website served at `https://blipmade.com/` on 30 October 2026
+still states that card payment is not available and orders are completed
+manually. This is consistent with the operator's statement that the new
+release has not been deployed. The public product pages explicitly label
+some unavailable apps as not deployable. The status and documentation URLs
+could not be inspected with the available public fetch tool, so no claim of
+availability or unavailability is made from that result alone.
+
+### Updated recommendation
+
+Do not merge into main or deploy until the final PR CI is green, source
+review comments are resolved, and the engineering plus operator gates above
+are fulfilled. The targeted fixes are real code changes, not a complete
+penetration-test certificate. The commercial release verdict remains **NO-GO**.
