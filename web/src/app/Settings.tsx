@@ -304,7 +304,7 @@ function ProfilePanel({
             value={firstName}
             onChange={(event) => setFirstName(event.target.value)}
             onBlur={() => setTouched(true)}
-            error={nameError}
+            error={nameError ?? save.fieldErrors.firstName}
             autoComplete="given-name"
             enterKeyHint="next"
           />
@@ -313,7 +313,7 @@ function ProfilePanel({
             value={lastName}
             onChange={(event) => setLastName(event.target.value)}
             onBlur={() => setTouched(true)}
-            error={lastNameError}
+            error={lastNameError ?? save.fieldErrors.lastName}
             autoComplete="family-name"
             enterKeyHint="next"
           />
@@ -444,7 +444,7 @@ function PasswordPanel() {
           autoComplete="current-password"
           value={currentPassword}
           onChange={(event) => setCurrentPassword(event.target.value)}
-          error={currentError}
+          error={currentError ?? change.fieldErrors.currentPassword}
         />
         <TextInput
           label="New password"
@@ -452,7 +452,7 @@ function PasswordPanel() {
           autoComplete="new-password"
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
-          error={newError}
+          error={newError ?? change.fieldErrors.newPassword}
           hint="At least 10 characters, an uppercase letter, a lowercase letter and a number."
         />
         <TextInput

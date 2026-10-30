@@ -378,7 +378,7 @@ function NewTicketForm({
             placeholder="Short summary of the problem"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            error={subjectError}
+            error={subjectError ?? create.fieldErrors.subject}
             autoComplete="off"
             className="scroll-mt-24"
           />
@@ -401,7 +401,7 @@ function NewTicketForm({
               label="Category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              error={categoryError}
+              error={categoryError ?? create.fieldErrors.category}
               className="scroll-mt-24"
             >
               <option value="">Choose a category</option>
@@ -461,7 +461,7 @@ function NewTicketForm({
             rows={5}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            error={bodyError}
+            error={bodyError ?? create.fieldErrors.body}
             className="scroll-mt-24"
           />
 

@@ -6,7 +6,7 @@
  */
 
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
+import { ApiError, del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel } from '../lib/pricing';
 import { Link, useParams } from '../router';
@@ -155,6 +155,7 @@ export function VpsCheckout() {
   const [key, setKey] = useState('');
   const [dedicated, setDedicated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrs, setFieldErrs] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -167,6 +168,11 @@ export function VpsCheckout() {
   const order = useAction(async () => {
     if (!plan) return;
     setError(null);
+    if (!key.trim()) {
+      setFieldErrs({ sshPublicKey: 'Paste the public SSH key you will log in with.' });
+      return;
+    }
+    setFieldErrs({});
     try {
       const created = await post<{ order: Order }>('/orders', {
         items: [
@@ -185,6 +191,7 @@ export function VpsCheckout() {
       }
       setNotice(checkout.message ?? 'The payment could not be opened. The order is waiting for it.');
     } catch (failure) {
+      if (failure instanceof ApiError && failure.fields) setFieldErrs(failure.fields);
       setError(failure instanceof Error ? failure.message : 'The order could not be made.');
     }
   });
@@ -229,7 +236,8 @@ export function VpsCheckout() {
               label="Name of the server"
               hint="Lowercase letters, numbers and dashes. It is also the hostname. Leave it empty for a name we choose."
               value={name}
-              onChange={(event) => setName(event.target.value.toLowerCase())}
+              onChange={(event) => { setName(event.target.value.toLowerCase()); setFieldErrs((current) => ({ ...current, vpsName: '' })); }}
+              error={fieldErrs.vpsName || undefined}
               placeholder="api-prod"
               autoComplete="off"
               spellCheck={false}
@@ -239,7 +247,8 @@ export function VpsCheckout() {
               label="Public SSH key"
               hint="The line of the .pub file. To make one, run ssh-keygen -t ed25519, then show ~/.ssh/id_ed25519.pub. Never paste the private key."
               value={key}
-              onChange={(event) => setKey(event.target.value)}
+              onChange={(event) => { setKey(event.target.value); setFieldErrs((current) => ({ ...current, sshPublicKey: '' })); }}
+              error={fieldErrs.sshPublicKey || undefined}
               rows={3}
               placeholder="ssh-ed25519 AAAAC3Nza… you@laptop"
               spellCheck={false}

@@ -230,7 +230,7 @@ export default function Domains() {
               value={hostname}
               onChange={(e) => setHostname(e.target.value)}
               placeholder="app.example.com"
-              error={hostnameError ?? undefined}
+              error={hostnameError ?? create.fieldErrors.hostname ?? undefined}
               hint="The full hostname, without a protocol."
               autoComplete="off"
               spellCheck={false}

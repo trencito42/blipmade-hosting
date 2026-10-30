@@ -75,7 +75,7 @@ export function useAction<TArgs extends unknown[], TResult>(
         if (err instanceof ApiError && err.fields) {
           // The key of a nested field is its last part: "billingAddress.city" is "city" for the form.
           const flat: Record<string, string> = {};
-          for (const [key, text] of Object.entries(err.fields)) flat[key.split('.').pop() ?? key] = text;
+          for (const [key, text] of Object.entries(err.fields)) flat[key.split('.').pop() ?? key] = text.replace(/^[A-Za-z0-9_.]+: /, '');
           setFieldErrors(flat);
         }
         setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Request failed.');
