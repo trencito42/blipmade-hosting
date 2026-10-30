@@ -565,7 +565,7 @@ export async function settleFreeUpgradeOrder(
   if (!order) throw badRequest('Order not found.');
   // Only an owned, zero-cost resource change may be settled without Stripe.
   // A cancelled, refunded or concurrently paid order must never be revived.
-  if (order.kind !== 'UPGRADE' || order.total !== 0 || order.userId !== actor.id) {
+  if (order.kind !== 'UPGRADE' || !order.instanceId || order.total !== 0 || order.userId !== actor.id) {
     throw badRequest('This order is not an eligible free resource change.');
   }
   if (order.status === 'PAID' || order.status === 'FULFILLED') return;
