@@ -563,12 +563,19 @@ export async function settleFreeUpgradeOrder(
 ): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) throw badRequest('Order not found.');
+  // Only an owned, zero-cost resource change may be settled without Stripe.
+  // A cancelled, refunded or concurrently paid order must never be revived.
+  if (order.kind !== 'UPGRADE' || order.total !== 0 || order.userId !== actor.id) {
+    throw badRequest('This order is not an eligible free resource change.');
+  }
   if (order.status === 'PAID' || order.status === 'FULFILLED') return;
-
-  await prisma.order.update({
-    where: { id: orderId },
+  const transitioned = await prisma.order.updateMany({
+    where: { id: orderId, userId: actor.id, kind: 'UPGRADE', total: 0, status: 'PENDING' },
     data: { status: 'PAID', paidAt: new Date() },
   });
+  if (transitioned.count !== 1) {
+    throw badRequest('This resource change cannot be settled in its current state.');
+  }
   await audit({
     actorId: actor.id,
     actorEmail: actor.email,
