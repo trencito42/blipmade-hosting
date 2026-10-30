@@ -9,7 +9,7 @@ export const billingAddressSchema = z.object({
   city: z.string().trim().min(2).max(100),
   region: z.string().trim().max(100).default(''),
   postalCode: z.string().trim().min(2).max(30),
-  country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'Use a two-letter country code.'),
+  country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'Country code must be two letters, for example RO.'),
   taxId: z.string().trim().max(50).default(''),
 });
 

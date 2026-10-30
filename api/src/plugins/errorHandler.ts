@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { AppError } from '../lib/errors.js';
+import { describeIssues } from '../lib/validation-messages.js';
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
@@ -18,12 +19,9 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     if (error instanceof ZodError) {
-      const fields: Record<string, string> = {};
-      for (const issue of error.issues) {
-        fields[issue.path.join('.') || 'form'] ??= issue.message;
-      }
+      const { fields, message } = describeIssues(error.issues);
       return reply.code(400).send({
-        error: { code: 'validation_failed', message: 'Some fields need attention.', fields, requestId },
+        error: { code: 'validation_failed', message, fields, requestId },
       });
     }
 

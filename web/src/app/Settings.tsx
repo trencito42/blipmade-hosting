@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { BillingAddressFields, emptyBillingAddress, type BillingAddressValue } from './BillingAddressFields';
+import { BillingAddressFields, emptyBillingAddress, validateBillingAddress, type BillingAddressValue } from './BillingAddressFields';
 import {
   ApiError,
   del,
@@ -208,13 +208,26 @@ function BillingAddressPanel({ address, onChanged }: { address: BillingAddressVa
   const { push } = useToast();
   const [value, setValue] = useState<BillingAddressValue>(address ?? emptyBillingAddress);
   const save = useAction(async () => { await put('/settings/billing-address', value); return true; });
+  const [localErrors, setLocalErrors] = useState<Partial<Record<string, string>>>({});
   useEffect(() => { setValue(address ?? emptyBillingAddress); }, [address]);
+  const submit = async () => {
+    const problems = validateBillingAddress(value);
+    setLocalErrors(problems);
+    const names = Object.keys(problems);
+    if (names.length > 0) return;
+    const result = await save.run();
+    if (result) { push('Billing address saved'); onChanged(); }
+  };
   return (
     <Panel title="Billing address" description="These details are saved to your account and copied onto new invoices.">
       <div className="grid gap-4">
-        <BillingAddressFields value={value} onChange={setValue} />
-        <div><PrimaryButton onClick={async () => { const result = await save.run(); if (result) { push('Billing address saved'); onChanged(); } }} disabled={save.pending}>{save.pending ? 'Saving…' : 'Save billing address'}</PrimaryButton></div>
-        {save.error && <p role="alert" className="text-[13px] text-bad">{save.error}</p>}
+        <BillingAddressFields value={value} onChange={(next) => { setValue(next); setLocalErrors({}); }} errors={{ ...save.fieldErrors, ...localErrors }} />
+        <div><PrimaryButton onClick={() => void submit()} disabled={save.pending}>{save.pending ? 'Saving…' : 'Save billing address'}</PrimaryButton></div>
+        {(Object.keys(localErrors).length > 0 || save.error) && (
+          <p role="alert" className="text-[13px] text-bad">
+            {Object.keys(localErrors).length > 0 ? `Please fix ${Object.keys(localErrors).length === 1 ? 'the highlighted field' : `the ${Object.keys(localErrors).length} highlighted fields`} before saving.` : save.error}
+          </p>
+        )}
       </div>
     </Panel>
   );

@@ -52,17 +52,32 @@ export function useAsync<T>(fn: (signal: AbortSignal) => Promise<T>, deps: unkno
 /** Wraps a mutation with pending state and an optional error message. */
 export function useAction<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => Promise<TResult>,
-): { run: (...args: TArgs) => Promise<TResult | undefined>; pending: boolean; error: string | null; clearError: () => void } {
+): {
+  run: (...args: TArgs) => Promise<TResult | undefined>;
+  pending: boolean;
+  error: string | null;
+  /** What the API said about each field that was wrong, by the name of the field. */
+  fieldErrors: Record<string, string>;
+  clearError: () => void;
+} {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const run = useCallback(
     async (...args: TArgs) => {
       setPending(true);
       setError(null);
+      setFieldErrors({});
       try {
         return await fn(...args);
       } catch (err) {
+        if (err instanceof ApiError && err.fields) {
+          // The key of a nested field is its last part: "billingAddress.city" is "city" for the form.
+          const flat: Record<string, string> = {};
+          for (const [key, text] of Object.entries(err.fields)) flat[key.split('.').pop() ?? key] = text;
+          setFieldErrors(flat);
+        }
         setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Request failed.');
         return undefined;
       } finally {
@@ -72,5 +87,5 @@ export function useAction<TArgs extends unknown[], TResult>(
     [fn],
   );
 
-  return { run, pending, error, clearError: () => setError(null) };
+  return { run, pending, error, fieldErrors, clearError: () => { setError(null); setFieldErrors({}); } };
 }

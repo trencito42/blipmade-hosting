@@ -1156,7 +1156,7 @@ export default function Deploy() {
               <div className="grid gap-3 border-t border-line pt-4">
                 <h3 className="font-display text-[18px] font-semibold">Billing address</h3>
                 <p className="text-[13px] text-ink3">Optional for now. If you enter it, we save it to your account and use it on new invoices.</p>
-                <BillingAddressFields value={billingAddress} onChange={(value) => { setBillingAddress(value); setBillingTouched(true); }} />
+                <BillingAddressFields value={billingAddress} onChange={(value) => { setBillingAddress(value); setBillingTouched(true); }} errors={placeOrder.fieldErrors} />
               </div>
               {placeOrder.error && (
                 <div role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
