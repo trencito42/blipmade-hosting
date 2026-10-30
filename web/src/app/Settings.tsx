@@ -285,7 +285,7 @@ function ProfilePanel({
   return (
     <Panel title="Profile" description="The details of your Blipmade account.">
       <div className="grid gap-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
           <TextInput
             label="First name"
             value={firstName}
@@ -304,11 +304,8 @@ function ProfilePanel({
             autoComplete="family-name"
             enterKeyHint="next"
           />
-        </div>
-
-        <div className="flex justify-end">
           <PrimaryButton onClick={onSave} disabled={save.pending}>
-            {save.pending ? 'Saving…' : 'Save the name'}
+            {save.pending ? 'Saving…' : 'Save'}
           </PrimaryButton>
         </div>
 
@@ -324,13 +321,16 @@ function ProfilePanel({
               <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Email address</p>
               <p className="mt-0.5 break-all text-[15px] font-semibold text-ink">{data.profile.email}</p>
             </div>
-            <span
-              className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-bold ${
-                data.profile.emailVerified ? 'bg-acc-bg text-acc' : 'bg-s3 text-ink2'
-              }`}
-            >
-              {data.profile.emailVerified ? 'Verified' : 'Not verified'}
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-[12px] font-bold ${
+                  data.profile.emailVerified ? 'bg-acc-bg text-acc' : 'bg-s3 text-ink2'
+                }`}
+              >
+                {data.profile.emailVerified ? 'Verified' : 'Not verified'}
+              </span>
+              {!changingEmail && <SoftButton onClick={() => setChangingEmail(true)}>Change</SoftButton>}
+            </div>
           </div>
 
           {data.pendingEmail && (
@@ -371,25 +371,12 @@ function ProfilePanel({
                 </PrimaryButton>
               </div>
             </div>
-          ) : (
-            <div className="flex justify-end">
-              <SoftButton onClick={() => setChangingEmail(true)}>Change the email address</SoftButton>
-            </div>
-          )}
+          ) : null}
         </div>
 
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Account role</dt>
-            <dd className="mt-1 text-[15px] font-semibold text-ink">
-              {ROLE_LABEL[data.profile.role] ?? data.profile.role}
-            </dd>
-          </div>
-          <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Member since</dt>
-            <dd className="mt-1 text-[15px] font-semibold text-ink">{fmtDate(data.profile.createdAt)}</dd>
-          </div>
-        </dl>
+        <p className="text-[13px] text-ink3">
+          {ROLE_LABEL[data.profile.role] ?? data.profile.role} · member since {fmtDate(data.profile.createdAt)}
+        </p>
       </div>
     </Panel>
   );

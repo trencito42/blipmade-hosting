@@ -464,13 +464,13 @@ export default function Billing() {
       ) : null}
 
       {/* Summary */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2">
         {summaryState.loading ? (
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="sm:col-span-2">
             <LoadingBlock rows={1} label="Loading your billing summary" />
           </div>
         ) : summaryError ? (
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="sm:col-span-2">
             <ErrorState
               title="Could not load your billing summary"
               message={summaryError.message}
@@ -503,36 +503,31 @@ export default function Billing() {
                   : 'No payment is scheduled.'
               }
             />
-            <StatTile
-              label="Payment method"
-              value={summary.paymentMethod ? describePaymentMethod(summary.paymentMethod) : summary.hasStripeCustomer ? 'Check in Stripe' : 'None'}
-              hint={
-                summary.hasStripeCustomer
-                  ? 'Use the Stripe billing portal to check or change your payment method.'
-                  : 'No payment method was collected with a fully discounted order.'
-              }
-            />
           </>
         ) : null}
       </section>
 
       {/* Payment method action */}
-      <Panel title="Card and billing portal">
+      <Panel
+        title="Payment method"
+        description={
+          summary?.paymentMethod
+            ? describePaymentMethod(summary.paymentMethod)
+            : summary?.hasStripeCustomer
+              ? 'Managed in the Stripe billing portal.'
+              : 'No payment method on file.'
+        }
+        action={
+          <PrimaryButton
+            onClick={() => void paymentMethodAction.run()}
+            disabled={!paymentAvailable || !cardCanBeManaged || paymentMethodAction.pending}
+          >
+            {paymentMethodAction.pending ? 'Working…' : 'Manage payment method'}
+          </PrimaryButton>
+        }
+        actionBelow
+      >
         <div className="grid gap-3">
-          {paymentAvailable && (
-            <p className="text-[14px] text-ink2">
-              Manage the card or payment method used for your subscriptions. You are taken to the secure billing portal.
-            </p>
-          )}
-          <div>
-            <PrimaryButton
-              onClick={() => void paymentMethodAction.run()}
-              disabled={!paymentAvailable || !cardCanBeManaged || paymentMethodAction.pending}
-              className="w-full sm:w-auto"
-            >
-              {paymentMethodAction.pending ? 'Working…' : 'Manage payment method'}
-            </PrimaryButton>
-          </div>
           {unavailableReason && (
             <p role="status" className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">
               {unavailableReason}

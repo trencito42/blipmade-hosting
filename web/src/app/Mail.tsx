@@ -963,18 +963,20 @@ export function MailServiceCard({
         </div>
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <StatTile
-          label="Mailboxes"
-          value={`${service.usage.mailboxes} / ${service.limits.maxMailboxes}`}
-        />
-        <StatTile
-          label="Space used"
-          value={memLabel(service.usage.storageMb)}
-          hint={`of ${memLabel(service.usage.storageLimitMb)}`}
-        />
-        <StatTile label="Domains" value={`${service.usage.domains} / ${service.limits.maxDomains}`} />
-      </div>
+      <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[13.5px] text-ink2">
+        <div className="flex gap-1.5">
+          <dt className="text-ink3">Mailboxes</dt>
+          <dd className="font-mono font-semibold text-ink">{service.usage.mailboxes} / {service.limits.maxMailboxes}</dd>
+        </div>
+        <div className="flex gap-1.5">
+          <dt className="text-ink3">Space</dt>
+          <dd className="font-mono font-semibold text-ink">{memLabel(service.usage.storageMb)} of {memLabel(service.usage.storageLimitMb)}</dd>
+        </div>
+        <div className="flex gap-1.5">
+          <dt className="text-ink3">Domains</dt>
+          <dd className="font-mono font-semibold text-ink">{service.usage.domains} / {service.limits.maxDomains}</dd>
+        </div>
+      </dl>
 
       {(service.graceUntil || service.suspendedAt || service.cancelledAt || service.retentionUntil) && (
         <ul className="mt-3 grid gap-1">
