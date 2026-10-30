@@ -66,6 +66,25 @@ async function main() {
       kept.push({ slug: product.slug, reason: 'the node did not build the container' });
       continue;
     }
+    // A product that does not answer on a TCP port but that the node reports as running is
+    // checked on its container: the node only says "running" once the program has said that
+    // it is ready. This is how a game with a UDP port is validated.
+    if (!probe.portOpen && probe.state === 'running') {
+      opened.push({ slug: product.slug, httpStatus: null, healthProbe: { kind: 'container' }, container: true });
+      if (apply) {
+        await prisma.product.update({ where: { id: product.id }, data: { deployable: true, healthProbe: { kind: 'container' } } });
+        await prisma.auditLog.create({
+          data: {
+            actorEmail: ACTOR_EMAIL,
+            action: 'product.updated',
+            targetType: 'product',
+            targetId: product.id,
+            meta: { deployable: true, healthProbe: { kind: 'container' }, probe: { egg: probe.egg, installed: probe.installed, started: probe.started, state: probe.state } },
+          },
+        });
+      }
+      continue;
+    }
     if (!probe.portOpen) {
       kept.push({
         slug: product.slug,
@@ -117,7 +136,7 @@ async function main() {
   console.log(apply ? 'APPLIED' : 'DRY RUN');
   console.log(`opened: ${opened.length}`);
   for (const entry of opened) {
-    console.log(`  + ${entry.slug} (http ${entry.httpStatus ?? 'tcp'})`);
+    console.log(`  + ${entry.slug} (${entry.container ? 'container running' : `http ${entry.httpStatus ?? 'tcp'}`})`);
   }
   console.log(`kept closed: ${kept.length}`);
   for (const entry of kept) {

@@ -328,10 +328,12 @@ async function waitInstalled(serverId, timeoutMs = Number(process.env.PROBE_INST
 }
 
 async function serverState(uuid) {
+  // The node says "running" only when the program has printed the line that its egg
+  // names as "done", so a game that is running has told the node that it is ready,
+  // even when its port is UDP and a TCP probe cannot see it.
   try {
-    const server = await clientRequest('GET', `/api/client/servers/${uuid}`);
-    const attributes = server?.attributes ?? {};
-    return String(attributes.status ?? attributes.state ?? attributes.current_state ?? 'unknown');
+    const resources = await clientRequest('GET', `/api/client/servers/${uuid}/resources`);
+    return String(resources?.attributes?.current_state ?? 'unknown');
   } catch {
     return 'unknown';
   }
