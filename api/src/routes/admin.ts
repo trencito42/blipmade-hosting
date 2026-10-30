@@ -1230,8 +1230,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     if (!ticket) throw notFound('Ticket not found.');
 
     if (userId) {
-      const staff = await prisma.staffMember.findUnique({ where: { userId } });
-      if (!staff) throw badRequest('That person is not a staff member.');
+      // An assignee is a row of staff, but the list of staff also holds the administrators, who
+      // hold every permission without a row of their own. The row is made when an administrator
+      // or a member of the staff with the role is chosen for the first time.
+      const person = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+      if (!person || (person.role !== 'STAFF' && person.role !== 'ADMIN')) throw badRequest('That person is not a staff member.');
+      await prisma.staffMember.upsert({ where: { userId }, update: {}, create: { userId, permissions: [] } });
     }
 
     await prisma.ticket.update({ where: { id }, data: { assignedToId: userId } });
