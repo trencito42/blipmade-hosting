@@ -611,8 +611,12 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
     // with the sum that was really collected, so the sum that was quoted is
     // the sum that is invoiced. The invoice of the payment provider, when
     // there is one, is the reconciliation and not the only document.
-    await writeOrderInvoice(order, subscriptions, params);
   }
+
+  // Recover an invoice lost in a crash after the payment row was committed.
+  // Replay of an already-paid checkout still must reconcile its invoice;
+  // writeOrderInvoice is itself idempotent for an existing local invoice.
+  await writeOrderInvoice(order, subscriptions, params);
 
   return subscriptions;
 }
