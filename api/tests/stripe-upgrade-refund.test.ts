@@ -11,7 +11,7 @@ import type { FastifyInstance } from 'fastify';
  */
 
 const mocks = vi.hoisted(() => ({
-  refundCreate: vi.fn(async () => ({ id: 're_test' })),
+  refundCreate: vi.fn(async () => ({ id: 're_test', status: 'succeeded' as const })),
   panel: {
     /** The error the panel raises, when it refuses the new limits. */
     buildError: null as string | null,
