@@ -13,6 +13,7 @@ import {
   listMailDomains,
   listMailboxes,
   post,
+  type DnsCheckResult,
   type DnsRecordView,
   type MailAliasView,
   type MailDomainView,
@@ -38,6 +39,7 @@ import {
   ErrorState,
   LoadingBlock,
   Panel,
+  InputWithButton,
   PrimaryButton,
   Select,
   SoftButton,
@@ -238,11 +240,14 @@ export function OneTimePasswordBox({
 export function MailDnsRecords({
   records,
   verified,
+  results,
   onRecheck,
   checking = false,
 }: {
   records: DnsRecordView[];
   verified: boolean;
+  /** What the server found for every record, when it looked. */
+  results?: DnsCheckResult[];
   /** Asks the server to look the records up again. */
   onRecheck?: () => void;
   checking?: boolean;
@@ -255,6 +260,25 @@ export function MailDnsRecords({
     } catch {
       push('Copy failed. Select the value and copy it manually.', 'error');
     }
+  };
+  const resultOf = (record: DnsRecordView) =>
+    results?.find((entry) => entry.name === record.name && entry.type === record.type);
+  const inPlace = results ? results.filter((entry) => entry.ok).length : null;
+  const statusOf = (record: DnsRecordView) => {
+    const result = resultOf(record);
+    if (!result) return null;
+    return (
+      <span className="grid gap-0.5">
+        <span className={result.ok ? 'font-semibold text-acc' : 'font-semibold text-warn'}>
+          {result.ok ? 'Published' : result.found.length ? 'Different value' : 'Not found'}
+        </span>
+        {!result.ok && result.found.length > 0 && (
+          <span className="break-all font-mono text-[11.5px] text-ink3" title={result.found.join('\n')}>
+            {result.found[0].length > 60 ? `${result.found[0].slice(0, 60)}…` : result.found[0]}
+          </span>
+        )}
+      </span>
+    );
   };
   const copyButton = (value: string, label: string) => (
     <button
@@ -284,8 +308,8 @@ export function MailDnsRecords({
       ) : (
         <p className="rounded-2xl bg-warn/12 px-3.5 py-3 text-[13.5px] leading-relaxed text-ink2">
           <span className="font-bold text-warn">Not verified yet. </span>
-          Mail is not delivered to this domain until the records below are published at your registrar and the server
-          has seen them.
+          {inPlace !== null ? `${inPlace} of ${records.length} records are in place. ` : ''}
+          Mail is not delivered to this domain until every record below is published at your registrar.
         </p>
       )}
 
@@ -333,9 +357,9 @@ export function MailDnsRecords({
                   ),
                 },
                 {
-                  key: 'purpose',
-                  header: 'What it is for',
-                  render: (record: DnsRecordView) => <span className="text-[13.5px] text-ink2">{record.purpose}</span>,
+                  key: 'status',
+                  header: 'Status',
+                  render: (record: DnsRecordView) => <span className="text-[13px]">{statusOf(record)}</span>,
                 },
               ]}
               rows={records}
@@ -365,7 +389,7 @@ export function MailDnsRecords({
                   <span className="min-w-0 flex-1 break-all font-mono text-[12.5px] text-ink">{record.value}</span>
                   {copyButton(record.value, 'Value')}
                 </span>
-                <span className="text-[13px] text-ink2">{record.purpose}</span>
+                <span className="text-[13px]">{statusOf(record)}</span>
               </div>
             )}
           </CardList>
@@ -392,6 +416,7 @@ export function MailDomainSection({
   aliases,
   records,
   verified,
+  dnsResults,
   onRecheckDns,
   checkingDns,
   oneTimePassword,
@@ -405,6 +430,7 @@ export function MailDomainSection({
   aliases: MailAliasView[];
   records: DnsRecordView[];
   verified: boolean;
+  dnsResults?: DnsCheckResult[];
   onRecheckDns?: () => void;
   checkingDns?: boolean;
   oneTimePassword: OneTimePassword | null;
@@ -567,7 +593,7 @@ export function MailDomainSection({
         )}
       </section>
 
-      <MailDnsRecords records={records} verified={verified} onRecheck={onRecheckDns} checking={checkingDns} />
+      <MailDnsRecords records={records} verified={verified} results={dnsResults} onRecheck={onRecheckDns} checking={checkingDns} />
     </div>
   );
 }
@@ -993,8 +1019,8 @@ export function MailServiceCard({
         )}
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-end">
-        <TextInput
+      <div className="mt-4">
+        <InputWithButton
           label="Add a domain"
           value={newDomain}
           onChange={(event) => {
@@ -1006,16 +1032,12 @@ export function MailServiceCard({
           placeholder="acme.ro"
           autoComplete="off"
           spellCheck={false}
+          button={
+            <PrimaryButton onClick={submitDomain} disabled={busy || newDomain.trim() === ''}>
+              Add domain
+            </PrimaryButton>
+          }
         />
-        <div>
-          <PrimaryButton
-            onClick={submitDomain}
-            disabled={busy || newDomain.trim() === ''}
-            className="w-full sm:w-auto"
-          >
-            Add domain
-          </PrimaryButton>
-        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1136,7 +1158,7 @@ export function MailServiceCard({
  * the life and the domains of each of them, with the records of DNS to publish
  * and the actions of the service.
  */
-function MailHostingSection() {
+function MailHostingSection({ onServiceCount }: { onServiceCount?: (count: number) => void }) {
   const { push } = useToast();
 
   const servicesState = useAsync<{ services: MailServiceView[] }>(
@@ -1144,6 +1166,9 @@ function MailHostingSection() {
     [],
   );
   const services = useMemo(() => servicesState.data?.services ?? [], [servicesState.data]);
+  useEffect(() => {
+    if (servicesState.data) onServiceCount?.(services.length);
+  }, [servicesState.data, services.length, onServiceCount]);
 
   const plansState = useAsync<{ plans: MailPlanView[] }>(
     (signal) => get<{ plans: MailPlanView[] }>('/mail/plans', undefined, signal),
@@ -1352,7 +1377,7 @@ export default function Mail() {
     (signal) => (selectedId ? listMailAliases(selectedId, signal) : Promise.resolve({ aliases: [] })),
     [selectedId],
   );
-  const dnsState = useAsync<{ records: DnsRecordView[]; verified: boolean }>(
+  const dnsState = useAsync<{ records: DnsRecordView[]; verified: boolean; results?: DnsCheckResult[] }>(
     (signal) => (selectedId ? getMailDns(selectedId, signal) : Promise.resolve({ records: [], verified: false })),
     [selectedId],
   );
@@ -1486,46 +1511,43 @@ export default function Mail() {
     if (created) setAliasName('');
   };
 
+  const [serviceCount, setServiceCount] = useState<number | null>(null);
   const addDomainDisabled = createDomain.pending || name.trim().length === 0;
   const addMailboxDisabled = addMailbox.pending || localPart.trim().length === 0;
   const addAliasDisabled = addAlias.pending || aliasName.trim().length === 0 || !aliasTarget;
 
   return (
     <div className="grid gap-4">
-      <MailHostingSection />
+      <MailHostingSection onServiceCount={setServiceCount} />
 
+      {!serviceCount && (
       <Panel
         title="Add an email domain"
         description="Claim a hostname you own. We will tell you exactly which DNS records to publish, and mail is not delivered until they are in place."
       >
-        <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
-          <TextInput
-            label="Hostname"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="acme.ro"
-            error={nameError ?? undefined}
-            hint="The hostname without a protocol, like acme.ro."
-            autoComplete="off"
-            spellCheck={false}
-            className="scroll-mt-16"
-          />
-          <div>
-            <PrimaryButton
-              onClick={() => void submitDomain()}
-              disabled={addDomainDisabled}
-              className="w-full sm:w-auto"
-            >
+        <InputWithButton
+          label="Hostname"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="acme.ro"
+          error={nameError ?? undefined}
+          hint="The hostname without a protocol, like acme.ro."
+          autoComplete="off"
+          spellCheck={false}
+          className="scroll-mt-16"
+          button={
+            <PrimaryButton onClick={() => void submitDomain()} disabled={addDomainDisabled}>
               {createDomain.pending ? 'Adding…' : 'Add domain'}
             </PrimaryButton>
-          </div>
-        </div>
+          }
+        />
         {createDomain.error && (
           <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">
             {createDomain.error}
           </p>
         )}
       </Panel>
+      )}
 
       <Panel title="Your email domains">
         {domainsState.loading ? (
@@ -1600,6 +1622,7 @@ export default function Mail() {
               aliases={aliases}
               records={records}
               verified={verified}
+              dnsResults={dnsState.data?.results}
               onRecheckDns={dnsState.reload}
               checkingDns={dnsState.loading}
               oneTimePassword={oneTime}

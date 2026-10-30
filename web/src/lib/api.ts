@@ -206,8 +206,22 @@ export function sessionActivity(session: Pick<AccountSession, 'lastSeenAt'>, now
  * The line of a session in the list: the address, the moment of the sign-in
  * and the last activity of the session.
  */
+/**
+ * An address that fits a line.
+ *
+ * An IPv4 address is short and stays whole. An IPv6 address has eight groups,
+ * so the middle is left out: the first groups tell the network and the last one
+ * tells the device.
+ */
+export function shortAddress(ip: string | null): string {
+  if (!ip) return 'Unknown address';
+  if (!ip.includes(':') || ip.length <= 20) return ip;
+  const groups = ip.split(':');
+  return groups.length > 4 ? `${groups.slice(0, 3).join(':')}:…:${groups[groups.length - 1]}` : ip;
+}
+
 export function sessionSummary(session: AccountSession, now: number = Date.now()): string {
-  const address = session.ip ?? 'Unknown address';
+  const address = shortAddress(session.ip);
   return `${address} · signed in on ${formatMoment(session.createdAt)} · ${sessionActivity(session, now)}`;
 }
 
@@ -627,6 +641,16 @@ export interface DnsRecordView {
   purpose: string;
 }
 
+/** What the server found for one record when it looked it up. */
+export interface DnsCheckResult {
+  name: string;
+  type: string;
+  /** True when the record is published with the value the platform expects. */
+  ok: boolean;
+  /** The values the world answers for that name, up to three. */
+  found: string[];
+}
+
 /** The email domains of the customer. */
 export const listMailDomains = (signal?: AbortSignal) =>
   get<{ domains: MailDomainView[] }>('/mail/domains', undefined, signal);
@@ -675,7 +699,7 @@ export const deleteMailAlias = (domainId: string, aliasId: string) =>
  * server has seen them already.
  */
 export const getMailDns = (domainId: string, signal?: AbortSignal) =>
-  get<{ records: DnsRecordView[]; verified: boolean }>(`/mail/domains/${domainId}/dns`, undefined, signal);
+  get<{ records: DnsRecordView[]; verified: boolean; results?: DnsCheckResult[] }>(`/mail/domains/${domainId}/dns`, undefined, signal);
 
 // --- admin mail ------------------------------------------------------------
 

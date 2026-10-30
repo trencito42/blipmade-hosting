@@ -30,9 +30,17 @@ export default function CredentialsCard({ instanceId }: { instanceId: string }) 
     }
   };
 
-  const text = (credentials ?? [])
-    .map((credential) => `${credential.label}: ${credential.value ?? 'not readable'}`)
-    .join('\n');
+  // A copy takes the value and nothing else, so it can be pasted straight into a
+  // field. With more than one value every value has its own button.
+  const copy = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      push('Copied.', 'ok');
+    } catch {
+      push('The copy did not work. Select the text and copy it by hand.', 'error');
+    }
+  };
+  const readable = (credentials ?? []).filter((credential) => credential.value);
 
   return (
     <Panel
@@ -44,18 +52,9 @@ export default function CredentialsCard({ instanceId }: { instanceId: string }) 
             {loading ? 'Reading' : 'Show the credentials'}
           </SoftButton>
         ) : (
-          <SoftButton
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(text);
-                push('The credentials were copied.', 'ok');
-              } catch {
-                push('The copy did not work. Select the text and copy it by hand.', 'error');
-              }
-            }}
-          >
-            Copy
-          </SoftButton>
+          readable.length === 1 ? (
+            <SoftButton onClick={() => void copy(readable[0].value as string)}>Copy</SoftButton>
+          ) : null
         )
       }
     >
@@ -71,7 +70,12 @@ export default function CredentialsCard({ instanceId }: { instanceId: string }) 
         <div className="grid gap-2">
           {credentials.map((credential) => (
             <div key={credential.name} className="grid gap-1">
-              <span className="text-[13px] font-bold text-ink">{credential.label}</span>
+              <span className="flex items-center justify-between gap-2 text-[13px] font-bold text-ink">
+                {credential.label}
+                {credential.value && readable.length > 1 ? (
+                  <SoftButton onClick={() => void copy(credential.value as string)}>Copy</SoftButton>
+                ) : null}
+              </span>
               <pre className="overflow-x-auto rounded-2xl bg-s2 p-3.5 font-mono text-[13px] text-ink">
                 {credential.value ?? 'This value can no longer be read.'}
               </pre>

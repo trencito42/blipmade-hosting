@@ -147,6 +147,6 @@ export async function registerMailRoutes(app: FastifyInstance): Promise<void> {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const status = await mail.mailDnsStatus(user.id, id);
-    return { records: status.records, verified: status.verified, missing: status.missing };
+    return { records: status.records, verified: status.verified, missing: status.missing, results: status.results };
   });
 }

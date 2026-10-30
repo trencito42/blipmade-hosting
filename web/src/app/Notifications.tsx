@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   del,
   formatMoment,
@@ -169,6 +169,21 @@ export default function Notifications() {
     }
   };
 
+  // The next page loads by itself when the end of the list comes into view.
+  // The button stays for the keyboard and for a browser without the observer.
+  const sentinel = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+  useEffect(() => {
+    const element = sentinel.current;
+    if (!element || !nextCursor || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMoreRef.current();
+    }, { rootMargin: '240px' });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [nextCursor, items.length]);
+
   const markRead = useAction(async (id: string) => {
     await post<{ ok: true }>(`/notifications/${encodeURIComponent(id)}/read`);
     return id;
@@ -284,7 +299,7 @@ export default function Notifications() {
           )}
 
           {nextCursor && !loading && !error && (
-            <div className="grid justify-items-center gap-2">
+            <div ref={sentinel} className="grid justify-items-center gap-2">
               <SoftButton onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? 'Loading…' : 'Load more'}
               </SoftButton>
@@ -402,54 +417,60 @@ export function NotificationRow({
 }) {
   const unread = !notification.readAt;
 
+  // Opening a message reads it: a click anywhere on the row marks it, except on
+  // the buttons and the links, which do their own work.
+  const onRowClick = (event: MouseEvent<HTMLLIElement>) => {
+    if (!unread || !onMarkRead) return;
+    if ((event.target as HTMLElement).closest('a,button')) return;
+    onMarkRead(notification);
+  };
+
   return (
     <li
       data-unread={unread ? 'true' : 'false'}
+      onClick={onRowClick}
       className={cn(
-        'grid gap-2 rounded-2xl p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start',
-        unread ? 'bg-acc-bg' : 'bg-s2',
+        'grid gap-1.5 rounded-2xl p-4',
+        unread ? 'cursor-pointer bg-acc-bg' : 'bg-s2',
       )}
     >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className={cn('text-[15.5px] font-bold tracking-[-0.02em]', unread ? 'text-ink' : 'text-ink2')}>
-            {notification.title}
-          </p>
-          {unread ? (
-            <span className="rounded-full bg-acc/12 px-2.5 py-1 text-[12px] font-bold text-acc">Unread</span>
-          ) : null}
-        </div>
-
-        <p className="mt-1 text-[13.5px] leading-relaxed text-ink2">{notification.body}</p>
-
-        <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[12.5px] text-ink3">
-          <span>{label}</span>
-          <span aria-hidden="true">·</span>
-          <time dateTime={notification.createdAt} title={formatMoment(notification.createdAt)}>
-            {relativeTime(notification.createdAt)}
-          </time>
+      <div className="flex items-start justify-between gap-3">
+        <p className={cn('flex min-w-0 items-center gap-2 text-[15px] font-semibold tracking-[-0.01em]', unread ? 'text-ink' : 'text-ink2')}>
+          {unread ? <span aria-label="Unread" className="size-2 shrink-0 rounded-full bg-acc" /> : null}
+          <span className="min-w-0">{notification.title}</span>
         </p>
+        <time
+          dateTime={notification.createdAt}
+          title={formatMoment(notification.createdAt)}
+          className="shrink-0 pt-0.5 text-[12.5px] text-ink3"
+        >
+          {relativeTime(notification.createdAt)}
+        </time>
+      </div>
 
-        {notification.actionUrl ? (
-          <div className="mt-2">
+      <p className="text-[13.5px] leading-relaxed text-ink2">{notification.body}</p>
+
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {notification.actionUrl ? (
             <ButtonLink variant="soft" {...actionTarget(notification.actionUrl)} onClick={() => { if (unread) onMarkRead?.(notification); }}>
               {notification.actionLabel ?? 'Open'}
             </ButtonLink>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex flex-wrap gap-2 sm:justify-end">
-        {unread && onMarkRead ? (
-          <SoftButton onClick={() => onMarkRead(notification)} aria-label={`Mark as read: ${notification.title}`}>
-            Mark as read
-          </SoftButton>
-        ) : null}
-        {onDelete ? (
-          <SoftButton onClick={() => onDelete(notification)} aria-label={`Delete the notification: ${notification.title}`}>
-            Delete
-          </SoftButton>
-        ) : null}
+          ) : null}
+          <span className="text-[12.5px] text-ink3">{label}</span>
+        </div>
+        <div className="flex gap-1.5">
+          {unread && onMarkRead ? (
+            <SoftButton onClick={() => onMarkRead(notification)} aria-label={`Mark as read: ${notification.title}`}>
+              Mark as read
+            </SoftButton>
+          ) : null}
+          {onDelete ? (
+            <SoftButton onClick={() => onDelete(notification)} aria-label={`Delete the notification: ${notification.title}`}>
+              Delete
+            </SoftButton>
+          ) : null}
+        </div>
       </div>
     </li>
   );

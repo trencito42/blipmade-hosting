@@ -14,6 +14,7 @@ import {
   StatusPill,
   TextInput,
   Select,
+  InputWithButton,
   useToast,
 } from '../ui-app';
 
@@ -77,22 +78,20 @@ function PlatformAddress({ domain, onChanged }: { domain: Domain; onChanged: () 
         This address belongs to Blipmade, so it needs no DNS record and no proof of ownership. You can change its name
         once in 7 days.
       </p>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[12rem] flex-1">
-          <TextInput
-            label="Address name"
-            value={name}
-            onChange={(event) => setName(event.target.value.toLowerCase())}
-            disabled={locked}
-            autoComplete="off"
-            spellCheck={false}
-            hint={`${name || 'name'}.${PLATFORM_BASE}`}
-          />
-        </div>
-        <SoftButton onClick={() => void save.run()} disabled={locked || save.pending || name.trim() === current || name.trim().length < 3}>
-          {save.pending ? 'Saving' : 'Change address'}
-        </SoftButton>
-      </div>
+      <InputWithButton
+        label="Address name"
+        value={name}
+        onChange={(event) => setName(event.target.value.toLowerCase())}
+        disabled={locked}
+        autoComplete="off"
+        spellCheck={false}
+        hint={`${name || 'name'}.${PLATFORM_BASE}`}
+        button={
+          <SoftButton onClick={() => void save.run()} disabled={locked || save.pending || name.trim() === current || name.trim().length < 3}>
+            {save.pending ? 'Saving' : 'Change address'}
+          </SoftButton>
+        }
+      />
       {locked && wait && (
         <p className="text-[13px] text-ink3">You can change it again on {wait.toISOString().slice(0, 10)}.</p>
       )}

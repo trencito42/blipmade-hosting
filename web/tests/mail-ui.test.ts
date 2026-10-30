@@ -219,11 +219,10 @@ describe('the name of an email domain', () => {
 });
 
 describe('the DNS records of a domain', () => {
-  it('shows every record with the reason it is there', () => {
+  it('shows every record with its value', () => {
     const html = section();
     for (const record of records) {
       assert.match(html, new RegExp(record.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-      assert.match(html, new RegExp(record.purpose.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
     assert.match(html, /MX/);
     assert.match(html, /TXT/);

@@ -176,7 +176,7 @@ export default function Settings() {
           })}
         </ul>
       </nav>
-      <div className="grid max-w-3xl gap-4">
+      <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
         {tab.id === 'profile' && (
           <>
             <ProfilePanel data={data} emailNotice={emailNotice} setEmailNotice={setEmailNotice} onChanged={state.reload} />
@@ -552,7 +552,7 @@ function SessionsPanel({
                   {session.device}
                   {session.current && <StatusPill status="current" label="This device" />}
                 </p>
-                <p className="mt-0.5 font-mono text-[12.5px] text-ink3">{sessionSummary(session)}</p>
+                <p className="mt-0.5 font-mono text-[12.5px] text-ink3" title={session.ip ?? undefined}>{sessionSummary(session)}</p>
               </div>
               <SoftButton
                 onClick={() => onRevoke(session.id)}

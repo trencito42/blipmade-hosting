@@ -133,6 +133,11 @@ export interface MailDnsStatus {
   verified: boolean;
   /** The records that are not published yet, by name and type. */
   missing: { name: string; type: string; purpose: string }[];
+  /**
+   * What was found for every record, in the order of the records: whether it is
+   * published as expected and what the world answers for that name.
+   */
+  results: { name: string; type: string; ok: boolean; found: string[] }[];
 }
 
 /**
@@ -160,11 +165,13 @@ export async function checkMailDns(
   lookup: MailDnsLookupFunction = lookupRecords,
 ): Promise<MailDnsStatus> {
   const missing: MailDnsStatus['missing'] = [];
+  const results: MailDnsStatus['results'] = [];
 
   for (const record of records) {
     const found = await lookup(record.name, record.type);
     if (found.error) {
       missing.push({ name: record.name, type: record.type, purpose: record.purpose });
+      results.push({ name: record.name, type: record.type, ok: false, found: [] });
       continue;
     }
     const expected = record.value.trim().toLowerCase();
@@ -185,9 +192,10 @@ export async function checkMailDns(
       return sameHost(actual, expected);
     });
     if (!present) missing.push({ name: record.name, type: record.type, purpose: record.purpose });
+    results.push({ name: record.name, type: record.type, ok: present, found: found.values.slice(0, 3) });
   }
 
-  return { records, verified: missing.length === 0, missing };
+  return { records, verified: missing.length === 0, missing, results };
 }
 
 /**

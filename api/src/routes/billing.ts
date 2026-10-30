@@ -315,14 +315,18 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     const user = await requireAuth(request);
     const subscriptions = await prisma.subscription.findMany({
       where: { userId: user.id },
-      include: { instance: { select: { name: true } } },
+      include: {
+        instance: { select: { name: true } },
+        mailService: { select: { product: { select: { name: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
     });
     return {
       subscriptions: subscriptions.map((subscription) => ({
         id: subscription.id,
         instanceId: subscription.instanceId,
-        instanceName: subscription.instance?.name ?? null,
+        // A mail service has no instance, so the name of its plan stands in.
+        instanceName: subscription.instance?.name ?? subscription.mailService?.product.name ?? null,
         status: subscription.status.toLowerCase(),
         amount: subscription.amount,
         currency: subscription.currency,

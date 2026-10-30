@@ -764,6 +764,31 @@ export function TextInput({
   );
 }
 
+/**
+ * A field with its button on the same line.
+ *
+ * The label sits above the row and the hint or the error sits below it, so the
+ * input and the button share one line and stay level whatever the hint says.
+ */
+export function InputWithButton({
+  label,
+  hint,
+  error,
+  button,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string; error?: string; button: ReactNode }) {
+  const id = useId();
+  const inputId = props.id ?? id;
+  return (
+    <Field label={label} hint={hint} error={error} htmlFor={inputId}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+        <input {...props} id={inputId} className={cn(inputBase, error && errorRing, 'sm:min-w-0 sm:flex-1', props.className)} />
+        <div className="flex sm:shrink-0 [&>*]:w-full sm:[&>*]:w-auto">{button}</div>
+      </div>
+    </Field>
+  );
+}
+
 export function TextArea({
   label,
   hint,
