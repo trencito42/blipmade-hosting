@@ -574,59 +574,102 @@ function joinPath(directory: string, filename: string): string {
 }
 
 /**
- * A download must not buffer the entire contents inside the API process.
- * A multi-gigabyte backup should use bounded stream buffers, not a single
- * arrayBuffer allocation shared by every concurrent customer.
- *
- * The upstream credential is sent only by this server to the panel. The
- * browser receives bytes via the authenticated Blipmade route, never a
- * Pterodactyl token or a signed node URL.
+ * Pterodactyl 1.x returns a signed_url JSON envelope for /files/download
+ * and /backups/{id}/download, NOT the bytes. Never forward the signed URL
+ * to the browser: it contains a bearer credential for Wings.
  */
-async function downloadStream(
+async function signedDownloadUrl(
   token: string,
   path: string,
   query?: Record<string, string>,
-): Promise<Readable> {
-  requirePanelUrl();
-  clientToken(token);
-  const url = new URL(`${env.PTERODACTYL_URL}${path}`);
-  for (const [name, value] of Object.entries(query ?? {})) url.searchParams.set(name, value);
-  const controller = new AbortController();
-  const handshakeTimeout = setTimeout(() => controller.abort(), 20_000);
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}`, Accept: MEDIA },
-      signal: controller.signal,
-    });
-  } catch {
-    clearTimeout(handshakeTimeout);
-    throw unavailable('The Pterodactyl download endpoint could not be reached.');
+): Promise<string> {
+  const result = await clientRequest<{ object?: string; attributes?: { url?: string } }>(
+    'GET', path, { token, query },
+  );
+  const address = result?.attributes?.url;
+  if (result?.object !== 'signed_url' || typeof address !== 'string' || !address) {
+    throw unavailable('The panel did not provide a valid signed download link.');
   }
-  clearTimeout(handshakeTimeout);
-  if (!response.ok) {
-    const text = (await response.text()).slice(0, 2000);
-    controller.abort();
-    throw new ClientApiError(response.status, text,
-      `Pterodactyl client GET ${path} failed with ${response.status}. ${clientDetail(text)}`);
-  }
-  if (!response.body) {
-    controller.abort();
-    throw unavailable('The panel returned an empty download stream.');
-  }
-
-  const stream = Readable.fromWeb(response.body as unknown as NodeReadableStream);
-  // Abort the upstream request when the browser disconnects or the stream
-  // finishes. The controller must remain alive while bytes are flowing.
-  stream.once('close', () => controller.abort());
-  stream.once('error', () => controller.abort());
-  return stream;
+  return address;
 }
 
-/** Streams a customer file without ever materializing it as one Buffer. */
-export function downloadFile(token: string, uuid: string, path: string): Promise<Readable> {
-  return downloadStream(token, `/api/client/servers/${uuid}/files/contents`, { file: path });
+/**
+ * Only destinations explicitly configured by the operator may receive signed
+ * Wings download traffic. Panel response values cannot be arbitrary SSRF
+ * targets. PANEL_NODE_ADDRESSES entries authorize their source node hosts;
+ * operator-listed PTERODACTYL_DOWNLOAD_HOSTS can authorize other exact hosts
+ * (including a configured object-storage download endpoint).
+ */
+export function downloadHostAllowed(address: string): boolean {
+  let target: URL;
+  try { target = new URL(address); } catch { return false; }
+  if (target.protocol !== 'https:' || target.username || target.password || target.hash) return false;
+  const trusted = new Set<string>();
+  for (const host of env.PTERODACTYL_DOWNLOAD_HOSTS.split(',')) {
+    const value = host.trim().toLowerCase();
+    if (value) trusted.add(value);
+  }
+  for (const mapping of env.PANEL_NODE_ADDRESSES.split(',')) {
+    const panelHost = mapping.split('=')[0]?.trim().toLowerCase();
+    if (panelHost) trusted.add(panelHost);
+  }
+  return trusted.has(target.host.toLowerCase());
+}
+
+/**
+ * Stream the signed download over a bounded-memory Node stream. Redirects
+ * cannot escape the explicit host allowlist; no panel API token or signed
+ * download URL is ever returned to the customer.
+ */
+async function downloadSignedStream(address: string): Promise<Readable> {
+  const controller = new AbortController();
+  let next = address;
+  for (let hop = 0; hop < 4; hop += 1) {
+    if (!downloadHostAllowed(next)) {
+      controller.abort();
+      throw unavailable('The download node is not allowed. Configure PTERODACTYL_DOWNLOAD_HOSTS.');
+    }
+    let response: Response;
+    const timer = setTimeout(() => controller.abort(), 20_000);
+    try {
+      response = await fetch(next, { method: 'GET', signal: controller.signal, redirect: 'manual' });
+    } catch {
+      clearTimeout(timer);
+      controller.abort();
+      throw unavailable('The authorized download node could not be reached.');
+    }
+    clearTimeout(timer);
+
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      const location = response.headers.get('location');
+      if (!location) {
+        controller.abort();
+        throw unavailable('The download node returned a redirect without a destination.');
+      }
+      // Relative redirects must be resolved against the current approved URL.
+      next = new URL(location, next).toString();
+      await response.body?.cancel();
+      continue;
+    }
+    if (!response.ok || !response.body) {
+      controller.abort();
+      throw unavailable('The download node refused the requested file.');
+    }
+    const stream = Readable.fromWeb(response.body as unknown as NodeReadableStream);
+    stream.once('close', () => controller.abort());
+    stream.once('error', () => controller.abort());
+    return stream;
+  }
+  controller.abort();
+  throw unavailable('The download node redirected too many times.');
+}
+
+/** Downloading an arbitrary-sized file must not allocate the whole file in API RAM. */
+export async function downloadFile(token: string, uuid: string, path: string): Promise<Readable> {
+  const signed = await signedDownloadUrl(
+    token, `/api/client/servers/${uuid}/files/download`, { file: path },
+  );
+  return downloadSignedStream(signed);
 }
 
 /**
@@ -756,9 +799,12 @@ export function deleteBackup(token: string, uuid: string, id: string) {
   return clientRequest<void>('DELETE', `/api/client/servers/${uuid}/backups/${id}`, { token });
 }
 
-/** Streams backup data to the authorized customer without buffering it in memory. */
-export function downloadBackup(token: string, uuid: string, id: string): Promise<Readable> {
-  return downloadStream(token, `/api/client/servers/${uuid}/backups/${id}/download`);
+/** Fetch the one-time backup URL and stream its bytes through the authenticated API. */
+export async function downloadBackup(token: string, uuid: string, id: string): Promise<Readable> {
+  const signed = await signedDownloadUrl(
+    token, `/api/client/servers/${uuid}/backups/${id}/download`,
+  );
+  return downloadSignedStream(signed);
 }
 
 /** Restores a backup. The files of the server are replaced by the archive. */
