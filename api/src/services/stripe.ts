@@ -785,9 +785,10 @@ export async function upsertInvoice(params: {
     return;
   }
 
-  const count = await prisma.invoice.count();
+  // Invoice numbers use the same atomic sequence as order receipts.
+  // Counting rows is unsafe when concurrent paid invoices arrive.
   await prisma.invoice.create({
-    data: { ...data, number: `BM-INV-${String(count + 1).padStart(5, '0')}` },
+    data: { ...data, number: await nextInvoiceNumber() },
   });
 }
 
