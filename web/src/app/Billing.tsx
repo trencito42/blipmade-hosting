@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { get, post, type Invoice, type Subscription } from '../lib/api';
 import { formatPrice } from '../lib/pricing';
 import { useAction, useAsync } from '../lib/useAsync';
-import { useRouter } from '../router';
+import { Link, useRouter } from '../router';
 import {
   ButtonLink,
   CardList,
@@ -293,6 +293,29 @@ export function subscriptionPeriod(subscription: Subscription): string {
  */
 export function subscriptionAction(subscription: Subscription): 'resume' | 'cancel' {
   return subscription.cancelAtPeriodEnd ? 'resume' : 'cancel';
+}
+
+/** The link to the copy of the invoice that the payment provider holds, when there is one. */
+function invoiceLink(invoice: Invoice) {
+  return invoice.hostedUrl ? (
+                      <a
+                        href={invoice.hostedUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      >
+                        Open
+                      </a>
+                    ) : invoice.pdfUrl ? (
+                      <a
+                        href={invoice.pdfUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      >
+                        PDF
+                      </a>
+                    ) : null;
 }
 
 export default function Billing() {
@@ -724,28 +747,17 @@ export default function Billing() {
                   key: 'link',
                   header: 'Invoice',
                   nowrap: true,
-                  render: (invoice) =>
-                    invoice.hostedUrl ? (
-                      <a
-                        href={invoice.hostedUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
+                  render: (invoice) => (
+                    <span className="inline-flex items-center gap-3">
+                      <Link
+                        to={`/app/billing/invoices/${invoice.id}`}
                         className="font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                       >
-                        Open
-                      </a>
-                    ) : invoice.pdfUrl ? (
-                      <a
-                        href={invoice.pdfUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="font-bold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                      >
-                        PDF
-                      </a>
-                    ) : (
-                      <span className="text-ink3">—</span>
-                    ),
+                        View
+                      </Link>
+                      {invoiceLink(invoice)}
+                    </span>
+                  ),
                 },
               ]}
               rows={invoices}
@@ -771,6 +783,9 @@ export default function Billing() {
                       status={invoice.status}
                       label={INVOICE_STATUS_LABELS[invoice.status.toUpperCase()] ?? invoice.status}
                     />
+                    <ButtonLink to={`/app/billing/invoices/${invoice.id}`} variant="soft">
+                      View invoice
+                    </ButtonLink>
                     {invoice.hostedUrl ? (
                       <ButtonLink
                         href={invoice.hostedUrl}
@@ -789,9 +804,7 @@ export default function Billing() {
                       >
                         PDF
                       </ButtonLink>
-                    ) : (
-                      <span className="text-[12.5px] text-ink3">No link available</span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}

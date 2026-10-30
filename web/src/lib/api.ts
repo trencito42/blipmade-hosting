@@ -559,9 +559,23 @@ export interface Invoice {
   hostedUrl: string | null;
   pdfUrl: string | null;
   billingAddress: BillingAddress | null;
+  /** What the invoice is for, from its order. Empty when the invoice has no order. */
+  lines?: { name: string; quantity: number; unitAmount: number; total: number }[];
   createdAt: string;
   periodStart: string | null;
   periodEnd: string | null;
+}
+
+/** The company that issues the invoices, as the operator wrote it in the settings. A missing value is empty. */
+export interface InvoiceCompany {
+  name: string;
+  registration: string;
+  taxId: string;
+  taxRate: number | null;
+  address: string;
+  supportEmail: string;
+  taxApplies: boolean;
+  taxNote: string | null;
 }
 
 export interface Subscription {

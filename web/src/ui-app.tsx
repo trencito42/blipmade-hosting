@@ -14,7 +14,7 @@ import {
 } from 'react';
 import { cn } from './lib';
 import { cellClass, headerClass, type TableColumn } from './lib/table';
-import { get, relativeTime, type NotificationView } from './lib/api';
+import { get, post, relativeTime, type NotificationView } from './lib/api';
 import { Icon, type IconName } from './icons';
 import { Link, useRouter } from './router';
 import { useSession } from './session';
@@ -206,7 +206,7 @@ export function AppShell({
     <div className="min-h-[100svh] bg-bg">
       <div className="lg:flex">
         {/* Desktop sidebar */}
-        <aside className="sticky top-0 hidden h-[100svh] w-[272px] shrink-0 flex-col border-r border-line bg-s1 p-4 lg:flex">
+        <aside data-print-hide="" className="sticky top-0 hidden h-[100svh] w-[272px] shrink-0 flex-col border-r border-line bg-s1 p-4 lg:flex">
           <Link to="/" className="mb-6 flex items-center gap-2.5 rounded-lg px-2 py-1 text-[21px] font-semibold tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
             <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
             blipmade
@@ -243,7 +243,7 @@ export function AppShell({
         <div className="min-w-0 flex-1">
           {/* Top bar. The padding keeps the bar clear of the notch of a
               phone, so the title is never under the camera. */}
-          <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6">
+          <header data-print-hide="" className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6">
             {/* The mark of the site is a link on a phone, so it is given the
                 room a finger needs, without changing the size of the mark. */}
             <Link
@@ -273,7 +273,7 @@ export function AppShell({
           <main className="px-4 pb-8 pt-2 sm:px-6 lg:pb-10">{children}</main>
           {/* The legal links are on every page of the app, so the terms
               are never further than one click away. */}
-          <footer className="px-4 pb-32 pt-6 sm:px-6 lg:pb-10">
+          <footer data-print-hide="" className="px-4 pb-32 pt-6 sm:px-6 lg:pb-10">
             <LegalFooter />
           </footer>
         </div>
@@ -284,6 +284,7 @@ export function AppShell({
       <nav
         aria-label="Primary"
         data-bottom-nav=""
+        data-print-hide=""
         className={cn(
           'fixed inset-x-2.5 bottom-[max(10px,env(safe-area-inset-bottom))] z-30 flex h-[66px] items-center justify-between rounded-full border border-line bg-s1/95 p-1.5 backdrop-blur-md transition-transform duration-200 lg:hidden',
           keyboardOpen && 'pointer-events-none translate-y-[200%]',
@@ -1269,7 +1270,7 @@ export function CardList<T>({ rows, rowKey, children }: { rows: T[]; rowKey: (ro
  * not have it, or when the stream breaks, a slow poll takes over.
  */
 export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?: string; limit?: number }) {
-  const { path } = useRouter();
+  const { path, navigate } = useRouter();
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationView[]>([]);
@@ -1385,6 +1386,19 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
     };
   }, [open]);
 
+  /** Opens the page a message leads to, and marks the message as read. */
+  const openItem = (item: NotificationView) => {
+    showing.current = false;
+    setOpen(false);
+    if (!item.readAt) {
+      setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, readAt: new Date().toISOString() } : entry)));
+      count.current = Math.max(0, count.current - 1);
+      setUnread(count.current);
+      void post(`/notifications/${encodeURIComponent(item.id)}/read`).catch(() => undefined);
+    }
+    navigate(item.actionUrl && item.actionUrl.startsWith('/') ? item.actionUrl : to);
+  };
+
   const toggle = () => {
     const next = !showing.current;
     showing.current = next;
@@ -1400,7 +1414,7 @@ export function NotificationBell({ to = '/app/notifications', limit = 5 }: { to?
     <div className="relative shrink-0">
       <NotificationBellButton unread={unread} open={open} onToggle={toggle} buttonRef={button} />
       {open && (
-        <NotificationBellPanel items={items} loading={loading} to={to} panelRef={panel} />
+        <NotificationBellPanel items={items} loading={loading} to={to} panelRef={panel} onOpenItem={openItem} />
       )}
     </div>
   );
@@ -1461,11 +1475,14 @@ export function NotificationBellPanel({
   loading,
   to,
   panelRef,
+  onOpenItem,
 }: {
   items: NotificationView[];
   loading: boolean;
   to: string;
   panelRef?: RefObject<HTMLDivElement | null>;
+  /** Opens one message: its page, and the message is marked as read. */
+  onOpenItem?: (item: NotificationView) => void;
 }) {
   return (
     <div
@@ -1485,16 +1502,17 @@ export function NotificationBellPanel({
         <ul className="grid gap-1">
           {items.map((item) => (
             <li key={item.id}>
-              <Link
-                to={to}
-                className="block rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              <button
+                type="button"
+                onClick={() => onOpenItem?.(item)}
+                className="block w-full rounded-2xl bg-s2 p-3 text-left transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
               >
                 <p className="flex items-center gap-2 text-[13.5px] font-medium text-ink">
                   {item.readAt ? null : <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-acc" />}
                   <span className="min-w-0 break-words">{item.title}</span>
                 </p>
                 <p className="mt-0.5 text-[12px] text-ink3">{relativeTime(item.createdAt)}</p>
-              </Link>
+              </button>
             </li>
           ))}
         </ul>

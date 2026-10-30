@@ -296,6 +296,7 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         where: withCursor({ userId: user.id }, cursor, 'createdAt'),
         orderBy: pageOrder('createdAt'),
         take: limit + 1,
+        include: { order: { select: { items: { select: { name: true, quantity: true, unitAmount: true, total: true } } } } },
       }),
       companyDetails(),
     ]);
@@ -325,6 +326,8 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
         hostedUrl: invoice.hostedUrl,
         pdfUrl: invoice.pdfUrl,
         billingAddress: invoice.billingAddress,
+        // What the invoice is for, from the order it belongs to. An invoice without an order has none.
+        lines: invoice.order?.items ?? [],
         createdAt: invoice.createdAt,
         periodStart: invoice.periodStart,
         periodEnd: invoice.periodEnd,

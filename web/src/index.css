@@ -315,3 +315,9 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(
    outside of them too, and a utility inside a layer cannot win against those. */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* Printing a page of the dashboard (an invoice): the frame of the dashboard stays out of the paper. */
+@media print {
+  [data-print-hide] { display: none !important; }
+  html, body, #root { background: #fff !important; }
+}

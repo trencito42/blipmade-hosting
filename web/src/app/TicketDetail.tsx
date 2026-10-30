@@ -10,6 +10,7 @@ import {
   Panel,
   PrimaryButton,
   Select,
+  ButtonLink,
   StatusPill,
   TextArea,
   useToast,
@@ -202,13 +203,27 @@ export default function TicketDetail() {
       </Panel>
 
       <Panel title="Status">
-        {!isStaff && ticket.status !== 'CLOSED' && (
-          <PrimaryButton onClick={async () => {
-            const closed = await closeTicket.run();
-            if (closed) { state.reload(); toast.push('Ticket closed', 'ok'); }
-          }} disabled={closeTicket.pending}>
-            {closeTicket.pending ? 'Closing…' : 'Close ticket'}
-          </PrimaryButton>
+        {!isStaff && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="grid gap-1">
+              <StatusPill status={ticket.status} label={STATUS_LABEL[ticket.status] ?? ticket.status.replace(/_/g, ' ')} />
+              <p className="text-[13.5px] text-ink2">
+                {ticket.status === 'CLOSED'
+                  ? `Closed on ${fmtDate(ticket.updatedAt)}. This conversation is finished; if the problem comes back, open a new ticket and mention #${ticket.number}.`
+                  : 'Close the ticket when the problem is solved. You can always open a new one.'}
+              </p>
+            </div>
+            {ticket.status !== 'CLOSED' ? (
+              <PrimaryButton onClick={async () => {
+                const closed = await closeTicket.run();
+                if (closed) { state.reload(); toast.push('Ticket closed', 'ok'); }
+              }} disabled={closeTicket.pending}>
+                {closeTicket.pending ? 'Closing…' : 'Close ticket'}
+              </PrimaryButton>
+            ) : (
+              <ButtonLink to="/app/tickets" variant="soft">Open a new ticket</ButtonLink>
+            )}
+          </div>
         )}
         {isStaff && (
         <div className="grid gap-3">
