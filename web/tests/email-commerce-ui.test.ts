@@ -386,7 +386,7 @@ describe('the dashboard of the mail services', () => {
       }),
     );
 
-    assert.match(html, /The proof is not published yet/);
+    assert.match(html, /Ownership not verified/);
     assert.match(html, /_blipmade\.acme\.ro/);
     assert.match(html, /blipmade-verification=abc123/);
     assert.match(html, /Check the proof/);

@@ -707,9 +707,9 @@ const MAIL_SERVICE_STATUS_TONES: Record<MailServiceStatus, string> = {
 
 /** The state of the proof of ownership of a domain, written in words. */
 const MAIL_OWNERSHIP_LABELS: Record<MailOwnershipStatus, string> = {
-  UNVERIFIED: 'The proof is not published yet',
-  VERIFIED: 'The proof is accepted',
-  FAILED: 'The proof was refused',
+  UNVERIFIED: 'Ownership not verified',
+  VERIFIED: 'Ownership verified',
+  FAILED: 'Ownership check failed',
 };
 
 /** Maps the state of the proof onto a colour the pill knows. */
@@ -1132,6 +1132,9 @@ export function MailServiceCard({
         </div>
       )}
 
+      {plans.length === 0 && !plansNote ? (
+        <p className="mt-4 text-[13px] text-ink3">Plan changes are not available right now.</p>
+      ) : (
       <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:items-end">
         <Select
           label="Change the plan"
@@ -1163,6 +1166,7 @@ export function MailServiceCard({
           </PrimaryButton>
         </div>
       </div>
+      )}
     </article>
   );
 }
@@ -1295,7 +1299,7 @@ function MailHostingSection({ onServiceCount }: { onServiceCount?: (count: numbe
   return (
     <Panel
       title="Email hosting"
-      description="The hosted mail you bought: the plan, the use, the domains and the records of DNS to publish. The platform never writes the DNS of a customer."
+      description="Your hosted mail: plan, usage, domains and the DNS records to publish. Blipmade never edits your DNS, so you add the records at your registrar."
     >
       {servicesState.loading ? (
         <LoadingBlock rows={2} label="Loading your email hosting" />

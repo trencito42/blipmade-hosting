@@ -157,6 +157,7 @@ export default function Tickets() {
                   key: 'subject',
                   header: 'Subject',
                   truncate: true,
+                  width: '38%',
                   render: (t) => (
                     <Link
                       to={`/app/tickets/${t.id}`}

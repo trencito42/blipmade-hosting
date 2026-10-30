@@ -153,9 +153,9 @@ export default function Settings() {
   const choose = (id: string) => navigate(`/app/settings${id === SETTINGS_TABS[0]!.id ? '' : `?tab=${id}`}`, { replace: true });
 
   return (
-    <div className="grid items-start gap-5 pb-16 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8 lg:pb-0">
-      <nav aria-label="Settings sections" className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] lg:sticky lg:top-4 lg:mx-0 lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden">
-        <ul className="flex gap-1.5 lg:grid">
+    <div className="grid items-start gap-5 pb-16 lg:pb-0">
+      <nav aria-label="Settings sections" className="-mx-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ul className="flex gap-1.5">
           {SETTINGS_TABS.map((entry) => {
             const active = entry.id === tab.id;
             return (
@@ -164,7 +164,7 @@ export default function Settings() {
                   type="button"
                   aria-current={active ? 'page' : undefined}
                   onClick={() => choose(entry.id)}
-                  className={`flex min-h-11 w-full items-center gap-3 rounded-xl border px-4 text-left text-[14.5px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acc lg:border-transparent ${
+                  className={`flex min-h-11 w-full items-center gap-2.5 rounded-full border px-4 text-left text-[14.5px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acc ${
                     active ? 'border-acc/40 bg-acc-bg text-ink' : 'border-line text-ink2 hover:bg-s3 hover:text-ink'
                   } ${entry.danger && !active ? 'text-bad' : ''}`}
                 >
@@ -176,7 +176,7 @@ export default function Settings() {
           })}
         </ul>
       </nav>
-      <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         {tab.id === 'profile' && (
           <>
             <ProfilePanel data={data} emailNotice={emailNotice} setEmailNotice={setEmailNotice} onChanged={state.reload} />

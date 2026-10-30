@@ -325,7 +325,7 @@ export function VpsList() {
   }, [servers, state.reload]);
 
   return (
-    <Panel title="Servers" description="Your virtual private servers." action={<ButtonLink to={VPS_NEW_PATH}>Order a server</ButtonLink>}>
+    <Panel title="Your servers" description="Virtual private servers with root access.">
       {state.loading && !state.data ? (
         <LoadingBlock rows={2} label="Loading your servers" />
       ) : state.error ? (

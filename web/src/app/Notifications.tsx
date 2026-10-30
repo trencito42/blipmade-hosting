@@ -20,7 +20,6 @@ import {
   Panel,
   Select,
   SoftButton,
-  StatTile,
   useToast,
 } from '../ui-app';
 
@@ -236,16 +235,10 @@ export default function Notifications() {
         title="Notifications"
         description="Everything the platform tells you about your account, newest first."
         action={
-          /* The number of the messages that wait to be read is in the
-             header of the page, and it is the number of the server. */
-          <div className="grid gap-2 sm:min-w-[220px]">
-            <div role="status">
-              <StatTile
-                label="Unread"
-                value={unread}
-                hint={unread === 0 ? 'Everything has been read.' : 'Waiting to be read.'}
-              />
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <p role="status" className="text-[14px] text-ink2">
+              {unread === 0 ? 'Everything has been read.' : `${unread} unread`}
+            </p>
             <SoftButton onClick={onMarkAllRead} disabled={markAllRead.pending || unread === 0}>
               {markAllRead.pending ? 'Working…' : 'Mark all as read'}
             </SoftButton>

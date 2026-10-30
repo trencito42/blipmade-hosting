@@ -90,6 +90,25 @@ export function answers(kind) {
     'GET /mail/domains': { domains: [] },
     'GET /domains': { domains: empty ? [] : DOMAINS },
     'GET /tickets': { tickets: empty ? [] : TICKETS },
+    'GET /settings': {
+      profile: { firstName: 'Test', lastName: 'Customer', email: 'customer@example.test', emailVerified: true, role: 'CUSTOMER', createdAt: iso(-40) },
+      billingAddress: null,
+      pendingEmail: null,
+      pendingEmailExpiresAt: null,
+      sessions: [
+        { id: 's1', ip: '203.0.113.7', userAgent: 'fixture', device: 'Chrome on Linux', createdAt: iso(-1), lastSeenAt: iso(-0.01), expiresAt: iso(29), current: true },
+        { id: 's2', ip: '198.51.100.4', userAgent: 'fixture', device: 'Safari on iPhone', createdAt: iso(-9), lastSeenAt: iso(-3), expiresAt: iso(21), current: false },
+      ],
+      account: { deletionRequestedAt: null, services: empty ? 0 : 5, subscriptions: empty ? 0 : 4 },
+    },
+    'GET /notifications/preferences': {
+      preferences: { accountSecurity: true, ordersBilling: true, billing: true, hostingServices: true, support: true, domainsEmail: true, incidents: true, productUpdates: false, marketing: false, emailChannel: true, inAppChannel: true },
+      categories: [
+        { key: 'accountSecurity', label: 'Account security', description: 'Sign-ins and password changes.', classification: 'essential', essential: true, channels: ['email', 'in_app'] },
+        { key: 'hostingServices', label: 'Hosting services', description: 'When a service is ready or has a problem.', classification: 'optional', essential: false, channels: ['email', 'in_app'] },
+        { key: 'marketing', label: 'Offers', description: 'News and offers from Blipmade.', classification: 'marketing', essential: false, channels: ['email'] },
+      ],
+    },
     'GET /notifications/unread-count': { unread: empty ? 0 : 1 },
     'GET /notifications': { notifications: empty ? [] : NOTIFICATIONS, nextCursor: null, unread: empty ? 0 : 1 },
   };
