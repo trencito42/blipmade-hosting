@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const calls = vi.hoisted(() => ({
   refunds: [] as { params: Record<string, unknown>; options?: Record<string, unknown> }[],
+  refundStatus: 'succeeded' as 'succeeded' | 'pending' | 'failed',
   prices: [] as Record<string, unknown>[],
   pricesById: new Map<string, Record<string, unknown>>(),
   subscriptionUpdates: [] as { id: string; params: Record<string, unknown> }[],
@@ -36,7 +37,7 @@ vi.mock('stripe', () => {
     refunds = {
       create: vi.fn(async (params: Record<string, unknown>, options?: Record<string, unknown>) => {
         calls.refunds.push({ params, options });
-        return { id: `re_${calls.refunds.length}` };
+        return { id: `re_${calls.refunds.length}`, status: calls.refundStatus };
       }),
     };
 
@@ -121,6 +122,7 @@ environment.stripeTaxEnabled = false;
 beforeEach(async () => {
   await resetDatabase();
   calls.refunds.length = 0;
+  calls.refundStatus = 'succeeded';
   calls.prices.length = 0;
   calls.pricesById.clear();
   calls.subscriptionUpdates.length = 0;
@@ -361,6 +363,24 @@ describe('the refund of an order', () => {
     expect(calls.refunds[0]!.options?.idempotencyKey).toBe(`blipmade-refund-${order.id}`);
     const payment = await prisma.payment.findFirst({ where: { orderId: order.id } });
     expect(payment?.status).toBe('REFUNDED');
+  });
+
+  it('does not claim a pending Stripe refund was completed', async () => {
+    const user = await seedUser();
+    const { order } = await seedOrder(user.id);
+    const payment = await prisma.payment.create({
+      data: { userId: user.id, orderId: order.id, stripePaymentIntentId: 'pi_pending_refund',
+        amount: 1000, currency: 'EUR', status: 'SUCCEEDED' },
+    });
+    calls.refundStatus = 'pending';
+    expect(await refundPayment({
+      orderId: order.id, stripePaymentIntentId: 'pi_pending_refund', amount: 1000,
+    })).toBe(false);
+    expect((await prisma.payment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe('SUCCEEDED');
+    const event = await prisma.auditLog.findFirst({
+      where: { action: 'payment.refund_not_completed', targetId: order.id },
+    });
+    expect(event?.meta).toMatchObject({ status: 'pending' });
   });
 
   it('sends the same key for two requests of the same order', async () => {
