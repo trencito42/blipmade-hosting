@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { OtpInput } from '../OtpInput';
+import { passkeyFailure, passkeysSupported } from '../lib/passkeys';
 import { ApiError, post } from '../lib/api';
 import { loginFailureMessage } from '../lib/login-message';
 import { PASSWORD_RULES, passwordIssues } from '../lib/password-rules';
@@ -186,12 +188,33 @@ function Frame({ children, search }: { children: ReactNode; search: string }) {
 /** The sign-in. */
 export function AuthLogin() {
   const { query, search, navigate } = useRouter();
-  const { login, suspensionNotice } = useSession();
+  const { login, secondStep, secondStepPasskey, passkeyLogin, suspensionNotice } = useSession();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [err, setErr] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  // The second step: after the password, an account with two-factor asks for a code.
+  const [second, setSecond] = useState<{ token: string; methods: string[] } | null>(null);
+  const [code, setCode] = useState('');
+  const [backup, setBackup] = useState(false);
+  const [backupCode, setBackupCode] = useState('');
+
+  const land = (role: Parameters<typeof postLoginTarget>[0]) => {
+    // The page the visitor asked for is only used when their role is allowed
+    // to open it. Otherwise they land on the home of their role.
+    navigate(postLoginTarget(role, query.next), { replace: true });
+  };
+
+  const fail = (error: unknown) => {
+    if (error instanceof ApiError) {
+      if (error.fields?.email) setErr({ email: error.fields.email });
+      else if (error.fields?.password) setErr({ password: error.fields.password });
+      else setMsg(loginFailureMessage(error));
+    } else {
+      setMsg(passkeyFailure(error));
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -204,22 +227,114 @@ export function AuthLogin() {
 
     setBusy(true);
     try {
-      const session = await login(email.trim(), pw);
-      // The page the visitor asked for is only used when their role is allowed
-      // to open it. Otherwise they land on the home of their role.
-      navigate(postLoginTarget(session.role, query.next), { replace: true });
-    } catch (error) {
-      if (error instanceof ApiError) {
-        if (error.fields?.email) setErr({ email: error.fields.email });
-        else if (error.fields?.password) setErr({ password: error.fields.password });
-        else setMsg(loginFailureMessage(error));
-      } else {
-        setMsg('Something went wrong. Try again.');
+      const result = await login(email.trim(), pw);
+      if (result.kind === 'second-step') {
+        setSecond({ token: result.token, methods: result.methods });
+        return;
       }
+      land(result.user.role);
+    } catch (error) {
+      fail(error);
     } finally {
       setBusy(false);
     }
   };
+
+  const verify = async (value: string) => {
+    if (!second || busy) return;
+    setMsg('');
+    setBusy(true);
+    try {
+      const user = await secondStep(second.token, value);
+      land(user.role);
+    } catch (error) {
+      setCode('');
+      setMsg(error instanceof ApiError ? error.message : 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const withPasskey = async (run: () => Promise<{ role: Parameters<typeof postLoginTarget>[0] }>) => {
+    setMsg('');
+    setBusy(true);
+    try {
+      land((await run()).role);
+    } catch (error) {
+      fail(error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (second) {
+    return (
+      <Frame search={search}>
+        <div className="mx-auto grid w-full max-w-[440px] gap-7">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void verify(backup ? backupCode : code);
+            }}
+            noValidate
+            aria-busy={busy}
+            className="grid gap-6"
+          >
+            <div className="grid gap-2">
+              <h1 className="text-[clamp(32px,4vw,44px)] leading-none font-semibold tracking-[-0.045em]">Two-step verification</h1>
+              <p className="text-[17px] text-ink-2">
+                {backup
+                  ? 'Enter one of your backup codes. Each one works once.'
+                  : 'Enter the 6-digit code from your authenticator app.'}
+              </p>
+            </div>
+            {msg ? (
+              <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+                {msg}
+              </p>
+            ) : null}
+            {backup ? (
+              <Field label="Backup code" type="text" value={backupCode} set={setBackupCode} auto="one-time-code" disabled={busy} />
+            ) : (
+              <OtpInput value={code} onChange={setCode} onComplete={(value) => void verify(value)} disabled={busy} invalid={Boolean(msg)} autoFocus />
+            )}
+            <Btn type="submit" size="lg" disabled={busy || (backup ? backupCode.trim().length < 10 : code.length < 6)} className="w-full">
+              {busy ? 'Checking…' : 'Verify'}
+            </Btn>
+            <div className="grid gap-2 text-[15px]">
+              {second.methods.includes('passkey') && passkeysSupported() && (
+                <button type="button" disabled={busy} onClick={() => void withPasskey(() => secondStepPasskey(second.token))} className="w-fit text-green underline underline-offset-4">
+                  Use a passkey instead
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setBackup((value) => !value);
+                  setMsg('');
+                }}
+                className="w-fit text-green underline underline-offset-4"
+              >
+                {backup ? 'Use the code of the app' : 'Use a backup code'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSecond(null);
+                  setCode('');
+                  setMsg('');
+                  setPw('');
+                }}
+                className="w-fit text-ink-2 underline underline-offset-4"
+              >
+                Back to the password
+              </button>
+            </div>
+          </form>
+        </div>
+      </Frame>
+    );
+  }
 
   return (
     <Frame search={search}>
@@ -244,6 +359,23 @@ export function AuthLogin() {
           <Btn type="submit" size="lg" disabled={busy} className="w-full">
             {busy ? 'One moment…' : 'Log in'}
           </Btn>
+          {passkeysSupported() && (
+            <>
+              <p aria-hidden="true" className="flex items-center gap-3 text-[13px] text-ink-3">
+                <span className="h-px flex-1 bg-line" />
+                or
+                <span className="h-px flex-1 bg-line" />
+              </p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void withPasskey(passkeyLogin)}
+                className="min-h-12 w-full rounded-full border border-line px-5 text-[16px] font-semibold text-ink transition-colors hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:opacity-60"
+              >
+                Log in with a passkey
+              </button>
+            </>
+          )}
           <p className="text-[15.5px] text-ink-2">
             New to Blipmade?{' '}
             <Link to="/register" className="font-semibold text-ink underline underline-offset-4">

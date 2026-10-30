@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { SecurityPanels } from './SecurityPanels';
 import { BillingAddressFields, emptyBillingAddress, validateBillingAddress, type BillingAddressValue } from './BillingAddressFields';
 import {
   ApiError,
@@ -187,6 +188,7 @@ export default function Settings() {
           <>
             <PasswordPanel />
             <SessionsPanel sessions={data.sessions} onChanged={state.reload} />
+            <SecurityPanels />
           </>
         )}
         {tab.id === 'notifications' && <NotificationsPanel />}
@@ -199,7 +201,7 @@ export default function Settings() {
 /** The sections of the settings. The section is in the address, so a link can open it. */
 const SETTINGS_TABS: { id: string; label: string; icon: IconName; danger?: boolean }[] = [
   { id: 'profile', label: 'Profile and billing', icon: 'user' },
-  { id: 'security', label: 'Password and sessions', icon: 'lock' },
+  { id: 'security', label: 'Password and security', icon: 'lock' },
   { id: 'notifications', label: 'Notifications', icon: 'bell' },
   { id: 'account', label: 'Close account', icon: 'warn', danger: true },
 ];

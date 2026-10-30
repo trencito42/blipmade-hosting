@@ -1,5 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError, api, get, onUnauthorized, post, type SessionUser } from './lib/api';
+import { authenticateWithPasskey, secondStepWithPasskey } from './lib/passkeys';
+
+/** What a password sign-in gives: a session, or the second step that is still to do. */
+export type LoginResult =
+  | { kind: 'signed-in'; user: SessionUser }
+  | { kind: 'second-step'; token: string; methods: string[] };
 
 export type SessionStatus = 'loading' | 'authenticated' | 'anonymous';
 
@@ -25,7 +31,11 @@ interface SessionState {
   /** The email of the staff member when this session was opened to act as the customer. */
   impersonatedBy: string | null;
   refresh: () => Promise<void>;
-  login: (email: string, password: string) => Promise<SessionUser>;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  /** The second step of a sign-in: the code of the app, or a backup code. */
+  secondStep: (token: string, code: string) => Promise<SessionUser>;
+  secondStepPasskey: (token: string) => Promise<SessionUser>;
+  passkeyLogin: () => Promise<SessionUser>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<SessionUser>;
   logout: () => Promise<void>;
 }
@@ -40,6 +50,15 @@ const Ctx = createContext<SessionState>({
   impersonatedBy: null,
   refresh: async () => {},
   login: async () => {
+    throw new Error('not ready');
+  },
+  secondStep: async () => {
+    throw new Error('not ready');
+  },
+  secondStepPasskey: async () => {
+    throw new Error('not ready');
+  },
+  passkeyLogin: async () => {
     throw new Error('not ready');
   },
   register: async () => {
@@ -98,12 +117,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => onUnauthorized(null);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const data = await post<{ user: SessionUser }>('/auth/login', { email, password });
-    // The answer of the sign-in does not carry the permissions of a staff
-    // member, so the session is read afterwards. Without that, a staff member
-    // with a limited set of permissions would see the whole administration
-    // area as read-only until the page is reloaded by hand.
+  /**
+   * Takes the user a sign-in gave. The answer does not carry the permissions of a staff member,
+   * so the session is read afterwards: without that, a staff member with a limited set of
+   * permissions would see the whole administration area as read-only until a reload.
+   */
+  const adopt = useCallback(async (fallback: SessionUser): Promise<SessionUser> => {
     try {
       const session = await get<{ user: SessionUser | null }>('/auth/session');
       if (session.user) {
@@ -111,12 +130,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return session.user;
       }
     } catch {
-      // The session answer is the one that counts, but a sign-in that worked
-      // must not fail because the second read did not.
+      // The session answer is the one that counts, but a sign-in that worked must not fail
+      // because the second read did not.
     }
-    setUser(data.user);
-    return data.user;
+    setUser(fallback);
+    return fallback;
   }, []);
+
+  const login = useCallback(
+    async (email: string, password: string): Promise<LoginResult> => {
+      const data = await post<{ user?: SessionUser; twoFactor?: { token: string; methods: string[] } }>('/auth/login', { email, password });
+      if (data.twoFactor) return { kind: 'second-step', token: data.twoFactor.token, methods: data.twoFactor.methods };
+      return { kind: 'signed-in', user: await adopt(data.user as SessionUser) };
+    },
+    [adopt],
+  );
+
+  const secondStep = useCallback(
+    async (token: string, code: string) => adopt((await post<{ user: SessionUser }>('/auth/login/2fa', { token, code })).user),
+    [adopt],
+  );
+
+  const secondStepPasskey = useCallback(
+    async (token: string) => adopt((await secondStepWithPasskey<{ user: SessionUser }>(token)).user),
+    [adopt],
+  );
+
+  const passkeyLogin = useCallback(async () => adopt((await authenticateWithPasskey<{ user: SessionUser }>()).user), [adopt]);
 
   const register = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
     const data = await post<{ user: SessionUser; mail?: { state?: string; message?: string } }>('/auth/register', {
@@ -152,10 +192,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       impersonatedBy,
       refresh,
       login,
+      secondStep,
+      secondStepPasskey,
+      passkeyLogin,
       register,
       logout,
     }),
-    [user, loading, error, registrationNotice, suspensionNotice, impersonatedBy, refresh, login, register, logout],
+    [user, loading, error, registrationNotice, suspensionNotice, impersonatedBy, refresh, login, secondStep, secondStepPasskey, passkeyLogin, register, logout],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
