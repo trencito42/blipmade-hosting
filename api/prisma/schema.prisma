@@ -48,6 +48,8 @@ model User {
 
   sessions       Session[]
   tokens         VerificationToken[]
+  twoFactor      UserTwoFactor?
+  passkeys       Passkey[]
   staff          StaffMember?
   mailDomains    MailDomain[]
   mailServices   MailService[]
@@ -1407,4 +1409,38 @@ model VpsService {
 
   @@index([userId])
   @@index([status])
+}
+
+
+/// The authenticator app of an account. The secret is kept encrypted. A row without
+/// `enabledAt` is a setup that was started and not finished, and it protects nothing.
+model UserTwoFactor {
+  userId       String    @id
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secretEnc    String
+  enabledAt    DateTime?
+  /// The last time step that was accepted, so a code cannot be used twice.
+  lastUsedStep Int?
+  /// The backup codes, stored hashed. A code that was used is removed.
+  backupCodes  String[]  @default([])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+/// A passkey (a WebAuthn credential) of an account.
+model Passkey {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      Int       @default(0)
+  transports   String[]  @default([])
+  deviceType   String?
+  backedUp     Boolean   @default(false)
+  name         String
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
 }

@@ -9,6 +9,7 @@ import { LIMITS, customerLimit, rateLimitRun } from '../lib/rate-limit.js';
 import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/failed-attempts.js';
 import { mailEnabled, mailLogLine, mailNotice, mailTransportName, registrationNotice, type MailSendResult } from '../lib/mailer.js';
 import { suspendedAccountError } from '../lib/suspension.js';
+import { startSecondStep, twoFactorEnabled } from '../services/second-factor.js';
 import {
   notifyAccountRegistered,
   notifyEmailVerified,
@@ -374,6 +375,13 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       // account: a customer who mistyped the password and then signed in
       // correctly is not a customer under suspicion.
       clearFailedAttempts(rawAccountKey(request));
+
+      // An account with two-factor authentication stops here: the password is right, and the
+      // sign-in waits for the second step. No session exists until that step is done.
+      if (await twoFactorEnabled(user.id)) {
+        const step = await startSecondStep(user.id);
+        return { twoFactor: step };
+      }
 
       await createSession(request, reply, user.id, user.email);
       await audit({ actorId: user.id, actorEmail: user.email, action: 'auth.login', targetType: 'user', targetId: user.id, ip: request.ip });

@@ -16,7 +16,7 @@ export const RETURN_COOKIE = 'bm_return';
 export const IMPERSONATION_TTL_MS = 1000 * 60 * 60;
 
 /** What a member of the staff cannot do while they act as a customer: the keys of the account. */
-const IMPERSONATION_BLOCKED = [/^\/(api\/)?settings\/(email|password|sessions|account\/closure)/, /^\/(api\/)?billing\/payment-method/];
+const IMPERSONATION_BLOCKED = [/^\/(api\/)?settings\/(email|password|sessions|account\/closure|2fa|passkeys)/, /^\/(api\/)?billing\/payment-method/];
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 
 export interface AuthUser {

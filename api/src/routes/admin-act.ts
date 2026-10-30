@@ -256,4 +256,13 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.revoke_sessions', targetType: 'user', targetId: customer.id, meta: { closed: result.count }, ip: request.ip });
     return { closed: result.count };
   });
+
+  /** For a customer who lost the phone and the backup codes: turns two-factor off and closes the sessions. */
+  app.post('/admin/customers/:id/reset-2fa', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    const removed = await prisma.userTwoFactor.deleteMany({ where: { userId: customer.id } });
+    await prisma.session.deleteMany({ where: { userId: customer.id } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.reset_2fa', targetType: 'user', targetId: customer.id, meta: { hadTwoFactor: removed.count > 0 }, ip: request.ip });
+    return { reset: removed.count > 0 };
+  });
 }
