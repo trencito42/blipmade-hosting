@@ -3,7 +3,11 @@ import { Configurator } from './Configurator';
 import { APP_COPY, FALLBACK, NOT_YET, TODAY, faqFor } from './content';
 import { orderableOf, useProducts, useRates } from './catalog';
 import { priceOfResources, eur, fmtRam } from './pricing';
+import { Icon } from '../icons';
+import type { IconName } from '../icon-map';
 import { Link } from '../router';
+import { BlipField } from './BlipField';
+import { CATEGORIES } from './categories';
 import { Btn, Wrap, cx } from './ui';
 
 /**
@@ -31,14 +35,12 @@ function Hero() {
           </p>
           <div className="rise flex flex-wrap gap-3" style={{ '--i': 3 } as CSSProperties}>
             <Btn to="/register" size="lg">Get started</Btn>
-            <Btn to="/apps" variant="outline" size="lg">See the apps</Btn>
+            <Btn to="/apps" variant="outline" size="lg">Browse the catalog</Btn>
           </div>
           <ul className="rise grid gap-2 text-[15.5px] text-ink-2 sm:grid-cols-2" style={{ '--i': 4 } as CSSProperties}>
             {['One price card for every app', 'Resize whenever you grow', 'Console and files in your browser', 'Real people answer your tickets'].map((t) => (
               <li key={t} className="flex items-center gap-2.5">
-                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" className="shrink-0 text-green">
-                  <path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <Icon name="check" size={14} className="shrink-0 text-green" />
                 {t}
               </li>
             ))}
@@ -108,37 +110,46 @@ function Rates() {
 }
 
 function AppsRow() {
-  // The row shows the apps that can be deployed today. The whole catalogue,
-  // with the apps that are still coming, is on the page of the apps.
+  // One tile per category, so the page shows what the platform runs without
+  // listing every product. The whole catalog is one click away.
   const products = orderableOf(useProducts());
+  const tiles = CATEGORIES.map((category) => {
+    const own = products.filter((product) => product.category === category.id);
+    return { ...category, count: own.length, from: own.length ? Math.min(...own.map((product) => product.minPrice)) : 0, names: own.slice(0, 3).map((product) => product.name) };
+  }).filter((tile) => tile.count > 0);
   return (
     <section aria-labelledby="apps-h">
       <Wrap className="py-20 sm:py-28">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <h2 id="apps-h" className="max-w-[12em] text-[clamp(36px,5.4vw,68px)] leading-[0.98] font-semibold tracking-[-0.045em]">Start from an app.</h2>
-          <Btn to="/apps" variant="outline">All apps</Btn>
+          <h2 id="apps-h" className="max-w-[12em] text-[clamp(36px,5.4vw,68px)] leading-[0.98] font-semibold tracking-[-0.045em]">Start from what you run.</h2>
+          <Btn to="/apps" variant="outline">Full catalog</Btn>
         </div>
-        <ul className="mt-12 grid gap-4 md:grid-cols-3">
-          {products.map((p) => (
-            <li key={p.slug}>
+        <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {tiles.map((tile) => (
+            <li key={tile.id}>
               <Link
-                to={`/apps/${p.slug}`}
-                className="group grid h-full content-between gap-10 rounded-[28px] border border-line bg-card p-7 transition-colors hover:border-ink/40"
+                to={`/apps#${tile.slug}`}
+                className="group grid h-full content-between gap-10 rounded-[28px] border border-line bg-card p-6 transition-colors hover:border-ink/40"
               >
-                <div className="grid gap-3">
-                  <p className="font-display text-[28px] leading-none font-semibold tracking-[-0.03em]">{p.name}</p>
-                  <p className="text-[16px] text-ink-2">{(APP_COPY[p.slug] ?? FALLBACK(p.description)).tagline}</p>
+                <div className="grid gap-4">
+                  <span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-night-2 text-green">
+                    <Icon name={tile.icon} size={20} />
+                  </span>
+                  <div className="grid gap-1.5">
+                    <p className="flex items-baseline gap-2 font-display text-[26px] leading-none font-semibold tracking-[-0.03em]">
+                      {tile.label}
+                      <span className="num text-[14px] font-medium text-ink-3">{tile.count}</span>
+                    </p>
+                    <p className="text-[15px] text-ink-2">{tile.names.join(', ')}{tile.count > tile.names.length ? ' and more' : ''}</p>
+                  </div>
                 </div>
                 <p className="flex items-end justify-between gap-3">
                   <span>
-                    <span className="text-[14px] text-ink-3">from</span>
-                    <br />
-                    <span className="big text-[34px]">{eur(p.minPrice)}</span>
-                    <span className="text-ink-3"> /month</span>
+                    <span className="text-[13px] text-ink-3">from </span>
+                    <span className="big text-[28px]">{eur(tile.from)}</span>
+                    <span className="text-[13px] text-ink-3"> /month</span>
                   </span>
-                  <span aria-hidden="true" className="grid size-11 place-items-center rounded-full bg-ink text-paper transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
+                  <Icon name="arrow" size={14} className="mb-1.5 text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-ink" />
                 </p>
               </Link>
             </li>
@@ -205,13 +216,13 @@ function Dashboard() {
 }
 
 /** What the platform is used for. The links are the pages that answer it. */
-const USE: [string, string, string][] = [
-  ['Discord bots', 'Always online, with variables for your token and a container you can grow.', '/apps/discord-bot'],
-  ['Web apps and APIs', 'Node.js services with files, a console and startup variables.', '/docs/first-app'],
-  ['Databases', 'PostgreSQL databases that belong to your instance, with their own credentials.', '/apps/postgresql'],
-  ['Developer tools', 'A workspace in the browser, sized for the way you build.', '/apps/code-server'],
-  ['Long-running jobs', 'A container that stays up while you work, with the files it needs.', '/docs/first-app'],
-  ['Hostnames', 'Point a hostname at an instance and prove that it is yours.', '/docs/domains'],
+const USE: [string, string, string, IconName][] = [
+  ['Discord bots', 'Always online, with variables for your token and a container you can grow.', '/apps/discord-bot', 'bot'],
+  ['Web apps and APIs', 'Node.js services with files, a console and startup variables.', '/docs/first-app', 'rocket'],
+  ['Databases', 'PostgreSQL databases that belong to your instance, with their own credentials.', '/apps/postgresql', 'db'],
+  ['Developer tools', 'A workspace in the browser, sized for the way you build.', '/apps/code-server', 'code'],
+  ['Long-running jobs', 'A container that stays up while you work, with the files it needs.', '/docs/first-app', 'term'],
+  ['Hostnames', 'Point a hostname at an instance and prove that it is yours.', '/docs/domains', 'globe'],
 ];
 
 function UseCases() {
@@ -220,18 +231,21 @@ function UseCases() {
       <Wrap className="py-20 sm:py-28">
         <h2 id="use-h" className="max-w-[13em] text-[clamp(36px,5.4vw,68px)] leading-[0.98] font-semibold tracking-[-0.045em]">If it runs on a panel, it can run here.</h2>
         <ul className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {USE.map(([t, d, to]) => (
+          {USE.map(([t, d, to, icon]) => (
             <li key={t}>
               <Link
                 to={to}
                 className="group grid h-full content-between gap-8 rounded-[28px] border border-line bg-card p-7 transition-colors hover:border-ink/40"
               >
-                <div className="grid gap-3">
+                <div className="grid gap-4">
+                  <span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-night-2 text-green">
+                    <Icon name={icon} size={20} />
+                  </span>
                   <p className="font-display text-[26px] leading-tight font-semibold tracking-[-0.03em]">{t}</p>
                   <p className="text-[16.5px] text-ink-2">{d}</p>
                 </div>
                 <span aria-hidden="true" className="grid size-10 place-items-center rounded-full bg-ink text-paper transition-transform group-hover:translate-x-1">
-                  →
+                  <Icon name="arrow" size={14} />
                 </span>
               </Link>
             </li>
@@ -253,8 +267,8 @@ function Included() {
             <ul className="mt-5 grid gap-3">
               {TODAY.map((t) => (
                 <li key={t} className="flex items-start gap-3 rounded-[24px] bg-paper-2/70 p-4 text-[16.5px] text-ink-2">
-                  <span aria-hidden="true" className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-green text-[13px] text-paper">
-                    ✓
+                  <span aria-hidden="true" className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-green text-paper">
+                    <Icon name="check" size={11} />
                   </span>
                   {t}
                 </li>
@@ -266,8 +280,8 @@ function Included() {
             <ul className="mt-5 grid gap-3">
               {NOT_YET.map((t) => (
                 <li key={t} className="flex items-start gap-3 rounded-[24px] bg-paper-2/70 p-4 text-[16.5px] text-ink-3">
-                  <span aria-hidden="true" className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-line text-[13px] text-ink-3">
-                    –
+                  <span aria-hidden="true" className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-line text-ink-3">
+                    <Icon name="minus" size={10} />
                   </span>
                   {t}
                 </li>
@@ -295,8 +309,8 @@ function Faq() {
             <details key={f.q} className="group py-1">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 font-display text-[20px] font-semibold tracking-[-0.02em] [&::-webkit-details-marker]:hidden">
                 {f.q}
-                <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full border border-line text-[18px] transition-transform group-open:rotate-45">
-                  +
+                <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full border border-line transition-transform group-open:rotate-45">
+                  <Icon name="plus" size={12} />
                 </span>
               </summary>
               <p className="max-w-[40em] pr-10 pb-6 text-[17px] text-ink-2">{f.a}</p>
@@ -310,8 +324,9 @@ function Faq() {
 
 function Closing() {
   return (
-    <section aria-labelledby="cta-h" className="on-night m-2 rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[40px]">
-      <Wrap className="grid justify-items-start gap-8 py-20 sm:py-28">
+    <section aria-labelledby="cta-h" className="on-night relative m-2 overflow-hidden rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[40px]">
+      <BlipField className="absolute inset-y-0 right-0 hidden h-full w-[46%] md:block" />
+      <Wrap className="relative grid justify-items-start gap-8 py-20 sm:py-28">
         <h2 id="cta-h" className="max-w-[12em] text-[clamp(40px,6.4vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]">Size it. Order it. Put your code in.</h2>
         <p className="max-w-[30em] text-[18px] text-snow-2">Create an account, move the sliders until the price and the specs fit, and deploy a container that is yours.</p>
         <div className="flex flex-wrap gap-3">

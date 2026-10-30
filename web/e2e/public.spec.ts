@@ -125,7 +125,7 @@ test.describe('the catalog of the apps', () => {
     await page.goto('/apps');
     const filters = page.getByRole('navigation', { name: 'Filter apps by category' });
     const games = filters.getByRole('button', { name: /^Games\s+\d+$/ });
-    const all = filters.getByRole('button', { name: /^All apps\s+\d+$/ });
+    const all = filters.getByRole('button', { name: /^All\s+\d+$/ });
 
     await expect(games).toHaveAttribute('aria-pressed', 'false');
     await games.click();

@@ -1,4 +1,5 @@
-import { useId, useRef, useState, type CSSProperties } from 'react';
+import { useId, useState, type CSSProperties } from 'react';
+import { AppPicker } from './AppPicker';
 import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtDisk, fmtRam, type Rates, type Resources } from './pricing';
 import { Btn, cx } from './ui';
@@ -85,7 +86,6 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
   // The name of the radio group. It is read before the page decides that it
   // has no product to show, so the hooks are always called in the same order.
   const name = useId();
-  const choicesRef = useRef<HTMLDetailsElement>(null);
 
   if (!current) return null;
 
@@ -99,7 +99,6 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
   const pick = (productSlug: string) => {
     setSelected(productSlug);
     setResources(null);
-    choicesRef.current?.removeAttribute('open');
   };
   const choiceSelected = (productSlug: string) => productSlug.startsWith('minecraft-') ? current.slug.startsWith('minecraft-') : current.slug === productSlug;
   const set = (key: keyof Resources) => (value: number) => setResources({ ...resources, [key]: value });
@@ -127,29 +126,11 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
       ) : (
         <fieldset className="grid gap-3">
           <legend className="font-display text-[26px] leading-tight font-semibold tracking-[-0.03em]">What are you running?</legend>
-          <details ref={choicesRef} className="group rounded-2xl border border-night-line bg-night-2">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[15px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0 truncate">{current.slug.startsWith('minecraft-') ? 'Minecraft' : current.name}</span>
-              <span className="flex shrink-0 items-center gap-2 text-[12px] font-medium text-snow-2">
-                Change app <span aria-hidden="true" className="transition-transform group-open:rotate-180">⌄</span>
-              </span>
-            </summary>
-            <div className="max-h-60 overflow-y-auto overscroll-contain border-t border-night-line p-2" role="radiogroup" aria-label="Choose an app">
-              {choices.map((product) => (
-                <label
-                  key={product.slug}
-                  className={cx(
-                    'flex min-h-11 cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-[14px] font-medium transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-mint',
-                    choiceSelected(product.slug) ? 'bg-mint text-night' : 'text-snow hover:bg-night-3',
-                  )}
-                >
-                  <span>{product.slug.startsWith('minecraft-') ? 'Minecraft' : product.name}</span>
-                  {choiceSelected(product.slug) && <span aria-hidden="true">✓</span>}
-                  <input type="radio" name={name} className="sr-only" checked={choiceSelected(product.slug)} onChange={() => pick(product.slug)} />
-                </label>
-              ))}
-            </div>
-          </details>
+          <AppPicker
+            options={choices.map((product) => ({ slug: product.slug, label: product.slug.startsWith('minecraft-') ? 'Minecraft' : product.name, product }))}
+            selected={choiceSelected(current.slug) && current.slug.startsWith('minecraft-') ? minecraft?.slug ?? current.slug : current.slug}
+            onPick={pick}
+          />
         </fieldset>
       )}
       {!lock && current.slug.startsWith('minecraft-') && (

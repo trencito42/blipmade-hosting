@@ -110,14 +110,18 @@ export default function Tickets() {
         description="Every conversation with Blipmade support, newest activity first."
         actionBelow
         action={
-          <PrimaryButton
-            ref={newTicketButton}
-            onClick={() => setCreating(true)}
-            aria-expanded={creating}
-            aria-controls="new-ticket-form"
-          >
-            New ticket
-          </PrimaryButton>
+          // With no tickets the empty state carries the one action, so the
+          // page never offers two buttons for the same thing.
+          rows.length ? (
+            <PrimaryButton
+              ref={newTicketButton}
+              onClick={() => setCreating(true)}
+              aria-expanded={creating}
+              aria-controls="new-ticket-form"
+            >
+              New ticket
+            </PrimaryButton>
+          ) : undefined
         }
       >
         {tickets.loading ? (

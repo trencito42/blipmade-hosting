@@ -1,5 +1,8 @@
-import { useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { Link } from '../router';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { Icon } from '../icons';
+import { Link, useRouter } from '../router';
+import { useProducts } from './catalog';
+import { CATEGORIES } from './categories';
 import { LEGAL_PAGE_LIST } from '../legal/links';
 import { useSession } from '../session';
 import { homeOf } from '../auth-guard';
@@ -116,7 +119,7 @@ export function Crumbs({ items }: { items: [string, string][] }) {
     <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-ink-3">
       {items.map(([label, to], index) => (
         <span key={to} className="flex items-center gap-2">
-          {index > 0 && <span aria-hidden="true">/</span>}
+          {index > 0 && <Icon name="chevronDown" size={10} className="-rotate-90 text-ink-3" />}
           {index === items.length - 1 ? (
             <span aria-current="page" className="text-ink-2">{label}</span>
           ) : (
@@ -128,25 +131,115 @@ export function Crumbs({ items }: { items: [string, string][] }) {
   );
 }
 
-const NAV = [['Apps', '/apps'], ['Pricing', '/#pricing'], ['Docs', '/docs']] as const;
+const NAV_LINK = 'inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[14.5px] font-medium transition-colors duration-150';
+
+/** The categories of the catalog with the number of products each holds, for the menu. */
+function useCategoryCounts() {
+  const products = useProducts();
+  return CATEGORIES.map((category) => ({ ...category, count: products.filter((product) => product.category === category.id).length })).filter((category) => category.count > 0);
+}
+
+/**
+ * The menu of the catalog.
+ *
+ * A panel under the button names every category with its icon and the number
+ * of products it holds, so a visitor goes straight to games or databases
+ * instead of to one list of everything. The panel is in the page even when it
+ * is closed, so a crawler reads the links.
+ */
+function CatalogMenu({ active }: { active: boolean }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const categories = useCategoryCounts();
+  const router = useRouter();
+
+  // A navigation closes the panel.
+  useEffect(() => setOpen(false), [router.path, router.search]);
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: MouseEvent) => {
+      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        button.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('mousedown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={root} className="relative">
+      <button
+        ref={button}
+        type="button"
+        aria-expanded={open}
+        aria-controls="catalog-menu"
+        onClick={() => setOpen(!open)}
+        className={cx(NAV_LINK, active || open ? 'bg-night-3 text-ink' : 'text-ink-2 hover:text-ink')}
+      >
+        Catalog
+        <Icon name="chevronDown" size={11} className={cx('transition-transform duration-200', open && 'rotate-180')} />
+      </button>
+      <div
+        id="catalog-menu"
+        hidden={!open}
+        className="absolute top-full left-0 z-40 mt-3 w-[640px] rounded-[28px] border border-line bg-card p-3 shadow-[0_32px_64px_-20px_rgba(0,0,0,0.8)]"
+      >
+        <ul className="grid grid-cols-2 gap-1">
+          {categories.map((category) => (
+            <li key={category.id}>
+              <Link to={`/apps#${category.slug}`} className="group flex items-center gap-3.5 rounded-[20px] p-3 transition-colors hover:bg-night-2">
+                <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-night-3 text-mint">
+                  <Icon name={category.icon} size={18} />
+                </span>
+                <span className="grid min-w-0">
+                  <span className="flex items-baseline gap-2 text-[15.5px] font-semibold text-ink">
+                    {category.label}
+                    <span className="num text-[12.5px] font-medium text-ink-3">{category.count}</span>
+                  </span>
+                  <span className="truncate text-[13.5px] text-ink-3">{category.blurb}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <Link to="/apps" className="mt-2 flex items-center justify-between gap-3 rounded-[20px] bg-night-2 px-5 py-3.5 text-[15px] font-semibold text-ink transition-colors hover:bg-night-3">
+          Browse the whole catalog
+          <Icon name="arrow" size={14} className="text-mint" />
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 /** The bar of the site. It is sticky and it holds the name, the pages and the two actions. */
 export function Nav() {
   const [open, setOpen] = useState(false);
+  const { path } = useRouter();
+  const categories = useCategoryCounts();
   // A customer who is already signed in is sent to the dashboard, not to a
   // form they do not need.
   const { user } = useSession();
   const dashboard = user ? homeOf(user.role) : null;
+  const here = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
+  const plain = (active: boolean) => cx(NAV_LINK, active ? 'bg-night-3 text-ink' : 'text-ink-2 hover:text-ink');
   return (
     <header className="sticky top-0 z-30 border-b border-line/70 bg-paper/85 backdrop-blur-md">
       <Wrap className="flex h-[68px] items-center gap-6">
         <Logo />
-        <nav aria-label="Main" className="ml-6 hidden items-center gap-1 md:flex">
-          {NAV.map(([label, to]) => (
-            <Link key={label} to={to} className="rounded-full px-4 py-2 text-[15px] font-medium text-ink-2 transition-colors duration-150 hover:bg-ink/5 hover:text-ink">
-              {label}
-            </Link>
-          ))}
+        <nav aria-label="Main" className="ml-4 hidden items-center gap-1 rounded-full border border-line bg-card/70 p-1 md:flex">
+          <CatalogMenu active={here('/apps')} />
+          <Link to="/#pricing" className={plain(false)}>Pricing</Link>
+          <Link to="/docs" className={plain(here('/docs'))}>Docs</Link>
         </nav>
         <div className="ml-auto hidden items-center gap-2 md:flex">
           {dashboard ? (
@@ -168,17 +261,27 @@ export function Nav() {
           aria-label={open ? 'Close menu' : 'Open menu'}
           onClick={() => setOpen(!open)}
         >
-          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-            <path d={open ? 'M5 5l12 12M17 5L5 17' : 'M3 7h16M3 15h16'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-          </svg>
+          <Icon name={open ? 'close' : 'menu'} size={20} />
         </button>
       </Wrap>
       {open ? (
-        <nav id="mobile-nav" aria-label="Mobile" className="border-t border-line/70 bg-paper md:hidden">
+        <nav id="mobile-nav" aria-label="Mobile" className="max-h-[calc(100dvh-68px)] overflow-y-auto border-t border-line/70 bg-paper md:hidden">
           <Wrap className="grid gap-1 py-4">
-            {NAV.map(([label, to]) => (
-              <Link key={label} to={to} onClick={() => setOpen(false)} className="rounded-2xl px-4 py-3 font-display text-[22px] font-semibold tracking-tight hover:bg-ink/5">
+            <p className="px-4 pt-2 pb-1 text-[13px] font-semibold text-ink-3">Catalog</p>
+            <ul className="grid grid-cols-2 gap-2 pb-2">
+              {categories.map((category) => (
+                <li key={category.id}>
+                  <Link to={`/apps#${category.slug}`} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 text-[15px] font-semibold">
+                    <Icon name={category.icon} size={16} className="shrink-0 text-mint" />
+                    <span className="truncate">{category.label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {([['Pricing', '/#pricing'], ['Docs', '/docs'], ['Everything in the catalog', '/apps']] as const).map(([label, to]) => (
+              <Link key={label} to={to} onClick={() => setOpen(false)} className="flex items-center justify-between rounded-2xl px-4 py-3 font-display text-[22px] font-semibold tracking-tight hover:bg-ink/5">
                 {label}
+                <Icon name="arrow" size={16} className="text-ink-3" />
               </Link>
             ))}
             <div className="mt-2 grid grid-cols-2 gap-3">
@@ -215,7 +318,7 @@ export function Footer() {
         </div>
         <nav aria-label="Product" className={col}>
           <h2 className="font-display text-[17px] font-semibold">Product</h2>
-          <Link to="/apps" className={a}>Apps</Link>
+          <Link to="/apps" className={a}>Catalog</Link>
           <Link to="/#pricing" className={a}>Pricing</Link>
           <Link to="/docs" className={a}>Documentation</Link>
           <Link to="/docs/status" className={a}>Status and incidents</Link>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Icon } from '../icons';
 import { Link } from '../router';
 import { articleById, articles, docGroups, type Article } from './data';
 import { isOrderable, productBySlug } from './catalog';
@@ -118,9 +119,7 @@ export function DocsIndex() {
                           className="flex items-baseline justify-between gap-4 rounded-[14px] px-3 py-2 text-[16px] text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink"
                         >
                           <span>{article.title}</span>
-                          <span aria-hidden="true" className="text-ink-3">
-                            →
-                          </span>
+                          <Icon name="arrow" size={13} className="shrink-0 text-ink-3" />
                         </Link>
                       </li>
                     ))}

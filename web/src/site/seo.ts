@@ -146,10 +146,10 @@ export function metaFor(path: string): Meta {
     const coming = products.length - orderable.length;
     return {
       ...base,
-      title: `The catalogue: ${products.length} apps, one price card | Blipmade`,
-      description: `${orderable.length} apps can be deployed today and ${coming} more are coming soon. One card of rates for every app, from ${eur(fromPrice)} a month.`,
+      title: `Catalog: games, databases and tools | Blipmade`,
+      description: `${orderable.length} services can be deployed today and ${coming} more are coming soon. One card of rates for every game, database and tool, from ${eur(fromPrice)} a month.`,
       jsonld: [
-        crumbs([['Home', '/'], ['Apps', '/apps']]),
+        crumbs([['Home', '/'], ['Catalog', '/apps']]),
         {
           '@context': 'https://schema.org',
           '@type': 'ItemList',
@@ -175,7 +175,7 @@ export function metaFor(path: string): Meta {
         title: open ? `${product.name} hosting from ${eur(product.minPrice)} a month | Blipmade` : `${product.name} hosting: coming soon | Blipmade`,
         description: cut(open ? `${copy?.tagline ?? product.description} ${copy?.lead ?? ''}`.trim() : `${product.description} ${reason}`, 158),
         jsonld: [
-          crumbs([['Home', '/'], ['Apps', '/apps'], [product.name, `/apps/${product.slug}`]]),
+          crumbs([['Home', '/'], ['Catalog', '/apps'], [product.name, `/apps/${product.slug}`]]),
           {
             '@context': 'https://schema.org',
             '@type': 'Product',

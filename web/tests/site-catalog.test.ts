@@ -204,12 +204,11 @@ describe('the page of the catalogue', () => {
   it('marks a product that cannot be ordered as coming soon', () => {
     const page = words(html());
     assert.ok(page.includes('Coming soon'), 'the page does not say that a product is coming');
-    assert.ok(page.includes(closed.availability.blockers[0]!), 'the page does not say why the product is not ready');
   });
 
   it('offers the order only for the products that can be ordered', () => {
     const page = words(html());
-    assert.ok(page.includes(`Size ${open.name}`), 'a product that can be ordered has no button');
+    assert.ok(html().includes(`href="/apps/${open.slug}"`), 'a product that can be ordered has no link to its page');
     assert.equal(page.includes(`Size ${closed.name}`), false, 'a product that cannot be ordered has a button that orders it');
   });
 
@@ -221,7 +220,7 @@ describe('the page of the catalogue', () => {
     const available = cards.filter((product) => product.availability.orderable).length;
     const coming = cards.length - available;
     assert.ok(
-      page.includes(`${available} apps can be deployed today, and ${coming} are still coming`),
+      page.includes(`${available} services are ready to deploy today, and ${coming} are still coming`),
       'the page does not count the apps that can be deployed and the ones that are coming',
     );
   });

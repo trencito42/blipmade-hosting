@@ -7,6 +7,7 @@ import { useSession } from '../session';
 import { Link, useRouter } from '../router';
 import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtRam } from './pricing';
+import { Icon } from '../icons';
 import { Btn, Logo, cx } from './ui';
 
 /**
@@ -105,7 +106,7 @@ function Rules({ pw }: { pw: string }) {
         const ok = rule.ok(pw);
         return (
           <li key={rule.label} className={cx('flex items-center gap-2', ok ? 'text-green' : 'text-ink-3')}>
-            <span aria-hidden="true">{ok ? '✓' : '○'}</span>
+            <Icon name={ok ? 'check' : 'circle'} size={12} className="w-3 shrink-0" />
             <span>
               <span className="sr-only">{ok ? 'Met: ' : 'Not met: '}</span>
               {rule.label}

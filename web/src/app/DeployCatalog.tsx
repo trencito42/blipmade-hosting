@@ -71,7 +71,7 @@ function ProductCard({ product }: { product: CatalogProduct }) {
   const price = product.price;
 
   return (
-    <li className="flex flex-col gap-3 rounded-2xl bg-s1 p-4 sm:p-5">
+    <li className={`flex flex-col gap-3 rounded-2xl bg-s1 p-4 ${state.deployable ? '' : 'opacity-70'}`}>
       <div className="flex flex-wrap items-start gap-3">
         <AppMark icon={productIcon(product.icon)} size={44} />
         <div className="w-0 min-w-0 flex-1">
@@ -80,31 +80,9 @@ function ProductCard({ product }: { product: CatalogProduct }) {
             {categoryLabel(product.category)}
           </p>
         </div>
-        {/* The state of the product gets a line of its own on a phone, so the
-            name is not cut to make room for the badge. */}
-        {!state.deployable && (
-          <div className="w-full shrink-0 self-start sm:w-auto">
-            <StatusPill status="unavailable" label={state.label} />
-          </div>
-        )}
       </div>
 
-      <p className="text-[13.5px] leading-relaxed text-ink2">{product.description}</p>
-
-      <dl className="grid grid-cols-3 gap-2 rounded-2xl bg-s2 p-3">
-        <div>
-          <dt className="text-[11.5px] uppercase tracking-[0.06em] text-ink3">Memory</dt>
-          <dd className="mt-0.5 font-mono text-[13px] text-ink">{memLabel(product.minRam)}</dd>
-        </div>
-        <div>
-          <dt className="text-[11.5px] uppercase tracking-[0.06em] text-ink3">vCPU</dt>
-          <dd className="mt-0.5 font-mono text-[13px] text-ink">{product.minCpu}</dd>
-        </div>
-        <div>
-          <dt className="text-[11.5px] uppercase tracking-[0.06em] text-ink3">Disk</dt>
-          <dd className="mt-0.5 font-mono text-[13px] text-ink">{product.minDisk} GB</dd>
-        </div>
-      </dl>
+      <p className="line-clamp-2 text-[13.5px] leading-relaxed text-ink2">{product.description}</p>
 
       {/* On a phone the price and the action are two rows: the price is never
           squeezed into a narrow column and the button is a full-width target. */}
@@ -116,9 +94,8 @@ function ProductCard({ product }: { product: CatalogProduct }) {
                 {formatPrice(amount, price.currency)}
                 <span className="text-[13px] font-normal text-ink3"> {periodSuffix(price.period)}</span>
               </p>
-              <p className="text-[12px] leading-relaxed text-ink3">
-                Starting price, for the smallest configuration: {memLabel(product.minRam)} · {product.minCpu} vCPU · {product.minDisk} GB.
-                You choose the resources on the next screen.
+              <p className="text-[12px] text-ink3">
+                from {memLabel(product.minRam)} · {product.minCpu} vCPU · {product.minDisk} GB
               </p>
             </>
           ) : (
@@ -131,14 +108,11 @@ function ProductCard({ product }: { product: CatalogProduct }) {
             <Icon name="arrowUR" size={15} />
           </ButtonLink>
         ) : (
-          <SoftButton disabled className="w-full sm:w-auto">
-            {state.label}
-          </SoftButton>
+          <StatusPill status="unavailable" label={state.label} />
         )}
       </div>
 
-      {!state.deployable && <p className="text-[12.5px] leading-relaxed text-ink3">{state.reason}</p>}
-    </li>
+          </li>
   );
 }
 
@@ -164,7 +138,7 @@ export default function DeployCatalog() {
         product.name.toLowerCase().includes(needle) ||
         product.description.toLowerCase().includes(needle);
       return matchesCategory && matchesQuery;
-    });
+    }).sort((left, right) => Number(isOrderable(right)) - Number(isOrderable(left)));
   }, [products, query, category]);
 
   const deployableCount = useMemo(
@@ -238,7 +212,7 @@ export default function DeployCatalog() {
           }
         />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
