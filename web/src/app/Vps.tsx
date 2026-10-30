@@ -21,6 +21,7 @@ import {
   ErrorState,
   LoadingBlock,
   Money,
+  Select,
   Panel,
   PrimaryButton,
   SoftButton,
@@ -490,6 +491,9 @@ const VPS_TABS = [
   { id: 'settings', label: 'Settings' },
 ] as const;
 
+/** A readable name for an image file: AlmaLinux-9.8-x86_64-minimal.iso becomes AlmaLinux 9.8 minimal. */
+const isoName = (file: string): string => file.replace(/\.iso$/i, '').replace(/[-_]x86_64|[-_]amd64/g, '').replace(/[-_]/g, ' ');
+
 const bytesLabel = (n: number): string => {
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
   if (n < 1024 ** 3) return `${Math.round(n / 1024 ** 2)} MB`;
@@ -640,15 +644,12 @@ function IsoPanel({ id, onChanged }: { id: string; onChanged: () => void }) {
             </div>
           )}
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">
-              Image
-              <select value={file} onChange={(event) => setFile(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink">
-                <option value="">Choose an image</option>
-                {data.isos.map((iso) => (
-                  <option key={iso.file} value={iso.file}>{iso.file} ({Math.round(iso.size / 1024 / 1024)} MB)</option>
-                ))}
-              </select>
-            </label>
+            <Select label="Image" value={file} onChange={(event) => setFile(event.target.value)}>
+              <option value="">Choose an image</option>
+              {data.isos.map((iso) => (
+                <option key={iso.file} value={iso.file}>{isoName(iso.file)} · {memLabel(Math.round(iso.size / 1024 / 1024))}</option>
+              ))}
+            </Select>
             <SoftButton onClick={() => void act.run(() => put(path, { file }), 'The image is mounted. Restart the server to boot from it.')} disabled={act.pending || !file}>Mount</SoftButton>
           </div>
         </div>
@@ -736,14 +737,11 @@ function ManagePanel({ server, onChanged, section }: { server: VpsServerView; on
             <p className="text-[14px] text-ink2">
               Reinstalling builds the server again from a clean image of the system you choose. <strong className="text-ink">Everything on its disk is deleted.</strong> The address, the plan and the subscription stay.
             </p>
-            <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">
-              Operating system
-              <select value={image} onChange={(event) => setImage(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink">
-                {(images.data?.images ?? [{ slug: image, label: server.image?.label ?? 'Debian 13' }]).map((entry) => (
-                  <option key={entry.slug} value={entry.slug}>{entry.label}</option>
-                ))}
-              </select>
-            </label>
+            <Select label="Operating system" value={image} onChange={(event) => setImage(event.target.value)}>
+              {(images.data?.images ?? [{ slug: image, label: server.image?.label ?? 'Debian 13' }]).map((entry) => (
+                <option key={entry.slug} value={entry.slug}>{entry.label}</option>
+              ))}
+            </Select>
             <TextArea
               label="New SSH public key (optional)"
               value={reinstallKey}
