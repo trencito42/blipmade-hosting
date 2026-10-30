@@ -81,6 +81,16 @@ export const ICONS = {
   mail: { name: "envelope" },
   bell: { name: "bell" },
   heart: { name: "heart-pulse" },
+  pen: { name: "pen" },
+  cut: { name: "scissors" },
+  clone: { name: "clone" },
+  paste: { name: "paste" },
+  trash: { name: "trash" },
+  folderPlus: { name: "folder-plus" },
+  refresh: { name: "arrows-rotate" },
+  ellipsis: { name: "ellipsis" },
+  archive: { name: "box-archive" },
+  info: { name: "circle-info" },
 } as const satisfies Record<string, IconSpec>;
 
 /** The names of the icons of the interface. */

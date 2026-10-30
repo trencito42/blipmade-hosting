@@ -159,6 +159,10 @@ export async function deleteFile(token: string, instance: OwnedInstance, path: s
   return call(instance, token, (t) => client.deleteFile(t, serverUuid(instance), path));
 }
 
+export async function createFolder(token: string, instance: OwnedInstance, path: string) {
+  return call(instance, token, (t) => client.createFolder(t, serverUuid(instance), path));
+}
+
 export async function renameFile(token: string, instance: OwnedInstance, path: string, to: string) {
   return call(instance, token, (t) => client.renameFile(t, serverUuid(instance), path, to));
 }

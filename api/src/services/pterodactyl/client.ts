@@ -500,6 +500,20 @@ function parentAndName(path: string): { root: string; name: string } {
 // --- files ----------------------------------------------------------------
 
 /**
+ * Creates a folder.
+ *
+ * The panel takes the folder to create it in under "root" and the name of the
+ * new folder under "name".
+ */
+export function createFolder(token: string, uuid: string, path: string) {
+  const { root, name } = parentAndName(path);
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/create-folder`, {
+    token,
+    body: { root, name },
+  });
+}
+
+/**
  * Renames a file or a folder inside the same folder.
  *
  * The panel expects the folder under the name "root" and the names of the
@@ -536,17 +550,24 @@ function absolutePath(path: string): string {
 }
 
 /**
- * Copies a file to another place.
+ * Copies a file or a folder to another place.
  *
- * The panel copies a file next to itself and calls the copy "<name> copy",
- * so the copy is moved to the place the customer asked for afterwards.
+ * The panel copies next to the original and picks the name of the copy itself
+ * ("<name> copy", then "<name> copy 2"). The folder is listed before and after,
+ * so the copy is found by what is new in it and it is moved to the place the
+ * customer asked for afterwards.
  */
 export async function copyFile(token: string, uuid: string, path: string, to: string) {
+  const { root } = parentAndName(absolutePath(path));
+  const before = new Set((await listFiles(token, uuid, root)).map((entry) => entry.name));
   await clientRequest<void>('POST', `/api/client/servers/${uuid}/files/copy`, {
     token,
     body: { location: absolutePath(path) },
   });
-  await moveFile(token, uuid, copyName(path), to);
+  const created = (await listFiles(token, uuid, root)).map((entry) => entry.name).filter((name) => !before.has(name));
+  const name = created.length === 1 ? created[0] : (copyName(path).split('/').pop() ?? '');
+  const copied = `${root === '/' ? '' : root}/${name}`;
+  if (absolutePath(copied) !== absolutePath(to)) await moveFile(token, uuid, copied, to);
 }
 
 /** The name the panel gives to the copy of a file. */

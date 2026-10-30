@@ -248,6 +248,23 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return reply.code(204).send();
   });
 
+  /** Creates a folder. */
+  app.post('/instances/:id/files/folder', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const body = z.object({ path: filePath }).parse(request.body);
+    return withInstance(request, async (token, instance) => {
+      try {
+        await operations.createFolder(token, instance, body.path);
+      } catch (error) {
+        return translatePanelError(error);
+      }
+      await note(instance.id, 'files', `Created the folder ${body.path}.`);
+      return { created: true };
+    });
+  });
+
   /** Renames a file or a folder inside the same folder. */
   app.post('/instances/:id/files/rename', {
     config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },

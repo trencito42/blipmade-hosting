@@ -266,6 +266,9 @@ export const writeFile = (id: string, path: string, content: string) =>
 export const deleteFile = (id: string, path: string) =>
   api<void>(`/instances/${id}/file`, { method: 'DELETE', query: { path } });
 
+export const createFolder = (id: string, path: string) =>
+  post<{ created: boolean }>(`/instances/${id}/files/folder`, { path });
+
 export const renameFile = (id: string, path: string, to: string) =>
   post<{ renamed: boolean }>(`/instances/${id}/files/rename`, { path, to });
 
