@@ -12,7 +12,7 @@ import { answers } from './console-fixtures.mjs';
 
 const BASE = process.argv[2] ?? 'http://localhost:4174';
 const OUT = process.argv[3] ?? '/tmp/console-shots';
-const ROUTES = ['/app', '/app/deploy', '/app/instances', '/app/vps', '/app/domains', '/app/mail', '/app/billing', '/app/tickets', '/app/settings', '/app/notifications'];
+const ROUTES = ['/app', '/app/deploy', '/app/instances', '/app/vps', '/app/instances/i1', '/app/vps/v1', '/app/domains', '/app/mail', '/app/billing', '/app/tickets', '/app/settings', '/app/notifications'];
 const SIZES = [[320, 700], [390, 844], [768, 1024], [1280, 800], [1920, 1000]];
 const SCREENSHOT_SIZES = new Set([390, 1280]);
 const KINDS = (process.env.KINDS ?? 'full,new,down').split(',');

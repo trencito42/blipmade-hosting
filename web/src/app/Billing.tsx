@@ -580,8 +580,8 @@ export default function Billing() {
         ) : (
           <div className="grid gap-2">
             {subscriptions.map((subscription) => (
-              <div key={subscription.id} className="rounded-2xl bg-s2 p-3.5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <div key={subscription.id} className="rounded-2xl bg-s2 p-3.5 sm:flex sm:items-center sm:gap-4">
+                <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
                   {/* The name keeps its room. On a phone the status and the
                       amount move to the next line instead of cutting the name
                       to a few letters. */}
@@ -605,7 +605,7 @@ export default function Billing() {
                     </span>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 sm:justify-end">
+                <div className="mt-3 flex flex-wrap gap-2 sm:mt-0 sm:shrink-0 sm:justify-end">
                   {subscriptionAction(subscription) === 'resume' ? (
                     <SoftButton
                       onClick={() => {

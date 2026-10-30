@@ -120,6 +120,29 @@ export async function vmStatus(vmid: number): Promise<{ status: string; uptime: 
   return request('GET', `/nodes/${node()}/qemu/${vmid}/status/current`);
 }
 
+export interface VmMetrics {
+  status: string;
+  uptime: number;
+  cpu: number;
+  cpus: number;
+  mem: number;
+  maxmem: number;
+  netin: number;
+  netout: number;
+  diskread: number;
+  diskwrite: number;
+}
+
+/** What the machine is using right now. */
+export async function vmMetrics(vmid: number): Promise<VmMetrics> {
+  return request('GET', `/nodes/${node()}/qemu/${vmid}/status/current`);
+}
+
+/** Makes Proxmox write the cloud-init drive again, so a changed key or name reaches the machine at the next start. */
+export async function regenerateCloudInit(vmid: number): Promise<void> {
+  await request('PUT', `/nodes/${node()}/qemu/${vmid}/cloudinit`);
+}
+
 export async function deleteVm(vmid: number): Promise<void> {
   const upid = await request<string>('DELETE', `/nodes/${node()}/qemu/${vmid}?purge=1&destroy-unreferenced-disks=1`);
   await waitForTask(upid, 300_000);

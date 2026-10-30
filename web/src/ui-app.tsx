@@ -435,7 +435,7 @@ export function Panel({
         <div
           className={cn(
             'mb-4 flex gap-3',
-            actionBelow ? 'flex-col items-stretch sm:flex-row sm:items-start' : 'items-start justify-between',
+            actionBelow ? 'flex-col items-stretch sm:flex-row sm:items-start sm:justify-between' : 'items-start justify-between',
           )}
         >
           <div className="min-w-0">

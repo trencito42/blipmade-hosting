@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { get, post, type Order, type VpsPlanView, type VpsServerView } from '../lib/api';
+import { get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel } from '../lib/pricing';
 import { Link, useParams } from '../router';
@@ -15,6 +15,8 @@ import { Icon } from '../icons';
 import { Eyebrow, Footer, Nav, Wrap } from '../site/ui';
 import {
   ButtonLink,
+  ConfirmDialog,
+  DangerButton,
   EmptyState,
   ErrorState,
   LoadingBlock,
@@ -389,8 +391,13 @@ export function VpsDetail() {
   const status = statusOf(server);
   return (
     <div className="grid gap-4">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[13px] text-ink3">
+        <Link to="/app/vps" className="rounded hover:text-ink focus-visible:outline-2 focus-visible:outline-acc">Servers</Link>
+        <span aria-hidden="true">/</span>
+        <span className="font-semibold text-ink" aria-current="page">{server.name}</span>
+      </nav>
       <Panel title={server.name} description={`${server.plan.name} · Debian 13`} action={<StatusPill status={status.tone} label={status.label} />}>
-        <dl className="grid gap-2 sm:grid-cols-3">
+        <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-3">
           <Spec label="vCPU" value={server.cpu} />
           <Spec label="Memory" value={memLabel(server.ram)} />
           <Spec label="Disk" value={`${server.disk} GB`} />
@@ -424,7 +431,164 @@ export function VpsDetail() {
           </div>
         )}
       </Panel>
+
+      {server.status === 'active' && server.power === 'running' && <UsagePanel id={server.id} />}
+      {server.status === 'active' && <ManagePanel server={server} onChanged={state.reload} />}
     </div>
+  );
+}
+
+const bytesLabel = (n: number): string => {
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  if (n < 1024 ** 3) return `${Math.round(n / 1024 ** 2)} MB`;
+  return `${Math.round((n / 1024 ** 3) * 10) / 10} GB`;
+};
+
+const uptimeLabel = (seconds: number): string => {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return d > 0 ? `${d} d ${h} h` : h > 0 ? `${h} h ${m} min` : `${m} min`;
+};
+
+/** What the server uses right now. It asks the hypervisor every ten seconds and shows nothing it did not hear. */
+function UsagePanel({ id }: { id: string }) {
+  const state = useAsync<{ usage: VpsUsageView }>((signal) => get<{ usage: VpsUsageView }>(`/vps/${encodeURIComponent(id)}/usage`, undefined, signal), [id]);
+  useEffect(() => {
+    const timer = window.setInterval(state.reload, 10_000);
+    return () => window.clearInterval(timer);
+  }, [state.reload]);
+  const usage = state.data?.usage ?? null;
+  return (
+    <Panel title="Usage" description="Read from the hypervisor every ten seconds.">
+      {!usage ? (
+        state.error ? (
+          <ErrorState title="The usage could not be read" message={state.error.message} onRetry={state.reload} />
+        ) : (
+          <LoadingBlock rows={1} label="Reading the usage" />
+        )
+      ) : (
+        <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+          <Spec label="Processor" value={`${usage.cpuPercent}% of ${usage.cpus} vCPU`} />
+          <Spec label="Memory" value={`${bytesLabel(usage.memoryUsed)} of ${bytesLabel(usage.memoryTotal)}`} />
+          <Spec label="Uptime" value={uptimeLabel(usage.uptimeSeconds)} />
+          <Spec label="Network in" value={bytesLabel(usage.networkIn)} />
+          <Spec label="Network out" value={bytesLabel(usage.networkOut)} />
+          <Spec label="Disk written" value={bytesLabel(usage.diskWritten)} />
+        </dl>
+      )}
+    </Panel>
+  );
+}
+
+/** Rename, change the key, reinstall and cancel: the things a customer does to a server that are not power. */
+function ManagePanel({ server, onChanged }: { server: VpsServerView; onChanged: () => void }) {
+  const { push } = useToast();
+  const [name, setName] = useState(server.name);
+  const [key, setKey] = useState('');
+  const [reinstallKey, setReinstallKey] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
+
+  const rename = useAction(async () => {
+    try {
+      await patch(`/vps/${encodeURIComponent(server.id)}`, { name });
+      push('The name was saved.', 'ok');
+      onChanged();
+    } catch (failure) {
+      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    }
+  });
+  const changeKey = useAction(async () => {
+    setKeyError(null);
+    try {
+      await put(`/vps/${encodeURIComponent(server.id)}/ssh-key`, { sshPublicKey: key });
+      push('The key was changed. The server restarts to read it.', 'ok');
+      setKey('');
+      onChanged();
+    } catch (failure) {
+      setKeyError(failure instanceof Error ? failure.message : 'That did not work.');
+    }
+  });
+  const reinstall = useAction(async () => {
+    try {
+      await post(`/vps/${encodeURIComponent(server.id)}/reinstall`, { confirm: true, ...(reinstallKey.trim() ? { sshPublicKey: reinstallKey } : {}) });
+      push('The server is being built again.', 'ok');
+      setConfirming(false);
+      setReinstallKey('');
+      onChanged();
+    } catch (failure) {
+      setConfirming(false);
+      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    }
+  });
+
+  return (
+    <>
+      <Panel title="Settings" description="The name is also the hostname of the server.">
+        <div className="grid gap-5">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <TextInput label="Name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="off" spellCheck={false} />
+            <SoftButton onClick={() => void rename.run()} disabled={rename.pending || name.trim() === '' || name === server.name}>Save name</SoftButton>
+          </div>
+          <div className="grid gap-2">
+            <TextArea
+              label="SSH public key"
+              value={key}
+              onChange={(event) => setKey(event.target.value)}
+              error={keyError ?? undefined}
+              hint="Replaces the key that opens the server. The server restarts once to read it; its data is not touched."
+              rows={3}
+              placeholder="ssh-ed25519 AAAA…"
+              spellCheck={false}
+            />
+            <div>
+              <SoftButton onClick={() => void changeKey.run()} disabled={changeKey.pending || key.trim() === ''}>Change the key</SoftButton>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title="Reinstall and cancel" description="These two cannot be undone.">
+        <div className="grid gap-5">
+          <div className="grid gap-2">
+            <p className="text-[14px] text-ink2">
+              Reinstalling builds the server again from a clean Debian 13. <strong className="text-ink">Everything on its disk is deleted.</strong> The address, the plan and the subscription stay.
+            </p>
+            <TextArea
+              label="New SSH public key (optional)"
+              value={reinstallKey}
+              onChange={(event) => setReinstallKey(event.target.value)}
+              hint="Leave it empty to keep the current key."
+              rows={2}
+              spellCheck={false}
+            />
+            <div>
+              <DangerButton onClick={() => setConfirming(true)} disabled={reinstall.pending}>Reinstall the server</DangerButton>
+            </div>
+          </div>
+          <div className="grid gap-2 border-t border-line pt-4">
+            <p className="text-[14px] text-ink2">
+              To stop paying for this server, cancel its subscription. It keeps running until the end of the paid period.
+            </p>
+            <div>
+              <ButtonLink to="/app/billing" variant="soft">Go to Billing</ButtonLink>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <ConfirmDialog
+        open={confirming}
+        title="Reinstall this server?"
+        description="Everything on its disk is deleted and the server is built again. This cannot be undone."
+        confirmLabel="Reinstall"
+        onConfirm={() => void reinstall.run()}
+        onCancel={() => setConfirming(false)}
+        busy={reinstall.pending}
+        requireText={server.name}
+      />
+    </>
   );
 }
 

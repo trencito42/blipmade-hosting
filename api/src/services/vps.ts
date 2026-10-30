@@ -235,6 +235,78 @@ export async function setVpsPower(userId: string, id: string, action: pve.PowerA
   await pve.power(service.vmid, action);
 }
 
+export interface VpsUsage {
+  power: 'running' | 'stopped';
+  uptimeSeconds: number;
+  cpuPercent: number;
+  cpus: number;
+  memoryUsed: number;
+  memoryTotal: number;
+  networkIn: number;
+  networkOut: number;
+  diskRead: number;
+  diskWritten: number;
+}
+
+/** What the machine uses right now, as Proxmox reports it. Nothing is made up when it cannot be asked. */
+export async function vpsUsage(userId: string, id: string): Promise<VpsUsage> {
+  const service = await ownedVps(userId, id);
+  if (!service.vmid || service.status !== 'ACTIVE') throw badRequest('This server is not running yet.');
+  const m = await pve.vmMetrics(service.vmid);
+  return {
+    power: m.status === 'running' ? 'running' : 'stopped',
+    uptimeSeconds: Math.round(m.uptime ?? 0),
+    cpuPercent: Math.round((m.cpu ?? 0) * 1000) / 10,
+    cpus: m.cpus ?? service.cpu,
+    memoryUsed: m.mem ?? 0,
+    memoryTotal: m.maxmem ?? service.ram * 1024 * 1024,
+    networkIn: m.netin ?? 0,
+    networkOut: m.netout ?? 0,
+    diskRead: m.diskread ?? 0,
+    diskWritten: m.diskwrite ?? 0,
+  };
+}
+
+export async function renameVps(userId: string, id: string, rawName: string): Promise<void> {
+  const service = await ownedVps(userId, id);
+  const name = validVpsName(rawName, service.name);
+  await prisma.vpsService.update({ where: { id: service.id }, data: { name } });
+  if (service.vmid && service.status === 'ACTIVE' && pve.proxmoxConfigured()) {
+    // The label on Proxmox is a convenience for the operator. A failure here does not undo the rename.
+    await pve.configureVm(service.vmid, { name: `vps-${service.slot}-${name}` }).catch(() => undefined);
+  }
+}
+
+/**
+ * Replaces the key that opens the server. The key is written to the cloud-init drive and the
+ * machine is restarted so that it is read. The data of the server is not touched.
+ */
+export async function changeVpsSshKey(userId: string, id: string, rawKey: string): Promise<void> {
+  const service = await ownedVps(userId, id);
+  if (service.status !== 'ACTIVE' || !service.vmid) throw badRequest('This server cannot be changed right now.');
+  const key = validSshKey(rawKey);
+  await pve.configureVm(service.vmid, { sshkeys: encodeURIComponent(`${key}\n`) });
+  await pve.regenerateCloudInit(service.vmid);
+  await prisma.vpsService.update({ where: { id: service.id }, data: { sshPublicKey: key } });
+  await pve.power(service.vmid, 'reboot');
+}
+
+/**
+ * Builds the server again from the image. Everything on its disk is lost; the address, the
+ * plan and the subscription stay. The new machine is made by the worker.
+ */
+export async function reinstallVps(userId: string, id: string, rawKey?: string): Promise<void> {
+  const service = await ownedVps(userId, id);
+  if (service.status !== 'ACTIVE' || !service.vmid) throw badRequest('This server cannot be reinstalled right now.');
+  const key = rawKey?.trim() ? validSshKey(rawKey) : service.sshPublicKey;
+  if (await pve.vmExists(service.vmid)) {
+    const live = await pve.vmStatus(service.vmid);
+    if (live.status === 'running') await pve.power(service.vmid, 'stop');
+    await pve.deleteVm(service.vmid);
+  }
+  await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'PENDING', sshPublicKey: key, lastError: null } });
+}
+
 /** Removes the machine and gives its address back. */
 export async function destroyVps(serviceId: string): Promise<void> {
   const service = await prisma.vpsService.findUnique({ where: { id: serviceId } });

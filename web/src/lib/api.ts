@@ -1153,6 +1153,20 @@ export interface VpsPlanView {
 }
 
 /** A virtual private server of the customer. */
+/** What a server uses right now, as the hypervisor reports it. */
+export interface VpsUsageView {
+  power: 'running' | 'stopped';
+  uptimeSeconds: number;
+  cpuPercent: number;
+  cpus: number;
+  memoryUsed: number;
+  memoryTotal: number;
+  networkIn: number;
+  networkOut: number;
+  diskRead: number;
+  diskWritten: number;
+}
+
 export interface VpsServerView {
   id: string;
   name: string;

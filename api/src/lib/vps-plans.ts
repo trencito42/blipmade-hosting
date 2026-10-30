@@ -21,10 +21,10 @@ export interface VpsPlanDraft {
 }
 
 export const VPS_PLANS: VpsPlanDraft[] = [
-  { slug: 'vps-start', name: 'VPS Start', description: 'A small server of your own, with root access. For a bot, a test or a small API.', ram: 1024, cpu: 1, disk: 20, amount: 399, sortOrder: 200 },
-  { slug: 'vps-plus', name: 'VPS Plus', description: 'Two vCPU and 2 GB of memory for a website, an API with a small database, or a CI runner.', ram: 2048, cpu: 2, disk: 40, amount: 699, sortOrder: 201 },
-  { slug: 'vps-pro', name: 'VPS Pro', description: 'Room for the backend of an application: the API, its database and a worker on one machine.', ram: 4096, cpu: 2, disk: 80, amount: 1199, sortOrder: 202 },
-  { slug: 'vps-max', name: 'VPS Max', description: 'Four vCPU and 8 GB of memory for a busy backend or several services on one machine.', ram: 8192, cpu: 4, disk: 160, amount: 2299, sortOrder: 203 },
+  { slug: 'vps-start', name: 'VPS Start', description: 'A small server of your own, with root access. For a bot, a test or a small API.', ram: 1024, cpu: 1, disk: 20, amount: 249, sortOrder: 200 },
+  { slug: 'vps-plus', name: 'VPS Plus', description: 'Two vCPU and 2 GB of memory for a website, an API with a small database, or a CI runner.', ram: 2048, cpu: 2, disk: 30, amount: 349, sortOrder: 201 },
+  { slug: 'vps-pro', name: 'VPS Pro', description: 'Room for the backend of an application: the API, its database and a worker on one machine.', ram: 4096, cpu: 2, disk: 50, amount: 449, sortOrder: 202 },
+  { slug: 'vps-max', name: 'VPS Max', description: 'Four vCPU and 8 GB of memory for a busy backend or several services on one machine.', ram: 8192, cpu: 4, disk: 80, amount: 699, sortOrder: 203 },
 ];
 
 /** The address of its own for a VPS, a monthly extra. */

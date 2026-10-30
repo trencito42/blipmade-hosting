@@ -109,6 +109,8 @@ export function answers(kind) {
         { key: 'marketing', label: 'Offers', description: 'News and offers from Blipmade.', classification: 'marketing', essential: false, channels: ['email'] },
       ],
     },
+    'GET /instances/i1': { instance: INSTANCES[0] },
+    'GET /vps/v1': { server: SERVERS[0] },
     'GET /notifications/unread-count': { unread: empty ? 0 : 1 },
     'GET /notifications': { notifications: empty ? [] : NOTIFICATIONS, nextCursor: null, unread: empty ? 0 : 1 },
   };
