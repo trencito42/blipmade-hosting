@@ -239,6 +239,7 @@ export function Nav() {
         <nav aria-label="Main" className="ml-4 hidden items-center gap-1 rounded-full border border-line bg-card/70 p-1 md:flex">
           <CatalogMenu active={here('/apps')} />
           <Link to="/#pricing" className={plain(false)}>Pricing</Link>
+          <Link to="/vps" className={plain(here('/vps'))}>Servers</Link>
           <Link to="/docs" className={plain(here('/docs'))}>Docs</Link>
         </nav>
         <div className="ml-auto hidden items-center gap-2 md:flex">
@@ -278,7 +279,7 @@ export function Nav() {
                 </li>
               ))}
             </ul>
-            {([['Pricing', '/#pricing'], ['Docs', '/docs'], ['Everything in the catalog', '/apps']] as const).map(([label, to]) => (
+            {([['Pricing', '/#pricing'], ['Servers', '/vps'], ['Docs', '/docs'], ['Everything in the catalog', '/apps']] as const).map(([label, to]) => (
               <Link key={label} to={to} onClick={() => setOpen(false)} className="flex items-center justify-between rounded-2xl px-4 py-3 font-display text-[22px] font-semibold tracking-tight hover:bg-ink/5">
                 {label}
                 <Icon name="arrow" size={16} className="text-ink-3" />
@@ -320,6 +321,7 @@ export function Footer() {
           <h2 className="font-display text-[17px] font-semibold">Product</h2>
           <Link to="/apps" className={a}>Catalog</Link>
           <Link to="/#pricing" className={a}>Pricing</Link>
+          <Link to="/vps" className={a}>Servers (VPS)</Link>
           <Link to="/docs" className={a}>Documentation</Link>
           <Link to="/docs/status" className={a}>Status and incidents</Link>
         </nav>
