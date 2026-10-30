@@ -190,9 +190,11 @@ export function ConfigScene({ shape, className }: { shape: Shape; className?: st
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
 
-      const u = Math.min(width / 15.5, height / 11);
+      // The scene is sized for its tallest shape, nine plates of disk under twelve chips, so a large
+      // size never pushes the logo out of the canvas.
+      const u = Math.min(width / 15.5, height / 12.2);
       const ox = width / 2 + look.x * 10;
-      const oy = height * 0.62 + look.y * 6;
+      const oy = height - u * 3.9 + look.y * 6;
       const bob = reduced ? 0 : Math.sin(t * 1.2) * 0.07;
 
       // The floor: a grid that fades toward the edges, and a ring that breathes.

@@ -260,14 +260,14 @@ const STARTER_PACKAGE = (slug, name) =>
   ) + '\n';
 
 async function writeStarter(uuid, product, port) {
-  const files = [
-    ['package.json', STARTER_PACKAGE(product.slug, product.name)],
-    ['index.js', STARTER_INDEX(product.name, product.slug, port)],
-  ];
-  for (const [path, content] of files) {
+  // The files are the ones the platform itself writes, so the probe proves the
+  // same application the customer would get.
+  const { starterFiles } = await import('./dist/services/starter-apps.js');
+  const files = starterFiles({ slug: product.slug, name: product.name, healthPath: '/', port });
+  for (const file of files) {
     await clientRequest('POST', `/api/client/servers/${uuid}/files/write`, {
-      query: { file: path },
-      rawBody: content,
+      query: { file: file.path },
+      rawBody: file.content,
     });
   }
 }

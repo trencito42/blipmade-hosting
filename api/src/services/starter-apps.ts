@@ -156,11 +156,97 @@ files over them and the service that starts is yours.
  * `npm run start`, and the `start` script of the package is what runs.
  */
 export function starterFiles(input: StarterAppInput): StarterFile[] {
+  const runtime = RUNTIME_STARTERS[input.slug];
+  if (runtime) return runtime(input);
   return [
     { path: 'package.json', content: packageJson(input), kind: 'package' },
     { path: 'index.js', content: indexJs(input), kind: 'code' },
     { path: 'README.md', content: readme(input), kind: 'readme' },
   ];
+}
+
+/**
+ * The applications of the products that are not run by npm.
+ *
+ * The egg of such a product starts its own program, with the name of the file
+ * written in a variable of the egg: `app.py` for Python and `app.lua` for Luvit.
+ * The application is the same small server in the language of the product, so a
+ * container of it answers on the port of the allocation and on the health path.
+ */
+const RUNTIME_STARTERS: Record<string, (input: StarterAppInput) => StarterFile[]> = {
+  python: (input) => [{ path: 'app.py', content: appPy(input), kind: 'code' }],
+  lua: (input) => [{ path: 'app.lua', content: appLua(input), kind: 'code' }],
+};
+
+function appPy(input: StarterAppInput): string {
+  return `# ${input.name}, deployed by Blipmade.
+#
+# The application that the platform starts in this container. It answers on the
+# health path of the product and on every other path. Replace this file with your
+# own code.
+import json
+import os
+import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+port = int(os.environ.get("SERVER_PORT") or os.environ.get("PORT") or ${input.port})
+health_path = ${JSON.stringify(input.healthPath)}
+started_at = time.time()
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        path = self.path.split("?")[0]
+        if path == health_path:
+            body = json.dumps({"status": "ok", "app": ${JSON.stringify(input.slug)}, "uptime": round(time.time() - started_at)}).encode()
+            content_type = "application/json"
+        else:
+            body = (${JSON.stringify(input.name)} + " is running on Blipmade.\n").encode()
+            content_type = "text/plain; charset=utf-8"
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+print("listening on :%d" % port, flush=True)
+HTTPServer(("0.0.0.0", port), Handler).serve_forever()
+`;
+}
+
+function appLua(input: StarterAppInput): string {
+  return `-- ${input.name}, deployed by Blipmade.
+--
+-- The application that the platform starts in this container. It answers on the
+-- health path of the product and on every other path. Replace this file with
+-- your own code.
+local http = require('http')
+
+local port = tonumber(process.env.SERVER_PORT or process.env.PORT) or ${input.port}
+local healthPath = ${JSON.stringify(input.healthPath)}
+local startedAt = os.time()
+
+http.createServer(function (req, res)
+  local path = req.url:match('^[^?]*')
+  local body, contentType
+  if path == healthPath then
+    body = '{"status":"ok","app":' .. ${JSON.stringify(JSON.stringify(input.slug))} .. ',"uptime":' .. (os.time() - startedAt) .. '}'
+    contentType = 'application/json'
+  else
+    body = ${JSON.stringify(input.name)} .. ' is running on Blipmade.\n'
+    contentType = 'text/plain; charset=utf-8'
+  end
+  res:setHeader('Content-Type', contentType)
+  res:setHeader('Content-Length', #body)
+  res:finish(body)
+end):listen(port, '0.0.0.0')
+
+print('listening on :' .. port)
+`;
 }
 
 /**
