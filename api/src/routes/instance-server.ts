@@ -362,6 +362,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return withInstance(request, async (token, instance) => {
       try {
         const content = await operations.downloadFile(token, instance, query.path);
+        reply.raw.once('close', () => content.destroy());
         return reply
           .header('Content-Type', 'application/octet-stream')
           .header(
@@ -692,6 +693,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return withInstance(request, async (token, instance) => {
       try {
         const content = await operations.downloadBackup(token, instance, params.backupId);
+        reply.raw.once('close', () => content.destroy());
         return reply
           .header('Content-Type', 'application/octet-stream')
           .header('Content-Disposition', `attachment; filename="${params.backupId}.tar.gz"`)
