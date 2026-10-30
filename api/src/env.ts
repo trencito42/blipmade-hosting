@@ -194,6 +194,9 @@ const schema = z.object({
    */
   CADDY_APP_SERVER: z.string().default('blipmade'),
   METRICS_ENABLED: bool(true),
+  /** Where unhandled errors are sent (Sentry, or GlitchTip, which speaks the same protocol). Empty keeps everything local. */
+  SENTRY_DSN: z.string().default(''),
+  SENTRY_ENVIRONMENT: z.string().default('production'),
   LOG_LEVEL: z.string().default('info'),
 
   /**

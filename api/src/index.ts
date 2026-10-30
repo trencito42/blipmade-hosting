@@ -1,4 +1,5 @@
 import { buildApp } from './app.js';
+import { initErrorReporting } from './lib/sentry.js';
 import { env } from './env.js';
 import { prisma } from './db.js';
 import { redis } from './redis.js';
@@ -15,6 +16,8 @@ const app = await buildApp();
  * The public listener is not used, because the web container forwards every
  * path that begins with `/api`.
  */
+initErrorReporting('api');
+
 const metricsServer = createMetricsServer({
   enabled: env.METRICS_ENABLED,
   host: perfConfig.metricsHost,

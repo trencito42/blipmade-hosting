@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { AppError } from '../lib/errors.js';
 import { describeIssues } from '../lib/validation-messages.js';
+import { reportError } from '../lib/sentry.js';
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
@@ -32,6 +33,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     request.log.error({ err: error, requestId }, 'unhandled error');
+    reportError(error, { requestId, method: request.method, url: request.url.split('?')[0] });
     return reply.code(500).send({
       error: { code: 'internal_error', message: 'Something went wrong on our side.', requestId },
     });

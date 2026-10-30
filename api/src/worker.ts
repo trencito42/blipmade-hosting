@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { initErrorReporting, reportError } from './lib/sentry.js';
 import { UnrecoverableError, type Job } from 'bullmq';
 import { prisma } from './db.js';
 import { redis } from './redis.js';
@@ -406,6 +407,9 @@ const healthServer = createServer((request, response) => {
  * away: on the loopback of the container, and only to a collector that
  * knows the key.
  */
+initErrorReporting('worker');
+process.on('unhandledRejection', (reason) => reportError(reason, { source: 'unhandledRejection' }));
+
 const metricsServer = createMetricsServer({
   enabled: env.METRICS_ENABLED,
   host: perfConfig.metricsHost,

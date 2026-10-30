@@ -7,6 +7,7 @@ import { SessionProvider } from './session';
 import { ToastProvider } from './ui-app';
 import { ErrorBoundary } from './ErrorBoundary';
 import { refreshCatalog } from './site/catalog';
+import { initMonitoring } from './lib/monitoring';
 
 // A deploy replaces the files of the site, so a tab that was open before it asks for a file that
 // no longer exists. The page is loaded again once, to pick up the new files. The guard keeps a
@@ -22,6 +23,8 @@ window.addEventListener('vite:preloadError', (event) => {
   event.preventDefault();
   window.location.reload();
 });
+
+initMonitoring();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

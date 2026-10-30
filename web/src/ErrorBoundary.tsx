@@ -1,4 +1,5 @@
 import { Component, useEffect, useRef, type ErrorInfo, type ReactNode } from 'react';
+import { reportClientError } from './lib/monitoring';
 import { Button } from './ui';
 import { OperatorPlaceholder } from './legal/OperatorPlaceholder';
 import { LegalFooter } from './legal/LegalFooter';
@@ -141,6 +142,7 @@ export class ErrorBoundary extends Component<BoundaryProps, BoundaryState> {
     // no other place to put it, and a person who opens the console can then
     // tell what went wrong.
     console.error('[ui] a render error was caught', error, info.componentStack);
+    reportClientError(error, { componentStack: info.componentStack });
   }
 
   /** Puts the children back, so the page is drawn again from the start. */
