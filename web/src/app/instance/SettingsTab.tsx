@@ -62,57 +62,6 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
   };
 
   const current = settings.data;
-    if (!current) return;
-    setName(current.name ?? '');
-    setDescription(current.description ?? '');
-  }, [settings.data]);
-
-  const save = async () => {
-    setBusy(true);
-    try {
-      await updateSettings(instance.id, { name: name.trim(), description });
-      push('The settings were saved.', 'ok');
-      settings.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The settings were not saved.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const reinstall = async () => {
-    try {
-      await reinstallInstance(instance.id);
-      push('The server was reinstalled. The files of the container were erased.', 'ok');
-      setConfirmReinstall(false);
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The server was not reinstalled.', 'error');
-    }
-  };
-
-  const suspend = async () => {
-    try {
-      await setSuspended(instance.id, true);
-      push('The instance was suspended. The container was stopped.', 'ok');
-      setConfirmSuspend(false);
-      settings.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The instance was not suspended.', 'error');
-    }
-  };
-
-  const resume = async () => {
-    try {
-      await setSuspended(instance.id, false);
-      push('The instance was restored. The container was started.', 'ok');
-      setConfirmResume(false);
-      settings.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The instance was not restored.', 'error');
-    }
-  };
-
-  const current = settings.data;
 
   return (
     <div className="grid gap-3">
