@@ -45,7 +45,7 @@ describe('signed Pterodactyl file and backup downloads', () => {
     setup();
     const payload = Buffer.from('binary-file\x00-safe');
     const file = new Response(new Uint8Array(payload));
-    file.arrayBuffer = vi.fn(async () => { throw new Error('Must not buffer a whole file.'); });
+    const buffered = vi.spyOn(file, 'arrayBuffer').mockImplementation(async () => { throw new Error('Must not buffer a whole file.'); });
     const fetchMock = vi.fn(async (input: string | URL, _options?: RequestInit) => {
       const url = String(input);
       if (url.startsWith('https://panel.example.test/')) {
@@ -58,7 +58,7 @@ describe('signed Pterodactyl file and backup downloads', () => {
 
     const result = await downloadFile(TOKEN, 'server-uuid', '/logs/test.bin');
     expect(await bytes(result)).toEqual(payload);
-    expect(file.arrayBuffer).not.toHaveBeenCalled();
+    expect(buffered).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const first = fetchMock.mock.calls[0]!;
     const second = fetchMock.mock.calls[1]!;
