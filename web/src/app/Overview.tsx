@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ProductTile } from '../ui';
 import { Icon, type IconName } from '../icons';
 import { get, type Instance } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
@@ -33,14 +34,6 @@ const KNOWN_ICONS: readonly IconName[] = [
 
 function productIcon(icon: string): IconName {
   return KNOWN_ICONS.includes(icon as IconName) ? (icon as IconName) : 'box';
-}
-
-function ProductIcon({ icon, size = 40 }: { icon: string; size?: number }) {
-  return (
-    <span style={{ width: size, height: size }} className="grid shrink-0 place-items-center rounded-[28%] bg-s3 text-acc">
-      <Icon name={productIcon(icon)} size={Math.round(size * 0.5)} />
-    </span>
-  );
 }
 
 /** Purchased memory, never live usage. */
@@ -214,7 +207,7 @@ export default function Overview() {
                     to={deployPathFor(product.slug, startingConfiguration(product))}
                     className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-s2 p-3 transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
-                    <ProductIcon icon={product.icon} size={36} />
+                    <ProductTile slug={product.slug} icon={product.icon} size={36} />
                     <span className="w-0 min-w-0 flex-1">
                       <span className="block truncate text-[14.5px] font-medium text-ink">{product.name}</span>
                       <span className="block truncate text-[12.5px] text-ink3">{product.description}</span>
@@ -278,7 +271,7 @@ export default function Overview() {
             <article key={instance.id} className="grid content-start gap-3 rounded-2xl bg-s2 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <ProductIcon icon={instance.product.icon} />
+                  <ProductTile slug={instance.product.slug} icon={instance.product.icon} />
                   <div className="w-0 min-w-0 flex-1">
                     <Link
                       to={`/app/instances/${instance.id}`}

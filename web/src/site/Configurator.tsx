@@ -1,5 +1,6 @@
 import { useId, useState, type CSSProperties } from 'react';
 import { AppPicker } from './AppPicker';
+import { useSession } from '../session';
 import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtDisk, fmtRam, type Rates, type Resources } from './pricing';
 import { Btn, cx } from './ui';
@@ -86,6 +87,9 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
   // The name of the radio group. It is read before the page decides that it
   // has no product to show, so the hooks are always called in the same order.
   const name = useId();
+  // A visitor who is signed in goes straight to the deploy page with the
+  // size they chose. A visitor who is not goes to the registration.
+  const { user } = useSession();
 
   if (!current) return null;
 
@@ -203,7 +207,9 @@ export function Configurator({ slug = 'discord-bot', lock = false, className }: 
         <p className="font-display text-[17px] font-semibold">Total per month</p>
         <p className="big text-[40px] sm:text-[46px]" role="status" aria-live="polite">{eur(b.total)}</p>
       </div>
-      <Btn to={`/register?${query}`} variant="mint" size="lg" className="mt-6 w-full">Create account and deploy</Btn>
+      <Btn to={user ? `/app/deploy/${current.slug}?${query}` : `/register?${query}`} variant="mint" size="lg" className="mt-6 w-full">
+        {user ? 'Deploy this configuration' : 'Create account and deploy'}
+      </Btn>
       <p className="mt-4 text-[13.5px] leading-relaxed text-snow-2">
         Euros per month. During launch, payment is completed with our team after you place the order.
       </p>

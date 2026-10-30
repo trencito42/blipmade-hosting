@@ -1,6 +1,7 @@
 import { createElement, type CSSProperties, type ElementType, type ReactNode } from 'react';
 import { cn, useInView } from './lib';
-import { Icon, type IconName } from './icons';
+import { Icon, ProductMark, type IconName } from './icons';
+import { productIcon } from './lib/pricing';
 import { Link } from './router';
 import logo from './logo.svg';
 
@@ -112,6 +113,18 @@ export function StatusDot({ live = true }: { live?: boolean }) {
 }
 
 /** App icon on a flat tile. `acc` is for use on green surfaces. */
+/**
+ * The tile of a product: its brand mark, or an icon that says what it does.
+ * It is the same mark the public catalog shows for the product.
+ */
+export function ProductTile({ slug, icon, size = 40 }: { slug: string; icon: string; size?: number }) {
+  return (
+    <span style={{ width: size, height: size }} className="grid shrink-0 place-items-center rounded-[28%] bg-s3 text-acc">
+      <ProductMark slug={slug} fallback={productIcon(icon)} size={Math.round(size * 0.5)} />
+    </span>
+  );
+}
+
 export function AppMark({ icon, size = 40, tone = 'dark' }: { icon: IconName; size?: number; tone?: 'dark' | 'acc' | 'lit' }) {
   return (
     <span style={{ width: size, height: size }} className={cn('grid shrink-0 place-items-center rounded-[28%]', tone === 'acc' ? 'bg-on-acc/12 text-on-acc' : tone === 'lit' ? 'bg-acc text-on-acc' : 'bg-s3 text-acc')}>

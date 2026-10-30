@@ -9,6 +9,8 @@ import { Link } from '../router';
 import { RadarLogo } from './RadarLogo';
 import { CATEGORIES } from './categories';
 import { Btn, Wrap, cx } from './ui';
+import { useSession } from '../session';
+import { homeOf } from '../auth-guard';
 
 /**
  * The home page.
@@ -24,6 +26,7 @@ function Hero() {
   // products the visitor can actually buy.
   const products = orderableOf(useProducts());
   const from = products.length ? Math.min(...products.map((product) => product.minPrice)) : 0;
+  const { user } = useSession();
   return (
     <section aria-labelledby="h1">
       <Wrap className="grid items-start gap-12 pt-12 pb-16 sm:pt-20 sm:pb-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-16">
@@ -34,7 +37,7 @@ function Hero() {
             From {eur(from)} a month.
           </p>
           <div className="rise flex flex-wrap gap-3" style={{ '--i': 3 } as CSSProperties}>
-            <Btn to="/register" size="lg">Get started</Btn>
+            <Btn to={user ? homeOf(user.role) : '/register'} size="lg">{user ? 'Open dashboard' : 'Get started'}</Btn>
             <Btn to="/apps" variant="outline" size="lg">Browse the catalog</Btn>
           </div>
         </div>
@@ -315,6 +318,7 @@ function Faq() {
 }
 
 function Closing() {
+  const { user } = useSession();
   return (
     <section aria-labelledby="cta-h" className="on-night m-2 overflow-hidden rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[40px]">
       <Wrap className="grid items-center gap-10 py-16 sm:py-24 md:grid-cols-[1.05fr_0.95fr]">
@@ -324,7 +328,7 @@ function Closing() {
             Create an account, move the sliders until the price and the specs fit, and deploy a container that is yours. We are listening on the other end.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Btn to="/register" variant="mint" size="lg">Create account</Btn>
+            <Btn to={user ? '/app/deploy' : '/register'} variant="mint" size="lg">{user ? 'Deploy something' : 'Create account'}</Btn>
             <Btn to="/docs" variant="outline-night" size="lg">Read the docs</Btn>
           </div>
         </div>

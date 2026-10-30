@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useRevealOnChange } from '../lib/useReveal';
+import { ProductTile } from '../ui';
 import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
@@ -116,14 +117,6 @@ const KNOWN_ICONS: readonly IconName[] = [
 
 function productIcon(icon: string): IconName {
   return KNOWN_ICONS.includes(icon as IconName) ? (icon as IconName) : 'box';
-}
-
-function ProductIcon({ icon, size = 40 }: { icon: string; size?: number }) {
-  return (
-    <span style={{ width: size, height: size }} className="grid shrink-0 place-items-center rounded-[28%] bg-s3 text-acc">
-      <Icon name={productIcon(icon)} size={Math.round(size * 0.5)} />
-    </span>
-  );
 }
 
 /** Purchased memory, never live usage. */
@@ -680,7 +673,7 @@ export default function InstanceDetail() {
       <header className="grid gap-3">
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-start gap-3">
-            <ProductIcon icon={instance.product.icon} size={46} />
+            <ProductTile slug={instance.product.slug} icon={instance.product.icon} size={46} />
             <div className="w-0 min-w-0 flex-1">
               <h2 className="truncate text-[20px] font-semibold tracking-[-0.035em] text-ink" title={instance.name}>
                 {instance.name}
