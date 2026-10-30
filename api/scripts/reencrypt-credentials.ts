@@ -73,10 +73,15 @@ try {
             where: { id: item.id, tokenEnc: item.old },
             data: { tokenEnc: encrypted },
           })
-        : await prisma.instance.updateMany({
-            where: { id: item.id, [item.field]: item.old },
-            data: { [item.field]: encrypted },
-          });
+        : item.field === 'generatedVariables'
+          ? await prisma.instance.updateMany({
+              where: { id: item.id, generatedVariables: item.old },
+              data: { generatedVariables: encrypted },
+            })
+          : await prisma.instance.updateMany({
+              where: { id: item.id, customerVariables: item.old },
+              data: { customerVariables: encrypted },
+            });
       if (change.count !== 1) {
         throw new Error('A row changed concurrently; stop and repeat the preflight.');
       }
