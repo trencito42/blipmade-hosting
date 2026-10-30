@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { brandPathOf } from "./brand-icons";
 import { ICONS, iconClasses, productIconClasses, type IconFamily, type IconName, type IconWeight } from "./icon-map";
 
 /**
@@ -109,6 +110,14 @@ export function Icon({
  * product when the table does not know it.
  */
 export function ProductMark({ slug, fallback, size = 18, className }: { slug: string; fallback: IconName; size?: number; className?: string }) {
+  const path = brandPathOf(slug);
+  if (path) {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24" width={size} height={size} fill="currentColor" className={className} focusable="false">
+        <path d={path} />
+      </svg>
+    );
+  }
   return (
     <i
       aria-hidden="true"
