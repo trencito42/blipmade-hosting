@@ -195,6 +195,8 @@ const schema = z.object({
   CADDY_APP_SERVER: z.string().default('blipmade'),
   METRICS_ENABLED: bool(true),
   /** Where unhandled errors are sent (Sentry, or GlitchTip, which speaks the same protocol). Empty keeps everything local. */
+  /** An escape hatch: "true" switches off the 2FA rule and the address list of the staff area, for the day an administrator locks themselves out. */
+  STAFF_SECURITY_OFF: z.string().default(''),
   SENTRY_DSN: z.string().default(''),
   SENTRY_ENVIRONMENT: z.string().default('production'),
   LOG_LEVEL: z.string().default('info'),

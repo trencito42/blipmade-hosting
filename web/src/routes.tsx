@@ -241,7 +241,7 @@ function ImpersonationBanner() {
 }
 
 function Guard({ area, children }: { area: 'customer' | 'admin'; children: ReactNode }) {
-  const { user, loading } = useSession();
+  const { user, loading, staffTwoFactorRequired } = useSession();
   const { navigate, path, search } = useRouter();
 
   // The redirect is an effect and not a part of the render: a side effect in
@@ -258,6 +258,18 @@ function Guard({ area, children }: { area: 'customer' | 'admin'; children: React
     return (
       <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
         <LoadingBlock rows={4} label="Checking your session" />
+      </div>
+    );
+  }
+
+  if (area === 'admin' && isStaff(user.role) && staffTwoFactorRequired) {
+    return (
+      <div className="mx-auto w-full max-w-[640px] px-4 py-16 sm:px-6">
+        <div className="grid gap-4 rounded-2xl border border-line bg-card p-6">
+          <h1 className="text-[22px] font-semibold tracking-[-0.03em] text-ink">Turn on two-factor authentication</h1>
+          <p className="text-[14.5px] text-ink2">The staff area requires two-factor authentication. Set it up in your security settings (an authenticator app or a passkey), then come back.</p>
+          <div><Link to="/app/settings?tab=security" className="inline-flex min-h-11 items-center rounded-full bg-acc px-5 text-[14.5px] font-semibold text-on-acc">Open the security settings</Link></div>
+        </div>
       </div>
     );
   }

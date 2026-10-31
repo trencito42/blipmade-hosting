@@ -30,6 +30,8 @@ interface SessionState {
   suspensionNotice: string | null;
   /** The email of the staff member when this session was opened to act as the customer. */
   impersonatedBy: string | null;
+  /** A member of the staff who must turn on two-factor before using the staff area. */
+  staffTwoFactorRequired: boolean;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<LoginResult>;
   /** The second step of a sign-in: the code of the app, or a backup code. */
@@ -50,6 +52,7 @@ const Ctx = createContext<SessionState>({
   registrationNotice: null,
   suspensionNotice: null,
   impersonatedBy: null,
+  staffTwoFactorRequired: false,
   refresh: async () => {},
   login: async () => {
     throw new Error('not ready');
@@ -75,6 +78,7 @@ export const useSession = () => useContext(Ctx);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [impersonatedBy, setImpersonatedBy] = useState<string | null>(null);
+  const [staffTwoFactorRequired, setStaffTwoFactorRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [registrationNotice, setRegistrationNotice] = useState<string | null>(null);
   const [suspensionNotice, setSuspensionNotice] = useState<string | null>(null);
@@ -82,9 +86,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const data = await get<{ user: SessionUser | null; impersonatedBy?: string }>('/auth/session');
+      const data = await get<{ user: SessionUser | null; impersonatedBy?: string; staffTwoFactorRequired?: boolean }>('/auth/session');
       setUser(data.user);
       setImpersonatedBy(data.impersonatedBy ?? null);
+      setStaffTwoFactorRequired(Boolean(data.staffTwoFactorRequired));
       setError(null);
     } catch (err) {
       setUser(null);
@@ -198,6 +203,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       registrationNotice,
       suspensionNotice,
       impersonatedBy,
+      staffTwoFactorRequired,
       refresh,
       login,
       secondStep,
@@ -207,7 +213,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       register,
       logout,
     }),
-    [user, loading, error, registrationNotice, suspensionNotice, impersonatedBy, refresh, login, secondStep, secondStepPasskey, passkeyLogin, passkeyAutofill, register, logout],
+    [user, loading, error, registrationNotice, suspensionNotice, impersonatedBy, staffTwoFactorRequired, refresh, login, secondStep, secondStepPasskey, passkeyLogin, passkeyAutofill, register, logout],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

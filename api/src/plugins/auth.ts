@@ -3,7 +3,9 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { rateLimitRun } from '../lib/rate-limit.js';
-import { forbidden, unauthorized } from '../lib/errors.js';
+import { AppError, forbidden, unauthorized } from '../lib/errors.js';
+import { ipAllowed, staffSecurity } from '../lib/staff-security.js';
+import { twoFactorEnabled } from '../services/second-factor.js';
 import { suspendedAccountError } from '../lib/suspension.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
@@ -352,6 +354,14 @@ export async function requireAuth(request: FastifyRequest): Promise<AuthUser> {
 export async function requireStaff(request: FastifyRequest): Promise<AuthUser> {
   const user = await requireAuth(request);
   if (user.role !== 'STAFF' && user.role !== 'ADMIN') throw forbidden('Staff access only.');
+  // The two rules of the area of the staff, when an administrator turned them on.
+  const rules = await staffSecurity();
+  if (rules.ipAllowlist.length > 0 && !ipAllowed(request.ip ?? '', rules.ipAllowlist)) {
+    throw forbidden('The staff area can only be opened from approved addresses.');
+  }
+  if (rules.require2fa && !(await twoFactorEnabled(user.id))) {
+    throw new AppError(403, 'two_factor_required', 'Turn on two-factor authentication in your security settings to use the staff area.');
+  }
   return user;
 }
 

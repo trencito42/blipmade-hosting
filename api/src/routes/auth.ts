@@ -10,6 +10,7 @@ import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/fail
 import { mailEnabled, mailLogLine, mailNotice, mailTransportName, registrationNotice, type MailSendResult } from '../lib/mailer.js';
 import { suspendedAccountError } from '../lib/suspension.js';
 import { startSecondStep, twoFactorEnabled } from '../services/second-factor.js';
+import { staffSecurity } from '../lib/staff-security.js';
 import { recordSignIn } from '../services/account-security.js';
 import {
   notifyAccountRegistered,
@@ -422,6 +423,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         permissions: user.staff?.permissions ?? [],
       },
       ...(request.impersonatedBy ? { impersonatedBy: request.impersonatedBy } : {}),
+      // Staff who must have two-factor and do not: the interface sends them to turn it on.
+      ...((user.role === 'STAFF' || user.role === 'ADMIN') && (await staffSecurity()).require2fa && !(await twoFactorEnabled(user.id)) ? { staffTwoFactorRequired: true } : {}),
     };
   });
 

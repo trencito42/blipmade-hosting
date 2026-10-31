@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Panel, useToast } from '../ui-app';
+import { StaffSecurity } from './StaffSecurity';
 import { LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, useAdminSession } from './Overview';
 
 /**
@@ -119,6 +120,7 @@ export default function Settings() {
 
   return (
     <div className="grid gap-4">
+      <StaffSecurity mayWrite={can(session.staff, 'settings.write')} />
       <LiveRegion message={`${rows.length} setting${rows.length === 1 ? '' : 's'}`} />
       <Panel
         title="Settings"
