@@ -48,6 +48,8 @@ export default function DatabasesTab({ instance }: TabProps) {
   const rows = databases.data?.databases ?? [];
   // The panel says how many databases this server may have. 0 means none, so the page says that.
   const noDatabases = databases.data !== undefined && databases.data.limit === 0 && rows.length === 0;
+  const limit = databases.data?.limit;
+  const full = limit !== undefined && limit > 0 && rows.length >= limit;
 
   const create = async () => {
     setBusy(true);
@@ -156,9 +158,9 @@ export default function DatabasesTab({ instance }: TabProps) {
     <div className="grid gap-3">
       <Panel
         title="Databases"
-        description="The databases that belong to this instance. The panel keeps them on the node of the instance."
+        description={limit ? `The databases of this instance: ${rows.length} of ${limit} used. The panel keeps them on the node of the instance.` : 'The databases that belong to this instance. The panel keeps them on the node of the instance.'}
         action={
-          noDatabases ? undefined : (
+          noDatabases || full ? undefined : (
             <PrimaryButton onClick={() => setCreating((value) => !value)} disabled={busy}>
               {creating ? 'Close' : 'New database'}
             </PrimaryButton>
