@@ -6,6 +6,8 @@ import { audit } from '../lib/audit.js';
 import { assertMayActOnAccount, requirePermission, requireStaff } from '../plugins/auth.js';
 import { getEmailQueue, getMailProvisionQueue, getQueue, getVpsProvisionQueue } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
+import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
+import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
 
 /**
  * What the staff needs to run the business: notes and tags on customers, the reports (income,
@@ -220,5 +222,62 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: `admin.abuse.${body.action}`, targetType: 'abuse', targetId: id, meta: { instanceId: report.instanceId }, ip: request.ip });
     return { report: updated };
+  });
+
+  // --- the wording of the emails ---------------------------------------------------------------
+
+  /** Each template, its wording from the code, and what the staff changed. */
+  app.get('/admin/email-templates', { preHandler: [requirePermission('settings.read')] }, async () => {
+    await loadEmailOverrides();
+    return {
+      templates: emailTemplateCatalog().map((entry) => ({
+        id: entry.id,
+        category: entry.category,
+        defaults: emailTemplateDefaults(entry.id),
+        override: emailOverrideOf(entry.id) ?? null,
+      })),
+    };
+  });
+
+  /**
+   * Changes the wording of a template: the subject, the heading, the line under the subject and the
+   * note at the end. A word between double braces must be one the template knows, so a mistyped
+   * placeholder is refused instead of arriving in a customer's inbox.
+   */
+  app.put('/admin/email-templates/:id', { preHandler: [requirePermission('settings.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const defaults = emailTemplateDefaults(id);
+    if (!defaults) throw notFound('Template not found.');
+    const body = z
+      .object({
+        subject: z.string().trim().max(200).optional(),
+        heading: z.string().trim().max(200).optional(),
+        preheader: z.string().trim().max(200).optional(),
+        note: z.string().trim().max(400).optional(),
+      })
+      .parse(request.body ?? {});
+    const allowed = new Set(defaults.placeholders);
+    for (const [field, text] of Object.entries(body)) {
+      for (const match of (text ?? '').matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)) {
+        if (!allowed.has(match[1]!)) {
+          throw badRequest(`${field}: "{{${match[1]}}}" is not a placeholder of this template. Use: ${[...allowed].map((name) => `{{${name}}}`).join(', ') || 'none'}.`, { [field]: `"{{${match[1]}}}" is not a placeholder of this template.` });
+        }
+      }
+      if (/[<>]/.test(text ?? '')) throw badRequest(`${field}: write plain text, without < or >.`, { [field]: 'Plain text only.' });
+    }
+    await saveEmailOverride(id, body);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.email_template.update', targetType: 'email-template', targetId: id, ip: request.ip });
+    return { override: emailOverrideOf(id) ?? null };
+  });
+
+  /** Puts a template back to the wording of the code. */
+  app.delete('/admin/email-templates/:id', { preHandler: [requirePermission('settings.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    if (!emailTemplateDefaults(id)) throw notFound('Template not found.');
+    await saveEmailOverride(id, {});
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.email_template.reset', targetType: 'email-template', targetId: id, ip: request.ip });
+    return { ok: true };
   });
 }

@@ -1,4 +1,5 @@
 import { buildApp } from './app.js';
+import { loadEmailOverrides } from './lib/email-overrides.js';
 import { initErrorReporting } from './lib/sentry.js';
 import { env } from './env.js';
 import { prisma } from './db.js';
@@ -17,6 +18,8 @@ const app = await buildApp();
  * path that begins with `/api`.
  */
 initErrorReporting('api');
+void loadEmailOverrides();
+setInterval(() => void loadEmailOverrides(), 60_000).unref();
 
 const metricsServer = createMetricsServer({
   enabled: env.METRICS_ENABLED,

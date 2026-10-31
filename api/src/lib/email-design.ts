@@ -59,6 +59,7 @@
  * throws on a value that is missing: `validateEmailTemplatePayload()` is
  * what tells the operator that a fact is missing.
  */
+import { emailOverrideOf } from './email-overrides.js';
 import { env } from '../env.js';
 import { BRAND, publicLink, publicOrigin } from './email-templates.js';
 
@@ -2381,10 +2382,13 @@ function renderText(definition: TemplateDefinition, values: ValueMap): string {
  * nobody decided about cannot slip into the platform.
  */
 export function renderEmailTemplate(id: string, payload: Record<string, unknown>): EmailTemplate {
-  const definition = BY_ID.get(id);
-  if (!definition) {
+  const base = BY_ID.get(id);
+  if (!base) {
     throw new Error(`Unknown email template: ${id}`);
   }
+  // The wording the staff changed from the back office replaces the wording of the code.
+  const changed = emailOverrideOf(id);
+  const definition = changed ? { ...base, ...changed } : base;
   const values = resolveValues(definition, payload ?? {});
 
   const subject = oneLine(interpolate(definition.subject, values, (value) => value));
@@ -2397,6 +2401,19 @@ export function renderEmailTemplate(id: string, payload: Record<string, unknown>
     preheader: preheader.length > 0 ? preheader : subject,
     text: renderText(definition, values),
     html: renderHtml(definition, values),
+  };
+}
+
+/** The wording the code gives a template, before the staff changes anything. */
+export function emailTemplateDefaults(id: string): { subject: string; heading: string; preheader: string; note: string; placeholders: string[] } | null {
+  const definition = BY_ID.get(id);
+  if (!definition) return null;
+  return {
+    subject: definition.subject,
+    heading: definition.heading,
+    preheader: definition.preheader,
+    note: definition.note ?? '',
+    placeholders: definition.facts.map(([path]) => path),
   };
 }
 

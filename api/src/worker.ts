@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { loadEmailOverrides } from './lib/email-overrides.js';
 import { pruneStatusChecks, recordStatusChecks } from './services/status-history.js';
 import { initErrorReporting, reportError } from './lib/sentry.js';
 import { UnrecoverableError, type Job } from 'bullmq';
@@ -409,6 +410,8 @@ const healthServer = createServer((request, response) => {
  * knows the key.
  */
 initErrorReporting('worker');
+void loadEmailOverrides();
+setInterval(() => void loadEmailOverrides(), 60_000).unref();
 process.on('unhandledRejection', (reason) => reportError(reason, { source: 'unhandledRejection' }));
 
 const metricsServer = createMetricsServer({
