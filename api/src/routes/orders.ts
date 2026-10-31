@@ -7,6 +7,7 @@ import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
+import { assertSponsoredShape, decideSponsoredOrder, heldForReview, verifyTurnstile } from '../services/promotion-policy.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
 import { createCheckout, createSponsoredSubscriptionCheckout, markOrderPaid, stripeTestGateway } from '../services/stripe.js';
@@ -125,6 +126,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       if (quote.promotionRecord && quote.total === 0 && !user.emailVerified) {
         throw badRequest('Verify your email address before using a promotion that covers the whole order.');
       }
+      // The shape and the risk of a free order are decided here, on the server,
+      // before anything is reserved or provisioned.
+      if (quote.promotionRecord && quote.total === 0) {
+        assertSponsoredShape(quote.items);
+        const verdict = await decideSponsoredOrder(user, null);
+        if (verdict.decision === 'review') heldForReview();
+      }
 
       // A domain that another customer already hosts is refused here, before
       // the customer is charged for it. The platform would refuse it later
@@ -197,6 +205,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
             userId: user.id,
             orderId: order.id,
             amount: quote.discount,
+            free: quote.total === 0,
           });
         } catch (error) {
           // The order was created a moment ago and nothing points at it yet,
@@ -276,7 +285,17 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // the card for renewal, and the signed webhook performs fulfilment only
     // after the card fingerprint has passed the campaign-wide uniqueness gate.
     if (order.total === 0) {
-      if (env.PROMOTION_CARD_CHECK_ENABLED && order.promotionId) {
+      // The decision is made again at the moment of activation: the risk can
+      // have changed since the order was created, and nothing is provisioned
+      // before it is confirmed.
+      let cardRequired = env.PROMOTION_CARD_CHECK_ENABLED;
+      if (order.promotionId) {
+        await verifyTurnstile(z.object({ turnstileToken: z.string().max(4096).optional() }).parse(request.body ?? {}).turnstileToken, request.ip);
+        const verdict = await decideSponsoredOrder(user, order.id);
+        if (verdict.decision === 'review') heldForReview();
+        cardRequired = cardRequired || verdict.cardCheck;
+      }
+      if (cardRequired && order.promotionId) {
         const checkout = await createSponsoredSubscriptionCheckout(order, user.email);
         await prisma.order.update({ where: { id: order.id }, data: { status: 'AWAITING_PAYMENT' } });
         await audit({

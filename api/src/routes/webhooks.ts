@@ -164,9 +164,17 @@ async function completeSponsoredCheckout(
   if (!identity) throw new DeferredWebhookError('Stripe has not attached a card to the sponsored subscription yet.');
 
   try {
+    const cardHash = promotionCardHash(identity.fingerprint);
+    // The same card cannot claim a second free service under another code.
+    // The pair (campaign, card) is unique in the database; this covers the other codes.
+    const sameCard = await prisma.promotionRedemption.findFirst({
+      where: { cardFingerprintHash: cardHash, orderId: { not: order.id }, order: { total: 0, status: { in: ['PAID', 'FULFILLED'] } } },
+      select: { id: true },
+    });
+    if (sameCard) throw new Prisma.PrismaClientKnownRequestError('card reused', { code: 'P2002', clientVersion: 'blipmade' });
     await prisma.promotionRedemption.update({
       where: { orderId: order.id },
-      data: { cardFingerprintHash: promotionCardHash(identity.fingerprint) },
+      data: { cardFingerprintHash: cardHash },
     });
   } catch (error) {
     if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;

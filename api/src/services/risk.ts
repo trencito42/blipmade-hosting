@@ -18,13 +18,12 @@ export interface RiskFacts {
   disposableEmail: boolean;
   /** Other accounts that signed in from an address this one used. */
   sharedAddressAccounts: number;
-  /** Other accounts with the same canonical address (an alias of the same mailbox). */
-  sameIdentityAccounts: number;
   failedPayments: number;
   ordersLast24h: number;
   refunds: number;
   openAbuseReports: number;
   suspended: boolean;
+  /** A payment of a real amount was made and kept. A free promotion's 0 payment does not count. */
   paidBefore: boolean;
 }
 
@@ -36,7 +35,6 @@ export function scoreRisk(facts: RiskFacts): Risk {
   if (facts.ageHours < 24) add('new', 10, 'The account is less than a day old.');
   if (!facts.emailVerified) add('unverified', 10, 'The email address was never confirmed.');
   if (facts.disposableEmail) add('disposable', 20, 'The address belongs to a service of throwaway mailboxes.');
-  if (facts.sameIdentityAccounts > 0) add('same-identity', 25, `${facts.sameIdentityAccounts} other account(s) use the same mailbox under another spelling.`);
   if (facts.sharedAddressAccounts > 0) add('shared-address', Math.min(30, 12 + facts.sharedAddressAccounts * 6), `${facts.sharedAddressAccounts} other account(s) signed in from the same address.`);
   if (facts.failedPayments >= 2) add('failed-payments', Math.min(25, facts.failedPayments * 8), `${facts.failedPayments} payments failed.`);
   if (facts.ordersLast24h >= 3) add('burst', 15, `${facts.ordersLast24h} orders in the last day.`);
@@ -61,13 +59,10 @@ export async function assessCustomer(userId: string): Promise<Risk | null> {
     prisma.payment.count({ where: { userId, status: 'FAILED' } }),
     prisma.order.count({ where: { userId, createdAt: { gte: since } } }),
     prisma.payment.count({ where: { userId, status: 'REFUNDED' } }),
-    prisma.payment.count({ where: { userId, status: 'SUCCEEDED' } }),
+    prisma.payment.count({ where: { userId, status: 'SUCCEEDED', amount: { gt: 0 } } }),
     prisma.instance.findMany({ where: { userId }, select: { id: true } }),
   ]);
   const ips = [...new Set(sessions.map((session) => session.ip).filter((ip): ip is string => Boolean(ip)))];
-  // The canonical address of an account is unique, so a second account with the same mailbox cannot
-  // exist and that signal stays at zero here; it is kept in the score for the day it can.
-  const sameIdentity = 0;
   const [shared, abuse] = await Promise.all([
     ips.length ? prisma.session.findMany({ where: { ip: { in: ips }, userId: { not: userId } }, select: { userId: true }, distinct: ['userId'], take: 50 }) : Promise.resolve([]),
     instances.length ? prisma.abuseReport.count({ where: { instanceId: { in: instances.map((instance) => instance.id) }, status: { in: ['open', 'investigating'] } } }) : Promise.resolve(0),
@@ -78,7 +73,6 @@ export async function assessCustomer(userId: string): Promise<Risk | null> {
     emailVerified: Boolean(user.emailVerifiedAt),
     disposableEmail: isDisposableEmail(user.email, env.DISPOSABLE_EMAIL_DOMAINS),
     sharedAddressAccounts: shared.length,
-    sameIdentityAccounts: sameIdentity,
     failedPayments,
     ordersLast24h,
     refunds,

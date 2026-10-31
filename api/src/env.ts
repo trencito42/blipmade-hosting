@@ -82,6 +82,12 @@ const schema = z.object({
   PROMOTION_FINGERPRINT_SECRET: z.string().default(''),
   /** Comma-separated domains that may not create customer accounts. */
   DISPOSABLE_EMAIL_DOMAINS: z.string().default(''),
+  /** Largest service a fully sponsored promotion order may contain. */
+  PROMOTION_FREE_MAX_RAM_MB: z.coerce.number().int().positive().default(1024),
+  PROMOTION_FREE_MAX_CPU: z.coerce.number().positive().default(1),
+  PROMOTION_FREE_MAX_DISK_GB: z.coerce.number().positive().default(5),
+  /** Cloudflare Turnstile secret. Empty keeps the human check off. */
+  TURNSTILE_SECRET_KEY: z.string().default(''),
 
   SMTP_URL: z.string().default(''),
   /**

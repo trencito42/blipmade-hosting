@@ -19,6 +19,7 @@ import {
 import { deploymentAvailability, unavailableMessage } from './availability.js';
 import { assertValidMailDomain } from './mail.js';
 import { checkCustomerVariables, parseCustomerVariableSpecs, sealVariables } from './instance-credentials.js';
+import { hasFreeEntitlement } from './promotion-policy.js';
 import type { BillingPeriod, Prisma, Product, ProductFulfilment, ProductOption, ProductPrice } from '@prisma/client';
 
 export interface ResourceConfig {
@@ -599,6 +600,8 @@ export async function reservePromotion(params: {
   userId: string;
   orderId: string;
   amount: number;
+  /** The order is covered entirely by the promotion. */
+  free?: boolean;
 }): Promise<void> {
   const promotion = await prisma.promotion.findUnique({ where: { id: params.promotionId } });
   if (!promotion) throw badRequest('This code is not valid.');
@@ -626,6 +629,15 @@ export async function reservePromotion(params: {
         });
         if (used >= current.maxRedemptions) {
           throw badRequest('This code has reached its redemption limit.');
+        }
+      }
+
+      // One free service per account, whatever the code. The account row is
+      // locked, so two codes claimed at the same moment cannot both pass.
+      if (params.amount > 0 && params.free) {
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${params.userId} FOR UPDATE`;
+        if (await hasFreeEntitlement(params.userId, params.orderId, cutoff)) {
+          throw badRequest('This account already has a free introductory service.');
         }
       }
 
