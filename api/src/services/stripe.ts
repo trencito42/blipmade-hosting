@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { AppError, badRequest, conflict, unavailable } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { allocateOrderAmounts, allocateLineTotals } from './order-amounts.js';
+import { billingAddressSchema } from '../lib/billing-address.js';
 import { nextInvoiceNumber } from './order-numbers.js';
 import { notifySubscriptionActivated } from './notifications.js';
 import type { Order, OrderItem, Subscription } from '@prisma/client';
@@ -265,10 +266,35 @@ export async function createCheckout(
         },
       ];
 
+  // The billing address the customer saved is given to the provider, so the checkout does not ask for it again. A customer
+  // the provider does not know yet (the first order) is asked once; after that payment the provider knows them.
+  let addressSent = false;
+  const saved = billingAddressSchema.safeParse(order.billingAddress);
+  if (customer && saved.success) {
+    try {
+      await stripe.customers.update(customer, {
+        name: saved.data.companyName || saved.data.fullName,
+        address: {
+          line1: saved.data.line1,
+          ...(saved.data.line2 ? { line2: saved.data.line2 } : {}),
+          city: saved.data.city,
+          ...(saved.data.region ? { state: saved.data.region } : {}),
+          postal_code: saved.data.postalCode,
+          country: saved.data.country,
+        },
+      });
+      addressSent = true;
+    } catch (error) {
+      // The checkout still works: it asks for the address itself.
+      console.error('[stripe] the billing address could not be sent to the provider', (error as Error).message);
+    }
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: isUpgrade ? 'payment' : 'subscription',
     ...(customer ? { customer } : customerEmail ? { customer_email: customerEmail } : {}),
-    billing_address_collection: 'required',
+    // With the address already at the provider the form is not shown. The provider that calculates tax needs it, so it keeps asking.
+    billing_address_collection: addressSent && !env.stripeTaxEnabled ? 'auto' : 'required',
     ...(customer ? { customer_update: { address: 'auto' as const, name: 'auto' as const } } : {}),
     client_reference_id: order.id,
     metadata: { orderId: order.id, orderNumber: order.number, orderKind: order.kind },
