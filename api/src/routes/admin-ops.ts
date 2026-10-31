@@ -6,6 +6,7 @@ import { audit } from '../lib/audit.js';
 import { assertMayActOnAccount, requirePermission, requireStaff } from '../plugins/auth.js';
 import { getEmailQueue, getMailProvisionQueue, getQueue, getVpsProvisionQueue } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
+import { assessCustomer } from '../services/risk.js';
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
 import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
 
@@ -279,5 +280,38 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     await saveEmailOverride(id, {});
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.email_template.reset', targetType: 'email-template', targetId: id, ip: request.ip });
     return { ok: true };
+  });
+
+  // --- the risk of an account, and bulk tags -----------------------------------------------------
+
+  /** How much the team should look twice at an account, and why. It decides nothing. */
+  app.get('/admin/customers/:id/risk', { preHandler: [requirePermission('customers.read')] }, async (request) => {
+    const { customer } = await customerOf(request);
+    const risk = await assessCustomer(customer.id);
+    if (!risk) throw notFound('Customer not found.');
+    return { risk };
+  });
+
+  /** Adds and removes tags on many accounts at once. Nothing else is changed. */
+  app.post('/admin/customers/bulk-tags', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const tag = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{0,23}$/, 'Tags use lowercase letters, numbers and dashes.');
+    const body = z.object({ ids: z.array(z.string()).min(1).max(200), add: z.array(tag).max(5).default([]), remove: z.array(tag).max(5).default([]) }).parse(request.body ?? {});
+    const users = await prisma.user.findMany({ where: { id: { in: body.ids } }, select: { id: true, role: true, tags: true } });
+    let changed = 0;
+    for (const user of users) {
+      try {
+        assertMayActOnAccount(actor, user.role, user.id);
+      } catch {
+        continue;
+      }
+      const next = [...new Set([...user.tags.filter((entry) => !body.remove.includes(entry)), ...body.add])].slice(0, 12);
+      if (next.join(',') !== user.tags.join(',')) {
+        await prisma.user.update({ where: { id: user.id }, data: { tags: next } });
+        changed += 1;
+      }
+    }
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.bulk_tags', targetType: 'user', targetId: 'bulk', meta: { count: users.length, changed, add: body.add, remove: body.remove }, ip: request.ip });
+    return { changed };
   });
 }
