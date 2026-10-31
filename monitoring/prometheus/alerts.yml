@@ -1,0 +1,66 @@
+groups:
+  - name: platform
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "{{ $labels.job }} {{ $labels.instance }} does not answer" }
+
+      - alert: EndpointDown
+        expr: probe_success == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "{{ $labels.instance }} does not answer from outside" }
+
+      - alert: CertificateExpiresSoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) < 14 * 24 * 3600
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "The certificate of {{ $labels.instance }} expires in under 14 days" }
+
+      - alert: ServerErrors
+        expr: sum(rate(bm_http_requests_total{status=~"5.."}[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: "The API answers with 5xx more than usual" }
+
+      - alert: DeadLetterQueueNotEmpty
+        expr: bm_dead_letter_pending_jobs > 0
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "Jobs failed for good and wait for an operator" }
+
+  - name: machines
+    rules:
+      - alert: DiskAlmostFull
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 0.85
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "{{ $labels.machine }} {{ $labels.mountpoint }} is over 85% full" }
+
+      - alert: MemoryHigh
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "{{ $labels.machine }} uses over 90% of its memory" }
+
+      - alert: TmpfsFull
+        expr: (1 - node_filesystem_avail_bytes{fstype="tmpfs",mountpoint="/tmp"} / node_filesystem_size_bytes{fstype="tmpfs",mountpoint="/tmp"}) > 0.9
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "/tmp of {{ $labels.machine }} is over 90% full (health checks of Docker fail when it is full)" }
+
+  - name: proxmox
+    rules:
+      - alert: VmNotRunning
+        expr: pve_up{id=~"qemu/.*"} == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations: { summary: "VM {{ $labels.id }} is not running" }
+
+      - alert: StorageAlmostFull
+        expr: pve_disk_usage_bytes{id=~"storage/.*"} / pve_disk_size_bytes{id=~"storage/.*"} > 0.85
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "Storage {{ $labels.id }} is over 85% full" }

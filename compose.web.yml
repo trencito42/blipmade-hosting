@@ -14,6 +14,10 @@ services:
   web:
     build:
       context: ./web
+      args:
+        # Vite embeds the public GlitchTip project DSN in the browser build.
+        # An empty value keeps reporting fully disabled in other environments.
+        VITE_SENTRY_DSN: "${VITE_SENTRY_DSN:-}"
     restart: unless-stopped
     environment:
       NODE_ENV: production

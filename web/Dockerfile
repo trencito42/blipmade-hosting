@@ -4,6 +4,8 @@ FROM node:22-alpine AS build
 # commit that runs in production can be read with `docker inspect` instead of
 # being guessed from the state of the working tree.
 ARG VCS_REF=unknown
+ARG VITE_SENTRY_DSN=
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 
 WORKDIR /app
 COPY package.json package-lock.json* ./

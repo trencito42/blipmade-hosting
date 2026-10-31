@@ -1,0 +1,76 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  # Proxmox: nodes, VMs and storage, through the exporter.
+  - job_name: proxmox
+    metrics_path: /pve
+    params:
+      module: [default]
+      cluster: ['1']
+      node: ['1']
+    static_configs:
+      - targets: ['10.77.0.1']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: pve-exporter:9221
+
+  # The host and each VM (node_exporter, port 9100).
+  - job_name: nodes
+    static_configs:
+      - targets: ['10.77.0.1:9100']
+        labels: { machine: host }
+      - targets: ['10.77.0.10:9100']
+        labels: { machine: panel }
+      - targets: ['10.77.0.11:9100']
+        labels: { machine: wings-node }
+      - targets: ['10.77.0.12:9100']
+        labels: { machine: gateway }
+      - targets: ['10.77.0.13:9100']
+        labels: { machine: platform }
+      - targets: ['10.77.0.14:9100']
+        labels: { machine: mail }
+
+  # The containers of the platform VM (cadvisor, port 8080).
+  - job_name: containers
+    static_configs:
+      - targets: ['10.77.0.13:8080']
+
+  # The measures of the platform: the API and the worker (bm_* ).
+  - job_name: platform
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/platform-token
+    static_configs:
+      - targets: ['10.77.0.13:9464']
+        labels: { service: api }
+
+  # The public endpoints, probed from outside the process.
+  - job_name: endpoints
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://blipmade.com/
+          - https://blipmade.com/api/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
