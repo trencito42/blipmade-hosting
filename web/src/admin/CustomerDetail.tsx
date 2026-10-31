@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingBlock,
   Money,
+  TextArea,
   TextInput,
   Panel,
   StatusPill,
