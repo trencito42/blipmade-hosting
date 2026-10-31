@@ -185,15 +185,25 @@ async function workerOk(): Promise<{ ok: boolean; detail: string }> {
 /** The depth of the provisioning queue. */
 async function queueState(): Promise<{ ok: boolean; detail: string }> {
   try {
-    const counts = await getQueue().getJobCounts('waiting', 'active', 'failed', 'delayed');
+    const queue = getQueue();
+    const counts = await queue.getJobCounts('waiting', 'active', 'failed', 'delayed');
     const waiting = counts.waiting ?? 0;
     const active = counts.active ?? 0;
     const failed = counts.failed ?? 0;
     const delayed = counts.delayed ?? 0;
-    const detail = `${waiting} waiting, ${active} running, ${delayed} delayed, ${failed} failed.`;
-    // A queue that is not moving is a problem even when nothing is down.
-    if (failed > 0) return { ok: false, detail };
-    return { ok: true, detail };
+    // A failed job stays in the queue until someone removes it, so an old failure must not keep the
+    // queue "degraded" for ever: only failures of the last six hours count, and the older ones are
+    // told apart in the sentence.
+    const recentSince = Date.now() - 6 * 3_600_000;
+    const failedJobs = failed > 0 ? await queue.getFailed(0, 49) : [];
+    const recent = failedJobs.filter((job) => (job.finishedOn ?? 0) >= recentSince).length;
+    const old = failed - recent;
+    // A job that waits and does not start is a problem as well: the oldest waiting job must not be old.
+    const oldestWaiting = waiting > 0 ? (await queue.getWaiting(0, 0))[0] : undefined;
+    const waitingMinutes = oldestWaiting?.timestamp ? Math.round((Date.now() - oldestWaiting.timestamp) / 60_000) : 0;
+    const stuck = waitingMinutes >= 15;
+    const detail = `${waiting} waiting, ${active} running, ${delayed} delayed, ${recent} failed in the last 6 hours${old > 0 ? `, ${old} older failure(s) to look at in the job queues` : ''}${stuck ? `; the oldest waiting job has waited ${waitingMinutes} minutes` : ''}.`;
+    return { ok: recent === 0 && !stuck, detail };
   } catch {
     return { ok: false, detail: 'The queue could not be read.' };
   }

@@ -213,7 +213,7 @@ export function AppShell({
             <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
             blipmade
           </Link>
-          <nav aria-label="Main" className="grid gap-1">
+          <nav aria-label="Main" className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto pr-1">
             {nav.map((entry) => (
               <Link
                 key={entry.to}
@@ -229,7 +229,7 @@ export function AppShell({
               </Link>
             ))}
           </nav>
-          <div className="mt-auto">
+          <div className="mt-2 shrink-0">
             {environment && (
               <p className="mb-2 rounded-full border border-line bg-card px-3 py-1.5 text-center font-mono text-[11.5px] uppercase tracking-[0.12em] text-ink2">
                 {environment}
