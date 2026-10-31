@@ -268,6 +268,15 @@ export function metaFor(path: string): Meta {
     };
   }
 
+  if (path === '/abuse') {
+    return {
+      ...base,
+      title: 'Report abuse | Blipmade',
+      description: 'Report spam, phishing, malware, an attack or a copyright claim about something hosted with Blipmade.',
+      jsonld: [crumbs([['Home', '/'], ['Report abuse', '/abuse']])],
+    };
+  }
+
   if (path === '/email') {
     return {
       ...base,
@@ -280,7 +289,7 @@ export function metaFor(path: string): Meta {
   if (path === '/vps') {
     return {
       ...base,
-      title: 'VPS with root access, from 3,99 € a month | Blipmade',
+      title: 'VPS with root access and SSH | Blipmade',
       description: 'A virtual private server of your own, with root access and SSH, for a backend, a website or a tool.',
       jsonld: [crumbs([['Home', '/'], ['VPS', '/vps']])],
     };
@@ -310,6 +319,7 @@ export function allRoutes(): string[] {
     '/reset-password',
     '/verify-email',
     '/status',
+    '/abuse',
     '/email',
     '/vps',
   ];

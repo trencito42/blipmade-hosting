@@ -8,6 +8,7 @@ import { AuthForgot, AuthLogin, AuthRegister, AuthReset, AuthVerify } from './Au
 import { LegalPage } from './Legal';
 import NotFound from './NotFound';
 import Status from '../pages/Status';
+import ReportAbuse from '../pages/ReportAbuse';
 import EmailHosting from '../app/EmailHosting';
 import { matchPublic } from './public-routes';
 import { allRoutes, metaFor } from './seo';
@@ -92,6 +93,7 @@ function PublicPage({ path }: { path: string }) {
  */
 function OtherPage({ path }: { path: string }) {
   if (path === '/status') return <Status />;
+  if (path === '/abuse') return <ReportAbuse />;
   if (path === '/email') return <EmailHosting />;
   return <NotFound />;
 }
