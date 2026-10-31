@@ -9,6 +9,15 @@ import { isTrustedAddress, parseTrustedProxies, resolveClientAddress } from './s
 const root = resolve(process.cwd(), 'dist');
 const port = Number(process.env.SERVER_PORT || process.env.PORT || 30001);
 const API_URL = process.env.API_URL || 'http://127.0.0.1:3100';
+
+/** The origin that receives the errors of the browser, taken from the DSN of the build. Empty when there is none. */
+function sentryOrigin() {
+  try {
+    return process.env.VITE_SENTRY_DSN ? new URL(process.env.VITE_SENTRY_DSN).origin : '';
+  } catch {
+    return '';
+  }
+}
 /** How long a read waits for the API to come back (a deploy): 24 tries, a third of a second apart. */
 const UPSTREAM_RETRIES = 24;
 const UPSTREAM_RETRY_MS = 350;
@@ -224,7 +233,7 @@ function securityHeaders() {
       "font-src 'self'",
       // The origins the browser may call besides this site: Turnstile, and (CONNECT_SRC_EXTRA) the address
       // that receives the errors of the browser, for example the GlitchTip of the platform.
-      `connect-src 'self' https://challenges.cloudflare.com ${(process.env.CONNECT_SRC_EXTRA || '').replace(/[^A-Za-z0-9:/._ *-]/g, '')}`.trim(),
+      `connect-src 'self' https://challenges.cloudflare.com ${(process.env.CONNECT_SRC_EXTRA || '').replace(/[^A-Za-z0-9:/._ *-]/g, '')} ${sentryOrigin()}`.replace(/\s+/g, ' ').trim(),
       "frame-src https://challenges.cloudflare.com",
       "worker-src 'self' blob:",
       "manifest-src 'self'",

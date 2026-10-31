@@ -138,6 +138,21 @@ export class ErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    // A tab that was open before a deploy asks for a file of the old build, which is gone. That is
+    // not a crash of the page: it is loaded again once, to pick up the new files. The guard keeps
+    // a real outage from becoming a loop of reloads.
+    if (/dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError/i.test(String(error?.message ?? error))) {
+      try {
+        const last = Number(sessionStorage.getItem('bm-reloaded-at') ?? 0);
+        if (Date.now() - last > 15000) {
+          sessionStorage.setItem('bm-reloaded-at', String(Date.now()));
+          window.location.reload();
+          return;
+        }
+      } catch {
+        /* without storage the page is shown as it is */
+      }
+    }
     // The error is written to the console of the browser: the interface has
     // no other place to put it, and a person who opens the console can then
     // tell what went wrong.
