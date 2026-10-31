@@ -139,6 +139,39 @@ export const patch = <T,>(path: string, body?: unknown) => api<T>(path, { method
 
 export const del = <T,>(path: string, body?: unknown) => api<T>(path, { method: 'DELETE', body });
 
+/** Uploads ticket attachment bytes with the same session and CSRF rules as JSON requests. */
+export async function uploadTicketAttachment<T = unknown>(ticketId: string, messageId: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  const csrf = readCookie('bm_csrf');
+  if (csrf) headers['X-CSRF-Token'] = csrf;
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `/api/tickets/${encodeURIComponent(ticketId)}/attachments?messageId=${encodeURIComponent(messageId)}`,
+      { method: 'POST', credentials: 'include', headers, body: form },
+    );
+  } catch {
+    throw new ApiError(0, 'network_error', 'Cannot reach the Blipmade API. Check your connection and retry.');
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!response.ok) {
+    const payload = contentType.includes('application/json') ? await response.json().catch(() => null) : null;
+    const detail = payload?.error ?? payload;
+    throw new ApiError(
+      response.status,
+      typeof detail?.code === 'string' ? detail.code : 'upload_failed',
+      typeof detail?.message === 'string' ? detail.message : `Upload failed (${response.status}).`,
+      detail?.fields,
+      response.headers.get('x-request-id') ?? undefined,
+    );
+  }
+  return (await response.json()) as T;
+}
+
 // --- shared shapes -------------------------------------------------------
 
 export type Role = 'CUSTOMER' | 'STAFF' | 'ADMIN';
@@ -533,7 +566,16 @@ export interface TicketMessage {
   internal: boolean;
   author: { id: string; name: string | null; role: Role };
   createdAt: string;
-  attachments: { name: string; size: number; type: string }[];
+  attachments: TicketAttachment[];
+}
+
+export interface TicketAttachment {
+  name: string;
+  size: number;
+  type: string;
+  /** Present only when the attachment bytes were stored. */
+  id?: string;
+  downloadable?: boolean;
 }
 
 export interface BillingAddress {

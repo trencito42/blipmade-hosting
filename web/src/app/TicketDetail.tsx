@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { get, post, type Ticket, type TicketMessage } from '../lib/api';
+import { useRef, useState } from 'react';
+import { get, post, uploadTicketAttachment, type Ticket, type TicketMessage } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useParams, Link } from '../router';
 import { useSession } from '../session';
@@ -15,6 +15,7 @@ import {
   TextArea,
   useToast,
 } from '../ui-app';
+import { TicketAttachments } from './TicketAttachments';
 
 const STATUS_OPTIONS = [
   { value: 'OPEN', label: 'Open' },
@@ -45,7 +46,7 @@ const ACCEPTED_TYPES = [
   'application/gzip',
 ];
 
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 5 * 1024 * 1024;
 
 const DATE_FMT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const TIME_FMT = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -69,7 +70,7 @@ interface TicketPayload extends Ticket {
 }
 
 function validateFile(file: File): string | null {
-  if (file.size > MAX_BYTES) return 'That file is larger than 10 MB. Attach a smaller file.';
+  if (file.size > MAX_BYTES) return 'That file is larger than 5 MB. Attach a smaller file.';
   if (!ACCEPTED_TYPES.includes(file.type)) {
     return 'That file type is not supported. Attach a PNG, JPEG, GIF, WebP, PDF, TXT, CSV, JSON or ZIP file.';
   }
@@ -80,6 +81,7 @@ export default function TicketDetail() {
   const { id = '' } = useParams();
   const { user } = useSession();
   const toast = useToast();
+  const attachmentInput = useRef<HTMLInputElement>(null);
 
   const state = useAsync(
     (signal) => get<{ ticket: TicketPayload; messages?: TicketMessage[] }>(`/tickets/${id}`, undefined, signal),
@@ -88,7 +90,7 @@ export default function TicketDetail() {
 
   const [replyBody, setReplyBody] = useState('');
   const [replyError, setReplyError] = useState<string | null>(null);
-  const [fileMeta, setFileMeta] = useState<{ name: string; size: number; type: string } | null>(null);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [statusChoice, setStatusChoice] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -97,11 +99,10 @@ export default function TicketDetail() {
   const messages = (state.data?.ticket.messages ?? state.data?.messages ?? []).filter((m) => !m.internal);
 
   const reply = useAction(async () => {
-    const payload: { body: string; attachments?: { name: string; size: number; type: string }[] } = {
-      body: replyBody.trim(),
-    };
-    if (fileMeta) payload.attachments = [fileMeta];
-    const result = await post<{ message: TicketMessage }>(`/tickets/${id}/replies`, payload);
+    const result = await post<{ message: TicketMessage }>(`/tickets/${id}/replies`, { body: replyBody.trim() });
+    if (attachmentFile) {
+      await uploadTicketAttachment(id, result.message.id, attachmentFile);
+    }
     return result.message;
   });
 
@@ -124,7 +125,8 @@ export default function TicketDetail() {
     const message = await reply.run();
     if (!message) return;
     setReplyBody('');
-    setFileMeta(null);
+    setAttachmentFile(null);
+    if (attachmentInput.current) attachmentInput.current.value = '';
     setFileError(null);
     state.reload();
     setNotice('Your reply was sent.');
@@ -136,11 +138,11 @@ export default function TicketDetail() {
     const problem = validateFile(file);
     if (problem) {
       setFileError(problem);
-      setFileMeta(null);
+      setAttachmentFile(null);
       return;
     }
     setFileError(null);
-    setFileMeta({ name: file.name, size: file.size, type: file.type });
+    setAttachmentFile(file);
   };
 
   if (state.loading) {
@@ -291,19 +293,7 @@ export default function TicketDetail() {
                   <span className="text-[12.5px] text-ink3">{fmtDate(message.createdAt)}</span>
                 </div>
                 <p className="mt-2 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-ink2">{message.body}</p>
-                {message.attachments.length > 0 && (
-                  <ul className="mt-3 grid gap-1.5">
-                    {message.attachments.map((file) => (
-                      <li key={`${message.id}-${file.name}`} className="rounded-xl bg-s3 px-3 py-2 text-[12.5px] break-all text-ink2">
-                        <span className="font-mono text-ink">{file.name}</span>
-                        <span className="mx-2 text-ink3">·</span>
-                        <span>{fmtSize(file.size)}</span>
-                        <span className="mx-2 text-ink3">·</span>
-                        <span>{file.type || 'unknown type'}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <TicketAttachments ticketId={id} messageId={message.id} attachments={message.attachments} />
               </li>
             ))}
           </ul>
@@ -328,22 +318,22 @@ export default function TicketDetail() {
             </label>
             <input
               id="ticket-attachment"
+              ref={attachmentInput}
               type="file"
               onChange={(e) => onPickFile(e.target.files?.[0])}
               className="block w-full text-[14px] text-ink2 file:mr-3 file:h-11 file:rounded-full file:bg-s3 file:px-4 file:text-[14px] file:font-bold file:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
             />
             <p className="px-1 text-[12.5px] text-ink3">
-              Up to 10 MB. Only the file name, size and type are sent with your reply — the file contents are not uploaded
-              from this form.
+              Up to 5 MB. PNG, JPEG, GIF, WebP, PDF, TXT, CSV, JSON and ZIP files are supported.
             </p>
             {fileError && (
               <p role="alert" className="px-1 text-[12.5px] font-medium text-bad">
                 {fileError}
               </p>
             )}
-            {fileMeta && (
+            {attachmentFile && (
               <p className="px-1 text-[12.5px] text-ink2">
-                Attached: <span className="font-mono break-all text-ink">{fileMeta.name}</span> ({fmtSize(fileMeta.size)})
+                Attached: <span className="font-mono break-all text-ink">{attachmentFile.name}</span> ({fmtSize(attachmentFile.size)})
               </p>
             )}
           </div>
