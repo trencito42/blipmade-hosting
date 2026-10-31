@@ -27,7 +27,7 @@ export async function registerAbuseRoutes(app: FastifyInstance): Promise<void> {
 
       // A hostname of a service of ours, taken out of the address the report names.
       const host = body.target.replace(/^[a-z]+:\/\//i, '').split(/[/?#:]/)[0]?.toLowerCase() ?? '';
-      const domain = host ? await prisma.domain.findFirst({ where: { hostname: host }, select: { instanceId: true } }) : null;
+      const domain = host ? await prisma.instanceDomain.findFirst({ where: { hostname: host }, select: { instanceId: true } }) : null;
 
       const report = await prisma.abuseReport.create({
         data: {
