@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
-import { cancelSubscription, createBillingPortal, paymentState, resumeSubscription, stripeLive } from '../services/stripe.js';
+import { cancelSubscription, createBillingPortal, customerBalance, paymentState, resumeSubscription, stripeLive } from '../services/stripe.js';
 import { notFound, unavailable } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import {
@@ -42,6 +42,20 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
   app.get('/billing/payment-state', async (request: FastifyRequest) => {
     await requireAuth(request);
     return { payments: paymentState() };
+  });
+
+  /**
+   * The credit the platform gave this account. It is held as the balance of the customer at the payment provider and the
+   * provider takes it off the next invoice, so this is only what the customer is told.
+   */
+  app.get('/billing/credit', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    if (!stripeLive()) return { credit: 0, currency: 'EUR' };
+    const payment = await prisma.payment.findFirst({ where: { userId: user.id, stripeCustomerId: { not: null } }, orderBy: { createdAt: 'desc' }, select: { stripeCustomerId: true, currency: true } });
+    if (!payment?.stripeCustomerId) return { credit: 0, currency: 'EUR' };
+    const balance = await customerBalance(payment.stripeCustomerId);
+    // A negative balance at the provider is money the customer is owed.
+    return { credit: balance !== null && balance < 0 ? -balance : 0, currency: payment.currency ?? 'EUR' };
   });
 
   app.get('/billing/summary', async (request: FastifyRequest) => {

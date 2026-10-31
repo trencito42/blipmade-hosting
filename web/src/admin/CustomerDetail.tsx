@@ -292,6 +292,7 @@ export default function CustomerDetail() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`Customer ${customer.name ?? customer.id} loaded`} />
+      <CreditSummary customerId={customer.id} />
       <Panel title={customer.name ?? 'No name'} description="Everything the API returns about this account.">
         <div className="grid gap-3">
           <dl className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -876,6 +877,18 @@ function RiskPanel({ customerId }: { customerId: string }) {
 interface CreditState { entries: { id: string; kind: string; amount: number; currency: string; reason: string; actorEmail: string | null; createdAt: string }[]; providerBalance: number | null; canCredit: boolean }
 
 /** A credit for the customer. It goes to their balance at the payment provider, which takes it off their next invoice by itself. */
+/** The credit balance at the top of the page, so it is not found only by scrolling to the Credit panel. */
+function CreditSummary({ customerId }: { customerId: string }) {
+  const state = useAsync<CreditState>((signal) => get<CreditState>(`/admin/customers/${customerId}/credit`, undefined, signal), [customerId]);
+  const balance = state.data?.providerBalance ?? 0;
+  if (balance === 0) return null;
+  return (
+    <p role="status" className="rounded-2xl bg-acc-bg px-4 py-3 text-[14px] text-ink">
+      <strong>{balance < 0 ? `${(-balance / 100).toFixed(2)} in credit` : `${(balance / 100).toFixed(2)} owed by the customer`}</strong> at the payment provider. {balance < 0 ? 'It is taken off their next invoice.' : ''}
+    </p>
+  );
+}
+
 function CreditPanel({ customerId }: { customerId: string }) {
   const toast = useToast();
   const state = useAsync<CreditState>((signal) => get<CreditState>(`/admin/customers/${customerId}/credit`, undefined, signal), [customerId]);

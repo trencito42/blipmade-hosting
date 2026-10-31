@@ -1,3 +1,4 @@
+import { CreditNotice } from './CreditNotice';
 import { useEffect, useMemo, useState } from 'react';
 import { get, post, type Invoice, type Subscription } from '../lib/api';
 import { formatPrice } from '../lib/pricing';
@@ -477,6 +478,7 @@ export default function Billing() {
 
   return (
     <div className="grid gap-4">
+      <CreditNotice />
       {/* The state of the payment the customer just came back from. Without
           this the page shows an empty estimate and the order waits for a
           payment that the browser already made. */}

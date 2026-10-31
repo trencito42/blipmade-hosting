@@ -1,3 +1,4 @@
+import { CreditNotice } from './CreditNotice';
 import { BillingAddressFields, emptyBillingAddress, type BillingAddressValue } from './BillingAddressFields';
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
@@ -1131,6 +1132,7 @@ export default function Deploy() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
           <Panel title="Payment">
             <div className="grid gap-3">
+              <CreditNotice />
               <p className="text-[14.5px] text-ink2">
                 We create the order and open a secure checkout page. The order is only marked as paid by the server.
               </p>
