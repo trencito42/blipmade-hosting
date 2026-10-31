@@ -195,7 +195,7 @@ export default function Orders() {
                     render: (order: AdminOrder) =>
                       order.customer?.id ? (
                         <Link
-                          to={`/admin/customers/${order.customer.id}`}
+                          to={`/admin/orders/${order.id}`}
                           className="font-mono text-[13px] text-ink hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                         >
                           {order.number}
@@ -266,9 +266,7 @@ export default function Orders() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate font-mono text-[13.5px] text-ink" title={order.number}>
-                          {order.number}
-                        </p>
+                        <Link to={`/admin/orders/${order.id}`} className="truncate font-mono text-[13.5px] text-acc" title={order.number}>{order.number}</Link>
                         <p
                           className="truncate text-[13px] text-ink2"
                           title={order.customer?.name ?? email(order.customer?.email ?? '')}

@@ -243,7 +243,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!customer) throw notFound('Customer not found.');
 
-    const totalSpent = customer.payments.filter((payment) => payment.status === 'SUCCEEDED').reduce((sum, payment) => sum + payment.amount, 0);
+    // This must cover the full ledger, not only the 50 recent rows loaded for
+    // the detail lists. A long-standing customer would otherwise appear to
+    // have spent less as soon as their 51st payment arrived.
+    const spent = await prisma.payment.aggregate({ where: { userId: id, status: 'SUCCEEDED' }, _sum: { amount: true } });
+    const totalSpent = spent._sum.amount ?? 0;
 
     return {
       customer: {
@@ -255,6 +259,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         emailVerified: Boolean(customer.emailVerifiedAt),
         suspendedAt: customer.suspendedAt,
         pterodactylUserId: customer.pterodactylUserId,
+        billingAddress: customer.billingAddress,
         totalSpent,
         instances: customer.instances.map((instance) => ({
           id: instance.id,
@@ -1373,17 +1378,35 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const body = z
       .object({
-        // A positive whole number, or nothing at all to clear the limit.
-        maxPerUser: z.number().int().min(1).nullable(),
+        maxPerUser: z.number().int().min(1).nullable().optional(),
+        maxRedemptions: z.number().int().min(1).nullable().optional(),
+        active: z.boolean().optional(),
+        startsAt: z.string().datetime().nullable().optional(),
+        endsAt: z.string().datetime().nullable().optional(),
       })
+      .strict()
       .parse(request.body);
 
     const promotion = await prisma.promotion.findUnique({ where: { id } });
     if (!promotion) throw notFound('Promotion not found.');
 
+    const effectiveRedemptions = await countEffectiveRedemptions(id);
+    if (body.maxRedemptions !== undefined && body.maxRedemptions !== null && body.maxRedemptions < effectiveRedemptions) {
+      throw badRequest(`The cap cannot be lower than the ${effectiveRedemptions} redemption(s) already reserved or used.`);
+    }
+    const startsAt = body.startsAt === undefined ? promotion.startsAt : body.startsAt ? new Date(body.startsAt) : null;
+    const endsAt = body.endsAt === undefined ? promotion.endsAt : body.endsAt ? new Date(body.endsAt) : null;
+    if (startsAt && endsAt && endsAt <= startsAt) throw badRequest('The campaign must end after it starts.');
+
     const updated = await prisma.promotion.update({
       where: { id },
-      data: { maxPerUser: body.maxPerUser },
+      data: {
+        ...(body.maxPerUser !== undefined ? { maxPerUser: body.maxPerUser } : {}),
+        ...(body.maxRedemptions !== undefined ? { maxRedemptions: body.maxRedemptions } : {}),
+        ...(body.active !== undefined ? { active: body.active } : {}),
+        ...(body.startsAt !== undefined ? { startsAt } : {}),
+        ...(body.endsAt !== undefined ? { endsAt } : {}),
+      },
     });
     await audit({
       actorId: actor.id,
@@ -1391,7 +1414,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       action: 'promotion.updated',
       targetType: 'promotion',
       targetId: updated.id,
-      meta: { code: updated.code, maxPerUser: updated.maxPerUser },
+      meta: {
+        code: updated.code,
+        changed: Object.keys(body),
+        maxPerUser: updated.maxPerUser,
+        maxRedemptions: updated.maxRedemptions,
+        active: updated.active,
+        startsAt: updated.startsAt?.toISOString() ?? null,
+        endsAt: updated.endsAt?.toISOString() ?? null,
+      },
       ip: request.ip,
     });
     return { promotion: updated };

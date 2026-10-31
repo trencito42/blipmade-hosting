@@ -4,7 +4,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import type { TableColumn } from '../lib/table';
 import { Link } from '../router';
 import { Icon } from '../icons';
-import { CardList, ConfirmDialog, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
+import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
 import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useAdminSession } from './Overview';
 
 /**
@@ -47,55 +47,6 @@ function fmtRam(mb: number): string {
   if (!Number.isFinite(mb)) return DASH;
   if (mb < 1024) return `${mb} MB`;
   return `${Math.round((mb / 1024) * 100) / 100} GB`;
-}
-
-/** What the staff can do to an instance without the customer: stop it for good reason, reinstall it, or change how many databases it may have. */
-function ServiceTools({ service, onDone }: { service: AdminService; onDone: () => void }) {
-  const toast = useToast();
-  const [confirm, setConfirm] = useState<'reinstall' | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [databases, setDatabases] = useState('');
-  const suspended = service.status === 'suspended';
-  const run = async (work: () => Promise<unknown>, message: string) => {
-    setBusy(true);
-    try {
-      await work();
-      toast.push(message, 'ok');
-      onDone();
-    } catch (failure) {
-      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-  if (!service.pterodactylServerId) return <span className="text-[12.5px] text-ink3">Not on the panel yet</span>;
-  return (
-    <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
-      <button type="button" disabled={busy} className={denseGhost} onClick={() => void run(() => post(`/admin/instances/${service.id}/suspend`, { suspended: !suspended }), suspended ? 'The instance was resumed.' : 'The instance was suspended.')}>
-        {suspended ? 'Resume' : 'Suspend'}
-      </button>
-      <button type="button" disabled={busy} className={denseDanger} onClick={() => setConfirm('reinstall')}>Reinstall</button>
-      <select aria-label={`Databases for ${service.name}`} value={databases} onChange={(event) => setDatabases(event.target.value)} className={`${denseInput} w-auto`}>
-        <option value="">Databases…</option>
-        {[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n === 0 ? 'No database' : `${n} database${n === 1 ? '' : 's'}`}</option>)}
-      </select>
-      {databases !== '' && (
-        <button type="button" disabled={busy} className={denseGhost} onClick={() => void run(async () => { await post(`/admin/instances/${service.id}/database-limit`, { databases: Number(databases) }); setDatabases(''); }, 'The database limit was changed.')}>Apply</button>
-      )}
-      <ConfirmDialog
-        open={confirm === 'reinstall'}
-        title={`Reinstall ${service.name}?`}
-        description="The files of the container are erased and the server is installed again. The customer is not asked."
-        confirmLabel="Reinstall"
-        requireText={service.name}
-        onCancel={() => setConfirm(null)}
-        onConfirm={() => {
-          setConfirm(null);
-          void run(() => post(`/admin/instances/${service.id}/reinstall`, { confirm: true }), 'The server is being reinstalled.');
-        }}
-      />
-    </span>
-  );
 }
 
 export default function Services() {
@@ -235,9 +186,7 @@ export default function Services() {
                     truncate: true,
                     render: (service: AdminService) => (
                       <span className="block min-w-0">
-                        <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={service.name}>
-                          {service.name}
-                        </span>
+                        <Link to={`/admin/services/${service.id}`} className="block truncate font-bold tracking-[-0.02em] text-ink hover:text-acc" title={service.name}>{service.name}</Link>
                         <span className="block truncate text-[12.5px] text-ink3" title={service.product.name}>
                           {service.product.name}
                         </span>
@@ -293,18 +242,14 @@ export default function Services() {
                           key: 'tools',
                           header: 'Manage',
                           align: 'right',
-                          render: (service: AdminService) => <ServiceTools service={service} onDone={state.reload} />,
+                          render: (service: AdminService) => <Link to={`/admin/services/${service.id}`} className={denseGhost}>Open control</Link>,
                         },
                         {
                           key: 'retry',
                           header: 'Action',
                           align: 'right',
                           nowrap: true,
-                          render: (service: AdminService) => (
-                            <button type="button" onClick={() => openRetry(service)} className={denseDanger}>
-                              Retry provisioning
-                            </button>
-                          ),
+                          render: (service: AdminService) => ['pending', 'provisioning', 'failed', 'degraded'].includes(service.status) ? <button type="button" onClick={() => openRetry(service)} className={denseDanger}>Retry provisioning</button> : <span className="text-[12px] text-ink3">No recovery needed</span>,
                         },
                       ] satisfies TableColumn<AdminService>[])
                     : []),
@@ -350,14 +295,7 @@ export default function Services() {
                         <dd className="text-ink">{fmtDate(service.createdAt)}</dd>
                       </div>
                     </dl>
-                    {mayWrite && (
-                      <div className="mt-3 grid gap-2">
-                        <ServiceTools service={service} onDone={state.reload} />
-                        <button type="button" onClick={() => openRetry(service)} className={denseDanger}>
-                          Retry provisioning
-                        </button>
-                      </div>
-                    )}
+                    <div className="mt-3 flex flex-wrap gap-2"><Link to={`/admin/services/${service.id}`} className={denseGhost}>Open control</Link>{mayWrite && ['pending', 'provisioning', 'failed', 'degraded'].includes(service.status) && <button type="button" onClick={() => openRetry(service)} className={denseDanger}>Retry provisioning</button>}</div>
                   </div>
                 )}
               </CardList>

@@ -74,6 +74,7 @@ interface AdminCustomerDetail {
   emailVerified: boolean;
   suspendedAt: string | null;
   pterodactylUserId: string | null;
+  billingAddress: Record<string, string | null> | null;
   totalSpent: number;
   instances: DetailInstance[];
   invoices: DetailInvoice[];
@@ -348,6 +349,10 @@ export default function CustomerDetail() {
                 )}
               </dd>
             </div>
+            <div className="rounded-2xl bg-s2 p-3.5 sm:col-span-2 lg:col-span-3">
+              <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Billing address</dt>
+              <dd className="mt-1 text-[14px] text-ink">{customer.billingAddress ? Object.values(customer.billingAddress).filter(Boolean).join(', ') : DASH}</dd>
+            </div>
           </dl>
 
           {suspended && (
@@ -391,9 +396,7 @@ export default function CustomerDetail() {
                   truncate: true,
                   render: (instance: DetailInstance) => (
                     <span className="block min-w-0">
-                      <span className="block truncate font-bold tracking-[-0.02em] text-ink" title={instance.name}>
-                        {instance.name}
-                      </span>
+                      <Link to={`/admin/services/${instance.id}`} className="block truncate font-bold tracking-[-0.02em] text-ink hover:text-acc" title={instance.name}>{instance.name}</Link>
                       <span className="block truncate text-[12.5px] text-ink3" title={instance.product.name}>
                         {instance.product.name}
                       </span>
@@ -438,9 +441,7 @@ export default function CustomerDetail() {
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={instance.name}>
-                        {instance.name}
-                      </p>
+                      <Link to={`/admin/services/${instance.id}`} className="block truncate text-[15px] font-semibold tracking-[-0.02em] text-acc" title={instance.name}>{instance.name}</Link>
                       <p className="truncate text-[12.5px] text-ink3" title={instance.product.name}>
                         {instance.product.name}
                       </p>
@@ -619,7 +620,7 @@ export default function CustomerDetail() {
                   key: 'number',
                   header: 'Number',
                   nowrap: true,
-                  render: (order: DetailOrder) => <span className="font-mono text-[13px] text-ink">{order.number}</span>,
+                  render: (order: DetailOrder) => <Link to={`/admin/orders/${order.id}`} className="font-mono text-[13px] text-acc hover:underline">{order.number}</Link>,
                 },
                 {
                   key: 'status',
@@ -646,9 +647,7 @@ export default function CustomerDetail() {
               {(order) => (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-mono text-[13.5px] text-ink" title={order.number}>
-                      {order.number}
-                    </p>
+                    <Link to={`/admin/orders/${order.id}`} className="block truncate font-mono text-[13.5px] text-acc" title={order.number}>{order.number}</Link>
                     <p className="text-[12.5px] text-ink3">{fmtDate(order.createdAt)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

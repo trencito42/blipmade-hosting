@@ -60,12 +60,15 @@ const AdminOverview = lazy(() => import('./admin/Overview'));
 const AdminCustomers = lazy(() => import('./admin/Customers'));
 const AdminCustomerDetail = lazy(() => import('./admin/CustomerDetail'));
 const AdminOrders = lazy(() => import('./admin/Orders'));
+const AdminOrderDetail = lazy(() => import('./admin/OrderDetail'));
 const AdminServices = lazy(() => import('./admin/Services'));
+const AdminServiceDetail = lazy(() => import('./admin/ServiceDetail'));
 const AdminVps = lazy(() => import('./admin/Vps'));
 const AdminProducts = lazy(() => import('./admin/Products'));
 const AdminPricing = lazy(() => import('./admin/Pricing'));
 const AdminTickets = lazy(() => import('./admin/Tickets'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
+const AdminPromotionDetail = lazy(() => import('./admin/PromotionDetail'));
 const AdminInfrastructure = lazy(() => import('./admin/Infrastructure'));
 const AdminOps = lazy(() => import('./admin/Ops'));
 const AdminMail = lazy(() => import('./admin/Mail'));
@@ -134,12 +137,15 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/customers', component: AdminCustomers, title: 'Customers', area: 'admin' },
   { pattern: '/admin/customers/:id', component: AdminCustomerDetail, title: 'Customer', area: 'admin' },
   { pattern: '/admin/orders', component: AdminOrders, title: 'Orders', area: 'admin' },
+  { pattern: '/admin/orders/:id', component: AdminOrderDetail, title: 'Order control', area: 'admin' },
   { pattern: '/admin/services', component: AdminServices, title: 'Services', area: 'admin' },
+  { pattern: '/admin/services/:id', component: AdminServiceDetail, title: 'Service control', area: 'admin' },
   { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
+  { pattern: '/admin/promotions/:id', component: AdminPromotionDetail, title: 'Campaign control', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
   { pattern: '/admin/incidents', component: AdminIncidents, title: 'Incidents', area: 'admin' },
   { pattern: '/admin/reports', component: AdminReports, title: 'Reports', area: 'admin' },

@@ -39,6 +39,7 @@ import { registerAdminMailRoutes } from './routes/admin-mail.js';
 import { registerAdminMailPlansRoutes } from './routes/admin-mail-plans.js';
 import { registerNotificationRoutes } from './routes/notifications.js';
 import { registerAdminNotificationRoutes } from './routes/admin-notifications.js';
+import { registerAdminControlRoutes } from './routes/admin-control.js';
 import { registerOpsRoutes } from './routes/ops.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerHealthRoutes, registerStatusRoutes } from './routes/health.js';
@@ -230,6 +231,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerAdminOpsRoutes(api);
       await registerAbuseRoutes(api);
       await registerAdminRoutes(api);
+      await registerAdminControlRoutes(api);
       await registerAdminActRoutes(api);
       await registerAdminMailRoutes(api);
       await registerAdminMailPlansRoutes(api);

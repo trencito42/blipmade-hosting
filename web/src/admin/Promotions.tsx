@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import { Link } from '../router';
 import { CardList, ConfirmDialog, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
 import { LiveRegion, TruncationNote, can, denseGhost, denseInput, densePrimary, denseSelect, denseSoft, fmtDate, useAdminSession } from './Overview';
 
@@ -351,7 +352,7 @@ export default function Promotions() {
                     header: 'Code',
                     nowrap: true,
                     render: (promotion: AdminPromotion) => (
-                      <span className="font-mono text-[13.5px] font-medium text-ink">{promotion.code}</span>
+                      <Link to={`/admin/promotions/${promotion.id}`} className="font-mono text-[13.5px] font-medium text-acc hover:underline">{promotion.code}</Link>
                     ),
                   },
                   {
@@ -390,14 +391,7 @@ export default function Promotions() {
                           {promotion.maxPerUser === null ? 'no limit' : `${promotion.maxPerUser} time${promotion.maxPerUser === 1 ? '' : 's'}`}
                         </span>
                         {mayWrite && (
-                          <button
-                            type="button"
-                            onClick={() => setEditing(promotion)}
-                            aria-label={`Change the limit per account of ${promotion.code}`}
-                            className={denseGhost}
-                          >
-                            Change
-                          </button>
+                          <Link to={`/admin/promotions/${promotion.id}`} className={denseGhost}>Manage</Link>
                         )}
                       </span>
                     ),
@@ -427,9 +421,7 @@ export default function Promotions() {
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate font-mono text-[14px] font-medium text-ink" title={promotion.code}>
-                          {promotion.code}
-                        </p>
+                        <Link to={`/admin/promotions/${promotion.id}`} className="truncate font-mono text-[14px] font-medium text-acc" title={promotion.code}>{promotion.code}</Link>
                         <p className="text-[12.5px] capitalize text-ink3">{promotion.type}</p>
                       </div>
                       <StatusPill status={promotion.active ? 'active' : 'draft'} label={promotion.active ? 'Active' : 'Inactive'} />
@@ -460,14 +452,7 @@ export default function Promotions() {
                     </dl>
                     <p className="mt-2 text-[12.5px] text-ink3">{capOf(promotion)}</p>
                     {mayWrite && (
-                      <button
-                        type="button"
-                        onClick={() => setEditing(promotion)}
-                        aria-label={`Change the limit per account of ${promotion.code}`}
-                        className={`${denseGhost} mt-2`}
-                      >
-                        Change the limit per account
-                      </button>
+                      <Link to={`/admin/promotions/${promotion.id}`} className={`${denseGhost} mt-2`}>Manage campaign</Link>
                     )}
                   </div>
                 )}

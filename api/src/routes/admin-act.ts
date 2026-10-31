@@ -286,29 +286,29 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
   /** Suspends or resumes the server on the panel: the container stops, and the customer cannot start it. */
   app.post('/admin/instances/:id/suspend', { preHandler: [requirePermission('services.write')] }, async (request) => {
     const { actor, instance, serverId } = await instanceOf(request);
-    const { suspended } = z.object({ suspended: z.boolean() }).parse(request.body ?? {});
+    const { suspended, reason } = z.object({ suspended: z.boolean(), reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
     await ptero.applicationRequest('POST', `/api/application/servers/${serverId}/${suspended ? 'suspend' : 'unsuspend'}`, {});
     await prisma.instance.update({ where: { id: instance.id }, data: { status: suspended ? 'SUSPENDED' : 'ONLINE', suspendedAt: suspended ? new Date() : null } });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: suspended ? 'admin.instance.suspend' : 'admin.instance.unsuspend', targetType: 'instance', targetId: instance.id, ip: request.ip });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: suspended ? 'admin.instance.suspend' : 'admin.instance.unsuspend', targetType: 'instance', targetId: instance.id, meta: { reason }, ip: request.ip });
     return { status: suspended ? 'suspended' : 'online' };
   });
 
   /** Reinstalls the server on the panel. The files of the container are erased. */
   app.post('/admin/instances/:id/reinstall', { preHandler: [requirePermission('services.write')] }, async (request) => {
     const { actor, instance, serverId } = await instanceOf(request);
-    z.object({ confirm: z.literal(true) }).parse(request.body ?? {});
+    const { reason } = z.object({ confirm: z.literal(true), reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
     await ptero.reinstallServer(serverId);
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.reinstall', targetType: 'instance', targetId: instance.id, ip: request.ip });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.reinstall', targetType: 'instance', targetId: instance.id, meta: { reason }, ip: request.ip });
     return { ok: true };
   });
 
   /** Sets how many databases the server may have, without touching its other limits. */
   app.post('/admin/instances/:id/database-limit', { preHandler: [requirePermission('services.write')] }, async (request) => {
     const { actor, instance, serverId } = await instanceOf(request);
-    const { databases } = z.object({ databases: z.number().int().min(0).max(20) }).parse(request.body ?? {});
+    const { databases, reason } = z.object({ databases: z.number().int().min(0).max(20), reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
     const current = await ptero.getServer(serverId);
     await ptero.updateServerBuild(serverId, { feature_limits: { databases, backups: current.feature_limits.backups } });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.database_limit', targetType: 'instance', targetId: instance.id, meta: { databases }, ip: request.ip });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.database_limit', targetType: 'instance', targetId: instance.id, meta: { databases, reason }, ip: request.ip });
     return { databases };
   });
 
