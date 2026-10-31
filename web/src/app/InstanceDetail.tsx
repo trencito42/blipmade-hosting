@@ -112,7 +112,7 @@ const TABS: { value: Tab; label: string }[] = [
 /** What a member of a shared server does not get: the parts that belong to the owner. */
 const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
 /** A viewer only looks. */
-const VIEWER_HIDDEN: Tab[] = ['startup', 'schedules', 'databases', 'backups', 'network'];
+const VIEWER_HIDDEN: Tab[] = ['files', 'startup', 'schedules', 'databases', 'backups', 'network'];
 
 const POWER_LABEL: Record<PowerAction, string> = {
   start: 'Start',

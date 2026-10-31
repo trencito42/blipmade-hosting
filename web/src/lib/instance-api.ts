@@ -441,9 +441,8 @@ export const getStartup = (id: string, signal?: AbortSignal) =>
   get<StartupSettings>(`/instances/${id}/startup`, undefined, signal);
 
 export interface EnvFile {
-  name: '.env' | '.env.local';
-  exists: boolean;
-  entries: { key: string; value: string }[];
+  name: string;
+  entries: { key: string; value: string; sensitive?: boolean }[];
 }
 
 export const getEnvFiles = (id: string, signal?: AbortSignal) =>

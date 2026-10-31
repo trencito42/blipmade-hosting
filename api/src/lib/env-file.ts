@@ -63,3 +63,13 @@ export function applyEnv(text: string, entries: EnvEntry[]): string {
 
 /** A name a shell and an app can read. */
 export const ENV_KEY = /^[A-Za-z_][A-Za-z0-9_.]{0,127}$/;
+
+/** The files of the server that are read as environment files: `.env`, `.env.local`, `.env.production`... Not the templates. */
+export function isEnvFileName(name: string): boolean {
+  return /^\.env(\.[A-Za-z0-9_-]+)*$/.test(name) && !/\.(example|sample|template|dist)$/i.test(name);
+}
+
+/** A variable that probably holds a secret. The screen shows it masked until the reader asks to see it. */
+export function isSensitiveKey(key: string): boolean {
+  return /(SECRET|TOKEN|PASS|PWD|KEY|PRIVATE|CREDENTIAL|AUTH|DSN|SALT|SIGNING|COOKIE|SESSION|DATABASE_URL|_URI$|_URL$)/i.test(key);
+}

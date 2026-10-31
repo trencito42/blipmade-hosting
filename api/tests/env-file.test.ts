@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyEnv, parseEnv } from '../src/lib/env-file.js';
+import { applyEnv, isEnvFileName, isSensitiveKey, parseEnv } from '../src/lib/env-file.js';
 
 describe('env file', () => {
   it('reads plain, quoted and commented values', () => {
@@ -25,5 +25,13 @@ describe('env file', () => {
   it('round-trips a value with quotes and a hash', () => {
     const value = 'a "b" #c';
     expect(parseEnv(applyEnv('', [{ key: 'X', value }]))).toEqual([{ key: 'X', value }]);
+  });
+  it('finds env files and skips templates', () => {
+    for (const name of ['.env', '.env.local', '.env.production', '.env.development.local']) expect(isEnvFileName(name)).toBe(true);
+    for (const name of ['.env.example', '.env.sample', 'env', '.environment', '.env/x']) expect(isEnvFileName(name)).toBe(false);
+  });
+  it('marks secrets', () => {
+    for (const key of ['API_KEY', 'DB_PASSWORD', 'JWT_SECRET', 'DISCORD_TOKEN', 'DATABASE_URL']) expect(isSensitiveKey(key)).toBe(true);
+    for (const key of ['PORT', 'NODE_ENV', 'APP_NAME']) expect(isSensitiveKey(key)).toBe(false);
   });
 });
