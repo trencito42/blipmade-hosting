@@ -25,6 +25,7 @@ interface QuoteLine {
   disk: number;
   fulfilment: string;
   vps?: unknown;
+  price?: { period?: string };
 }
 
 /** Refuses a fully sponsored order that is more than one small starter service. */
@@ -35,6 +36,10 @@ export function assertSponsoredShape(items: QuoteLine[]): void {
   const [line] = items;
   if (line.fulfilment !== 'SERVER' || line.vps) {
     throw badRequest('This promotion only covers an app, bot or game server, not a virtual server or a mail plan.');
+  }
+  // A free service lasts one month. A yearly term would give a free year.
+  if (line.price?.period && line.price.period !== 'MONTHLY') {
+    throw badRequest('A free promotion covers one month. Choose the monthly plan.');
   }
   if (line.ram > sponsoredPolicy.maxRamMb || line.cpu > sponsoredPolicy.maxCpu || line.disk > sponsoredPolicy.maxDiskGb) {
     throw badRequest(

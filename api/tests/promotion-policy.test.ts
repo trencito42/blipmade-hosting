@@ -14,6 +14,7 @@ describe('sponsored order shape', () => {
     expect(() => assertSponsoredShape([{ ...small, fulfilment: 'EMAIL' }])).toThrow();
     expect(() => assertSponsoredShape([{ ...small, vps: {} }])).toThrow();
     expect(() => assertSponsoredShape([{ ...small, ram: 8192 }])).toThrow();
+    expect(() => assertSponsoredShape([{ ...small, price: { period: 'YEARLY' } }])).toThrow();
   });
 });
 
