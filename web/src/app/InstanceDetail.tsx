@@ -718,6 +718,8 @@ export default function InstanceDetail() {
             <span className="text-[13.5px] text-ink3">No public URL yet</span>
           )}
 
+          {instance.access !== 'viewer' && (
+            <>
           <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending || powerCooldown > 0}>
             Start
           </SoftButton>
@@ -727,6 +729,8 @@ export default function InstanceDetail() {
           <SoftButton onClick={() => onPower('stop')} disabled={!canStop || power.pending || powerCooldown > 0}>
             Stop
           </SoftButton>
+            </>
+          )}
         </div>
 
         {power.error && (
