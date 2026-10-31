@@ -513,6 +513,8 @@ export interface Instance {
   /** Whether this service has a password that the platform made for it. */
   credentials: boolean;
   subscription: { status: string; currentPeriodEnd: string | null } | null;
+  /** owner, or the role this account has on a server somebody else shares. Absent in older answers. */
+  access?: 'owner' | 'viewer' | 'manager';
 }
 
 export interface Domain {

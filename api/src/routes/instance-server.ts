@@ -61,7 +61,7 @@ async function withInstance<T>(
 ): Promise<T> {
   const user = await requireAuth(request);
   const { id } = idParam.parse(request.params);
-  const instance = await operations.loadOwnedInstance(user.id, id);
+  const instance = await operations.loadOwnedInstance(user.id, id, request.method);
   const token = await operations.customerToken(instance);
   return run(token, instance);
 }
@@ -231,7 +231,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       .parse(request.body);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.writeFile(token, instance, body.path, body.content);
@@ -249,7 +249,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const query = z.object({ path: filePath }).parse(request.query ?? {});
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.deleteFile(token, instance, query.path);
@@ -353,7 +353,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     async (request: FastifyRequest, reply) => {
       const user = await requireAuth(request);
       const { id } = idParam.parse(request.params);
-      const instance = await operations.loadOwnedInstance(user.id, id);
+      const instance = await operations.loadOwnedInstance(user.id, id, request.method);
       const token = await operations.customerToken(instance);
 
       const contentType = String(request.headers['content-type'] ?? '');
@@ -527,7 +527,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     body.remote = normalizeRemote(body.remote);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.createDatabase(token, instance, body);
@@ -580,7 +580,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.deleteDatabase(token, instance, params.databaseId);
@@ -607,7 +607,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       const database = await operations.databaseCredentials(token, instance, params.databaseId);
@@ -648,7 +648,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   app.get('/instances/:id/credentials', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
 
     const specs = parseGeneratedVariableSpecs(instance.productVariables);
     const names = Object.keys(specs);
@@ -708,7 +708,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       .parse(request.body ?? {});
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       const backup = await operations.createBackup(token, instance, body);
@@ -750,7 +750,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const params = z.object({ id: z.string(), backupId: z.string().min(1).max(100) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.restoreBackup(token, instance, params.backupId);
@@ -776,7 +776,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const params = z.object({ id: z.string(), backupId: z.string().min(1).max(100) }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.deleteBackup(token, instance, params.backupId);
@@ -828,7 +828,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.createAllocation(token, instance);
@@ -895,7 +895,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const params = z.object({ id: z.string(), allocationId: z.coerce.number().int().positive() }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.deleteAllocation(token, instance, params.allocationId);
@@ -927,7 +927,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   app.get('/instances/:id/startup', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     if (!instance.pterodactylServerId) throw notFound('This instance is not deployed yet.');
 
     const server = await pteroApp.getServer(instance.pterodactylServerId);
@@ -964,7 +964,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       .parse(request.body ?? {});
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     if (!instance.pterodactylServerId) throw notFound('This instance is not deployed yet.');
 
     const server = await pteroApp.getServer(instance.pterodactylServerId);
@@ -1049,7 +1049,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       .parse(request.body);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.createSchedule(token, instance, body);
@@ -1096,7 +1096,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const params = z.object({ id: z.string(), scheduleId: z.coerce.number().int().positive() }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.deleteSchedule(token, instance, params.scheduleId);
@@ -1123,7 +1123,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const params = z.object({ id: z.string(), scheduleId: z.coerce.number().int().positive() }).parse(request.params);
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
     try {
       await operations.runSchedule(token, instance, params.scheduleId);
@@ -1147,7 +1147,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   app.get('/instances/:id/settings', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     if (!instance.pterodactylServerId) throw notFound('This instance is not deployed yet.');
 
     const server = await pteroApp.getServer(instance.pterodactylServerId);
@@ -1177,7 +1177,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       .parse(request.body ?? {});
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     if (!instance.pterodactylServerId) throw notFound('This instance is not deployed yet.');
 
     const server = await pteroApp.getServer(instance.pterodactylServerId);
@@ -1224,7 +1224,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     // instance only ends up with a state that Stop already gives.
     if (user.role === 'CUSTOMER') throw badRequest('Use Stop to turn the instance off. Suspending is done by the platform.');
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
 
     try {
@@ -1269,7 +1269,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
 
     const user = await requireAuth(request);
     const { id } = idParam.parse(request.params);
-    const instance = await operations.loadOwnedInstance(user.id, id);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     let outcome;
     try {
       outcome = await reinstallInstance(instance.id, { requestedBy: user.id });

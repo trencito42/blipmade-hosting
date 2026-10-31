@@ -51,6 +51,7 @@ model User {
   twoFactor      UserTwoFactor?
   passkeys       Passkey[]
   apiKeys        ApiKey[]
+  sharedWithMe   InstanceShare[] @relation("SharedWith")
   notes          CustomerNote[]
   /// Labels the staff put on the account (vip, watch, reseller).
   tags           String[]       @default([])
@@ -872,6 +873,7 @@ model Instance {
   // The list of the services is ordered by the moment of the service and by
   // the id.
   @@index([createdAt, id])
+  shares InstanceShare[]
 }
 
 model InstanceEvent {
@@ -1584,4 +1586,26 @@ model MoneyAdjustment {
 
   @@index([userId, createdAt])
   @@index([orderId])
+}
+
+
+/// Access to an instance for another account. The owner makes a code; whoever redeems it becomes a member.
+model InstanceShare {
+  id         String    @id @default(cuid())
+  instanceId String
+  instance   Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  /// The member, once the code is redeemed.
+  userId     String?
+  user       User?     @relation("SharedWith", fields: [userId], references: [id], onDelete: Cascade)
+  /// viewer: reads only. manager: runs the server (power, files, console, databases, backups).
+  role       String    @default("viewer")
+  /// Only the hash of the code is kept; the code is shown once, when it is made.
+  codeHash   String    @unique
+  expiresAt  DateTime
+  redeemedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([instanceId])
+  @@index([userId])
 }

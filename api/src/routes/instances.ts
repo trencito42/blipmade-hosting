@@ -92,9 +92,18 @@ function serializeInstance(instance: {
  * instance owned by somebody else both answer 404, so identifiers cannot be
  * probed.
  */
-async function loadInstance(userId: string, id: string) {
+async function loadInstance(userId: string, id: string, method?: string) {
+  const read = method === 'GET' || method === 'HEAD';
   const instance = await prisma.instance.findFirst({
-    where: { id, userId },
+    where: method
+      ? {
+          id,
+          OR: [
+            { userId },
+            { shares: { some: { userId, revokedAt: null, ...(read ? {} : { role: 'manager' }) } } },
+          ],
+        }
+      : { id, userId },
     include: {
       product: true,
       subscription: true,
@@ -139,26 +148,46 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     // with the number of the services of the customer.
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
     const rows = await prisma.instance.findMany({
-      where: withCursor({ userId: user.id }, cursor, 'createdAt'),
-      include: { product: true, subscription: true, domains: { select: { hostname: true, status: true } } },
+      where: withCursor(
+        { OR: [{ userId: user.id }, { shares: { some: { userId: user.id, revokedAt: null } } }] },
+        cursor,
+        'createdAt',
+      ),
+      include: {
+        product: true,
+        subscription: true,
+        domains: { select: { hostname: true, status: true } },
+        shares: { where: { userId: user.id, revokedAt: null }, select: { role: true } },
+      },
       orderBy: pageOrder('createdAt'),
       take: limit + 1,
     });
     const page = pageOf(rows, limit, 'createdAt');
-    return { instances: page.rows.map(serializeInstance), pagination: page.pagination };
+    return {
+      instances: page.rows.map((row) => ({
+        ...serializeInstance(row),
+        // Set for a server somebody else shares with this account.
+        access: row.userId === user.id ? ('owner' as const) : (row.shares[0]?.role ?? 'viewer'),
+      })),
+      pagination: page.pagination,
+    };
   });
 
   app.get('/instances/:id', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const instance = await loadInstance(user.id, id);
+    const instance = await loadInstance(user.id, id, request.method);
     const events = await prisma.instanceEvent.findMany({
       where: { instanceId: instance.id },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+    const share =
+      instance.userId === user.id
+        ? null
+        : await prisma.instanceShare.findFirst({ where: { instanceId: instance.id, userId: user.id, revokedAt: null }, select: { role: true } });
     return {
-      instance: serializeInstance(instance),
+      instance: { ...serializeInstance(instance), access: share ? share.role : 'owner' },
       events: events.map((event) => ({
         id: event.id,
         type: event.type,
@@ -183,7 +212,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const action = body.signal ?? body.action;
     if (!action) throw badRequest('The power action is missing.');
 
-    const instance = await loadInstance(user.id, id);
+    const instance = await loadInstance(user.id, id, request.method);
     if (!instance.pterodactylUuid) throw badRequest('This instance is not deployed yet.');
 
     // The service was suspended and the customer starts it again, so the

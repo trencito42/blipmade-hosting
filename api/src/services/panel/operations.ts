@@ -37,9 +37,31 @@ export interface OwnedInstance {
  * An instance of somebody else answers 404, exactly like an instance that does
  * not exist, so an identifier cannot be probed.
  */
-export async function loadOwnedInstance(userId: string, id: string): Promise<OwnedInstance> {
+export async function loadOwnedInstance(
+  userId: string,
+  id: string,
+  /** The method of the request. Given, it lets a member of a shared server in: a viewer reads, a manager also writes. */
+  method?: string,
+): Promise<OwnedInstance> {
+  const read = method === 'GET' || method === 'HEAD';
   const instance = await prisma.instance.findFirst({
-    where: { id, userId },
+    where: method
+      ? {
+          id,
+          OR: [
+            { userId },
+            {
+              shares: {
+                some: {
+                  userId,
+                  revokedAt: null,
+                  ...(read ? {} : { role: 'manager' }),
+                },
+              },
+            },
+          ],
+        }
+      : { id, userId },
     select: {
       id: true,
       userId: true,

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../icons';
-import { get, type CatalogProduct, type Instance } from '../lib/api';
-import { useAsync } from '../lib/useAsync';
+import { get, post, type CatalogProduct, type Instance } from '../lib/api';
+import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
   ButtonLink,
@@ -15,6 +15,7 @@ import {
   SoftButton,
   StatusPill,
   TextInput,
+  useToast,
 } from '../ui-app';
 import { catalogPath, formatPrice, periodLabel, productIcon } from '../lib/pricing';
 import { deployPathFor, isOrderable, startingConfiguration } from '../lib/pricing-contract';
@@ -24,6 +25,25 @@ import { deployPathFor, isOrderable, startingConfiguration } from '../lib/pricin
  * GET /api/instances. The desktop table and the phone card list render the
  * exact same rows.
  */
+
+/** A code from the owner of a server opens that server for this account. */
+function RedeemCode({ onDone }: { onDone: () => void }) {
+  const { push } = useToast();
+  const [code, setCode] = useState('');
+  const redeem = useAction(async () => {
+    const result = await post<{ name: string; role: string }>('/access/redeem', { code });
+    push(`You now have access to ${result.name} as a ${result.role}.`, 'ok');
+    setCode('');
+    onDone();
+  });
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <TextInput label="Got an access code?" value={code} onChange={(event) => setCode(event.target.value)} placeholder="ABCD-EFGH-JKLM" autoComplete="off" />
+      <SoftButton onClick={() => void redeem.run()} disabled={redeem.pending || code.trim().length < 8}>{redeem.pending ? 'Checking…' : 'Use code'}</SoftButton>
+      {redeem.error && <p role="alert" className="basis-full text-[13.5px] font-medium text-bad">{redeem.error}</p>}
+    </div>
+  );
+}
 
 /** Purchased memory, never live usage. */
 function fmtRam(mb: number): string {
@@ -224,6 +244,8 @@ export default function Instances() {
           onChange={setStatus}
         />
       </div>
+
+      <RedeemCode onDone={reload} />
 
       {loading ? (
         <LoadingBlock rows={4} label="Loading your instances" />

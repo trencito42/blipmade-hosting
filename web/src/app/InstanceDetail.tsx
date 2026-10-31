@@ -41,7 +41,8 @@ type Tab =
   | 'settings'
   | 'activity'
   | 'resources'
-  | 'domains';
+  | 'domains'
+  | 'access';
 type PowerAction = 'start' | 'restart' | 'stop';
 
 /**
@@ -60,6 +61,7 @@ const BackupsTab = lazy(() => import('./instance/BackupsTab'));
 const NetworkTab = lazy(() => import('./instance/NetworkTab'));
 const StartupTab = lazy(() => import('./instance/StartupTab'));
 const SchedulesTab = lazy(() => import('./instance/SchedulesTab'));
+const AccessTab = lazy(() => import('./instance/AccessTab'));
 const SettingsTab = lazy(() => import('./instance/SettingsTab'));
 const ActivityTab = lazy(() => import('./instance/ActivityTab'));
 
@@ -101,7 +103,13 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'activity', label: 'Activity' },
   { value: 'resources', label: 'Resources' },
   { value: 'domains', label: 'Domains' },
+  { value: 'access', label: 'Access' },
 ];
+
+/** What a member of a shared server does not get: the parts that belong to the owner. */
+const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
+/** A viewer only looks. */
+const VIEWER_HIDDEN: Tab[] = ['startup', 'schedules', 'databases', 'backups', 'network'];
 
 const POWER_LABEL: Record<PowerAction, string> = {
   start: 'Start',
@@ -608,6 +616,12 @@ export default function InstanceDetail() {
     (signal) => get<{ instance: Instance }>(`/instances/${id}`, undefined, signal),
     [id],
   );
+  const visibleTabs = TABS.filter((entry) => {
+    const access = data?.instance.access ?? 'owner';
+    if (access === 'owner') return true;
+    if (OWNER_ONLY.includes(entry.value)) return false;
+    return access === 'manager' || !VIEWER_HIDDEN.includes(entry.value);
+  });
 
   const instance = data?.instance;
   const provisioning = instance?.status === 'pending' || instance?.status === 'provisioning';
@@ -726,7 +740,7 @@ export default function InstanceDetail() {
       </header>
 
       <div ref={tabsRef} className="scroll-mt-28">
-        <Segmented options={TABS} value={tab} onChange={setTab} ariaLabel="Instance sections" />
+        <Segmented options={visibleTabs} value={tab} onChange={setTab} ariaLabel="Instance sections" />
       </div>
 
       <section role="tabpanel" aria-label={TABS.find((entry) => entry.value === tab)?.label ?? 'Instance section'}>
@@ -748,6 +762,7 @@ export default function InstanceDetail() {
           {tab === 'activity' && <ActivityTab instance={instance} />}
           {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
           {tab === 'domains' && <DomainsTab instance={instance} />}
+          {tab === 'access' && <AccessTab instance={instance} />}
         </Suspense>
         )}
       </section>

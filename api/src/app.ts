@@ -19,6 +19,7 @@ import { registerCatalogRoutes } from './routes/catalog.js';
 import { registerOrderRoutes } from './routes/orders.js';
 import { registerBillingRoutes } from './routes/billing.js';
 import { registerInstanceRoutes } from './routes/instances.js';
+import { registerInstanceAccessRoutes } from './routes/instance-access.js';
 import { registerInstanceServerRoutes } from './routes/instance-server.js';
 import { registerDomainRoutes } from './routes/domains.js';
 import { registerMailRoutes } from './routes/mail.js';
@@ -214,6 +215,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerOrderRoutes(api);
       await registerBillingRoutes(api);
       await registerInstanceRoutes(api);
+      await registerInstanceAccessRoutes(api);
       await registerInstanceServerRoutes(api);
       await registerDomainRoutes(api);
       await registerMailRoutes(api);
