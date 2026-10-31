@@ -18,6 +18,51 @@ import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/e
  * customers, churn), the queues of jobs with their failures, and the reports of abuse.
  */
 export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void> {
+  // --- free services held for review -----------------------------------------------------------
+
+  // Free services that the automatic check did not approve, with the reasons. Clearing an account
+  // lifts the hold for its next attempt (a false positive); the risk is still recorded.
+  app.get('/admin/promotion-holds', { preHandler: [requirePermission('customers.read')] }, async () => {
+    const rows = await prisma.auditLog.findMany({
+      where: { action: 'promotion.free_held', createdAt: { gte: new Date(Date.now() - 30 * 86_400_000) } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    const users = await prisma.user.findMany({
+      where: { id: { in: [...new Set(rows.map((row) => row.actorId).filter((id): id is string => Boolean(id)))] } },
+      select: { id: true, email: true, tags: true },
+    });
+    const byId = new Map(users.map((user) => [user.id, user]));
+    const seen = new Set<string>();
+    const holds = [];
+    for (const row of rows) {
+      if (!row.actorId || seen.has(row.actorId)) continue;
+      seen.add(row.actorId);
+      const user = byId.get(row.actorId);
+      const meta = (row.meta ?? {}) as { level?: string; score?: number; reasons?: string[] };
+      holds.push({
+        id: row.id,
+        at: row.createdAt,
+        userId: row.actorId,
+        email: user?.email ?? row.actorEmail ?? '',
+        level: meta.level ?? 'high',
+        score: meta.score ?? null,
+        reasons: meta.reasons ?? [],
+        cleared: Boolean(user?.tags.includes('promo-cleared')),
+      });
+    }
+    return { holds };
+  });
+
+  app.post('/admin/customers/:id/promo-clearance', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    const { cleared, reason } = z.object({ cleared: z.boolean(), reason: z.string().trim().min(3).max(300) }).parse(request.body ?? {});
+    const tags = cleared ? [...new Set([...customer.tags, 'promo-cleared'])] : customer.tags.filter((tag) => tag !== 'promo-cleared');
+    await prisma.user.update({ where: { id: customer.id }, data: { tags } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: cleared ? 'admin.promotion.cleared' : 'admin.promotion.clearance_removed', targetType: 'user', targetId: customer.id, meta: { reason }, ip: request.ip });
+    return { cleared };
+  });
+
   // --- accounting export -----------------------------------------------------------------------
 
   // One row per invoice for the accountant or an accounting program. The tax and the country of

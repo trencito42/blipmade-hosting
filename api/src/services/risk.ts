@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { isDisposableEmail } from '../lib/email-identity.js';
+import { deviceLinkedTrials } from './device-signal.js';
 
 /**
  * A score for how much a person at the staff desk should look twice at an account.
@@ -25,6 +26,8 @@ export interface RiskFacts {
   suspended: boolean;
   /** A payment of a real amount was made and kept. A free promotion's 0 payment does not count. */
   paidBefore: boolean;
+  /** Other accounts that took a free service from a browser this account also used. A weak hint. */
+  deviceLinkedTrials?: number;
 }
 
 /** The pure part: facts in, score out. */
@@ -36,6 +39,7 @@ export function scoreRisk(facts: RiskFacts): Risk {
   if (!facts.emailVerified) add('unverified', 10, 'The email address was never confirmed.');
   if (facts.disposableEmail) add('disposable', 20, 'The address belongs to a service of throwaway mailboxes.');
   if (facts.sharedAddressAccounts > 0) add('shared-address', Math.min(30, 12 + facts.sharedAddressAccounts * 6), `${facts.sharedAddressAccounts} other account(s) signed in from the same address.`);
+  if ((facts.deviceLinkedTrials ?? 0) > 0) add('device-linked-trial', 20, `${facts.deviceLinkedTrials} other account(s) took a free service from the same browser. This alone proves nothing.`);
   if (facts.failedPayments >= 2) add('failed-payments', Math.min(25, facts.failedPayments * 8), `${facts.failedPayments} payments failed.`);
   if (facts.ordersLast24h >= 3) add('burst', 15, `${facts.ordersLast24h} orders in the last day.`);
   if (facts.refunds > 0) add('refunds', Math.min(20, facts.refunds * 10), `${facts.refunds} refund(s) in the history.`);
@@ -63,9 +67,10 @@ export async function assessCustomer(userId: string): Promise<Risk | null> {
     prisma.instance.findMany({ where: { userId }, select: { id: true } }),
   ]);
   const ips = [...new Set(sessions.map((session) => session.ip).filter((ip): ip is string => Boolean(ip)))];
-  const [shared, abuse] = await Promise.all([
+  const [shared, abuse, linkedTrials] = await Promise.all([
     ips.length ? prisma.session.findMany({ where: { ip: { in: ips }, userId: { not: userId } }, select: { userId: true }, distinct: ['userId'], take: 50 }) : Promise.resolve([]),
     instances.length ? prisma.abuseReport.count({ where: { instanceId: { in: instances.map((instance) => instance.id) }, status: { in: ['open', 'investigating'] } } }) : Promise.resolve(0),
+    deviceLinkedTrials(userId),
   ]);
 
   return scoreRisk({
@@ -79,5 +84,6 @@ export async function assessCustomer(userId: string): Promise<Risk | null> {
     openAbuseReports: abuse,
     suspended: Boolean(user.suspendedAt),
     paidBefore: paid > 0 && refunds === 0,
+    deviceLinkedTrials: linkedTrials,
   });
 }

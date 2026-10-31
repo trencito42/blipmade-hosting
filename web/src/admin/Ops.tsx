@@ -459,6 +459,58 @@ export function OpsChannelsList({ channels }: { channels: OpsChannel[] }) {
 }
 
 
+/** Free services the automatic check did not approve, with the reasons and a way to clear a false positive. */
+function PromotionHolds({ mayWrite }: { mayWrite: boolean }) {
+  const toast = useToast();
+  const state = useAsync<{ holds: { id: string; at: string; userId: string; email: string; level: string; score: number | null; reasons: string[]; cleared: boolean }[] }>(
+    (signal) => get('/admin/promotion-holds', undefined, signal),
+    [],
+  );
+  const [reason, setReason] = useState('');
+  const clear = useAction(async (userId: string, cleared: boolean) => {
+    await post(`/admin/customers/${encodeURIComponent(userId)}/promo-clearance`, { cleared, reason: reason.trim() || (cleared ? 'Reviewed: legitimate customer' : 'Clearance removed') });
+    toast.push(cleared ? 'Cleared. The customer can try again.' : 'Clearance removed.', 'ok');
+    state.reload();
+  });
+  const rows = state.data?.holds ?? [];
+  return (
+    <Panel
+      title="Free services held for review"
+      description="Accounts whose free service was not approved automatically in the last 30 days, with the reasons. Clear one that is a false positive: the customer can then try again."
+    >
+      {state.loading && !state.data ? (
+        <LoadingBlock rows={1} label="Loading the held services" />
+      ) : state.error ? (
+        <ErrorState title="The held services could not be loaded" message={state.error.message} onRetry={state.reload} />
+      ) : rows.length === 0 ? (
+        <EmptyState title="Nothing is held." description="Every free service was approved or none was asked for." />
+      ) : (
+        <div className="grid gap-2">
+          {mayWrite && <input className={denseInput} placeholder="Reason for the decision (kept in the audit trail)" value={reason} onChange={(event) => setReason(event.target.value)} />}
+          <ul className="grid gap-2">
+            {rows.map((hold) => (
+              <li key={hold.id} className="grid gap-1.5 rounded-2xl bg-s2 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="text-[14px] font-semibold text-ink">{hold.email} <span className="text-[12.5px] font-normal text-ink3">{hold.level}{hold.score !== null ? ` · ${hold.score}` : ''}</span></p>
+                  <span className="text-[12.5px] text-ink3">{fmtDateTime(hold.at)}</span>
+                </div>
+                <p className="font-mono text-[12.5px] text-ink2">{hold.reasons.length ? hold.reasons.join(', ') : 'no reasons recorded'}</p>
+                {mayWrite && (
+                  <div>
+                    <button type="button" className={hold.cleared ? denseSoft : densePrimary} disabled={clear.pending} onClick={() => void clear.run(hold.userId, !hold.cleared)}>
+                      {hold.cleared ? 'Remove clearance' : 'Clear this account'}
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 /** The events of the payment provider that failed, with a button to run each one again. */
 function FailedWebhooks({ mayWrite }: { mayWrite: boolean }) {
   const toast = useToast();
@@ -618,6 +670,8 @@ export default function Ops() {
       </Panel>
 
       <FailedWebhooks mayWrite={mayWrite} />
+
+      <PromotionHolds mayWrite={mayWrite} />
 
       <Panel title="Checks" description="Every check of the sweep, with its state, its sentence and the numbers behind it.">
         <OpsRegion state={health} loadingLabel="Loading the checks" errorTitle="The checks could not be loaded">

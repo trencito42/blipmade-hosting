@@ -52,6 +52,7 @@ model User {
   passkeys       Passkey[]
   apiKeys        ApiKey[]
   sharedWithMe   InstanceShare[] @relation("SharedWith")
+  deviceSignals  DeviceSignal[]
   notes          CustomerNote[]
   /// Labels the staff put on the account (vip, watch, reseller).
   tags           String[]       @default([])
@@ -1626,4 +1627,18 @@ model InstanceCheck {
   up         Boolean
 
   @@index([instanceId, at])
+}
+
+/// A keyed hash of the browser identifier seen when an account activated a free service. It is a weak,
+/// untrusted hint that two accounts share a browser, never proof of who someone is. Rows are pruned.
+model DeviceSignal {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hash      String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, hash])
+  @@index([hash])
+  @@index([createdAt])
 }

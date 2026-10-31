@@ -7,6 +7,7 @@ import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
+import { recordDeviceSignal } from '../services/device-signal.js';
 import { assertSponsoredShape, decideSponsoredOrder, heldForReview, verifyTurnstile } from '../services/promotion-policy.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
@@ -290,7 +291,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       // before it is confirmed.
       let cardRequired = env.PROMOTION_CARD_CHECK_ENABLED;
       if (order.promotionId) {
-        await verifyTurnstile(z.object({ turnstileToken: z.string().max(4096).optional() }).parse(request.body ?? {}).turnstileToken, request.ip);
+        const extra = z.object({ turnstileToken: z.string().max(4096).optional(), deviceId: z.string().max(100).optional() }).parse(request.body ?? {});
+        await verifyTurnstile(extra.turnstileToken, request.ip);
+        // The browser identifier is optional and untrusted; a missing one changes nothing.
+        await recordDeviceSignal(user.id, extra.deviceId).catch(() => undefined);
         const verdict = await decideSponsoredOrder(user, order.id);
         if (verdict.decision === 'review') heldForReview();
         cardRequired = cardRequired || verdict.cardCheck;

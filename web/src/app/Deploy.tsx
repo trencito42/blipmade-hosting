@@ -18,6 +18,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
 import { Icon } from '../icons';
 import { Link, useParams, useRouter } from '../router';
+import { browserId } from '../lib/device-id';
 import { catalogPath, formatPrice, memLabel, periodSuffix, productPath } from '../lib/pricing';
 import {
   configurationFromQuery,
@@ -697,7 +698,9 @@ export default function Deploy() {
     // the same deployment after the payment.
     navigate(address({ order: createdOrder.id, step: 4 }), { replace: true });
 
-    const checkout = await post<{ url: string | null; message?: string }>(`/orders/${createdOrder.id}/checkout`);
+    // A free order is the only one that sends a browser identifier, for the abuse check.
+    const deviceId = createdOrder.total === 0 ? await browserId() : undefined;
+    const checkout = await post<{ url: string | null; message?: string }>(`/orders/${createdOrder.id}/checkout`, deviceId ? { deviceId } : undefined);
     if (checkout.url) {
       // The redirect is not proof of payment. The order status is the only
       // source of truth and it is polled on the provisioning step.

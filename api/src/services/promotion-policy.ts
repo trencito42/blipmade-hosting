@@ -48,6 +48,9 @@ export function assertSponsoredShape(items: QuoteLine[]): void {
   }
 }
 
+/** The tag staff put on a customer to lift the automatic hold on free services. */
+export const PROMO_CLEARED_TAG = 'promo-cleared';
+
 export type SponsoredDecision = { decision: 'approve' | 'review'; risk: Risk | null; cardCheck: boolean };
 
 /**
@@ -62,10 +65,13 @@ export type SponsoredDecision = { decision: 'approve' | 'review'; risk: Risk | n
 export async function decideSponsoredOrder(user: { id: string; email: string }, orderRef: string | null): Promise<SponsoredDecision> {
   const risk = await assessCustomer(user.id);
   const level = risk?.level ?? 'medium';
+  // Staff can clear an account after reviewing a held order (a false positive). The risk is still
+  // recorded, and a medium score still asks for a card; only the hold is lifted.
+  const cleared = Boolean(await prisma.user.findFirst({ where: { id: user.id, tags: { has: PROMO_CLEARED_TAG } }, select: { id: true } }));
   const decision: SponsoredDecision = {
-    decision: level === 'high' ? 'review' : 'approve',
+    decision: level === 'high' && !cleared ? 'review' : 'approve',
     risk,
-    cardCheck: level === 'medium' && env.paymentsEnabled,
+    cardCheck: (level === 'medium' || (level === 'high' && cleared)) && env.paymentsEnabled,
   };
   await audit({
     actorId: user.id,
@@ -73,7 +79,7 @@ export async function decideSponsoredOrder(user: { id: string; email: string }, 
     action: `promotion.free_${decision.decision === 'approve' ? 'approved' : 'held'}`,
     targetType: orderRef ? 'order' : 'user',
     targetId: orderRef ?? user.id,
-    meta: { level, score: risk?.score ?? null, cardCheck: decision.cardCheck, reasons: risk?.signals.map((s) => s.id) ?? [] },
+    meta: { level, cleared, score: risk?.score ?? null, cardCheck: decision.cardCheck, reasons: risk?.signals.map((s) => s.id) ?? [] },
   });
   return decision;
 }

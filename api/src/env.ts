@@ -86,6 +86,10 @@ const schema = z.object({
   PROMOTION_FREE_MAX_RAM_MB: z.coerce.number().int().positive().default(1024),
   PROMOTION_FREE_MAX_CPU: z.coerce.number().positive().default(1),
   PROMOTION_FREE_MAX_DISK_GB: z.coerce.number().positive().default(5),
+  /** HMAC key for the browser identifier of a free activation. Empty keeps the signal off. */
+  DEVICE_FINGERPRINT_SECRET: z.string().default(''),
+  /** How long a hashed browser identifier is kept. */
+  DEVICE_SIGNAL_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(90),
   /** Cloudflare Turnstile secret. Empty keeps the human check off. */
   TURNSTILE_SECRET_KEY: z.string().default(''),
 
