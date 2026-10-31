@@ -5,6 +5,7 @@ import { Link, useParams, useRouter } from '../router';
 import { useSession } from '../session';
 import {
   CardList,
+  ConfirmDialog,
   DataTable,
   EmptyState,
   ErrorState,
@@ -367,6 +368,7 @@ export default function CustomerDetail() {
 
       {mayWrite && <AccountTools customerId={customer.id} name={customer.name ?? ''} emailVerified={customer.emailVerified} onChanged={state.reload} />}
       <RiskPanel customerId={customer.id} />
+      {mayWrite && <CreditPanel customerId={customer.id} />}
       <NotesPanel customerId={customer.id} mayWrite={mayWrite} />
       <SubscriptionsPanel customerId={customer.id} mayWrite={mayWrite} />
 
@@ -867,6 +869,69 @@ function RiskPanel({ customerId }: { customerId: string }) {
           )}
         </div>
       )}
+    </Panel>
+  );
+}
+
+interface CreditState { entries: { id: string; kind: string; amount: number; currency: string; reason: string; actorEmail: string | null; createdAt: string }[]; providerBalance: number | null; canCredit: boolean }
+
+/** A credit for the customer. It goes to their balance at the payment provider, which takes it off their next invoice by itself. */
+function CreditPanel({ customerId }: { customerId: string }) {
+  const toast = useToast();
+  const state = useAsync<CreditState>((signal) => get<CreditState>(`/admin/customers/${customerId}/credit`, undefined, signal), [customerId]);
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const cents = Math.round(Number(amount.replace(',', '.')) * 100);
+  const valid = Number.isFinite(cents) && cents >= 1 && cents <= 50_000 && reason.trim().length >= 5;
+  const data = state.data;
+  return (
+    <Panel title="Credit" description="Money the platform gives the customer. It is taken off their next invoice.">
+      {state.loading && !data ? <LoadingBlock rows={1} label="Loading the credit" /> : state.error || !data ? (
+        <ErrorState title="The credit could not be read" message={state.error?.message ?? 'Try again.'} onRetry={state.reload} />
+      ) : (
+        <div className="grid gap-3">
+          <p className="text-[14px] text-ink2">
+            Balance at the payment provider: {data.providerBalance === null ? 'not available' : data.providerBalance < 0 ? `${(-data.providerBalance / 100).toFixed(2)} in credit` : data.providerBalance === 0 ? 'none' : `${(data.providerBalance / 100).toFixed(2)} owed by the customer`}.
+          </p>
+          {data.canCredit ? (
+            <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_auto] sm:items-end">
+              <TextInput label="Amount (EUR)" value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="5.00" />
+              <TextInput label="Reason" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Downtime on 30 Oct" />
+              <button type="button" className={denseDanger} disabled={!valid} onClick={() => setConfirming(true)}>Give credit</button>
+            </div>
+          ) : (
+            <p className="text-[13px] text-ink3">A credit needs a customer at the payment provider (they have not started a checkout yet).</p>
+          )}
+          {data.entries.length > 0 && (
+            <ul className="grid gap-1.5">
+              {data.entries.map((entry) => (
+                <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-2.5 text-[13.5px] text-ink2">
+                  <span>{entry.kind === 'credit' ? 'Credit' : 'Refund'} · {entry.reason} <span className="text-ink3">— {entry.actorEmail ?? 'staff'}, {fmtDate(entry.createdAt)}</span></span>
+                  <span className="font-mono font-semibold text-ink">{(entry.amount / 100).toFixed(2)} {entry.currency}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <ConfirmDialog
+        open={confirming}
+        title={`Give ${(cents / 100).toFixed(2)} EUR of credit?`}
+        description="It is taken off the next invoice of this customer and cannot be undone from here. The reason is written to the log."
+        confirmLabel={busy ? 'Giving…' : 'Give the credit'}
+        busy={busy}
+        requireText={valid ? (cents / 100).toFixed(2) : undefined}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => {
+          setBusy(true);
+          post(`/admin/customers/${customerId}/credit`, { amount: cents, currency: 'EUR', reason: reason.trim() })
+            .then(() => { toast.push('The credit was given.', 'ok'); setAmount(''); setReason(''); setConfirming(false); state.reload(); })
+            .catch((failure: Error) => toast.push(failure.message, 'error'))
+            .finally(() => setBusy(false));
+        }}
+      />
     </Panel>
   );
 }

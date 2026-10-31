@@ -4,6 +4,8 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
+import { ConfirmDialog } from '../ui-app';
+import { denseInput } from './Overview';
 import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
 
@@ -60,6 +62,10 @@ export default function Orders() {
   const [status, setStatus] = useState('');
   const [showEmails, setShowEmails] = useState(false);
   const [refunding, setRefunding] = useState<AdminOrder | null>(null);
+  const [partial, setPartial] = useState<AdminOrder | null>(null);
+  const [partAmount, setPartAmount] = useState('');
+  const [partReason, setPartReason] = useState('');
+  const [partBusy, setPartBusy] = useState(false);
   const [reason, setReason] = useState('');
   const [reasonTouched, setReasonTouched] = useState(false);
 
@@ -115,6 +121,8 @@ export default function Orders() {
 
   const refundButton = (order: AdminOrder) =>
     mayWrite && canBeRefunded(order) ? (
+      <span className="inline-flex gap-1.5">
+      <button type="button" className={denseGhost} onClick={() => { setPartReason(''); setPartAmount(''); setPartial(order); }}>Refund part</button>
       <button
         type="button"
         onClick={() => {
@@ -126,6 +134,7 @@ export default function Orders() {
       >
         Refund
       </button>
+      </span>
     ) : null;
 
   return (
@@ -296,6 +305,32 @@ export default function Orders() {
           Your role does not hold &quot;orders.write&quot;, so the orders are read-only for you.
         </p>
       )}
+
+      <ConfirmDialog
+        open={partial !== null}
+        title={partial ? `Refund part of ${partial.number}` : 'Refund part'}
+        description={partial ? `The order was ${(partial.total / 100).toFixed(2)} ${partial.currency}. Write the amount to give back and why. It goes back to the card at the payment provider, and cannot be undone.` : undefined}
+        confirmLabel={partBusy ? 'Refunding…' : 'Refund this amount'}
+        busy={partBusy}
+        onCancel={() => setPartial(null)}
+        onConfirm={() => {
+          const amount = Math.round(Number(partAmount.replace(',', '.')) * 100);
+          if (!partial || !Number.isFinite(amount) || amount < 1 || partReason.trim().length < 5) {
+            toast.push('Write an amount, and a reason of at least 5 characters.', 'error');
+            return;
+          }
+          setPartBusy(true);
+          post(`/admin/orders/${partial.id}/partial-refund`, { amount, reason: partReason.trim() })
+            .then(() => { toast.push('The refund was made.', 'ok'); setPartial(null); state.reload(); })
+            .catch((failure: Error) => toast.push(failure.message, 'error'))
+            .finally(() => setPartBusy(false));
+        }}
+      >
+        <div className="grid gap-3">
+          <label className="grid gap-1 text-[13.5px] font-medium text-ink">Amount ({partial?.currency})<input value={partAmount} onChange={(event) => setPartAmount(event.target.value)} inputMode="decimal" placeholder="5.00" className={denseInput} /></label>
+          <label className="grid gap-1 text-[13.5px] font-medium text-ink">Reason<input value={partReason} onChange={(event) => setPartReason(event.target.value)} className={denseInput} /></label>
+        </div>
+      </ConfirmDialog>
 
       <ConfirmWithReason
         open={refunding !== null}

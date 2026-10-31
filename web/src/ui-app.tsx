@@ -1087,6 +1087,7 @@ export function ConfirmDialog({
   onCancel,
   busy,
   requireText,
+  children,
 }: {
   open: boolean;
   title: string;
@@ -1097,6 +1098,8 @@ export function ConfirmDialog({
   busy?: boolean;
   /** When set, the user must type this exact value before confirming. */
   requireText?: string;
+  /** Extra content between the description and the buttons, for example the fields of a form. */
+  children?: ReactNode;
 }) {
   const [typed, setTyped] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
@@ -1180,6 +1183,7 @@ export function ConfirmDialog({
         </h2>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {description && <p className="text-[14.5px] leading-relaxed text-ink2">{description}</p>}
+          {children}
           {requireText && (
             <div className="mt-4">
               <TextInput label={`Type ${requireText} to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
