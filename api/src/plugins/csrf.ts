@@ -29,6 +29,9 @@ export function csrfGuard(request: FastifyRequest): void {
   if (SAFE_METHODS.has(request.method)) return;
   if (request.url.split('?')[0]!.startsWith('/api/webhooks/')) return;
   if (EXEMPT_PATHS.has(request.url.split('?')[0]!)) return;
+  // A request with an API key and no session cookie carries no ambient authority: a page of another
+  // site cannot make the browser send the key, so a CSRF token would add nothing.
+  if (typeof request.headers.authorization === 'string' && request.headers.authorization.startsWith('Bearer bmk_') && !request.cookies['bm_session']) return;
 
   const cookie = request.cookies[CSRF_COOKIE];
   const header = request.headers['x-csrf-token'];

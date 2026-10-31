@@ -50,6 +50,10 @@ model User {
   tokens         VerificationToken[]
   twoFactor      UserTwoFactor?
   passkeys       Passkey[]
+  apiKeys        ApiKey[]
+  notes          CustomerNote[]
+  /// Labels the staff put on the account (vip, watch, reseller).
+  tags           String[]       @default([])
   staff          StaffMember?
   mailDomains    MailDomain[]
   mailServices   MailService[]
@@ -1503,4 +1507,60 @@ model Announcement {
   createdAt DateTime  @default(now())
 
   @@index([active, startsAt])
+}
+
+
+/// A private note of the staff about a customer. The customer never sees it.
+model CustomerNote {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  authorId    String?
+  authorEmail String?
+  body        String
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// A key of the API of a customer. Only the hash is kept; the key is shown once, when it is made.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  /// The first characters of the key, so a person can tell which one it is.
+  prefix     String
+  hash       String    @unique
+  /// read | write
+  scope      String    @default("read")
+  lastUsedAt DateTime?
+  lastUsedIp String?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// A report of abuse, made by anyone, about something hosted here.
+model AbuseReport {
+  id            String    @id @default(cuid())
+  reporterName  String
+  reporterEmail String
+  /// spam | phishing | malware | ddos | copyright | illegal | other
+  category      String
+  /// The address, the hostname or the IP the report is about.
+  target        String
+  details       String
+  evidenceUrl   String?
+  /// open | investigating | action_taken | dismissed
+  status        String    @default("open")
+  resolution    String?
+  instanceId    String?
+  reporterIp    String?
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  @@index([status, createdAt])
 }

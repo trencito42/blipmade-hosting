@@ -9,6 +9,7 @@ import { twoFactorEnabled } from '../services/second-factor.js';
 import { suspendedAccountError } from '../lib/suspension.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
+import { hashApiKey, looksLikeApiKey } from '../lib/api-keys.js';
 import { audit } from '../lib/audit.js';
 
 export const SESSION_COOKIE = 'bm_session';
@@ -18,7 +19,10 @@ export const RETURN_COOKIE = 'bm_return';
 export const IMPERSONATION_TTL_MS = 1000 * 60 * 60;
 
 /** What a member of the staff cannot do while they act as a customer: the keys of the account. */
-const IMPERSONATION_BLOCKED = [/^\/(api\/)?settings\/(email|password|sessions|account\/closure|2fa|passkeys)/, /^\/(api\/)?billing\/payment-method/];
+/** What an API key cannot do: the keys of the account, the payment method, and everything of the staff. */
+const API_KEY_BLOCKED = [/^\/(api\/)?settings/, /^\/(api\/)?auth\//, /^\/(api\/)?billing\/payment-method/, /^\/(api\/)?admin/];
+
+const IMPERSONATION_BLOCKED = [/^\/(api\/)?settings\/(email|password|sessions|account\/closure|2fa|passkeys|api-keys)/, /^\/(api\/)?billing\/payment-method/];
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 
 export interface AuthUser {
@@ -49,6 +53,8 @@ declare module 'fastify' {
     accountSuspended?: boolean;
     /** The email of the staff member who opened this session to act as the customer. */
     impersonatedBy?: string;
+    /** Set when the request came with an API key instead of a session. */
+    apiKey?: { id: string; scope: 'read' | 'write' };
   }
 }
 
@@ -289,7 +295,7 @@ export async function destroySession(request: FastifyRequest, reply: FastifyRepl
  */
 export async function loadSession(request: FastifyRequest): Promise<AuthUser | undefined> {
   const token = request.cookies[SESSION_COOKIE];
-  if (!token) return undefined;
+  if (!token) return loadApiKey(request);
 
   const session = await prisma.session.findUnique({
     where: { tokenHash: hashToken(token) },
@@ -338,7 +344,44 @@ export async function loadSession(request: FastifyRequest): Promise<AuthUser | u
   };
 }
 
+/** A request with `Authorization: Bearer bmk_...` and no session: the key of a customer. */
+async function loadApiKey(request: FastifyRequest): Promise<AuthUser | undefined> {
+  const header = request.headers.authorization;
+  const value = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7).trim() : undefined;
+  if (!looksLikeApiKey(value)) return undefined;
+  const key = await prisma.apiKey.findUnique({ where: { hash: hashApiKey(value) }, include: { user: { include: { staff: true } } } });
+  if (!key || key.revokedAt || (key.expiresAt && key.expiresAt.getTime() < Date.now())) return undefined;
+  // A key belongs to a customer. The staff does not use keys: their access is guarded by more.
+  if (key.user.role !== 'CUSTOMER') return undefined;
+  if (key.user.suspendedAt) {
+    request.accountSuspended = true;
+    return undefined;
+  }
+  request.apiKey = { id: key.id, scope: key.scope === 'write' ? 'write' : 'read' };
+  if (!key.lastUsedAt || key.lastUsedAt.getTime() <= Date.now() - LAST_SEEN_WRITE_INTERVAL_MS) {
+    await prisma.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date(), lastUsedIp: request.ip ?? null } }).catch(() => undefined);
+  }
+  return {
+    id: key.user.id,
+    email: key.user.email,
+    firstName: key.user.firstName,
+    lastName: key.user.lastName,
+    name: fullName(key.user),
+    role: key.user.role,
+    emailVerified: Boolean(key.user.emailVerifiedAt),
+    pterodactylUserId: key.user.pterodactylUserId,
+    permissions: [],
+  };
+}
+
 export async function requireAuth(request: FastifyRequest): Promise<AuthUser> {
+  if (request.apiKey) {
+    const path = request.url.split('?')[0]!;
+    if (API_KEY_BLOCKED.some((pattern) => pattern.test(path))) throw forbidden('This is not available with an API key.');
+    if (request.method !== 'GET' && request.method !== 'HEAD' && request.apiKey.scope !== 'write') {
+      throw forbidden('This key can only read. Make a key with write access to change things.');
+    }
+  }
   if (request.impersonatedBy && request.method !== 'GET' && IMPERSONATION_BLOCKED.some((pattern) => pattern.test(request.url))) {
     throw forbidden('This is not allowed while you act as the customer.');
   }

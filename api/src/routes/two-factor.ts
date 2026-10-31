@@ -85,6 +85,8 @@ const ACTIVITY_TEXT: Record<string, string> = {
   'settings.2fa_backup_codes_renewed': 'New backup codes were made',
   'settings.passkey_added': 'A passkey was added',
   'settings.passkey_removed': 'A passkey was removed',
+  'settings.api_key_created': 'An API key was made',
+  'settings.api_key_revoked': 'An API key was revoked',
   'settings.session_revoked': 'A session was closed',
   'settings.sessions_closed': 'The other sessions were closed',
   'settings.account_closure_requested': 'The closing of the account was asked for',
