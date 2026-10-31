@@ -22,6 +22,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { useRouter } from '../router';
 import { useSession } from '../session';
 import {
+  ButtonLink,
   DangerButton,
   ErrorState,
   LoadingBlock,
@@ -192,7 +193,15 @@ export default function Settings() {
           </>
         )}
         {tab.id === 'notifications' && <NotificationsPanel />}
-        {tab.id === 'account' && <AccountPanel account={data.account} />}
+        {tab.id === 'account' && (
+          <>
+            <Panel title="Download your data" description="A copy of what we hold about your account in one file: profile, services, orders, invoices, tickets and the log of your security. Secrets such as your password are not included.">
+              <ButtonLink href="/api/settings/export" download variant="soft">Download my data (JSON)</ButtonLink>
+              <p className="mt-2 text-[12.5px] text-ink3">You can download it a few times an hour.</p>
+            </Panel>
+            <AccountPanel account={data.account} />
+          </>
+        )}
       </div>
     </div>
   );

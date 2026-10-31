@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { GettingStarted } from './GettingStarted';
 import { ProductTile } from '../ui';
 import { Icon, type IconName } from '../icons';
 import { get, type AccountBillingSummary, type Instance, type MailServiceView, type VpsServerView } from '../lib/api';
@@ -195,6 +196,7 @@ export default function Overview() {
   if (rows.length === 0) {
     return (
       <div className="grid gap-4">
+        <GettingStarted hasServices={false} />
         <Panel title="Welcome to Blipmade" description="Pick what you want to run, choose the resources, and it starts on its own.">
           <p className="max-w-[60ch] text-[14px] leading-relaxed text-ink2">
             Services are billed monthly for the resources you choose. Nothing is billed before you order, and you can change the size of a service later.
@@ -250,6 +252,7 @@ export default function Overview() {
 
   return (
     <div className="grid gap-4">
+      <GettingStarted hasServices />
       {(problems.length > 0 || late.length > 0) && (
         <Panel title="Needs attention" description="These need you. Each one opens the place where you can fix it.">
           <div className="grid gap-1.5">
