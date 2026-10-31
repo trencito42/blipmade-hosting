@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { get, patch, post } from '../lib/api';
+import { del, get, patch, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
 import { useSession } from '../session';
@@ -16,6 +16,7 @@ import {
   useToast,
 } from '../ui-app';
 import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
+import { denseInput } from './Overview';
 
 /**
  * Staff customer record — GET /api/admin/customers/:id
@@ -364,6 +365,7 @@ export default function CustomerDetail() {
       />
 
       {mayWrite && <AccountTools customerId={customer.id} name={customer.name ?? ''} emailVerified={customer.emailVerified} onChanged={state.reload} />}
+      <NotesPanel customerId={customer.id} mayWrite={mayWrite} />
       <SubscriptionsPanel customerId={customer.id} mayWrite={mayWrite} />
 
       <Panel title="Instances" description={`${instanceCount} instance${instanceCount === 1 ? '' : 's'} on this account.`}>
@@ -764,6 +766,69 @@ function SubscriptionsPanel({ customerId, mayWrite }: { customerId: string; mayW
           ))}
         </ul>
       )}
+    </Panel>
+  );
+}
+
+interface Note { id: string; body: string; authorEmail: string | null; createdAt: string }
+
+/** Private notes and tags on the customer. The customer never sees them. */
+function NotesPanel({ customerId, mayWrite }: { customerId: string; mayWrite: boolean }) {
+  const toast = useToast();
+  const state = useAsync<{ notes: Note[]; tags: string[] }>((signal) => get<{ notes: Note[]; tags: string[] }>(`/admin/customers/${customerId}/notes`, undefined, signal), [customerId]);
+  const [body, setBody] = useState('');
+  const [tag, setTag] = useState('');
+  const [busy, setBusy] = useState(false);
+  const run = async (work: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await work();
+      state.reload();
+    } catch (failure) {
+      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const tags = state.data?.tags ?? [];
+  return (
+    <Panel title="Notes and tags" description="Private, for the team. The customer does not see them.">
+      <div className="grid gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {tags.length === 0 && <span className="text-[13.5px] text-ink3">No tag.</span>}
+          {tags.map((entry) => (
+            <span key={entry} className="inline-flex items-center gap-1 rounded-full bg-s3 px-3 py-1 text-[12.5px] font-semibold text-ink">
+              {entry}
+              {mayWrite && <button type="button" aria-label={`Remove the tag ${entry}`} className="text-ink3 hover:text-ink" onClick={() => void run(() => put(`/admin/customers/${customerId}/tags`, { tags: tags.filter((item) => item !== entry) }))}>×</button>}
+            </span>
+          ))}
+          {mayWrite && (
+            <form className="flex items-center gap-1.5" onSubmit={(event) => { event.preventDefault(); if (tag.trim()) void run(() => put(`/admin/customers/${customerId}/tags`, { tags: [...tags, tag.trim()] }).then(() => setTag(''))); }}>
+              <input aria-label="New tag" value={tag} onChange={(event) => setTag(event.target.value)} placeholder="add a tag" className={`${denseInput} w-32`} />
+              <button type="submit" className={denseGhost} disabled={busy || !tag.trim()}>Add</button>
+            </form>
+          )}
+        </div>
+        {mayWrite && (
+          <div className="grid gap-2">
+            <TextArea label="New note" value={body} onChange={(event) => setBody(event.target.value)} rows={2} />
+            <div><button type="button" className={denseGhost} disabled={busy || !body.trim()} onClick={() => void run(() => post(`/admin/customers/${customerId}/notes`, { body }).then(() => setBody('')))}>Add the note</button></div>
+          </div>
+        )}
+        {state.loading && !state.data ? <LoadingBlock rows={1} label="Loading the notes" /> : (
+          <ul className="grid gap-2">
+            {(state.data?.notes ?? []).map((note) => (
+              <li key={note.id} className="rounded-2xl bg-s2 px-4 py-3">
+                <p className="whitespace-pre-line text-[14px] text-ink">{note.body}</p>
+                <p className="mt-1 flex items-center justify-between gap-2 text-[12px] text-ink3">
+                  <span>{note.authorEmail ?? 'staff'} · {fmtDate(note.createdAt)}</span>
+                  {mayWrite && <button type="button" className="hover:text-ink" onClick={() => void run(() => del(`/admin/customers/${customerId}/notes/${note.id}`))}>Delete</button>}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Panel>
   );
 }

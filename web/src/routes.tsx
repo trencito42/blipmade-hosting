@@ -51,6 +51,10 @@ const AppNotifications = lazy(() => import('./app/Notifications'));
 
 const InvoiceView = lazy(() => import('./app/InvoiceView'));
 const AdminIncidents = lazy(() => import('./admin/Incidents'));
+const AdminReports = lazy(() => import('./admin/Reports'));
+const AdminQueues = lazy(() => import('./admin/Queues'));
+const AdminAbuse = lazy(() => import('./admin/Abuse'));
+const ReportAbusePage = lazy(() => import('./pages/ReportAbuse'));
 const AdminOverview = lazy(() => import('./admin/Overview'));
 const AdminCustomers = lazy(() => import('./admin/Customers'));
 const AdminCustomerDetail = lazy(() => import('./admin/CustomerDetail'));
@@ -92,6 +96,7 @@ interface RouteDef {
  */
 export const ROUTES: RouteDef[] = [
   { pattern: '/status', component: Status, title: 'Service status' },
+  { pattern: '/abuse', component: ReportAbusePage, title: 'Report abuse' },
   // The storefront of the hosted mail. It is public: a visitor reads the
   // limits of the plans before he makes an account.
   { pattern: '/email', component: EmailStorefront, title: 'Hosted mail' },
@@ -136,6 +141,9 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
   { pattern: '/admin/incidents', component: AdminIncidents, title: 'Incidents', area: 'admin' },
+  { pattern: '/admin/reports', component: AdminReports, title: 'Reports', area: 'admin' },
+  { pattern: '/admin/queues', component: AdminQueues, title: 'Job queues', area: 'admin' },
+  { pattern: '/admin/abuse', component: AdminAbuse, title: 'Abuse reports', area: 'admin' },
   { pattern: '/admin/ops', component: AdminOps, title: 'Operations', area: 'admin' },
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
   { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },

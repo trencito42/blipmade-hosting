@@ -20,6 +20,7 @@ interface AdminCustomer {
   email: string;
   name: string | null;
   role?: string;
+  tags?: string[];
   createdAt: string;
   verified: boolean;
   suspended: boolean;
@@ -34,6 +35,8 @@ export default function Customers() {
   const [query, setQuery] = useState('');
   const [showEmails, setShowEmails] = useState(false);
   const [role, setRole] = useState<'all' | 'customer' | 'staff'>('all');
+  const [tag, setTag] = useState('');
+  const tagsState = useAsync((signal) => get<{ tags: { tag: string; count: number }[] }>('/admin/tags', undefined, signal), []);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(search.trim()), 300);
@@ -41,8 +44,8 @@ export default function Customers() {
   }, [search]);
 
   const state = useAsync(
-    (signal) => get<{ customers: AdminCustomer[]; total?: number }>('/admin/customers', { search: query || undefined, role }, signal),
-    [query, role],
+    (signal) => get<{ customers: AdminCustomer[]; total?: number }>('/admin/customers', { search: query || undefined, role, tag: tag || undefined }, signal),
+    [query, role, tag],
   );
 
   const customers = state.data?.customers ?? [];
@@ -64,6 +67,9 @@ export default function Customers() {
             {customer.role && customer.role !== 'customer' && (
               <span className="ml-2 rounded-full bg-s3 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[0.06em] text-ink2">{customer.role}</span>
             )}
+            {(customer.tags ?? []).map((entry) => (
+              <span key={entry} className="ml-2 rounded-full bg-s3 px-2 py-0.5 align-middle text-[11px] font-semibold text-ink2">{entry}</span>
+            ))}
             {customer.suspended && (
               <span className="ml-2 align-middle">
                 <StatusPill status="suspended" label="Suspended" />
@@ -151,6 +157,14 @@ export default function Customers() {
               <option value="staff">Staff and administrators</option>
             </select>
           </Field>
+          {(tagsState.data?.tags.length ?? 0) > 0 && (
+            <Field label="Tag" htmlFor="customer-tag">
+              <select id="customer-tag" value={tag} onChange={(event) => setTag(event.target.value)} className={denseInput}>
+                <option value="">Any tag</option>
+                {tagsState.data!.tags.map((entry) => <option key={entry.tag} value={entry.tag}>{entry.tag} ({entry.count})</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Search" htmlFor="customer-search" hint="Matches the name or the e-mail address.">
             <input
               id="customer-search"

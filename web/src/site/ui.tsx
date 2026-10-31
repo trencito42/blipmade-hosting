@@ -346,6 +346,7 @@ export function Footer() {
           {LEGAL_PAGE_LIST.map((page) => (
             <Link key={page.to} to={page.to} className={a}>{page.label}</Link>
           ))}
+          <Link to="/abuse" className={a}>Report abuse</Link>
         </nav>
       </Wrap>
       <Wrap className="border-t border-night-line py-6 text-[14px] text-snow-2">© 2026 Blipmade. Prices are in euros per month.</Wrap>

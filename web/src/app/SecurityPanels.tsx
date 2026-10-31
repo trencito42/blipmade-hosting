@@ -329,6 +329,77 @@ export function SecurityActivityPanel() {
   );
 }
 
+interface ApiKeyRow { id: string; name: string; prefix: string; scope: string; lastUsedAt: string | null; lastUsedIp: string | null; expiresAt: string | null; createdAt: string; expired: boolean }
+
+/** Keys for scripts: read-only or read and write, one per tool, shown once, revoked at any time. */
+export function ApiKeysPanel() {
+  const { push } = useToast();
+  const state = useAsync<{ keys: ApiKeyRow[] }>((signal) => get<{ keys: ApiKeyRow[] }>('/settings/api-keys', undefined, signal), []);
+  const [name, setName] = useState('');
+  const [scope, setScope] = useState('read');
+  const [days, setDays] = useState('90');
+  const [made, setMade] = useState<string | null>(null);
+  const create = useAction(async () => {
+    const result = await post<{ key: string }>('/settings/api-keys', { name, scope, expiresInDays: days === 'never' ? null : Number(days) });
+    setMade(result.key);
+    setName('');
+    state.reload();
+  });
+  const revoke = useAction(async (id: string) => {
+    await del(`/settings/api-keys/${encodeURIComponent(id)}`);
+    push('The key was revoked.', 'ok');
+    state.reload();
+  });
+  const keys = state.data?.keys ?? [];
+  return (
+    <Panel title="API keys" description="Use the API from your own scripts and tools. A key reads (and optionally writes) the services of your account. It never reaches your settings, your payment method or your other keys.">
+      <div className="grid gap-4">
+        {made && (
+          <div className="grid gap-2 rounded-2xl bg-acc-bg p-4">
+            <p className="text-[14px] font-medium text-ink">Copy your key now. It is shown only this once.</p>
+            <p className="break-all rounded-xl bg-card px-3 py-2 font-mono text-[13px] text-ink">{made}</p>
+            <div className="flex flex-wrap gap-2">
+              <SoftButton onClick={() => void navigator.clipboard.writeText(made).then(() => push('The key was copied.', 'ok'), () => push('Copy failed. Select the key and copy it by hand.', 'error'))}>Copy</SoftButton>
+              <PrimaryButton onClick={() => setMade(null)}>I saved it</PrimaryButton>
+            </div>
+            <p className="font-mono text-[12px] text-ink3">curl -H "Authorization: Bearer {made.slice(0, 12)}…" https://blipmade.com/api/instances</p>
+          </div>
+        )}
+        {state.loading && !state.data ? (
+          <LoadingBlock rows={1} label="Loading the keys" />
+        ) : state.error ? (
+          <ErrorState title="The keys could not be loaded" message={state.error.message} onRetry={state.reload} />
+        ) : keys.length === 0 ? (
+          <p className="text-[14px] text-ink2">No key yet.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {keys.map((key) => (
+              <li key={key.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-[14.5px] font-semibold text-ink">{key.name} <span className="ml-1 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase text-ink2">{key.scope === 'write' ? 'read and write' : 'read only'}</span></p>
+                  <p className="font-mono text-[12.5px] text-ink3">{key.prefix}… · made {day(key.createdAt)} · {key.lastUsedAt ? `used ${day(key.lastUsedAt)}${key.lastUsedIp ? ` from ${key.lastUsedIp}` : ''}` : 'never used'} · {key.expired ? 'expired' : key.expiresAt ? `expires ${day(key.expiresAt)}` : 'does not expire'}</p>
+                </div>
+                <SoftButton onClick={() => void revoke.run(key.id)} disabled={revoke.pending}>Revoke</SoftButton>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_9rem_auto] sm:items-end">
+          <TextInput label="Name" value={name} onChange={(event) => setName(event.target.value)} placeholder="deploy script" autoComplete="off" error={create.fieldErrors.name} />
+          <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">Access
+            <select value={scope} onChange={(event) => setScope(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink"><option value="read">Read only</option><option value="write">Read and write</option></select>
+          </label>
+          <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">Expires
+            <select value={days} onChange={(event) => setDays(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink"><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="never">Never</option></select>
+          </label>
+          <PrimaryButton onClick={() => void create.run()} disabled={create.pending || name.trim().length < 2}>{create.pending ? 'Making…' : 'Make a key'}</PrimaryButton>
+        </div>
+        {create.error && !create.fieldErrors.name && <p role="alert" className="text-[13.5px] font-medium text-bad">{create.error}</p>}
+      </div>
+    </Panel>
+  );
+}
+
 /** The panels, with the state they share. */
 export function SecurityPanels() {
   const state = useAsync<SecurityState>((signal) => get<SecurityState>('/settings/security', undefined, signal), []);
@@ -338,6 +409,7 @@ export function SecurityPanels() {
     <>
       <TwoFactorPanel state={state.data.twoFactor} reload={state.reload} />
       <PasskeysPanel passkeys={state.data.passkeys} reload={state.reload} />
+      <ApiKeysPanel />
       <SecurityActivityPanel />
     </>
   );
