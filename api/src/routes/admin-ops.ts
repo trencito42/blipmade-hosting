@@ -365,7 +365,25 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     const { customer } = await customerOf(request);
     const risk = await assessCustomer(customer.id);
     if (!risk) throw notFound('Customer not found.');
-    return { risk };
+    const decision = customer.tags.includes('risk-blocked') ? 'blocked' : customer.tags.includes('risk-approved') ? 'approved' : customer.tags.includes('risk-review') ? 'review' : 'unreviewed';
+    return { risk: { ...risk, decision } };
+  });
+
+  /** A human decision sits next to the score. Blocking also closes sessions and suspends the account. */
+  app.post('/admin/customers/:id/risk-decision', { preHandler: [requirePermission('customers.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    assertMayActOnAccount(actor, customer.role, customer.id);
+    const body = z.object({ decision: z.enum(['approved', 'review', 'blocked', 'clear']), reason: z.string().trim().min(5).max(1000) }).parse(request.body ?? {});
+    const riskTags = new Set(['risk-approved', 'risk-review', 'risk-blocked']);
+    const tags = customer.tags.filter((tag) => !riskTags.has(tag));
+    if (body.decision !== 'clear') tags.push(`risk-${body.decision}`);
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: customer.id }, data: { tags, ...(body.decision === 'blocked' ? { suspendedAt: new Date() } : {}) } }),
+      prisma.customerNote.create({ data: { userId: customer.id, authorId: actor.id, authorEmail: actor.email, body: `[Risk: ${body.decision}] ${body.reason}` } }),
+      ...(body.decision === 'blocked' ? [prisma.session.deleteMany({ where: { userId: customer.id } })] : []),
+    ]);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: `admin.risk.${body.decision}`, targetType: 'user', targetId: customer.id, meta: { reason: body.reason }, ip: request.ip });
+    return { decision: body.decision === 'clear' ? 'unreviewed' : body.decision, suspended: body.decision === 'blocked' };
   });
 
   /** Adds and removes tags on many accounts at once. Nothing else is changed. */

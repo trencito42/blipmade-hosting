@@ -69,7 +69,9 @@ export function CommandPalette({ area, pages }: { area: 'customer' | 'admin'; pa
     };
   }, [open, things.length, area]);
 
-  // In the staff area, customers are searched on the server as the person types.
+  // In the staff area, one server-side lookup spans customers, commerce and
+  // infrastructure identifiers. This is intentionally not a client-side
+  // filter: Stripe ids and panel UUIDs must be useful during an incident.
   useEffect(() => {
     if (!open || area !== 'admin' || query.trim().length < 2) {
       setFound([]);
@@ -77,8 +79,8 @@ export function CommandPalette({ area, pages }: { area: 'customer' | 'admin'; pa
     }
     let alive = true;
     const timer = setTimeout(() => {
-      get<{ customers: { id: string; email: string; name: string | null }[] }>('/admin/customers', { search: query.trim(), role: 'all', limit: 8 })
-        .then((answer) => alive && setFound(answer.customers.map((entry) => ({ id: `c${entry.id}`, label: entry.name || entry.email, hint: entry.email, to: `/admin/customers/${entry.id}` }))))
+      get<{ results: { id: string; type: string; label: string; hint: string; to: string }[] }>('/admin/search', { q: query.trim() })
+        .then((answer) => alive && setFound(answer.results.map((entry) => ({ id: entry.id, label: entry.label, hint: `${entry.type} · ${entry.hint}`, to: entry.to }))))
         .catch(() => alive && setFound([]));
     }, 250);
     return () => {
@@ -124,7 +126,7 @@ export function CommandPalette({ area, pages }: { area: 'customer' | 'admin'; pa
               else if (event.key === 'ArrowUp') { event.preventDefault(); setActive((value) => Math.max(value - 1, 0)); }
               else if (event.key === 'Enter') { event.preventDefault(); go(items[active]); }
             }}
-            placeholder={area === 'admin' ? 'Search pages and customers' : 'Search pages, services, tickets and domains'}
+            placeholder={area === 'admin' ? 'Search customer, order, payment, domain, VM or service' : 'Search pages, services, tickets and domains'}
             aria-label="Search"
             aria-controls="palette-results"
             autoComplete="off"

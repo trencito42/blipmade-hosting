@@ -373,7 +373,7 @@ export default function CustomerDetail() {
       />
 
       {mayWrite && <AccountTools customerId={customer.id} name={customer.name ?? ''} emailVerified={customer.emailVerified} onChanged={state.reload} />}
-      <RiskPanel customerId={customer.id} />
+      <RiskPanel customerId={customer.id} mayWrite={mayWrite} onChanged={state.reload} />
       {mayWrite && <CreditPanel customerId={customer.id} />}
       <NotesPanel customerId={customer.id} mayWrite={mayWrite} />
       <SubscriptionsPanel customerId={customer.id} mayWrite={mayWrite} />
@@ -837,12 +837,16 @@ function NotesPanel({ customerId, mayWrite }: { customerId: string; mayWrite: bo
   );
 }
 
-interface Risk { score: number; level: 'low' | 'medium' | 'high'; signals: { id: string; weight: number; text: string }[] }
+interface Risk { score: number; level: 'low' | 'medium' | 'high'; decision: 'approved' | 'review' | 'blocked' | 'unreviewed'; signals: { id: string; weight: number; text: string }[] }
 
 /** How much to look twice at this account, and why. It decides nothing: it lists what looks unusual. */
-function RiskPanel({ customerId }: { customerId: string }) {
+function RiskPanel({ customerId, mayWrite, onChanged }: { customerId: string; mayWrite: boolean; onChanged: () => void }) {
   const state = useAsync<{ risk: Risk }>((signal) => get<{ risk: Risk }>(`/admin/customers/${customerId}/risk`, undefined, signal), [customerId]);
   const risk = state.data?.risk;
+  const toast = useToast();
+  const [decision, setDecision] = useState<'approved' | 'review' | 'blocked' | 'clear' | null>(null);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
   return (
     <Panel title="Risk" description="Signals from what the account does. A guide for where to look, not a verdict.">
       {state.loading && !state.data ? (
@@ -854,7 +858,9 @@ function RiskPanel({ customerId }: { customerId: string }) {
           <div className="flex items-center gap-3">
             <span className={`rounded-full px-3 py-1 text-[12.5px] font-bold uppercase ${risk.level === 'high' ? 'bg-bad/15 text-bad' : risk.level === 'medium' ? 'bg-warn/15 text-warn' : 'bg-acc-bg text-acc'}`}>{risk.level}</span>
             <span className="font-mono text-[15px] font-semibold text-ink">{risk.score} / 100</span>
+            <StatusPill status={risk.decision === 'blocked' ? 'failed' : risk.decision === 'approved' ? 'active' : risk.decision === 'review' ? 'pending' : 'unknown'} label={risk.decision} />
           </div>
+          {mayWrite && <div className="flex flex-wrap gap-2"><button type="button" className={denseGhost} onClick={() => { setReason(''); setDecision('approved'); }}>Approve</button><button type="button" className={denseGhost} onClick={() => { setReason(''); setDecision('review'); }}>Needs review</button><button type="button" className={denseDanger} onClick={() => { setReason(''); setDecision('blocked'); }}>Block account</button>{risk.decision !== 'unreviewed' && <button type="button" className={denseGhost} onClick={() => { setReason(''); setDecision('clear'); }}>Clear decision</button>}</div>}
           {risk.signals.length === 0 ? (
             <p className="text-[13.5px] text-ink2">Nothing looks unusual.</p>
           ) : (
@@ -867,6 +873,7 @@ function RiskPanel({ customerId }: { customerId: string }) {
               ))}
             </ul>
           )}
+          <ConfirmWithReason open={decision !== null} title={decision === 'blocked' ? 'Block this customer?' : `Mark risk as ${decision ?? 'reviewed'}?`} description={decision === 'blocked' ? 'The account is suspended and every active session is revoked. Services are not deleted.' : 'The decision, reason and operator are stored in the customer notes and audit log.'} confirmLabel={decision === 'blocked' ? 'Block account' : 'Save decision'} reasonLabel="Reason" reason={reason} onReasonChange={setReason} busy={busy} error={reason.trim().length < 5 ? 'Write at least five characters.' : null} onCancel={() => setDecision(null)} onConfirm={() => { if (!decision || reason.trim().length < 5) return; setBusy(true); post(`/admin/customers/${customerId}/risk-decision`, { decision, reason: reason.trim() }).then(() => { toast.push('Risk decision saved.', 'ok'); setDecision(null); state.reload(); onChanged(); }, (error) => toast.push(error instanceof Error ? error.message : 'That did not work.', 'error')).finally(() => setBusy(false)); }} />
         </div>
       )}
     </Panel>

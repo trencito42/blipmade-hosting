@@ -176,7 +176,7 @@ export async function updateServerBuild(
   changes: {
     allocation?: number;
     limits?: { memory: number; swap: number; disk: number; io: number; cpu: number };
-    feature_limits?: { databases: number; backups: number };
+    feature_limits?: { databases: number; backups: number; allocations?: number };
   },
 ): Promise<PteroServer> {
   const current = await getServer(serverId);
@@ -192,10 +192,17 @@ export async function updateServerBuild(
         io: current.limits.io,
         cpu: current.limits.cpu,
       },
-      feature_limits: changes.feature_limits ?? {
-        databases: current.feature_limits.databases,
-        backups: current.feature_limits.backups,
-      },
+      feature_limits: changes.feature_limits
+        ? {
+            databases: changes.feature_limits.databases,
+            backups: changes.feature_limits.backups,
+            allocations: changes.feature_limits.allocations ?? current.feature_limits.allocations,
+          }
+        : {
+            databases: current.feature_limits.databases,
+            backups: current.feature_limits.backups,
+            allocations: current.feature_limits.allocations,
+          },
     },
   );
   return result.attributes;

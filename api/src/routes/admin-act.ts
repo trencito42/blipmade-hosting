@@ -22,6 +22,10 @@ import { cancelSubscription, resumeSubscription } from '../services/stripe.js';
 import { sendResetEmail } from './auth.js';
 import { fullName } from '../lib/people.js';
 import { notifyAccountSecurity } from '../services/notifications.js';
+import { redis } from '../redis.js';
+import * as pteroClient from '../services/pterodactyl/client.js';
+import { resolveCustomerCredential } from '../services/panel/credentials.js';
+import { AppError } from '../lib/errors.js';
 
 /**
  * What the staff does on behalf of a customer.
@@ -283,6 +287,35 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
     return { actor, instance, serverId: instance.pterodactylServerId };
   };
 
+  /** Power operations for staff use the owner's scoped client credential. */
+  app.post('/admin/instances/:id/power', { preHandler: [requirePermission('services.write')] }, async (request) => {
+    const { actor, instance } = await instanceOf(request);
+    const { action, reason } = z.object({
+      action: z.enum(['start', 'stop', 'restart', 'kill']),
+      reason: z.string().trim().min(3).max(500),
+    }).parse(request.body ?? {});
+    if (!instance.pterodactylUuid) throw badRequest('This instance has no client UUID on the panel.');
+
+    const cooldownKey = `admin:instance:power:${instance.id}`;
+    const acquired = await redis.set(cooldownKey, action, 'EX', 30, 'NX');
+    if (acquired !== 'OK') throw new AppError(429, 'power_cooldown', 'Wait 30 seconds before another power action.');
+    try {
+      const credential = await resolveCustomerCredential(instance.userId);
+      await pteroClient.sendPower(pteroClient.clientToken(credential.token), instance.pterodactylUuid, action);
+    } catch (error) {
+      await redis.del(cooldownKey);
+      throw error;
+    }
+
+    const status = action === 'stop' || action === 'kill' ? 'STOPPED' : action === 'start' ? 'ONLINE' : 'RESTARTING';
+    await prisma.$transaction([
+      prisma.instance.update({ where: { id: instance.id }, data: { status } }),
+      prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'staff_power', message: `Staff requested ${action}.` } }),
+    ]);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: `admin.instance.power.${action}`, targetType: 'instance', targetId: instance.id, meta: { reason }, ip: request.ip });
+    return { accepted: true, status: status.toLowerCase() };
+  });
+
   /** Suspends or resumes the server on the panel: the container stops, and the customer cannot start it. */
   app.post('/admin/instances/:id/suspend', { preHandler: [requirePermission('services.write')] }, async (request) => {
     const { actor, instance, serverId } = await instanceOf(request);
@@ -310,6 +343,28 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
     await ptero.updateServerBuild(serverId, { feature_limits: { databases, backups: current.feature_limits.backups } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.database_limit', targetType: 'instance', targetId: instance.id, meta: { databases, reason }, ip: request.ip });
     return { databases };
+  });
+
+  /** Updates all Pterodactyl feature limits together and preserves resource limits. */
+  app.post('/admin/instances/:id/feature-limits', { preHandler: [requirePermission('services.write')] }, async (request) => {
+    const { actor, instance, serverId } = await instanceOf(request);
+    const body = z.object({
+      databases: z.number().int().min(0).max(100),
+      backups: z.number().int().min(0).max(100),
+      allocations: z.number().int().min(0).max(20),
+      reason: z.string().trim().min(3).max(500),
+    }).parse(request.body ?? {});
+    await ptero.updateServerBuild(serverId, { feature_limits: { databases: body.databases, backups: body.backups, allocations: body.allocations } });
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'admin.instance.feature_limits',
+      targetType: 'instance',
+      targetId: instance.id,
+      meta: { databases: body.databases, backups: body.backups, allocations: body.allocations, reason: body.reason },
+      ip: request.ip,
+    });
+    return { databases: body.databases, backups: body.backups, allocations: body.allocations };
   });
 
   /**

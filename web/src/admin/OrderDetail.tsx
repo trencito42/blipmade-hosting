@@ -1,8 +1,9 @@
-import { get } from '../lib/api';
+import { useState } from 'react';
+import { get, post } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link, useParams } from '../router';
-import { EmptyState, ErrorState, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
-import { DASH, denseGhost, fmtDateTime } from './Overview';
+import { EmptyState, ErrorState, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
+import { ConfirmWithReason, DASH, denseDanger, denseGhost, fmtDateTime } from './Overview';
 
 interface OrderControl {
   id: string; number: string; status: string; fulfillmentStatus: string; kind: string; total: number; discount: number; currency: string; createdAt: string; paidAt: string | null;
@@ -24,7 +25,11 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 
 export default function OrderDetail() {
   const { id } = useParams();
+  const toast = useToast();
   const state = useAsync<{ order: OrderControl }>((signal) => get(`/admin/orders/${id}`, undefined, signal), [id]);
+  const [action, setAction] = useState<'retry' | 'refund' | null>(null);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
   if (state.loading && !state.data) return <LoadingBlock rows={8} label="Loading the order" />;
   if (state.error || !state.data) return <ErrorState title="The order could not be loaded" message={state.error?.message ?? 'Not found.'} onRetry={state.reload} />;
   const order = state.data.order;
@@ -39,6 +44,10 @@ export default function OrderDetail() {
   return <div className="grid gap-4">
     <Panel title={order.number} description="Order, money, fulfilment and delivery in one place." action={<Link to="/admin/orders" className={denseGhost}>Back to orders</Link>}>
       <div className="grid gap-4">
+        <div className="flex flex-wrap gap-2">
+          {['paid', 'fulfilled'].includes(order.status) && order.fulfillmentStatus !== 'fulfilled' && <button type="button" className={denseGhost} disabled={busy} onClick={() => { setReason(''); setAction('retry'); }}>Retry delivery</button>}
+          {['paid', 'fulfilled'].includes(order.status) && !order.payments.some((payment) => payment.status === 'refunded') && <button type="button" className={denseDanger} disabled={busy} onClick={() => { setReason(''); setAction('refund'); }}>Full refund</button>}
+        </div>
         <div className="flex flex-wrap gap-2">{pipeline.map((step) => <div key={step.label} className="flex items-center gap-2 rounded-2xl bg-s2 px-3 py-2"><span className="text-[12px] font-semibold text-ink3">{step.label}</span><StatusPill status={step.state} /></div>)}</div>
         <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <Fact label="Customer"><Link to={`/admin/customers/${order.user.id}`} className="text-acc hover:underline">{order.user.firstName} {order.user.lastName}</Link><span className="block font-mono text-[12px] text-ink3">{order.user.email}</span></Fact>
@@ -78,5 +87,6 @@ export default function OrderDetail() {
     <Panel title="Audit trail" description="Operator actions connected to this order or customer.">
       {order.audit.length === 0 ? <EmptyState title="No operator action." description="Changes will appear here." /> : <ul className="grid gap-2">{order.audit.map((entry) => <li key={entry.id} className="flex flex-wrap justify-between gap-2 rounded-2xl bg-s2 px-4 py-3"><span className="font-mono text-[12.5px] text-ink">{entry.action}</span><span className="text-[12px] text-ink3">{entry.actorEmail ?? 'system'} · {fmtDateTime(entry.createdAt)}</span></li>)}</ul>}
     </Panel>
+    <ConfirmWithReason open={action !== null} title={action === 'refund' ? `Refund ${order.number}?` : `Retry delivery for ${order.number}?`} description={action === 'refund' ? 'Stripe returns the full payment. This cannot be undone from Blipmade.' : 'Only missing or failed work is queued again. Existing resources are reused.'} confirmLabel={action === 'refund' ? 'Refund payment' : 'Retry delivery'} reasonLabel="Reason for the audit log" reason={reason} onReasonChange={setReason} busy={busy} error={reason.trim().length < 3 ? 'Write a reason of at least three characters.' : null} onCancel={() => setAction(null)} onConfirm={() => { if (!action || reason.trim().length < 3) return; const chosen = action; setBusy(true); post(chosen === 'refund' ? `/admin/orders/${order.id}/refund` : `/admin/orders/${order.id}/retry-fulfilment`, { reason: reason.trim() }).then(() => { toast.push(chosen === 'refund' ? 'Payment refunded.' : 'Delivery queued.', 'ok'); setAction(null); state.reload(); }, (error) => toast.push(error instanceof Error ? error.message : 'That did not work.', 'error')).finally(() => setBusy(false)); }} />
   </div>;
 }

@@ -1,10 +1,13 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { notFound } from '../lib/errors.js';
-import { requirePermission } from '../plugins/auth.js';
+import { badRequest, conflict, notFound } from '../lib/errors.js';
+import { requirePermission, requireStaff } from '../plugins/auth.js';
 import { assessCustomer } from '../services/risk.js';
 import * as ptero from '../services/pterodactyl/application.js';
+import { audit } from '../lib/audit.js';
+import { enqueueMailProvisioning, enqueueProvisioning, enqueueVpsProvisioning } from '../services/queue.js';
+import { fulfilOrder } from './webhooks.js';
 
 function lower(value: string | null | undefined): string | null {
   return value ? value.toLowerCase() : null;
@@ -17,6 +20,70 @@ function containsAny(value: unknown, needles: string[]): boolean {
 
 /** Read models for the operator control centre. They deliberately contain no secrets. */
 export async function registerAdminControlRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * One lookup for the whole back office. Provider identifiers are deliberately
+   * searchable here: during an incident the operator usually has an id from a
+   * Stripe or infrastructure log, not the customer's email address.
+   */
+  app.get('/admin/search', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
+    const { q } = z.object({ q: z.string().trim().min(2).max(160) }).parse(request.query ?? {});
+    const text = q.trim();
+    const number = /^\d+$/.test(text) ? Number(text) : null;
+    const [customers, orders, instances, invoices, payments, domains, vps] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: 'CUSTOMER', OR: [
+          { email: { contains: text, mode: 'insensitive' } },
+          { firstName: { contains: text, mode: 'insensitive' } },
+          { lastName: { contains: text, mode: 'insensitive' } },
+          { id: text },
+          { pterodactylUserId: text },
+          { pterodactylExternalId: text },
+        ] },
+        select: { id: true, email: true, firstName: true, lastName: true }, take: 6,
+      }),
+      prisma.order.findMany({
+        where: { OR: [
+          { id: text }, { number: { contains: text, mode: 'insensitive' } },
+          { stripeCheckoutSessionId: text }, { stripePaymentIntentId: text },
+        ] },
+        select: { id: true, number: true, status: true, user: { select: { email: true } } }, take: 6,
+      }),
+      prisma.instance.findMany({
+        where: { OR: [
+          { id: text }, { name: { contains: text, mode: 'insensitive' } },
+          { pterodactylUuid: text }, ...(number === null ? [] : [{ pterodactylServerId: number }]),
+        ] },
+        select: { id: true, name: true, status: true, user: { select: { email: true } } }, take: 6,
+      }),
+      prisma.invoice.findMany({
+        where: { OR: [{ id: text }, { number: { contains: text, mode: 'insensitive' } }, { stripeInvoiceId: text }] },
+        select: { id: true, number: true, status: true, orderId: true, user: { select: { id: true, email: true } } }, take: 6,
+      }),
+      prisma.payment.findMany({
+        where: { OR: [{ id: text }, { stripePaymentIntentId: text }, { stripeChargeId: text }, { stripeCustomerId: text }, { stripeSubscriptionId: text }, { stripeInvoiceId: text }] },
+        select: { id: true, status: true, orderId: true, user: { select: { id: true, email: true } } }, take: 6,
+      }),
+      prisma.instanceDomain.findMany({
+        where: { OR: [{ id: text }, { hostname: { contains: text, mode: 'insensitive' } }] },
+        select: { id: true, hostname: true, status: true, instanceId: true }, take: 6,
+      }),
+      prisma.vpsService.findMany({
+        where: { OR: [{ id: text }, { name: { contains: text, mode: 'insensitive' } }, ...(number === null ? [] : [{ vmid: number }, { sshPort: number }])] },
+        select: { id: true, name: true, status: true, vmid: true, user: { select: { email: true } } }, take: 6,
+      }),
+    ]);
+
+    return { results: [
+      ...customers.map((row) => ({ id: `customer:${row.id}`, type: 'Customer', label: `${row.firstName} ${row.lastName}`.trim() || row.email, hint: row.email, to: `/admin/customers/${row.id}` })),
+      ...orders.map((row) => ({ id: `order:${row.id}`, type: 'Order', label: row.number, hint: `${row.status.toLowerCase()} · ${row.user.email}`, to: `/admin/orders/${row.id}` })),
+      ...instances.map((row) => ({ id: `service:${row.id}`, type: 'Service', label: row.name, hint: `${row.status.toLowerCase()} · ${row.user.email}`, to: `/admin/services/${row.id}` })),
+      ...invoices.map((row) => ({ id: `invoice:${row.id}`, type: 'Invoice', label: row.number, hint: `${row.status.toLowerCase()} · ${row.user.email}`, to: row.orderId ? `/admin/orders/${row.orderId}` : `/admin/customers/${row.user.id}` })),
+      ...payments.map((row) => ({ id: `payment:${row.id}`, type: 'Payment', label: row.id, hint: `${row.status.toLowerCase()} · ${row.user.email}`, to: row.orderId ? `/admin/orders/${row.orderId}` : `/admin/customers/${row.user.id}` })),
+      ...domains.map((row) => ({ id: `domain:${row.id}`, type: 'Domain', label: row.hostname, hint: row.status.toLowerCase(), to: `/admin/services/${row.instanceId}` })),
+      ...vps.map((row) => ({ id: `vps:${row.id}`, type: 'VPS', label: row.name, hint: `VM ${row.vmid ?? 'pending'} · ${row.user.email}`, to: '/admin/vps' })),
+    ].slice(0, 30) };
+  });
+
   app.get('/admin/services/:id', { preHandler: requirePermission('services.read') }, async (request: FastifyRequest) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const service = await prisma.instance.findUnique({
@@ -135,6 +202,43 @@ export async function registerAdminControlRoutes(app: FastifyInstance): Promise<
         risk,
       },
     };
+  });
+
+  /** Repairs only missing or failed fulfilment work; every queue has its own idempotency key. */
+  app.post('/admin/orders/:id/retry-fulfilment', { preHandler: requirePermission('orders.write') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const { reason } = z.object({ reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: { include: { instances: true, mailService: true, vpsService: true } } },
+    });
+    if (!order) throw notFound('Order not found.');
+    if (!['PAID', 'FULFILLED'].includes(order.status)) throw conflict(`Only a paid order can be delivered. This order is ${order.status.toLowerCase()}.`);
+
+    let queued = 0;
+    await fulfilOrder(order.id);
+    for (const item of order.items) {
+      if (item.fulfillmentStatus === 'FULFILLED') continue;
+      await prisma.orderItem.update({ where: { id: item.id }, data: { fulfillmentStatus: 'PROVISIONING', fulfillmentError: null } });
+      for (const instance of item.instances) {
+        if (instance.status === 'CANCELLED') continue;
+        await enqueueProvisioning(instance.id, { reason: `order recovery: ${reason}`, requestedBy: actor.id });
+        queued += 1;
+      }
+      if (item.mailService && item.mailService.status !== 'CANCELLED') {
+        await enqueueMailProvisioning(item.mailService.id, { reason: `order recovery: ${reason}` });
+        queued += 1;
+      }
+      if (item.vpsService && item.vpsService.status !== 'CANCELLED') {
+        await enqueueVpsProvisioning(item.vpsService.id, { reason: `order recovery: ${reason}` });
+        queued += 1;
+      }
+    }
+    if (queued === 0 && order.items.every((item) => item.fulfillmentStatus === 'FULFILLED')) throw badRequest('Every order line is already fulfilled.');
+    await prisma.order.update({ where: { id: order.id }, data: { fulfillmentStatus: 'PROVISIONING' } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.order.retry_fulfilment', targetType: 'order', targetId: order.id, meta: { reason, queued }, ip: request.ip });
+    return { queued };
   });
 
   app.get('/admin/promotions/:id', { preHandler: requirePermission('promotions.read') }, async (request: FastifyRequest) => {
