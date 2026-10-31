@@ -810,6 +810,24 @@ export async function notifyInstanceUnsuspended(input: Recipient & {
   );
 }
 
+/** A service stopped serving and has not come back in a few minutes. */
+export async function notifyServiceIncident(input: Recipient & {
+  instanceName: string;
+  message: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish('service.incident', input.instanceName, input.userId, { service: input.instanceName, message: input.message }, input.occurrence ?? null);
+}
+
+/** A service that stopped serving serves again. */
+export async function notifyServiceRestored(input: Recipient & {
+  instanceName: string;
+  message: string;
+  occurrence?: string | Date | null;
+}): Promise<void> {
+  await publish('service.restored', input.instanceName, input.userId, { service: input.instanceName, message: input.message }, input.occurrence ?? null);
+}
+
 /** The change of the resources of a service went through. */
 export async function notifyUpgradeCompleted(input: Recipient & {
   instanceName: string;

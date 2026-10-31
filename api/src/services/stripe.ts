@@ -1088,3 +1088,20 @@ export async function refundPartOfPayment(params: { paymentIntentId: string; amo
   );
   return refund.id;
 }
+
+/**
+ * The payment intent behind a payment that was saved without one (the first payment of a subscription is
+ * written from the checkout, which has only the subscription). The paid invoice of the subscription with the
+ * same amount holds it. Returns null when nothing matches, and never guesses.
+ */
+export async function findPaymentIntentForSubscription(subscriptionId: string, amount: number): Promise<string | null> {
+  try {
+    const invoices = await getClient().invoices.list({ subscription: subscriptionId, status: 'paid', limit: 20 });
+    const match = invoices.data.find((invoice) => invoice.amount_paid === amount && invoice.payment_intent);
+    const intent = match?.payment_intent;
+    if (!intent) return null;
+    return typeof intent === 'string' ? intent : intent.id;
+  } catch {
+    return null;
+  }
+}

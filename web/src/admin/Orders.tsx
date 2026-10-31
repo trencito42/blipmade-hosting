@@ -337,7 +337,7 @@ export default function Orders() {
         title={`Refund ${refunding?.number ?? ''}`}
         description={
           refunding
-            ? `${refunding.number} gives ${refunding.total} ${refunding.currency} back to the customer. The money is returned by the payment provider and the order is marked as refunded. The reason is kept in the audit journal.`
+            ? `${refunding.number} gives ${(refunding.total / 100).toFixed(2)} ${refunding.currency} back to the customer. The money is returned by the payment provider and the order is marked as refunded. The reason is kept in the audit journal.`
             : undefined
         }
         confirmLabel="Refund the order"

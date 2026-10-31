@@ -16,7 +16,7 @@ import {
   requeueDeadLetter,
 } from '../services/dead-letter.js';
 import { encodeCursor, pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
-import { refundPayment, stripeLive } from '../services/stripe.js';
+import { findPaymentIntentForSubscription, refundPayment, stripeLive } from '../services/stripe.js';
 import { PERMISSIONS, permissionsNotHeld } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
 import {
@@ -598,7 +598,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     // The payment intent is what the provider refunds.
     const payment = order.payments.find((entry) => entry.stripePaymentIntentId) ?? null;
-    const paymentIntentId = order.stripePaymentIntentId ?? payment?.stripePaymentIntentId ?? null;
+    let paymentIntentId = order.stripePaymentIntentId ?? payment?.stripePaymentIntentId ?? null;
+    if (!paymentIntentId && stripeLive()) {
+      // A first payment is saved from the checkout with the subscription only. The paid invoice holds the intent.
+      const unsettled = order.payments.find((entry) => entry.status === 'SUCCEEDED' && entry.stripeSubscriptionId);
+      if (unsettled?.stripeSubscriptionId) {
+        paymentIntentId = await findPaymentIntentForSubscription(unsettled.stripeSubscriptionId, unsettled.amount);
+        if (paymentIntentId) await prisma.payment.update({ where: { id: unsettled.id }, data: { stripePaymentIntentId: paymentIntentId } });
+      }
+    }
     if (!paymentIntentId) {
       throw conflict('This order carries no Stripe payment intent, so it cannot be refunded from here.');
     }

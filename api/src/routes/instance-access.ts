@@ -7,6 +7,8 @@ import { audit } from '../lib/audit.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 
+import { uptimeSummary } from '../services/uptime.js';
+
 const CODE_DAYS = 7;
 const MAX_MEMBERS = 10;
 
@@ -118,5 +120,27 @@ export async function registerInstanceAccessRoutes(app: FastifyInstance): Promis
     if (claimed.count === 0) throw badRequest('This code is not valid. It may have expired or been used already.');
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.access_redeemed', targetType: 'instance', targetId: share.instanceId, meta: { role: share.role }, ip: request.ip });
     return { instanceId: share.instanceId, name: share.instance.name, role: share.role };
+  });
+
+  // Uptime and alerts: members can read, only the owner changes the alerts.
+  app.get('/instances/:id/uptime', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = idParam.parse(request.params);
+    const instance = await prisma.instance.findFirst({
+      where: { id, OR: [{ userId: user.id }, { shares: { some: { userId: user.id, revokedAt: null } } }] },
+      select: { id: true, userId: true, alertsEnabled: true },
+    });
+    if (!instance) throw notFound('Instance not found.');
+    return { ...(await uptimeSummary(instance.id)), alertsEnabled: instance.alertsEnabled, canChange: instance.userId === user.id };
+  });
+
+  app.patch('/instances/:id/uptime', write, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = idParam.parse(request.params);
+    const body = z.object({ alertsEnabled: z.boolean() }).parse(request.body ?? {});
+    await ownerInstance(user.id, id);
+    await prisma.instance.update({ where: { id }, data: { alertsEnabled: body.alertsEnabled } });
+    await audit({ actorId: user.id, actorEmail: user.email, action: body.alertsEnabled ? 'instance.alerts_on' : 'instance.alerts_off', targetType: 'instance', targetId: id, ip: request.ip });
+    return { alertsEnabled: body.alertsEnabled };
   });
 }

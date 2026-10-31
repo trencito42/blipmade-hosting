@@ -1,3 +1,4 @@
+import { recordUptimeCheck } from './uptime.js';
 import { prisma } from '../db.js';
 import { audit } from '../lib/audit.js';
 import * as pteroClient from './pterodactyl/client.js';
@@ -431,6 +432,11 @@ export async function reconcileRuntimeState(
     where: { status: { in: ['ONLINE', 'RESTARTING', 'DEGRADED'] } },
     select: {
       id: true,
+      name: true,
+      userId: true,
+      downSince: true,
+      downAlertedAt: true,
+      alertsEnabled: true,
       status: true,
       runtimeState: true,
       runtimeCondition: true,
@@ -464,6 +470,15 @@ export async function reconcileRuntimeState(
     // What the node says is written down first, whatever it is. The state the
     // customer zone shows is the one that was seen long enough to be trusted.
     const condition = await applyObservation(instance, observation, holdMs);
+
+    // The check is written down for the uptime figures and the alerts. A node that could not be asked says nothing
+    // about the service, and a container that is still starting is neither up nor down.
+    if (!observation.unreachable) {
+      const now = conditionOf(observation);
+      if (now === 'serving' || now === 'stopped') {
+        await recordUptimeCheck(instance, now === 'serving').catch((error) => console.error('[uptime] a check could not be recorded', error));
+      }
+    }
 
     // A state that is transitional is resolved by what the node says: an
     // instance the platform shows as restarting, whose container serves, is

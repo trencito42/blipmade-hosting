@@ -42,6 +42,7 @@ type Tab =
   | 'activity'
   | 'resources'
   | 'domains'
+  | 'uptime'
   | 'access';
 type PowerAction = 'start' | 'restart' | 'stop';
 
@@ -61,6 +62,7 @@ const BackupsTab = lazy(() => import('./instance/BackupsTab'));
 const NetworkTab = lazy(() => import('./instance/NetworkTab'));
 const StartupTab = lazy(() => import('./instance/StartupTab'));
 const SchedulesTab = lazy(() => import('./instance/SchedulesTab'));
+const UptimeTab = lazy(() => import('./instance/UptimeTab'));
 const AccessTab = lazy(() => import('./instance/AccessTab'));
 const SettingsTab = lazy(() => import('./instance/SettingsTab'));
 const ActivityTab = lazy(() => import('./instance/ActivityTab'));
@@ -103,6 +105,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'activity', label: 'Activity' },
   { value: 'resources', label: 'Resources' },
   { value: 'domains', label: 'Domains' },
+  { value: 'uptime', label: 'Uptime' },
   { value: 'access', label: 'Access' },
 ];
 
@@ -766,6 +769,7 @@ export default function InstanceDetail() {
           {tab === 'activity' && <ActivityTab instance={instance} />}
           {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
           {tab === 'domains' && <DomainsTab instance={instance} />}
+          {tab === 'uptime' && <UptimeTab instance={instance} />}
           {tab === 'access' && <AccessTab instance={instance} />}
         </Suspense>
         )}

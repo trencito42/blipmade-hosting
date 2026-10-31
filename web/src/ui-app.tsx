@@ -1105,6 +1105,10 @@ export function ConfirmDialog({
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const openerRef = useRef<HTMLElement | null>(null);
+  // The parent passes a new function on every render. Keeping it in a ref stops the effect below from
+  // running again on each keystroke, which took the focus out of the fields of the dialog.
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
 
   useEffect(() => {
     if (!open) {
@@ -1119,7 +1123,7 @@ export function ConfirmDialog({
     panelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onCancel();
+        onCancelRef.current();
         return;
       }
       // The focus stays inside the dialog: Tab walks the actions of the
@@ -1148,7 +1152,7 @@ export function ConfirmDialog({
       // The focus goes back to the control that opened the dialog.
       openerRef.current?.focus?.();
     };
-  }, [open, onCancel]);
+  }, [open]);
 
   // The page behind the dialog must not scroll.
   useEffect(() => {

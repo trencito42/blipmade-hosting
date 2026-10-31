@@ -7,7 +7,7 @@ import { assertMayActOnAccount, requirePermission, requireStaff } from '../plugi
 import { getEmailQueue, getMailProvisionQueue, getQueue, getVpsProvisionQueue } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { assessCustomer } from '../services/risk.js';
-import { customerBalance, giveBalanceCredit, refundPartOfPayment, stripeLive } from '../services/stripe.js';
+import { customerBalance, findPaymentIntentForSubscription, giveBalanceCredit, refundPartOfPayment, stripeLive } from '../services/stripe.js';
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
 import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
 
@@ -368,7 +368,14 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     if (order.status !== 'PAID' && order.status !== 'FULFILLED') throw conflict(`Only a paid order can be refunded in part. This one is ${order.status.toLowerCase()}.`);
     if (order.payments.some((entry) => entry.status === 'REFUNDED')) throw conflict('This order was refunded in full already.');
     const paid = order.payments.find((entry) => entry.status === 'SUCCEEDED' && entry.stripePaymentIntentId) ?? null;
-    const intent = order.stripePaymentIntentId ?? paid?.stripePaymentIntentId ?? null;
+    let intent = order.stripePaymentIntentId ?? paid?.stripePaymentIntentId ?? null;
+    if (!intent) {
+      const bySubscription = order.payments.find((entry) => entry.status === 'SUCCEEDED' && entry.stripeSubscriptionId);
+      if (bySubscription?.stripeSubscriptionId) {
+        intent = await findPaymentIntentForSubscription(bySubscription.stripeSubscriptionId, bySubscription.amount);
+        if (intent) await prisma.payment.update({ where: { id: bySubscription.id }, data: { stripePaymentIntentId: intent } });
+      }
+    }
     if (!intent) throw conflict('This order carries no payment at the provider, so it cannot be refunded from here.');
 
     const already = await prisma.moneyAdjustment.aggregate({ where: { orderId: order.id, kind: 'refund' }, _sum: { amount: true } });

@@ -26,6 +26,7 @@ import {
 } from './services/queue.js';
 import { noteJobCompleted, noteJobFailure } from './services/dead-letter.js';
 import { watchDeadLetterQueue } from './services/dead-letter-monitor.js';
+import { pruneUptimeChecks } from './services/uptime.js';
 import { reconcileRuntimeState, runtimeStateWarning } from './services/runtime-state.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
@@ -362,6 +363,8 @@ async function watchRuntimeState(): Promise<void> {
   const result = await reconcileRuntimeState({ limit: 100 });
   const warning = runtimeStateWarning(result);
   if (warning) console.warn(warning);
+  // Once an hour, on the hour, the checks older than 35 days go.
+  if (new Date().getMinutes() === 0) await pruneUptimeChecks().catch((error) => console.error('[uptime] old checks could not be removed', error));
 }
 
 const timers: NodeJS.Timeout[] = [];

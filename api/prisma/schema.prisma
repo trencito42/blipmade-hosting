@@ -874,6 +874,13 @@ model Instance {
   // the id.
   @@index([createdAt, id])
   shares InstanceShare[]
+  /// Whether the owner is told by email when the service stops serving.
+  alertsEnabled Boolean         @default(true)
+  /// Since when the service has not been serving, while it is down.
+  downSince     DateTime?
+  /// When the owner was told about the current outage.
+  downAlertedAt DateTime?
+  checks        InstanceCheck[]
 }
 
 model InstanceEvent {
@@ -1608,4 +1615,15 @@ model InstanceShare {
 
   @@index([instanceId])
   @@index([userId])
+}
+
+/// One check of a running service: it served or it did not.
+model InstanceCheck {
+  id         String   @id @default(cuid())
+  instanceId String
+  instance   Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  at         DateTime @default(now())
+  up         Boolean
+
+  @@index([instanceId, at])
 }
