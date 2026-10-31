@@ -170,3 +170,19 @@ export function SearchButton() {
     </button>
   );
 }
+
+/** Switches between the theme of the system, light and dark. */
+export function ThemeButton({ choice, cycle }: { choice: 'system' | 'light' | 'dark'; cycle: () => void }) {
+  const label = choice === 'system' ? 'Theme: system' : choice === 'light' ? 'Theme: light' : 'Theme: dark';
+  return (
+    <button
+      type="button"
+      onClick={cycle}
+      aria-label={`${label}. Press to change.`}
+      title={label}
+      className="grid size-10 place-items-center rounded-xl text-[12px] font-bold text-ink3 hover:bg-s2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+    >
+      {choice === 'system' ? 'Auto' : choice === 'light' ? 'Light' : 'Dark'}
+    </button>
+  );
+}

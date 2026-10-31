@@ -12,7 +12,8 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { CommandPalette, SearchButton } from './CommandPalette';
+import { CommandPalette, SearchButton, ThemeButton } from './CommandPalette';
+import { useTheme } from './lib/theme';
 import { cn } from './lib';
 import { cellClass, headerClass, type TableColumn } from './lib/table';
 import { get, post, relativeTime, type NotificationView } from './lib/api';
@@ -142,6 +143,7 @@ export function AppShell({
   phoneTabs?: NavEntry[];
 }) {
   const { path } = useRouter();
+  const theme = useTheme();
   const isActive = (entry: NavEntry) =>
     entry.exact ? path === entry.to : path === entry.to || path.startsWith(`${entry.to}/`);
 
@@ -285,6 +287,7 @@ export function AppShell({
             {/* The bell of the notifications, with the number of the
                 messages that wait to be read. */}
             <SearchButton />
+            <ThemeButton choice={theme.choice} cycle={theme.cycle} />
             {inCustomerArea && <NotificationBell />}
           </header>
 

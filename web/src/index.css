@@ -321,3 +321,30 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(
   [data-print-hide] { display: none !important; }
   html, body, #root { background: #fff !important; }
 }
+
+/* The light theme of the dashboard and the staff area. It is set on <html> by the dashboard only, so the
+   public site stays as it is. Every pair of text and surface below keeps a contrast of 4.5:1 or more. */
+html[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #f6f8f6;
+  --color-s1: #ffffff;
+  --color-s2: #f0f4f1;
+  --color-s3: #e6ece8;
+  --color-card: #ffffff;
+  --color-surface: #ffffff;
+  --color-line: #d9e1dc;
+  --color-ink: #0f1a14;
+  --color-ink-2: #3d4a42;
+  --color-ink-3: #56645b;
+  --color-ink2: #3d4a42;
+  --color-ink3: #56645b;
+  --color-acc: #0b7a47;
+  --color-acc-h: #096a3d;
+  --color-on-acc: #ffffff;
+  --color-acc-bg: #dff5e8;
+  --color-green: #0b7a47;
+  --color-mint: #096a3d;
+  --color-bad: #b4231a;
+  --color-warn: #8a5a00;
+  --fa-secondary-color: var(--color-ink3);
+}
