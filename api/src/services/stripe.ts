@@ -774,9 +774,20 @@ export async function upsertInvoice(params: {
     return;
   }
 
-  const count = await prisma.invoice.count();
+  // The paid order already has its own invoice, written when the checkout finished. The invoice of the provider
+  // is attached to it, so a payment is one invoice and not two.
+  const own = params.orderId
+    ? await prisma.invoice.findFirst({ where: { orderId: params.orderId, stripeInvoiceId: null }, orderBy: { createdAt: 'asc' } })
+    : null;
+  if (own) {
+    await prisma.invoice.update({ where: { id: own.id }, data });
+    return;
+  }
+
+  // The number comes from the same sequence as every other invoice. It was counted from the rows before, and a
+  // count is not a sequence: it handed out a number that was already in use and the event could never finish.
   await prisma.invoice.create({
-    data: { ...data, number: `BM-INV-${String(count + 1).padStart(5, '0')}` },
+    data: { ...data, number: await nextInvoiceNumber() },
   });
 }
 
