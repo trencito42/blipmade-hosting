@@ -692,4 +692,36 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     });
     return { requestedAt: null };
   });
+
+  /**
+   * Checks a VAT number of the European Union with VIES, the service of the European Commission.
+   * It only reads: nothing is saved. The answer says whether the number is valid and, when VIES
+   * gives it, the name and the address it is registered to.
+   */
+  app.get('/settings/vat-check', {
+    config: { rateLimit: { max: 10, timeWindow: '10 minutes', keyGenerator: addressRateLimitKey } },
+  }, async (request: FastifyRequest) => {
+    await requireAuth(request);
+    const { country, taxId } = z.object({ country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/), taxId: z.string().trim().min(2).max(24) }).parse(request.query ?? {});
+    const number = taxId.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(new RegExp(`^${country}`), '');
+    if (!number) throw new AppError(400, 'validation_failed', 'Enter the VAT number.', { taxId: 'Enter the VAT number.' });
+    try {
+      const response = await fetch(`https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${country}/vat/${encodeURIComponent(number)}`, {
+        signal: AbortSignal.timeout(8000),
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return { checked: false, message: 'The VIES service could not answer for this country right now. Try again later.' };
+      const data = (await response.json()) as { isValid?: boolean; valid?: boolean; name?: string; address?: string; userError?: string };
+      const valid = Boolean(data.isValid ?? data.valid);
+      return {
+        checked: true,
+        valid,
+        name: valid && data.name && data.name !== '---' ? data.name : null,
+        address: valid && data.address && data.address !== '---' ? data.address : null,
+        message: valid ? 'This VAT number is registered.' : 'VIES does not know this VAT number for this country.',
+      };
+    } catch {
+      return { checked: false, message: 'The VIES service did not answer. Try again later.' };
+    }
+  });
 }

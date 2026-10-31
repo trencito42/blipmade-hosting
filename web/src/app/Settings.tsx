@@ -215,6 +215,41 @@ const SETTINGS_TABS: { id: string; label: string; icon: IconName; danger?: boole
   { id: 'account', label: 'Close account', icon: 'warn', danger: true },
 ];
 
+/** Checks the VAT number against VIES (the European Commission), so a typo is found before it is printed on an invoice. */
+function VatCheck({ country, taxId }: { country: string; taxId: string }) {
+  const [result, setResult] = useState<{ checked: boolean; valid?: boolean; name?: string | null; address?: string | null; message: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setResult(null), [country, taxId]);
+  if (!taxId.trim() || country.trim().length !== 2) return null;
+  return (
+    <div className="grid gap-1.5 rounded-2xl bg-s2 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[13.5px] text-ink2">Check the VAT number ({country.toUpperCase()} {taxId}) with the European VIES service.</p>
+        <SoftButton
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              setResult(await get(`/settings/vat-check`, { country: country.trim(), taxId: taxId.trim() }));
+            } catch (failure) {
+              setResult({ checked: false, message: failure instanceof Error ? failure.message : 'The check did not work.' });
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? 'Checking…' : 'Check'}
+        </SoftButton>
+      </div>
+      {result && (
+        <p role="status" className={`text-[13px] font-medium ${result.checked ? (result.valid ? 'text-acc' : 'text-bad') : 'text-ink2'}`}>
+          {result.message}{result.name ? ` Registered as ${result.name}.` : ''}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function BillingAddressPanel({ address, onChanged }: { address: BillingAddressValue | null; onChanged: () => void }) {
   const { push } = useToast();
   const [value, setValue] = useState<BillingAddressValue>(address ?? emptyBillingAddress);
@@ -232,6 +267,7 @@ function BillingAddressPanel({ address, onChanged }: { address: BillingAddressVa
   return (
     <Panel title="Billing address" description="These details are saved to your account and copied onto new invoices.">
       <div className="grid gap-4">
+        <VatCheck country={value.country} taxId={value.taxId} />
         <BillingAddressFields value={value} onChange={(next) => { setValue(next); setLocalErrors({}); }} errors={{ ...save.fieldErrors, ...localErrors }} />
         <div><PrimaryButton onClick={() => void submit()} disabled={save.pending}>{save.pending ? 'Saving…' : 'Save billing address'}</PrimaryButton></div>
         {(Object.keys(localErrors).length > 0 || save.error) && (
