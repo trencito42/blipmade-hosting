@@ -527,13 +527,22 @@ export interface Ticket {
   messageCount: number;
 }
 
+/** A file attached to a message of a ticket. A file that was not kept has no id and cannot be downloaded. */
+export interface TicketAttachment {
+  id?: string;
+  name: string;
+  size: number;
+  type: string;
+  downloadable?: boolean;
+}
+
 export interface TicketMessage {
   id: string;
   body: string;
   internal: boolean;
   author: { id: string; name: string | null; role: Role };
   createdAt: string;
-  attachments: { name: string; size: number; type: string }[];
+  attachments: TicketAttachment[];
 }
 
 export interface BillingAddress {
