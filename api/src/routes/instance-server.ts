@@ -7,6 +7,7 @@ import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
+import { planStartupChange, readEggStartupInfo, visibleVariables } from '../services/startup-settings.js';
 import * as operations from '../services/panel/operations.js';
 import { reinstallInstance } from '../services/reinstall.js';
 import { openVariables, parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
@@ -935,22 +936,21 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     for (const [key, value] of Object.entries(server.container.environment ?? {})) {
       environment[key] = String(value ?? '');
     }
+    const info = await readEggStartupInfo(server.nest, server.egg);
     return {
       image: server.container.image,
+      images: Object.entries(info.images).map(([label, image]) => ({ label, image })),
       command: server.container.startup_command,
-      environment,
+      // Only the variables of the egg that the egg shows to the customer. The values the panel makes by itself stay out.
+      variables: visibleVariables(info, environment),
     };
   });
 
   /**
-   * Changes the image, the startup command and the environment of the server.
-   *
-   * The environment is sent as a whole, because the panel replaces it. The
-   * values that are not mentioned are taken from the current ones.
+   * Changes the image and the variables of the egg that the egg lets the customer change. The command and the
+   * variables the panel makes by itself are not changed here.
    */
   const changeStartup = async (request: FastifyRequest) => {
-    // The environment is counted before the body is read, so a body with too
-    // many variables is refused without the cost of walking them.
     assertBoundedFields(request.body, {
       environment: { max: MAX_ENVIRONMENT_VARIABLES, label: 'The environment' },
     });
@@ -958,7 +958,6 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       .object({
         image: z.string().trim().min(1).max(255).optional(),
         command: z.string().max(4096).optional(),
-        startup: z.string().max(4096).optional(),
         environment: z.record(z.string().max(4096)).optional(),
       })
       .parse(request.body ?? {});
@@ -972,13 +971,16 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     for (const [key, value] of Object.entries(server.container.environment ?? {})) {
       current[key] = String(value ?? '');
     }
-    const environment = { ...current, ...(body.environment ?? {}) };
-    const command = body.command ?? body.startup;
+    const info = await readEggStartupInfo(server.nest, server.egg);
+    const plan = planStartupChange(
+      info,
+      { image: server.container.image, command: server.container.startup_command, environment: current },
+      body,
+    );
 
     await pteroApp.updateServerStartup(instance.pterodactylServerId, {
-      image: body.image,
-      startup: command,
-      environment,
+      image: plan.image,
+      environment: plan.environment,
     });
 
     await note(instance.id, 'startup', 'The startup configuration was updated.');
@@ -990,9 +992,9 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       targetId: instance.id,
     });
     return {
-      image: body.image ?? server.container.image,
-      command: command ?? server.container.startup_command,
-      environment,
+      image: plan.image ?? server.container.image,
+      command: server.container.startup_command,
+      variables: visibleVariables(info, plan.environment),
     };
   };
 

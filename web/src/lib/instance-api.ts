@@ -100,10 +100,20 @@ export interface InstanceAllocation {
   is_default: boolean;
 }
 
+export interface StartupVariable {
+  key: string;
+  name: string;
+  description: string;
+  value: string;
+  editable: boolean;
+}
+
 export interface StartupSettings {
   image: string;
+  /** The images the app offers. */
+  images?: { label: string; image: string }[];
   command: string;
-  environment: Record<string, string>;
+  variables: StartupVariable[];
 }
 
 export interface InstanceSchedule {
@@ -432,7 +442,7 @@ export const getStartup = (id: string, signal?: AbortSignal) =>
 
 export const updateStartup = (
   id: string,
-  body: { image?: string; command?: string; environment?: Record<string, string> },
+  body: { image?: string; environment?: Record<string, string> },
 ) => put<StartupSettings>(`/instances/${id}/startup`, body);
 
 // --- schedules -------------------------------------------------------------
