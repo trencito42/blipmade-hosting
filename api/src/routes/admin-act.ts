@@ -15,6 +15,7 @@ import {
 } from '../plugins/auth.js';
 import { destroyVps, ownedVps, reinstallVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
+import * as ptero from '../services/pterodactyl/application.js';
 import { relayVpsConsole } from '../services/vps-console.js';
 import { cancelSubscription, resumeSubscription } from '../services/stripe.js';
 import { sendResetEmail } from './auth.js';
@@ -267,5 +268,46 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.reset_2fa', targetType: 'user', targetId: customer.id, meta: { hadTwoFactor: removed.count > 0 }, ip: request.ip });
     if (removed.count > 0) await notifyAccountSecurity('account.two_factor_reset', { userId: customer.id, name: fullName(customer) || null });
     return { reset: removed.count > 0 };
+  });
+
+  // --- the instances of the customers, for the staff ----------------------------------------
+
+  const instanceOf = async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const instance = await prisma.instance.findUnique({ where: { id }, include: { user: { select: { role: true } } } });
+    if (!instance) throw notFound('Instance not found.');
+    assertMayActOnAccount(actor, instance.user.role, instance.userId);
+    if (!instance.pterodactylServerId) throw badRequest('This instance has no server on the panel yet.');
+    return { actor, instance, serverId: instance.pterodactylServerId };
+  };
+
+  /** Suspends or resumes the server on the panel: the container stops, and the customer cannot start it. */
+  app.post('/admin/instances/:id/suspend', { preHandler: [requirePermission('services.write')] }, async (request) => {
+    const { actor, instance, serverId } = await instanceOf(request);
+    const { suspended } = z.object({ suspended: z.boolean() }).parse(request.body ?? {});
+    await ptero.applicationRequest('POST', `/api/application/servers/${serverId}/${suspended ? 'suspend' : 'unsuspend'}`, {});
+    await prisma.instance.update({ where: { id: instance.id }, data: { status: suspended ? 'SUSPENDED' : 'ONLINE', suspendedAt: suspended ? new Date() : null } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: suspended ? 'admin.instance.suspend' : 'admin.instance.unsuspend', targetType: 'instance', targetId: instance.id, ip: request.ip });
+    return { status: suspended ? 'suspended' : 'online' };
+  });
+
+  /** Reinstalls the server on the panel. The files of the container are erased. */
+  app.post('/admin/instances/:id/reinstall', { preHandler: [requirePermission('services.write')] }, async (request) => {
+    const { actor, instance, serverId } = await instanceOf(request);
+    z.object({ confirm: z.literal(true) }).parse(request.body ?? {});
+    await ptero.reinstallServer(serverId);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.reinstall', targetType: 'instance', targetId: instance.id, ip: request.ip });
+    return { ok: true };
+  });
+
+  /** Sets how many databases the server may have, without touching its other limits. */
+  app.post('/admin/instances/:id/database-limit', { preHandler: [requirePermission('services.write')] }, async (request) => {
+    const { actor, instance, serverId } = await instanceOf(request);
+    const { databases } = z.object({ databases: z.number().int().min(0).max(20) }).parse(request.body ?? {});
+    const current = await ptero.getServer(serverId);
+    await ptero.updateServerBuild(serverId, { feature_limits: { databases, backups: current.feature_limits.backups } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.database_limit', targetType: 'instance', targetId: instance.id, meta: { databases }, ip: request.ip });
+    return { databases };
   });
 }

@@ -1553,7 +1553,7 @@ export default function Mail() {
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="acme.ro"
-          error={nameError ?? undefined}
+          error={nameError ?? createDomain.fieldErrors.hostname ?? createDomain.fieldErrors.name ?? createDomain.fieldErrors.domain ?? undefined}
           hint="The hostname without a protocol, like acme.ro."
           autoComplete="off"
           spellCheck={false}
@@ -1660,7 +1660,7 @@ export default function Mail() {
                     value={localPart}
                     onChange={(event) => setLocalPart(event.target.value)}
                     placeholder="contact"
-                    error={localPartError ?? undefined}
+                    error={localPartError ?? addMailbox.fieldErrors.localPart ?? addMailbox.fieldErrors.name ?? addMailbox.fieldErrors.address ?? undefined}
                     hint="The name before the @. The domain is added for you."
                     autoComplete="off"
                     spellCheck={false}
@@ -1671,6 +1671,7 @@ export default function Mail() {
                     value={mailboxPassword}
                     onChange={(event) => setMailboxPassword(event.target.value)}
                     placeholder="Leave it empty"
+                    error={addMailbox.fieldErrors.password}
                     hint="Leave it empty and the server makes a password you see once."
                     autoComplete="new-password"
                   />
@@ -1698,7 +1699,7 @@ export default function Mail() {
                     value={aliasName}
                     onChange={(event) => setAliasName(event.target.value)}
                     placeholder="info"
-                    error={aliasError ?? undefined}
+                    error={aliasError ?? addAlias.fieldErrors.alias ?? addAlias.fieldErrors.name ?? addAlias.fieldErrors.address ?? undefined}
                     hint="The address that receives the mail and forwards it to a mailbox."
                     autoComplete="off"
                     spellCheck={false}
@@ -1707,6 +1708,7 @@ export default function Mail() {
                     label="Goes to"
                     value={aliasTarget}
                     onChange={(event) => setAliasTarget(event.target.value)}
+                    error={addAlias.fieldErrors.target ?? addAlias.fieldErrors.goto}
                     hint="The mailbox that receives the mail."
                   >
                     {mailboxes.length ? (
