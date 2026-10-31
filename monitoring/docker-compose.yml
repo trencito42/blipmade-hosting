@@ -3,9 +3,8 @@ services:
   prometheus:
     image: prom/prometheus:v2.55.1
     restart: unless-stopped
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.retention.time=30d
+    # The token of the platform is written to a file the configuration reads, so it is not in the config.
+    entrypoint: ['/bin/sh', '-c', 'printf %s "$$PLATFORM_METRICS_TOKEN" > /tmp/platform-token && exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.retention.time=30d --storage.tsdb.path=/prometheus']
     volumes:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
@@ -16,7 +15,7 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.27.0
     restart: unless-stopped
-    command: [--config.file=/etc/alertmanager/alertmanager.yml]
+    entrypoint: ['/bin/sh', '-c', 'printf %s "$$DISCORD_WEBHOOK_URL" > /tmp/discord-webhook && exec /bin/alertmanager --config.file=/etc/alertmanager/alertmanager.yml']
     volumes:
       - ./alertmanager:/etc/alertmanager:ro
     environment:

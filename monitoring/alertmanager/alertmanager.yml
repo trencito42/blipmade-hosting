@@ -9,7 +9,7 @@ receivers:
   - name: discord
     slack_configs:
       # Discord understands the Slack format on the /slack end of the webhook.
-      - api_url_file: /etc/alertmanager/discord-webhook
+      - api_url_file: /tmp/discord-webhook
         send_resolved: true
         title: '{{ .CommonLabels.alertname }} ({{ .Status }})'
         text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'
