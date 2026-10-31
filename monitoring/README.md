@@ -28,7 +28,8 @@ platform depends on it.
    password of Grafana. Edit `prometheus/prometheus.yml` if an address is different.
 3. `docker compose up -d`. Grafana is on port 3000 of the machine (put it behind the gateway with a
    login before opening it to the internet), Prometheus on 9090, Alertmanager on 9093.
-4. Install `node_exporter` on the host and on each VM: `apt install prometheus-node-exporter`
+4. The API listens for its measures on `127.0.0.1:3109` by default. Set `METRICS_HOST` to the private address of the VM (for example `10.77.0.13`) in its `.env`, keep `METRICS_TOKEN` set, and allow only this stack to reach the port.
+5. Install `node_exporter` on the host and on each VM: `apt install prometheus-node-exporter`
    (listens on 9100; allow only the address of this stack).
 
 ## Alerts

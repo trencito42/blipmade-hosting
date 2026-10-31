@@ -55,7 +55,7 @@ scrape_configs:
       type: Bearer
       credentials_file: /tmp/platform-token
     static_configs:
-      - targets: ['10.77.0.13:9464']
+      - targets: ['10.77.0.13:3109']
         labels: { service: api }
 
   # The public endpoints, probed from outside the process.
