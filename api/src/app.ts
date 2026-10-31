@@ -29,6 +29,7 @@ import { registerSettingsRoutes } from './routes/settings.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAdminActRoutes } from './routes/admin-act.js';
 import { registerTwoFactorRoutes } from './routes/two-factor.js';
+import { registerAdminStatusRoutes } from './routes/admin-status.js';
 import { registerAdminMailRoutes } from './routes/admin-mail.js';
 import { registerAdminMailPlansRoutes } from './routes/admin-mail-plans.js';
 import { registerNotificationRoutes } from './routes/notifications.js';
@@ -217,6 +218,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerTicketRoutes(api);
       await registerSettingsRoutes(api);
       await registerTwoFactorRoutes(api);
+      await registerAdminStatusRoutes(api);
       await registerAdminRoutes(api);
       await registerAdminActRoutes(api);
       await registerAdminMailRoutes(api);

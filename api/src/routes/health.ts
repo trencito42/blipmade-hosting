@@ -6,6 +6,8 @@ import { env } from '../env.js';
 import { isShuttingDown } from '../lib/perf-shutdown.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { getQueue } from '../services/queue.js';
+import { proxmoxConfigured, vmExists } from '../services/proxmox.js';
+import { activeAnnouncements, activeIncidents, pastIncidents, statusHistory } from '../services/status-history.js';
 
 const startedAt = Date.now();
 
@@ -250,6 +252,66 @@ async function allocatorState(): Promise<{ ok: boolean; detail: string }> {
   }
 }
 
+export interface StatusComponent { id: string; name: string; state: string; detail: string }
+
+/** Whether the public site answers, asked from the outside through the address a visitor uses. */
+async function siteState(): Promise<{ ok: boolean; detail: string }> {
+  try {
+    const response = await fetch(`${env.publicWebUrl}/`, { signal: AbortSignal.timeout(6000), redirect: 'manual' });
+    return { ok: response.status < 500, detail: response.status < 500 ? 'The site answers.' : `The site answered with ${response.status}.` };
+  } catch {
+    return { ok: false, detail: 'The site did not answer.' };
+  }
+}
+
+/** Whether the host of the virtual servers answers. Null when virtual servers are not set up on this platform. */
+async function vpsHostState(): Promise<{ ok: boolean; detail: string } | null> {
+  if (!proxmoxConfigured()) return null;
+  try {
+    await vmExists(env.VPS_TEMPLATE_VMID);
+    return { ok: true, detail: 'The host of the virtual servers answers.' };
+  } catch {
+    return { ok: false, detail: 'The host of the virtual servers does not answer.' };
+  }
+}
+
+/** Every component, measured now. The page and the history are made from this one list. */
+export async function collectStatusComponents(): Promise<StatusComponent[]> {
+  const [database, redis, panel, worker, queue, provisioning, nodes, allocator, site, vps] = await Promise.all([
+    databaseOk(),
+    redisPing(),
+    ptero.ping(),
+    workerOk(),
+    queueState(),
+    provisioningState(),
+    nodeState(),
+    allocatorState(),
+    siteState(),
+    vpsHostState(),
+  ]);
+
+  const components: StatusComponent[] = [
+    { id: 'site', name: 'Website', state: site.ok ? 'operational' : 'down', detail: site.detail },
+    { id: 'api', name: 'Platform API', state: database ? 'operational' : 'down', detail: database ? 'The database answers.' : 'The database does not answer.' },
+    { id: 'dashboard', name: 'Dashboard', state: database ? 'operational' : 'down', detail: database ? 'The dashboard reads its data.' : 'The dashboard cannot read its data.' },
+    { id: 'cache', name: 'Cache and queues', state: redis ? 'operational' : 'degraded', detail: redis ? 'The cache answers.' : 'The cache does not answer.' },
+    { id: 'panel', name: 'Control panel', state: panel ? 'operational' : 'down', detail: panel ? 'The panel answers.' : 'The panel does not answer.' },
+    { id: 'worker', name: 'Automation worker', state: worker.ok ? 'operational' : 'down', detail: worker.detail },
+    { id: 'queue', name: 'Provisioning queue', state: queue.ok ? 'operational' : 'degraded', detail: queue.detail },
+    { id: 'nodes', name: 'Compute nodes', state: nodes.ok ? 'operational' : 'degraded', detail: nodes.detail },
+    { id: 'allocator', name: 'Port allocator', state: allocator.ok ? 'operational' : 'degraded', detail: allocator.detail },
+    { id: 'provisioning', name: 'Deployments', state: provisioning.ok ? 'operational' : 'degraded', detail: provisioning.detail },
+    ...(vps ? [{ id: 'vps', name: 'Virtual servers', state: vps.ok ? 'operational' : 'down', detail: vps.detail }] : []),
+    {
+      id: 'support',
+      name: 'Support',
+      state: mailTransportName() === 'smtp' ? 'operational' : 'degraded',
+      detail: mailTransportName() === 'smtp' ? 'Mail is delivered.' : 'Mail is written to a file, not delivered.',
+    },
+  ];
+  return components;
+}
+
 /**
  * Public service status.
  *
@@ -259,34 +321,9 @@ async function allocatorState(): Promise<{ ok: boolean; detail: string }> {
  */
 export async function registerStatusRoutes(app: FastifyInstance): Promise<void> {
   app.get('/status', async () => {
-    const [database, redis, panel, worker, queue, provisioning, nodes, allocator] = await Promise.all([
-      databaseOk(),
-      redisPing(),
-      ptero.ping(),
-      workerOk(),
-      queueState(),
-      provisioningState(),
-      nodeState(),
-      allocatorState(),
-    ]);
-
-    const components: Component[] = [
-      { id: 'api', name: 'Platform API', state: database ? 'operational' : 'down', detail: database ? 'The database answers.' : 'The database does not answer.' },
-      { id: 'dashboard', name: 'Dashboard', state: database ? 'operational' : 'down', detail: database ? 'The dashboard reads its data.' : 'The dashboard cannot read its data.' },
-      { id: 'cache', name: 'Cache and queues', state: redis ? 'operational' : 'degraded', detail: redis ? 'The cache answers.' : 'The cache does not answer.' },
-      { id: 'panel', name: 'Control panel', state: panel ? 'operational' : 'down', detail: panel ? 'The panel answers.' : 'The panel does not answer.' },
-      { id: 'worker', name: 'Automation worker', state: worker.ok ? 'operational' : 'down', detail: worker.detail },
-      { id: 'queue', name: 'Provisioning queue', state: queue.ok ? 'operational' : 'degraded', detail: queue.detail },
-      { id: 'nodes', name: 'Compute nodes', state: nodes.ok ? 'operational' : 'degraded', detail: nodes.detail },
-      { id: 'allocator', name: 'Port allocator', state: allocator.ok ? 'operational' : 'degraded', detail: allocator.detail },
-      { id: 'provisioning', name: 'Deployments', state: provisioning.ok ? 'operational' : 'degraded', detail: provisioning.detail },
-      {
-        id: 'support',
-        name: 'Support',
-        state: mailTransportName() === 'smtp' ? 'operational' : 'degraded',
-        detail: mailTransportName() === 'smtp' ? 'Mail is delivered.' : 'Mail is written to a file, not delivered.',
-      },
-    ];
+    const components = await collectStatusComponents();
+    const history = await statusHistory(components.map((component) => component.id));
+    const [incidents, announcements] = await Promise.all([activeIncidents(), activeAnnouncements()]);
 
     const overall = components.some((component) => component.state === 'down')
       ? 'major_outage'
@@ -294,6 +331,18 @@ export async function registerStatusRoutes(app: FastifyInstance): Promise<void> 
         ? 'degraded'
         : 'operational';
 
-    return { overall, components, updatedAt: new Date().toISOString() };
+    return {
+      overall,
+      components: components.map((component) => ({ ...component, uptime: history.uptime[component.id] ?? null, days: history.days[component.id] ?? [] })),
+      incidents,
+      announcements,
+      updatedAt: new Date().toISOString(),
+    };
   });
+
+  /** The incidents that are over, newest first. */
+  app.get('/status/incidents', async () => ({ incidents: await pastIncidents(60) }));
+
+  /** The messages for the dashboard (maintenance, news). Public, so the page of status shows them too. */
+  app.get('/announcements', async () => ({ announcements: await activeAnnouncements() }));
 }

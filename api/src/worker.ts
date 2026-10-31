@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { pruneStatusChecks, recordStatusChecks } from './services/status-history.js';
 import { initErrorReporting, reportError } from './lib/sentry.js';
 import { UnrecoverableError, type Job } from 'bullmq';
 import { prisma } from './db.js';
@@ -453,6 +454,8 @@ async function main(): Promise<void> {
   // The health of the platform is looked at every five minutes: often enough
   // that a problem is seen while it is still small, and rare enough that the
   // machine is not asked the same questions all day.
+  timers.push(setInterval(() => void recordStatusChecks().catch((error) => console.error('[worker] the status checks failed', error)), 60_000));
+  timers.push(setInterval(() => void pruneStatusChecks().catch(() => undefined), 6 * 60 * 60_000));
   timers.push(setInterval(() => void sweepOpsHealth().catch((error) => console.error('[worker] the health sweep failed', error)), 5 * 60_000));
   // The outbox is emptied every five seconds: a message that waits for a
   // customer does not wait for long.

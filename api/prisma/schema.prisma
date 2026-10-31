@@ -1444,3 +1444,63 @@ model Passkey {
 
   @@index([userId])
 }
+
+/// One check of one component of the platform, written by the worker every minute. The public
+/// status page reads its history from here.
+model StatusCheck {
+  id        String   @id @default(cuid())
+  component String
+  /// operational | degraded | down
+  state     String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([component, createdAt])
+  @@index([createdAt])
+}
+
+/// A problem or a maintenance, told on the status page with its updates.
+model Incident {
+  id         String           @id @default(cuid())
+  title      String
+  /// investigating | identified | monitoring | resolved
+  status     String           @default("investigating")
+  /// none | minor | major | critical | maintenance
+  impact     String           @default("minor")
+  components String[]         @default([])
+  /// Opened by the checks, not by a person.
+  automatic  Boolean          @default(false)
+  startedAt  DateTime         @default(now())
+  resolvedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updates    IncidentUpdate[]
+
+  @@index([startedAt])
+  @@index([resolvedAt])
+}
+
+model IncidentUpdate {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  status     String
+  message    String
+  createdAt  DateTime @default(now())
+
+  @@index([incidentId])
+}
+
+/// A message shown to every signed-in customer: a maintenance window, news.
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  body      String
+  /// info | warning | maintenance
+  severity  String    @default("info")
+  startsAt  DateTime  @default(now())
+  endsAt    DateTime?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  @@index([active, startsAt])
+}
