@@ -36,6 +36,67 @@ function parseValue(row: SettingRow): unknown {
   }
 }
 
+
+const COMPANY_FIELDS = [
+  { key: 'billing.company_name', label: 'Company name', placeholder: 'Your company SRL', hint: 'Written on every invoice as the seller.' },
+  { key: 'billing.company_registration', label: 'Registration number', placeholder: 'J40/1234/2026', hint: 'The number under which the company is registered.' },
+  { key: 'billing.tax_id', label: 'Tax ID (CUI / VAT number)', placeholder: 'RO12345678', hint: 'Without it no tax is added to the invoices the platform writes.' },
+  { key: 'billing.tax_rate', label: 'Tax rate (%)', placeholder: '21', hint: 'A number, for example 21. Without it no tax is added.' },
+  { key: 'billing.billing_address', label: 'Company address', placeholder: 'Street, city, county, country', hint: 'Written in the header of the invoice.' },
+  { key: 'billing.support_email', label: 'Support email', placeholder: 'support@yourcompany.com', hint: 'Where customers send questions about invoices.' },
+] as const;
+
+/**
+ * The details of the company that sells the service. They are written on the invoices, and the tax is added only when
+ * the tax ID and the rate are both here. The platform never writes any of them by itself: they come from the operator.
+ */
+function CompanyDetailsPanel({ settings, mayWrite, onSaved }: { settings: Record<string, unknown>; mayWrite: boolean; onSaved: () => void }) {
+  const toast = useToast();
+  const [values, setValues] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setValues(Object.fromEntries(COMPANY_FIELDS.map((field) => [field.key, toText(settings[field.key])])));
+  }, [settings]);
+  const save = useAction(async () => {
+    const rate = (values['billing.tax_rate'] ?? '').trim().replace(',', '.');
+    if (rate !== '' && (!Number.isFinite(Number(rate)) || Number(rate) < 0 || Number(rate) > 100)) {
+      throw new Error('The tax rate is a number between 0 and 100.');
+    }
+    const payload: Record<string, string> = {};
+    for (const field of COMPANY_FIELDS) payload[field.key] = field.key === 'billing.tax_rate' ? rate : (values[field.key] ?? '').trim();
+    await put('/admin/settings', payload);
+    toast.push('The company details were saved.', 'ok');
+    onSaved();
+  });
+  return (
+    <Panel title="Company and tax" description="Who sells the service and which tax is added to the invoices. These details come from you: nothing is filled in by the platform.">
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {COMPANY_FIELDS.map((field) => (
+            <Field key={field.key} label={field.label} htmlFor={`company-${field.key}`} hint={field.hint}>
+              <input
+                id={`company-${field.key}`}
+                type="text"
+                autoComplete="off"
+                value={values[field.key] ?? ''}
+                disabled={!mayWrite}
+                placeholder={field.placeholder}
+                onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
+                className={denseInput}
+              />
+            </Field>
+          ))}
+        </div>
+        {save.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{save.error}</p>}
+        {mayWrite && (
+          <div>
+            <button type="button" className={densePrimary} disabled={save.pending} onClick={() => void save.run()}>{save.pending ? 'Saving…' : 'Save the company details'}</button>
+          </div>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
 export default function Settings() {
   const session = useAdminSession();
   const staff = session.staff;
@@ -121,6 +182,7 @@ export default function Settings() {
   return (
     <div className="grid gap-4">
       <StaffSecurity mayWrite={can(session.staff, 'settings.write')} />
+      {state.data && <CompanyDetailsPanel settings={state.data.settings} mayWrite={mayWrite} onSaved={state.reload} />}
       <LiveRegion message={`${rows.length} setting${rows.length === 1 ? '' : 's'}`} />
       <Panel
         title="Settings"
