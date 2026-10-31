@@ -5,6 +5,7 @@ import { env } from '../env.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import * as pve from './proxmox.js';
 import { imageLabel, templateOfImage } from '../lib/vps-images.js';
+import net from 'node:net';
 
 /**
  * Virtual private servers.
@@ -188,12 +189,17 @@ export interface VpsView {
   image: { slug: string; label: string };
   /** The line to type to log in. */
   sshCommand: string | null;
+  /** The subscription that pays for it: when it renews and whether it will. */
+  contract: { subscriptionId: string; status: string; amount: number; currency: string; periodEnd: Date | null; cancelAtPeriodEnd: boolean } | null;
   lastError: string | null;
   createdAt: Date;
 }
 
 export async function vpsView(
-  service: VpsService & { product: { slug: string; name: string } },
+  service: VpsService & {
+    product: { slug: string; name: string };
+    subscription?: { id: string; status: string; amount: number; currency: string; currentPeriodEnd: Date | null; cancelAtPeriodEnd: boolean } | null;
+  },
   live = true,
 ): Promise<VpsView> {
   let powerState: VpsView['power'] = 'unknown';
@@ -224,13 +230,23 @@ export async function vpsView(
     dedicatedIp: service.dedicatedIp,
     image: { slug: service.image, label: imageLabel(service.image) },
     sshCommand: ssh,
+    contract: service.subscription
+      ? {
+          subscriptionId: service.subscription.id,
+          status: service.subscription.status.toLowerCase(),
+          amount: service.subscription.amount,
+          currency: service.subscription.currency,
+          periodEnd: service.subscription.currentPeriodEnd,
+          cancelAtPeriodEnd: service.subscription.cancelAtPeriodEnd,
+        }
+      : null,
     lastError: service.lastError,
     createdAt: service.createdAt,
   };
 }
 
 export async function ownedVps(userId: string, id: string) {
-  const service = await prisma.vpsService.findFirst({ where: { id, userId }, include: { product: { select: { slug: true, name: true } } } });
+  const service = await prisma.vpsService.findFirst({ where: { id, userId }, include: { product: { select: { slug: true, name: true } }, subscription: true } });
   if (!service) throw notFound('That server was not found.');
   return service;
 }
@@ -313,6 +329,137 @@ export async function reinstallVps(userId: string, id: string, rawKey?: string, 
     await pve.deleteVm(service.vmid);
   }
   await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'PENDING', sshPublicKey: key, image, lastError: null } });
+}
+
+export interface VpsGraphPoint {
+  t: number;
+  /** Percent of the processor, 0 to 100 of all the vCPU. */
+  cpu: number | null;
+  /** Memory in use, in bytes. */
+  memory: number | null;
+  /** Bytes per second. */
+  netIn: number | null;
+  netOut: number | null;
+  diskRead: number | null;
+  diskWrite: number | null;
+}
+
+/** The history of the server, for the graphs. Points Proxmox has no value for stay null: nothing is filled in. */
+export async function vpsGraphs(userId: string, id: string, timeframe: 'hour' | 'day' | 'week' | 'month') {
+  const { vmid } = await activeMachine(userId, id);
+  const rows = await pve.rrdData(vmid, timeframe);
+  const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+  return {
+    timeframe,
+    points: rows.map((row): VpsGraphPoint => ({
+      t: row.time,
+      cpu: num(row.cpu) === null ? null : Math.round(num(row.cpu)! * 1000) / 10,
+      memory: num(row.mem),
+      netIn: num(row.netin),
+      netOut: num(row.netout),
+      diskRead: num(row.diskread),
+      diskWrite: num(row.diskwrite),
+    })),
+  };
+}
+
+const ACTIVITY_TEXT: Record<string, string> = {
+  'vps.start': 'Started the server',
+  'vps.shutdown': 'Shut the server down',
+  'vps.stop': 'Stopped the server (forced)',
+  'vps.reboot': 'Restarted the server',
+  'vps.rename': 'Renamed the server',
+  'vps.ssh-key': 'Changed the SSH key',
+  'vps.reinstall': 'Reinstalled the server',
+  'vps.snapshot': 'Took a snapshot',
+  'vps.snapshot_restore': 'Restored a snapshot',
+  'vps.snapshot_delete': 'Deleted a snapshot',
+  'vps.iso_mount': 'Mounted an installation image',
+  'vps.iso_eject': 'Ejected the installation image',
+  'vps.console': 'Opened the console',
+  'admin.vps.start': 'Our team started the server',
+  'admin.vps.reboot': 'Our team restarted the server',
+  'admin.vps.stop': 'Our team stopped the server',
+  'admin.vps.reinstall': 'Our team reinstalled the server',
+  'admin.vps.retry': 'Our team built the server again',
+  'admin.vps.console': 'Our team opened the console',
+};
+
+/** What happened to a server, newest first, from the log of the platform. */
+export async function vpsActivity(userId: string, id: string, take: number, before: Date | null) {
+  const service = await ownedVps(userId, id);
+  const rows = await prisma.auditLog.findMany({
+    where: { targetType: 'vps', targetId: service.id, action: { in: Object.keys(ACTIVITY_TEXT) }, ...(before ? { createdAt: { lt: before } } : {}) },
+    orderBy: { createdAt: 'desc' },
+    take: take + 1,
+  });
+  return {
+    activity: rows.slice(0, take).map((row) => ({
+      id: row.id,
+      text: ACTIVITY_TEXT[row.action] ?? row.action,
+      byStaff: row.action.startsWith('admin.'),
+      createdAt: row.createdAt,
+    })),
+    next: rows.length > take ? rows[take - 1]!.createdAt.toISOString() : null,
+  };
+}
+
+function tcpAnswers(host: string, port: number, ms = 3000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host, port, timeout: ms });
+    socket.once('connect', () => { socket.destroy(); resolve(true); });
+    socket.once('timeout', () => { socket.destroy(); resolve(false); });
+    socket.once('error', () => resolve(false));
+  });
+}
+
+export interface DiagnosticStep { id: string; ok: boolean | null; title: string; detail: string }
+
+/**
+ * Why a server may not answer: the checks the platform can really make, each with what it found
+ * and what to do. A check that cannot be made says so (null) and is never reported as fine.
+ */
+export async function diagnoseVps(userId: string, id: string): Promise<{ steps: DiagnosticStep[] }> {
+  const service = await ownedVps(userId, id);
+  const steps: DiagnosticStep[] = [];
+  steps.push(
+    service.status === 'ACTIVE'
+      ? { id: 'state', ok: true, title: 'The server is active on your account', detail: 'It is built and its subscription is in order.' }
+      : { id: 'state', ok: false, title: `The server is ${service.status.toLowerCase()}`, detail: service.status === 'SUSPENDED' ? 'It was stopped because the subscription is not paid. Pay it from Billing and it starts again.' : 'It is not ready yet. If it stays like this, write to support.' },
+  );
+  if (service.status !== 'ACTIVE' || !service.vmid || !pve.proxmoxConfigured()) return { steps };
+
+  let live: Awaited<ReturnType<typeof pve.vmMetrics>> | null = null;
+  try {
+    live = await pve.vmMetrics(service.vmid);
+  } catch {
+    steps.push({ id: 'host', ok: null, title: 'We could not read the state of the machine', detail: 'Try again in a minute. If it keeps failing, write to support.' });
+  }
+  if (live) {
+    steps.push(
+      live.status === 'running'
+        ? { id: 'power', ok: true, title: 'The machine is running', detail: `Up for ${Math.round((live.uptime ?? 0) / 60)} minutes.` }
+        : { id: 'power', ok: false, title: 'The machine is stopped', detail: 'Press Start at the top of the page.' },
+    );
+    if (live.status === 'running') {
+      const cpu = (live.cpu ?? 0) * 100;
+      const mem = live.maxmem ? (live.mem ?? 0) / live.maxmem : 0;
+      steps.push(
+        cpu > 90 || mem > 0.95
+          ? { id: 'load', ok: false, title: 'The server is under heavy load', detail: `Processor ${Math.round(cpu)}%, memory ${Math.round(mem * 100)}%. A busy server may be too slow to answer SSH. Open the console, or restart it.` }
+          : { id: 'load', ok: true, title: 'The load is normal', detail: `Processor ${Math.round(cpu)}%, memory ${Math.round(mem * 100)}%.` },
+      );
+    }
+  }
+  if (service.privateIp && live?.status === 'running') {
+    const answers = await tcpAnswers(service.privateIp, 22);
+    steps.push(
+      answers
+        ? { id: 'ssh', ok: true, title: 'SSH answers on our network', detail: 'If you still cannot log in, check the key, the user (debian) and the address and port shown on the page, and the firewall or the network you connect from.' }
+        : { id: 'ssh', ok: false, title: 'SSH does not answer', detail: 'The machine is up, but nothing listens on port 22 or a firewall inside it blocks it. Open the Console tab and check the SSH service (systemctl status ssh) and any firewall (ufw status).' },
+    );
+  }
+  return { steps };
 }
 
 /** How many snapshots a server may keep. Each one holds the changes of the disk since it was taken. */

@@ -198,6 +198,13 @@ export function terminalSocket(vmid: number, ticket: TerminalTicket): { url: str
   return { url: url.toString(), headers: { Authorization: `PVEAPIToken=${env.VPS_PROXMOX_TOKEN}` } };
 }
 
+export interface RrdPoint { time: number; cpu?: number; mem?: number; maxmem?: number; netin?: number; netout?: number; diskread?: number; diskwrite?: number }
+
+/** The history of the machine, as Proxmox keeps it: a point every minute (hour), every 30 minutes (day)... */
+export async function rrdData(vmid: number, timeframe: 'hour' | 'day' | 'week' | 'month'): Promise<RrdPoint[]> {
+  return request('GET', `/nodes/${node()}/qemu/${vmid}/rrddata?timeframe=${timeframe}&cf=AVERAGE`);
+}
+
 export async function deleteVm(vmid: number): Promise<void> {
   const upid = await request<string>('DELETE', `/nodes/${node()}/qemu/${vmid}?purge=1&destroy-unreferenced-disks=1`);
   await waitForTask(upid, 300_000);

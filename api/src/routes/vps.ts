@@ -5,7 +5,7 @@ import { env } from '../env.js';
 import { requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { deploymentAvailability } from '../services/availability.js';
-import { changeVpsSshKey, ejectVpsIso, mountVpsIso, removeVpsSnapshot, restoreVpsSnapshot, takeVpsSnapshot, vpsIsos, vpsSnapshots, dedicatedAddresses, freeDedicatedAddress, ownedVps, reinstallVps, renameVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
+import { diagnoseVps, vpsActivity, vpsGraphs, changeVpsSshKey, ejectVpsIso, mountVpsIso, removeVpsSnapshot, restoreVpsSnapshot, takeVpsSnapshot, vpsIsos, vpsSnapshots, dedicatedAddresses, freeDedicatedAddress, ownedVps, reinstallVps, renameVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
 import { availableImages } from '../lib/vps-images.js';
 import { relayVpsConsole } from '../services/vps-console.js';
@@ -51,7 +51,7 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
     const user = await requireAuth(request);
     const services = await prisma.vpsService.findMany({
       where: { userId: user.id, status: { not: 'CANCELLED' } },
-      include: { product: { select: { slug: true, name: true } } },
+      include: { product: { select: { slug: true, name: true } }, subscription: true },
       orderBy: { createdAt: 'desc' },
     });
     return { servers: await Promise.all(services.map((service) => vpsView(service))) };
@@ -166,5 +166,22 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vps/images', async (request: FastifyRequest) => {
     await requireAuth(request);
     return { images: availableImages() };
+  });
+
+  app.get('/vps/:id/graphs', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { timeframe } = z.object({ timeframe: z.enum(['hour', 'day', 'week', 'month']).default('hour') }).parse(request.query ?? {});
+    return vpsGraphs(user.id, idOf(request), timeframe);
+  });
+
+  app.get('/vps/:id/activity', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { before, limit } = z.object({ before: z.string().datetime().optional(), limit: z.coerce.number().int().min(1).max(100).default(30) }).parse(request.query ?? {});
+    return vpsActivity(user.id, idOf(request), limit, before ? new Date(before) : null);
+  });
+
+  app.get('/vps/:id/diagnose', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    return diagnoseVps(user.id, idOf(request));
   });
 }
