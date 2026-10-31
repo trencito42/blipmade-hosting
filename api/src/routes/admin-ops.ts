@@ -1,12 +1,13 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { badRequest, notFound } from '../lib/errors.js';
+import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { assertMayActOnAccount, requirePermission, requireStaff } from '../plugins/auth.js';
 import { getEmailQueue, getMailProvisionQueue, getQueue, getVpsProvisionQueue } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { assessCustomer } from '../services/risk.js';
+import { customerBalance, giveBalanceCredit, refundPartOfPayment, stripeLive } from '../services/stripe.js';
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
 import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
 
@@ -313,5 +314,76 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     }
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.customer.bulk_tags', targetType: 'user', targetId: 'bulk', meta: { count: users.length, changed, add: body.add, remove: body.remove }, ip: request.ip });
     return { changed };
+  });
+
+  // --- money: credits and partial refunds ----------------------------------------------------------
+  //
+  // Both touch real money, so each is guarded: a reason, a ceiling, a record in the ledger before the
+  // provider is asked, an idempotency key (the same request is never carried out twice), and the log.
+
+  /** The most one credit may be, in the smallest unit. A bigger one needs a change of this limit. */
+  const MAX_CREDIT = 50_000;
+
+  /** What was given to a customer, and the balance the payment provider holds for them. */
+  app.get('/admin/customers/:id/credit', { preHandler: [requirePermission('orders.read')] }, async (request) => {
+    const { customer } = await customerOf(request);
+    const [entries, payment] = await Promise.all([
+      prisma.moneyAdjustment.findMany({ where: { userId: customer.id }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.payment.findFirst({ where: { userId: customer.id, stripeCustomerId: { not: null } }, orderBy: { createdAt: 'desc' }, select: { stripeCustomerId: true } }),
+    ]);
+    const balance = stripeLive() && payment?.stripeCustomerId ? await customerBalance(payment.stripeCustomerId) : null;
+    return { entries, providerBalance: balance, canCredit: Boolean(stripeLive() && payment?.stripeCustomerId) };
+  });
+
+  app.post('/admin/customers/:id/credit', { preHandler: [requirePermission('orders.write')] }, async (request) => {
+    const { actor, customer } = await customerOf(request);
+    assertMayActOnAccount(actor, customer.role, customer.id);
+    const body = z.object({ amount: z.number().int().min(1).max(MAX_CREDIT), currency: z.string().length(3).default('EUR'), reason: z.string().trim().min(5).max(300) }).parse(request.body ?? {});
+    if (!stripeLive()) throw conflict('Payments are not live on this platform, so a credit cannot be applied to an invoice.');
+    const payment = await prisma.payment.findFirst({ where: { userId: customer.id, stripeCustomerId: { not: null } }, orderBy: { createdAt: 'desc' }, select: { stripeCustomerId: true } });
+    if (!payment?.stripeCustomerId) throw conflict('This customer has no account at the payment provider yet (no checkout was started), so there is no invoice to take the credit off.');
+
+    // The row is written first: the id of the row is the idempotency key, so a retry cannot give the credit twice.
+    const row = await prisma.moneyAdjustment.create({ data: { userId: customer.id, kind: 'credit', amount: body.amount, currency: body.currency.toUpperCase(), reason: body.reason, actorId: actor.id, actorEmail: actor.email } });
+    try {
+      const ref = await giveBalanceCredit({ customerId: payment.stripeCustomerId, amount: body.amount, currency: body.currency, description: body.reason, idempotencyKey: `blipmade-credit-${row.id}` });
+      await prisma.moneyAdjustment.update({ where: { id: row.id }, data: { providerRef: ref } });
+    } catch (error) {
+      await prisma.moneyAdjustment.delete({ where: { id: row.id } }).catch(() => undefined);
+      throw badRequest(`The payment provider refused the credit: ${(error as Error).message}`);
+    }
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.credit.given', targetType: 'user', targetId: customer.id, meta: { amount: body.amount, currency: body.currency, reason: body.reason }, ip: request.ip });
+    return { ok: true };
+  });
+
+  /** Refunds part of what an order paid. The order stays as it is; the ledger holds the sum of what went back. */
+  app.post('/admin/orders/:id/partial-refund', { preHandler: [requirePermission('orders.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ amount: z.number().int().min(1), reason: z.string().trim().min(5).max(300) }).parse(request.body ?? {});
+    if (!stripeLive()) throw conflict('Payments are not live on this platform.');
+    const order = await prisma.order.findUnique({ where: { id }, include: { payments: true, user: { select: { role: true } } } });
+    if (!order) throw notFound('Order not found.');
+    assertMayActOnAccount(actor, order.user.role, order.userId);
+    if (order.status !== 'PAID' && order.status !== 'FULFILLED') throw conflict(`Only a paid order can be refunded in part. This one is ${order.status.toLowerCase()}.`);
+    if (order.payments.some((entry) => entry.status === 'REFUNDED')) throw conflict('This order was refunded in full already.');
+    const paid = order.payments.find((entry) => entry.status === 'SUCCEEDED' && entry.stripePaymentIntentId) ?? null;
+    const intent = order.stripePaymentIntentId ?? paid?.stripePaymentIntentId ?? null;
+    if (!intent) throw conflict('This order carries no payment at the provider, so it cannot be refunded from here.');
+
+    const already = await prisma.moneyAdjustment.aggregate({ where: { orderId: order.id, kind: 'refund' }, _sum: { amount: true } });
+    const remaining = (paid?.amount ?? order.total) - (already._sum.amount ?? 0);
+    if (body.amount > remaining) throw badRequest(`At most ${remaining} can still be refunded on this order (the smallest unit of the currency).`, { amount: `At most ${remaining} can still be refunded.` });
+
+    const row = await prisma.moneyAdjustment.create({ data: { userId: order.userId, orderId: order.id, kind: 'refund', amount: body.amount, currency: order.currency, reason: body.reason, actorId: actor.id, actorEmail: actor.email } });
+    try {
+      const ref = await refundPartOfPayment({ paymentIntentId: intent, amount: body.amount, orderId: order.id, reason: body.reason, idempotencyKey: `blipmade-partial-refund-${row.id}` });
+      await prisma.moneyAdjustment.update({ where: { id: row.id }, data: { providerRef: ref } });
+    } catch (error) {
+      await prisma.moneyAdjustment.delete({ where: { id: row.id } }).catch(() => undefined);
+      throw badRequest(`The payment provider refused the refund: ${(error as Error).message}`);
+    }
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.refund.partial', targetType: 'order', targetId: order.id, meta: { amount: body.amount, reason: body.reason }, ip: request.ip });
+    return { ok: true, remaining: remaining - body.amount };
   });
 }

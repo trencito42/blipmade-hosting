@@ -1054,3 +1054,37 @@ export async function createBillingPortal(userId: string): Promise<{ url: string
   });
   return { url: session.url, reason: null };
 }
+
+
+/**
+ * Gives a customer a credit at the payment provider: their balance goes down, and the provider
+ * takes it off their next invoice by itself. The key makes a repeated call the same call, so a
+ * credit is never given twice. Returns the id of the balance transaction.
+ */
+export async function giveBalanceCredit(params: { customerId: string; amount: number; currency: string; description: string; idempotencyKey: string }): Promise<string> {
+  const transaction = await getClient().customers.createBalanceTransaction(
+    params.customerId,
+    { amount: -Math.abs(params.amount), currency: params.currency.toLowerCase(), description: params.description.slice(0, 300) },
+    { idempotencyKey: params.idempotencyKey },
+  );
+  return transaction.id;
+}
+
+/** The balance of a customer at the provider, in the smallest unit. Negative means the customer is owed that much. */
+export async function customerBalance(customerId: string): Promise<number | null> {
+  try {
+    const customer = await getClient().customers.retrieve(customerId);
+    return 'deleted' in customer && customer.deleted ? null : (customer as Stripe.Customer).balance;
+  } catch {
+    return null;
+  }
+}
+
+/** A refund of part of a payment. The key makes a repeated call the same refund. Returns the id of the refund. */
+export async function refundPartOfPayment(params: { paymentIntentId: string; amount: number; orderId: string; reason: string; idempotencyKey: string }): Promise<string> {
+  const refund = await getClient().refunds.create(
+    { payment_intent: params.paymentIntentId, amount: params.amount, reason: 'requested_by_customer', metadata: { orderId: params.orderId, reason: params.reason.slice(0, 300) } },
+    { idempotencyKey: params.idempotencyKey },
+  );
+  return refund.id;
+}

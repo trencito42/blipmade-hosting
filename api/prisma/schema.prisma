@@ -1564,3 +1564,24 @@ model AbuseReport {
 
   @@index([status, createdAt])
 }
+
+/// A credit given to a customer, or a partial refund of an order, written by the staff.
+model MoneyAdjustment {
+  id          String   @id @default(cuid())
+  userId      String
+  orderId     String?
+  /// credit | refund
+  kind        String
+  /// Always positive, in the smallest unit of the currency.
+  amount      Int
+  currency    String   @default("EUR")
+  reason      String
+  actorId     String?
+  actorEmail  String?
+  /// The id of the balance transaction or of the refund at the payment provider.
+  providerRef String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([orderId])
+}
