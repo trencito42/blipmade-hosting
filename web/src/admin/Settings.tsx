@@ -50,6 +50,32 @@ const COMPANY_FIELDS = [
  * The details of the company that sells the service. They are written on the invoices, and the tax is added only when
  * the tax ID and the rate are both here. The platform never writes any of them by itself: they come from the operator.
  */
+function AccountingExportPanel() {
+  const today = new Date().toISOString().slice(0, 10);
+  const [from, setFrom] = useState(`${today.slice(0, 8)}01`);
+  const [to, setTo] = useState(today);
+  const bad = !from || !to || to < from;
+  return (
+    <Panel title="Accounting export" description="Every invoice of a period as a spreadsheet: number, date, customer, country, net, tax and total. Give it to your accountant or load it in your accounting program.">
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="From" htmlFor="acct-from">
+          <input id="acct-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} className={denseInput} />
+        </Field>
+        <Field label="To" htmlFor="acct-to">
+          <input id="acct-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} className={denseInput} />
+        </Field>
+        <a
+          className={`${densePrimary} ${bad ? 'pointer-events-none opacity-50' : ''}`}
+          href={bad ? undefined : `/api/admin/accounting/invoices.csv?from=${from}&to=${to}`}
+          download
+        >
+          Download CSV
+        </a>
+      </div>
+    </Panel>
+  );
+}
+
 function CompanyDetailsPanel({ settings, mayWrite, onSaved }: { settings: Record<string, unknown>; mayWrite: boolean; onSaved: () => void }) {
   const toast = useToast();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -183,6 +209,7 @@ export default function Settings() {
     <div className="grid gap-4">
       <StaffSecurity mayWrite={can(session.staff, 'settings.write')} />
       {state.data && <CompanyDetailsPanel settings={state.data.settings} mayWrite={mayWrite} onSaved={state.reload} />}
+      <AccountingExportPanel />
       <LiveRegion message={`${rows.length} setting${rows.length === 1 ? '' : 's'}`} />
       <Panel
         title="Settings"

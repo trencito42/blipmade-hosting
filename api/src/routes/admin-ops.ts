@@ -18,6 +18,49 @@ import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/e
  * customers, churn), the queues of jobs with their failures, and the reports of abuse.
  */
 export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void> {
+  // --- accounting export -----------------------------------------------------------------------
+
+  // One row per invoice for the accountant or an accounting program. The tax and the country of
+  // each sale are the ones on the invoice, so the tax by country can be added up straight from it.
+  app.get('/admin/accounting/invoices.csv', { preHandler: [requirePermission('settings.read')] }, async (request, reply) => {
+    const query = z.object({
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }).parse(request.query);
+    const start = new Date(`${query.from}T00:00:00.000Z`);
+    const end = new Date(`${query.to}T00:00:00.000Z`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) throw badRequest('Choose a valid period.');
+    end.setUTCDate(end.getUTCDate() + 1);
+    if (end.getTime() - start.getTime() > 400 * 86_400_000) throw badRequest('Export at most 13 months at a time.');
+
+    const invoices = await prisma.invoice.findMany({
+      where: { createdAt: { gte: start, lt: end } },
+      orderBy: { createdAt: 'asc' },
+      take: 20_000,
+      include: { user: { select: { email: true } } },
+    });
+    // A cell that starts with = + - @ would run as a formula in a spreadsheet.
+    const cell = (value: unknown): string => {
+      let text = value === null || value === undefined ? '' : String(value);
+      if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+      return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const money = (cents: number) => (cents / 100).toFixed(2);
+    const header = ['number', 'date', 'status', 'customer_email', 'customer_name', 'company', 'tax_id', 'country', 'currency', 'net', 'tax', 'total', 'paid_at', 'stripe_invoice'];
+    const lines = [header.join(',')];
+    for (const invoice of invoices) {
+      const address = (invoice.billingAddress ?? {}) as Record<string, unknown>;
+      lines.push([
+        invoice.number, invoice.createdAt.toISOString().slice(0, 10), invoice.status.toLowerCase(), invoice.user.email,
+        address.fullName, address.companyName, address.taxId, address.country, invoice.currency,
+        money(invoice.amount), money(invoice.tax), money(invoice.total), invoice.paidAt?.toISOString().slice(0, 10), invoice.stripeInvoiceId,
+      ].map(cell).join(','));
+    }
+    reply.header('content-type', 'text/csv; charset=utf-8');
+    reply.header('content-disposition', `attachment; filename="invoices-${query.from}-${query.to}.csv"`);
+    return lines.join('\n') + '\n';
+  });
+
   // --- notes and tags --------------------------------------------------------------------------
 
   const customerOf = async (request: FastifyRequest) => {

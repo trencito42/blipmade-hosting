@@ -407,8 +407,13 @@ export async function companyDetails(): Promise<CompanyDetails> {
   // A tax without a tax identifier is a tax that nobody can be charged
   // against, so it is not added to an invoice. The invoice says so instead of
   // carrying a rate that means nothing.
-  const taxApplies = taxRate !== null && taxId !== '';
-  const taxNote = taxApplies
+  // With the provider's tax calculation on, the tax of each sale comes from the
+  // provider by the country of the customer. A single flat rate would add a
+  // second, wrong tax on top of it.
+  const taxApplies = !env.stripeTaxEnabled && taxRate !== null && taxId !== '';
+  const taxNote = env.stripeTaxEnabled
+    ? 'Tax is calculated at checkout from the country of the customer.'
+    : taxApplies
     ? null
     : taxId === ''
       ? 'No tax identifier is configured, so the invoice carries no tax.'
