@@ -10,11 +10,67 @@ interface StatusComponent {
   id: string;
   name: string;
   state: string;
+  detail?: string;
+  /** The uptime of the last 90 days, in percent. Null until there are checks. */
+  uptime?: number | null;
+  days?: { date: string; uptime: number | null }[];
 }
+
+interface IncidentUpdateView { id: string; status: string; message: string; createdAt: string }
+interface IncidentView {
+  id: string;
+  title: string;
+  status: string;
+  impact: string;
+  startedAt: string;
+  resolvedAt: string | null;
+  updates: IncidentUpdateView[];
+}
+interface AnnouncementView { id: string; title: string; body: string; severity: string }
 
 interface StatusPayload {
   components: StatusComponent[];
+  incidents?: IncidentView[];
+  announcements?: AnnouncementView[];
   updatedAt: string;
+}
+
+const INCIDENT_STATUS: Record<string, string> = { investigating: 'Investigating', identified: 'Identified', monitoring: 'Monitoring', resolved: 'Resolved' };
+
+/** The 90 days of a component, one thin bar a day: green when every check passed, amber and red as it got worse, grey with no data. */
+function UptimeBars({ days, name }: { days: { date: string; uptime: number | null }[]; name: string }) {
+  return (
+    <div role="img" aria-label={`Uptime of ${name} over the last 90 days`} className="flex h-6 items-end gap-px">
+      {days.map((day) => (
+        <span
+          key={day.date}
+          title={`${day.date}: ${day.uptime === null ? 'no data' : `${day.uptime}% up`}`}
+          className={cn('h-full min-w-[2px] flex-1 rounded-[1px]', day.uptime === null ? 'bg-s3' : day.uptime >= 99.9 ? 'bg-acc' : day.uptime >= 98 ? 'bg-warn' : 'bg-bad')}
+        />
+      ))}
+    </div>
+  );
+}
+
+function IncidentCard({ incident }: { incident: IncidentView }) {
+  const open = !incident.resolvedAt;
+  return (
+    <article className="rounded-2xl border border-line bg-card px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="text-[16px] font-semibold tracking-[-0.02em] text-ink">{incident.title}</h3>
+        <span className={cn('rounded-full px-2.5 py-1 text-[12px] font-bold', open ? 'bg-warn/12 text-warn' : 'bg-acc/12 text-acc')}>{INCIDENT_STATUS[incident.status] ?? incident.status}</span>
+      </div>
+      <p className="mt-0.5 text-[12.5px] text-ink3">Started {fmtDate(incident.startedAt)}{incident.resolvedAt ? ` · resolved ${fmtDate(incident.resolvedAt)}` : ''}</p>
+      <ol className="mt-3 grid gap-2 border-l border-line pl-4">
+        {incident.updates.map((update) => (
+          <li key={update.id}>
+            <p className="text-[13px] font-semibold text-ink">{INCIDENT_STATUS[update.status] ?? update.status} <span className="font-normal text-ink3">· {fmtDate(update.createdAt)}</span></p>
+            <p className="text-[14px] text-ink2">{update.message}</p>
+          </li>
+        ))}
+      </ol>
+    </article>
+  );
 }
 
 type StateKind = 'operational' | 'degraded' | 'partial' | 'outage' | 'unknown';
@@ -134,6 +190,24 @@ function fmtDate(value: string | undefined): string {
   return `${DATE_FMT.format(date)}, ${TIME_FMT.format(date)}`;
 }
 
+/** The incidents of the last two months that are over. */
+function PastIncidents() {
+  const state = useAsync((signal) => get<{ incidents: IncidentView[] }>('/status/incidents', undefined, signal), []);
+  const incidents = state.data?.incidents ?? [];
+  return (
+    <section aria-label="Past incidents" className="grid gap-3">
+      <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-ink">Past incidents</h2>
+      {state.loading ? (
+        <LoadingBlock rows={1} label="Loading the past incidents" />
+      ) : incidents.length === 0 ? (
+        <p className="rounded-2xl border border-line bg-card px-5 py-4 text-[14px] text-ink2">No incidents in the last 60 days.</p>
+      ) : (
+        incidents.map((incident) => <IncidentCard key={incident.id} incident={incident} />)
+      )}
+    </section>
+  );
+}
+
 export default function Status() {
   const state = useAsync((signal) => get<StatusPayload>('/status', undefined, signal), []);
   const components = state.data?.components ?? [];
@@ -198,6 +272,20 @@ export default function Status() {
                 <p className="mt-1 text-[14.5px] opacity-90">{banner.detail}</p>
               </div>
 
+              {(state.data?.announcements ?? []).map((announcement) => (
+                <div key={announcement.id} role="note" className={cn('rounded-2xl border px-5 py-4', announcement.severity === 'maintenance' ? 'border-warn/40 bg-warn/10' : announcement.severity === 'warning' ? 'border-bad/40 bg-bad/10' : 'border-line bg-card')}>
+                  <p className="text-[15px] font-semibold text-ink">{announcement.title}</p>
+                  <p className="mt-1 text-[14px] text-ink2">{announcement.body}</p>
+                </div>
+              ))}
+
+              {(state.data?.incidents ?? []).length > 0 && (
+                <section aria-label="Current incidents" className="grid gap-3">
+                  <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-ink">Current incidents</h2>
+                  {state.data!.incidents!.map((incident) => <IncidentCard key={incident.id} incident={incident} />)}
+                </section>
+              )}
+
               {components.length === 0 ? (
                 <EmptyState
                   title="No components reported"
@@ -208,7 +296,7 @@ export default function Status() {
                   {components.map((component) => {
                     const kind = classify(component.state);
                     return (
-                      <li key={component.id} className="flex items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3.5">
+                      <li key={component.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line bg-card px-4 py-3.5">
                         <span aria-hidden="true" className={cn('size-2.5 shrink-0 rounded-full', KIND_DOT[kind])} />
                         <span className="w-0 min-w-0 flex-1 truncate text-[15px] font-medium tracking-[-0.02em] text-ink" title={component.name}>
                           {component.name}
@@ -223,6 +311,16 @@ export default function Status() {
                             {kind === 'unknown' ? `${KIND_LABEL[kind]}: ${component.state}` : KIND_LABEL[kind]}
                           </span>
                         </span>
+                        {component.days && component.days.some((day) => day.uptime !== null) && (
+                          <div className="basis-full">
+                            <UptimeBars days={component.days} name={component.name} />
+                            <p className="mt-1 flex justify-between text-[11.5px] text-ink3">
+                              <span>90 days ago</span>
+                              <span>{component.uptime !== null && component.uptime !== undefined ? `${component.uptime}% uptime` : ''}</span>
+                              <span>Today</span>
+                            </p>
+                          </div>
+                        )}
                       </li>
                     );
                   })}
@@ -239,9 +337,11 @@ export default function Status() {
                   )}
                 </p>
                 <p className="mt-2 text-[13px] text-ink3">
-                  90-day uptime history is not available yet. This page only shows the state the platform reports right now.
+                  Every part is checked every minute. The bars show how each part did over the last 90 days; a grey bar means there were no checks that day.
                 </p>
               </div>
+
+              <PastIncidents />
 
               {/* The refresh fills the width of a phone, so it is within
                   reach of a thumb. */}

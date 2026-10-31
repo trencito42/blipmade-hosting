@@ -6,7 +6,7 @@ import { ParamsProvider, matchPath, useParams, useRouter } from './router';
 import { Link } from './router';
 import { isStaff, loginRedirect, postLoginTarget } from './auth-guard';
 import { Icon } from './icons';
-import { post } from './lib/api';
+import { get, post } from './lib/api';
 
 // The public site. The home, the apps and the screens of the account stay in
 // the main bundle, because they are the pages a visitor lands on. The
@@ -50,6 +50,7 @@ const AppSettings = lazy(() => import('./app/Settings'));
 const AppNotifications = lazy(() => import('./app/Notifications'));
 
 const InvoiceView = lazy(() => import('./app/InvoiceView'));
+const AdminIncidents = lazy(() => import('./admin/Incidents'));
 const AdminOverview = lazy(() => import('./admin/Overview'));
 const AdminCustomers = lazy(() => import('./admin/Customers'));
 const AdminCustomerDetail = lazy(() => import('./admin/CustomerDetail'));
@@ -134,6 +135,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
+  { pattern: '/admin/incidents', component: AdminIncidents, title: 'Incidents', area: 'admin' },
   { pattern: '/admin/ops', component: AdminOps, title: 'Operations', area: 'admin' },
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
   { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },
@@ -160,6 +162,48 @@ function DeployRedirect() {
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-10 sm:px-6">
       <LoadingBlock rows={2} label="Opening the deploy page" />
+    </div>
+  );
+}
+
+/** The announcements of the platform (maintenance, news), above every page of the dashboard. A person can close one for the rest of the visit. */
+function AnnouncementBanner() {
+  const [items, setItems] = useState<{ id: string; title: string; body: string; severity: string }[]>([]);
+  const [closed, setClosed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bm-announcements-closed') ?? '[]') as string[];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    let alive = true;
+    get<{ announcements: { id: string; title: string; body: string; severity: string }[] }>('/announcements')
+      .then((answer) => alive && setItems(answer.announcements))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const shown = items.filter((item) => !closed.includes(item.id));
+  if (shown.length === 0) return null;
+  const close = (id: string) => {
+    const next = [...closed, id];
+    setClosed(next);
+    try {
+      sessionStorage.setItem('bm-announcements-closed', JSON.stringify(next));
+    } catch {
+      /* the banner simply comes back on the next page */
+    }
+  };
+  return (
+    <div className="mb-4 grid gap-2">
+      {shown.map((item) => (
+        <div key={item.id} role="note" className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-[14px] text-ink ${item.severity === 'warning' ? 'border-bad/40 bg-bad/10' : item.severity === 'maintenance' ? 'border-warn/40 bg-warn/10' : 'border-line bg-s2'}`}>
+          <p><strong>{item.title}.</strong> {item.body}</p>
+          <button type="button" onClick={() => close(item.id)} aria-label={`Close: ${item.title}`} className="shrink-0 rounded-lg px-2 text-ink3 hover:text-ink focus-visible:outline-2 focus-visible:outline-acc">×</button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -483,6 +527,7 @@ export default function AppRoutes() {
           actions={route.area === 'customer' ? <ShellAction path={path} /> : undefined}
         >
           {route.area === 'customer' && <ImpersonationBanner />}
+          {route.area === 'customer' && <AnnouncementBanner />}
           {content}
         </AppShell>
       </Guard>
