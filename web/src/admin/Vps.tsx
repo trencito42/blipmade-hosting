@@ -55,6 +55,32 @@ function UsageLine({ id }: { id: string }) {
   );
 }
 
+/** Moves the server to another plan on the hypervisor. The price the customer pays is not changed here. */
+function PlanChange({ server, onDone }: { server: AdminVps; onDone: () => void }) {
+  const toast = useToast();
+  const plans = useAsync<{ plans: { slug: string; name: string; cpu: number; ram: number; disk: number }[] }>((signal) => get('/vps/plans', undefined, signal), []);
+  const [slug, setSlug] = useState('');
+  const [busy, setBusy] = useState(false);
+  const options = (plans.data?.plans ?? []).filter((plan) => plan.slug !== server.plan.slug && plan.disk >= server.disk);
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <select aria-label={`Plan for ${server.name}`} value={slug} onChange={(event) => setSlug(event.target.value)} className={`${denseGhost} w-auto`}>
+        <option value="">Change plan…</option>
+        {options.map((plan) => <option key={plan.slug} value={plan.slug}>{plan.name} · {plan.cpu} vCPU · {memLabel(plan.ram)} · {plan.disk} GB</option>)}
+      </select>
+      {slug && (
+        <button type="button" className={denseDanger} disabled={busy} onClick={() => {
+          setBusy(true);
+          post(`/admin/vps/${server.id}/plan`, { slug })
+            .then(() => { toast.push('The plan was changed. Restart the server to use the new processor and memory. The price was not changed.', 'ok'); setSlug(''); onDone(); })
+            .catch((failure: Error) => toast.push(failure.message, 'error'))
+            .finally(() => setBusy(false));
+        }}>Apply</button>
+      )}
+    </span>
+  );
+}
+
 export default function AdminVpsPage() {
   const session = useAdminSession();
   const mayWrite = can(session.staff, 'services.write');
@@ -118,6 +144,7 @@ export default function AdminVpsPage() {
                     {(server.status === 'failed' || server.status === 'pending') && (
                       <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run(server.id, () => post(`/admin/vps/${server.id}/retry`), 'Build queued again.')}>Build again</button>
                     )}
+                    {server.status === 'active' && <PlanChange server={server} onDone={state.reload} />}
                     {server.status !== 'cancelled' && (
                       <button type="button" className={denseDanger} disabled={busy !== null} onClick={() => setConfirm({ kind: 'destroy', server })}>Delete the machine</button>
                     )}

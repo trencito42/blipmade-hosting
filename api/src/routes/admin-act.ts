@@ -16,6 +16,7 @@ import {
 import { destroyVps, ownedVps, reinstallVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
+import * as pve from '../services/proxmox.js';
 import { relayVpsConsole } from '../services/vps-console.js';
 import { cancelSubscription, resumeSubscription } from '../services/stripe.js';
 import { sendResetEmail } from './auth.js';
@@ -309,5 +310,30 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
     await ptero.updateServerBuild(serverId, { feature_limits: { databases, backups: current.feature_limits.backups } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.instance.database_limit', targetType: 'instance', targetId: instance.id, meta: { databases }, ip: request.ip });
     return { databases };
+  });
+
+  /**
+   * Moves a server to another plan: its processor, memory and disk on the hypervisor, and its plan on
+   * the account. The disk can only grow. A running machine reads the new processor and memory at its next
+   * restart. The subscription is NOT changed here: the price a customer pays is changed on their billing.
+   */
+  app.post('/admin/vps/:id/plan', { preHandler: [requirePermission('services.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { slug } = z.object({ slug: z.string().min(1).max(80) }).parse(request.body ?? {});
+    const service = await serviceOf(id);
+    if (service.status !== 'ACTIVE' || !service.vmid) throw badRequest('Only a server that is built can change plan.');
+    const product = await prisma.product.findUnique({ where: { slug } });
+    if (!product || product.fulfilment !== 'VPS') throw notFound('That plan was not found.');
+    const ram = product.defaultRam;
+    const cpu = product.defaultCpu;
+    const disk = product.defaultDisk;
+    if (product.id === service.productId) throw badRequest('The server already has this plan.');
+    if (disk < service.disk) throw badRequest(`The disk cannot shrink (${service.disk} GB now, ${disk} GB in that plan). Choose a plan with the same disk or more.`);
+    await pve.configureVm(service.vmid, { cores: cpu, memory: ram });
+    if (disk > service.disk) await pve.resizeDisk(service.vmid, disk);
+    await prisma.vpsService.update({ where: { id }, data: { productId: product.id, ram, cpu, disk } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.vps.plan', targetType: 'vps', targetId: id, meta: { from: service.product.slug, to: slug }, ip: request.ip });
+    return { ok: true, restartNeeded: true };
   });
 }
