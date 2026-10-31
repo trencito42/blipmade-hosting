@@ -39,6 +39,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/reports', label: 'Reports', shortLabel: 'Reports', icon: 'chart' },
   { to: '/admin/mail', label: 'Mail', shortLabel: 'Mail', icon: 'mail' },
   { to: '/admin/notifications', label: 'Email & notifications', shortLabel: 'Notifications', icon: 'bell' },
+  { to: '/admin/email-templates', label: 'Email wording', shortLabel: 'Wording', icon: 'mail' },
   { to: '/admin/audit', label: 'Audit log', shortLabel: 'Audit', icon: 'term' },
   { to: '/admin/staff', label: 'Staff', shortLabel: 'Staff', icon: 'bot' },
   { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },

@@ -55,6 +55,7 @@ const AdminReports = lazy(() => import('./admin/Reports'));
 const AdminQueues = lazy(() => import('./admin/Queues'));
 const AdminAbuse = lazy(() => import('./admin/Abuse'));
 const ReportAbusePage = lazy(() => import('./pages/ReportAbuse'));
+const AdminEmailTemplates = lazy(() => import('./admin/EmailTemplates'));
 const AdminOverview = lazy(() => import('./admin/Overview'));
 const AdminCustomers = lazy(() => import('./admin/Customers'));
 const AdminCustomerDetail = lazy(() => import('./admin/CustomerDetail'));
@@ -150,6 +151,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },
+  { pattern: '/admin/email-templates', component: AdminEmailTemplates, title: 'Email wording', area: 'admin' },
   { pattern: '/admin/notifications', component: AdminEmailNotifications, title: 'Email & notifications', area: 'admin' },
 ];
 
