@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { env } from '../env.js';
 import { isDisposableEmail } from '../lib/email-identity.js';
 
 /**
@@ -64,16 +65,18 @@ export async function assessCustomer(userId: string): Promise<Risk | null> {
     prisma.instance.findMany({ where: { userId }, select: { id: true } }),
   ]);
   const ips = [...new Set(sessions.map((session) => session.ip).filter((ip): ip is string => Boolean(ip)))];
-  const [shared, sameIdentity, abuse] = await Promise.all([
+  // The canonical address of an account is unique, so a second account with the same mailbox cannot
+  // exist and that signal stays at zero here; it is kept in the score for the day it can.
+  const sameIdentity = 0;
+  const [shared, abuse] = await Promise.all([
     ips.length ? prisma.session.findMany({ where: { ip: { in: ips }, userId: { not: userId } }, select: { userId: true }, distinct: ['userId'], take: 50 }) : Promise.resolve([]),
-    user.emailIdentity ? prisma.user.count({ where: { emailIdentity: user.emailIdentity, id: { not: userId } } }) : Promise.resolve(0),
     instances.length ? prisma.abuseReport.count({ where: { instanceId: { in: instances.map((instance) => instance.id) }, status: { in: ['open', 'investigating'] } } }) : Promise.resolve(0),
   ]);
 
   return scoreRisk({
     ageHours: (Date.now() - user.createdAt.getTime()) / 3_600_000,
     emailVerified: Boolean(user.emailVerifiedAt),
-    disposableEmail: isDisposableEmail(user.email),
+    disposableEmail: isDisposableEmail(user.email, env.DISPOSABLE_EMAIL_DOMAINS),
     sharedAddressAccounts: shared.length,
     sameIdentityAccounts: sameIdentity,
     failedPayments,

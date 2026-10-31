@@ -366,6 +366,7 @@ export default function CustomerDetail() {
       />
 
       {mayWrite && <AccountTools customerId={customer.id} name={customer.name ?? ''} emailVerified={customer.emailVerified} onChanged={state.reload} />}
+      <RiskPanel customerId={customer.id} />
       <NotesPanel customerId={customer.id} mayWrite={mayWrite} />
       <SubscriptionsPanel customerId={customer.id} mayWrite={mayWrite} />
 
@@ -830,6 +831,42 @@ function NotesPanel({ customerId, mayWrite }: { customerId: string; mayWrite: bo
           </ul>
         )}
       </div>
+    </Panel>
+  );
+}
+
+interface Risk { score: number; level: 'low' | 'medium' | 'high'; signals: { id: string; weight: number; text: string }[] }
+
+/** How much to look twice at this account, and why. It decides nothing: it lists what looks unusual. */
+function RiskPanel({ customerId }: { customerId: string }) {
+  const state = useAsync<{ risk: Risk }>((signal) => get<{ risk: Risk }>(`/admin/customers/${customerId}/risk`, undefined, signal), [customerId]);
+  const risk = state.data?.risk;
+  return (
+    <Panel title="Risk" description="Signals from what the account does. A guide for where to look, not a verdict.">
+      {state.loading && !state.data ? (
+        <LoadingBlock rows={1} label="Reading the signals" />
+      ) : state.error || !risk ? (
+        <ErrorState title="The signals could not be read" message={state.error?.message ?? 'Try again.'} onRetry={state.reload} />
+      ) : (
+        <div className="grid gap-3">
+          <div className="flex items-center gap-3">
+            <span className={`rounded-full px-3 py-1 text-[12.5px] font-bold uppercase ${risk.level === 'high' ? 'bg-bad/15 text-bad' : risk.level === 'medium' ? 'bg-warn/15 text-warn' : 'bg-acc-bg text-acc'}`}>{risk.level}</span>
+            <span className="font-mono text-[15px] font-semibold text-ink">{risk.score} / 100</span>
+          </div>
+          {risk.signals.length === 0 ? (
+            <p className="text-[13.5px] text-ink2">Nothing looks unusual.</p>
+          ) : (
+            <ul className="grid gap-1.5">
+              {risk.signals.map((signal) => (
+                <li key={signal.id} className="flex items-start justify-between gap-3 rounded-2xl bg-s2 px-4 py-2.5 text-[13.5px] text-ink2">
+                  <span>{signal.text}</span>
+                  <span className={`shrink-0 font-mono text-[12.5px] ${signal.weight < 0 ? 'text-acc' : 'text-ink3'}`}>{signal.weight > 0 ? '+' : ''}{signal.weight}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </Panel>
   );
 }
