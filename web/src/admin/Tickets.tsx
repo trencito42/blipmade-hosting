@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { get, post, type TicketMessage } from '../lib/api';
+import { TicketAttachments } from '../app/TicketAttachments';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useRouter } from '../router';
 import {
@@ -495,6 +496,7 @@ function TicketDetailPanel({
                       <span className="text-[12.5px] text-ink3">{fmtDateTime(message.createdAt)}</span>
                     </div>
                     <p className="mt-2 whitespace-pre-wrap break-words text-[14px] leading-relaxed text-ink2">{message.body}</p>
+                    <TicketAttachments ticketId={ticketId} messageId={message.id} attachments={message.attachments} />
                   </li>
                 ))}
               </ul>

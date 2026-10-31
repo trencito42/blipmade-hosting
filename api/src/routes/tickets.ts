@@ -404,6 +404,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const user = await requireAuth(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
+    const { messageId } = parse(z.object({ messageId: z.string().optional() }), request.query);
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
@@ -421,14 +422,20 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const content = await file.toBuffer();
     validateAttachment(file.mimetype, content.byteLength);
 
-    const message = await prisma.ticketMessage.create({
-      data: {
-        ticketId: ticket.id,
-        authorId: user.id,
-        body: `Attached ${file.filename}.`,
-        internal: false,
-      },
-    });
+    // The web client uploads after creating the reply, so the stored file is
+    // attached to that exact message. The legacy standalone upload route still
+    // creates its own message when no message id is supplied.
+    const message = messageId
+      ? await prisma.ticketMessage.findFirst({ where: { id: messageId, ticketId: ticket.id, authorId: user.id } })
+      : await prisma.ticketMessage.create({
+          data: {
+            ticketId: ticket.id,
+            authorId: user.id,
+            body: `Attached ${file.filename}.`,
+            internal: false,
+          },
+        });
+    if (!message) throw notFound('Ticket message not found.');
 
     const storageKey = storageKeyFor(ticket.id, message.id, file.filename);
     const stored = await storeAttachment({ storageKey, content });

@@ -269,6 +269,10 @@ function ProfilePanel({
     return result;
   });
 
+  const resendVerification = useAction(async () => {
+    return post<{ message?: string }>('/auth/resend-verification', { email: data.profile.email });
+  });
+
   const nameError = touched && !firstName.trim() ? 'Enter your first name.' : undefined;
   const lastNameError = touched && !lastName.trim() ? 'Enter your last name.' : undefined;
 
@@ -296,6 +300,17 @@ function ProfilePanel({
     } catch (error) {
       setEmailError(messageOf(error, 'We could not send the confirmation link.'));
     }
+  };
+
+  const onResendVerification = async () => {
+    setEmailNotice(null);
+    const result = await resendVerification.run();
+    if (!result) {
+      setEmailNotice(resendVerification.error ?? 'We could not send the verification email. Try again in a moment.');
+      return;
+    }
+    setEmailNotice(result.message ?? 'If the address still needs verification, a new email is on its way.');
+    toast.push('Verification email requested', 'ok');
   };
 
   return (
@@ -345,6 +360,11 @@ function ProfilePanel({
               >
                 {data.profile.emailVerified ? 'Verified' : 'Not verified'}
               </span>
+              {!data.profile.emailVerified && !changingEmail && (
+                <SoftButton onClick={() => void onResendVerification()} disabled={resendVerification.pending}>
+                  {resendVerification.pending ? 'Sending…' : 'Verify email'}
+                </SoftButton>
+              )}
               {!changingEmail && <SoftButton onClick={() => setChangingEmail(true)}>Change</SoftButton>}
             </div>
           </div>
