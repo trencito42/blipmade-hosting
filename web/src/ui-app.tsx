@@ -12,6 +12,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { CommandPalette, SearchButton } from './CommandPalette';
 import { cn } from './lib';
 import { cellClass, headerClass, type TableColumn } from './lib/table';
 import { get, post, relativeTime, type NotificationView } from './lib/api';
@@ -204,6 +205,7 @@ export function AppShell({
 
   return (
     <div className="min-h-[100svh] bg-bg">
+      <CommandPalette area={environment ? 'admin' : 'customer'} pages={nav.map((entry) => ({ to: entry.to, label: entry.label }))} />
       <div className="lg:flex">
         {/* Desktop sidebar */}
         <aside data-print-hide="" className="sticky top-0 hidden h-[100svh] w-[272px] shrink-0 flex-col border-r border-line bg-s1 p-4 lg:flex">
@@ -282,6 +284,7 @@ export function AppShell({
             <div className="flex shrink-0 items-center gap-2 [&_a]:min-h-11 lg:[&_a]:min-h-0">{actions}</div>
             {/* The bell of the notifications, with the number of the
                 messages that wait to be read. */}
+            <SearchButton />
             {inCustomerArea && <NotificationBell />}
           </header>
 

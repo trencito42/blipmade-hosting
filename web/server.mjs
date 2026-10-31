@@ -222,7 +222,9 @@ function securityHeaders() {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      "connect-src 'self' https://challenges.cloudflare.com",
+      // The origins the browser may call besides this site: Turnstile, and (CONNECT_SRC_EXTRA) the address
+      // that receives the errors of the browser, for example the GlitchTip of the platform.
+      `connect-src 'self' https://challenges.cloudflare.com ${(process.env.CONNECT_SRC_EXTRA || '').replace(/[^A-Za-z0-9:/._ *-]/g, '')}`.trim(),
       "frame-src https://challenges.cloudflare.com",
       "worker-src 'self' blob:",
       "manifest-src 'self'",

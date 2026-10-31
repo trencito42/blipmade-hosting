@@ -25,6 +25,8 @@ services:
       # The frontend is served from the same origin as the API, so the browser
       # never needs a cross-site cookie.
       API_URL: http://api:3100
+      # The origin that receives the errors of the browser (GlitchTip), allowed by the content security policy.
+      CONNECT_SRC_EXTRA: "${CONNECT_SRC_EXTRA:-}"
       # The addresses whose forwarding headers are believed. The gateway that
       # terminates the TLS is one of them, so the interface and the API know
       # that the visitor is on https and that the session cookie is protected.

@@ -26,6 +26,13 @@ window.addEventListener('vite:preloadError', (event) => {
 
 initMonitoring();
 
+// The service worker only makes the site installable and shows a short page when there is no connection.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Router>
