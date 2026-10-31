@@ -994,15 +994,15 @@ export function MailServiceCard({
         >
           {showDns ? 'Hide the records' : 'DNS records'}
         </SoftButton>
-        {service.status === 'ACTIVE' && (
-          <SoftButton onClick={() => onSuspend?.(service.id)} disabled={busy}>
-            Suspend
+        {/* Suspending is not offered: a customer who wants the mail off cancels it, and a service that
+            the platform suspended (an unpaid invoice, a report) is brought back by paying or by the team. */}
+        {service.status === 'GRACE' && (
+          <SoftButton onClick={() => onResume?.(service.id)} disabled={busy}>
+            Keep the service
           </SoftButton>
         )}
-        {(service.status === 'SUSPENDED' || service.status === 'GRACE') && (
-          <SoftButton onClick={() => onResume?.(service.id)} disabled={busy}>
-            Resume
-          </SoftButton>
+        {service.status === 'SUSPENDED' && (
+          <p className="text-[13px] text-ink2">This service is suspended. If it was for an unpaid invoice, paying it brings it back. Otherwise, write to support.</p>
         )}
         {service.status !== 'CANCELLED' && (
           <DangerButton onClick={() => onRequestCancel?.(service.id)} disabled={busy}>
@@ -1150,12 +1150,14 @@ export function MailServiceCard({
               : 'The sale of hosted mail is closed at the moment, so the plan cannot be changed.')
           }
         >
-          <option value="">Keep the current plan</option>
-          {plans.map((plan) => (
-            <option key={plan.slug} value={plan.slug}>
-              {mailPlanOptionLabel(plan)}
-            </option>
-          ))}
+          <option value="">Keep the current plan ({service.plan.name})</option>
+          {plans
+            .filter((plan) => plan.slug !== service.plan.slug)
+            .map((plan) => (
+              <option key={plan.slug} value={plan.slug}>
+                {mailPlanOptionLabel(plan)}
+              </option>
+            ))}
         </Select>
         <div>
           <PrimaryButton

@@ -4,7 +4,7 @@ import type { BillingPeriod, Prisma, ProductPrice } from '@prisma/client';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
-import { conflict, notFound } from '../lib/errors.js';
+import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { deploymentAvailability, type DeploymentAvailability } from '../services/availability.js';
@@ -228,7 +228,10 @@ export async function registerMailCommerceRoutes(app: FastifyInstance): Promise<
     // The service is read through the customer, so a service of another
     // customer is not found and nothing of it is touched.
     await mailCommerce.getMailService(user.id, id);
-    await mailCommerce.suspendMailService(id, 'The customer asked for this mail service to be suspended.', user.id);
+    // Suspending is the platform's own step (an unpaid invoice, a report of abuse). A customer who
+    // wants the mail off cancels the service, which keeps the data through the period of grace.
+    if (user.role === 'CUSTOMER') throw badRequest('A mail service is not suspended by its owner. To turn it off, cancel it: the data is kept for the period of grace.');
+    await mailCommerce.suspendMailService(id, 'The team suspended this mail service.', user.id);
     return { ok: true };
   });
 
@@ -239,7 +242,12 @@ export async function registerMailCommerceRoutes(app: FastifyInstance): Promise<
   }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    await mailCommerce.getMailService(user.id, id);
+    const service = await mailCommerce.getMailService(user.id, id);
+    // A suspended service is brought back by paying, or by the team. The owner only keeps a service
+    // that is in its period of grace.
+    if (user.role === 'CUSTOMER' && service.status !== 'GRACE') {
+      throw badRequest('Only the team can bring a suspended mail service back. If it was suspended for an unpaid invoice, paying it does it.');
+    }
     await mailCommerce.resumeMailService(id, user.id);
     return { ok: true };
   });

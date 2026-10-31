@@ -481,33 +481,22 @@ describe('the proof of ownership', () => {
 });
 
 describe('the life of a service', () => {
-  it('stops the mail when the service is suspended and brings it back when it is resumed', async () => {
+  it('does not let the owner suspend a service, nor bring a suspended one back', async () => {
     const { client, userId } = await registerAndLogin(app, 'owner@example.com');
     const plan = await createPlan({ slug: 'mail-basic' });
     const service = await createService({ userId, productId: plan.id, key: 'service-owner' });
 
+    // Suspending is the step of the platform: the owner who wants the mail off cancels it.
     const suspended = await client.request('POST', `/api/mail/services/${service.id}/suspend`);
-    expect(suspended.status).toBe(200);
-    expect(suspended.body.ok).toBe(true);
-    expect(callsOf('setDomainActive')).toContainEqual(
-      expect.objectContaining({ input: { name: 'acme.ro', active: false } }),
-    );
+    expect(suspended.status).toBe(400);
+    expect((await prisma.mailService.findUnique({ where: { id: service.id } }))?.status).toBe('ACTIVE');
+    expect(callsOf('setDomainActive')).toHaveLength(0);
 
-    // The data stays where it is.
-    const afterSuspend = await prisma.mailService.findUnique({ where: { id: service.id } });
-    expect(afterSuspend?.status).toBe('SUSPENDED');
-    expect(await prisma.mailDomain.count({ where: { serviceId: service.id } })).toBe(1);
-    expect(callsOf('deleteDomain')).toHaveLength(0);
-
+    // A service that the platform suspended is not brought back by its owner: paying the invoice does it.
+    await prisma.mailService.update({ where: { id: service.id }, data: { status: 'SUSPENDED' } });
     const resumed = await client.request('POST', `/api/mail/services/${service.id}/resume`);
-    expect(resumed.status).toBe(200);
-    expect(resumed.body.ok).toBe(true);
-    expect(callsOf('setDomainActive')).toContainEqual(
-      expect.objectContaining({ input: { name: 'acme.ro', active: true } }),
-    );
-
-    const afterResume = await prisma.mailService.findUnique({ where: { id: service.id } });
-    expect(afterResume?.status).toBe('ACTIVE');
+    expect(resumed.status).toBe(400);
+    expect((await prisma.mailService.findUnique({ where: { id: service.id } }))?.status).toBe('SUSPENDED');
   });
 
   it('keeps the mail working during the grace and the data until the retention', async () => {
