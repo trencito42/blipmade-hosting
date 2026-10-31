@@ -5,9 +5,11 @@
  * never writes a price or a size of its own.
  */
 
+import { LineChart } from './LineChart';
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError, api, del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import { useInfiniteList } from '../lib/useInfinite';
 import { memLabel } from '../lib/pricing';
 import { Link, useParams } from '../router';
 import { useSession } from '../session';
@@ -433,6 +435,7 @@ export function VpsDetail() {
   const state = useAsync<{ server: VpsServerView }>((signal) => get<{ server: VpsServerView }>(`/vps/${encodeURIComponent(id)}`, undefined, signal), [id]);
   const server = state.data?.server ?? null;
   const [tab, setTab] = useState<(typeof VPS_TABS)[number]['id']>('overview');
+  const [diagnosing, setDiagnosing] = useState(false);
 
   useEffect(() => {
     if (!server || (server.status !== 'pending' && server.status !== 'provisioning')) return;
@@ -477,6 +480,13 @@ export function VpsDetail() {
           <p className="mt-4 rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">Your server is being built. This takes a few minutes, and the page updates by itself.</p>
         )}
 
+        {server.status === 'active' && (
+          <div className="mt-4">
+            <SoftButton onClick={() => setDiagnosing((open) => !open)} aria-expanded={diagnosing}>{diagnosing ? 'Hide the check' : 'Server not reachable?'}</SoftButton>
+            {diagnosing && <DiagnosePanel id={server.id} />}
+          </div>
+        )}
+
         {server.sshCommand && server.status === 'active' && (
           <div className="mt-4 grid gap-2">
             <p className="text-[13.5px] font-medium text-ink">Log in</p>
@@ -517,8 +527,23 @@ export function VpsDetail() {
               ))}
             </ul>
           </nav>
-          {tab === 'overview' && server.power === 'running' && <UsagePanel id={server.id} />}
-          {tab === 'overview' && server.power !== 'running' && <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">The server is not running, so there is no usage to show. Start it above.</p>}
+          {tab === 'overview' && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ContractCard server={server} onChanged={state.reload} />
+                <NetworkCard server={server} />
+              </div>
+              {server.power === 'running' ? (
+                <>
+                  <UsagePanel id={server.id} />
+                  <GraphsPanel id={server.id} ram={server.ram} />
+                </>
+              ) : (
+                <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">The server is not running, so there is no usage to show. Start it above.</p>
+              )}
+            </>
+          )}
+          {tab === 'activity' && <ActivityPanel id={server.id} />}
           {tab === 'console' && (
             <Panel title="Console" description="A serial console, for when SSH does not work: a boot that fails, a firewall that locks you out.">
               {server.power === 'running' ? (
@@ -544,11 +569,223 @@ export function VpsDetail() {
   );
 }
 
+/** Bytes in the unit a person reads. */
+const rate = (n: number) => (n < 1024 ? `${Math.round(n)} B/s` : n < 1024 * 1024 ? `${(n / 1024).toFixed(n < 10240 ? 1 : 0)} KB/s` : `${(n / 1024 / 1024).toFixed(1)} MB/s`);
+
+/** What the server uses over time: processor, memory and network, from the hypervisor. */
+function GraphsPanel({ id, ram }: { id: string; ram: number }) {
+  const [timeframe, setTimeframe] = useState<'hour' | 'day' | 'week' | 'month'>('hour');
+  const state = useAsync<{ points: { t: number; cpu: number | null; memory: number | null; netIn: number | null; netOut: number | null }[] }>(
+    (signal) => get(`/vps/${encodeURIComponent(id)}/graphs`, { timeframe }, signal),
+    [id, timeframe],
+  );
+  const points = state.data?.points ?? [];
+  const memoryTop = ram * 1024 * 1024;
+  return (
+    <Panel
+      title="Graphs"
+      description="Read from the hypervisor."
+      action={
+        <select aria-label="Period" value={timeframe} onChange={(event) => setTimeframe(event.target.value as typeof timeframe)} className="min-h-10 rounded-xl border border-line bg-s2 px-3 text-[13.5px] text-ink">
+          <option value="hour">Last hour</option>
+          <option value="day">Last day</option>
+          <option value="week">Last week</option>
+          <option value="month">Last month</option>
+        </select>
+      }
+    >
+      {state.loading && !state.data ? (
+        <LoadingBlock rows={2} label="Loading the graphs" />
+      ) : state.error ? (
+        <ErrorState title="The graphs could not be loaded" message={state.error.message} onRetry={state.reload} />
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div>
+            <p className="mb-1 text-[13px] font-medium text-ink">Processor</p>
+            <LineChart label="Processor use in percent" points={points.map((p) => ({ t: p.t, v: p.cpu }))} format={(v) => `${Math.round(v)}%`} max={100} />
+          </div>
+          <div>
+            <p className="mb-1 text-[13px] font-medium text-ink">Memory</p>
+            <LineChart label="Memory in use" points={points.map((p) => ({ t: p.t, v: p.memory }))} format={(v) => memLabel(Math.round(v / 1024 / 1024))} max={memoryTop} />
+          </div>
+          <div>
+            <p className="mb-1 text-[13px] font-medium text-ink">Network in</p>
+            <LineChart label="Network traffic received" points={points.map((p) => ({ t: p.t, v: p.netIn }))} format={rate} />
+          </div>
+          <div>
+            <p className="mb-1 text-[13px] font-medium text-ink">Network out</p>
+            <LineChart label="Network traffic sent" points={points.map((p) => ({ t: p.t, v: p.netOut }))} format={rate} />
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+/** What happened to the server: who did what, and when. */
+function ActivityPanel({ id }: { id: string }) {
+  const list = useInfiniteList<{ id: string; text: string; byStaff: boolean; createdAt: string }, string>(
+    async (cursor, signal) => {
+      const page = await get<{ activity: { id: string; text: string; byStaff: boolean; createdAt: string }[]; next: string | null }>(
+        `/vps/${encodeURIComponent(id)}/activity`,
+        { before: cursor ?? undefined, limit: 30 },
+        signal,
+      );
+      return { items: page.activity, next: page.next };
+    },
+    [id],
+  );
+  return (
+    <Panel title="Activity" description="What was done to this server.">
+      {list.loading ? (
+        <LoadingBlock rows={3} label="Loading the activity" />
+      ) : list.error && list.items.length === 0 ? (
+        <ErrorState title="The activity could not be loaded" message={list.error.message} onRetry={list.reload} />
+      ) : list.items.length === 0 ? (
+        <p className="text-[14px] text-ink2">Nothing yet. Power actions, snapshots and changes appear here.</p>
+      ) : (
+        <ul className="grid gap-1.5">
+          {list.items.map((row) => (
+            <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+              <p className="text-[14px] font-medium text-ink">
+                {row.text}
+                {row.byStaff && <span className="ml-2 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.06em] text-ink2">our team</span>}
+              </p>
+              <span className="whitespace-nowrap font-mono text-[12px] text-ink3">{new Date(row.createdAt).toLocaleString()}</span>
+            </li>
+          ))}
+          <li>
+            {list.hasMore ? (
+              <div ref={list.sentinel} className="grid justify-items-center pt-2">
+                {list.loadingMore ? <p role="status" className="text-[12.5px] text-ink3">Loading more…</p> : <SoftButton onClick={list.loadMore}>Load more</SoftButton>}
+              </div>
+            ) : (
+              <p className="pt-2 text-center text-[12.5px] text-ink3">That is everything.</p>
+            )}
+          </li>
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+/** The checks the platform can make when a server does not answer, one by one. */
+function DiagnosePanel({ id }: { id: string }) {
+  const state = useAsync<{ steps: { id: string; ok: boolean | null; title: string; detail: string }[] }>((signal) => get(`/vps/${encodeURIComponent(id)}/diagnose`, undefined, signal), [id]);
+  return (
+    <div className="mt-3 grid gap-2 rounded-2xl bg-s2 p-4" aria-live="polite">
+      {state.loading ? (
+        <LoadingBlock rows={2} label="Checking the server" />
+      ) : state.error ? (
+        <ErrorState title="The check could not be made" message={state.error.message} onRetry={state.reload} />
+      ) : (
+        <>
+          <ul className="grid gap-2">
+            {state.data?.steps.map((step) => (
+              <li key={step.id} className="flex gap-3">
+                <span aria-hidden="true" className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[12px] font-bold ${step.ok === true ? 'bg-acc-bg text-acc' : step.ok === false ? 'bg-bad/15 text-bad' : 'bg-s3 text-ink3'}`}>
+                  {step.ok === true ? '✓' : step.ok === false ? '!' : '?'}
+                </span>
+                <div>
+                  <p className="text-[14px] font-medium text-ink">{step.title}</p>
+                  <p className="text-[13px] text-ink2">{step.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div><SoftButton onClick={state.reload}>Check again</SoftButton></div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The contract: what it costs, when it renews, and the switch for the automatic renewal. */
+function ContractCard({ server, onChanged }: { server: VpsServerView; onChanged: () => void }) {
+  const { push } = useToast();
+  const contract = server.contract ?? null;
+  const toggle = useAction(async () => {
+    if (!contract) return;
+    try {
+      await post(`/billing/subscriptions/${encodeURIComponent(contract.subscriptionId)}/${contract.cancelAtPeriodEnd ? 'resume' : 'cancel'}`);
+      push(contract.cancelAtPeriodEnd ? 'The server will renew automatically.' : 'The server will end when the paid period ends.', 'ok');
+      onChanged();
+    } catch (failure) {
+      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    }
+  });
+  const end = contract?.periodEnd ? new Date(contract.periodEnd) : null;
+  const days = end ? Math.ceil((end.getTime() - Date.now()) / 86_400_000) : null;
+  return (
+    <Panel title="Contract" description={contract ? undefined : 'No subscription is linked to this server.'}>
+      {contract && (
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[14px] text-ink2">
+              <Money amount={contract.amount} currency={contract.currency} /> a month ·{' '}
+              {contract.cancelAtPeriodEnd ? 'ends' : 'renews'} {end ? end.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'on the next period'}
+            </p>
+            {days !== null && days <= 7 && days >= 0 && (
+              <span className="rounded-full bg-warn/15 px-3 py-1 text-[12px] font-bold text-warn">{contract.cancelAtPeriodEnd ? `Ends in ${days} day${days === 1 ? '' : 's'}` : `Renews in ${days} day${days === 1 ? '' : 's'}`}</span>
+            )}
+          </div>
+          {contract.status === 'past_due' && <p role="alert" className="rounded-2xl bg-bad/12 px-3.5 py-2.5 text-[13.5px] text-bad">The last payment did not go through. Update the payment method in Billing to keep the server.</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <SoftButton onClick={() => void toggle.run()} disabled={toggle.pending}>
+              {toggle.pending ? 'Working…' : contract.cancelAtPeriodEnd ? 'Turn automatic renewal on' : 'Turn automatic renewal off'}
+            </SoftButton>
+            <ButtonLink to="/app/billing" variant="soft">Billing</ButtonLink>
+          </div>
+          <p className="text-[12.5px] text-ink3">
+            {contract.cancelAtPeriodEnd
+              ? 'The server keeps running until the end of the paid period, then it is stopped. Turn the renewal back on to keep it.'
+              : 'The subscription renews by itself at the end of each period.'}
+          </p>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+/** The address of the server, and the one thing about the network that needs a person: port 25. */
+function NetworkCard({ server }: { server: VpsServerView }) {
+  const { push } = useToast();
+  const request = useAction(async () => {
+    try {
+      await post('/tickets', {
+        subject: `Unblock outgoing mail (port 25) for ${server.name}`,
+        category: 'technical',
+        priority: 'normal',
+        body: `Please unblock outgoing connections on port 25 for the server ${server.name} (${server.publicIp ?? 'no address'}). I will use it to send mail from my own domain, with SPF, DKIM and a valid reverse record, and I will not send unsolicited mail.`,
+      });
+      push('The request was sent to support as a ticket.', 'ok');
+    } catch (failure) {
+      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    }
+  });
+  return (
+    <Panel title="Network">
+      <dl className="grid gap-2">
+        <div className="flex justify-between gap-3 border-b border-line/60 pb-1.5"><dt className="text-[12.5px] text-ink3">Address</dt><dd className="font-mono text-[13px] font-semibold text-ink">{server.publicIp ?? '—'}</dd></div>
+        <div className="flex justify-between gap-3 border-b border-line/60 pb-1.5"><dt className="text-[12.5px] text-ink3">SSH port</dt><dd className="font-mono text-[13px] font-semibold text-ink">{server.sshPort ?? '—'}</dd></div>
+        <div className="flex justify-between gap-3 border-b border-line/60 pb-1.5"><dt className="text-[12.5px] text-ink3">Address type</dt><dd className="text-[13px] font-semibold text-ink">{server.dedicatedIp ? 'Dedicated IPv4' : 'Shared IPv4'}</dd></div>
+        <div className="flex justify-between gap-3 pb-1.5"><dt className="text-[12.5px] text-ink3">IPv6</dt><dd className="text-[13px] text-ink3">Not available</dd></div>
+      </dl>
+      <div className="mt-3 grid gap-2 rounded-2xl bg-s2 p-3.5">
+        <p className="text-[13.5px] font-medium text-ink">Outgoing mail (port 25)</p>
+        <p className="text-[12.5px] text-ink2">To prevent spam, outgoing connections on port 25 are blocked on every server. If you run a mail server, ask support to unblock it.</p>
+        <div><SoftButton onClick={() => void request.run()} disabled={request.pending}>{request.pending ? 'Sending…' : 'Request unlock'}</SoftButton></div>
+      </div>
+    </Panel>
+  );
+}
+
 const VPS_TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'console', label: 'Console' },
   { id: 'snapshots', label: 'Snapshots' },
   { id: 'boot', label: 'Image and reinstall' },
+  { id: 'activity', label: 'Activity' },
   { id: 'settings', label: 'Settings' },
 ] as const;
 

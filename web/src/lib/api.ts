@@ -1194,6 +1194,7 @@ export interface VpsServerView {
   sshPort: number | null;
   dedicatedIp: boolean;
   image?: { slug: string; label: string };
+  contract?: { subscriptionId: string; status: string; amount: number; currency: string; periodEnd: string | null; cancelAtPeriodEnd: boolean } | null;
   sshCommand: string | null;
   lastError: string | null;
   createdAt: string;
