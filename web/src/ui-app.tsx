@@ -20,7 +20,7 @@ import { get, post, relativeTime, type NotificationView } from './lib/api';
 import { Icon, type IconName } from './icons';
 import { Link, useRouter } from './router';
 import { useSession } from './session';
-import logo from './logo.svg';
+import { BrandMark } from './BrandMark';
 import { LegalFooter } from './legal/LegalFooter';
 
 /**
@@ -212,7 +212,7 @@ export function AppShell({
         {/* Desktop sidebar */}
         <aside data-print-hide="" className="sticky top-0 hidden h-[100svh] w-[272px] shrink-0 flex-col border-r border-line bg-s1 p-4 lg:flex">
           <Link to="/" className="mb-6 flex items-center gap-2.5 rounded-lg px-2 py-1 text-[21px] font-semibold tracking-[-0.055em] outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
-            <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
+            <BrandMark className="h-6 w-auto" />
             blipmade
           </Link>
           <nav aria-label="Main" className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto pr-1">
@@ -275,7 +275,7 @@ export function AppShell({
               className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-xl lg:hidden"
               aria-label="Blipmade home"
             >
-              <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
+              <BrandMark className="h-6 w-auto" />
             </Link>
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-[19px] font-semibold tracking-[-0.04em] text-ink sm:text-[22px]">{title}</h1>

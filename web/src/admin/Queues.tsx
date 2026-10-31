@@ -40,6 +40,11 @@ export default function Queues() {
             <EmptyState title="No failed job" description="Nothing is waiting for a person." />
           ) : (
             <ul className="grid gap-2">
+              {mayWrite && queue.failed.length > 1 && (
+                <li className="flex justify-end">
+                  <button type="button" className={denseDanger} disabled={busy !== null} onClick={() => { if (window.confirm(`Remove all ${queue.counts.failed ?? queue.failed.length} failed jobs of ${queue.label}? They will not be retried.`)) void act(`${queue.name}all`, () => del(`/admin/queues/${queue.name}/failed`), 'The failed jobs were removed.'); }}>Remove all failed</button>
+                </li>
+              )}
               {queue.failed.map((job) => (
                 <li key={job.id} className="grid gap-1.5 rounded-2xl bg-s2 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">

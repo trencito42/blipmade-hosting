@@ -478,8 +478,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     // The number of orders the filter really found, so the list can say that
     // it shows only the first rows of them.
     const total = await prisma.order.count({ where });
+    // What was given back in parts, from the ledger of the money adjustments.
+    const parts = page.rows.length
+      ? await prisma.moneyAdjustment.groupBy({ by: ['orderId'], where: { kind: 'refund', orderId: { in: page.rows.map((order) => order.id) } }, _sum: { amount: true } })
+      : [];
+    const partOf = new Map(parts.map((entry) => [entry.orderId, entry._sum.amount ?? 0]));
     return {
       orders: page.rows.map((order) => ({
+        refundedPart: partOf.get(order.id) ?? 0,
         id: order.id,
         number: order.number,
         status: order.status.toLowerCase(),

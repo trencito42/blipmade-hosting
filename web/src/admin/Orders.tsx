@@ -35,6 +35,8 @@ interface AdminOrder {
   currency: string;
   createdAt: string;
   customer: { id: string; email: string; name: string | null };
+  /** What was given back in parts, in cents. */
+  refundedPart?: number;
   items: AdminOrderItem[];
 }
 
@@ -50,6 +52,12 @@ const STATUS_OPTIONS = [
 ];
 
 /** Only a paid order holds money that can be given back. */
+/** The part of an order that went back to the customer, when it was not refunded in full. */
+function PartRefund({ order }: { order: AdminOrder }) {
+  if (!order.refundedPart || order.status === 'refunded') return null;
+  return <span className="rounded-full bg-s3 px-2 py-0.5 text-[11.5px] font-semibold text-ink2">{(order.refundedPart / 100).toFixed(2)} {order.currency} refunded</span>;
+}
+
 function canBeRefunded(order: AdminOrder): boolean {
   return order.status === 'paid' || order.status === 'fulfilled';
 }
@@ -232,7 +240,7 @@ export default function Orders() {
                     key: 'status',
                     header: 'Status',
                     nowrap: true,
-                    render: (order: AdminOrder) => <StatusPill status={order.status} />,
+                    render: (order: AdminOrder) => <span className="inline-flex flex-wrap items-center gap-1.5"><StatusPill status={order.status} /><PartRefund order={order} /></span>,
                   },
                   {
                     key: 'created',
@@ -268,7 +276,7 @@ export default function Orders() {
                           {order.customer?.name ?? email(order.customer?.email ?? '')}
                         </p>
                       </div>
-                      <StatusPill status={order.status} />
+                      <span className="grid justify-items-end gap-1"><StatusPill status={order.status} /><PartRefund order={order} /></span>
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
                       <div className="col-span-2 min-w-0">

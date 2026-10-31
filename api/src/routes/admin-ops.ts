@@ -7,6 +7,7 @@ import { assertMayActOnAccount, requirePermission, requireStaff } from '../plugi
 import { getEmailQueue, getMailProvisionQueue, getQueue, getVpsProvisionQueue } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { assessCustomer } from '../services/risk.js';
+import { notifyPaymentRefunded } from '../services/notifications.js';
 import { customerBalance, findPaymentIntentForSubscription, giveBalanceCredit, refundPartOfPayment, stripeLive } from '../services/stripe.js';
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
 import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
@@ -174,6 +175,17 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     await job.retry();
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.queue.retry', targetType: 'job', targetId: `${name}:${id}`, ip: request.ip });
     return { ok: true };
+  });
+
+  // Clears the failed jobs of one queue, for the old failures that nobody will retry.
+  app.delete('/admin/queues/:name/failed', { preHandler: [requirePermission('infrastructure.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { name } = z.object({ name: z.string() }).parse(request.params);
+    const entry = queues().find((item) => item.name === name);
+    if (!entry) throw notFound('That queue was not found.');
+    const removed = await entry.queue.clean(0, 1000, 'failed');
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.queue.clear_failed', targetType: 'queue', targetId: name, meta: { removed: removed.length }, ip: request.ip });
+    return { removed: removed.length };
   });
 
   app.delete('/admin/queues/:name/jobs/:id', { preHandler: [requirePermission('infrastructure.write')] }, async (request) => {
@@ -391,6 +403,8 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
       throw badRequest(`The payment provider refused the refund: ${(error as Error).message}`);
     }
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.refund.partial', targetType: 'order', targetId: order.id, meta: { amount: body.amount, reason: body.reason }, ip: request.ip });
+    // The customer is told what went back. Each part is its own message.
+    await notifyPaymentRefunded({ userId: order.userId, number: order.number, amount: body.amount, currency: order.currency, occurrence: row.id }).catch(() => undefined);
     return { ok: true, remaining: remaining - body.amount };
   });
 }

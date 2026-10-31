@@ -3,7 +3,7 @@ import { cn, useInView } from './lib';
 import { Icon, ProductMark, type IconName } from './icons';
 import { productIcon } from './lib/pricing';
 import { Link } from './router';
-import logo from './logo.svg';
+import { BrandMark } from './BrandMark';
 
 /**
  * The atoms of the interface.
@@ -89,7 +89,7 @@ export function Button({ to, href, onClick, variant = 'pri', size = 'md', icon, 
  */
 export const Logo = ({ className }: { className?: string }) => (
   <Link to="/" aria-label="Blipmade home" className={cn('flex items-center gap-2.5 rounded-lg text-[17px] font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-acc-h', className)}>
-    <img src={logo} alt="" width={164} height={148} className="h-6 w-auto" />
+    <BrandMark className="h-6 w-auto" />
     <span>blipmade</span>
   </Link>
 );
