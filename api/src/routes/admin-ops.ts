@@ -7,6 +7,7 @@ import { assertMayActOnAccount, requirePermission, requireStaff } from '../plugi
 import { getEmailQueue, getMailProvisionQueue, getQueue, getVpsProvisionQueue } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { assessCustomer } from '../services/risk.js';
+import { replayStripeEvents } from './webhooks.js';
 import { notifyPaymentRefunded } from '../services/notifications.js';
 import { customerBalance, findPaymentIntentForSubscription, giveBalanceCredit, refundPartOfPayment, stripeLive } from '../services/stripe.js';
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
@@ -164,6 +165,25 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
       });
     }
     return { queues: out };
+  });
+
+  // The events of the payment provider that failed, and the way to run them again.
+  app.get('/admin/webhooks/failed', { preHandler: [requirePermission('infrastructure.read')] }, async () => {
+    const failed = await prisma.webhookEvent.findMany({
+      where: { provider: 'stripe', status: { in: ['failed', 'deferred'] } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: { id: true, eventId: true, type: true, attempts: true, error: true, lastAttemptAt: true, createdAt: true },
+    });
+    return { failed: failed.map((event) => ({ ...event, error: (event.error ?? '').replace(/\s+/g, ' ').slice(0, 300) })) };
+  });
+
+  app.post('/admin/webhooks/replay', { preHandler: [requirePermission('infrastructure.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const body = z.object({ eventId: z.string().optional() }).parse(request.body ?? {});
+    const replayed = await replayStripeEvents(body.eventId, body.eventId ? 1 : 20);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.webhook.replay', targetType: 'webhook', targetId: body.eventId ?? 'all', meta: { replayed: replayed.length, ok: replayed.filter((entry) => entry.ok).length }, ip: request.ip });
+    return { replayed };
   });
 
   app.post('/admin/queues/:name/jobs/:id/retry', { preHandler: [requirePermission('infrastructure.write')] }, async (request) => {

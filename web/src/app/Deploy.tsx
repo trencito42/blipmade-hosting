@@ -1040,7 +1040,7 @@ export default function Deploy() {
           </Panel>
 
           <div className="grid gap-4 lg:sticky lg:top-4">
-            <div className="rounded-[28px] border border-line bg-night p-5 sm:p-6">
+            <div className="rounded-[28px] border border-line bg-card p-5 sm:p-6">
               <div className="flex items-center gap-3">
                 <ProductTile slug={product.slug} icon={product.icon} size={48} />
                 <div className="min-w-0">

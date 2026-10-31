@@ -420,7 +420,7 @@ export const deleteBackup = (id: string, backupId: string) =>
 // --- network ---------------------------------------------------------------
 
 export const listAllocations = (id: string, signal?: AbortSignal) =>
-  get<{ allocations: InstanceAllocation[] }>(`/instances/${id}/allocations`, undefined, signal);
+  get<{ allocations: InstanceAllocation[]; limit?: number }>(`/instances/${id}/allocations`, undefined, signal);
 
 /** Makes an address the primary one of the instance. */
 export const setPrimaryAllocation = (id: string, primary: number) =>
@@ -439,6 +439,18 @@ export const deleteAllocation = (id: string, allocationId: number) =>
 
 export const getStartup = (id: string, signal?: AbortSignal) =>
   get<StartupSettings>(`/instances/${id}/startup`, undefined, signal);
+
+export interface EnvFile {
+  name: '.env' | '.env.local';
+  exists: boolean;
+  entries: { key: string; value: string }[];
+}
+
+export const getEnvFiles = (id: string, signal?: AbortSignal) =>
+  get<{ files: EnvFile[] }>(`/instances/${id}/env-files`, undefined, signal);
+
+export const saveEnvFile = (id: string, name: EnvFile['name'], entries: { key: string; value: string }[]) =>
+  put<{ saved: boolean }>(`/instances/${id}/env-files/${encodeURIComponent(name)}`, { entries });
 
 export const updateStartup = (
   id: string,

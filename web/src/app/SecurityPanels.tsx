@@ -285,7 +285,7 @@ export function SecurityActivityPanel() {
     async (cursor, signal) => {
       const page = await get<{ activity: ActivityRow[]; pagination: { hasMore: boolean; nextCursor: string | null } }>(
         '/settings/security/activity',
-        { cursor: cursor ?? undefined, limit: 30 },
+        { cursor: cursor ?? undefined, limit: 10 },
         signal,
       );
       return { items: page.activity, next: page.pagination.hasMore ? page.pagination.nextCursor : null };
@@ -316,8 +316,10 @@ export function SecurityActivityPanel() {
           ))}
           <li>
             {list.hasMore ? (
-              <div ref={list.sentinel} className="grid justify-items-center pt-2">
+              // No automatic loading: ten rows are shown and the reader asks for the next ten.
+              <div className="grid justify-items-center gap-2 pt-2">
                 {list.loadingMore ? <p role="status" className="text-[12.5px] text-ink3">Loading more…</p> : <SoftButton onClick={list.loadMore}>Load more</SoftButton>}
+                {list.error && <p role="alert" className="text-[12.5px] text-bad">{list.error.message}</p>}
               </div>
             ) : (
               <p className="pt-2 text-center text-[12.5px] text-ink3">That is everything.</p>

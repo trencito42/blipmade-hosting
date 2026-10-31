@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { getStartup, updateStartup } from '../../lib/instance-api';
+import { getEnvFiles, getStartup, saveEnvFile, updateStartup, type EnvFile } from '../../lib/instance-api';
 import { EmptyState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextInput, useToast } from '../../ui-app';
 import { ApiErrorState, type TabProps } from './common';
 
@@ -100,10 +100,9 @@ export default function StartupTab({ instance }: TabProps) {
             ))}
           </div>
         )}
-        <p className="mt-3 rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
-          Your own variables (API keys, tokens) go in a <span className="font-mono">.env</span> file in the Files tab. Your app reads that file itself, and it is not touched when the server starts.
-        </p>
       </Panel>
+
+      <EnvFiles instanceId={instance.id} />
 
       <div className="flex flex-wrap gap-2">
         <PrimaryButton onClick={save} disabled={busy}>
@@ -112,6 +111,71 @@ export default function StartupTab({ instance }: TabProps) {
         <SoftButton onClick={reset} disabled={busy}>
           Discard the changes
         </SoftButton>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The `.env` and `.env.local` files of the server, as lists of variables. They are the files in the Files tab: what
+ * is saved here is what the app reads. Comments and blank lines in the file are kept.
+ */
+function EnvFiles({ instanceId }: { instanceId: string }) {
+  const files = useAsync((signal) => getEnvFiles(instanceId, signal), [instanceId]);
+  return (
+    <Panel title="Environment files" description="Your own variables (keys, tokens, settings) from the .env and .env.local files of the server. Changes are written to the file and the app reads them the next time it starts.">
+      {files.loading && !files.data ? (
+        <LoadingBlock rows={2} label="Reading the files" />
+      ) : files.error || !files.data ? (
+        <ApiErrorState error={files.error} onRetry={files.reload} title="We could not read the files" />
+      ) : (
+        <div className="grid gap-5">
+          {files.data.files.map((file) => (
+            <EnvFileEditor key={file.name} instanceId={instanceId} file={file} onSaved={files.reload} />
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function EnvFileEditor({ instanceId, file, onSaved }: { instanceId: string; file: EnvFile; onSaved: () => void }) {
+  const { push } = useToast();
+  const [rows, setRows] = useState(file.entries);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setRows(file.entries), [file]);
+  const save = async () => {
+    setBusy(true);
+    try {
+      await saveEnvFile(instanceId, file.name, rows.filter((row) => row.key.trim() !== '').map((row) => ({ key: row.key.trim(), value: row.value })));
+      push(`${file.name} was saved.`, 'ok');
+      onSaved();
+    } catch (error) {
+      push(error instanceof Error ? error.message : `${file.name} was not saved.`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="grid gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-[14px] font-semibold text-ink">{file.name} {!file.exists && <span className="ml-1 font-sans text-[12.5px] font-normal text-ink3">(not there yet, it is made when you save)</span>}</p>
+        <SoftButton onClick={() => setRows([...rows, { key: '', value: '' }])}>Add a variable</SoftButton>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-[13.5px] text-ink3">No variables.</p>
+      ) : (
+        rows.map((row, index) => (
+          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+            <TextInput label="Name" value={row.key} placeholder="API_KEY" className="font-mono" onChange={(event) => setRows(rows.map((entry, position) => (position === index ? { ...entry, key: event.target.value } : entry)))} />
+            <TextInput label="Value" value={row.value} className="font-mono" onChange={(event) => setRows(rows.map((entry, position) => (position === index ? { ...entry, value: event.target.value } : entry)))} />
+            <SoftButton className="self-end" onClick={() => setRows(rows.filter((_, position) => position !== index))}>Remove</SoftButton>
+          </div>
+        ))
+      )}
+      <div className="flex gap-2">
+        <PrimaryButton onClick={save} disabled={busy}>{busy ? 'Saving…' : `Save ${file.name}`}</PrimaryButton>
+        <SoftButton onClick={() => setRows(file.entries)} disabled={busy}>Discard</SoftButton>
       </div>
     </div>
   );

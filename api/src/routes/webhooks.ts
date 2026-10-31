@@ -1386,33 +1386,41 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       .object({ eventId: z.string().optional(), limit: z.number().int().min(1).max(100).default(20) })
       .parse(typeof request.body === 'string' ? safeJsonParse(request.body) : (request.body ?? {}));
 
-    const events = await prisma.webhookEvent.findMany({
-      where: {
-        provider: 'stripe',
-        status: { in: ['failed', 'deferred'] },
-        ...(body.eventId ? { eventId: body.eventId } : {}),
-      },
-      orderBy: { createdAt: 'asc' },
-      take: body.limit,
-    });
-
-    const replayed: { eventId: string; ok: boolean }[] = [];
-    for (const event of events) {
-      await prisma.webhookEvent.update({
-        where: { id: event.id },
-        data: { status: 'processing', attempts: { increment: 1 }, lastAttemptAt: new Date(), error: null },
-      });
-      const outcome = await processEvent({
-        id: event.eventId,
-        type: event.type,
-        data: { object: (event.payload ?? {}) as Record<string, unknown> },
-      });
-      replayed.push({ eventId: event.eventId, ok: outcome === 'processed' });
-    }
-
-    return { replayed };
+    return { replayed: await replayStripeEvents(body.eventId, body.limit) };
   });
 }
+
+/**
+ * Replays the Stripe events that failed or were deferred. The payload is in the ledger, so the provider does not
+ * have to send the event again. Used by the internal route and by the staff area.
+ */
+export async function replayStripeEvents(eventId?: string, limit = 20): Promise<{ eventId: string; ok: boolean }[]> {
+  const events = await prisma.webhookEvent.findMany({
+    where: {
+      provider: 'stripe',
+      status: { in: ['failed', 'deferred'] },
+      ...(eventId ? { eventId } : {}),
+    },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+  });
+
+  const replayed: { eventId: string; ok: boolean }[] = [];
+  for (const event of events) {
+    await prisma.webhookEvent.update({
+      where: { id: event.id },
+      data: { status: 'processing', attempts: { increment: 1 }, lastAttemptAt: new Date(), error: null },
+    });
+    const outcome = await processEvent({
+      id: event.eventId,
+      type: event.type,
+      data: { object: (event.payload ?? {}) as Record<string, unknown> },
+    });
+    replayed.push({ eventId: event.eventId, ok: outcome === 'processed' });
+  }
+  return replayed;
+}
+
 
 /**
  * Retries the events that failed or that were deferred, for the provider

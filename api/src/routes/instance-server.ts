@@ -7,6 +7,7 @@ import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
+import { applyEnv, ENV_KEY, parseEnv } from '../lib/env-file.js';
 import { planStartupChange, readEggStartupInfo, visibleVariables } from '../services/startup-settings.js';
 import * as operations from '../services/panel/operations.js';
 import { reinstallInstance } from '../services/reinstall.js';
@@ -802,7 +803,10 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return withInstance(request, async (token, instance) => {
       try {
         const allocations = await operations.allocations(token, instance);
+        // Extra addresses are a feature of the plan. The server carries the number it may have.
+        const server = instance.pterodactylServerId ? await pteroApp.getServer(instance.pterodactylServerId).catch(() => null) : null;
         return {
+          limit: server?.feature_limits?.allocations ?? 0,
           allocations: allocations.map((allocation) => ({
             id: allocation.id,
             ip: allocation.ip,
@@ -831,6 +835,12 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     const { id } = idParam.parse(request.params);
     const instance = await operations.loadOwnedInstance(user.id, id, request.method);
     const token = await operations.customerToken(instance);
+    // An extra address is a feature of the plan: the server says how many it may have.
+    const owned = instance.pterodactylServerId ? await pteroApp.getServer(instance.pterodactylServerId).catch(() => null) : null;
+    const held = await operations.allocations(token, instance).catch(() => []);
+    if ((owned?.feature_limits?.allocations ?? 0) <= held.length) {
+      throw badRequest('This plan does not include extra addresses.');
+    }
     try {
       await operations.createAllocation(token, instance);
     } catch (error) {
@@ -1006,6 +1016,63 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
     preHandler: customerLimit(app, LIMITS.panel),
   }, changeStartup);
+
+  // --- .env files ------------------------------------------------------------
+
+  /**
+   * The `.env` and `.env.local` files of the server, read as lists of variables.
+   *
+   * The customer's own variables live in these files: the app reads them itself. A file that is not there is
+   * shown as empty and is made when it is saved. Comments and blank lines in the file are kept when it is saved.
+   */
+  const ENV_FILES = ['.env', '.env.local'] as const;
+  const envName = z.object({ id: z.string(), name: z.enum(ENV_FILES) });
+
+  app.get('/instances/:id/env-files', async (request: FastifyRequest) => {
+    return withInstance(request, async (token, instance) => {
+      const files = [];
+      for (const name of ENV_FILES) {
+        try {
+          const file = await operations.readFile(token, instance, `/${name}`);
+          files.push({ name, exists: true, entries: parseEnv(file.content) });
+        } catch {
+          // The panel answers with an error for a file that is not there.
+          files.push({ name, exists: false, entries: [] });
+        }
+      }
+      return { files };
+    });
+  });
+
+  app.put('/instances/:id/env-files/:name', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    assertBoundedFields(request.body, { entries: { max: MAX_ENVIRONMENT_VARIABLES, label: 'The variables' } });
+    const body = z
+      .object({ entries: z.array(z.object({ key: z.string().trim().regex(ENV_KEY, 'A variable name has letters, digits and underscores and does not start with a digit.'), value: z.string().max(4096) })) })
+      .parse(request.body ?? {});
+    const keys = body.entries.map((entry) => entry.key);
+    if (new Set(keys).size !== keys.length) throw badRequest('A variable name is used twice.');
+    const user = await requireAuth(request);
+    const { id, name } = envName.parse(request.params);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method);
+    const token = await operations.customerToken(instance);
+    let current = '';
+    try {
+      current = (await operations.readFile(token, instance, `/${name}`)).content;
+    } catch {
+      current = '';
+    }
+    try {
+      await operations.writeFile(token, instance, `/${name}`, applyEnv(current, body.entries));
+    } catch (error) {
+      return translatePanelError(error);
+    }
+    await note(instance.id, 'files', `The file ${name} was saved.`);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.env_file_saved', targetType: 'instance', targetId: instance.id, meta: { file: name, variables: body.entries.length } });
+    return { saved: true };
+  });
 
   // --- schedules -----------------------------------------------------------
 

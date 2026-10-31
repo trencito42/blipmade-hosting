@@ -152,9 +152,12 @@ export default function NetworkTab({ instance }: TabProps) {
         title="Addresses"
         description="The addresses the panel assigned to this instance. The primary one is the address the service is reached at."
         action={
-          <PrimaryButton onClick={() => setAdding((value) => !value)} disabled={busy}>
-            {adding ? 'Close' : 'Add an address'}
-          </PrimaryButton>
+          // Extra addresses are part of the plan. Without room for one the button is not offered.
+          (allocations.data?.limit ?? 0) > rows.length ? (
+            <PrimaryButton onClick={() => setAdding((value) => !value)} disabled={busy}>
+              {adding ? 'Close' : 'Add an address'}
+            </PrimaryButton>
+          ) : undefined
         }
       >
         {adding && (

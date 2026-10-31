@@ -458,6 +458,55 @@ export function OpsChannelsList({ channels }: { channels: OpsChannel[] }) {
   );
 }
 
+
+/** The events of the payment provider that failed, with a button to run each one again. */
+function FailedWebhooks({ mayWrite }: { mayWrite: boolean }) {
+  const toast = useToast();
+  const state = useAsync<{ failed: { id: string; eventId: string; type: string; attempts: number; error: string; lastAttemptAt: string | null; createdAt: string }[] }>(
+    (signal) => get('/admin/webhooks/failed', undefined, signal),
+    [],
+  );
+  const replay = useAction(async (eventId?: string) => {
+    const result = await post<{ replayed: { eventId: string; ok: boolean }[] }>('/admin/webhooks/replay', eventId ? { eventId } : {});
+    const ok = result.replayed.filter((entry) => entry.ok).length;
+    toast.push(`${ok} of ${result.replayed.length} event${result.replayed.length === 1 ? '' : 's'} processed.`, ok === result.replayed.length ? 'ok' : 'error');
+    state.reload();
+  });
+  const rows = state.data?.failed ?? [];
+  return (
+    <Panel
+      title="Payment webhooks that failed"
+      description="Events of the payment provider that could not be processed. Run one again after the cause is fixed."
+      action={mayWrite && rows.length > 1 ? <button type="button" className={densePrimary} disabled={replay.pending} onClick={() => void replay.run()}>Replay all</button> : undefined}
+    >
+      {state.loading && !state.data ? (
+        <LoadingBlock rows={1} label="Loading the failed events" />
+      ) : state.error ? (
+        <ErrorState title="The failed events could not be loaded" message={state.error.message} onRetry={state.reload} />
+      ) : rows.length === 0 ? (
+        <EmptyState title="Nothing failed." description="Every event of the payment provider was processed." />
+      ) : (
+        <ul className="grid gap-2">
+          {rows.map((event) => (
+            <li key={event.id} className="grid gap-1.5 rounded-2xl bg-s2 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="text-[14px] font-semibold text-ink">{event.type} <span className="font-mono text-[12px] font-normal text-ink3">{event.eventId}</span></p>
+                <span className="text-[12.5px] text-ink3">{fmtDateTime(event.createdAt)} · {event.attempts} attempt{event.attempts === 1 ? '' : 's'}</span>
+              </div>
+              <p className="break-words font-mono text-[12.5px] text-bad">{event.error || 'No reason was recorded.'}</p>
+              {mayWrite && (
+                <div>
+                  <button type="button" className={denseSoft} disabled={replay.pending} onClick={() => void replay.run(event.eventId)}>Replay</button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
 export default function Ops() {
   const session = useAdminSession();
   const staff = session.staff;
@@ -567,6 +616,8 @@ export default function Ops() {
           {(data) => <OpsHeadline health={data} />}
         </OpsRegion>
       </Panel>
+
+      <FailedWebhooks mayWrite={mayWrite} />
 
       <Panel title="Checks" description="Every check of the sweep, with its state, its sentence and the numbers behind it.">
         <OpsRegion state={health} loadingLabel="Loading the checks" errorTitle="The checks could not be loaded">
