@@ -69,6 +69,26 @@ function statusLabel(status: string): string {
   return STATUS_LABEL[status.toLowerCase()] ?? status.replace(/_/g, ' ');
 }
 
+/** Before a ticket: a search of the documentation, because most questions already have an answer there. */
+function DocsSearch() {
+  const [term, setTerm] = useState('');
+  return (
+    <form
+      role="search"
+      className="flex flex-wrap items-end gap-2 rounded-2xl bg-s2 p-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        window.location.assign(`/docs${term.trim() ? `?q=${encodeURIComponent(term.trim())}` : ''}`);
+      }}
+    >
+      <div className="min-w-[14rem] flex-1">
+        <TextInput label="Search the documentation first" value={term} onChange={(event) => setTerm(event.target.value)} placeholder="backups, domains, invoices…" hint="Most questions already have an answer. If yours does not, open a ticket." autoComplete="off" />
+      </div>
+      <SoftButton type="submit">Search</SoftButton>
+    </form>
+  );
+}
+
 export default function Tickets() {
   const toast = useToast();
   const [creating, setCreating] = useState(false);
@@ -107,6 +127,8 @@ export default function Tickets() {
           }}
         />
       )}
+
+      {!creating && <DocsSearch />}
 
       <Panel
         title="Your tickets"

@@ -38,7 +38,9 @@ function articlesOfGroup(groupId: string): Article[] {
 
 /** The index of the documentation. */
 export function DocsIndex() {
-  const [query, setQuery] = useState('');
+  // A search that comes from another page (the support page of the dashboard) arrives as ?q=.
+  const initial = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') ?? '' : '';
+  const [query, setQuery] = useState(initial);
   const groups = docGroups;
   const found = useMemo(() => {
     const needle = query.trim().toLowerCase();
