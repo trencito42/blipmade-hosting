@@ -141,6 +141,24 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     return { replies };
   });
 
+  // --- knowledge base for the team ---------------------------------------------------------------
+  const KB_KEY = 'support.knowledge';
+  const kbSchema = z.array(z.object({ id: z.string().min(1).max(40), title: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(20_000), tags: z.array(z.string().trim().toLowerCase().max(24)).max(8).default([]) })).max(300);
+
+  app.get('/admin/support/knowledge', { preHandler: [requirePermission('tickets.read')] }, async () => {
+    const row = await prisma.setting.findUnique({ where: { key: KB_KEY } });
+    const parsed = kbSchema.safeParse(row?.value);
+    return { articles: parsed.success ? parsed.data : [] };
+  });
+
+  app.put('/admin/support/knowledge', { preHandler: [requirePermission('tickets.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const articles = kbSchema.parse((request.body as { articles?: unknown } | null)?.articles ?? []);
+    await prisma.setting.upsert({ where: { key: KB_KEY }, create: { key: KB_KEY, value: articles }, update: { value: articles } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.support_knowledge_saved', meta: { count: articles.length }, ip: request.ip });
+    return { articles };
+  });
+
   // --- accounting export -----------------------------------------------------------------------
 
   // One row per invoice for the accountant or an accounting program. The tax and the country of

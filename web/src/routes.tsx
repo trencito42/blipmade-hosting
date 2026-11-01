@@ -67,6 +67,7 @@ const AdminVps = lazy(() => import('./admin/Vps'));
 const AdminProducts = lazy(() => import('./admin/Products'));
 const AdminPricing = lazy(() => import('./admin/Pricing'));
 const AdminTickets = lazy(() => import('./admin/Tickets'));
+const AdminKnowledge = lazy(() => import('./admin/Knowledge'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
 const AdminPromotionDetail = lazy(() => import('./admin/PromotionDetail'));
 const AdminInfrastructure = lazy(() => import('./admin/Infrastructure'));
@@ -144,6 +145,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
+  { pattern: '/admin/knowledge', component: AdminKnowledge, title: 'Knowledge base', area: 'admin', exact: true },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
   { pattern: '/admin/promotions/:id', component: AdminPromotionDetail, title: 'Campaign control', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },

@@ -819,6 +819,11 @@ export async function notifyServiceIncident(input: Recipient & {
   await publish('service.incident', input.instanceName, input.userId, { service: input.instanceName, message: input.message }, input.occurrence ?? null);
 }
 
+/** A service uses most of what its plan gives it, and its owner asked to be told. */
+export async function notifyResourceHigh(input: Recipient & { instanceName: string; message: string; occurrence?: string | Date | null }): Promise<void> {
+  await publish('service.resource_high', input.instanceName, input.userId, { service: input.instanceName, message: input.message }, input.occurrence ?? null);
+}
+
 /** A service that stopped serving serves again. */
 export async function notifyServiceRestored(input: Recipient & {
   instanceName: string;

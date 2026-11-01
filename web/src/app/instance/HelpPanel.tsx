@@ -39,6 +39,17 @@ export default function HelpPanel({ instance, productSlug }: TabProps & { produc
 
   return (
     <div className="grid gap-4">
+      <details className="rounded-2xl border border-line bg-card p-4 text-[14px] text-ink2">
+        <summary className="cursor-pointer text-[14.5px] font-semibold text-ink">Moving an existing server here</summary>
+        <ol className="mt-3 grid gap-1.5 pl-5" style={{ listStyle: 'decimal' }}>
+          <li>Stop the old server and make a full copy of its files (a .zip or .tar.gz). Stopping it first keeps the copy consistent.</li>
+          <li>Upload the copy in the Files tab, or use SFTP (Settings tab) for large files, and unpack it in the server folder.</li>
+          <li>For a database, export it as a .sql file where it is now and import it into a database made in the Databases tab. Update the host and the password in your app.</li>
+          <li>For Minecraft, upload the world folder and the plugins folder; keep the version of the server the same as the old one at first.</li>
+          <li>Start the server, read the Console tab, and check it works before you point your domain at it.</li>
+        </ol>
+        <p className="mt-3 text-[13px] text-ink3">What does not move by itself: your domain and its DNS, secrets in environment variables, scheduled jobs of the old host, and anything that was outside the server folder.</p>
+      </details>
       {steps.length > 0 && (
         <Panel title="First steps" description="What most people do next with this product.">
           <ol className="grid gap-1.5 pl-5 text-[14px] text-ink2" style={{ listStyle: 'decimal' }}>

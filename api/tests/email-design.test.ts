@@ -135,6 +135,7 @@ const EVENT_EXAMPLES = {
   'service.upgrade_completed': { service: 'blog', change: 'The plan changed to Business.' },
   'service.upgrade_failed': { service: 'blog', reason: 'The node had no space.' },
   'service.incident': { service: 'blog', message: 'The node was replaced.' },
+  'service.resource_high': { service: 'blog', message: 'Memory use is at 93% of the plan (you asked to be told at 90%).' },
   'service.restored': { service: 'blog', message: 'The node is back.' },
 
   'ticket.created': { ticket: 'BM-TIC-00001', subject: 'The server does not start' },
@@ -300,6 +301,7 @@ const REQUIRED_IDS = [
   'service-upgrade-completed',
   'service-upgrade-failed',
   'service-incident',
+  'service-resource-high',
   'service-restored',
   'ticket-created',
   'ticket-opened-for-staff',

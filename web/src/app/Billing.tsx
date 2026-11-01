@@ -346,6 +346,8 @@ export default function Billing() {
     (signal) => get<{ orders: PendingOrder[] }>('/orders', undefined, signal),
     [],
   );
+  // Services that were cancelled: when their files are removed, so nothing is a surprise.
+  const closedState = useAsync<{ services: { id: string; name: string; cancelledAt: string; deletedOn: string }[] }>((signal) => get('/billing/closed-services', undefined, signal), []);
   const subscriptionsState = useAsync<{ subscriptions: Subscription[] }>(
     (signal) => get<{ subscriptions: Subscription[] }>('/billing/subscriptions', undefined, signal),
     [],
@@ -531,6 +533,19 @@ export default function Billing() {
           </>
         ) : null}
       </section>
+
+      {(closedState.data?.services.length ?? 0) > 0 && (
+        <Panel title="Closed services" description="These were cancelled. Their files are kept until the date below, then removed for good. You cannot open them any more; download what you need from a backup before then.">
+          <ul className="grid gap-2">
+            {closedState.data!.services.map((service) => (
+              <li key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 p-3.5 text-[14px]">
+                <span className="min-w-0 break-words font-semibold text-ink">{service.name}</span>
+                <span className="text-[13px] text-ink2">Files removed on {new Date(service.deletedOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       {/* Payment method action */}
       <Panel

@@ -122,6 +122,7 @@ export interface EventPayloadMap {
   'service.upgrade_failed': { service: string; reason: string };
   'service.incident': { service: string; message: string };
   'service.restored': { service: string; message: string };
+  'service.resource_high': { service: string; message: string };
 
   'ticket.created': { ticket: string; subject: string };
   'ticket.opened_for_staff': { ticket: string; subject: string; customer: string };
@@ -781,6 +782,17 @@ export const EVENT_DEFINITIONS: EventRegistry = {
     audience: 'customer',
     title: (payload) => `An incident touches ${payload.service}`,
     body: (payload) => payload.message,
+  }),
+  'service.resource_high': definition({
+    type: 'service.resource_high',
+    template: 'service-resource-high',
+    channels: ['email', 'in_app'],
+    category: 'incidents',
+    classification: 'essential',
+    audience: 'customer',
+    title: (payload) => `${payload.service} is close to its limit`,
+    body: (payload) => payload.message,
+    link: () => ({ url: '/app/instances', label: 'Open your services' }),
   }),
   'service.restored': definition({
     type: 'service.restored',

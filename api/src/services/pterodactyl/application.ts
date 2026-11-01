@@ -560,6 +560,27 @@ export async function createUser(input: {
   return result.attributes;
 }
 
+/** One account of the panel. */
+export async function getUser(userId: number): Promise<PteroUser & { first_name?: string; last_name?: string }> {
+  const result = await applicationRequest<{ attributes: PteroUser & { first_name?: string; last_name?: string } }>('GET', `/api/application/users/${userId}`);
+  return result.attributes;
+}
+
+/**
+ * Sets the password of an account of the panel. The panel wants the whole record, so the rest of it is read and sent back
+ * unchanged. The customer never signs in to the panel: this password is only the one of the SFTP login.
+ */
+export async function setUserPassword(userId: number, password: string): Promise<void> {
+  const user = await getUser(userId);
+  await applicationRequest('PATCH', `/api/application/users/${userId}`, {
+    email: user.email,
+    username: user.username,
+    first_name: user.first_name ?? 'Customer',
+    last_name: user.last_name ?? 'Customer',
+    password,
+  });
+}
+
 /** True when the panel answers, used by the health endpoint. */
 export async function ping(): Promise<boolean> {
   if (!env.pterodactylEnabled) return false;

@@ -884,6 +884,10 @@ model Instance {
   checks        InstanceCheck[]
   offsiteBackups OffsiteBackup[]
   gitDeploy GitDeploy?
+  /// Tell the owner when the memory or the disk use passes this percentage of the plan. Null means no alert.
+  alertMemoryPercent Int?
+  alertDiskPercent   Int?
+  resourceAlertedAt  DateTime?
 }
 
 model InstanceEvent {

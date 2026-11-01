@@ -69,6 +69,8 @@ const UptimeTab = lazy(() => import('./instance/UptimeTab'));
 const GitTab = lazy(() => import('./instance/GitTab'));
 const MinecraftTab = lazy(() => import('./instance/MinecraftTab'));
 const HelpPanel = lazy(() => import('./instance/HelpPanel'));
+const SftpPanel = lazy(() => import('./instance/SftpPanel'));
+const AlertsPanel = lazy(() => import('./instance/AlertsPanel'));
 const AccessTab = lazy(() => import('./instance/AccessTab'));
 const SettingsTab = lazy(() => import('./instance/SettingsTab'));
 const ActivityTab = lazy(() => import('./instance/ActivityTab'));
@@ -818,10 +820,12 @@ export default function InstanceDetail() {
           {tab === 'startup' && <StartupTab instance={instance} />}
           {tab === 'schedules' && <SchedulesTab instance={instance} />}
           {tab === 'settings' && <SettingsTab instance={instance} onGoTo={setTab} />}
+          {tab === 'settings' && (instance.access ?? 'owner') === 'owner' && <div className="mt-4"><SftpPanel instance={instance} /></div>}
           {tab === 'activity' && <ActivityTab instance={instance} />}
           {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
           {tab === 'domains' && <DomainsTab instance={instance} />}
           {tab === 'uptime' && <UptimeTab instance={instance} />}
+          {tab === 'uptime' && (instance.access ?? 'owner') === 'owner' && <div className="mt-4"><AlertsPanel instance={instance} /></div>}
           {tab === 'git' && <GitTab instance={instance} />}
           {tab === 'minecraft' && <MinecraftTab instance={instance} />}
           {tab === 'access' && <AccessTab instance={instance} />}

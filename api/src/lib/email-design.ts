@@ -1265,6 +1265,25 @@ const CATALOGUE: TemplateDefinition[] = [
     details: [{ label: 'Service', value: '{{service.name}}' }],
   },
   {
+    id: 'service-resource-high',
+    version: 1,
+    category: 'incidents',
+    heading: '{{service.name}} is close to its limit',
+    subject: '{{service.name}} is close to its limit',
+    preheader: 'The service {{service.name}} uses most of what its plan gives it.',
+    facts: [
+      ['service.name', 'service'],
+      ['service.message', 'message'],
+    ],
+    status: { tone: 'caution', label: 'Close to the limit' },
+    paragraphs: [
+      '{{service.message}}',
+      'You asked to be told when this happens. When a service reaches its limit it can slow down or stop.',
+      'You can free some space or memory, or raise the plan. You can change or turn off this alert in the Uptime tab of the service.',
+    ],
+    details: [{ label: 'Service', value: '{{service.name}}' }],
+  },
+  {
     id: 'service-restored',
     version: 1,
     category: 'incidents',
