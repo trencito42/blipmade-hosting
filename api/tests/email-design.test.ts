@@ -343,15 +343,15 @@ afterEach(() => {
 
 describe('the catalogue of the templates', () => {
   it('holds exactly the templates the events of the platform expect', () => {
-    expect(REQUIRED_IDS).toHaveLength(75);
+    expect(REQUIRED_IDS).toHaveLength(84);
     expect([...emailTemplateIds()].sort()).toEqual([...REQUIRED_IDS].sort());
     expect(emailTemplateCatalog().map((entry) => entry.id).sort()).toEqual([...REQUIRED_IDS].sort());
-    expect(emailTemplateCatalog()).toHaveLength(75);
+    expect(emailTemplateCatalog()).toHaveLength(84);
   });
 
   it('holds the same templates as the registry of the events', () => {
     const expected = Object.values(EVENT_DEFINITIONS).map((definition) => definition.template);
-    expect(expected).toHaveLength(75);
+    expect(expected).toHaveLength(84);
     expect([...emailTemplateIds()].sort()).toEqual([...expected].sort());
   });
 

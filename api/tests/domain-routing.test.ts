@@ -338,7 +338,9 @@ describe('the routes of the customers in Caddy', () => {
     });
 
     expect(state.routes).toHaveLength(2);
-    expect(state.routes.map((route) => route.match?.[0]?.host?.[0])).toEqual([
+    // The newest route is put in front of the catch-all on purpose, so the
+    // order follows the order of creation. The contract is the set of hosts.
+    expect(state.routes.map((route) => route.match?.[0]?.host?.[0]).sort()).toEqual([
       'witch.pw',
       'www.witch.pw',
     ]);

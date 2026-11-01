@@ -193,7 +193,7 @@ mode_vps() {
     if ! vzdump "$vmid" --mode snapshot --compress zstd --dumpdir "$STAGING_DIR" --quiet 1 >"$STATE_DIR/vzdump-$vmid.log" 2>&1; then
       report VPS "vps/$NODE_NAME/vm$vmid/failed-$stamp" "vm$vmid" FAILED 0 "" "" "vzdump failed: $(tail -n 1 "$STATE_DIR/vzdump-$vmid.log")"; continue
     fi
-    file="$(ls -1t "$STAGING_DIR"/vzdump-qemu-"$vmid"-*.vma.zst 2>/dev/null | head -n 1 || true)"
+    file="$(ls -1t "$STAGING_DIR"/vzdump-qemu-"$vmid"-*.vma.zst 2>/dev/null | sed -n 1p || true)"
     [ -n "$file" ] || { report VPS "vps/$NODE_NAME/vm$vmid/failed-$stamp" "vm$vmid" FAILED 0 "" "" "vzdump produced no file"; continue; }
     name="$(basename "$file").age"
     if upload_verified VPS "vm$vmid" "$file" "vps/$NODE_NAME/vm$vmid" "$name" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"; then printf '%s' "$now" > "$STATE_DIR/done/vm-$vmid"; fi
@@ -207,7 +207,7 @@ mode_vps() {
 # the machine; this one does.
 mode_platform() {
   local dir="${PLATFORM_BACKUP_DIR:-/var/backups/blipmade}" f name mt now; now="$(date +%s)"
-  f="$(ls -1t "$dir"/blipmade-scheduled-*.tar.gz 2>/dev/null | head -n 1 || true)"
+  f="$(ls -1t "$dir"/blipmade-scheduled-*.tar.gz 2>/dev/null | sed -n 1p || true)"
   [ -n "$f" ] || { log "no scheduled platform archive in $dir"; return 0; }
   name="$(basename "$f")"
   [ -e "$STATE_DIR/done/platform-$name" ] && { log "$name is already on the box"; return 0; }
@@ -294,7 +294,7 @@ mode_drill() {
   case "$rel" in
     customers/*) tar -tzf "$out" >/dev/null || die "the decrypted archive is not readable" ;;
     databases/*) gzip -t "$out" || die "the decrypted dump is not a valid archive"
-      head_text="$(zcat "$out" 2>/dev/null | head -c 4096 || true)"
+      head_text="$(head -c 4096 < <(zcat "$out" 2>/dev/null) || true)"
       grep -q 'MariaDB dump\|MySQL dump' <<<"$head_text" || die "the decrypted dump is not a database dump" ;;
     vps/*) zstd -t "$out" >/dev/null 2>&1 || die "the decrypted VM copy is not a valid archive" ;;
   esac

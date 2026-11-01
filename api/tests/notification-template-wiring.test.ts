@@ -38,10 +38,8 @@ const KNOWN_UNREACHABLE: Record<string, string> = {
   // of the address (api/src/lib/email-templates.ts), so the event of the
   // catalogue would be a second message about the same thing.
   'account-email-change-requested': 'the message is delivered by the legacy template of the change of the address',
-  // The platform has no incident of a service and no restoring of one: the
-  // health of a container is shown in the panel and nothing is published.
-  'service-incident': 'no incident of a service is published',
-  'service-restored': 'no incident of a service is published',
+  // The incident and the restore of a service are published by the
+  // monitor of the uptime (api/src/services/uptime.ts).
   'ticket-resolved': 'the ticket of a customer is closed with another event',
   // The platform does not reset the password of a mailbox: the customer asks
   // for a new password of the account.
@@ -103,11 +101,23 @@ async function reachability(): Promise<Map<string, { publisher: string | null; r
   // The source is split on the publishers themselves, so every publish call
   // belongs to the function that holds it and to no other one.
   const publishers = new Map<string, string>();
+  const argumentEvents = new Set<string>();
   for (const chunk of notifications.split(/export async function /).slice(1)) {
     const name = chunk.match(/^([a-zA-Z0-9_]+)/)?.[1];
     if (!name) continue;
     for (const call of chunk.matchAll(/publish\(\s*'([a-z0-9_.]+)'/g)) {
       publishers.set(call[1], name);
+    }
+    // A publisher that takes the event as an argument (`publish(type, ...)`)
+    // serves every event of the union its parameter is typed with. Those
+    // events are reached by a call that names the event as its first argument.
+    if (/publish\(\s*type\b/.test(chunk)) {
+      const union = chunk.match(/\(\s*type:\s*([A-Za-z0-9_]+)/)?.[1];
+      const body = union ? notifications.match(new RegExp(`type ${union} =((?:\\s*\\|\\s*'[a-z0-9_.]+')+)`))?.[1] : undefined;
+      for (const literal of body?.matchAll(/'([a-z0-9_.]+)'/g) ?? []) {
+        publishers.set(literal[1], name);
+        argumentEvents.add(literal[1]);
+      }
     }
   }
 
@@ -116,7 +126,10 @@ async function reachability(): Promise<Map<string, { publisher: string | null; r
 
   for (const event of events) {
     const publisher = publishers.get(event.type) ?? null;
-    const reachable = publisher !== null && new RegExp(`\\b${publisher}\\(`).test(corpus);
+    const call = argumentEvents.has(event.type)
+      ? new RegExp(`\\b${publisher}\\(\\s*'${event.type.replace(/\./g, "\\.")}'`)
+      : new RegExp(`\\b${publisher}\\(`);
+    const reachable = publisher !== null && call.test(corpus);
     result.set(event.type, { publisher, reachable });
   }
 
@@ -128,8 +141,8 @@ describe('the templates of the notification engine', () => {
     const ids = await catalogue();
     const events = await registry();
 
-    expect(ids.length).toBe(75);
-    expect(events.length).toBe(75);
+    expect(ids.length).toBe(84);
+    expect(events.length).toBe(84);
 
     const templates = events.map((event) => event.template).sort();
     expect(templates).toEqual([...ids].sort());
