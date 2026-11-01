@@ -266,6 +266,37 @@
       "sortOrder": 270
     },
     {
+      "slug": "uptime-kuma",
+      "name": "Uptime Kuma",
+      "group": "apps",
+      "category": "MONITORING",
+      "icon": "chart",
+      "description": "A dashboard that watches your services and tells you when one of them stops answering.",
+      "eggFile": "uptime-kuma.json",
+      "eggName": "Uptime Kuma",
+      "dockerImage": "ghcr.io/ptero-eggs/yolks:nodejs_24",
+      "priceBand": "tool",
+      "baseAmount": 299,
+      "minRam": 1024,
+      "defaultRam": 2048,
+      "minCpu": 1,
+      "defaultCpu": 1,
+      "minDisk": 10,
+      "defaultDisk": 20,
+      "maxRam": 8192,
+      "maxCpu": 4,
+      "maxDisk": 100,
+      "upstream": "https://github.com/pterodactyl/application-eggs",
+      "upstreamPath": "application-eggs/uptime-kuma/egg-uptime-kuma.json",
+      "variables": [
+        "GIT_ADDRESS",
+        "JS_FILE",
+        "AUTO_UPDATE"
+      ],
+      "customerVariables": {},
+      "sortOrder": 270
+    },
+    {
       "slug": "languagetool",
       "name": "LanguageTool",
       "group": "apps",

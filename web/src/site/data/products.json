@@ -38,7 +38,7 @@
     "slug": "code-server",
     "name": "Code Server",
     "category": "DEVELOPER_TOOLS",
-    "description": "Visual Studio Code in the browser, running on your own resources.",
+    "description": "Visual Studio Code in your browser, running on the resources you choose.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -73,7 +73,7 @@
     "slug": "discord-bot",
     "name": "Discord Bot",
     "category": "BOTS",
-    "description": "Run a Node.js bot around the clock without a home server. Runs on the verified Node.js image.",
+    "description": "Run a Node.js Discord bot around the clock, without keeping a computer on.",
     "min": {
       "ram": 256,
       "cpu": 1,
@@ -108,7 +108,7 @@
     "slug": "uptime-kuma",
     "name": "Uptime Kuma",
     "category": "MONITORING",
-    "description": "Simple uptime monitoring with public status pages.",
+    "description": "Monitor websites and services, with status pages you can share.",
     "min": {
       "ram": 256,
       "cpu": 1,
@@ -134,18 +134,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "postgresql",
     "name": "PostgreSQL",
     "category": "DATABASES",
-    "description": "PostgreSQL for your applications, with the connection details and a password of your own.",
+    "description": "A PostgreSQL database for your applications, with its own connection details and password.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -177,10 +175,115 @@
     }
   },
   {
+    "slug": "email-hosting-starter",
+    "name": "Email Hosting Starter",
+    "category": "EMAIL_HOSTING",
+    "description": "Hosted mail for one domain, with the mailboxes and the aliases a small team needs.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 299,
+    "recPrice": 299,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "email-hosting-plus",
+    "name": "Email Hosting Plus",
+    "category": "EMAIL_HOSTING",
+    "description": "Hosted mail for a few domains, with more space and a larger sending limit.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 599,
+    "recPrice": 599,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "email-hosting-business",
+    "name": "Email Hosting Business",
+    "category": "EMAIL_HOSTING",
+    "description": "Hosted mail for a company: more domains, more space and a sending limit that follows the business.",
+    "min": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "def": {
+      "ram": 512,
+      "cpu": 1,
+      "disk": 5
+    },
+    "max": {
+      "ram": 16384,
+      "cpu": 4,
+      "disk": 100
+    },
+    "minPrice": 1199,
+    "recPrice": 1199,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
     "slug": "7-days-to-die",
     "name": "7 Days to Die",
     "category": "GAMES",
-    "description": "The survival of the horde, on the server of Steam.",
+    "description": "A survival server where zombie hordes grow stronger every seventh night.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -217,7 +320,7 @@
     "slug": "ark-survival-evolved",
     "name": "ARK: Survival Evolved",
     "category": "GAMES",
-    "description": "The survival of the dinosaurs, on the server of Steam.",
+    "description": "Dinosaur survival, crafting and taming on a dedicated ARK server.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -254,7 +357,7 @@
     "slug": "cs2d",
     "name": "CS2D",
     "category": "GAMES",
-    "description": "The two dimensional counterpart of Counter-Strike, light and free.",
+    "description": "A free 2D take on Counter-Strike, light enough for a small server.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -280,18 +383,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "conan-exiles",
     "name": "Conan Exiles",
     "category": "GAMES",
-    "description": "The survival of the age of Conan, on the server of Steam.",
+    "description": "A survival server set in the savage lands of Conan's world.",
     "min": {
       "ram": 6144,
       "cpu": 2,
@@ -317,18 +418,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "core-keeper",
     "name": "Core Keeper",
     "category": "GAMES",
-    "description": "The mining of the dungeon, with the guardians of the core.",
+    "description": "Mine, craft and fight underground in a shared Core Keeper world.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -354,18 +453,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "counter-strike-1-6",
     "name": "Counter-Strike 1.6",
     "category": "GAMES",
-    "description": "The classic of the competitive shooters, on the reHLDS engine.",
+    "description": "The classic competitive shooter, running on the ReHLDS engine.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -402,7 +499,7 @@
     "slug": "counter-strike-2",
     "name": "Counter-Strike 2",
     "category": "GAMES",
-    "description": "The competitive shooter, on the server of Steam.",
+    "description": "A dedicated Counter-Strike 2 server for matches with your community.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -439,7 +536,7 @@
     "slug": "dayz",
     "name": "DayZ",
     "category": "GAMES",
-    "description": "The survival of Chernarus, on the server of Steam.",
+    "description": "A survival server set in Chernarus, with other players and the infected.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -476,7 +573,7 @@
     "slug": "dont-starve-together",
     "name": "Don't Starve Together",
     "category": "GAMES",
-    "description": "The survival of the dark, with the seasons of the world.",
+    "description": "A co-operative survival world with seasons, bosses and mods.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -513,7 +610,7 @@
     "slug": "factorio",
     "name": "Factorio",
     "category": "GAMES",
-    "description": "The factory that has to be free of itself.",
+    "description": "Build and automate factories together on a dedicated multiplayer server.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -539,18 +636,156 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "vps-start",
+    "name": "VPS Start",
+    "category": "VPS",
+    "description": "A small server of your own, with root access. For a bot, a test or a small API.",
+    "min": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 20
+    },
+    "def": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 20
+    },
+    "max": {
+      "ram": 1024,
+      "cpu": 1,
+      "disk": 20
+    },
+    "minPrice": 249,
+    "recPrice": 249,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "vps-plus",
+    "name": "VPS Plus",
+    "category": "VPS",
+    "description": "Two vCPU and 2 GB of memory for a website, an API with a small database, or a CI runner.",
+    "min": {
+      "ram": 2048,
+      "cpu": 2,
+      "disk": 30
+    },
+    "def": {
+      "ram": 2048,
+      "cpu": 2,
+      "disk": 30
+    },
+    "max": {
+      "ram": 2048,
+      "cpu": 2,
+      "disk": 30
+    },
+    "minPrice": 349,
+    "recPrice": 349,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "vps-pro",
+    "name": "VPS Pro",
+    "category": "VPS",
+    "description": "Room for the backend of an application: the API, its database and a worker on one machine.",
+    "min": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "def": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "max": {
+      "ram": 4096,
+      "cpu": 2,
+      "disk": 50
+    },
+    "minPrice": 449,
+    "recPrice": 449,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
+    }
+  },
+  {
+    "slug": "vps-max",
+    "name": "VPS Max",
+    "category": "VPS",
+    "description": "Four vCPU and 8 GB of memory for a busy backend or several services on one machine.",
+    "min": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 80
+    },
+    "def": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 80
+    },
+    "max": {
+      "ram": 8192,
+      "cpu": 4,
+      "disk": 80
+    },
+    "minPrice": 699,
+    "recPrice": 699,
+    "rates": {
+      "ramPerGb": 200,
+      "cpuPerUnit": 75,
+      "diskPerGb": 5,
+      "baseFee": 49
+    },
+    "currency": "EUR",
+    "availability": {
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "5e-tools",
     "name": "5e Tools",
     "category": "AUTOMATION",
-    "description": "The tools of the counter-strike, for the server that plays it.",
+    "description": "A self-hosted reference for Dungeons & Dragons 5th edition, loaded from a repository you provide.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -587,7 +822,7 @@
     "slug": "fivem",
     "name": "FiveM",
     "category": "GAMES",
-    "description": "The server of the role play of Grand Theft Auto, with the resources of the community.",
+    "description": "A FiveM server for Grand Theft Auto V roleplay, with community resources.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -624,7 +859,7 @@
     "slug": "elasticsearch",
     "name": "Elasticsearch",
     "category": "DEVELOPER_TOOLS",
-    "description": "The search of the documents, with the index of the text.",
+    "description": "A search and analytics engine for indexing and querying text and logs.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -659,7 +894,7 @@
     "slug": "garrys-mod",
     "name": "Garry's Mod",
     "category": "GAMES",
-    "description": "The sandbox of Valve, where the server is a playground of contraptions.",
+    "description": "A sandbox game server with community addons and game modes.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -694,7 +929,7 @@
     "slug": "folding-at-home",
     "name": "Folding@Home",
     "category": "AUTOMATION",
-    "description": "The computing that helps the research, with the team of the projects.",
+    "description": "Donate spare computing power to medical research with Folding@home.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -729,7 +964,7 @@
     "slug": "hytale",
     "name": "Hytale",
     "category": "GAMES",
-    "description": "The sandbox that Hypixel is building, with the worlds of the players.",
+    "description": "A dedicated server for Hytale worlds.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -766,7 +1001,7 @@
     "slug": "forgejo",
     "name": "Forgejo",
     "category": "DEVELOPER_TOOLS",
-    "description": "The git of the code, on your own server, without a licence.",
+    "description": "A self-hosted Git service with repositories, issues and pull requests.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -792,18 +1027,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "left-4-dead-2",
     "name": "Left 4 Dead 2",
     "category": "GAMES",
-    "description": "The cooperative shooter of Valve, with the survivors and the infected.",
+    "description": "A co-operative zombie shooter server from Valve.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -838,7 +1071,7 @@
     "slug": "gitea",
     "name": "Gitea",
     "category": "DEVELOPER_TOOLS",
-    "description": "The git of the code, with the wiki and the issues.",
+    "description": "A lightweight self-hosted Git service with a wiki and issue tracking.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -873,7 +1106,7 @@
     "slug": "minecraft-bedrock",
     "name": "Minecraft Bedrock",
     "category": "GAMES",
-    "description": "The edition of Minecraft that runs on phones and consoles, playable with the Java edition too.",
+    "description": "A Minecraft Bedrock server for players on phones, consoles and Windows.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -908,7 +1141,7 @@
     "slug": "grafana",
     "name": "Grafana",
     "category": "MONITORING",
-    "description": "The panels of the metrics, with the graphs of everything the platform measures.",
+    "description": "Dashboards and alerts for the metrics and logs of your services.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -943,7 +1176,7 @@
     "slug": "minecraft-folia",
     "name": "Minecraft Folia",
     "category": "GAMES",
-    "description": "The version of Minecraft built for many players at once, with the regions of the world spread over many cores.",
+    "description": "A Minecraft server built for many players at once, spreading the world over several CPU cores.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -969,18 +1202,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "haste-server",
     "name": "Haste",
     "category": "DEVELOPER_TOOLS",
-    "description": "The paste of the code, the files that are shared with a link.",
+    "description": "A pastebin for sharing code and text with a link.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1017,7 +1248,7 @@
     "slug": "minecraft-forge",
     "name": "Minecraft Forge",
     "category": "GAMES",
-    "description": "Minecraft with the mod loader, for the servers that run mods.",
+    "description": "A Minecraft server with the Forge mod loader, for modded play.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -1043,18 +1274,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "languagetool",
     "name": "LanguageTool",
     "category": "DEVELOPER_TOOLS",
-    "description": "The proofreader of the text, in the language of the reader.",
+    "description": "A grammar and spelling checker you host yourself.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -1089,7 +1318,7 @@
     "slug": "minecraft-paper",
     "name": "Minecraft Paper",
     "category": "GAMES",
-    "description": "The most played sandbox in the world, on Paper: the server that runs the plugins.",
+    "description": "A fast Minecraft Java server with plugin support, based on Paper.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -1124,7 +1353,7 @@
     "slug": "lavalink",
     "name": "Lavalink",
     "category": "AUTOMATION",
-    "description": "The music of the bots of Discord, served from your own node.",
+    "description": "An audio streaming node for Discord music bots.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1159,7 +1388,7 @@
     "slug": "palworld",
     "name": "Palworld",
     "category": "GAMES",
-    "description": "The survival of the creatures, with the factories of the bases.",
+    "description": "A survival server where you catch creatures and build bases.",
     "min": {
       "ram": 16384,
       "cpu": 4,
@@ -1185,18 +1414,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "loki",
     "name": "Loki",
     "category": "MONITORING",
-    "description": "The logs of the services, gathered where the metrics live.",
+    "description": "Log aggregation for your services, designed to work with Grafana.",
     "min": {
       "ram": 3072,
       "cpu": 1,
@@ -1222,18 +1449,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "project-zomboid",
     "name": "Project Zomboid",
     "category": "GAMES",
-    "description": "The survival of the zombies that tells a story, on the server of Steam.",
+    "description": "A zombie survival server with a persistent open world.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -1270,7 +1495,7 @@
     "slug": "dotnet",
     "name": ".NET",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of .NET, for the service that is built with C#.",
+    "description": "A runtime for .NET services, for code you write in C# or F#.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -1307,7 +1532,7 @@
     "slug": "mariadb",
     "name": "MariaDB",
     "category": "DATABASES",
-    "description": "The database of MySQL, for the applications that ask for it.",
+    "description": "A MariaDB database, compatible with MySQL, for applications that need it.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -1342,7 +1567,7 @@
     "slug": "rust",
     "name": "Rust",
     "category": "GAMES",
-    "description": "The survival of the raiders, on the server of Steam.",
+    "description": "A multiplayer survival server where you gather, build and raid.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -1368,18 +1593,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "dart",
     "name": "Dart",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Dart, for the service that is built with Flutter.",
+    "description": "A runtime for Dart services, for code you write in Dart.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1416,7 +1639,7 @@
     "slug": "meilisearch",
     "name": "Meilisearch",
     "category": "DEVELOPER_TOOLS",
-    "description": "The search that is fast and that forgives a typo.",
+    "description": "A fast search engine that tolerates typos, for your site or application.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1451,7 +1674,7 @@
     "slug": "samp",
     "name": "SA-MP",
     "category": "GAMES",
-    "description": "The multiplayer of Grand Theft Auto that runs on a small server.",
+    "description": "A San Andreas Multiplayer server for Grand Theft Auto: San Andreas.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -1477,18 +1700,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "deno",
     "name": "Deno",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Deno, for the service of your own code.",
+    "description": "A runtime for Deno services, for the JavaScript and TypeScript you write.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1525,7 +1746,7 @@
     "slug": "minio",
     "name": "MinIO",
     "category": "DEVELOPER_TOOLS",
-    "description": "The storage of the objects, with the API of S3.",
+    "description": "S3-compatible object storage for files and backups.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -1562,7 +1783,7 @@
     "slug": "satisfactory",
     "name": "Satisfactory",
     "category": "GAMES",
-    "description": "The factory of the planets, on the server of Steam.",
+    "description": "A factory-building game server for you and your friends.",
     "min": {
       "ram": 8192,
       "cpu": 2,
@@ -1599,7 +1820,7 @@
     "slug": "elixir",
     "name": "Elixir",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Elixir, for the service that is built with the BEAM.",
+    "description": "A runtime for Elixir services, running on the Erlang VM.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1636,7 +1857,7 @@
     "slug": "mongodb",
     "name": "MongoDB",
     "category": "DATABASES",
-    "description": "The database of the documents, for the data that has no shape.",
+    "description": "A MongoDB document database for applications with flexible data.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -1662,18 +1883,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "sons-of-the-forest",
     "name": "Sons of the Forest",
     "category": "GAMES",
-    "description": "The survival of the forest that followed The Forest, on the server of Steam.",
+    "description": "A survival horror server set on a remote island.",
     "min": {
       "ram": 8192,
       "cpu": 2,
@@ -1710,7 +1929,7 @@
     "slug": "golang",
     "name": "Go",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Go, for the service that is built in Go.",
+    "description": "A runtime for Go services, started from a program you build and upload.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1747,7 +1966,7 @@
     "slug": "nats",
     "name": "NATS",
     "category": "AUTOMATION",
-    "description": "The messages between the services, with the subject of the message.",
+    "description": "A lightweight messaging system for connecting your services.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1782,7 +2001,7 @@
     "slug": "space-engineers",
     "name": "Space Engineers",
     "category": "GAMES",
-    "description": "The engineering in space, on the server of Steam.",
+    "description": "A server for building and surviving in space.",
     "min": {
       "ram": 6144,
       "cpu": 2,
@@ -1808,18 +2027,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "java",
     "name": "Java",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Java, for the service that runs on a jar.",
+    "description": "A runtime for Java services, started from a jar file you upload.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -1856,7 +2073,7 @@
     "slug": "owncast",
     "name": "Owncast",
     "category": "AUTOMATION",
-    "description": "The streaming of the video, with the page of the channel.",
+    "description": "A self-hosted live streaming server with its own chat and channel page.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -1882,18 +2099,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "stationeers",
     "name": "Stationeers",
     "category": "GAMES",
-    "description": "The engineering of the station, in the universe of Kerbal.",
+    "description": "A space station engineering and survival game server.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -1930,7 +2145,7 @@
     "slug": "lua",
     "name": "Lua",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Lua, for the script of the game and for the small service.",
+    "description": "A runtime for Lua scripts and small services.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -1956,18 +2171,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "prometheus",
     "name": "Prometheus",
     "category": "MONITORING",
-    "description": "The collection of the metrics that the monitoring reads.",
+    "description": "A metrics collection and alerting system for your services.",
     "min": {
       "ram": 3072,
       "cpu": 1,
@@ -2002,7 +2215,7 @@
     "slug": "subnautica",
     "name": "Subnautica",
     "category": "GAMES",
-    "description": "The survival under the water, on the server of Steam.",
+    "description": "A multiplayer server for the underwater survival game.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -2039,7 +2252,7 @@
     "slug": "nodejs",
     "name": "Node.js",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Node.js, for the service of your own code.",
+    "description": "A runtime for Node.js services, for code you write in JavaScript or TypeScript.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -2074,7 +2287,7 @@
     "slug": "rabbitmq",
     "name": "RabbitMQ",
     "category": "AUTOMATION",
-    "description": "The queue of the messages, with the consumers that wait for them.",
+    "description": "A message broker that queues work between your services.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -2100,18 +2313,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "team-fortress-2",
     "name": "Team Fortress 2",
     "category": "GAMES",
-    "description": "The free shooter of Valve, with its classes and its modes.",
+    "description": "A free-to-play team shooter server with classes and game modes.",
     "min": {
       "ram": 2048,
       "cpu": 2,
@@ -2137,18 +2348,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "python",
     "name": "Python",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Python, for the script and for the service of your own code.",
+    "description": "A runtime for Python scripts and services, for code you write.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -2174,18 +2383,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "redis",
     "name": "Redis",
     "category": "DATABASES",
-    "description": "The cache and the queue in memory, for the fast part of an application.",
+    "description": "An in-memory data store, for caching and queues.",
     "min": {
       "ram": 4096,
       "cpu": 1,
@@ -2220,7 +2427,7 @@
     "slug": "terraria",
     "name": "Terraria",
     "category": "GAMES",
-    "description": "The two dimensional adventure of sandbox and of bosses, on TShock.",
+    "description": "A Terraria server with TShock, for exploring, building and fighting bosses together.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -2255,7 +2462,7 @@
     "slug": "reposilite",
     "name": "Reposilite",
     "category": "DEVELOPER_TOOLS",
-    "description": "The repository of the packages, for the teams that build with them.",
+    "description": "A lightweight repository for Maven and other packages.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -2281,18 +2488,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "rust-runtime",
     "name": "Rust Runtime",
     "category": "DEVELOPER_TOOLS",
-    "description": "The runtime of Rust, for the service that is built in Rust.",
+    "description": "A runtime for Rust services, built from your own source code.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -2329,7 +2534,7 @@
     "slug": "the-forest",
     "name": "The Forest",
     "category": "GAMES",
-    "description": "The survival of the cannibal, on the server of Steam.",
+    "description": "A survival horror server set in a forest.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -2355,18 +2560,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "sftp-share",
     "name": "SFTP Share",
     "category": "AUTOMATION",
-    "description": "The files of the team, reached over SFTP and over the browser.",
+    "description": "A shared file space, reachable over SFTP.",
     "min": {
       "ram": 512,
       "cpu": 1,
@@ -2403,7 +2606,7 @@
     "slug": "unturned",
     "name": "Unturned",
     "category": "GAMES",
-    "description": "The survival of the zombies that runs on any machine.",
+    "description": "A zombie survival server for Unturned.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -2429,18 +2632,16 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
     "slug": "teamspeak-6",
     "name": "TeamSpeak 6",
     "category": "BOTS",
-    "description": "The voice of the teams and of the games, with the channels of your own server.",
+    "description": "A voice chat server with channels of your own.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -2477,7 +2678,7 @@
     "slug": "valheim",
     "name": "Valheim",
     "category": "GAMES",
-    "description": "The survival of the vikings, on the server of Steam.",
+    "description": "A Viking survival server for co-operative play.",
     "min": {
       "ram": 4096,
       "cpu": 2,
@@ -2514,7 +2715,7 @@
     "slug": "vintage-story",
     "name": "Vintage Story",
     "category": "GAMES",
-    "description": "The voxel survival that asks for a long craft, and it is free.",
+    "description": "A voxel survival server with deep crafting.",
     "min": {
       "ram": 2048,
       "cpu": 1,
@@ -2551,7 +2752,7 @@
     "slug": "yarr",
     "name": "Yarr",
     "category": "AUTOMATION",
-    "description": "The manager of the downloads, with the search of what was wanted.",
+    "description": "A self-hosted RSS feed reader.",
     "min": {
       "ram": 1024,
       "cpu": 1,
@@ -2577,11 +2778,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   }
 ]

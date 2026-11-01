@@ -1,17 +1,161 @@
 {
-  "elasticsearch": { "kind": "tcp" },
-  "folding-at-home": { "kind": "tcp" },
-  "garrys-mod": { "kind": "tcp" },
-  "gitea": { "kind": "http", "path": "/" },
-  "languagetool": { "kind": "http", "path": "/", "expectStatus": [400] },
-  "lavalink": { "kind": "http", "path": "/", "expectStatus": [401] },
-  "left-4-dead-2": { "kind": "tcp" },
-  "mariadb": { "kind": "tcp" },
-  "meilisearch": { "kind": "http", "path": "/" },
-  "minecraft-bedrock": { "kind": "http", "path": "/", "expectStatus": [404] },
-  "minecraft-paper": { "kind": "tcp" },
-  "nats": { "kind": "tcp" },
-  "nodejs": { "kind": "http", "path": "/" },
-  "prometheus": { "kind": "http", "path": "/" },
-  "terraria": { "kind": "tcp", "warmupSeconds": 900 }
+  "code-server": {
+    "kind": "http",
+    "path": "/"
+  },
+  "conan-exiles": {
+    "kind": "container"
+  },
+  "core-keeper": {
+    "kind": "container"
+  },
+  "cs2d": {
+    "kind": "container"
+  },
+  "discord-bot": {
+    "kind": "container"
+  },
+  "elasticsearch": {
+    "kind": "tcp"
+  },
+  "factorio": {
+    "kind": "container"
+  },
+  "folding-at-home": {
+    "kind": "tcp"
+  },
+  "forgejo": {
+    "kind": "http",
+    "path": "/"
+  },
+  "garrys-mod": {
+    "kind": "tcp"
+  },
+  "gitea": {
+    "kind": "http",
+    "path": "/"
+  },
+  "grafana": {
+    "kind": "http",
+    "path": "/"
+  },
+  "languagetool": {
+    "kind": "http",
+    "path": "/",
+    "expectStatus": [
+      400
+    ]
+  },
+  "lavalink": {
+    "kind": "http",
+    "path": "/",
+    "expectStatus": [
+      401
+    ]
+  },
+  "left-4-dead-2": {
+    "kind": "tcp"
+  },
+  "loki": {
+    "kind": "tcp"
+  },
+  "lua": {
+    "kind": "http",
+    "path": "/"
+  },
+  "mariadb": {
+    "kind": "tcp"
+  },
+  "meilisearch": {
+    "kind": "http",
+    "path": "/"
+  },
+  "minecraft-bedrock": {
+    "kind": "http",
+    "path": "/",
+    "expectStatus": [
+      404
+    ]
+  },
+  "minecraft-folia": {
+    "kind": "tcp"
+  },
+  "minecraft-forge": {
+    "kind": "tcp"
+  },
+  "minecraft-paper": {
+    "kind": "tcp"
+  },
+  "mongodb": {
+    "kind": "tcp"
+  },
+  "nats": {
+    "kind": "tcp"
+  },
+  "nodejs": {
+    "kind": "http",
+    "path": "/"
+  },
+  "owncast": {
+    "kind": "http",
+    "path": "/"
+  },
+  "palworld": {
+    "kind": "container"
+  },
+  "postgresql": {
+    "kind": "tcp"
+  },
+  "prometheus": {
+    "kind": "http",
+    "path": "/"
+  },
+  "python": {
+    "kind": "http",
+    "path": "/"
+  },
+  "rabbitmq": {
+    "kind": "tcp"
+  },
+  "redis": {
+    "kind": "tcp"
+  },
+  "reposilite": {
+    "kind": "http",
+    "path": "/"
+  },
+  "rust": {
+    "kind": "container"
+  },
+  "samp": {
+    "kind": "container"
+  },
+  "space-engineers": {
+    "kind": "container"
+  },
+  "team-fortress-2": {
+    "kind": "tcp"
+  },
+  "terraria": {
+    "kind": "tcp",
+    "warmupSeconds": 900
+  },
+  "the-forest": {
+    "kind": "container"
+  },
+  "unturned": {
+    "kind": "container"
+  },
+  "uptime-kuma": {
+    "kind": "http",
+    "path": "/"
+  },
+  "wordpress": {
+    "kind": "http",
+    "path": "/"
+  },
+  "yarr": {
+    "kind": "http",
+    "path": "/"
+  }
 }

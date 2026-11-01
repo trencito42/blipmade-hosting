@@ -80,17 +80,15 @@
   {
     "id": "wordpress",
     "title": "WordPress",
-    "summary": "What you get today when you order WordPress, and what the platform does not install yet.",
+    "summary": "The most widely used publishing platform, for sites, blogs and shops. What a deployment of WordPress does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
       "wordpress",
-      "cms",
-      "blog",
-      "php",
+      "web cms",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "wordpress"
   },
   {
@@ -112,65 +110,57 @@
   {
     "id": "forgejo",
     "title": "Forgejo",
-    "summary": "What you get today when you order Forgejo, and what the platform does not install yet.",
+    "summary": "A self-hosted Git service with repositories, issues and pull requests. What a deployment of Forgejo does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
       "forgejo",
-      "git",
-      "repository",
-      "node",
+      "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "forgejo"
   },
   {
     "id": "code-server",
     "title": "Code Server",
-    "summary": "What you get today when you order Code Server, and what the platform does not install yet.",
+    "summary": "Visual Studio Code in your browser, running on the resources you choose. What a deployment of Code Server does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
       "code server",
-      "vscode",
-      "editor",
-      "browser",
+      "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "code-server"
   },
   {
     "id": "uptime-kuma",
     "title": "Uptime Kuma",
-    "summary": "What you get today when you order Uptime Kuma, and what the platform does not install yet.",
+    "summary": "Monitor websites and services, with status pages you can share. What a deployment of Uptime Kuma does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
       "uptime kuma",
       "monitoring",
-      "status page",
-      "http",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "uptime-kuma"
   },
   {
     "id": "grafana",
     "title": "Grafana",
-    "summary": "What you get today when you order Grafana, and what the platform does not install yet.",
+    "summary": "Dashboards and alerts for the metrics and logs of your services. What a deployment of Grafana does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
       "grafana",
-      "dashboard",
-      "metrics",
       "monitoring",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "grafana"
   },
   {
@@ -192,33 +182,29 @@
   {
     "id": "discord-bot",
     "title": "Discord Bot",
-    "summary": "What you get today when you order the Discord Bot, and what the platform does not install yet.",
+    "summary": "Run a Node.js Discord bot around the clock, without keeping a computer on. What a deployment of Discord Bot does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
-      "discord",
-      "bot",
-      "node",
-      "token",
+      "discord bot",
+      "bots",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "discord-bot"
   },
   {
     "id": "postgresql",
     "title": "PostgreSQL",
-    "summary": "What you get today when you order PostgreSQL, and where the databases of an instance live.",
+    "summary": "A PostgreSQL database for your applications, with its own connection details and password. What a deployment of PostgreSQL does today, and what the platform checks.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
       "postgresql",
-      "postgres",
-      "sql",
-      "database",
+      "databases",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "postgresql"
   },
   {
@@ -240,33 +226,29 @@
   {
     "id": "redis",
     "title": "Redis",
-    "summary": "What you get today when you order Redis, and where the databases of an instance live.",
+    "summary": "An in-memory data store, for caching and queues. What a deployment of Redis does today, and what the platform checks.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
       "redis",
-      "cache",
-      "database",
-      "key value",
+      "databases",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "redis"
   },
   {
     "id": "mongodb",
     "title": "MongoDB",
-    "summary": "What you get today when you order MongoDB, and where the databases of an instance live.",
+    "summary": "A MongoDB document database for applications with flexible data. What a deployment of MongoDB does today, and what the platform checks.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
       "mongodb",
-      "document",
-      "database",
-      "nosql",
+      "databases",
       "deploy"
     ],
-    "updated": "2026-10-27",
+    "updated": "2026-10-29",
     "catalogSlug": "mongodb"
   },
   {
@@ -746,7 +728,7 @@
   {
     "id": "elasticsearch",
     "title": "Elasticsearch",
-    "summary": "The search of the documents, with the index of the text. What a deployment of Elasticsearch does today, and what the platform checks.",
+    "summary": "A search and analytics engine for indexing and querying text and logs. What a deployment of Elasticsearch does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -760,7 +742,7 @@
   {
     "id": "folding-at-home",
     "title": "Folding@Home",
-    "summary": "The computing that helps the research, with the team of the projects. What a deployment of Folding@Home does today, and what the platform checks.",
+    "summary": "Donate spare computing power to medical research with Folding@home. What a deployment of Folding@Home does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -774,7 +756,7 @@
   {
     "id": "gitea",
     "title": "Gitea",
-    "summary": "The git of the code, with the wiki and the issues. What a deployment of Gitea does today, and what the platform checks.",
+    "summary": "A lightweight self-hosted Git service with a wiki and issue tracking. What a deployment of Gitea does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -788,7 +770,7 @@
   {
     "id": "languagetool",
     "title": "LanguageTool",
-    "summary": "The proofreader of the text, in the language of the reader. What a deployment of LanguageTool does today, and what the platform checks.",
+    "summary": "A grammar and spelling checker you host yourself. What a deployment of LanguageTool does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -802,7 +784,7 @@
   {
     "id": "lavalink",
     "title": "Lavalink",
-    "summary": "The music of the bots of Discord, served from your own node. What a deployment of Lavalink does today, and what the platform checks.",
+    "summary": "An audio streaming node for Discord music bots. What a deployment of Lavalink does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -816,7 +798,7 @@
   {
     "id": "left-4-dead-2",
     "title": "Left 4 Dead 2",
-    "summary": "The cooperative shooter of Valve, with the survivors and the infected. What a deployment of Left 4 Dead 2 does today, and what the platform checks.",
+    "summary": "A co-operative zombie shooter server from Valve. What a deployment of Left 4 Dead 2 does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -830,7 +812,7 @@
   {
     "id": "mariadb",
     "title": "MariaDB",
-    "summary": "The database of MySQL, for the applications that ask for it. What a deployment of MariaDB does today, and what the platform checks.",
+    "summary": "A MariaDB database, compatible with MySQL, for applications that need it. What a deployment of MariaDB does today, and what the platform checks.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
@@ -844,7 +826,7 @@
   {
     "id": "meilisearch",
     "title": "Meilisearch",
-    "summary": "The search that is fast and that forgives a typo. What a deployment of Meilisearch does today, and what the platform checks.",
+    "summary": "A fast search engine that tolerates typos, for your site or application. What a deployment of Meilisearch does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -858,7 +840,7 @@
   {
     "id": "minecraft-bedrock",
     "title": "Minecraft Bedrock",
-    "summary": "The edition of Minecraft that runs on phones and consoles, playable with the Java edition too. What a deployment of Minecraft Bedrock does today, and what the platform checks.",
+    "summary": "A Minecraft Bedrock server for players on phones, consoles and Windows. What a deployment of Minecraft Bedrock does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -872,7 +854,7 @@
   {
     "id": "nats",
     "title": "NATS",
-    "summary": "The messages between the services, with the subject of the message. What a deployment of NATS does today, and what the platform checks.",
+    "summary": "A lightweight messaging system for connecting your services. What a deployment of NATS does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -886,7 +868,7 @@
   {
     "id": "nodejs",
     "title": "Node.js",
-    "summary": "The runtime of Node.js, for the service of your own code. What a deployment of Node.js does today, and what the platform checks.",
+    "summary": "A runtime for Node.js services, for code you write in JavaScript or TypeScript. What a deployment of Node.js does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -900,7 +882,7 @@
   {
     "id": "prometheus",
     "title": "Prometheus",
-    "summary": "The collection of the metrics that the monitoring reads. What a deployment of Prometheus does today, and what the platform checks.",
+    "summary": "A metrics collection and alerting system for your services. What a deployment of Prometheus does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -914,7 +896,7 @@
   {
     "id": "garrys-mod",
     "title": "Garry's Mod",
-    "summary": "The sandbox of Valve, where the server is a playground of contraptions. What a deployment of Garry's Mod does today, and what the platform checks.",
+    "summary": "A sandbox game server with community addons and game modes. What a deployment of Garry's Mod does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -928,7 +910,7 @@
   {
     "id": "minecraft-paper",
     "title": "Minecraft Paper",
-    "summary": "The most played sandbox in the world, on Paper: the server that runs the plugins. What a deployment of Minecraft Paper does today, and what the platform checks.",
+    "summary": "A fast Minecraft Java server with plugin support, based on Paper. What a deployment of Minecraft Paper does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -942,7 +924,7 @@
   {
     "id": "terraria",
     "title": "Terraria",
-    "summary": "The two dimensional adventure of sandbox and of bosses, on TShock. What a deployment of Terraria does today, and what the platform checks.",
+    "summary": "A Terraria server with TShock, for exploring, building and fighting bosses together. What a deployment of Terraria does today, and what the platform checks.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -952,5 +934,285 @@
     ],
     "updated": "2026-10-29",
     "catalogSlug": "terraria"
+  },
+  {
+    "id": "conan-exiles",
+    "title": "Conan Exiles",
+    "summary": "A survival server set in the savage lands of Conan's world. What a deployment of Conan Exiles does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "conan exiles",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "conan-exiles"
+  },
+  {
+    "id": "core-keeper",
+    "title": "Core Keeper",
+    "summary": "Mine, craft and fight underground in a shared Core Keeper world. What a deployment of Core Keeper does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "core keeper",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "core-keeper"
+  },
+  {
+    "id": "cs2d",
+    "title": "CS2D",
+    "summary": "A free 2D take on Counter-Strike, light enough for a small server. What a deployment of CS2D does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "cs2d",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "cs2d"
+  },
+  {
+    "id": "factorio",
+    "title": "Factorio",
+    "summary": "Build and automate factories together on a dedicated multiplayer server. What a deployment of Factorio does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "factorio",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "factorio"
+  },
+  {
+    "id": "loki",
+    "title": "Loki",
+    "summary": "Log aggregation for your services, designed to work with Grafana. What a deployment of Loki does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "loki",
+      "monitoring",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "loki"
+  },
+  {
+    "id": "minecraft-folia",
+    "title": "Minecraft Folia",
+    "summary": "A Minecraft server built for many players at once, spreading the world over several CPU cores. What a deployment of Minecraft Folia does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "minecraft folia",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "minecraft-folia"
+  },
+  {
+    "id": "minecraft-forge",
+    "title": "Minecraft Forge",
+    "summary": "A Minecraft server with the Forge mod loader, for modded play. What a deployment of Minecraft Forge does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "minecraft forge",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "minecraft-forge"
+  },
+  {
+    "id": "owncast",
+    "title": "Owncast",
+    "summary": "A self-hosted live streaming server with its own chat and channel page. What a deployment of Owncast does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "owncast",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "owncast"
+  },
+  {
+    "id": "palworld",
+    "title": "Palworld",
+    "summary": "A survival server where you catch creatures and build bases. What a deployment of Palworld does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "palworld",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "palworld"
+  },
+  {
+    "id": "rabbitmq",
+    "title": "RabbitMQ",
+    "summary": "A message broker that queues work between your services. What a deployment of RabbitMQ does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "rabbitmq",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "rabbitmq"
+  },
+  {
+    "id": "reposilite",
+    "title": "Reposilite",
+    "summary": "A lightweight repository for Maven and other packages. What a deployment of Reposilite does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "reposilite",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "reposilite"
+  },
+  {
+    "id": "rust",
+    "title": "Rust",
+    "summary": "A multiplayer survival server where you gather, build and raid. What a deployment of Rust does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "rust",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "rust"
+  },
+  {
+    "id": "samp",
+    "title": "SA-MP",
+    "summary": "A San Andreas Multiplayer server for Grand Theft Auto: San Andreas. What a deployment of SA-MP does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "sa-mp",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "samp"
+  },
+  {
+    "id": "space-engineers",
+    "title": "Space Engineers",
+    "summary": "A server for building and surviving in space. What a deployment of Space Engineers does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "space engineers",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "space-engineers"
+  },
+  {
+    "id": "team-fortress-2",
+    "title": "Team Fortress 2",
+    "summary": "A free-to-play team shooter server with classes and game modes. What a deployment of Team Fortress 2 does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "team fortress 2",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "team-fortress-2"
+  },
+  {
+    "id": "the-forest",
+    "title": "The Forest",
+    "summary": "A survival horror server set in a forest. What a deployment of The Forest does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "the forest",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "the-forest"
+  },
+  {
+    "id": "unturned",
+    "title": "Unturned",
+    "summary": "A zombie survival server for Unturned. What a deployment of Unturned does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "unturned",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "unturned"
+  },
+  {
+    "id": "yarr",
+    "title": "Yarr",
+    "summary": "A self-hosted RSS feed reader. What a deployment of Yarr does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "yarr",
+      "automation",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "yarr"
+  },
+  {
+    "id": "lua",
+    "title": "Lua",
+    "summary": "A runtime for Lua scripts and small services. What a deployment of Lua does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "lua",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "lua"
+  },
+  {
+    "id": "python",
+    "title": "Python",
+    "summary": "A runtime for Python scripts and services, for code you write. What a deployment of Python does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "python",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "python"
   }
 ]
