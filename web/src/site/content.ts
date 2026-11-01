@@ -37,7 +37,7 @@ export function faqFor(rates: Rates): Question[] {
     },
     {
       q: 'Are there backups?',
-      a: 'App instances support manual backups from the Backups tab. A backup remains tied to the instance and node, so download important copies and keep them elsewhere. Automatic customer backup schedules are not included unless a product page explicitly says otherwise.',
+      a: 'App instances support backups from the Backups tab: take one by hand, or switch on a daily or weekly one at 03:30 UTC. A backup remains tied to the instance and node, and the oldest unlocked one is removed to make room for the next, so lock the ones you want to keep and download important copies to keep elsewhere. Nothing is switched on for you.',
     },
     {
       q: 'Can I use my own domain?',

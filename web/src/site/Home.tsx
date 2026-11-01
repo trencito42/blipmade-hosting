@@ -3,6 +3,7 @@ import { Configurator } from './Configurator';
 import { ConfigScene, type Shape } from './ConfigScene';
 import { useState } from 'react';
 import { APP_COPY, FALLBACK, NOT_YET, TODAY, faqFor } from './content';
+import { faqFromContent, fillRates, useSiteContent } from './siteContent';
 import { orderableOf, useProducts, useRates } from './catalog';
 import { priceOfResources, eur, fmtRam } from './pricing';
 import { Icon, ProductMark } from '../icons';
@@ -30,6 +31,8 @@ function Hero() {
   const from = products.length ? Math.min(...products.map((product) => product.minPrice)) : 0;
   const mail = products.find((product) => product.slug === 'email-hosting-starter');
   const { user } = useSession();
+  const words = useSiteContent()['home.hero'] as { title: string; lead: string; primaryLabel?: string; secondaryLabel?: string } | undefined;
+  const rates = useRates();
   const [shape, setShape] = useState<Shape>({ slug: 'discord-bot', ram: 512, cpu: 1, disk: 5, minRam: 256, maxRam: 4096, maxCpu: 4, minDisk: 1, maxDisk: 50 });
   return (
     <section aria-labelledby="h1">
@@ -47,15 +50,24 @@ function Hero() {
               </Link>
             ) : null}
             <h1 id="h1" className="rise text-[clamp(42px,6.4vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]" style={{ '--i': 1 } as CSSProperties}>
-              Hosting for everything you run.
+              {words?.title ?? 'Hosting for everything you run.'}
             </h1>
             <p className="rise max-w-[32em] text-[clamp(18px,1.6vw,21px)] text-ink-2" style={{ '--i': 2 } as CSSProperties}>
-              Bots, game servers, databases and developer tools. Pick the RAM, CPU and disk, watch the price move, and run it all from one dashboard.
-              From {eur(from)} a month.
+              {words ? (
+                <>
+                  {fillRates(words.lead, rates, from)}
+                  {/\{\{\s*from\s*\}\}/.test(words.lead) ? '' : ` From ${eur(from)} a month.`}
+                </>
+              ) : (
+                <>
+                  Bots, game servers, databases and developer tools. Pick the RAM, CPU and disk, watch the price move, and run it all from one dashboard.
+                  From {eur(from)} a month.
+                </>
+              )}
             </p>
             <div className="rise flex flex-wrap gap-3" style={{ '--i': 3 } as CSSProperties}>
-              <Btn to={user ? homeOf(user.role) : '/register'} size="lg">{user ? 'Open dashboard' : 'Get started'}</Btn>
-              <Btn to="/apps" variant="outline" size="lg">Browse the catalog</Btn>
+              <Btn to={user ? homeOf(user.role) : '/register'} size="lg">{user ? 'Open dashboard' : (words?.primaryLabel ?? 'Get started')}</Btn>
+              <Btn to="/apps" variant="outline" size="lg">{words?.secondaryLabel ?? 'Browse the catalog'}</Btn>
             </div>
           </div>
         </Wrap>
@@ -353,7 +365,8 @@ function Included() {
 }
 
 function Faq() {
-  const questions = faqFor(useRates());
+  const rates = useRates();
+  const questions = faqFromContent(useSiteContent(), rates) ?? faqFor(rates);
   return (
     <section aria-labelledby="faq-h" className="border-t border-line">
       <Wrap className="grid gap-12 py-20 sm:py-28 lg:grid-cols-[0.8fr_1.2fr]">

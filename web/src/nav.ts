@@ -41,6 +41,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/mail', label: 'Mail', shortLabel: 'Mail', icon: 'mail' },
   { to: '/admin/notifications', label: 'Email & notifications', shortLabel: 'Notifications', icon: 'bell' },
   { to: '/admin/email-templates', label: 'Email wording', shortLabel: 'Wording', icon: 'mail' },
+  { to: '/admin/content', label: 'Site content', shortLabel: 'Content', icon: 'doc' },
   { to: '/admin/audit', label: 'Audit log', shortLabel: 'Audit', icon: 'term' },
   { to: '/admin/staff', label: 'Staff', shortLabel: 'Staff', icon: 'bot' },
   { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },
@@ -78,6 +79,6 @@ export const ADMIN_GROUPS: NavGroup[] = [
   { id: 'services', label: 'Services & catalog', icon: 'rocket', items: [A('/admin/services'), A('/admin/vps'), A('/admin/mail'), A('/admin/products'), A('/admin/pricing')] },
   { id: 'support', label: 'Support & trust', icon: 'doc', items: [A('/admin/tickets'), A('/admin/knowledge'), A('/admin/abuse'), A('/admin/incidents')] },
   { id: 'ops', label: 'Operations', icon: 'heart', items: [A('/admin/ops'), A('/admin/infrastructure'), A('/admin/queues'), A('/admin/audit')] },
-  { id: 'comms', label: 'Messages', icon: 'mail', items: [A('/admin/notifications'), A('/admin/email-templates')] },
+  { id: 'comms', label: 'Messages', icon: 'mail', items: [A('/admin/notifications'), A('/admin/email-templates'), A('/admin/content')] },
   { id: 'config', label: 'Configuration', icon: 'shield', items: [A('/admin/settings'), A('/admin/staff')] },
 ];

@@ -4,6 +4,7 @@ import { useRevealOnChange } from '../lib/useReveal';
 import { Icon, ProductMark } from '../icons';
 import { Configurator } from './Configurator';
 import { APP_COPY, FALLBACK } from './content';
+import { copyFromContent, useSiteContent } from './siteContent';
 import { isOrderable, useProducts, type Product } from './catalog';
 import { eur, fmtRam } from './pricing';
 import { Link, useRouter } from '../router';
@@ -48,7 +49,7 @@ export function groupByCategory(products: Product[]): CatalogGroup[] {
 
 /** The card of a product of the catalog: small, so a category reads as a list. */
 function Card({ product }: { product: Product }) {
-  const copy = APP_COPY[product.slug] ?? FALLBACK(product.description);
+  const copy = copyFromContent(useSiteContent(), product.slug, APP_COPY[product.slug], FALLBACK(product.description));
   const open = isOrderable(product);
   const category = categoryOf(product.category);
 
@@ -233,6 +234,7 @@ export function Apps() {
  * and the reason it is not ready, and nothing that orders it.
  */
 export function AppDetail({ slug }: { slug: string }) {
+  const blocks = useSiteContent();
   const products = useProducts();
   const [edition, setEdition] = useState('minecraft-paper');
   if (slug === 'minecraft') {
@@ -251,7 +253,7 @@ export function AppDetail({ slug }: { slug: string }) {
     );
   }
   const product = products.find((entry) => entry.slug === slug);
-  const copy = APP_COPY[slug];
+  const copy = APP_COPY[slug] || blocks['product.copy']?.[slug] ? copyFromContent(blocks, slug, APP_COPY[slug], FALLBACK(product?.description ?? '')) : undefined;
 
   if (!product) {
     return (

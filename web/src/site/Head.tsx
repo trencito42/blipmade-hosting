@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { metaFor } from './seo';
 import { applyMeta } from './head';
+import { useSiteContent } from './siteContent';
 
 /**
  * The head of a page of the public site.
@@ -14,8 +15,11 @@ import { applyMeta } from './head';
  * documentation is a large file that a visitor of the home page does not need.
  */
 export function Head({ path }: { path: string }) {
+  const changed = useSiteContent()['seo.pages']?.[path] as { title: string; description: string } | undefined;
   useEffect(() => {
-    applyMeta(metaFor(path));
-  }, [path]);
+    const meta = metaFor(path);
+    // The title and the description the operator published replace the ones of the code, for this page only.
+    applyMeta(changed ? { ...meta, title: changed.title, description: changed.description } : meta);
+  }, [path, changed]);
   return null;
 }
