@@ -689,11 +689,39 @@ export async function destroyVps(serviceId: string): Promise<void> {
   ]);
 }
 
-/** How long a machine whose subscription ended is kept before it is deleted. */
-const RETENTION_DAYS = 14;
-/** How long a payment that failed is waited for before the machine is stopped. */
-const PAST_DUE_GRACE_DAYS = 3;
+/** How long a machine whose subscription ended is kept before it is deleted, when the operator did not say. */
+export const DEFAULT_RETENTION_DAYS = 14;
+/** How long a payment that failed is waited for before the machine is stopped, when the operator did not say. */
+export const DEFAULT_PAST_DUE_GRACE_DAYS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The two periods of the lifecycle, as the operator set them in the settings (`vps.retention_days` and
+ * `vps.payment_grace_days`). A value that is missing or not a whole number in range is the default, so a
+ * wrong setting never stops the sweep or makes it delete sooner than the default.
+ */
+export async function vpsLifecyclePolicy(): Promise<{ retentionDays: number; graceDays: number }> {
+  const rows = await prisma.setting.findMany({ where: { key: { in: ['vps.retention_days', 'vps.payment_grace_days'] } } });
+  const read = (key: string, fallback: number, min: number, max: number) => {
+    const value = rows.find((row) => row.key === key)?.value;
+    return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : fallback;
+  };
+  return {
+    retentionDays: Math.max(read('vps.retention_days', DEFAULT_RETENTION_DAYS, 1, 365), DEFAULT_RETENTION_DAYS),
+    graceDays: read('vps.payment_grace_days', DEFAULT_PAST_DUE_GRACE_DAYS, 0, 30),
+  };
+}
+
+/** Reads the rows of a query page after page, by id, until a page is not full. */
+async function* inPages<T extends { id: string }>(read: (after: string | undefined, take: number) => Promise<T[]>, size = 100): AsyncGenerator<T> {
+  let after: string | undefined;
+  for (;;) {
+    const page = await read(after, size);
+    for (const row of page) yield row;
+    if (page.length < size) return;
+    after = page[page.length - 1].id;
+  }
+}
 
 /**
  * Keeps the machines in step with the subscriptions that pay for them.
@@ -706,22 +734,27 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  *
  * It runs on a timer, so a call that fails once is made again on the next run.
  */
-export async function sweepVps(): Promise<{ suspended: number; resumed: number; deleted: number }> {
+export async function sweepVps(pageSize = 100): Promise<{ suspended: number; resumed: number; deleted: number }> {
   const now = new Date();
   let suspended = 0;
   let resumed = 0;
   let deleted = 0;
   if (!pve.proxmoxConfigured()) return { suspended, resumed, deleted };
 
-  const live = await prisma.vpsService.findMany({
-    where: { status: 'ACTIVE', subscriptionId: { not: null } },
-    include: { subscription: { select: { status: true, currentPeriodEnd: true } } },
-    take: 100,
-  });
-  for (const service of live) {
+  const policy = await vpsLifecyclePolicy();
+  const live = inPages((after, take) =>
+    prisma.vpsService.findMany({
+      where: { status: 'ACTIVE', subscriptionId: { not: null }, ...(after ? { id: { gt: after } } : {}) },
+      include: { subscription: { select: { status: true, currentPeriodEnd: true } } },
+      orderBy: { id: 'asc' },
+      take,
+    }),
+    pageSize,
+  );
+  for await (const service of live) {
     const subscription = service.subscription;
     if (!subscription || !service.vmid) continue;
-    const graceEnd = subscription.currentPeriodEnd ? subscription.currentPeriodEnd.getTime() + PAST_DUE_GRACE_DAYS * DAY_MS : 0;
+    const graceEnd = subscription.currentPeriodEnd ? subscription.currentPeriodEnd.getTime() + policy.graceDays * DAY_MS : 0;
     const unpaid =
       subscription.status === 'CANCELLED' ||
       subscription.status === 'INCOMPLETE_EXPIRED' ||
@@ -739,19 +772,23 @@ export async function sweepVps(): Promise<{ suspended: number; resumed: number; 
     }
   }
 
-  const stopped = await prisma.vpsService.findMany({
-    where: { status: 'SUSPENDED' },
-    include: { subscription: { select: { status: true } } },
-    take: 100,
-  });
-  for (const service of stopped) {
+  const stopped = inPages((after, take) =>
+    prisma.vpsService.findMany({
+      where: { status: 'SUSPENDED', ...(after ? { id: { gt: after } } : {}) },
+      include: { subscription: { select: { status: true } } },
+      orderBy: { id: 'asc' },
+      take,
+    }),
+    pageSize,
+  );
+  for await (const service of stopped) {
     const paid = service.subscription?.status === 'ACTIVE' || service.subscription?.status === 'TRIALING';
     try {
       if (paid && service.vmid) {
         await pve.power(service.vmid, 'start');
         await prisma.vpsService.update({ where: { id: service.id }, data: { status: 'ACTIVE', suspendedAt: null } });
         resumed += 1;
-      } else if (!paid && service.suspendedAt && now.getTime() - service.suspendedAt.getTime() > RETENTION_DAYS * DAY_MS) {
+      } else if (!paid && service.suspendedAt && now.getTime() - service.suspendedAt.getTime() > policy.retentionDays * DAY_MS) {
         await destroyVps(service.id);
         deleted += 1;
       }

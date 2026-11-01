@@ -269,7 +269,7 @@ describe('the settings of the platform', () => {
   /** The three kinds of setting: ordinary, internal and the retention record. */
   async function seedSettings(): Promise<void> {
     await prisma.setting.create({
-      data: { key: 'support_email', value: 'help@blipmade.test' },
+      data: { key: 'billing.support_email', value: 'help@blipmade.test' },
     });
     await prisma.setting.create({
       data: { key: 'internal.order.sequence', value: 42 },
@@ -289,7 +289,7 @@ describe('the settings of the platform', () => {
     const response = await staff.request('GET', '/api/admin/settings');
 
     expect(response.status).toBe(200);
-    expect(response.body.settings.support_email).toBe('help@blipmade.test');
+    expect(response.body.settings['billing.support_email']).toBe('help@blipmade.test');
     expect(response.body.settings['cancelled_instance_retention']).toBeUndefined();
     expect(response.body.settings['internal.order.sequence']).toBeUndefined();
     expect(JSON.stringify(response.body)).not.toMatch(/cancelled@blipmade\.test/);
@@ -329,10 +329,10 @@ describe('the settings of the platform', () => {
   it('writes the ordinary settings', async () => {
     const { client: staff } = await createStaff('staff@blipmade.test', ['settings.write']);
 
-    const response = await staff.request('PUT', '/api/admin/settings', { support_email: 'new@blipmade.test' });
+    const response = await staff.request('PUT', '/api/admin/settings', { 'billing.support_email': 'new@blipmade.test' });
 
     expect(response.status).toBe(200);
-    const setting = await prisma.setting.findUnique({ where: { key: 'support_email' } });
+    const setting = await prisma.setting.findUnique({ where: { key: 'billing.support_email' } });
     expect(setting?.value).toBe('new@blipmade.test');
   });
 
@@ -340,9 +340,9 @@ describe('the settings of the platform', () => {
     const { client: staff } = await createStaff('staff@blipmade.test', ['settings.write']);
     await seedSettings();
 
-    const removed = await staff.request('DELETE', '/api/admin/settings/support_email');
+    const removed = await staff.request('DELETE', '/api/admin/settings/billing.support_email');
     expect(removed.status).toBe(200);
-    expect(await prisma.setting.findUnique({ where: { key: 'support_email' } })).toBeNull();
+    expect(await prisma.setting.findUnique({ where: { key: 'billing.support_email' } })).toBeNull();
 
     const refused = await staff.request('DELETE', '/api/admin/settings/internal.order.sequence');
     expect(refused.status).toBe(403);

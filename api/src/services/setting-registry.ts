@@ -146,6 +146,29 @@ const POLICIES: SettingPolicy[] = [
     schema: z.record(nodeId, z.number().min(0).max(1_000_000)),
   },
 
+  // --- the lifecycle of a VPS whose subscription is not paid ---------------------------------
+  {
+    key: 'vps.retention_days',
+    domain: 'infrastructure',
+    read: 'infrastructure.read',
+    write: 'infrastructure.write',
+    general: true,
+    public: false,
+    effect: 'immediate',
+    // Never below the default: a shorter period would delete a customer's data sooner than the platform promises.
+    schema: z.number().int().min(14).max(365),
+  },
+  {
+    key: 'vps.payment_grace_days',
+    domain: 'infrastructure',
+    read: 'infrastructure.read',
+    write: 'infrastructure.write',
+    general: true,
+    public: false,
+    effect: 'immediate',
+    schema: z.number().int().min(0).max(30),
+  },
+
   // --- keys with a dedicated owner: the general endpoint never writes them ----------------
   {
     key: 'pricing_resources',
