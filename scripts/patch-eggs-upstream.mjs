@@ -62,16 +62,13 @@ const PAPERMC_V3_BUILD = [
  * The moment the schema starts is a date in the binary of Loki, and the file
  * of the release carries it as a full timestamp. The service listens on the
  * port of the allocation and keeps its data in the volume of the instance,
- * and the file of the release listens on 3100 and keeps it in /tmp.
+ * and those two are the work of the file configuration of the egg, which the
+ * panel applies when the instance starts.
  */
 export const LOKI_CONFIG_FIX = [
   '# The binary of Loki reads the moment the schema starts as a date, and the',
   '# file of the release carries it as a full timestamp.',
   `sed -i -E 's|from: "?[^"]*"?|from: "2020-10-24"|' loki-docker-config.yaml`,
-  '# The service listens on the port of the allocation and keeps its data in',
-  '# the volume of the instance.',
-  `sed -i -E 's|http_listen_port: .*|http_listen_port: {{SERVER_PORT}}|' loki-docker-config.yaml`,
-  `sed -i 's|/tmp/loki|/home/container/loki|g' loki-docker-config.yaml`,
 ].join('\n');
 
 /**
@@ -139,13 +136,18 @@ export function withPaperMcV3(script) {
  * them, and the block carries the port of the allocation as well.
  */
 export function withLokiConfigFix(script) {
-  if (script.includes('http_listen_port')) return script;
+  if (script.includes('from: "?[^"]*"?') && !script.includes('http_listen_port')) return script;
   const base = script
     .split('\n')
     .filter((line) => {
       if (line.includes("sed -i -E 's|(from: \"")) return false;
+      if (line.includes('from: "?[^"]*"?')) return false;
       if (line.includes('# The binary of Loki reads the moment the schema starts as a date')) return false;
       if (line.includes('# file of the release carries it as a full timestamp.')) return false;
+      if (line.includes('# The service listens on the port of the allocation and keeps its data in')) return false;
+      if (line.includes('# the volume of the instance.')) return false;
+      if (line.includes('http_listen_port')) return false;
+      if (line.includes('/tmp/loki')) return false;
       return true;
     })
     .join('\n');

@@ -474,6 +474,30 @@ function fillRequiredVariables(environment, rules) {
   return filled;
 }
 
+/**
+ * Brings the value of a variable inside the list the egg allows.
+ *
+ * The panel checks the value of a variable with the rule "in": the name of
+ * the world of Stationeers may only be one of a few, and the panel refused
+ * the server with "The World Name variable is invalid" because the value was
+ * not one of them. The first of the list is taken when the value is not one
+ * of them.
+ */
+function honourAllowedValues(environment, rules) {
+  const fixed = { ...environment };
+  for (const [name, rule] of Object.entries(rules ?? {})) {
+    const allowed = String(rule ?? '')
+      .split('|')
+      .map((segment) => segment.trim())
+      .find((segment) => segment.startsWith('in:'));
+    if (!allowed) continue;
+    const values = allowed.slice(3).split(',').map((value) => value.trim()).filter(Boolean);
+    if (!values.length) continue;
+    if (!values.includes(fixed[name])) fixed[name] = values.includes('TRUE') ? 'TRUE' : values[0];
+  }
+  return fixed;
+}
+
 async function probeOne(product, eggs, allocations) {
   const record = {
     slug: product.slug,
@@ -496,13 +520,16 @@ async function probeOne(product, eggs, allocations) {
   record.egg = `${egg.id} ${egg.name}`;
 
   const overrides = product.startup && typeof product.startup === 'object' ? product.startup : {};
-  const environment = fillRequiredVariables(
-    {
-      ...egg.variables,
-      ...overrides,
-      ...generatedValues(product),
-      ...customerValues(product, egg.variableRules),
-    },
+  const environment = honourAllowedValues(
+    fillRequiredVariables(
+      {
+        ...egg.variables,
+        ...overrides,
+        ...generatedValues(product),
+        ...customerValues(product, egg.variableRules),
+      },
+      egg.variableRules,
+    ),
     egg.variableRules,
   );
   const startup = product.startupCommand || egg.startup;

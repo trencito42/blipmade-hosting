@@ -352,7 +352,10 @@
         "LOKI_VERSION"
       ],
       "customerVariables": {},
-      "sortOrder": 300
+      "sortOrder": 300,
+      "startup": {
+        "LOKI_VERSION": "3.7.9"
+      }
     },
     {
       "slug": "mariadb",
@@ -634,7 +637,7 @@
       "description": "A message broker that queues work between your services.",
       "eggFile": "rabbitmq.json",
       "eggName": "RabbitMQ",
-      "dockerImage": "ghcr.io/ptero-eggs/yolks:erlang_22",
+      "dockerImage": "ghcr.io/ptero-eggs/yolks:erlang_25",
       "priceBand": "tool",
       "baseAmount": 299,
       "minRam": 1024,
@@ -652,7 +655,10 @@
         "RABBITMQ_VERSION"
       ],
       "customerVariables": {},
-      "sortOrder": 380
+      "sortOrder": 380,
+      "startup": {
+        "RABBITMQ_VERSION": "3.10.7"
+      }
     },
     {
       "slug": "redis",
@@ -698,7 +704,7 @@
       "description": "A lightweight repository for Maven and other packages.",
       "eggFile": "reposilite.json",
       "eggName": "Reposilite",
-      "dockerImage": "ghcr.io/pterodactyl/yolks:java_11",
+      "dockerImage": "ghcr.io/ptero-eggs/yolks:java_17",
       "priceBand": "bot",
       "baseAmount": 149,
       "minRam": 512,
@@ -1597,7 +1603,7 @@
       "description": "A Minecraft server with the Forge mod loader, for modded play.",
       "eggFile": "minecraft-forge.json",
       "eggName": "Forge Enhanced",
-      "dockerImage": "ghcr.io/ptero-eggs/yolks:java_8",
+      "dockerImage": "ghcr.io/ptero-eggs/yolks:java_25",
       "priceBand": "tool",
       "baseAmount": 299,
       "minRam": 4096,
