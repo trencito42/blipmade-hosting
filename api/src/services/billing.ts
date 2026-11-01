@@ -171,6 +171,19 @@ export interface PriceReconciliation {
   differences: InstancePriceDifference[];
 }
 
+function readInstancePage(after?: string) {
+  return prisma.instance.findMany({
+    where: after ? { id: { gt: after } } : {},
+    include: {
+      product: true,
+      order: { select: { id: true, total: true, discount: true } },
+      orderItem: { select: { config: true } },
+    },
+    orderBy: { id: 'asc' },
+    take: 200,
+  });
+}
+
 /**
  * Recomputes the price of the existing instances from their configuration.
  *
@@ -185,16 +198,16 @@ export interface PriceReconciliation {
  * the journal with the difference it corrects.
  */
 export async function reconcileInstancePrices(
-  options: { actorId?: string | null; actorEmail?: string | null } = {},
+  options: { actorId?: string | null; actorEmail?: string | null; dryRun?: boolean } = {},
 ): Promise<PriceReconciliation> {
-  const instances = await prisma.instance.findMany({
-    include: {
-      product: true,
-      order: { select: { id: true, total: true, discount: true } },
-      orderItem: { select: { config: true } },
-    },
-    take: 500,
-  });
+  // Every instance is read, in pages by id: a platform with more instances than one page is reconciled to the end.
+  const instances: Awaited<ReturnType<typeof readInstancePage>> = [];
+  for (let after: string | undefined; ; ) {
+    const page = await readInstancePage(after);
+    instances.push(...page);
+    if (page.length < 200) break;
+    after = page[page.length - 1].id;
+  }
 
   const differences: InstancePriceDifference[] = [];
 
@@ -217,6 +230,20 @@ export async function reconcileInstancePrices(
         : configured;
 
     if (price === instance.price) continue;
+
+    // A dry run lists what would change and writes nothing.
+    if (options.dryRun) {
+      differences.push({
+        instanceId: instance.id,
+        productId: instance.productId,
+        previousPrice: instance.price,
+        price,
+        delta: price - instance.price,
+        currency: instance.currency,
+        configuration: { ram: instance.ram, cpu: instance.cpu, disk: instance.disk },
+      });
+      continue;
+    }
 
     await prisma.instance.update({ where: { id: instance.id }, data: { price } });
     await prisma.instanceEvent.create({
@@ -252,7 +279,7 @@ export async function reconcileInstancePrices(
     });
   }
 
-  if (differences.length) {
+  if (differences.length && !options.dryRun) {
     await audit({
       actorId: options.actorId ?? null,
       actorEmail: options.actorEmail ?? null,

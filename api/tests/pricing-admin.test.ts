@@ -94,6 +94,33 @@ describe('the history of the prices', () => {
   });
 });
 
+describe('the reconciliation of the prices of the services', () => {
+  it('lists what would change in a dry run, writes nothing, and corrects only when asked', async () => {
+    const { client } = await createAdmin(app);
+    const product = await prisma.product.create({ data: { slug: 'recon', name: 'Recon', category: 'BOTS', description: 'A product for the reconciliation.', icon: 'bot', eggId: 1, prices: { create: { period: 'MONTHLY', baseAmount: 0, ramPerGb: 100, cpuPerUnit: 200, diskPerGb: 10, currency: 'EUR' } } } });
+    const user = await prisma.user.create({ data: { email: 'recon@blipmade.test', passwordHash: await hashPassword(VALID_PASSWORD), role: 'CUSTOMER', firstName: 'R', lastName: 'C', emailVerifiedAt: new Date() } });
+    const instance = await prisma.instance.create({ data: { userId: user.id, productId: product.id, name: 'wrong', status: 'ONLINE', pterodactylServerId: 61, pterodactylUuid: 'u61', ram: 2048, cpu: 2, disk: 20, price: 1 } });
+
+    const dry = await client.request('POST', '/api/admin/instances/reconcile-prices', { dryRun: true });
+    expect(dry.status).toBe(200);
+    expect(dry.body).toMatchObject({ dryRun: true, corrected: 0, wouldCorrect: 1 });
+    expect(dry.body.differences[0]).toMatchObject({ instanceId: instance.id, previousPrice: 1 });
+    expect((await prisma.instance.findUniqueOrThrow({ where: { id: instance.id } })).price).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'instance.price_reconciled' } })).toBe(0);
+
+    expect((await client.request('POST', '/api/admin/instances/reconcile-prices', { dryRun: 'yes' })).status).toBe(400);
+    const real = await client.request('POST', '/api/admin/instances/reconcile-prices', {});
+    expect(real.body).toMatchObject({ dryRun: false, corrected: 1 });
+    expect((await prisma.instance.findUniqueOrThrow({ where: { id: instance.id } })).price).toBeGreaterThan(1);
+    expect(await prisma.auditLog.count({ where: { action: 'instance.price_reconciled' } })).toBe(1);
+  });
+
+  it('needs pricing.write', async () => {
+    const reader = await staff(['pricing.read']);
+    expect((await reader.request('POST', '/api/admin/instances/reconcile-prices', { dryRun: true })).status).toBe(403);
+  });
+});
+
 describe('the arithmetic of a price', () => {
   const rates = { ramPerGb: 333, cpuPerUnit: 111, diskPerGb: 7, baseFee: 0 };
   const product = { minRam: 512, minCpu: 0.5, minDisk: 5, fulfilment: 'SERVER' };

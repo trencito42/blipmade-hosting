@@ -57,6 +57,7 @@ const AdminAbuse = lazy(() => import('./admin/Abuse'));
 const ReportAbusePage = lazy(() => import('./pages/ReportAbuse'));
 const AdminEmailTemplates = lazy(() => import('./admin/EmailTemplates'));
 const AdminContent = lazy(() => import('./admin/Content'));
+const AdminTools = lazy(() => import('./admin/Tools'));
 const AdminOverview = lazy(() => import('./admin/Overview'));
 const AdminCustomers = lazy(() => import('./admin/Customers'));
 const AdminCustomerDetail = lazy(() => import('./admin/CustomerDetail'));
@@ -162,6 +163,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },
   { pattern: '/admin/email-templates', component: AdminEmailTemplates, title: 'Email wording', area: 'admin' },
   { pattern: '/admin/content', component: AdminContent, title: 'Site content', area: 'admin' },
+  { pattern: '/admin/tools', component: AdminTools, title: 'Operator tools', area: 'admin' },
   { pattern: '/admin/notifications', component: AdminEmailNotifications, title: 'Email & notifications', area: 'admin' },
 ];
 

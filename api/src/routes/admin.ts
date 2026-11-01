@@ -502,11 +502,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
     // The price of an instance is the price of the configuration it runs. The
     // reconciliation recomputes it and writes the difference to the journal.
-    const result = await reconcileInstancePrices({ actorId: actor.id, actorEmail: actor.email });
+    // `dryRun: true` lists what would change and writes nothing. The page of the back office always asks for it first.
+    const { dryRun } = z.object({ dryRun: z.boolean().default(false) }).strict().parse(request.body ?? {});
+    const result = await reconcileInstancePrices({ actorId: actor.id, actorEmail: actor.email, dryRun });
 
     return {
+      dryRun,
       checked: result.checked,
-      corrected: result.corrected,
+      corrected: dryRun ? 0 : result.corrected,
+      wouldCorrect: dryRun ? result.differences.length : 0,
       differences: result.differences.slice(0, 50),
     };
   });
