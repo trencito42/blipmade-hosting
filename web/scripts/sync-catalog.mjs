@@ -41,7 +41,16 @@ const listed = products.filter((p) => (p.availability?.state ?? 'DEPLOYABLE') !=
 const priced = listed.filter((p) => p.pricing);
 const withoutPrice = listed.length - priced.length;
 
-const catalogue = priced.map((p) => ({
+// A plan of mail or a virtual server is priced as the plan itself: the price
+// of the plan and not the card of the resources of the smallest
+// configuration. The arithmetic of the site knows the card of the resources
+// and not that rule, so the price it shows for such a product is not the
+// price the API sends. Such a product stays out of the snapshot until the
+// site can show its price, and the live answer of the API still serves it.
+const plans = priced.filter((p) => p.fulfilment === 'EMAIL' || p.fulfilment === 'VPS');
+const servers = priced.filter((p) => p.fulfilment !== 'EMAIL' && p.fulfilment !== 'VPS');
+
+const catalogue = servers.map((p) => ({
   slug: p.slug,
   name: p.name,
   category: p.category,
@@ -66,3 +75,4 @@ fs.mkdirSync('src/site/data', { recursive: true });
 fs.writeFileSync('src/site/data/products.json', `${JSON.stringify(catalogue, null, 2)}\n`);
 console.log(`catalogue: ${catalogue.length} products, ${orderable.length} orderable, ${catalogue.length - orderable.length} coming`);
 if (withoutPrice) console.log(`skipped: ${withoutPrice} products without a price book`);
+if (plans.length) console.log(`skipped: ${plans.length} plans of mail or of virtual server (the site cannot show their price yet)`);
