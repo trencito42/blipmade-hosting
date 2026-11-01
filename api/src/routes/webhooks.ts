@@ -429,6 +429,7 @@ export async function fulfilOrder(orderId: string): Promise<void> {
       disk?: number;
       fulfilment?: string;
       mailDomain?: string | null;
+      instanceName?: string | null;
       sealedVariables?: string | null;
     };
 
@@ -458,7 +459,7 @@ export async function fulfilOrder(orderId: string): Promise<void> {
           productId: item.productId,
           orderId: order.id,
           orderItemId: item.id,
-          name: item.quantity > 1 ? `${item.name} ${unit + 1}` : item.name,
+          name: item.quantity > 1 ? `${config.instanceName || item.name} ${unit + 1}` : config.instanceName || item.name,
           status: 'PENDING',
           ram: config.ram ?? 512,
           cpu: config.cpu ?? 1,

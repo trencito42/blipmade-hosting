@@ -1736,7 +1736,10 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     // a domain of their own to be proven and routed. The name of the service
     // is the beginning of it, and the identifier of the instance keeps two
     // services with the same name apart.
-    const platformHost = await choosePlatformHostname(instance.name, instance.id);
+    const requested = instance.orderItemId
+      ? ((await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } }))?.config as { subdomain?: string | null } | null)?.subdomain
+      : null;
+    const platformHost = await choosePlatformHostname(instance.name, instance.id, requested);
     if (platformHost) {
       await prisma.instanceDomain.upsert({
         where: { hostname: platformHost },
@@ -1909,6 +1912,28 @@ export function platformHostname(name: string, instanceId: string): string | nul
 }
 
 /**
+ * Whether a subdomain under the base of the platform can be given. The instance that already holds
+ * it does not count against itself.
+ */
+export async function platformSubdomainStatus(
+  label: string,
+  instanceId?: string,
+): Promise<{ hostname: string; available: boolean; reason: string | null }> {
+  const base = (env.DOMAIN_BASE ?? '').trim().toLowerCase();
+  const clean = label.trim().toLowerCase();
+  const hostname = `${clean}.${base}`;
+  if (!base) return { hostname, available: false, reason: 'Addresses on the platform are not available.' };
+  if (!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(clean)) {
+    return { hostname, available: false, reason: 'Use 3 to 40 letters, numbers or dashes.' };
+  }
+  const { builtInReservedDomains } = await import('../routes/domains.js');
+  if (builtInReservedDomains().includes(hostname)) return { hostname, available: false, reason: 'That name is kept by the platform.' };
+  const holder = await prisma.instanceDomain.findUnique({ where: { hostname }, select: { instanceId: true } });
+  if (holder && holder.instanceId !== instanceId) return { hostname, available: false, reason: 'That address is already taken.' };
+  return { hostname, available: true, reason: null };
+}
+
+/**
  * The address the customer asked for, when it is free.
  *
  * The name the customer gives the instance is the address: "talent" becomes
@@ -1917,7 +1942,13 @@ export function platformHostname(name: string, instanceId: string): string | nul
  * with the last characters of the identifier, so an order never fails for a
  * name that is taken.
  */
-export async function choosePlatformHostname(name: string, instanceId: string): Promise<string | null> {
+export async function choosePlatformHostname(name: string, instanceId: string, chosen?: string | null): Promise<string | null> {
+  if (chosen) {
+    const base = (env.DOMAIN_BASE ?? '').trim().toLowerCase();
+    const status = base ? await platformSubdomainStatus(chosen, instanceId) : null;
+    // The customer picked this label. If it was taken in between, the name with a suffix is used.
+    if (status?.available) return status.hostname;
+  }
   const withSuffix = platformHostname(name, instanceId);
   const base = (env.DOMAIN_BASE ?? '').trim().toLowerCase();
   if (!withSuffix || !base) return withSuffix;

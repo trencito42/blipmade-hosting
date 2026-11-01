@@ -7,6 +7,7 @@ import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { requireAuth, addressRateLimitKey } from '../plugins/auth.js';
+import { platformSubdomainStatus } from '../services/provisioning.js';
 import { recordDeviceSignal } from '../services/device-signal.js';
 import { assertSponsoredShape, decideSponsoredOrder, heldForReview, verifyTurnstile } from '../services/promotion-policy.js';
 import { buildQuote, releasePromotionReservation, reservePromotion } from '../services/pricing.js';
@@ -39,6 +40,9 @@ const orderItemSchema = z.object({
   optionCodes: z.array(z.string()).max(MAX_OPTION_CODES).optional(),
   quantity: z.number().int().min(1).max(20).optional(),
   mailDomain: z.string().trim().max(253).optional(),
+  // The name of the service and the subdomain it gets under the base of the platform.
+  name: z.string().trim().min(1).max(60).optional(),
+  subdomain: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/, 'Use 3 to 40 letters, numbers or dashes.').optional(),
   // A virtual private server carries the public key that opens it and its name.
   sshPublicKey: z.string().trim().max(1000).optional(),
   vpsName: z.string().trim().max(60).optional(),
@@ -135,6 +139,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         if (verdict.decision === 'review') heldForReview();
       }
 
+      // The subdomain the customer picked must be free now. The provisioning checks again, so
+      // two orders that race for the same name never share it.
+      for (const item of quote.items) {
+        if (!item.subdomain) continue;
+        const status = await platformSubdomainStatus(item.subdomain);
+        if (!status.available) throw conflict(status.reason ?? 'That address is not available.');
+      }
+
       // A domain that another customer already hosts is refused here, before
       // the customer is charged for it. The platform would refuse it later
       // anyway, at the moment of the provisioning, and a customer that paid
@@ -184,6 +196,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 // panel, so it has to know which of the two it is.
                 fulfilment: item.fulfilment,
                 mailDomain: item.mailDomain ?? null,
+                instanceName: item.instanceName ?? null,
+                subdomain: item.subdomain ?? null,
                 vps: item.vps ?? null,
                 // The values the customer gave for the variables of the
                 // product, sealed. They are the secrets of the customer, and

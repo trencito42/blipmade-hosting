@@ -8,6 +8,7 @@ import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import { randomToken } from '../lib/tokens.js';
 import * as gateway from '../services/gateway.js';
+import { platformSubdomainStatus } from '../services/provisioning.js';
 import * as dns from '../services/dns.js';
 import { resolveTarget } from '../services/domain-routing.js';
 import {
@@ -310,6 +311,15 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       select: { id: true },
     });
     return domain ? reply.code(204).send() : reply.code(403).send();
+  });
+
+  // Whether a subdomain can be chosen at the deploy. It answers for any signed-in customer.
+  app.get('/domains/platform-subdomain', {
+    config: { rateLimit: { max: 60, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
+  }, async (request: FastifyRequest) => {
+    await requireAuth(request);
+    const { name } = z.object({ name: z.string().trim().toLowerCase().max(60) }).parse(request.query);
+    return platformSubdomainStatus(name);
   });
 
   app.get('/domains', async (request: FastifyRequest) => {

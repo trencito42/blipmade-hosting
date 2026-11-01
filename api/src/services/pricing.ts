@@ -46,6 +46,10 @@ export interface OrderLineInput {
   quantity?: number;
   /** The domain of mail the line brings. */
   mailDomain?: string;
+  /** The name the customer gave the service. */
+  name?: string;
+  /** The part of the address under the platform's base that the customer chose. */
+  subdomain?: string;
   /** The values of the variables the product asks the customer for. */
   variables?: Record<string, string>;
   /** The public key and the name of a virtual private server. */
@@ -66,6 +70,10 @@ export interface PricedItem extends ResourceConfig {
   fulfilment: ProductFulfilment;
   /** The domain of mail the line brings, when the line is a line of mail. */
   mailDomain?: string;
+  /** The name the customer gave the service. Only a line of servers carries one. */
+  instanceName?: string;
+  /** The subdomain the customer chose under the base of the platform. */
+  subdomain?: string;
   /** The name and the key of a virtual private server, when the line is one. */
   vps?: { name: string; sshPublicKey: string; dedicatedIp: boolean };
   /** The values the customer gave for the variables of the product, sealed. */
@@ -504,6 +512,8 @@ export async function priceItems(
       price,
       fulfilment: product.fulfilment,
       mailDomain,
+      ...(product.fulfilment === 'SERVER' && item.name ? { instanceName: item.name } : {}),
+      ...(product.fulfilment === 'SERVER' && item.subdomain ? { subdomain: item.subdomain } : {}),
       ...(vps ? { vps } : {}),
       ...(breakdown ? { breakdown } : {}),
     });

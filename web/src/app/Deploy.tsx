@@ -74,6 +74,8 @@ export interface DeployServerOrderItem {
    * the address of the page, only in the order.
    */
   variables?: Record<string, string>;
+  /** The subdomain under the platform's base that the customer chose. */
+  subdomain?: string;
 }
 
 /**
@@ -96,6 +98,7 @@ export function buildDeployOrderItems(
       disk: server.disk,
       optionCodes: server.optionCodes,
       ...(server.variables && Object.keys(server.variables).length > 0 ? { variables: server.variables } : {}),
+      ...(server.subdomain ? { subdomain: server.subdomain } : {}),
     },
   ];
   if (mail) {
@@ -425,6 +428,9 @@ export default function Deploy() {
   const { query, navigate } = useRouter();
 
   const [name, setName] = useState('');
+  // The address under the platform's base. Empty means the one that follows from the name.
+  const [subdomain, setSubdomain] = useState('');
+  const [subdomainCheck, setSubdomainCheck] = useState<{ available: boolean; reason: string | null } | null>(null);
   const [promotionCode, setPromotionCode] = useState('');
   const [billingAddress, setBillingAddress] = useState<BillingAddressValue>(emptyBillingAddress);
   const [billingTouched, setBillingTouched] = useState(false);
@@ -457,6 +463,28 @@ export default function Deploy() {
 
   // The line of mail of the order. It is only there when the customer chose a
   // plan and wrote a hostname that is one.
+  const chosenSubdomain = subdomain.trim().toLowerCase();
+  const subdomainShapeOk = chosenSubdomain === '' || /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(chosenSubdomain);
+  useEffect(() => {
+    setSubdomainCheck(null);
+    if (!chosenSubdomain || !subdomainShapeOk) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      get<{ available: boolean; reason: string | null }>('/domains/platform-subdomain', { name: chosenSubdomain }, controller.signal)
+        .then((result) => setSubdomainCheck(result))
+        .catch(() => undefined);
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [chosenSubdomain, subdomainShapeOk]);
+  const subdomainProblem = !subdomainShapeOk
+    ? 'Use 3 to 40 letters, numbers or dashes.'
+    : subdomainCheck && !subdomainCheck.available
+      ? subdomainCheck.reason ?? 'That address is not available.'
+      : null;
+
   const mailHostname = mailDomain.trim().toLowerCase();
   const mailDomainProblem = mailPlan ? validateMailDomainName(mailHostname) : null;
   // An empty field is not a mistake: the customer may still be typing. A name
@@ -684,6 +712,7 @@ export default function Deploy() {
           disk,
           optionCodes,
           variables,
+          ...(chosenSubdomain ? { subdomain: chosenSubdomain } : {}),
         },
         mailLine,
       ),
@@ -791,6 +820,8 @@ export default function Deploy() {
     (step === 4 && !orderFinished) ||
     // The order is never sent with a hosted mail add-on that has no hostname.
     (mailPlan !== null && mailDomainProblem !== null) ||
+    // A taken or malformed address is fixed before the order goes out.
+    subdomainProblem !== null ||
     // The order is never sent without the values the product asks for.
     missingVariables.length > 0;
 
@@ -870,10 +901,24 @@ export default function Deploy() {
             <div className="grid gap-5">
               <TextInput
                 label="Instance name"
-                hint={`Shown in your dashboard. It is also your address: ${addressLabel(name || product.name)}.${PLATFORM_BASE} when the name is free.`}
+                hint="Shown in your dashboard."
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={product.name}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <TextInput
+                label="Address"
+                hint={
+                  chosenSubdomain
+                    ? `Your service will answer on ${chosenSubdomain}.${PLATFORM_BASE}${subdomainCheck?.available ? ' (free)' : ''}.`
+                    : `Pick the name before .${PLATFORM_BASE}. Left empty, it follows the name: ${addressLabel(name || product.name)}.${PLATFORM_BASE} when it is free.`
+                }
+                error={subdomainProblem ?? undefined}
+                value={subdomain}
+                onChange={(e) => setSubdomain(e.target.value.toLowerCase())}
+                placeholder={addressLabel(name || product.name)}
                 autoComplete="off"
                 spellCheck={false}
               />
