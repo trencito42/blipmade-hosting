@@ -426,6 +426,10 @@ model Product {
   // path, expectStatus, expectBody }.
   healthProbe Json?
   docsUrl     String?
+  /// Guidance for installing and first use, written by the operator. Plain text.
+  installGuide String?
+  /// Set when the product is retired: not listed, not orderable, and the services that exist keep running.
+  retiredAt   DateTime?
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

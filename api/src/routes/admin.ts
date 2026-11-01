@@ -849,67 +849,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(201).send({ product: { id: product.id, slug: product.slug, name: product.name } });
   });
 
-  app.patch('/admin/products/:id', {
-    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
-    preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)],
-  }, async (request: FastifyRequest) => {
-    const actor = await requireStaff(request);
-    const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z
-      .object({
-        name: z.string().trim().min(2).max(120).optional(),
-        description: z.string().trim().min(10).max(2000).optional(),
-        visible: z.boolean().optional(),
-        deployable: z.boolean().optional(),
-        eggId: z.number().int().positive().nullable().optional(),
-        eggName: z.string().trim().min(1).max(120).nullable().optional(),
-        dockerImage: z.string().trim().max(300).nullable().optional(),
-        startupCommand: z.string().trim().max(4000).nullable().optional(),
-        customerVariables: z
-          .record(
-            z.object({
-              label: z.string().trim().max(120).optional(),
-              required: z.boolean().optional(),
-              type: z.enum(['text', 'password']).optional(),
-              description: z.string().trim().max(300).optional(),
-            }),
-          )
-          .nullable()
-          .optional(),
-        minRam: z.number().int().positive().optional(),
-        minCpu: z.number().int().positive().optional(),
-        minDisk: z.number().int().positive().optional(),
-        maxRam: z.number().int().positive().optional(),
-        maxCpu: z.number().int().positive().optional(),
-        maxDisk: z.number().int().positive().optional(),
-        docsUrl: z.string().trim().max(300).nullable().optional(),
-        healthProbe: healthProbeSchema.nullable().optional(),
-      })
-      .parse(request.body);
-
-    const product = await prisma.product.findUnique({ where: { id } });
-    if (!product) throw notFound('Product not found.');
-
-    // Opening a product for ordering needs a product the panel can build.
-    // Without an egg mapping the deployment fails at the step "server_created",
-    // so the flag must not be set on a product that has none. The egg may be
-    // named instead of numbered.
-    if (body.deployable === true) {
-      const eggId = body.eggId !== undefined ? body.eggId : product.eggId;
-      const eggName = body.eggName !== undefined ? body.eggName : product.eggName;
-      if ((eggId === null || eggId === undefined) && !eggName) {
-        throw badRequest('Set the panel egg of the product before it can be ordered. A product without an egg can never be deployed.');
-      }
-    }
-
-    const data = { ...body } as Record<string, unknown>;
-    if (body.healthProbe === null) data.healthProbe = Prisma.JsonNull;
-    await prisma.product.update({ where: { id }, data: data as never });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'product.updated', targetType: 'product', targetId: id, meta: body, ip: request.ip });
-
-    const updated = await prisma.product.findUnique({ where: { id }, include: { prices: true, options: true } });
-    return { product: updated };
-  });
+  // PATCH /admin/products/:id lives in routes/admin-products.ts, with the preview, the readiness and the history.
 
   app.delete('/admin/products/:id', {
     config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },

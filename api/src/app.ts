@@ -34,6 +34,7 @@ import { registerAdminStatusRoutes } from './routes/admin-status.js';
 import { registerAccountExportRoutes } from './routes/account-export.js';
 import { registerApiKeyRoutes } from './routes/api-keys.js';
 import { registerAdminOpsRoutes } from './routes/admin-ops.js';
+import { registerAdminProductRoutes } from './routes/admin-products.js';
 import { registerInternalBackupRoutes } from './routes/internal-backups.js';
 import { registerGitDeployRoutes } from './routes/git-deploy.js';
 import { registerMinecraftRoutes } from './routes/minecraft.js';
@@ -234,6 +235,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerAccountExportRoutes(api);
       await registerApiKeyRoutes(api);
       await registerAdminOpsRoutes(api);
+      await registerAdminProductRoutes(api);
       await registerInternalBackupRoutes(api);
       await registerGitDeployRoutes(api);
       await registerMinecraftRoutes(api);
