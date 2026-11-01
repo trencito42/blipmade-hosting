@@ -11,6 +11,7 @@ import { parseCustomerVariableSpecs } from '../services/instance-credentials.js'
 import { deploymentAvailability } from '../services/availability.js';
 import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
+import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -180,6 +181,14 @@ async function serializeProduct(product: {
 }
 
 export async function registerCatalogRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Public operator facts used by legal pages and the public footer.
+   * Only this explicit allow-list can leave the settings table.
+   */
+  app.get('/platform/settings', async () => {
+    const rows = await prisma.setting.findMany({ where: { key: { in: PUBLIC_OPERATOR_SETTING_KEYS } }, select: { key: true, value: true } });
+    return { settings: Object.fromEntries(rows.map((row) => [row.key, typeof row.value === 'string' ? row.value.trim() : row.value])) };
+  });
   app.get('/catalog/products', async (request) => {
     const query = z
       .object({

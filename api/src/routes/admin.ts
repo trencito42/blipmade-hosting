@@ -50,6 +50,7 @@ import {
 } from '../services/notifications.js';
 import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
+import { OPERATOR_SETTINGS, validateOperatorSetting } from '../services/operator-settings.js';
 
 /**
  * Every route of the back office carries a limit.
@@ -1836,7 +1837,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     });
     const result: Record<string, unknown> = {};
     for (const setting of settings) result[setting.key] = setting.value;
-    return { settings: result };
+    return { settings: result, definitions: OPERATOR_SETTINGS };
   });
 
   /**
@@ -1867,10 +1868,29 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       throw forbidden(`These settings belong to the platform and cannot be changed here: ${refused.join(', ')}.`);
     }
     for (const [key, value] of Object.entries(body)) {
-      await prisma.setting.upsert({ where: { key }, create: { key, value: value as never }, update: { value: value as never } });
+      let checked: unknown;
+      try {
+        checked = validateOperatorSetting(key, value);
+      } catch (error) {
+        throw badRequest(error instanceof Error ? error.message : `The value of ${key} is not valid.`);
+      }
+      await prisma.setting.upsert({ where: { key }, create: { key, value: checked as never }, update: { value: checked as never } });
     }
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.updated', meta: { keys: Object.keys(body) }, ip: request.ip });
     return { settings: body };
+  });
+
+  /** Removes an operator-owned setting. Internal counters cannot be removed. */
+  app.delete('/admin/settings/:key', {
+    config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('settings.write'), customerLimit(app, LIMITS.adminWrite)],
+  }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const { key } = z.object({ key: z.string().trim().min(1).max(160) }).parse(request.params);
+    if (isProtectedSettingKey(key)) throw forbidden('That setting belongs to the platform and cannot be removed here.');
+    await prisma.setting.deleteMany({ where: { key } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.removed', meta: { key }, ip: request.ip });
+    return { removed: true, key };
   });
 
   /** Retries a failed or stuck provisioning run. The worker is idempotent. */

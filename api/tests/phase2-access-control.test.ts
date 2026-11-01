@@ -335,4 +335,30 @@ describe('the settings of the platform', () => {
     const setting = await prisma.setting.findUnique({ where: { key: 'support_email' } });
     expect(setting?.value).toBe('new@blipmade.test');
   });
+
+  it('removes an ordinary setting but never an internal one', async () => {
+    const { client: staff } = await createStaff('staff@blipmade.test', ['settings.write']);
+    await seedSettings();
+
+    const removed = await staff.request('DELETE', '/api/admin/settings/support_email');
+    expect(removed.status).toBe(200);
+    expect(await prisma.setting.findUnique({ where: { key: 'support_email' } })).toBeNull();
+
+    const refused = await staff.request('DELETE', '/api/admin/settings/internal.order.sequence');
+    expect(refused.status).toBe(403);
+    expect(await prisma.setting.findUnique({ where: { key: 'internal.order.sequence' } })).not.toBeNull();
+  });
+
+  it('publishes only the explicit public operator facts', async () => {
+    await prisma.setting.createMany({ data: [
+      { key: 'billing.company_name', value: 'Blipmade Test SRL' },
+      { key: 'legal.governing_law', value: 'Romanian law' },
+      { key: 'provider.secret', value: 'must-not-leave-the-api' },
+    ] });
+    const response = await makeClient(app).request('GET', '/api/platform/settings');
+    expect(response.status).toBe(200);
+    expect(response.body.settings['billing.company_name']).toBe('Blipmade Test SRL');
+    expect(response.body.settings['legal.governing_law']).toBe('Romanian law');
+    expect(JSON.stringify(response.body)).not.toContain('must-not-leave-the-api');
+  });
 });
