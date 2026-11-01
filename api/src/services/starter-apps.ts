@@ -665,10 +665,17 @@ func main() {
 	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == healthPath {
 			writer.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(writer).Encode(map[string]any{
-				"status": "ok",
-				"app":    slug,
-				"uptime": int(time.Since(startedAt).Seconds()),
+			// The body is built from a struct and not from a map, because Go
+			// writes the keys of a map in the order of the alphabet, and the
+			// platform recognises its own answer by its shape.
+			_ = json.NewEncoder(writer).Encode(struct {
+				Status string \`json:"status"\`
+				App    string \`json:"app"\`
+				Uptime int    \`json:"uptime"\`
+			}{
+				Status: "ok",
+				App:    slug,
+				Uptime: int(time.Since(startedAt).Seconds()),
 			})
 			return
 		}
