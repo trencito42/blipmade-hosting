@@ -203,6 +203,14 @@ const schema = z.object({
   /** The templates of the other images, as JSON: {"ubuntu-24.04": 9001}. An image without a template is not offered. */
   VPS_IMAGES: z.string().default(''),
   VPS_POOL: z.string().default('vps'),
+  /** How the slot of a VPS becomes its id, its address and its port. The defaults are the ones the platform started with. */
+  VPS_VMID_BASE: z.coerce.number().int().min(100).default(1000),
+  VPS_NET_PREFIX: z.string().regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}$/).default('10.78.0'),
+  VPS_HOST_OFFSET: z.coerce.number().int().min(2).max(250).default(100),
+  VPS_GATEWAY: z.string().default('10.78.0.1'),
+  VPS_SSH_PORT_BASE: z.coerce.number().int().min(1024).max(60000).default(22100),
+  /** How many machines may exist. It cannot pass the size of the private network (254 minus the offset). */
+  VPS_MAX_SLOTS: z.coerce.number().int().min(1).max(250).default(150),
   /** The address that the SSH of the VPS without an address of their own is published on. */
   VPS_SHARED_IP: z.string().default(''),
   /** The addresses that a customer can buy for a VPS, separated by commas. */

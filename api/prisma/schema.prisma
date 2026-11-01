@@ -1392,6 +1392,21 @@ enum VpsStatus {
 
 /// A virtual private server of a customer. The machine lives on Proxmox; the row
 /// holds what the platform has to remember about it.
+/// The ledger of the slots of the VPS. A slot decides the id on Proxmox, the private
+/// address and the SSH port, so a slot is written here before a machine uses it and
+/// is never handed out twice, not even when the row of its service is gone.
+model VpsSlot {
+  slot      Int      @id
+  /// IN_USE: a service holds it. QUARANTINED: something unknown lives there, nothing is put on it.
+  state     String   @default("IN_USE")
+  serviceId String?
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([state])
+}
+
 model VpsService {
   id             String        @id @default(cuid())
   userId         String

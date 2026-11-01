@@ -13,7 +13,7 @@ import {
   requireStaff,
   resolveCookieSecure,
 } from '../plugins/auth.js';
-import { destroyVps, ownedVps, reinstallVps, setVpsPower, vpsUsage, vpsView } from '../services/vps.js';
+import { applyAllocationReport, destroyVps, ownedVps, reinstallVps, setVpsPower, vpsAllocationReport, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import * as pve from '../services/proxmox.js';
@@ -110,6 +110,20 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
         services.map(async (service) => ({ ...(await vpsView(service)), owner: service.user, slot: service.slot, vmid: service.vmid, privateIp: service.privateIp })),
       ),
     };
+  });
+
+  /** What the services, the ledger of the slots and Proxmox say, side by side. It only reads. */
+  app.get('/admin/vps/allocations', { preHandler: [requirePermission('infrastructure.read')] }, async () => {
+    const [report, ledger] = await Promise.all([vpsAllocationReport(), prisma.vpsSlot.findMany({ orderBy: { slot: 'asc' } })]);
+    return { report, ledger };
+  });
+
+  /** Writes the findings into the ledger. It quarantines slots and never touches a machine. */
+  app.post('/admin/vps/allocations/reconcile', { preHandler: [requirePermission('infrastructure.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const result = await applyAllocationReport(await vpsAllocationReport());
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.vps.reconcile', targetType: 'vps', meta: result, ip: request.ip });
+    return result;
   });
 
   app.get('/admin/vps/:id', { preHandler: [requirePermission('services.read')] }, async (request) => {

@@ -14,6 +14,7 @@ assertDisposableDatabase({ label: 'run the tests' });
  * the foreign keys.
  */
 const TABLES = [
+  'VpsSlot',
   'MailJob',
   'MailAlias',
   'Mailbox',

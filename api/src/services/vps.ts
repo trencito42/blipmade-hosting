@@ -18,13 +18,13 @@ import net from 'node:net';
  */
 
 /** The id on Proxmox of the machine of a slot. */
-export const vmidOfSlot = (slot: number): number => 1000 + slot;
+export const vmidOfSlot = (slot: number): number => env.VPS_VMID_BASE + slot;
 /** The address of the machine on the private network of the VPS. */
-export const privateIpOfSlot = (slot: number): string => `10.78.0.${100 + slot}`;
+export const privateIpOfSlot = (slot: number): string => `${env.VPS_NET_PREFIX}.${env.VPS_HOST_OFFSET + slot}`;
 /** The public port that reaches the SSH of the machine, when the address is shared. */
-export const sshPortOfSlot = (slot: number): number => 22100 + slot;
-/** How many machines the private network holds. */
-export const MAX_SLOT = 150;
+export const sshPortOfSlot = (slot: number): number => env.VPS_SSH_PORT_BASE + slot;
+/** How many machines the private network holds: the setting, and never more than the network has room for. */
+export const maxSlot = (): number => Math.min(env.VPS_MAX_SLOTS, 254 - env.VPS_HOST_OFFSET);
 
 const KEY_PATTERN =
   /^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com) [A-Za-z0-9+/=]{20,}(?: [^\r\n]{0,100})?$/;
@@ -79,24 +79,153 @@ export async function createVpsService(input: {
   sshPublicKey: string;
   dedicatedIp: boolean;
 }): Promise<VpsService> {
-  const existing = await prisma.vpsService.findUnique({ where: { orderItemId: input.orderItemId } });
-  if (existing) return existing;
-
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const last = await prisma.vpsService.aggregate({ _max: { slot: true } });
-    const slot = (last._max.slot ?? 0) + 1;
-    if (slot > MAX_SLOT) throw new Error('The private network of the VPS is full.');
+    const existing = await prisma.vpsService.findUnique({ where: { orderItemId: input.orderItemId } });
+    if (existing) return existing;
     try {
-      return await prisma.vpsService.create({
-        data: { ...input, slot, vmid: vmidOfSlot(slot), privateIp: privateIpOfSlot(slot), status: 'PENDING' },
+      return await prisma.$transaction(async (tx) => {
+        const slot = await takeNextSlot(tx);
+        const service = await tx.vpsService.create({
+          data: { ...input, slot, vmid: vmidOfSlot(slot), privateIp: privateIpOfSlot(slot), status: 'PENDING' },
+        });
+        await tx.vpsSlot.update({ where: { slot }, data: { serviceId: service.id } });
+        return service;
       });
     } catch (error) {
-      // Two orders asked for the same slot at the same moment: the next attempt takes the next one.
+      // The same order was fulfilled twice at the same moment: the row of the first one is returned on the next turn.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') continue;
       throw error;
     }
   }
   throw new Error('A slot for the VPS could not be taken.');
+}
+
+/** The key of the advisory lock that serialises the hand-out of the slots. */
+const SLOT_LOCK = 8_100_001;
+
+/**
+ * Takes the next slot and writes it in the ledger.
+ *
+ * The slots are handed out one at a time under a lock of the database, so two
+ * orders at the same moment never see the same number. The next slot is above
+ * every slot of the ledger and above every slot of a service, so a slot that
+ * is quarantined, retired or held by a service whose row was removed is never
+ * handed out again. The ledger row is written in the same transaction as the
+ * service, so there is no slot in use that the ledger does not know.
+ */
+async function takeNextSlot(tx: Prisma.TransactionClient, note?: string): Promise<number> {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SLOT_LOCK})`;
+  const [ledger, services] = await Promise.all([tx.vpsSlot.aggregate({ _max: { slot: true } }), tx.vpsService.aggregate({ _max: { slot: true } })]);
+  const slot = Math.max(ledger._max.slot ?? 0, services._max.slot ?? 0) + 1;
+  if (slot > maxSlot()) throw new Error('The private network of the VPS is full.');
+  await tx.vpsSlot.create({ data: { slot, state: 'IN_USE', note: note ?? null } });
+  return slot;
+}
+
+/**
+ * Whether the machine on Proxmox at the id of the service is the machine of the
+ * service. A machine is ours when it carries our tag and the id of the service in its
+ * description, or when it has the name this platform gave it. Anything else at that id
+ * is somebody else's and is never configured, started, stopped or deleted from here.
+ */
+export async function machineOwnership(service: Pick<VpsService, 'id' | 'slot' | 'vmid'>): Promise<'absent' | 'ours' | 'foreign'> {
+  const vmid = service.vmid ?? vmidOfSlot(service.slot);
+  if (!(await pve.vmExists(vmid))) return 'absent';
+  const config = await pve.vmConfig(vmid);
+  const tags = String(config.tags ?? '').split(/[;,\s]+/);
+  const ours = (tags.includes('bmvps') && String(config.description ?? '').includes(service.id)) || String(config.name ?? '').startsWith(`vps-${service.slot}-`);
+  return ours ? 'ours' : 'foreign';
+}
+
+/**
+ * Moves a service whose slot is taken by a machine that is not ours to a fresh slot.
+ * The old slot is quarantined: nothing is put on it until the operator has looked.
+ */
+async function moveToFreshSlot(service: VpsService, reason: string): Promise<VpsService> {
+  return prisma.$transaction(async (tx) => {
+    await tx.vpsSlot.upsert({
+      where: { slot: service.slot },
+      create: { slot: service.slot, state: 'QUARANTINED', note: reason.slice(0, 300) },
+      update: { state: 'QUARANTINED', serviceId: null, note: reason.slice(0, 300) },
+    });
+    const slot = await takeNextSlot(tx, `moved from slot ${service.slot}`);
+    await tx.vpsSlot.update({ where: { slot }, data: { serviceId: service.id } });
+    return tx.vpsService.update({
+      where: { id: service.id },
+      data: { slot, vmid: vmidOfSlot(slot), privateIp: privateIpOfSlot(slot), sshPort: null },
+    });
+  });
+}
+
+export interface VpsAllocationReport {
+  /** Machines in the pool that carry our tag and belong to no service. */
+  orphans: { vmid: number; name: string }[];
+  /** Machines at an id of ours that are not tagged as ours and belong to no service. */
+  foreignInRange: { vmid: number; name: string }[];
+  /** Services that should have a machine and the machine is not on Proxmox. */
+  missing: { id: string; vmid: number; status: string }[];
+  /** Services whose slot is not in the ledger. */
+  unledgered: { id: string; slot: number }[];
+  quarantined: number[];
+  capacity: { used: number; max: number };
+}
+
+/**
+ * Compares the services, the ledger and Proxmox. It only reads. The result says
+ * what does not match, and `applyAllocationReport` is the only thing that writes.
+ */
+export async function vpsAllocationReport(): Promise<VpsAllocationReport> {
+  const [services, ledger, members] = await Promise.all([
+    prisma.vpsService.findMany({ select: { id: true, slot: true, vmid: true, status: true } }),
+    prisma.vpsSlot.findMany({ select: { slot: true, state: true } }),
+    pve.poolMembers(),
+  ]);
+  const known = new Set(services.map((service) => service.vmid ?? vmidOfSlot(service.slot)));
+  const first = vmidOfSlot(1);
+  const last = vmidOfSlot(maxSlot());
+  const orphans = members.filter((member) => !known.has(member.vmid) && member.tags.split(/[;,]/).includes('bmvps'));
+  const foreignInRange = members.filter((member) => !known.has(member.vmid) && !member.tags.split(/[;,]/).includes('bmvps') && member.vmid >= first && member.vmid <= last);
+  const inPool = new Set(members.map((member) => member.vmid));
+  const missing: VpsAllocationReport['missing'] = [];
+  for (const service of services) {
+    if (!['ACTIVE', 'SUSPENDED'].includes(service.status) || !service.vmid || inPool.has(service.vmid)) continue;
+    if (!(await pve.vmExists(service.vmid))) missing.push({ id: service.id, vmid: service.vmid, status: service.status });
+  }
+  const ledgered = new Set(ledger.map((row) => row.slot));
+  return {
+    orphans: orphans.map(({ vmid, name }) => ({ vmid, name })),
+    foreignInRange: foreignInRange.map(({ vmid, name }) => ({ vmid, name })),
+    missing,
+    unledgered: services.filter((service) => !ledgered.has(service.slot)).map(({ id, slot }) => ({ id, slot })),
+    quarantined: ledger.filter((row) => row.state === 'QUARANTINED').map((row) => row.slot),
+    capacity: { used: Math.max(0, ...ledger.map((row) => row.slot), ...services.map((service) => service.slot)), max: maxSlot() },
+  };
+}
+
+/**
+ * Writes what the report found into the ledger: the slots of unknown machines are
+ * quarantined and the slots of services that the ledger missed are added. It never
+ * touches Proxmox and never removes a row.
+ */
+export async function applyAllocationReport(report: VpsAllocationReport): Promise<{ quarantined: number[]; added: number[] }> {
+  const quarantined: number[] = [];
+  const added: number[] = [];
+  const first = vmidOfSlot(1);
+  for (const machine of [...report.orphans, ...report.foreignInRange]) {
+    const slot = machine.vmid - env.VPS_VMID_BASE;
+    if (machine.vmid < first || slot > maxSlot()) continue;
+    await prisma.vpsSlot.upsert({
+      where: { slot },
+      create: { slot, state: 'QUARANTINED', note: `unknown machine "${machine.name}" found by the reconciliation` },
+      update: { state: 'QUARANTINED', note: `unknown machine "${machine.name}" found by the reconciliation` },
+    });
+    quarantined.push(slot);
+  }
+  for (const row of report.unledgered) {
+    await prisma.vpsSlot.upsert({ where: { slot: row.slot }, create: { slot: row.slot, state: 'IN_USE', serviceId: row.id }, update: {} });
+    added.push(row.slot);
+  }
+  return { quarantined, added };
 }
 
 const dashed = (address: string) => address.replace(/\./g, '-');
@@ -114,7 +243,7 @@ function tagsOf(service: { sshPort: number | null; publicIp: string; privateIp: 
  * job that was interrupted continues where it stopped.
  */
 export async function provisionVps(serviceId: string): Promise<void> {
-  const service = await prisma.vpsService.findUnique({ where: { id: serviceId } });
+  let service = await prisma.vpsService.findUnique({ where: { id: serviceId } });
   if (!service) throw new Error('The VPS no longer exists.');
   if (service.status === 'ACTIVE' || service.status === 'CANCELLED') return;
   if (!pve.proxmoxConfigured()) throw new Error('The VPS service is not set up on this platform.');
@@ -122,6 +251,13 @@ export async function provisionVps(serviceId: string): Promise<void> {
   await prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'PROVISIONING', lastError: null } });
 
   try {
+    // A machine that is not ours may sit at the id of the slot. It is never
+    // adopted: the slot is quarantined and the service moves to a fresh one.
+    for (let moves = 0; ; moves += 1) {
+      if ((await machineOwnership(service)) !== 'foreign') break;
+      if (moves >= 3) throw new Error('Three slots in a row are taken by machines that are not ours. An operator has to look at the allocations.');
+      service = await moveToFreshSlot(service, `a machine that is not this platform's is at VMID ${service.vmid ?? vmidOfSlot(service.slot)}`);
+    }
     const vmid = service.vmid ?? vmidOfSlot(service.slot);
     const privateIp = service.privateIp ?? privateIpOfSlot(service.slot);
 
@@ -145,7 +281,7 @@ export async function provisionVps(serviceId: string): Promise<void> {
     await pve.configureVm(vmid, {
       cores: service.cpu,
       memory: service.ram,
-      ipconfig0: `ip=${privateIp}/24,gw=10.78.0.1`,
+      ipconfig0: `ip=${privateIp}/24,gw=${env.VPS_GATEWAY}`,
       nameserver: '1.1.1.1',
       ciuser: 'debian',
       // Proxmox wants the key encoded, and one key per line.
@@ -323,7 +459,9 @@ export async function reinstallVps(userId: string, id: string, rawKey?: string, 
   const key = rawKey?.trim() ? validSshKey(rawKey) : service.sshPublicKey;
   const image = rawImage?.trim() || service.image;
   if (!templateOfImage(image)) throw badRequest('That operating system is not available.');
-  if (await pve.vmExists(service.vmid)) {
+  const owner = await machineOwnership(service);
+  if (owner === 'foreign') throw badRequest('This server cannot be reinstalled automatically. Support has been asked to check it.');
+  if (owner === 'ours') {
     const live = await pve.vmStatus(service.vmid);
     if (live.status === 'running') await pve.power(service.vmid, 'stop');
     await pve.deleteVm(service.vmid);
@@ -532,12 +670,23 @@ export async function ejectVpsIso(userId: string, id: string) {
 export async function destroyVps(serviceId: string): Promise<void> {
   const service = await prisma.vpsService.findUnique({ where: { id: serviceId } });
   if (!service) return;
-  if (service.vmid && (await pve.vmExists(service.vmid))) {
+  const owner = service.vmid ? await machineOwnership(service) : 'absent';
+  if (owner === 'ours' && service.vmid) {
     const live = await pve.vmStatus(service.vmid);
     if (live.status === 'running') await pve.power(service.vmid, 'stop');
     await pve.deleteVm(service.vmid);
+    if (await pve.vmExists(service.vmid)) throw new Error('The machine is still on Proxmox after the delete.');
   }
-  await prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'CANCELLED' } });
+  // A machine that is not ours is left where it is: the service is closed and the slot is quarantined.
+  const foreign = owner === 'foreign';
+  await prisma.$transaction([
+    prisma.vpsService.update({ where: { id: serviceId }, data: { status: 'CANCELLED', ...(foreign ? { lastError: 'The machine at this slot was not ours and was not touched.' } : {}) } }),
+    prisma.vpsSlot.upsert({
+      where: { slot: service.slot },
+      create: { slot: service.slot, state: foreign ? 'QUARANTINED' : 'RETIRED', serviceId: service.id },
+      update: { state: foreign ? 'QUARANTINED' : 'RETIRED', note: foreign ? 'a machine that is not ours is here' : 'the machine was deleted' },
+    }),
+  ]);
 }
 
 /** How long a machine whose subscription ended is kept before it is deleted. */

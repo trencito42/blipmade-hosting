@@ -121,6 +121,14 @@ export async function resizeDisk(vmid: number, sizeGb: number): Promise<void> {
   await request('PUT', `/nodes/${node()}/qemu/${vmid}/resize`, { disk: 'scsi0', size: `${sizeGb}G` });
 }
 
+/** The machines of the pool of the VPS, as Proxmox lists them. */
+export async function poolMembers(): Promise<{ vmid: number; name: string; tags: string }[]> {
+  const pool = await request<{ members?: { type?: string; vmid?: number; name?: string; tags?: string }[] }>('GET', `/pools/${encodeURIComponent(env.VPS_POOL)}`);
+  return (pool.members ?? [])
+    .filter((member) => member.type === 'qemu' && typeof member.vmid === 'number')
+    .map((member) => ({ vmid: member.vmid as number, name: member.name ?? '', tags: member.tags ?? '' }));
+}
+
 export async function vmExists(vmid: number): Promise<boolean> {
   try {
     await request('GET', `/nodes/${node()}/qemu/${vmid}/status/current`);
