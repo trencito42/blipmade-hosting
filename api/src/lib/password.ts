@@ -59,8 +59,29 @@ export const PASSWORD_MIN_LENGTH = 10;
 /**
  * Returns a list of human-readable problems. Empty array means the password is acceptable.
  */
+/** Passwords that every attack list starts with. Matched without regard to case. */
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password12', 'password123', 'password1234', 'passw0rd', 'p@ssw0rd', 'p@ssword1',
+  '1234567890', '12345678910', 'qwertyuiop', 'qwerty12345', 'qwerty123456', 'qwertyuiop1', 'letmein123', 'welcome123',
+  'welcome1234', 'admin12345', 'administrator', 'iloveyou123', 'changeme123', 'abc1234567', 'abcd123456', 'blipmade123',
+  'blipmade1234', 'blipmade2026', 'password2026', 'summer2026', 'winter2026', 'monkey12345', 'dragon12345', 'football123',
+]);
+
+/** Staff accounts reach customers' data, so their passwords are longer. */
+export const STAFF_PASSWORD_MIN_LENGTH = 14;
+
+/** The problems of a password for a member of staff: the usual ones, and a longer minimum. */
+export function staffPasswordProblems(password: string): string[] {
+  const problems = passwordProblems(password);
+  if (password.length < STAFF_PASSWORD_MIN_LENGTH && !problems.some((p) => p.startsWith('Use at least'))) {
+    problems.push(`Staff passwords need at least ${STAFF_PASSWORD_MIN_LENGTH} characters.`);
+  }
+  return problems;
+}
+
 export function passwordProblems(password: string): string[] {
   const problems: string[] = [];
+  if (COMMON_PASSWORDS.has(password.toLowerCase())) problems.push('This password is too common. Choose another one.');
   if (password.length < PASSWORD_MIN_LENGTH) problems.push(`Use at least ${PASSWORD_MIN_LENGTH} characters.`);
   if (password.length > 200) problems.push('Use at most 200 characters.');
   if (!/[a-z]/.test(password)) problems.push('Add a lowercase letter.');

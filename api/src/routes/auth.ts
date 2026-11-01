@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { badRequest, conflict, notFound, tooMany, unauthorized } from '../lib/errors.js';
-import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.js';
+import { hashPassword, passwordProblems, staffPasswordProblems, verifyPassword } from '../lib/password.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { LIMITS, customerLimit, rateLimitRun } from '../lib/rate-limit.js';
 import { clearFailedAttempts, isBlocked, recordFailedAttempt } from '../lib/failed-attempts.js';
@@ -565,7 +565,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
       if (adminCount > 0) throw conflict('This platform already has an administrator.');
 
-      const problems = passwordProblems(body.password);
+      const problems = staffPasswordProblems(body.password);
       if (problems.length) throw badRequest(problems.join(' '), { password: problems.join(' ') });
 
       const existing = await prisma.user.findUnique({ where: { email: body.email } });

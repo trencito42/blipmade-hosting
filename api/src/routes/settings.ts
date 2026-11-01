@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { AppError, badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
-import { hashPassword, passwordProblems, verifyPassword } from '../lib/password.js';
+import { hashPassword, passwordProblems, staffPasswordProblems, verifyPassword } from '../lib/password.js';
+import { passwordUsedByOtherStaff } from '../services/staff-password.js';
 import { hashToken, randomToken } from '../lib/tokens.js';
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
@@ -466,7 +467,13 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
           currentPassword: 'The current password is not correct.',
         });
       }
-      const problems = passwordProblems(body.newPassword);
+      // A member of staff reaches the data of customers: a longer password, and not one that
+      // another member of staff already uses.
+      const isStaff = account.role === 'ADMIN' || Boolean(await prisma.staffMember.findUnique({ where: { userId: account.id }, select: { userId: true } }));
+      const problems = isStaff ? staffPasswordProblems(body.newPassword) : passwordProblems(body.newPassword);
+      if (isStaff && !problems.length && (await passwordUsedByOtherStaff(body.newPassword, account.id))) {
+        throw badRequest('Another member of staff already uses this password.', { newPassword: 'Choose a password of your own.' });
+      }
       if (problems.length) {
         throw badRequest(problems.join(' '), { newPassword: problems.join(' ') });
       }
