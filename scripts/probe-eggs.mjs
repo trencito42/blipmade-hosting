@@ -604,6 +604,13 @@ async function probeOne(product, eggs, allocations) {
     record.started = true;
 
     const deadline = Date.now() + Number(process.env.PROBE_WAIT_MS ?? 180_000);
+    // The node says "offline" while the container is still starting, and a
+    // program that compiles itself before it listens takes its time. A probe
+    // that believes the first word of the node closed the product while its
+    // container was booting, and the product was closed for a fault that it
+    // did not have. The word has to stay the same for a while before the
+    // product is called crashed.
+    let idle = 0;
     while (Date.now() < deadline) {
       record.state = await serverState(uuid);
       const open = await tcpProbe(allocation.ip, allocation.port);
@@ -617,9 +624,14 @@ async function probeOne(product, eggs, allocations) {
         break;
       }
       if (record.state === 'stopped' || record.state === 'offline') {
-        record.state = `crashed (${record.state})`;
-        await new Promise((resolve) => setTimeout(resolve, 4000));
-        break;
+        idle += 1;
+        if (idle >= 5) {
+          record.state = `crashed (${record.state})`;
+          await new Promise((resolve) => setTimeout(resolve, 4000));
+          break;
+        }
+      } else {
+        idle = 0;
       }
       await new Promise((resolve) => setTimeout(resolve, 6000));
     }
