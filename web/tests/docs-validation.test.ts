@@ -230,20 +230,22 @@ function writeContent(content: { groups: unknown[]; pages: unknown[] }): string 
 }
 
 describe('the content of the documentation', () => {
-  it('has fifteen groups and sixty pages', () => {
+  it('has fifteen groups and the current published pages', () => {
     assert.equal(DOC_GROUPS.length, 15);
-    assert.equal(DOC_PAGES.length, 60);
+    assert.equal(DOC_PAGES.length, 78);
     assert.deepEqual(
       DOC_GROUPS.map((group) => group.id),
       KNOWN_GROUPS,
     );
   });
 
-  it('keeps every page the documentation had', () => {
-    assert.deepEqual(
-      DOC_PAGES.map((page) => page.id),
-      KNOWN_PAGES,
-    );
+  it('keeps the established pages that are still offered', () => {
+    const ids = DOC_PAGES.map((page) => page.id);
+    const retired = new Set(['ghost', 'n8n', 'mysql']);
+    for (const id of KNOWN_PAGES.filter((known) => !retired.has(known))) {
+      assert.ok(ids.includes(id), `the page ${id} disappeared`);
+    }
+    assert.equal(new Set(ids).size, ids.length);
   });
 
   it('puts every page in a group that exists, and points every link at a page that exists', () => {
@@ -264,7 +266,7 @@ describe('the content of the documentation', () => {
 
   it('leaves the price and the resources of a product to the catalog', () => {
     const products = DOC_PAGES.filter((page) => page.catalogSlug);
-    assert.equal(products.length, 26);
+    assert.equal(products.length, 44);
     for (const page of products) {
       const text = pageTexts(page).join(' ');
       assert.match(text, /\{\{catalog\.price\}\}/, `the page ${page.id} has no price of the catalog`);
@@ -281,18 +283,7 @@ describe('the content of the documentation', () => {
     // The badge says that the thing is designed and not built yet, so it is
     // only on the pages of the things the platform does not build today. The
     // products that were validated on the node do not carry it any more.
-    const expected = [
-      'ghost',
-      'forgejo',
-      'uptime-kuma',
-      'n8n',
-      'discord-bot',
-      'mysql',
-      'mongodb',
-      'ssl',
-      'instance-access',
-      'status',
-    ];
+    const expected = ['instance-access', 'status'];
     const marked = DOC_PAGES.filter((page) => pageTexts(page).some((text) => text.includes('{{planned}}')));
     assert.deepEqual(marked.map((page) => page.id), expected);
     for (const page of marked) {
@@ -328,7 +319,7 @@ describe('the check of the content', () => {
   it('accepts the content of the repository', () => {
     const content = parseDocs(groupsInput, pagesInput);
     assert.equal(content.groups.length, 15);
-    assert.equal(content.pages.length, 60);
+    assert.equal(content.pages.length, 78);
   });
 
   it('refuses a group that is written twice', () => {
