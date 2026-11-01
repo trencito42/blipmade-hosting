@@ -92,6 +92,8 @@ const schema = z.object({
   DEVICE_FINGERPRINT_SECRET: z.string().default(''),
   /** How long a hashed browser identifier is kept. */
   DEVICE_SIGNAL_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(90),
+  /** The public address players use to join a game server. Empty shows the address of the allocation. */
+  GAME_PUBLIC_HOST: z.string().default(''),
   /** Cloudflare Turnstile secret. Empty keeps the human check off. */
   TURNSTILE_SECRET_KEY: z.string().default(''),
   /** The public key of the same Turnstile widget. The page shows the check only when both are set. */

@@ -44,6 +44,7 @@ type Tab =
   | 'domains'
   | 'uptime'
   | 'git'
+  | 'minecraft'
   | 'access';
 type PowerAction = 'start' | 'restart' | 'stop';
 
@@ -65,6 +66,8 @@ const StartupTab = lazy(() => import('./instance/StartupTab'));
 const SchedulesTab = lazy(() => import('./instance/SchedulesTab'));
 const UptimeTab = lazy(() => import('./instance/UptimeTab'));
 const GitTab = lazy(() => import('./instance/GitTab'));
+const MinecraftTab = lazy(() => import('./instance/MinecraftTab'));
+const HelpPanel = lazy(() => import('./instance/HelpPanel'));
 const AccessTab = lazy(() => import('./instance/AccessTab'));
 const SettingsTab = lazy(() => import('./instance/SettingsTab'));
 const ActivityTab = lazy(() => import('./instance/ActivityTab'));
@@ -109,13 +112,14 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'domains', label: 'Domains' },
   { value: 'uptime', label: 'Uptime' },
   { value: 'git', label: 'Deploy' },
+  { value: 'minecraft', label: 'Minecraft' },
   { value: 'access', label: 'Access' },
 ];
 
 /** What a member of a shared server does not get: the parts that belong to the owner. */
 const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
 /** A viewer only looks. */
-const VIEWER_HIDDEN: Tab[] = ['files', 'startup', 'schedules', 'databases', 'backups', 'network', 'git'];
+const VIEWER_HIDDEN: Tab[] = ['files', 'startup', 'schedules', 'databases', 'backups', 'network', 'git', 'minecraft'];
 
 const POWER_LABEL: Record<PowerAction, string> = {
   start: 'Start',
@@ -625,6 +629,7 @@ export default function InstanceDetail() {
   const visibleTabs = TABS.filter((entry) => {
     const access = data?.instance.access ?? 'owner';
     // Deploy from Git is for the runtimes where the customer brings the code.
+    if (entry.value === 'minecraft' && !['minecraft-paper', 'minecraft-folia', 'minecraft-forge'].includes(data?.instance.product.slug ?? '')) return false;
     if (entry.value === 'git' && !['nodejs', 'discord-bot'].includes(data?.instance.product.slug ?? '')) return false;
     if (access === 'owner') return true;
     if (OWNER_ONLY.includes(entry.value)) return false;
@@ -763,6 +768,7 @@ export default function InstanceDetail() {
         ) : (
         <Suspense fallback={<LoadingBlock rows={4} label="Loading section" />}>
           {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} />}
+          {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><HelpPanel instance={instance} onGoTo={setTab} productSlug={instance.product.slug} /></div>}
           {tab === 'console' && <ConsoleTab instance={instance} />}
           {tab === 'files' && <FilesTab instance={instance} />}
           {tab === 'databases' && <DatabasesTab instance={instance} />}
@@ -776,6 +782,7 @@ export default function InstanceDetail() {
           {tab === 'domains' && <DomainsTab instance={instance} />}
           {tab === 'uptime' && <UptimeTab instance={instance} />}
           {tab === 'git' && <GitTab instance={instance} />}
+          {tab === 'minecraft' && <MinecraftTab instance={instance} />}
           {tab === 'access' && <AccessTab instance={instance} />}
         </Suspense>
         )}

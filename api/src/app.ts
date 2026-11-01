@@ -36,6 +36,8 @@ import { registerApiKeyRoutes } from './routes/api-keys.js';
 import { registerAdminOpsRoutes } from './routes/admin-ops.js';
 import { registerInternalBackupRoutes } from './routes/internal-backups.js';
 import { registerGitDeployRoutes } from './routes/git-deploy.js';
+import { registerMinecraftRoutes } from './routes/minecraft.js';
+import { registerInstanceHelpRoutes } from './routes/instance-help.js';
 import { registerAbuseRoutes } from './routes/abuse.js';
 import { registerAdminMailRoutes } from './routes/admin-mail.js';
 import { registerAdminMailPlansRoutes } from './routes/admin-mail-plans.js';
@@ -233,6 +235,8 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerAdminOpsRoutes(api);
       await registerInternalBackupRoutes(api);
       await registerGitDeployRoutes(api);
+      await registerMinecraftRoutes(api);
+      await registerInstanceHelpRoutes(api);
       await registerAbuseRoutes(api);
       await registerAdminRoutes(api);
       await registerAdminControlRoutes(api);

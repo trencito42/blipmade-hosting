@@ -445,6 +445,14 @@ export function writeFile(token: string, uuid: string, path: string, content: st
   });
 }
 
+/** Has the node download a file into a folder of the server. The node refuses addresses inside the network. */
+export function pullFile(token: string, uuid: string, url: string, directory: string, filename: string) {
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/files/pull`, {
+    token,
+    body: { url, directory, filename, use_header: false, foreground: true },
+  });
+}
+
 /**
  * Deletes a file or a folder. The endpoint is a POST that takes the directory
  * and the names inside it.
