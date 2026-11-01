@@ -99,31 +99,48 @@ export async function enforceRetention(instance: operations.OwnedInstance & { ra
 /**
  * The hourly pass: servers with an automatic backup get a free slot before it runs. A server that fails
  * is noted in its events and the pass goes on.
+ *
+ * The servers are read in pages by the order of their id, and the pass goes on until a page comes back
+ * empty, so a platform with more servers than one page is swept to the end and not only in its first page.
  */
-export async function sweepBackupRetention(limit = 200): Promise<{ checked: number; removed: number; failed: number }> {
-  const instances = await prisma.instance.findMany({
-    where: { pterodactylUuid: { not: null }, pterodactylServerId: { not: null }, status: { in: ['ONLINE', 'STOPPED', 'DEGRADED', 'RESTARTING'] } },
-    select: { id: true, userId: true, pterodactylUuid: true, pterodactylServerId: true, status: true, generatedVariables: true, ram: true, product: { select: { generatedVariables: true } } },
-    take: limit,
-  });
+export async function sweepBackupRetention(batch = 200): Promise<{ checked: number; removed: number; failed: number }> {
+  let checked = 0;
   let removed = 0;
   let failed = 0;
-  for (const row of instances) {
-    const { product, ...rest } = row;
-    const instance = { ...rest, productVariables: product.generatedVariables };
-    try {
-      const token = await operations.customerToken(instance);
-      // Every server, automatic backup or not: the copies of the agents are linked to their service here.
-      await linkOffsiteCopies(instance.id, (await client.listBackups(token, instance.pterodactylUuid as string)).map((backup) => backup.uuid));
-      const { preset } = await readPreset(token, instance.pterodactylUuid as string);
-      if (preset === 'off') continue;
-      removed += await enforceRetention(instance);
-    } catch (error) {
-      failed += 1;
-      await prisma.instanceEvent
-        .create({ data: { instanceId: instance.id, type: 'backups', message: `The backup rotation failed: ${error instanceof Error ? error.message.slice(0, 200) : 'unknown error'}` } })
-        .catch(() => undefined);
+  let after: string | undefined;
+  for (;;) {
+    const instances = await prisma.instance.findMany({
+      where: {
+        ...(after ? { id: { gt: after } } : {}),
+        pterodactylUuid: { not: null },
+        pterodactylServerId: { not: null },
+        status: { in: ['ONLINE', 'STOPPED', 'DEGRADED', 'RESTARTING'] },
+      },
+      select: { id: true, userId: true, pterodactylUuid: true, pterodactylServerId: true, status: true, generatedVariables: true, ram: true, product: { select: { generatedVariables: true } } },
+      orderBy: { id: 'asc' },
+      take: batch,
+    });
+    if (!instances.length) break;
+    after = instances[instances.length - 1].id;
+    checked += instances.length;
+    for (const row of instances) {
+      const { product, ...rest } = row;
+      const instance = { ...rest, productVariables: product.generatedVariables };
+      try {
+        const token = await operations.customerToken(instance);
+        // Every server, automatic backup or not: the copies of the agents are linked to their service here.
+        await linkOffsiteCopies(instance.id, (await client.listBackups(token, instance.pterodactylUuid as string)).map((backup) => backup.uuid));
+        const { preset } = await readPreset(token, instance.pterodactylUuid as string);
+        if (preset === 'off') continue;
+        removed += await enforceRetention(instance);
+      } catch (error) {
+        failed += 1;
+        await prisma.instanceEvent
+          .create({ data: { instanceId: instance.id, type: 'backups', message: `The backup rotation failed: ${error instanceof Error ? error.message.slice(0, 200) : 'unknown error'}` } })
+          .catch(() => undefined);
+      }
     }
+    if (instances.length < batch) break;
   }
-  return { checked: instances.length, removed, failed };
+  return { checked, removed, failed };
 }
