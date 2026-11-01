@@ -69,6 +69,15 @@ import { checkGeneralWrite, mayReadSetting, SettingRefusal, settingControlMap, s
 
 const money = (amount: number) => amount / 100;
 
+/** The figures of a price row, kept in the journal so a change can be read back with its before and after. */
+const priceFigures = (price: { baseAmount: number; ramPerGb: number; cpuPerUnit: number; diskPerGb: number; active: boolean }) => ({
+  baseAmount: price.baseAmount,
+  ramPerGb: price.ramPerGb,
+  cpuPerUnit: price.cpuPerUnit,
+  diskPerGb: price.diskPerGb,
+  active: price.active,
+});
+
 /**
  * The check that says whether a deployment really works.
  *
@@ -996,12 +1005,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         where: { id },
         data: { ...body, baseAmount: 0 },
       });
-      await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: body, ip: request.ip });
+      await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: { ...body, before: priceFigures(existing), after: priceFigures(price), rateCardBefore: current }, ip: request.ip });
       return { price };
     }
 
     const price = await prisma.productPrice.update({ where: { id }, data: body });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: body, ip: request.ip });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'pricing.updated', targetType: 'product_price', targetId: id, meta: { ...body, before: priceFigures(existing), after: priceFigures(price) }, ip: request.ip });
     return { price };
   });
 
