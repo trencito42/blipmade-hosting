@@ -16,3 +16,10 @@
 | Dependencies: 10 vulnerabilities in API production dependencies (prisma, zod, @fastify/static, nodemailer, @sentry/node and their chains) | STILL BROKEN: each fix is a breaking upgrade that needs its own change and test run |
 | Playwright and a visual check of the admin changes | NOT RUN |
 | Tax rules, the jurisdiction decisions, Factorio listing, SSH key rotation to the storage box, legal data | operator decisions, not touched |
+
+## Operator actions that only you can do
+1. Give the Proxmox token `bmapi@pve!provision` the privilege `Pool.Audit` on `/pool/vps`, on the user and on the token (privilege separation is on). Until then `GET /admin/vps/allocations` says `poolUnavailable` and cannot find orphans or strangers. Not done here because it changes the access of a production principal.
+2. When Proxmox renews its certificate (about once a year), write the new fingerprint in `VPS_PROXMOX_FINGERPRINT` in `/opt/blipmade/.env` and restart `api` and `worker`, or the VPS service stops. Read it with `openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -fingerprint -sha256`.
+3. Review the backup wording in the Terms, the SLA and the AUP before you rely on it.
+4. Decide on the API dependency upgrades (prisma, zod 4, @fastify/static 10, nodemailer 10, @sentry/node) and on the tax, legal and Factorio questions that were already open.
+5. Test a real card payment of a VPS and a plan change on a Stripe test-mode subscription before opening the VPS plans.
