@@ -510,9 +510,25 @@ async function probeOne(product, eggs, allocations) {
   record.startup = startup;
   record.environmentKeys = Object.keys(environment);
 
-  const allocation = allocations.shift();
+  // The panel refuses an address that another server took in the meantime: the
+  // rule of the panel is that the address must exist and belong to no server.
+  // Two probes that run at the same time read the same list of free
+  // addresses and ask for the same one, and the second one is refused with
+  // "The selected allocation.default is invalid". The address is therefore
+  // read again before the server is created, and another one is taken when it
+  // is gone.
+  let allocation = null;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = allocations.shift();
+    if (!candidate) break;
+    const fresh = await appRequest('GET', `/api/application/allocations/${candidate.id}`);
+    if (!fresh?.attributes?.assigned) {
+      allocation = candidate;
+      break;
+    }
+  }
   if (!allocation) {
-    record.error = 'there is no free address on the panel';
+    record.error = 'every free address of the panel was taken by another probe';
     return record;
   }
 
