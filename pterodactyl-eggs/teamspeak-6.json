@@ -13,7 +13,7 @@
         "ghcr.io/ptero-eggs/yolks:debian": "ghcr.io/ptero-eggs/yolks:debian"
     },
     "file_denylist": [],
-    "startup": "./tsserver --default-voice-port={{SERVER_PORT}}",
+    "startup": "./tsserver --default-voice-port={{SERVER_PORT}} --filetransfer-port=$(( {{SERVER_PORT}} + 1 ))",
     "config": {
         "files": "{}",
         "startup": "{\r\n    \"done\": \"listening on 0.0.0.0:\"\r\n}",
@@ -22,7 +22,7 @@
     },
     "scripts": {
         "installation": {
-            "script": "cd /mnt/server\r\n\r\napt-get update\r\napt-get install -y jq bzip2\r\n\r\nver=\"$TS_VERSION\"\r\nif [ -z \"$ver\" ] || [ \"$ver\" = \"latest\" ]; then\r\n    json=$(curl -sSL https://api.github.com/repos/teamspeak/teamspeak6-server/releases/latest)\r\nelse\r\n    json=$(curl -sSL https://api.github.com/repos/teamspeak/teamspeak6-server/releases/tags/$ver 2>/dev/null)\r\n    if echo \"$json\" | grep -q \"Not Found\"; then\r\n        altver=$(echo \"$ver\" | sed 's/-/\\//')\r\n        json=$(curl -sSL https://api.github.com/repos/teamspeak/teamspeak6-server/releases/tags/$altver 2>/dev/null)\r\n    fi\r\nfi\r\n\r\nif echo \"$json\" | grep -q \"Not Found\"; then\r\n    echo \"Not found: $ver\"\r\n    exit 1\r\nfi\r\n\r\nurl=$(echo \"$json\" | jq -r '.assets | map(select((.name | contains(\"linux_amd64\")) and (.name | endswith(\".tar.bz2\"))))[0].browser_download_url')\r\n\r\nif [ -z \"$url\" ] || [ \"$url\" = \"null\" ]; then\r\n    echo \"Not found: $ver\"\r\n    exit 1\r\nfi\r\n\r\ncurl -sSL \"$url\" | tar xj --strip-components=1\r\necho \"Installed\"",
+            "script": "#!/bin/bash\n# Teamspeak 6 Server Installation Script\n#\n# Server Files: /mnt/server\ncd /mnt/server\n\napt-get update\napt-get install -y jq bzip2 xz-utils\n\nver=\"$TS_VERSION\"\nif [ -z \"$ver\" ] || [ \"$ver\" = \"latest\" ]; then\n    ver=\"6.0.0-beta13.1\"\nfi\n\n## The release is taken from the address of the release, and not from the\n## address of the releases of GitHub: that address answers with the rate of\n## the requests, and a container that asks for it when the rate is spent\n## gets no file at all.\nurl=\"https://github.com/teamspeak/teamspeak6-server/releases/download/v${ver}/teamspeak6-server-linux-amd64.tar.xz\"\n\nif ! curl --output /dev/null --silent --head --fail \"$url\"; then\n    echo \"Not found: $ver\"\n    exit 1\nfi\n\ncurl -sSL \"$url\" | tar xJf -\nchmod +x tsserver\n\necho \"Installed\"",
             "container": "ghcr.io/ptero-eggs/installers:debian",
             "entrypoint": "bash"
         }
@@ -42,7 +42,7 @@
             "name": "Server Version",
             "description": "The version of Teamspeak 3 to use when running the server.",
             "env_variable": "TS_VERSION",
-            "default_value": "latest",
+            "default_value": "6.0.0-beta13.1",
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|string|max:20",

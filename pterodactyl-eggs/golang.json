@@ -10,10 +10,12 @@
     "description": "A generic golang egg that compiles the application and saves an executable\r\n\r\nMeant to be customized before it is used.",
     "features": null,
     "docker_images": {
-        "ghcr.io/ptero-eggs/yolks:debian": "ghcr.io/ptero-eggs/yolks:debian"
+        "Go Latest": "ghcr.io/ptero-eggs/yolks:go_latest",
+        "Go 1.25": "ghcr.io/ptero-eggs/yolks:go_1.25",
+        "Go 1.24": "ghcr.io/ptero-eggs/yolks:go_1.24"
     },
     "file_denylist": [],
-    "startup": "./${EXECUTABLE}",
+    "startup": "go build -o {{EXECUTABLE}} . && ./{{EXECUTABLE}}",
     "config": {
         "files": "{}",
         "startup": "{\r\n    \"done\": \"change this part\"\r\n}",
@@ -22,9 +24,9 @@
     },
     "scripts": {
         "installation": {
-            "script": "#!/bin/bash\r\n# golang generic package\r\n\r\n\r\nif [ ! -d /mnt/server/ ]; then\r\n    mkdir -p /mnt/server/\r\nfi\r\n\r\ngo get ${GO_PACKAGE}\r\n\r\ncd src/${GO_PACKAGE}\r\n\r\ngo get\r\n\r\ngo build\r\n\r\ncp -f ${EXECUTABLE} /mnt/server/",
-            "container": "golang:1.15-buster",
-            "entrypoint": "bash"
+            "script": "#!/bin/bash\n# golang generic package\n#\n# The customer brings the code, and the platform puts an application in the\n# container when there is none.\n\nif [ ! -d /mnt/server/ ]; then\n    mkdir -p /mnt/server/\nfi\n\ncd /mnt/server\n\n## No package: the platform puts the application of the product into the\n## container, and there is nothing to build from the network.\nif [ -z \"${GO_PACKAGE}\" ]; then\n    echo -e \"no package was given, the application of the platform is used\"\n    exit 0\nfi\n\n## The module of the customer is used when there is one.\nif [ ! -f go.mod ]; then\n    go mod init blipmade\nfi\n\ngo get ${GO_PACKAGE}\ngo build -o ${EXECUTABLE} .\nchmod +x ${EXECUTABLE}\n\necho -e \"install complete\"\nexit 0",
+            "container": "ghcr.io/ptero-eggs/yolks:go_latest",
+            "entrypoint": "sh"
         }
     },
     "variables": [
@@ -35,17 +37,17 @@
             "default_value": "",
             "user_viewable": true,
             "user_editable": true,
-            "rules": "required|string",
+            "rules": "nullable|string",
             "field_type": "text"
         },
         {
             "name": "Executable",
             "description": "This is the executable from the build.",
             "env_variable": "EXECUTABLE",
-            "default_value": "",
+            "default_value": "starter",
             "user_viewable": true,
             "user_editable": false,
-            "rules": "required|string",
+            "rules": "nullable|string",
             "field_type": "text"
         }
     ]

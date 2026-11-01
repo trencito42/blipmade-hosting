@@ -18,7 +18,7 @@
         "ghcr.io/ptero-eggs/yolks:java_21": "ghcr.io/ptero-eggs/yolks:java_21"
     },
     "file_denylist": [],
-    "startup": "java -Dterminal.jline=false -Dterminal.ansi=true -jar {{JARFILE}}",
+    "startup": "if [ ! -f {{JARFILE}} ]; then mkdir -p build && javac -d build *.java && jar cfe {{JARFILE}} {{MAIN_CLASS}} -C build .; fi; java -Dterminal.jline=false -Dterminal.ansi=true -jar {{JARFILE}}",
     "config": {
         "files": "{}",
         "startup": "{\r\n    \"done\": \"change this text\"\r\n}",
@@ -37,10 +37,20 @@
             "name": "JAR FILE",
             "description": "",
             "env_variable": "JARFILE",
-            "default_value": "sneakyhub.jar",
+            "default_value": "starter.jar",
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|string|max:50",
+            "field_type": "text"
+        },
+        {
+            "name": "Main class",
+            "description": "The class that starts the program of the jar.",
+            "env_variable": "MAIN_CLASS",
+            "default_value": "Starter",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:64",
             "field_type": "text"
         }
     ]

@@ -12,11 +12,30 @@
   "cs2d": {
     "kind": "container"
   },
+  "dart": {
+    "kind": "http",
+    "path": "/"
+  },
+  "deno": {
+    "kind": "http",
+    "path": "/"
+  },
   "discord-bot": {
     "kind": "container"
   },
+  "dont-starve-together": {
+    "kind": "container"
+  },
+  "dotnet": {
+    "kind": "http",
+    "path": "/"
+  },
   "elasticsearch": {
     "kind": "tcp"
+  },
+  "elixir": {
+    "kind": "http",
+    "path": "/"
   },
   "factorio": {
     "kind": "container"
@@ -35,7 +54,15 @@
     "kind": "http",
     "path": "/"
   },
+  "golang": {
+    "kind": "http",
+    "path": "/"
+  },
   "grafana": {
+    "kind": "http",
+    "path": "/"
+  },
+  "java": {
     "kind": "http",
     "path": "/"
   },
@@ -127,14 +154,24 @@
   "rust": {
     "kind": "container"
   },
+  "rust-runtime": {
+    "kind": "http",
+    "path": "/"
+  },
   "samp": {
     "kind": "container"
+  },
+  "sftp-share": {
+    "kind": "tcp"
   },
   "space-engineers": {
     "kind": "container"
   },
   "team-fortress-2": {
     "kind": "tcp"
+  },
+  "teamspeak-6": {
+    "kind": "container"
   },
   "terraria": {
     "kind": "tcp",

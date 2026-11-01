@@ -10,10 +10,10 @@
     "description": "A simple \"empty\" egg that acts as a private SFTP storage share by utilizing Pterodactyl's built in SFTP system for servers. Sub-users can be added to the server by the owner to allow additional people to access the share. \"Starting\" the server performs no actions and it should be left off.",
     "features": null,
     "docker_images": {
-        "ghcr.io/ptero-eggs/yolks:alpine": "ghcr.io/ptero-eggs/yolks:alpine"
+        "Alpine 3.21": "alpine:3.21"
     },
     "file_denylist": [],
-    "startup": "echo -e \"\\n\\n\\033[0;31mThere is no need to start this server. The SFTP service is always running. Feel free to stop the server now.\\n\\t\\033[0;36m(Sub-users can be added via the Users tab to add/remove access to the share in real time)\\n\\n\"",
+    "startup": "apk add --no-cache openssh >/dev/null 2>&1; adduser -D -h /home/container -s /sbin/nologin container 2>/dev/null; echo \"container:{{SFTP_PASSWORD}}\" | chpasswd; ssh-keygen -A >/dev/null 2>&1; mkdir -p /etc/ssh; printf \"%s\\n\" \"Port {{SERVER_PORT}}\" \"HostKey /etc/ssh/ssh_host_ed25519_key\" \"PasswordAuthentication yes\" \"PermitRootLogin no\" \"Subsystem sftp internal-sftp\" \"StrictModes no\" > /etc/ssh/sshd_config; exec /usr/sbin/sshd -D -e",
     "config": {
         "files": "{}",
         "logs": "{}",
@@ -24,8 +24,19 @@
         "installation": {
             "container": "alpine:3.4",
             "entrypoint": "ash",
-            "script": "# Pterodactyl SFTP Storage Share Egg ~ David Wolfe (Red-Thirten) ~ 2023-01-27"
+            "script": "#!/bin/bash\n# SFTP Storage Share Installation Script\n#\n# Server Files: /mnt/server\nmkdir -p /mnt/server/share\ncd /mnt/server\n\necho -e \"install complete\"\nexit 0"
         }
     },
-    "variables": []
+    "variables": [
+        {
+            "name": "Password of the share",
+            "description": "The password of the SFTP account of this instance. The customer reaches the files of the instance with it.",
+            "env_variable": "SFTP_PASSWORD",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:64",
+            "field_type": "text"
+        }
+    ]
 }
