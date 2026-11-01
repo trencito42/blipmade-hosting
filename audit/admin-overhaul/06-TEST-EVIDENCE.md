@@ -21,5 +21,16 @@ New tests: `settings-registry` (14), `pinned-tls` (5), `vps-allocator` (9), `vps
 - MOCKED: Proxmox (an in-memory fake), Stripe's `updateSubscriptionAmount`, the Pterodactyl panel in the sweep test.
 - NOT VERIFIED: a real Proxmox with the pin (checked after the deploy, see below), a real Stripe subscription update, real backups and restores, the browser rendering of the new admin controls.
 
-## After the deploy
-Filled in at the end of this file by the deploy step.
+The final change (commit `0dee9fc`, the report says when the token cannot list the pool) came after the full run. `vps-allocator.test.ts` (10 tests) and the API typecheck were run again and pass; the full suite was not run a third time.
+
+## After the deploy (live, 2026-11-01)
+| Check | Result |
+|---|---|
+| Backup before the change | `pg_dump` custom format on VM 103 (`~/pre-overhaul-20261101T171214Z.dump`), `.env` copy `.env.bak-20261101T171214Z-before-overhaul`, rollback images `blipmade-{api,worker,web}:before-overhaul-20261101T171214Z` |
+| Migrations on the live database | 41 applied, data intact (7 users, 12 orders, 75 products, 8 payments, 9 invoices, 5 instances). The one "failed migration" counted by the script is the old rolled-back `20261030090000_promotion_card_identity`, unrelated to this release |
+| Ledger backfill | slots 1 and 2 `IN_USE`, both linked to their services |
+| Containers | api, worker and web healthy after the restart |
+| Proxmox with the pin, from the live API container | the connection is accepted by TLS and Proxmox answers; with a wrong fingerprint the connection is refused (`not the pinned one`); with no fingerprint the platform refuses (`not pinned`) |
+| Live allocation report | 2 services, 0 orphans, 0 missing, 0 unledgered, capacity 2 of 150 |
+| Public site | home and docs answer 200; the Terms page serves the new backup wording |
+| NOT verified live | the token `bmapi@pve!provision` lacks `Pool.Audit` on `/pool/vps`, so the pool cannot be listed and orphans and strangers cannot be found (see 07); no VPS was ordered, planned, changed or deleted live; no Stripe call was made; the admin screens were not opened in a browser |
