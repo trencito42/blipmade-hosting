@@ -510,28 +510,13 @@ async function probeOne(product, eggs, allocations) {
   record.startup = startup;
   record.environmentKeys = Object.keys(environment);
 
-  // The panel refuses an address that another server took in the meantime: the
-  // rule of the panel is that the address must exist and belong to no server.
-  // Two probes that run at the same time read the same list of free
+  // The panel refuses an address that another server took in the meantime:
+  // the rule of the panel is that the address must exist and belong to no
+  // server. Two probes that run at the same time read the same list of free
   // addresses and ask for the same one, and the second one is refused with
-  // "The selected allocation.default is invalid". The address is therefore
-  // read again before the server is created, and another one is taken when it
-  // is gone.
-  let allocation = null;
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const candidate = allocations.shift();
-    if (!candidate) break;
-    const fresh = await appRequest('GET', `/api/application/allocations/${candidate.id}`);
-    if (!fresh?.attributes?.assigned) {
-      allocation = candidate;
-      break;
-    }
-  }
-  if (!allocation) {
-    record.error = 'every free address of the panel was taken by another probe';
-    return record;
-  }
-
+  // "The selected allocation.default is invalid" and the product is closed
+  // for a reason that has nothing to do with it. Another address is therefore
+  // taken when the panel refuses the one that was free.
   const memory = Number(product.defaultRam ?? product.minRam ?? 1024);
   const disk = Number(product.defaultDisk ?? product.minDisk ?? 10) * 1024;
   const cpu = Number(product.defaultCpu ?? product.minCpu ?? 1) * 100;
@@ -539,24 +524,40 @@ async function probeOne(product, eggs, allocations) {
 
   let serverId = null;
   let uuid = null;
+  let allocation = null;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = allocations.shift();
+    if (!candidate) break;
+    try {
+      const created = await appRequest('POST', '/api/application/servers', {
+        name: `probe-${product.slug}`,
+        description: 'probe harness, removed after the check',
+        user: PROBE_USER,
+        egg: egg.id,
+        docker_image: image,
+        startup,
+        environment,
+        limits,
+        resource_limits: limits,
+        feature_limits: { databases: 0, backups: 0 },
+        allocation: { default: candidate.id, allocations: [candidate.id] },
+      });
+      serverId = created.attributes.id;
+      uuid = created.attributes.uuid;
+      allocation = candidate;
+      break;
+    } catch (error) {
+      if (!String(error?.message ?? error).includes('allocation.default is invalid')) throw error;
+    }
+  }
+  if (!serverId || !allocation) {
+    record.error = 'every free address of the panel was taken by another probe';
+    return record;
+  }
+  record.serverId = serverId;
+  record.port = allocation.port;
+
   try {
-    const created = await appRequest('POST', '/api/application/servers', {
-      name: `probe-${product.slug}`,
-      description: 'probe harness, removed after the check',
-      user: PROBE_USER,
-      egg: egg.id,
-      docker_image: image,
-      startup,
-      environment,
-      limits,
-      resource_limits: limits,
-      feature_limits: { databases: 0, backups: 0 },
-      allocation: { default: allocation.id, allocations: [allocation.id] },
-    });
-    serverId = created.attributes.id;
-    uuid = created.attributes.uuid;
-    record.serverId = serverId;
-    record.port = allocation.port;
 
     // The node starts the installation by itself when the server is created. A
     // second request to install at this point finds the lock taken, fails, and
