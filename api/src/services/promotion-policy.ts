@@ -110,7 +110,7 @@ export async function hasFreeEntitlement(userId: string, exceptOrderId: string, 
 /** Cloudflare Turnstile, checked on the server. Off unless a secret is configured. */
 export async function verifyTurnstile(token: string | undefined, ip: string): Promise<void> {
   if (!env.TURNSTILE_SECRET_KEY) return;
-  if (!token) throw badRequest('Complete the human check to activate this free service.');
+  if (!token) throw badRequest('Complete the human check to continue.');
   let ok = false;
   try {
     const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
