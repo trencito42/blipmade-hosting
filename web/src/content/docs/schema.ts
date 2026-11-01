@@ -33,7 +33,8 @@ export interface DocGroup {
 export interface DocStep {
   title: string;
   body: string;
-  result: string;
+  /** Optional supporting sentence. Most procedures need only the instruction. */
+  result?: string;
 }
 
 export type DocCalloutTone = 'note' | 'tip' | 'warning' | 'danger';
@@ -170,11 +171,11 @@ function parseBlock(raw: unknown, where: string, problems: string[]): DocBlock |
           problems.push(`${where}, step ${index} is not an object.`);
           return;
         }
-        if (!isText(rawStep.title) || !isText(rawStep.body) || !isText(rawStep.result)) {
-          problems.push(`${where}, step ${index} has no title, body or result.`);
+        if (!isText(rawStep.title) || !isText(rawStep.body) || (rawStep.result !== undefined && !isText(rawStep.result))) {
+          problems.push(`${where}, step ${index} has no title or body.`);
           return;
         }
-        steps.push({ title: rawStep.title, body: rawStep.body, result: rawStep.result });
+        steps.push({ title: rawStep.title, body: rawStep.body, ...(isText(rawStep.result) ? { result: rawStep.result } : {}) });
       });
       if (!steps.length) return null;
       return { t: 'steps', items: steps };

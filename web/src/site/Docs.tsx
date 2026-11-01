@@ -31,9 +31,9 @@ export function publishedArticles(): Article[] {
 
 /** The pages of a group, in the order they are read. */
 function articlesOfGroup(groupId: string): Article[] {
-  return publishedArticles()
-    .filter((article) => article.group === groupId)
-    .sort((a, b) => a.title.localeCompare(b.title));
+  // pages.json is ordered as a learning path. Alphabetical sorting put
+  // reference material ahead of the workflows a customer needs first.
+  return publishedArticles().filter((article) => article.group === groupId);
 }
 
 /** The index of the documentation. */

@@ -267,8 +267,8 @@ if (!Array.isArray(pagesInput)) {
               problem(`${blockWhere}, step ${stepIndex} is not an object.`);
               return;
             }
-            if (!isText(step.title) || !isText(step.body) || !isText(step.result)) {
-              problem(`${blockWhere}, step ${stepIndex} has no title, body or result.`);
+            if (!isText(step.title) || !isText(step.body) || (step.result !== undefined && !isText(step.result))) {
+              problem(`${blockWhere}, step ${stepIndex} has no title or body.`);
             }
           });
         }

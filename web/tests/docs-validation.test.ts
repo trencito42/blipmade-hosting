@@ -180,7 +180,7 @@ function pageTexts(page: DocPage): string[] {
       if (block.t === 'list') texts.push(...block.items);
       if (block.t === 'code') texts.push(block.code);
       if (block.t === 'spec') for (const row of block.rows) texts.push(row.k, row.v);
-      if (block.t === 'steps') for (const step of block.items) texts.push(step.title, step.body, step.result);
+      if (block.t === 'steps') for (const step of block.items) texts.push(step.title, step.body, step.result ?? '');
       if (block.t === 'trouble') for (const item of block.items) texts.push(item.q, item.a);
     }
   }

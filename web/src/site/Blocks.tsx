@@ -178,26 +178,21 @@ export function Blocks({ blocks, product, className }: BlocksProps) {
         }
         if (block.t === 'steps') {
           return (
-            <ol key={key} className="grid gap-4">
+            <ol key={key} className="grid gap-7">
               {block.items.map((step, at) => (
-                <li key={at} className="grid gap-2 rounded-[22px] border border-line bg-card p-5 sm:grid-cols-[auto_1fr] sm:gap-5">
+                <li key={at} className="grid grid-cols-[auto_1fr] gap-4">
                   <span
                     aria-hidden="true"
                     className="num flex size-8 shrink-0 items-center justify-center rounded-full border border-line bg-paper-2 text-[13px] font-medium text-mint"
                   >
                     {at + 1}
                   </span>
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 border-b border-line/70 pb-7">
                     <h3 className="font-display text-[19px] leading-snug font-semibold tracking-[-0.02em] text-ink">{step.title}</h3>
-                    <p className="text-[16.5px] leading-[1.65] text-ink-2">
+                    <p className="text-[16.5px] leading-[1.7] text-ink-2">
                       <Inline text={step.body} product={product} />
+                      {step.result ? <><span aria-hidden="true"> </span><Inline text={step.result} product={product} /></> : null}
                     </p>
-                    {step.result ? (
-                      <p className="rounded-[14px] border border-green/25 bg-green/6 px-3.5 py-2.5 text-[15px] text-ink-2">
-                        <span className="font-semibold text-green">Result. </span>
-                        <Inline text={step.result} product={product} />
-                      </p>
-                    ) : null}
                   </div>
                 </li>
               ))}

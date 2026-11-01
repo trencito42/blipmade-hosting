@@ -24,36 +24,36 @@ export interface Question {
 export function faqFor(rates: Rates): Question[] {
   return [
     {
-      q: 'How is the price calculated?',
-      a: `Every product uses the same card of rates, per month: ${eur(rates.ramPerGb)} for each GB of RAM, ${eur(rates.cpuPerUnit)} for each vCPU, ${eur(rates.diskPerGb)} for each GB of disk and a ${eur(rates.baseFee)} base fee. The same resources cost the same in every product, and the configurator shows your exact total before you order.`,
+      q: 'What will I pay?',
+      a: `The configurator calculates the monthly price before checkout. For resource-based apps it uses ${eur(rates.ramPerGb)} per GB of RAM, ${eur(rates.cpuPerUnit)} per vCPU, ${eur(rates.diskPerGb)} per GB of storage and a ${eur(rates.baseFee)} base fee. Products with a fixed plan show that plan instead. Taxes, discounts and the final recurring total are shown before you pay.`,
     },
     {
       q: 'What do I get when I order?',
-      a: 'A container with exactly the RAM, CPU and disk you chose, running the Node.js image of the platform. You upload your code in the Files tab, add variables in Startup and watch the Console. Nothing else is bundled in, so what runs is what you put there.',
+      a: 'The product you selected is installed automatically with the resources and settings shown during checkout. Apps, databases and game servers run in isolated containers; VPS plans create a virtual machine with SSH access. The order page shows provisioning progress and any action you still need to take.',
     },
     {
       q: 'Can I change the resources later?',
-      a: 'Yes. A change of resources is an order. An increase is applied once it is paid, a decrease is settled by the platform and lowers your next invoice, and the service restarts when a change is applied.',
+      a: 'For configurable app instances, yes. Open the instance, request the new limits and review the price before confirming. VPS plan changes and services with fixed plans use the options shown on their own management page. A restart may be required after a resource change.',
     },
     {
       q: 'Are there backups?',
-      a: 'Backups are manual today. You ask for an archive of the container files from the Backups tab and download it. Nothing runs on a schedule, so take one before every change that matters.',
+      a: 'App instances support manual backups from the Backups tab. A backup remains tied to the instance and node, so download important copies and keep them elsewhere. Automatic customer backup schedules are not included unless a product page explicitly says otherwise.',
     },
     {
       q: 'Can I use my own domain?',
-      a: 'You can attach a hostname to an instance and prove that it is yours with a DNS record. Automatic HTTPS certificates for your own hostnames are not issued yet, so keep sensitive traffic behind a proxy of your own for now.',
+      a: 'Yes. Add the hostname to the instance, publish the DNS verification record and point it to Blipmade. After verification, the gateway routes the hostname and provisions HTTPS automatically. DNS propagation and certificate issuance can take a few minutes.',
     },
     {
       q: 'Is there SSH or SFTP?',
-      a: 'Not today. You reach an instance through the file browser and the console in the dashboard. Both are on the same account as your billing, with no extra keys to manage.',
+      a: 'VPS plans include SSH using the public key supplied at checkout. Managed app containers are operated through Files, Console, Startup and the product-specific tools in the dashboard; direct SSH is not offered for those containers.',
     },
     {
       q: 'How do I pay?',
-      a: 'By card. You pay on a checkout page of Stripe, our payment provider, so your card details never reach Blipmade. Plans renew automatically, and you change the card or end a plan from Billing in your dashboard. Bank transfer and other methods are not available.',
+      a: 'Checkout is handled by Stripe, so card details do not pass through Blipmade. Before confirming you see the discount, tax and recurring total. Billing shows invoices, subscriptions, renewal dates and the payment portal. A 100% discount can complete an eligible order without charging a card.',
     },
     {
       q: 'How do I reach support?',
-      a: 'Open a ticket from your account. There is no phone and no live chat; the answer arrives in the same ticket and by email.',
+      a: 'Open a ticket from Support and attach the relevant service and files or screenshots. Replies stay in the same thread and are also sent by email when delivery is available. Platform-wide incidents are published on the status page.',
     },
   ];
 }
@@ -90,20 +90,19 @@ export const APP_COPY: Record<string, AppCopy> = {
 
 /** What the platform does today. */
 export const TODAY = [
-  'A container with the RAM, CPU and disk you choose',
-  'File browser, console and startup variables in the dashboard',
-  'Resize any time. The new price is shown before you pay',
-  'Manual backups you can download',
-  'Hostnames you attach to an instance',
+  'Apps and game servers installed automatically from the product catalog',
+  'Files, console, startup settings and product-specific tools in the dashboard',
+  'Resource changes with the new price shown before confirmation',
+  'Manual instance backups you can download',
+  'Verified custom hostnames with automatic HTTPS',
   'Tickets answered in the same thread, plus email',
   'Payment by card, with an invoice for every payment',
 ];
 
 /** What the platform does not do yet. */
 export const NOT_YET = [
-  'SSH or SFTP access',
+  'Direct SSH access to managed app containers (VPS plans include SSH)',
   'Backups on a schedule',
-  'Automatic HTTPS certificates for your own domains',
   'A phone line or live chat',
   'Published traffic or uptime guarantees',
 ];
