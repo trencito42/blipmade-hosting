@@ -643,7 +643,7 @@ async function chooseNode(instance: { ram: number; disk: number; cpu: number }, 
  * egg is imported, so a product that names its egg does not have to be
  * changed when the panel is moved.
  */
-async function resolveEgg(product: Product): Promise<{ egg: number; image: string; startup: string; environment: Record<string, string> }> {
+async function resolveEgg(product: Product): Promise<{ egg: number; image: string; startup: string; environment: Record<string, string>; specs: ptero.PteroEggVariable[] }> {
   const wantedId = product.eggId;
   const wantedName = product.eggName ? product.eggName.trim().toLowerCase() : null;
   if (!wantedId && !wantedName) {
@@ -670,6 +670,7 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
         image: product.dockerImage ?? egg.docker_image,
         startup: product.startupCommand ?? egg.startup,
         environment: fillRequiredVariables({ ...template, ...overrides }, specs),
+        specs,
       };
     }
   }
@@ -686,6 +687,7 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
  */
 async function generatedVariablesFor(
   instance: Instance & { product: Product },
+  eggSpecs: ptero.PteroEggVariable[] = [],
 ): Promise<Record<string, string>> {
   const specs = parseGeneratedVariableSpecs(instance.product.generatedVariables);
   const names = Object.keys(specs);
@@ -701,7 +703,15 @@ async function generatedVariablesFor(
     if (Object.keys(values).length === names.length) return values;
   }
 
-  const values = generateVariables(specs);
+  // The rules of the egg say what the value may hold: an egg that asks for a
+  // password of letters, numbers and dashes refuses anything else, and the
+  // server of the customer is never made when the panel refuses it.
+  const rules: Record<string, string> = {};
+  for (const spec of eggSpecs) {
+    if (spec.env_variable && spec.rules) rules[spec.env_variable] = spec.rules;
+  }
+
+  const values = generateVariables(specs, rules);
   await prisma.instance.update({
     where: { id: instance.id },
     data: { generatedVariables: sealVariables(values) },
@@ -1544,7 +1554,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       // The variables the product asks for are made here, so the container
       // runs with them and the owner of the instance can read them in the
       // console of the service.
-      const made = await generatedVariablesFor(instance);
+      const made = await generatedVariablesFor(instance, egg.specs);
       // The values the customer gave for the variables of the product — the
       // licence of a game, the account of a vendor — are opened here and put
       // in the environment of the container. They are the last word: they are

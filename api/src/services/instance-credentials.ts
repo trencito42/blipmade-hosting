@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto';
 import { badRequest } from '../lib/errors.js';
 import { decryptSecret, encryptSecret } from '../lib/secrets.js';
+import { generatedValueForVariable } from './pterodactyl/environment.js';
 
 /**
  * The variables the platform makes for an instance.
@@ -70,11 +71,21 @@ export function generateSecret(length: number): string {
   return value;
 }
 
-/** Makes one value for every variable the product declares. */
-export function generateVariables(specs: GeneratedVariableSpecs): Record<string, string> {
+/**
+ * Makes one value for every variable the product declares.
+ *
+ * The rules of the egg of the variable are honoured: an egg that asks for a
+ * password of letters, numbers and dashes refuses a value that holds
+ * something else, and the server of the customer is never made when the
+ * panel refuses it.
+ */
+export function generateVariables(
+  specs: GeneratedVariableSpecs,
+  rules: Record<string, string> = {},
+): Record<string, string> {
   const values: Record<string, string> = {};
   for (const [name, spec] of Object.entries(specs)) {
-    values[name] = generateSecret(spec.length ?? 20);
+    values[name] = generatedValueForVariable(name, rules[name], spec.length ?? 20);
   }
   return values;
 }

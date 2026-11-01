@@ -348,7 +348,7 @@ async function serverState(uuid) {
  * carries them too: an empty value here would say nothing about the product
  * and everything about the probe.
  */
-function customerValues(product) {
+function customerValues(product, rules) {
   const declarations =
     product.customerVariables && typeof product.customerVariables === 'object'
       ? product.customerVariables
@@ -357,7 +357,12 @@ function customerValues(product) {
   for (const [name, raw] of Object.entries(declarations)) {
     const declaration = raw && typeof raw === 'object' ? raw : {};
     if (declaration.type === 'password') {
-      values[name] = `Pr0be-${Math.random().toString(36).slice(2, 14)}!`;
+      // The panel checks the value with the rules of the egg, and it refuses
+      // the server when the value breaks them: the password of the server of
+      // Yarr may only hold letters, numbers and dashes, and a value with a
+      // "!" in it is refused with "The Password variable may only contain
+      // letters, numbers, and dashes".
+      values[name] = generatedValueForVariable(name, rules?.[name]);
       continue;
     }
     // A field the customer left empty keeps the default of the egg: the platform
@@ -401,17 +406,52 @@ function generatedValues(product) {
  * environment.ts`: the token of a Steam server is a number, a password is a
  * text of letters and digits, and anything else is a short text.
  */
-function generatedValueForVariable(name) {
+function generatedValueForVariable(name, rules) {
+  const segments = (rules ?? '')
+    .split('|')
+    .map((rule) => rule.trim())
+    .filter((rule) => rule.length > 0);
+
+  const allowed = segments.find((rule) => rule.startsWith('in:'));
+  if (allowed) {
+    const values = allowed.slice(3).split(',').map((value) => value.trim()).filter(Boolean);
+    if (values.length) return values.includes('TRUE') ? 'TRUE' : values[0];
+  }
+
+  let alphabet = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  if (segments.includes('alpha_dash')) alphabet = `${alphabet}-`;
+  else if (segments.includes('alpha_num')) alphabet = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  else if (segments.includes('numeric') || segments.includes('integer')) alphabet = '0123456789';
+
   const upper = name.toUpperCase();
-  const alphabet =
-    upper.includes('GSLT')
-      ? '0123456789'
-      : 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const length = upper.includes('GSLT') ? 10 : /PASS|SECRET|TOKEN|KEY/.test(upper) ? 20 : 12;
-  return Array.from(
+  if (alphabet.indexOf('0123456789') === -1 || !segments.length) {
+    if (upper.includes('GSLT')) alphabet = '0123456789';
+  }
+
+  let length = upper.includes('GSLT') ? 10 : /PASS|SECRET|TOKEN|KEY/.test(upper) ? 20 : 12;
+  const min = segments.find((rule) => rule.startsWith('min:'));
+  const max = segments.find((rule) => rule.startsWith('max:'));
+  if (min) {
+    const wanted = Number(min.slice(4));
+    if (Number.isFinite(wanted) && wanted > 0) length = Math.max(length, wanted);
+  }
+  if (max) {
+    const allowedLength = Number(max.slice(4));
+    if (Number.isFinite(allowedLength) && allowedLength > 0) length = Math.min(length, allowedLength);
+  }
+  if (length < 1) length = 1;
+
+  let value = Array.from(
     { length },
     () => alphabet[Math.floor(Math.random() * alphabet.length)],
   ).join('');
+
+  const pattern = segments.find((rule) => rule.startsWith('regex:'));
+  if (pattern && pattern.includes('\\.jar') && !value.endsWith('.jar')) {
+    value = `${value}.jar`;
+  }
+
+  return value;
 }
 
 /**
@@ -426,7 +466,7 @@ function fillRequiredVariables(environment, rules) {
     if (!segments.includes('required')) continue;
     const value = filled[name];
     if (value !== undefined && value !== '') continue;
-    filled[name] = generatedValueForVariable(name);
+    filled[name] = generatedValueForVariable(name, rule);
   }
   return filled;
 }
@@ -458,7 +498,7 @@ async function probeOne(product, eggs, allocations) {
       ...egg.variables,
       ...overrides,
       ...generatedValues(product),
-      ...customerValues(product),
+      ...customerValues(product, egg.variableRules),
     },
     egg.variableRules,
   );

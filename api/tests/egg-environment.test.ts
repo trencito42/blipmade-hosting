@@ -42,6 +42,33 @@ describe('the values made for the variables of an egg', () => {
     const values = new Set(Array.from({ length: 20 }, () => generatedValueForVariable('SERVICE_PASSWORD')));
     expect(values.size).toBe(20);
   });
+
+  it('keeps a value inside the rules of the egg', () => {
+    // The password of the server of Yarr may only hold letters, numbers and
+    // dashes, and the panel refuses the server otherwise.
+    const value = generatedValueForVariable('PASSWORD', 'required|alpha_dash');
+    expect(value).toMatch(/^[A-Za-z0-9-]+$/);
+  });
+
+  it('makes a number for a variable that asks for a number', () => {
+    const value = generatedValueForVariable('PORT', 'required|integer|min:1024|max:65535');
+    expect(value).toMatch(/^\d+$/);
+  });
+
+  it('takes one of the values the egg allows', () => {
+    expect(generatedValueForVariable('EULA', 'required|in:TRUE,FALSE')).toBe('TRUE');
+    expect(generatedValueForVariable('MODE', 'required|in:a,b,c')).toBe('a');
+  });
+
+  it('keeps the length the egg asks for', () => {
+    const value = generatedValueForVariable('TOKEN', 'required|string|max:32');
+    expect(value.length).toBeLessThanOrEqual(32);
+  });
+
+  it('gives the name of a jar to a variable that asks for one', () => {
+    const value = generatedValueForVariable('SERVER_JARFILE', 'required|regex:/^([\\w\\d._-]+)(\\.jar)$/');
+    expect(value.endsWith('.jar')).toBe(true);
+  });
 });
 
 describe('the environment of an instance', () => {
