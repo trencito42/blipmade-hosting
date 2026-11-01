@@ -309,8 +309,9 @@ export function Nav() {
 /** The end of the page: the night panel with the four columns. */
 export function Footer() {
   const { status } = useSession();
-  const col = 'grid content-start gap-2.5';
-  const a = 'text-[15px] text-snow-2 transition-colors duration-150 hover:text-snow';
+  // On a phone a link is at least 44px tall, so it can be hit with a thumb; on a wide screen the list is tight again.
+  const col = 'grid content-start gap-0.5 sm:gap-2.5';
+  const a = 'inline-flex min-h-11 items-center text-[15px] text-snow-2 transition-colors duration-150 hover:text-snow sm:min-h-0';
   return (
     <footer className="on-night m-2 mt-0 rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[36px]">
       <Wrap className="grid gap-12 py-14 sm:py-20 md:grid-cols-[1.4fr_1fr_1fr_1fr]">

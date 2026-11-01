@@ -3,6 +3,7 @@ import { useRevealOnChange } from '../lib/useReveal';
 import { ProductTile } from '../ui';
 import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
+import { listEvents } from '../lib/instance-api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams } from '../router';
 import OverviewTab from './instance/OverviewTab';
@@ -609,6 +610,40 @@ function SettingsPanel({
 
 // --- page ------------------------------------------------------------------
 
+/** What a closed service shows instead of its panels: why it is closed, what to do next, and what happened to it. */
+function ClosedService({ instance }: { instance: Instance }) {
+  const events = useAsync((signal) => listEvents(instance.id, signal), [instance.id]);
+  const recent = (events.data?.events ?? []).slice(0, 8);
+  return (
+    <div className="grid gap-4">
+      <Panel
+        title="This service is closed"
+        description="It was cancelled. It cannot be started, opened or changed any more. Its files are kept for a while according to the retention policy, then removed."
+      >
+        <div className="flex flex-wrap gap-2">
+          <Link to="/app/deploy" className="inline-flex h-11 items-center justify-center rounded-xl bg-acc px-5 text-[14.5px] font-semibold text-on-acc hover:bg-acc-h">Deploy a new one</Link>
+          <Link to="/app/billing" className="inline-flex h-11 items-center justify-center rounded-xl border border-line bg-card px-5 text-[14.5px] font-semibold text-ink hover:bg-s3">Billing and invoices</Link>
+          <Link to="/app/instances" className="inline-flex h-11 items-center justify-center rounded-xl border border-line bg-card px-5 text-[14.5px] font-semibold text-ink hover:bg-s3">Back to your services</Link>
+        </div>
+      </Panel>
+      <Panel title="What happened" description="The last events of this service, from our records.">
+        {recent.length === 0 ? (
+          <p className="text-[13.5px] text-ink3">Nothing recorded.</p>
+        ) : (
+          <ul className="grid gap-2 opacity-80">
+            {recent.map((event) => (
+              <li key={event.id} className="grid gap-0.5 rounded-2xl bg-s2 p-3.5">
+                <span className="text-[13.5px] font-semibold text-ink">{event.type.replace(/_/g, ' ')}</span>
+                <span className="break-words text-[12.5px] text-ink3">{event.message}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 export default function InstanceDetail() {
   const { id } = useParams();
   const { push } = useToast();
@@ -638,6 +673,8 @@ export default function InstanceDetail() {
 
   const instance = data?.instance;
   const provisioning = instance?.status === 'pending' || instance?.status === 'provisioning';
+  // A cancelled service is closed: it cannot be started, changed or opened. Only what happened to it can be read.
+  const closed = instance?.status === 'cancelled';
 
   useEffect(() => {
     if (!provisioning || !id) return;
@@ -697,7 +734,7 @@ export default function InstanceDetail() {
         </span>
       </nav>
 
-      <header className="grid gap-3">
+      <header className={closed ? 'grid gap-3 opacity-60 saturate-50' : 'grid gap-3'}>
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <ProductTile slug={instance.product.slug} icon={instance.product.icon} size={46} />
@@ -716,7 +753,7 @@ export default function InstanceDetail() {
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {instance.url ? (
+          {closed ? null : instance.url ? (
             <a
               href={instance.url}
               target="_blank"
@@ -731,7 +768,7 @@ export default function InstanceDetail() {
             <span className="text-[13.5px] text-ink3">No public URL yet</span>
           )}
 
-          {instance.access !== 'viewer' && (
+          {instance.access !== 'viewer' && !closed && (
             <>
           <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending || powerCooldown > 0}>
             Start
@@ -756,6 +793,10 @@ export default function InstanceDetail() {
         </p>
       </header>
 
+      {closed ? (
+        <ClosedService instance={instance} />
+      ) : (
+      <>
       <div ref={tabsRef} className="scroll-mt-28">
         <Segmented options={visibleTabs} value={tab} onChange={setTab} ariaLabel="Instance sections" />
       </div>
@@ -787,6 +828,8 @@ export default function InstanceDetail() {
         </Suspense>
         )}
       </section>
+      </>
+      )}
 
       {tab === 'settings' && (
         <SettingsPanel

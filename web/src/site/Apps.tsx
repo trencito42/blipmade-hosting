@@ -178,7 +178,7 @@ export function Apps() {
               onChange={(event) => setQuery(event.target.value)}
               aria-label="Search the catalog"
               placeholder="Search the catalog"
-              className="h-10 w-full rounded-full border border-line bg-card pr-4 pl-10 text-[14.5px] text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-green"
+              className="h-10 w-full rounded-full border border-line bg-card pr-4 pl-10 text-[16px] text-ink placeholder:text-ink-3 sm:text-[14.5px] focus-visible:outline-2 focus-visible:outline-green"
             />
           </div>
         </div>

@@ -181,7 +181,8 @@ export default function Instances() {
     const needle = query.trim().toLowerCase();
     const found = instances.filter((instance) => {
       const matchesQuery = !needle || instance.name.toLowerCase().includes(needle) || instance.product.name.toLowerCase().includes(needle);
-      const matchesStatus = status === 'all' || instance.status === status;
+      // A closed (cancelled) service is not part of the everyday list; it is under its own filter.
+      const matchesStatus = status === 'all' ? instance.status !== 'cancelled' : instance.status === status;
       return matchesQuery && matchesStatus;
     });
     if (sort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name));

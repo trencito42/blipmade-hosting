@@ -50,6 +50,7 @@ export default function HelpPanel({ instance, productSlug }: TabProps & { produc
         title="Something not working?"
         description="We read the logs of this server for the usual causes, and we can open a ticket with the facts support asks for."
         action={<SoftButton onClick={() => void check.run()} disabled={check.pending}>{check.pending ? 'Reading…' : 'Check my logs'}</SoftButton>}
+        actionBelow
       >
         {check.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{check.error}</p>}
         {findings && (
