@@ -1,13 +1,17 @@
 import https from 'node:https';
 import { env } from '../env.js';
+import { pinnedAgent } from '../lib/pinned-tls.js';
 
 /**
  * A small client of the API of Proxmox.
  *
  * The token that it carries may only touch the pool of the VPS and clone one
  * template, so a mistake here cannot reach the machines of the platform. The
- * certificate of Proxmox is its own, so the connection does not check it: the
- * address is the private address of the hypervisor and the token is the secret.
+ * certificate of Proxmox is its own, so the connection is pinned to the
+ * fingerprint that the operator wrote down (VPS_PROXMOX_FINGERPRINT), or
+ * checked against a certificate authority (VPS_PROXMOX_CA). Without one of the
+ * two the platform refuses to talk to Proxmox: the token must never travel to
+ * a server that could be anyone.
  */
 
 export class ProxmoxError extends Error {
@@ -21,7 +25,25 @@ export function proxmoxConfigured(): boolean {
   return Boolean(env.VPS_PROXMOX_URL && env.VPS_PROXMOX_TOKEN);
 }
 
-const agent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
+let cachedAgent: https.Agent | null = null;
+let cachedKey = '';
+
+/** The agent that talks to Proxmox, and the only place that decides how the certificate is checked. */
+export function proxmoxAgent(): https.Agent {
+  const key = `${env.VPS_PROXMOX_FINGERPRINT}|${env.VPS_PROXMOX_CA}|${env.VPS_PROXMOX_ALLOW_UNVERIFIED_TLS}`;
+  if (cachedAgent && cachedKey === key) return cachedAgent;
+  if (env.VPS_PROXMOX_FINGERPRINT.trim()) {
+    cachedAgent = pinnedAgent(env.VPS_PROXMOX_FINGERPRINT);
+  } else if (env.VPS_PROXMOX_CA.trim()) {
+    cachedAgent = new https.Agent({ ca: env.VPS_PROXMOX_CA.replace(/\\n/g, '\n'), rejectUnauthorized: true, keepAlive: true });
+  } else if (env.VPS_PROXMOX_ALLOW_UNVERIFIED_TLS === 'true' && env.NODE_ENV !== 'production') {
+    cachedAgent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
+  } else {
+    throw new ProxmoxError('The certificate of Proxmox is not pinned. Set VPS_PROXMOX_FINGERPRINT (or VPS_PROXMOX_CA) before the VPS service is used.');
+  }
+  cachedKey = key;
+  return cachedAgent;
+}
 
 function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: Record<string, unknown>): Promise<T> {
   if (!proxmoxConfigured()) throw new ProxmoxError('The VPS service is not set up on this platform.');
@@ -32,7 +54,7 @@ function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, bod
       url,
       {
         method,
-        agent,
+        agent: proxmoxAgent(),
         timeout: 30_000,
         headers: {
           Authorization: `PVEAPIToken=${env.VPS_PROXMOX_TOKEN}`,

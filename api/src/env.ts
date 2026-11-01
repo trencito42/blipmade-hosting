@@ -188,6 +188,16 @@ const schema = z.object({
   VPS_PROXMOX_URL: z.string().default(''),
   /** The token, as `user@realm!name=secret`. */
   VPS_PROXMOX_TOKEN: z.string().default(''),
+  /**
+   * The SHA-256 fingerprint of the certificate of Proxmox. The connection is
+   * refused when the certificate is any other one. Read it on the hypervisor
+   * with `openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -fingerprint -sha256`.
+   */
+  VPS_PROXMOX_FINGERPRINT: z.string().default(''),
+  /** A certificate authority (PEM) that signed the certificate of Proxmox, for a hypervisor with a real certificate. */
+  VPS_PROXMOX_CA: z.string().default(''),
+  /** Only for a lab: talk to Proxmox without checking its certificate. Never on a production platform. */
+  VPS_PROXMOX_ALLOW_UNVERIFIED_TLS: z.enum(['true', 'false']).default('false'),
   VPS_PROXMOX_NODE: z.string().default('n7030e1'),
   VPS_TEMPLATE_VMID: z.coerce.number().int().min(100).default(9000),
   /** The templates of the other images, as JSON: {"ubuntu-24.04": 9001}. An image without a template is not offered. */

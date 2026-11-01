@@ -33,7 +33,7 @@ export async function relayVpsConsole(socket: WebSocket, request: FastifyRequest
   try {
     ticket = await pve.openTerminal(service.vmid);
     const target = pve.terminalSocket(service.vmid, ticket);
-    terminal = new WebSocket(target.url, { headers: target.headers, rejectUnauthorized: false });
+    terminal = new WebSocket(target.url, { headers: target.headers, agent: pve.proxmoxAgent() });
   } catch {
     return void socket.close(1011, 'The console could not be opened.');
   }
