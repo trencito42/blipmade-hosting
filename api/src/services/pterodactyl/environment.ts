@@ -73,12 +73,14 @@ export function generatedValueForVariable(
   else if (segments.includes('numeric') || segments.includes('integer')) alphabet = DIGITS;
 
   const upper = name.toUpperCase();
-  if (alphabet === ALPHABET) {
-    if (upper.includes('GSLT')) alphabet = DIGITS;
-    else if (/PASS|SECRET|TOKEN|KEY/.test(upper)) alphabet = ALPHABET;
-  }
+  const isSteamToken = upper.includes('GSLT');
 
-  let length = alphabet === DIGITS ? 10 : /PASS|SECRET|TOKEN|KEY/.test(upper) ? 20 : 12;
+  // The token of a Steam server is a text of letters and digits, and the eggs
+  // ask for it with the rule "size:32": the panel refused the server of
+  // Counter-Strike 2 with "The Steam Gameserver Login Token variable must be
+  // 32 characters". A value that does not hold exactly that many characters is
+  // refused the same way.
+  let length = isSteamToken ? 32 : alphabet === DIGITS ? 10 : /PASS|SECRET|TOKEN|KEY/.test(upper) ? 20 : 12;
   if (wantedLength !== undefined && Number.isFinite(wantedLength) && wantedLength > 0) {
     length = Math.round(wantedLength);
   }
@@ -91,6 +93,11 @@ export function generatedValueForVariable(
   if (max) {
     const allowedLength = Number(max.slice(4));
     if (Number.isFinite(allowedLength) && allowedLength > 0) length = Math.min(length, allowedLength);
+  }
+  const exact = segments.find((rule) => rule.startsWith('size:'));
+  if (exact) {
+    const wanted = Number(exact.slice(5));
+    if (Number.isFinite(wanted) && wanted > 0) length = Math.round(wanted);
   }
   if (length < 1) length = 1;
 

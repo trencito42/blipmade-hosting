@@ -424,11 +424,9 @@ function generatedValueForVariable(name, rules) {
   else if (segments.includes('numeric') || segments.includes('integer')) alphabet = '0123456789';
 
   const upper = name.toUpperCase();
-  if (alphabet.indexOf('0123456789') === -1 || !segments.length) {
-    if (upper.includes('GSLT')) alphabet = '0123456789';
-  }
+  const isSteamToken = upper.includes('GSLT');
 
-  let length = upper.includes('GSLT') ? 10 : /PASS|SECRET|TOKEN|KEY/.test(upper) ? 20 : 12;
+  let length = isSteamToken ? 32 : /PASS|SECRET|TOKEN|KEY/.test(upper) ? 20 : 12;
   const min = segments.find((rule) => rule.startsWith('min:'));
   const max = segments.find((rule) => rule.startsWith('max:'));
   if (min) {
@@ -438,6 +436,11 @@ function generatedValueForVariable(name, rules) {
   if (max) {
     const allowedLength = Number(max.slice(4));
     if (Number.isFinite(allowedLength) && allowedLength > 0) length = Math.min(length, allowedLength);
+  }
+  const exact = segments.find((rule) => rule.startsWith('size:'));
+  if (exact) {
+    const wanted = Number(exact.slice(5));
+    if (Number.isFinite(wanted) && wanted > 0) length = Math.round(wanted);
   }
   if (length < 1) length = 1;
 

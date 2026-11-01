@@ -22,9 +22,19 @@ import {
  */
 
 describe('the values made for the variables of an egg', () => {
-  it('makes a number for the token of a Steam server', () => {
+  it('makes a text of 32 characters for the token of a Steam server', () => {
+    // The token of a Steam server is a text of letters and digits, and the
+    // eggs of the games ask for it with the rule "size:32".
     const value = generatedValueForVariable('GSLT');
-    expect(value).toMatch(/^\d{10}$/);
+    expect(value).toHaveLength(32);
+    expect(value).toMatch(/^[A-Za-z0-9]+$/);
+  });
+
+  it('makes the exact number of characters the egg asks for', () => {
+    // The panel refused the server of Counter-Strike 2 with "The Steam
+    // Gameserver Login Token variable must be 32 characters".
+    const value = generatedValueForVariable('STEAM_GSLT', 'required|string|size:32');
+    expect(value).toHaveLength(32);
   });
 
   it('makes a long text for a secret', () => {
@@ -81,7 +91,8 @@ describe('the environment of an instance', () => {
 
   it('fills a variable that has to be filled and that is empty', () => {
     const environment = fillRequiredVariables({ SERVER_JARFILE: 'server.jar', GSLT: '' }, specs);
-    expect(environment.GSLT).toMatch(/^\d{10}$/);
+    expect(environment.GSLT).toHaveLength(20);
+    expect(environment.GSLT).toMatch(/^[A-Za-z0-9]+$/);
   });
 
   it('leaves a value that is already there', () => {
