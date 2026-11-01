@@ -17,7 +17,7 @@ import {
 } from '../services/dead-letter.js';
 import { encodeCursor, pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { findPaymentIntentForSubscription, refundPayment, stripeLive } from '../services/stripe.js';
-import { PERMISSIONS, permissionsNotHeld } from '../lib/permissions.js';
+import { hasPermission, PERMISSIONS, permissionsNotHeld } from '../lib/permissions.js';
 import { fullName } from '../lib/people.js';
 import {
   forgetCustomerCredential,
@@ -50,7 +50,8 @@ import {
 } from '../services/notifications.js';
 import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
-import { OPERATOR_SETTINGS, validateOperatorSetting } from '../services/operator-settings.js';
+import { OPERATOR_SETTINGS } from '../services/operator-settings.js';
+import { checkGeneralWrite, mayReadSetting, SettingRefusal, settingControlMap, settingPolicy } from '../services/setting-registry.js';
 
 /**
  * Every route of the back office carries a limit.
@@ -67,37 +68,6 @@ import { OPERATOR_SETTINGS, validateOperatorSetting } from '../services/operator
  */
 
 const money = (amount: number) => amount / 100;
-
-/**
- * The keys of the settings that the settings endpoints never show and never
- * write.
- *
- * The internal counters of the numbers and the record of the retention hold
- * data that belongs to the platform and not to the operator. The retention
- * record carries the export of every cancelled customer, with the services,
- * the orders, the subscriptions, the invoices, the payments, the events, the
- * domains and the tickets of each of them. A generic endpoint that shows and
- * writes every key would hand that data to every member of the staff, and a
- * write to that key would destroy the record that the platform has to keep.
- *
- * The ordinary settings of the operator are not affected: the feature stays
- * exactly as it was for everything that is not internal.
- */
-const PROTECTED_SETTING_KEYS = new Set(['cancelled_instance_retention']);
-
-/**
- * The prefix of the keys that belong to the platform itself.
- *
- * A key with this prefix is protected by the convention, so a key that is
- * added later is protected from the first moment and never shows up in the
- * generic settings endpoints by accident.
- */
-const INTERNAL_SETTING_PREFIX = 'internal.';
-
-/** Whether the key is one of the settings that the endpoints may not touch. */
-function isProtectedSettingKey(key: string): boolean {
-  return PROTECTED_SETTING_KEYS.has(key) || key.startsWith(INTERNAL_SETTING_PREFIX);
-}
 
 /**
  * The check that says whether a deployment really works.
@@ -1826,18 +1796,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
    * the record of the retention hold data of the platform, and the retention
    * record carries the export of every cancelled customer.
    */
-  app.get('/admin/settings', { preHandler: requirePermission('settings.read') }, async () => {
-    const settings = await prisma.setting.findMany({
-      where: {
-        key: {
-          notIn: [...PROTECTED_SETTING_KEYS],
-          not: { startsWith: INTERNAL_SETTING_PREFIX },
-        },
-      },
-    });
+  app.get('/admin/settings', { preHandler: requirePermission('settings.read') }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const settings = await prisma.setting.findMany();
     const result: Record<string, unknown> = {};
-    for (const setting of settings) result[setting.key] = setting.value;
-    return { settings: result, definitions: OPERATOR_SETTINGS };
+    // Only the keys of the registry that this member of the staff may read are
+    // in the answer. A key that nobody registered is not shown either.
+    for (const setting of settings) {
+      if (mayReadSetting(setting.key, actor.role, actor.permissions)) result[setting.key] = setting.value;
+    }
+    return { settings: result, definitions: OPERATOR_SETTINGS, controlMap: settingControlMap() };
   });
 
   /**
@@ -1859,37 +1827,64 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const body = boundedRecord(z.record(z.unknown()), MAX_SETTINGS, 'The settings').parse(request.body);
-    // The internal keys are not written here. The counters of the numbers and
-    // the record of the retention belong to the platform, and a key that is
-    // written by accident destroys a record that has to be kept, so the whole
-    // request is refused and nothing is written.
-    const refused = Object.keys(body).filter(isProtectedSettingKey);
-    if (refused.length) {
-      throw forbidden(`These settings belong to the platform and cannot be changed here: ${refused.join(', ')}.`);
-    }
+    const keys = Object.keys(body);
+    const stored = new Map((await prisma.setting.findMany({ where: { key: { in: keys } } })).map((row) => [row.key, row.value]));
+
+    // Every key is checked before any key is written: a request that holds
+    // one key the member of the staff may not change writes nothing.
+    const changes: { key: string; value: unknown }[] = [];
     for (const [key, value] of Object.entries(body)) {
-      let checked: unknown;
       try {
-        checked = validateOperatorSetting(key, value);
+        let unchanged = false;
+        if (stored.has(key)) {
+          try {
+            unchanged = JSON.stringify(checkGeneralWrite(key, value, { role: actor.role }, true)) === JSON.stringify(stored.get(key));
+          } catch {
+            unchanged = false;
+          }
+        }
+        const checked = checkGeneralWrite(key, value, actor, unchanged);
+        if (!unchanged) changes.push({ key, value: checked });
       } catch (error) {
-        throw badRequest(error instanceof Error ? error.message : `The value of ${key} is not valid.`);
+        if (error instanceof SettingRefusal) {
+          if (error.kind === 'invalid') throw badRequest(error.message);
+          throw forbidden(error.message);
+        }
+        throw error;
       }
-      await prisma.setting.upsert({ where: { key }, create: { key, value: checked as never }, update: { value: checked as never } });
     }
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.updated', meta: { keys: Object.keys(body) }, ip: request.ip });
-    return { settings: body };
+
+    await prisma.$transaction(
+      changes.map(({ key, value }) => prisma.setting.upsert({ where: { key }, create: { key, value: value as never }, update: { value: value as never } })),
+    );
+    if (changes.length > 0) {
+      await audit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'settings.updated',
+        meta: { keys: changes.map((change) => change.key), domains: [...new Set(changes.map((change) => settingPolicy(change.key)?.domain))] },
+        ip: request.ip,
+      });
+    }
+    return { settings: Object.fromEntries(changes.map((change) => [change.key, change.value])), changed: changes.map((change) => change.key) };
   });
 
-  /** Removes an operator-owned setting. Internal counters cannot be removed. */
+  /** Removes a setting the general endpoint may write, and only for the member of the staff who owns it. */
   app.delete('/admin/settings/:key', {
     config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
     preHandler: [requirePermission('settings.write'), customerLimit(app, LIMITS.adminWrite)],
   }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { key } = z.object({ key: z.string().trim().min(1).max(160) }).parse(request.params);
-    if (isProtectedSettingKey(key)) throw forbidden('That setting belongs to the platform and cannot be removed here.');
+    const policy = settingPolicy(key);
+    if (!policy || policy.hidden || policy.write === null || !policy.general) {
+      throw forbidden('That setting is not removed here.');
+    }
+    if (!hasPermission(actor.role, actor.permissions, policy.write)) {
+      throw forbidden(`Removing "${key}" needs the permission "${policy.write}".`);
+    }
     await prisma.setting.deleteMany({ where: { key } });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.removed', meta: { key }, ip: request.ip });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.removed', meta: { key, domain: policy.domain }, ip: request.ip });
     return { removed: true, key };
   });
 

@@ -13,6 +13,8 @@ import { LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, use
  * exactly that.
  */
 
+type ControlEntry = { key: string; domain: string; read: string; write: string | null; general: boolean; managedBy: string | null; effect: string };
+
 interface SettingRow {
   id: number;
   key: string;
@@ -185,9 +187,14 @@ export default function Settings() {
   const [nextId, setNextId] = useState(1);
   const [section, setSection] = useState('control-map');
 
-  const state = useAsync((signal) => get<{ settings: Record<string, unknown>; definitions: OperatorField[] }>('/admin/settings', undefined, signal), []);
+  const state = useAsync((signal) => get<{ settings: Record<string, unknown>; definitions: OperatorField[]; controlMap?: ControlEntry[] }>('/admin/settings', undefined, signal), []);
   const mayWrite = can(staff, 'settings.write');
   const definitions = state.data?.definitions ?? [];
+  const controlMap = state.data?.controlMap ?? [];
+  // Only the keys the general endpoint may write are edited here. A key that
+  // has its own page is listed below with the place where it is managed.
+  const generalKeys = new Set(controlMap.filter((entry) => entry.general).map((entry) => entry.key));
+  const editableKeys = controlMap.filter((entry) => entry.general && !definitions.some((definition) => definition.key === entry.key));
   const structuredSettingKeys = new Set(definitions.map((definition) => definition.key));
   const operatorGroups = [...new Set(definitions.filter((definition) => definition.group !== 'Company & tax').map((definition) => definition.group))].map((title) => ({
     title,
@@ -203,6 +210,7 @@ export default function Settings() {
     const loaded = Object.entries(state.data.settings)
       .filter(([key]) => !key.startsWith('internal.'))
       .filter(([key]) => !structuredSettingKeys.has(key))
+      .filter(([key]) => generalKeys.size === 0 || generalKeys.has(key))
       .map(([key, value], index) => ({
         id: index + 1,
         key,
@@ -358,7 +366,8 @@ export default function Settings() {
                           current.map((entry) => (entry.id === row.id ? { ...entry, key: event.target.value } : entry)),
                         )
                       }
-                      placeholder="providersEnabled"
+                      placeholder="capacity.node_cores"
+                      list="registered-setting-keys"
                       className={denseInput}
                     />
                   </Field>
@@ -415,6 +424,26 @@ export default function Settings() {
               {save.error}
             </p>
           )}
+        </div>
+      </Panel>
+      <datalist id="registered-setting-keys">
+        {editableKeys.map((entry) => <option key={entry.key} value={entry.key} />)}
+      </datalist>
+      <Panel title="Who owns each setting" description="Every stored key has one owner. A key with its own page is changed there; the general settings never write it.">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-[13px]">
+            <thead className="text-ink3"><tr><th className="py-2 pr-3 font-medium">Key</th><th className="py-2 pr-3 font-medium">Domain</th><th className="py-2 pr-3 font-medium">Changed with</th><th className="py-2 font-medium">Where</th></tr></thead>
+            <tbody>
+              {controlMap.filter((entry) => !definitions.some((definition) => definition.key === entry.key)).map((entry) => (
+                <tr key={entry.key} className="border-t border-line/60">
+                  <td className="py-2 pr-3 font-mono text-[12px] text-ink">{entry.key}</td>
+                  <td className="py-2 pr-3 text-ink2">{entry.domain}</td>
+                  <td className="py-2 pr-3 text-ink2">{entry.write ?? 'the platform'}</td>
+                  <td className="py-2 text-ink2">{entry.general ? 'This page' : (entry.managedBy ?? 'the platform')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Panel>
       </>}
