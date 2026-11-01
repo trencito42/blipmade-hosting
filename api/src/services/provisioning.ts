@@ -15,7 +15,8 @@ import {
   renewCustomerCredential,
   resolveCustomerCredential,
 } from './panel/credentials.js';
-import { cancelSubscription, refundPayment } from './stripe.js';
+import { cancelSubscription, findPaymentIntentForSubscription, refundPayment } from './stripe.js';
+import { formatMoney } from '../lib/money.js';
 import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import {
@@ -1305,9 +1306,17 @@ async function refundOrderOfInstance(
           select: { stripePaymentIntentId: true },
         });
 
+  // An order paid through a subscription has no payment intent of its own on the order: the paid invoice of the
+  // subscription holds it, so it is looked up there before the refund is declared impossible.
+  let paymentIntent = payment?.stripePaymentIntentId ?? null;
+  if (!paymentIntent) {
+    const subscriptionId = (await prisma.subscription.findFirst({ where: { orderItem: { orderId: order.id }, stripeSubscriptionId: { not: null } }, select: { stripeSubscriptionId: true } }))?.stripeSubscriptionId;
+    if (subscriptionId) paymentIntent = await findPaymentIntentForSubscription(subscriptionId, order.total);
+  }
+
   const refunded = await refundPayment({
     orderId: order.id,
-    stripePaymentIntentId: payment?.stripePaymentIntentId ?? null,
+    stripePaymentIntentId: paymentIntent,
     amount: order.total,
     reason: `the provisioning failed: ${reason}`,
   });
@@ -1323,7 +1332,7 @@ async function refundOrderOfInstance(
     await recordEvent(
       instance.id,
       'refund_due',
-      `The refund of ${order.total} ${order.currency} for the order ${order.number} is due: ${reason}`,
+      `The refund of ${formatMoney(order.total, order.currency)} for the order ${order.number} is due: ${reason}`,
     );
     await audit({
       action: 'order.refund_pending',

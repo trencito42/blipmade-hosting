@@ -459,18 +459,25 @@ export function OpsChannelsList({ channels }: { channels: OpsChannel[] }) {
 }
 
 
-/** The disk of the nodes and the failures of the backups of customers' servers. */
+/** The offsite copies, their states, the destination, the gaps, and the disk of the nodes. */
 function BackupHealth() {
   const state = useAsync<{
-    offsite: string;
+    offsite: 'not_configured' | 'reachable' | 'unreachable';
+    destination: { reachable: boolean; totalBytes: number | null; usedBytes: number | null; error: string | null; at: string | null } | null;
+    kinds: { kind: string; pending: number; verified: number; failed: number; lastVerifiedAt: string | null; lastRestoreCheckAt: string | null }[];
+    lastVerifiedAt: string | null;
+    gaps: { id: string; name: string }[];
+    offsiteFailures: { id: string; kind: string; source: string; error: string | null; at: string }[];
     nodes: { id: number; name: string; diskMb: number; allocatedMb: number; allocatedPercent: number | null }[];
     failures: { id: string; instance: string; message: string; at: string }[];
   }>((signal) => get('/admin/backups/health', undefined, signal), []);
   const data = state.data;
+  const gb = (bytes: number | null) => (bytes === null ? DASH : `${(bytes / 1024 ** 3).toFixed(1)} GB`);
+  const kindName: Record<string, string> = { CUSTOMER: 'Customer servers', DATABASE: 'Databases', VPS: 'Virtual servers', PLATFORM: 'Platform' };
   return (
     <Panel
-      title="Backups of customers' servers"
-      description="They live on the node and nowhere else: there is no copy outside it, so the loss of a node loses them too. Watch the disk."
+      title="Offsite backups"
+      description="Encrypted copies on the Storage Box. A copy counts as verified only after it was read back from the box; it counts as restorable only after a drill opened it."
     >
       {state.loading && !data ? (
         <LoadingBlock rows={1} label="Loading the backup health" />
@@ -478,6 +485,51 @@ function BackupHealth() {
         <ErrorState title="The backup health could not be loaded" message={state.error.message} onRetry={state.reload} />
       ) : data ? (
         <div className="grid gap-3">
+          <div className="grid gap-1 rounded-2xl bg-s2 p-4">
+            <p className="text-[14px] font-semibold text-ink">
+              Destination: {data.offsite === 'not_configured' ? 'not configured' : data.offsite === 'reachable' ? 'reachable' : 'NOT reachable'}
+            </p>
+            {data.destination && (
+              <p className="font-mono text-[12.5px] text-ink2">
+                {gb(data.destination.usedBytes)} used of {gb(data.destination.totalBytes)} · checked {data.destination.at ? fmtDateTime(data.destination.at) : DASH}
+                {data.destination.error ? ` · ${data.destination.error}` : ''}
+              </p>
+            )}
+            <p className="text-[12.5px] text-ink3">Last verified copy: {data.lastVerifiedAt ? fmtDateTime(data.lastVerifiedAt) : 'none yet'}.</p>
+          </div>
+
+          <ul className="grid gap-2">
+            {data.kinds.map((kind) => (
+              <li key={kind.kind} className="grid gap-1 rounded-2xl bg-s2 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[14px] font-semibold text-ink">{kindName[kind.kind] ?? kind.kind}</span>
+                  <span className="font-mono text-[12.5px] text-ink2">{kind.verified} verified · {kind.pending} pending · {kind.failed} failed</span>
+                </div>
+                <span className="text-[12.5px] text-ink3">
+                  Last verified {kind.lastVerifiedAt ? fmtDateTime(kind.lastVerifiedAt) : 'never'} · last restore drill {kind.lastRestoreCheckAt ? fmtDateTime(kind.lastRestoreCheckAt) : 'never'}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {data.gaps.length > 0 && (
+            <div className="grid gap-1 rounded-2xl bg-warn/12 p-4">
+              <p className="text-[14px] font-semibold text-ink">{data.gaps.length} service(s) with no verified offsite copy in the last 2 days</p>
+              <p className="break-words text-[12.5px] text-ink2">{data.gaps.map((gap) => gap.name).join(', ')}</p>
+            </div>
+          )}
+
+          {data.offsiteFailures.length > 0 && (
+            <ul className="grid gap-2">
+              {data.offsiteFailures.map((failure) => (
+                <li key={failure.id} className="grid gap-1 rounded-2xl bg-s2 p-4">
+                  <p className="text-[14px] font-semibold text-ink">{kindName[failure.kind] ?? failure.kind} · {failure.source} <span className="text-[12.5px] font-normal text-ink3">{fmtDateTime(failure.at)}</span></p>
+                  <p className="break-words font-mono text-[12.5px] text-bad">{failure.error ?? 'No reason was recorded.'}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <ul className="grid gap-2">
             {data.nodes.map((node) => (
               <li key={node.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 p-4">
@@ -489,7 +541,7 @@ function BackupHealth() {
             ))}
           </ul>
           {data.failures.length === 0 ? (
-            <EmptyState title="No backup failed in the last 7 days." description="The rotation and the schedules ran without an error that was noted." />
+            <EmptyState title="No rotation failed in the last 7 days." description="The rotation of the local backups ran without an error that was noted." />
           ) : (
             <ul className="grid gap-2">
               {data.failures.map((failure) => (

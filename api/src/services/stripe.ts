@@ -1065,6 +1065,14 @@ export async function removeStripeSubscriptionItem(subscription: {
 }): Promise<boolean> {
   if (!stripeLive() || !subscription.stripeSubscriptionId || !subscription.stripeSubscriptionItemId) return false;
   try {
+    // A subscription cannot lose its last item: it has to be cancelled. This is the case of an order
+    // with one service, which is the usual one, and without it the customer would keep being billed.
+    const remote = await getClient().subscriptions.retrieve(subscription.stripeSubscriptionId);
+    const active = remote.items.data.filter((item) => item.id !== subscription.stripeSubscriptionItemId);
+    if (remote.items.data.some((item) => item.id === subscription.stripeSubscriptionItemId) && active.length === 0) {
+      await getClient().subscriptions.cancel(subscription.stripeSubscriptionId);
+      return true;
+    }
     await getClient().subscriptions.update(subscription.stripeSubscriptionId, {
       items: [{ id: subscription.stripeSubscriptionItemId, deleted: true }],
       proration_behavior: 'none',
