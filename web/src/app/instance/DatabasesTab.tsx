@@ -36,13 +36,12 @@ export default function DatabasesTab({ instance }: TabProps) {
   const { push } = useToast();
   const databases = useAsync((signal) => listDatabases(instance.id, signal), [instance.id]);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ database: '', username: '', password: '', remote: '' });
+  const [form, setForm] = useState({ database: '', remote: '' });
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ id: string; label: string; text: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [editingPasswordId, setEditingPasswordId] = useState<string | null>(null);
-  const [newPassword, setNewPassword] = useState('');
   const [passwordBusy, setPasswordBusy] = useState(false);
 
   const rows = databases.data?.databases ?? [];
@@ -55,16 +54,19 @@ export default function DatabasesTab({ instance }: TabProps) {
     setBusy(true);
     setFormError(null);
     try {
+      const name = form.database.trim();
       await createDatabase(instance.id, {
-        database: form.database.trim(),
-        username: form.username.trim(),
-        password: form.password,
+        database: name,
         remote: form.remote.trim() === '*' ? '%' : form.remote.trim(),
       });
       push('The database was created.', 'ok');
-      setForm({ database: '', username: '', password: '', remote: '' });
+      setForm({ database: '', remote: '' });
       setCreating(false);
       databases.reload();
+      // The panel makes the user and the password, so they are shown right away.
+      const fresh = await listDatabases(instance.id);
+      const made = fresh.databases.find((row) => row.database === name || row.database.endsWith(`_${name}`));
+      if (made) await showCredentials(String(made.id), made.database);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'The database could not be created.');
     } finally {
@@ -88,18 +90,19 @@ export default function DatabasesTab({ instance }: TabProps) {
 
   const changePassword = (id: string) => {
     setEditingPasswordId(id);
-    setNewPassword('');
   };
 
   const savePassword = async () => {
-    if (!editingPasswordId || !newPassword) return;
+    if (!editingPasswordId) return;
     setPasswordBusy(true);
     try {
-      await updateDatabase(instance.id, editingPasswordId, { password: newPassword });
-      push('The password was changed.', 'ok');
+      await updateDatabase(instance.id, editingPasswordId, {});
+      push('A new password was made.', 'ok');
+      const id = editingPasswordId;
+      const name = rows.find((row) => String(row.id) === id)?.database ?? '';
       setEditingPasswordId(null);
-      setNewPassword('');
       databases.reload();
+      await showCredentials(id, name);
     } catch (error) {
       push(error instanceof Error ? error.message : 'The password was not changed.', 'error');
     } finally { setPasswordBusy(false); }
@@ -147,7 +150,7 @@ export default function DatabasesTab({ instance }: TabProps) {
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
           <SoftButton onClick={() => showCredentials(row.id, row.database)}>Credentials</SoftButton>
-          <SoftButton onClick={() => changePassword(row.id)}>Change password</SoftButton>
+          <SoftButton onClick={() => changePassword(row.id)}>New password</SoftButton>
           <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.database })}>Delete</DangerButton>
         </div>
       ),
@@ -178,20 +181,6 @@ export default function DatabasesTab({ instance }: TabProps) {
                 autoComplete="off"
               />
               <TextInput
-                label="User of the database"
-                value={form.username}
-                onChange={(event) => setForm({ ...form, username: event.target.value })}
-                placeholder="shop_user"
-                autoComplete="off"
-              />
-              <TextInput
-                label="Password"
-                type="password"
-                value={form.password}
-                onChange={(event) => setForm({ ...form, password: event.target.value })}
-                autoComplete="new-password"
-              />
-              <TextInput
                 label="Allowed address"
                 value={form.remote}
                 onChange={(event) => setForm({ ...form, remote: event.target.value })}
@@ -208,7 +197,7 @@ export default function DatabasesTab({ instance }: TabProps) {
             <div className="flex flex-wrap gap-2">
               <PrimaryButton
                 onClick={create}
-                disabled={busy || !form.database.trim() || !form.username.trim() || !form.password}
+                disabled={busy || !form.database.trim()}
               >
                 {busy ? 'Creating…' : 'Create the database'}
               </PrimaryButton>
@@ -283,12 +272,11 @@ export default function DatabasesTab({ instance }: TabProps) {
       )}
 
       {editingPasswordId && (
-        <Panel title="Change database password" description="Enter a new password for this database.">
+        <Panel title="Make a new password" description="The panel makes the password. Anything that uses the old one stops working until you give it the new one.">
           <div className="grid max-w-md gap-3">
-            <TextInput label="New password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" />
             <div className="flex gap-2">
-              <PrimaryButton onClick={() => void savePassword()} disabled={passwordBusy || !newPassword}>{passwordBusy ? 'Saving…' : 'Save password'}</PrimaryButton>
-              <SoftButton onClick={() => { setEditingPasswordId(null); setNewPassword(''); }} disabled={passwordBusy}>Cancel</SoftButton>
+              <PrimaryButton onClick={() => void savePassword()} disabled={passwordBusy}>{passwordBusy ? 'Working…' : 'Make a new password'}</PrimaryButton>
+              <SoftButton onClick={() => { setEditingPasswordId(null); }} disabled={passwordBusy}>Cancel</SoftButton>
             </div>
           </div>
         </Panel>

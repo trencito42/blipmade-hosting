@@ -235,7 +235,7 @@ export async function databases(token: string, instance: OwnedInstance) {
 export async function createDatabase(
   token: string,
   instance: OwnedInstance,
-  payload: { database: string; username: string; password: string; remote: string },
+  payload: { database: string; remote: string },
 ) {
   return call(instance, token, (t) => client.createDatabase(t, serverUuid(instance), payload));
 }

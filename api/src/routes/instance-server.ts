@@ -520,9 +520,9 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   }, async (request: FastifyRequest, reply) => {
     const body = z
       .object({
+        // The panel names the user and makes the password itself, so only the name of the database
+        // and the allowed address are taken. They are read back with the credentials.
         database: z.string().trim().min(1).max(64),
-        username: z.string().trim().min(1).max(64),
-        password: z.string().min(1).max(128),
         remote: z.string().trim().max(128).default(''),
       })
       .parse(request.body);
@@ -560,10 +560,9 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     preHandler: customerLimit(app, LIMITS.panel),
   }, async (request: FastifyRequest) => {
     const params = z.object({ id: z.string(), databaseId: z.string().min(1).max(64) }).parse(request.params);
-    const body = z.object({ password: z.string().min(1).max(128).optional() }).parse(request.body ?? {});
-    if (!body.password) {
-      throw badRequest('A database can only be changed by giving it a new password.');
-    }
+    // The panel makes the new password itself, so the request carries none. It is read back with
+    // the credentials of the database.
+    const body = z.object({ password: z.string().max(128).optional() }).parse(request.body ?? {});
     return withInstance(request, async (token, instance) => {
       try {
         await operations.updateDatabase(token, instance, params.databaseId, body);

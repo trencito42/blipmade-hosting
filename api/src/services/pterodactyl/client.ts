@@ -720,9 +720,10 @@ export function listDatabases(token: string, uuid: string): Promise<ClientDataba
 export function createDatabase(
   token: string,
   uuid: string,
-  payload: { database: string; username: string; password: string; remote: string },
+  payload: { database: string; remote: string },
 ) {
-  return clientRequest<void>('POST', `/api/client/servers/${uuid}/databases`, { token, body: payload });
+  // The panel makes the user and the password itself and ignores any it is given.
+  return clientRequest<void>('POST', `/api/client/servers/${uuid}/databases`, { token, body: { database: payload.database, remote: payload.remote } });
 }
 
 /**

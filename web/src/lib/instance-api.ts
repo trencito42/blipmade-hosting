@@ -361,7 +361,7 @@ export const listDatabases = (id: string, signal?: AbortSignal) =>
 
 export const createDatabase = (
   id: string,
-  body: { database: string; username: string; password: string; remote: string },
+  body: { database: string; remote: string },
 ) => post<{ created: boolean }>(`/instances/${id}/databases`, body);
 
 export const updateDatabase = (
