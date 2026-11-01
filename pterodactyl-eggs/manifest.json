@@ -31,41 +31,6 @@
   },
   "products": [
     {
-      "slug": "5e-tools",
-      "name": "5e Tools",
-      "group": "apps",
-      "category": "AUTOMATION",
-      "icon": "term",
-      "description": "A self-hosted reference for Dungeons & Dragons 5th edition, loaded from a repository you provide.",
-      "eggFile": "5e-tools.json",
-      "eggName": "5e Tools",
-      "dockerImage": "ghcr.io/ptero-eggs/yolks:debian",
-      "priceBand": "bot",
-      "baseAmount": 149,
-      "minRam": 1024,
-      "defaultRam": 2048,
-      "minCpu": 1,
-      "defaultCpu": 1,
-      "minDisk": 10,
-      "defaultDisk": 20,
-      "maxRam": 8192,
-      "maxCpu": 4,
-      "maxDisk": 100,
-      "upstream": "https://github.com/pterodactyl/application-eggs",
-      "upstreamPath": "application-eggs/5e-tools/egg-5e-tools.json",
-      "variables": [
-        "REPOSITORY"
-      ],
-      "customerVariables": {
-        "REPOSITORY": {
-          "label": "Repository of the tools",
-          "type": "text",
-          "description": "The repository of the tools of the counter-strike, when you want another one than the default of the egg."
-        }
-      },
-      "sortOrder": 210
-    },
-    {
       "slug": "elasticsearch",
       "name": "Elasticsearch",
       "group": "apps",
@@ -330,33 +295,6 @@
       "sortOrder": 260
     },
     {
-      "slug": "haste-server",
-      "name": "Haste",
-      "group": "apps",
-      "category": "DEVELOPER_TOOLS",
-      "icon": "code",
-      "description": "A pastebin for sharing code and text with a link.",
-      "eggFile": "haste-server.json",
-      "eggName": "haste-server",
-      "dockerImage": "ghcr.io/ptero-eggs/yolks:nodejs_18",
-      "priceBand": "bot",
-      "baseAmount": 149,
-      "minRam": 512,
-      "defaultRam": 1024,
-      "minCpu": 1,
-      "defaultCpu": 1,
-      "minDisk": 5,
-      "defaultDisk": 10,
-      "maxRam": 4096,
-      "maxCpu": 2,
-      "maxDisk": 50,
-      "upstream": "https://github.com/pterodactyl/application-eggs",
-      "upstreamPath": "application-eggs/haste-server/egg-haste-server.json",
-      "variables": [],
-      "customerVariables": {},
-      "sortOrder": 270
-    },
-    {
       "slug": "uptime-kuma",
       "name": "Uptime Kuma",
       "group": "apps",
@@ -548,35 +486,6 @@
         }
       },
       "sortOrder": 320
-    },
-    {
-      "slug": "minio",
-      "name": "MinIO",
-      "group": "apps",
-      "category": "DEVELOPER_TOOLS",
-      "icon": "folder",
-      "description": "S3-compatible object storage for files and backups.",
-      "eggFile": "minio.json",
-      "eggName": "Minio S3",
-      "dockerImage": "ghcr.io/ptero-eggs/yolks:debian",
-      "priceBand": "tool",
-      "baseAmount": 299,
-      "minRam": 1024,
-      "defaultRam": 2048,
-      "minCpu": 1,
-      "defaultCpu": 1,
-      "minDisk": 10,
-      "defaultDisk": 20,
-      "maxRam": 16384,
-      "maxCpu": 4,
-      "maxDisk": 200,
-      "upstream": "https://github.com/pterodactyl/application-eggs",
-      "upstreamPath": "application-eggs/minio/egg-minio-s3.json",
-      "variables": [
-        "STARTUP_TYPE"
-      ],
-      "customerVariables": {},
-      "sortOrder": 330
     },
     {
       "slug": "mongodb",
