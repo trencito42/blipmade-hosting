@@ -152,6 +152,10 @@ async function readinessHandler(_request: unknown, reply: { code: (status: numbe
 
 /** Registered both at the root (container health check) and under /api. */
 export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
+  // What the page needs to know before it asks for anything. Only public values.
+  app.get('/config/public', async () => ({
+    turnstileSiteKey: env.TURNSTILE_SECRET_KEY && env.TURNSTILE_SITE_KEY ? env.TURNSTILE_SITE_KEY : null,
+  }));
   app.get('/health', healthHandler);
   app.get('/health/live', livenessHandler);
   app.get('/health/ready', readinessHandler);

@@ -92,6 +92,8 @@ const schema = z.object({
   DEVICE_SIGNAL_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(90),
   /** Cloudflare Turnstile secret. Empty keeps the human check off. */
   TURNSTILE_SECRET_KEY: z.string().default(''),
+  /** The public key of the same Turnstile widget. The page shows the check only when both are set. */
+  TURNSTILE_SITE_KEY: z.string().default(''),
 
   SMTP_URL: z.string().default(''),
   /**

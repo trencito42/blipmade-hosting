@@ -16,6 +16,7 @@ import {
   resolveCustomerCredential,
 } from './panel/credentials.js';
 import { cancelSubscription, refundPayment } from './stripe.js';
+import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import {
   generateVariables,
@@ -283,6 +284,34 @@ export async function completeProvisioning(instanceId: string): Promise<void> {
 /** True when the panel refused the key of the customer. */
 function isUnauthenticated(error: unknown): boolean {
   return error instanceof pteroClient.ClientApiError && error.status === 401;
+}
+
+/**
+ * Tells the nginx of a web egg that the visitor came over HTTPS, when the egg has one.
+ *
+ * It only touches the two files of the egg's nginx, and only when they are there, so every other
+ * product is left exactly as it is. A failure here never stops the provisioning: the site still
+ * works, only its addresses may be written as http://.
+ */
+async function makeNginxProxyAware(instance: Instance, server: PteroServer): Promise<void> {
+  try {
+    await withCustomerKey(instance.userId, async (token) => {
+      const root = new Set((await pteroClient.listFiles(token, server.uuid, '/')).map((file) => file.name));
+      if (!root.has('nginx')) return;
+      const inside = new Set((await pteroClient.listFiles(token, server.uuid, '/nginx')).map((file) => file.name));
+      if (!inside.has('fastcgi_params') || !inside.has('conf.d')) return;
+      const params = await pteroClient.readFile(token, server.uuid, '/nginx/fastcgi_params');
+      const patchedParams = patchFastcgiParams(params.content);
+      if (patchedParams === null) return;
+      const conf = await pteroClient.readFile(token, server.uuid, '/nginx/conf.d/default.conf');
+      const patchedConf = patchDefaultConf(conf.content);
+      if (patchedConf !== null) await pteroClient.writeFile(token, server.uuid, '/nginx/conf.d/default.conf', patchedConf);
+      await pteroClient.writeFile(token, server.uuid, '/nginx/fastcgi_params', patchedParams);
+      await recordEvent(instance.id, 'provisioning', 'The web server was told that visitors arrive over HTTPS.');
+    });
+  } catch (error) {
+    await recordEvent(instance.id, 'provisioning', `The web server could not be set for HTTPS addresses: ${error instanceof Error ? error.message : 'unknown error'}`).catch(() => undefined);
+  }
 }
 
 /**
@@ -1625,6 +1654,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     // The application listens on the port of the allocation, because that is
     // the port the node publishes and the port the route of the domain uses.
     if (usesStarterApplication(product.slug)) await placeStarterApplication(instance, server, product, port);
+    else await makeNginxProxyAware(instance, server);
 
     if (!done('started')) {
       await beginProvisioning(instance, 'started');

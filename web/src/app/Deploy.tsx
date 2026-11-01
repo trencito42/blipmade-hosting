@@ -19,6 +19,7 @@ import { cn } from '../lib';
 import { Icon } from '../icons';
 import { Link, useParams, useRouter } from '../router';
 import { browserId } from '../lib/device-id';
+import { Turnstile, useTurnstileKey } from '../lib/turnstile';
 import { catalogPath, formatPrice, memLabel, periodSuffix, productPath } from '../lib/pricing';
 import {
   configurationFromQuery,
@@ -430,6 +431,9 @@ export default function Deploy() {
   const [name, setName] = useState('');
   // The address under the platform's base. Empty means the one that follows from the name.
   const [subdomain, setSubdomain] = useState('');
+  // The human check, shown only for an order that a promotion covers entirely and only when it is configured.
+  const turnstileKey = useTurnstileKey();
+  const [humanToken, setHumanToken] = useState<string | null>(null);
   const [subdomainCheck, setSubdomainCheck] = useState<{ available: boolean; reason: string | null } | null>(null);
   const [promotionCode, setPromotionCode] = useState('');
   const [billingAddress, setBillingAddress] = useState<BillingAddressValue>(emptyBillingAddress);
@@ -729,7 +733,7 @@ export default function Deploy() {
 
     // A free order is the only one that sends a browser identifier, for the abuse check.
     const deviceId = createdOrder.total === 0 ? await browserId() : undefined;
-    const checkout = await post<{ url: string | null; message?: string }>(`/orders/${createdOrder.id}/checkout`, deviceId ? { deviceId } : undefined);
+    const checkout = await post<{ url: string | null; message?: string }>(`/orders/${createdOrder.id}/checkout`, deviceId || humanToken ? { ...(deviceId ? { deviceId } : {}), ...(humanToken ? { turnstileToken: humanToken } : {}) } : undefined);
     if (checkout.url) {
       // The redirect is not proof of payment. The order status is the only
       // source of truth and it is polled on the provisioning step.
@@ -817,6 +821,7 @@ export default function Deploy() {
 
   const primaryDisabled =
     (step === 3 && (!quote || placeOrder.pending)) ||
+    (step === 3 && quote?.total === 0 && turnstileKey !== null && !humanToken) ||
     (step === 4 && !orderFinished) ||
     // The order is never sent with a hosted mail add-on that has no hostname.
     (mailPlan !== null && mailDomainProblem !== null) ||
@@ -1208,6 +1213,7 @@ export default function Deploy() {
                 <p className="text-[13px] text-ink3">Optional for now. If you enter it, we save it to your account and use it on new invoices.</p>
                 <BillingAddressFields value={billingAddress} onChange={(value) => { setBillingAddress(value); setBillingTouched(true); }} errors={placeOrder.fieldErrors} />
               </div>
+              {quote?.total === 0 && turnstileKey && <Turnstile siteKey={turnstileKey} onToken={setHumanToken} />}
               {placeOrder.error && (
                 <div role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
                   {placeOrder.error}
