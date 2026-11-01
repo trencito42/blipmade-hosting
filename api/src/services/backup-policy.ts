@@ -73,6 +73,12 @@ export async function applyPreset(token: string, uuid: string, preset: BackupPre
   await client.createSchedule(token, uuid, { name: SCHEDULE_NAME, cron: PRESET_CRON[preset], action: 'backup', active: true, payload: {} });
 }
 
+/** Links the copies the agents reported to the service they belong to, once the panel says which backups it has. */
+export async function linkOffsiteCopies(instanceId: string, backupUuids: string[]): Promise<void> {
+  if (!backupUuids.length) return;
+  await prisma.offsiteBackup.updateMany({ where: { kind: 'CUSTOMER', instanceId: null, sourceId: { in: backupUuids } }, data: { instanceId } });
+}
+
 /** Makes room on one server for the next backup. Returns what was removed. */
 export async function enforceRetention(instance: operations.OwnedInstance & { ram: number }): Promise<number> {
   const token = await operations.customerToken(instance);
@@ -107,6 +113,8 @@ export async function sweepBackupRetention(limit = 200): Promise<{ checked: numb
     const instance = { ...rest, productVariables: product.generatedVariables };
     try {
       const token = await operations.customerToken(instance);
+      // Every server, automatic backup or not: the copies of the agents are linked to their service here.
+      await linkOffsiteCopies(instance.id, (await client.listBackups(token, instance.pterodactylUuid as string)).map((backup) => backup.uuid));
       const { preset } = await readPreset(token, instance.pterodactylUuid as string);
       if (preset === 'off') continue;
       removed += await enforceRetention(instance);

@@ -882,6 +882,7 @@ model Instance {
   /// When the owner was told about the current outage.
   downAlertedAt DateTime?
   checks        InstanceCheck[]
+  offsiteBackups OffsiteBackup[]
 }
 
 model InstanceEvent {
@@ -1641,4 +1642,46 @@ model DeviceSignal {
   @@unique([userId, hash])
   @@index([hash])
   @@index([createdAt])
+}
+
+enum OffsiteKind {
+  CUSTOMER
+  DATABASE
+  VPS
+  PLATFORM
+}
+
+enum OffsiteState {
+  OFFSITE_PENDING
+  OFFSITE_VERIFIED
+  FAILED
+}
+
+/// One encrypted copy that left a node or the hypervisor for the independent storage box. It is "verified" only
+/// after the agent read it back from the destination and the hash matched; an uploaded file alone is not.
+model OffsiteBackup {
+  id                String       @id @default(cuid())
+  kind              OffsiteKind
+  /// Where it is on the destination. Unique, so a report that repeats updates the same row.
+  remotePath        String       @unique
+  /// The panel backup uuid, the database name or the VM id it was made from.
+  sourceId          String
+  instanceId        String?
+  instance          Instance?    @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  node              String?
+  sizeBytes         BigInt       @default(0)
+  sha256            String?
+  state             OffsiteState @default(OFFSITE_PENDING)
+  error             String?
+  takenAt           DateTime?
+  uploadedAt        DateTime?
+  verifiedAt        DateTime?
+  /// Set when a copy of this kind was decrypted and opened as a drill. A copy is not proven restorable before.
+  restoreVerifiedAt DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([kind, state])
+  @@index([instanceId])
+  @@index([sourceId])
 }

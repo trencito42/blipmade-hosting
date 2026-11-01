@@ -28,6 +28,8 @@ const EXEMPT_PATHS = new Set([
 export function csrfGuard(request: FastifyRequest): void {
   if (SAFE_METHODS.has(request.method)) return;
   if (request.url.split('?')[0]!.startsWith('/api/webhooks/')) return;
+  // The backup agents call with a shared secret and carry no cookie, so there is no ambient authority to abuse.
+  if (request.url.split('?')[0]!.startsWith('/api/internal/backups/') && !request.cookies['bm_session']) return;
   if (EXEMPT_PATHS.has(request.url.split('?')[0]!)) return;
   // A request with an API key and no session cookie carries no ambient authority: a page of another
   // site cannot make the browser send the key, so a CSRF token would add nothing.

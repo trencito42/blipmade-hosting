@@ -68,17 +68,45 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
   // The disk of every node and the failures of the backups of customers' servers in the last days.
   // Backups of customers live on the node only: there is no copy outside it, and the page says so.
   app.get('/admin/backups/health', { preHandler: [requirePermission('infrastructure.read')] }, async () => {
-    const [nodes, failures] = await Promise.all([
+    const day = 86_400_000;
+    const [nodes, failures, destinationRow, counts, recentOffsiteFailures, latestVerified, latestByKind, restoreChecked, instances, linked] = await Promise.all([
       ptero.listNodes().catch(() => []),
       prisma.instanceEvent.findMany({
-        where: { type: 'backups', message: { contains: 'failed' }, createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+        where: { type: 'backups', message: { contains: 'failed' }, createdAt: { gte: new Date(Date.now() - 7 * day) } },
         orderBy: { createdAt: 'desc' },
         take: 30,
         select: { id: true, instanceId: true, message: true, createdAt: true, instance: { select: { name: true } } },
       }),
+      prisma.setting.findUnique({ where: { key: 'offsite.destination' } }),
+      prisma.offsiteBackup.groupBy({ by: ['kind', 'state'], _count: { _all: true }, _sum: { sizeBytes: true } }),
+      prisma.offsiteBackup.findMany({ where: { state: 'FAILED', updatedAt: { gte: new Date(Date.now() - 7 * day) } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { id: true, kind: true, sourceId: true, error: true, updatedAt: true } }),
+      prisma.offsiteBackup.findFirst({ where: { state: 'OFFSITE_VERIFIED' }, orderBy: { verifiedAt: 'desc' }, select: { verifiedAt: true, kind: true } }),
+      prisma.offsiteBackup.groupBy({ by: ['kind'], where: { state: 'OFFSITE_VERIFIED' }, _max: { verifiedAt: true } }),
+      prisma.offsiteBackup.groupBy({ by: ['kind'], where: { restoreVerifiedAt: { not: null } }, _max: { restoreVerifiedAt: true } }),
+      prisma.instance.findMany({ where: { pterodactylUuid: { not: null }, status: { in: ['ONLINE', 'STOPPED', 'DEGRADED', 'RESTARTING'] } }, select: { id: true, name: true } }),
+      prisma.offsiteBackup.findMany({ where: { kind: 'CUSTOMER', state: 'OFFSITE_VERIFIED', instanceId: { not: null }, verifiedAt: { gte: new Date(Date.now() - 2 * day) } }, select: { instanceId: true }, distinct: ['instanceId'] }),
     ]);
+    const destination = (destinationRow?.value ?? null) as { reachable?: boolean; totalBytes?: number; usedBytes?: number; error?: string; at?: string } | null;
+    const covered = new Set(linked.map((row) => row.instanceId));
+    // The states are told apart on purpose: a file that was uploaded is not a copy that was read back, and a copy
+    // that was read back is not one that was restored.
+    const byState = (kind: string, state: string) => counts.find((row) => row.kind === kind && row.state === state)?._count._all ?? 0;
+    const configured = Boolean(destination);
     return {
-      offsite: 'none',
+      offsite: configured ? (destination?.reachable ? 'reachable' : 'unreachable') : 'not_configured',
+      destination: destination ? { reachable: Boolean(destination.reachable), totalBytes: destination.totalBytes ?? null, usedBytes: destination.usedBytes ?? null, error: destination.error ?? null, at: destination.at ?? null } : null,
+      kinds: ['CUSTOMER', 'DATABASE', 'VPS', 'PLATFORM'].map((kind) => ({
+        kind,
+        pending: byState(kind, 'OFFSITE_PENDING'),
+        verified: byState(kind, 'OFFSITE_VERIFIED'),
+        failed: byState(kind, 'FAILED'),
+        lastVerifiedAt: latestByKind.find((row) => row.kind === kind)?._max.verifiedAt ?? null,
+        lastRestoreCheckAt: restoreChecked.find((row) => row.kind === kind)?._max.restoreVerifiedAt ?? null,
+      })),
+      lastVerifiedAt: latestVerified?.verifiedAt ?? null,
+      // Services with no verified offsite copy in the last two days.
+      gaps: instances.filter((instance) => !covered.has(instance.id)).map((instance) => ({ id: instance.id, name: instance.name })),
+      offsiteFailures: recentOffsiteFailures.map((row) => ({ id: row.id, kind: row.kind, source: row.sourceId, error: row.error, at: row.updatedAt })),
       nodes: nodes.map((node) => {
         const sellable = Math.round(node.disk * (1 + node.disk_overallocate / 100));
         return {
