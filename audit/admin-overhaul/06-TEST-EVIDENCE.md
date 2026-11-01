@@ -23,7 +23,18 @@ New tests: `settings-registry` (14), `pinned-tls` (5), `vps-allocator` (9), `vps
 
 The final change (commit `0dee9fc`, the report says when the token cannot list the pool) came after the full run. `vps-allocator.test.ts` (10 tests) and the API typecheck were run again and pass; the full suite was not run a third time.
 
-## After the deploy (live, 2026-11-01)
+## Second round
+| Check | Result |
+|---|---|
+| Final API suite, isolated from the real backup directory | **147 files: 146 passed, 1 skipped; 1345 tests passed, 6 skipped, 0 failed** |
+| Web | typecheck, 376 tests passed, production build with 164 pages prerendered |
+| New tests | `product-editor` (15), `pricing-admin` (9), `email-admin` (9), `content` (9) |
+| Mail tests on nodemailer 10 | 20 files, 253 tests passed |
+| Real restore drill of the offsite copy | **PASS**: the newest copy was read from the Storage Box, decrypted with age and restored into a scratch database that matched the live one (57 tables, 7 users, 75 products, 42 migrations). The live database was not written to. A first run against a copy made 4 minutes before a migration correctly reported a mismatch |
+| Live after the second deploy | 43 migrations applied, api, worker and web healthy; `GET /api/content` answers `{"content":{}}`; home page 200; SMTP of the live relay verified from the new container with nodemailer 10.3.1 (connected and authenticated, nothing sent); all 51 published products pass the readiness check |
+| Still not verified | the new screens in a browser, Playwright, a real card payment of a VPS, a real Stripe plan change, the customer backups and the VPS backups |
+
+## After the first deploy (live, 2026-11-01)
 | Check | Result |
 |---|---|
 | Backup before the change | `pg_dump` custom format on VM 103 (`~/pre-overhaul-20261101T171214Z.dump`), `.env` copy `.env.bak-20261101T171214Z-before-overhaul`, rollback images `blipmade-{api,worker,web}:before-overhaul-20261101T171214Z` |
