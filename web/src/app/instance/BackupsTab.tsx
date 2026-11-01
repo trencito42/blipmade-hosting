@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { createBackup, deleteBackup, downloadBackup, listBackups, restoreBackup } from '../../lib/instance-api';
+import { createBackup, deleteBackup, downloadBackup, listBackups, restoreBackup, setBackupSchedule, type BackupPreset } from '../../lib/instance-api';
 import {
   CardList,
   ConfirmDialog,
@@ -37,6 +37,22 @@ export default function BackupsTab({ instance }: TabProps) {
   const [pendingRestore, setPendingRestore] = useState<{ id: string; name: string } | null>(null);
 
   const rows = backups.data?.backups ?? [];
+  const limit = backups.data?.limit;
+  const preset = backups.data?.preset ?? 'off';
+  const [presetBusy, setPresetBusy] = useState(false);
+
+  const changePreset = async (next: BackupPreset) => {
+    setPresetBusy(true);
+    try {
+      await setBackupSchedule(instance.id, next);
+      push(next === 'off' ? 'Automatic backups are off.' : `Automatic backups run ${next === 'daily' ? 'every day' : 'every Sunday'} at 03:30 UTC.`, 'ok');
+      backups.reload();
+    } catch (error) {
+      push(error instanceof Error ? error.message : 'The schedule could not be changed.', 'error');
+    } finally {
+      setPresetBusy(false);
+    }
+  };
 
   const create = async () => {
     setBusy(true);
@@ -118,7 +134,10 @@ export default function BackupsTab({ instance }: TabProps) {
       header: 'State',
       nowrap: true,
       render: (row: (typeof rows)[number]) => (
-        <StatusPill status={row.is_locked ? 'locked' : 'available'} label={row.is_locked ? 'Locked' : 'Available'} />
+        <div className="flex flex-wrap gap-1.5">
+          <StatusPill status={row.is_locked ? 'locked' : 'available'} label={row.is_locked ? 'Locked' : 'Available'} />
+          <StatusPill status="available" label={row.kind === 'scheduled' ? 'Automatic' : 'Manual'} />
+        </div>
       ),
     },
     {
@@ -138,8 +157,26 @@ export default function BackupsTab({ instance }: TabProps) {
   return (
     <div className="grid gap-3">
       <Panel
+        title="Automatic backups"
+        description="A backup of the files at 03:30 UTC, made for you. Backups that are not locked are rotated: the oldest goes when a new one needs room. Lock one to keep it."
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          {(['off', 'daily', 'weekly'] as const).map((option) => (
+            <SoftButton key={option} onClick={() => void changePreset(option)} disabled={presetBusy || preset === option}>
+              {option === 'off' ? 'Off' : option === 'daily' ? 'Every day' : 'Every Sunday'}{preset === option ? ' ✓' : ''}
+            </SoftButton>
+          ))}
+        </div>
+        <p className="mt-3 text-[13px] text-ink3">
+          {backups.data?.nextRun && preset !== 'off' ? `Next one: ${fmtDateTime(backups.data.nextRun)}. ` : ''}
+          {backups.data?.lastRun ? `Last one: ${fmtDateTime(backups.data.lastRun)}. ` : ''}
+          Backups are kept on the node of this server, not in another place. If the node is lost, they are lost with it: download the ones that matter.
+        </p>
+      </Panel>
+
+      <Panel
         title="Backups"
-        description="Archives of the files of the container. The panel writes them on the node of the instance."
+        description={`Archives of the files of the container, written by the panel on the node of the instance.${limit ? ` ${rows.length} of ${limit} kept.` : ''}`}
         action={
           <PrimaryButton onClick={create} disabled={busy || name.trim().length === 0}>
             {busy ? 'Asking…' : 'New backup'}

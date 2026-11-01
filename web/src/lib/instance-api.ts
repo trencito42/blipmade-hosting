@@ -90,7 +90,11 @@ export interface InstanceBackup {
   size: number;
   created_at: string;
   is_locked: boolean;
+  /** How it was made: by the customer, or by the automatic schedule. */
+  kind?: 'manual' | 'scheduled';
 }
+
+export type BackupPreset = 'off' | 'daily' | 'weekly';
 
 export interface InstanceAllocation {
   id: number;
@@ -403,7 +407,19 @@ export const getInstanceCredentials = (id: string) =>
 // --- backups ---------------------------------------------------------------
 
 export const listBackups = (id: string, signal?: AbortSignal) =>
-  get<{ backups: InstanceBackup[] }>(`/instances/${id}/backups`, undefined, signal);
+  get<{
+    backups: InstanceBackup[];
+    /** How many the plan keeps. Backups that are not locked are rotated. */
+    limit?: number;
+    /** Where they are kept. */
+    storage?: string;
+    preset?: BackupPreset;
+    lastRun?: string | null;
+    nextRun?: string | null;
+  }>(`/instances/${id}/backups`, undefined, signal);
+
+export const setBackupSchedule = (id: string, preset: BackupPreset) =>
+  put<{ preset: BackupPreset }>(`/instances/${id}/backup-schedule`, { preset });
 
 export const createBackup = (id: string, body: { name: string; locked: boolean }) =>
   post<{ backup: { id: string; name: string } }>(`/instances/${id}/backups`, body);

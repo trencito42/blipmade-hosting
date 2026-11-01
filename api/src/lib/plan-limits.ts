@@ -7,3 +7,12 @@
 export function databasesIncluded(ramMb: number): number {
   return ramMb >= 4096 ? 2 : 1;
 }
+
+/**
+ * How many backups of its files a server may hold on its node. Backups that are not locked are rotated:
+ * the oldest goes when a new one needs room, so a schedule never stops for lack of a slot. A locked
+ * backup is never removed by the rotation.
+ */
+export function backupsIncluded(ramMb: number): number {
+  return ramMb >= 8192 ? 5 : ramMb >= 4096 ? 4 : 3;
+}

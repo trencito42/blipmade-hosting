@@ -459,6 +459,53 @@ export function OpsChannelsList({ channels }: { channels: OpsChannel[] }) {
 }
 
 
+/** The disk of the nodes and the failures of the backups of customers' servers. */
+function BackupHealth() {
+  const state = useAsync<{
+    offsite: string;
+    nodes: { id: number; name: string; diskMb: number; allocatedMb: number; allocatedPercent: number | null }[];
+    failures: { id: string; instance: string; message: string; at: string }[];
+  }>((signal) => get('/admin/backups/health', undefined, signal), []);
+  const data = state.data;
+  return (
+    <Panel
+      title="Backups of customers' servers"
+      description="They live on the node and nowhere else: there is no copy outside it, so the loss of a node loses them too. Watch the disk."
+    >
+      {state.loading && !data ? (
+        <LoadingBlock rows={1} label="Loading the backup health" />
+      ) : state.error ? (
+        <ErrorState title="The backup health could not be loaded" message={state.error.message} onRetry={state.reload} />
+      ) : data ? (
+        <div className="grid gap-3">
+          <ul className="grid gap-2">
+            {data.nodes.map((node) => (
+              <li key={node.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 p-4">
+                <span className="text-[14px] font-semibold text-ink">{node.name}</span>
+                <span className="font-mono text-[12.5px] text-ink2">
+                  {(node.allocatedMb / 1024).toFixed(0)} of {(node.diskMb / 1024).toFixed(0)} GB allocated{node.allocatedPercent !== null ? ` · ${node.allocatedPercent}% of what can be sold` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {data.failures.length === 0 ? (
+            <EmptyState title="No backup failed in the last 7 days." description="The rotation and the schedules ran without an error that was noted." />
+          ) : (
+            <ul className="grid gap-2">
+              {data.failures.map((failure) => (
+                <li key={failure.id} className="grid gap-1 rounded-2xl bg-s2 p-4">
+                  <p className="text-[14px] font-semibold text-ink">{failure.instance} <span className="text-[12.5px] font-normal text-ink3">{fmtDateTime(failure.at)}</span></p>
+                  <p className="break-words font-mono text-[12.5px] text-bad">{failure.message}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+    </Panel>
+  );
+}
+
 /** Free services the automatic check did not approve, with the reasons and a way to clear a false positive. */
 function PromotionHolds({ mayWrite }: { mayWrite: boolean }) {
   const toast = useToast();
@@ -672,6 +719,8 @@ export default function Ops() {
       <FailedWebhooks mayWrite={mayWrite} />
 
       <PromotionHolds mayWrite={mayWrite} />
+
+      <BackupHealth />
 
       <Panel title="Checks" description="Every check of the sweep, with its state, its sentence and the numbers behind it.">
         <OpsRegion state={health} loadingLabel="Loading the checks" errorTitle="The checks could not be loaded">

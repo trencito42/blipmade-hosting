@@ -1,5 +1,5 @@
 import { connect } from 'node:net';
-import { databasesIncluded } from '../lib/plan-limits.js';
+import { backupsIncluded, databasesIncluded } from '../lib/plan-limits.js';
 import { prisma } from '../db.js';
 import { canHoldProcessor, nodeCpuCapacity, processorRefusal } from './capacity.js';
 import { env } from '../env.js';
@@ -1567,7 +1567,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
           io: 500,
           cpu: instance.cpu * 100,
         },
-        feature_limits: { databases: databasesIncluded(instance.ram), backups: 1 },
+        feature_limits: { databases: databasesIncluded(instance.ram), backups: backupsIncluded(instance.ram) },
         // The panel expects the id of the allocation that becomes the primary
         // address, plus the list of assigned allocations.
         allocation: { default: choice.allocationId, allocations: [choice.allocationId] },

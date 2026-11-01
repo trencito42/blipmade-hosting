@@ -1,3 +1,4 @@
+import { applyPreset, backupKind, readPreset } from '../services/backup-policy.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
@@ -681,20 +682,51 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
   app.get('/instances/:id/backups', async (request: FastifyRequest) => {
     return withInstance(request, async (token, instance) => {
       try {
-        const backups = await operations.backups(token, instance);
+        const [backups, server, schedule] = await Promise.all([
+          operations.backups(token, instance),
+          operations.serverInfo(token, instance),
+          readPreset(token, instance.pterodactylUuid as string).catch(() => null),
+        ]);
         return {
+          // How many the plan keeps. Unlocked backups are rotated, locked ones stay.
+          limit: server.feature_limits.backups,
+          // Where they live. There is no copy outside the node yet, and the page says so.
+          storage: 'node',
+          preset: schedule?.preset ?? 'off',
+          lastRun: schedule?.lastRun ?? null,
+          nextRun: schedule?.nextRun ?? null,
           backups: backups.map((backup) => ({
             id: backup.uuid,
             name: backup.name,
             size: backup.size,
             created_at: backup.created_at,
             is_locked: backup.is_locked,
+            kind: backupKind(backup),
           })),
         };
       } catch (error) {
         return translatePanelError(error);
       }
     });
+  });
+
+  app.put('/instances/:id/backup-schedule', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const { preset } = z.object({ preset: z.enum(['off', 'daily', 'weekly']) }).parse(request.body ?? {});
+    const user = await requireAuth(request);
+    const { id } = idParam.parse(request.params);
+    const instance = await operations.loadOwnedInstance(user.id, id, request.method, request.url);
+    const token = await operations.customerToken(instance);
+    try {
+      await applyPreset(token, instance.pterodactylUuid as string, preset);
+    } catch (error) {
+      return translatePanelError(error);
+    }
+    await note(instance.id, 'backups', preset === 'off' ? 'Automatic backups were switched off.' : `Automatic backups were set to ${preset}.`);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.backup_schedule', targetType: 'instance', targetId: instance.id, meta: { preset } });
+    return { preset };
   });
 
   app.post('/instances/:id/backups', {

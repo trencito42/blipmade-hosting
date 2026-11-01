@@ -28,6 +28,7 @@ import { noteJobCompleted, noteJobFailure } from './services/dead-letter.js';
 import { watchDeadLetterQueue } from './services/dead-letter-monitor.js';
 import { pruneUptimeChecks } from './services/uptime.js';
 import { pruneDeviceSignals } from './services/device-signal.js';
+import { sweepBackupRetention } from './services/backup-policy.js';
 import { reconcileRuntimeState, runtimeStateWarning } from './services/runtime-state.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
@@ -365,6 +366,12 @@ async function watchRuntimeState(): Promise<void> {
   const warning = runtimeStateWarning(result);
   if (warning) console.warn(warning);
   // Once an hour, on the hour, the checks older than 35 days go.
+  // Twenty past the hour, servers with an automatic backup get a free slot for the next one.
+  if (new Date().getMinutes() === 20) {
+    await sweepBackupRetention()
+      .then((result) => { if (result.failed) console.warn(`[backups] rotation: ${result.checked} checked, ${result.removed} removed, ${result.failed} failed`); })
+      .catch((error) => console.error('[backups] the rotation could not run', error));
+  }
   if (new Date().getMinutes() === 0) await pruneDeviceSignals().catch((error) => console.error('[device] old signals could not be removed', error));
   if (new Date().getMinutes() === 0) await pruneUptimeChecks().catch((error) => console.error('[uptime] old checks could not be removed', error));
 }

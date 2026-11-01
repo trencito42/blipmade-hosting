@@ -63,6 +63,36 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     return { cleared };
   });
 
+  // --- backup health ---------------------------------------------------------------------------
+
+  // The disk of every node and the failures of the backups of customers' servers in the last days.
+  // Backups of customers live on the node only: there is no copy outside it, and the page says so.
+  app.get('/admin/backups/health', { preHandler: [requirePermission('infrastructure.read')] }, async () => {
+    const [nodes, failures] = await Promise.all([
+      ptero.listNodes().catch(() => []),
+      prisma.instanceEvent.findMany({
+        where: { type: 'backups', message: { contains: 'failed' }, createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+        select: { id: true, instanceId: true, message: true, createdAt: true, instance: { select: { name: true } } },
+      }),
+    ]);
+    return {
+      offsite: 'none',
+      nodes: nodes.map((node) => {
+        const sellable = Math.round(node.disk * (1 + node.disk_overallocate / 100));
+        return {
+          id: node.id,
+          name: node.name,
+          diskMb: node.disk,
+          allocatedMb: node.allocated_resources.disk,
+          allocatedPercent: sellable > 0 ? Math.round((node.allocated_resources.disk / sellable) * 100) : null,
+        };
+      }),
+      failures: failures.map((failure) => ({ id: failure.id, instanceId: failure.instanceId, instance: failure.instance.name, message: failure.message, at: failure.createdAt })),
+    };
+  });
+
   // --- accounting export -----------------------------------------------------------------------
 
   // One row per invoice for the accountant or an accounting program. The tax and the country of

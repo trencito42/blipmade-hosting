@@ -607,3 +607,42 @@ the repository on the new host is not a substitute for it.
 * `README.md` §8 — the three stages of the backup chain.
 * `docs/PRODUCTION_READINESS.md` — the state of the platform and what is
   still unverified.
+
+## 10. Backups of customer servers (the files of a container)
+
+This is a different chain from the one above. The backups of the platform (database, configuration, uploads) are
+made by `scripts/backup.sh` and leave the host through `backup-offsite.sh`. The backups of a customer's server are
+made by the panel on the node, and they have **no copy outside the node**.
+
+### What exists
+
+* A customer can make a backup by hand, or switch on an automatic one (daily or weekly, 03:30 UTC) in the Backups
+  tab. The automatic backup is one schedule of the panel named "Blipmade automatic backup".
+* The plan keeps 3 backups (up to 4 GB of memory), 4 (up to 8 GB) or 5 (above). Backups that are not locked are
+  rotated: at twenty past every hour the worker removes the oldest unlocked ones of servers that have an automatic
+  backup, so one slot is always free for the next. A locked backup is never removed by the rotation, and nothing is
+  removed for twenty minutes after a restore was started.
+* Existing servers get their limit with `scripts/apply-backup-limits.mjs --apply` (dry run without the flag).
+
+### What it does not give
+
+* **It does not survive the loss of the node.** The archives are written to the disk of `games-node-01`. A failed
+  disk, a deleted VM or a lost host takes the servers and their backups together. The page tells the customer so.
+* **No offsite copy of customers' data exists** until an independent storage destination is configured and a restore
+  from it has been proved. Do not promise it in the terms, the SLA or the product pages before that.
+* Databases of a server are not part of its file backup. They live in MariaDB on the node (`/var/lib/mysql`) and
+  need their own dump.
+
+### Restore, by the operator
+
+1. The customer restores from the Backups tab ("Restore"). That is the normal way and it is audited.
+2. If the panel is not reachable: the archives are on the node under `/var/lib/pterodactyl/backups/<backup uuid>.tar.gz`.
+   Stop the server, unpack into `/var/lib/pterodactyl/volumes/<server uuid>/` as the same owner as the existing files,
+   start the server. Check the archive with `tar -tzf` first.
+3. After a restore, nothing about the billing or the domain changes; only the files do.
+
+### What to watch
+
+* The Ops page of the admin area shows the backup health: the disk of every node (allocated against the real
+  size) and the rotation or backup failures of the last days.
+* A full node disk stops backups and installs alike. Free space before the allocation reaches the node's disk.
