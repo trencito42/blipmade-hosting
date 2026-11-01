@@ -2,7 +2,7 @@
   {
     "id": "getting-started",
     "title": "Create an account and sign in",
-    "summary": "How to create an account on Blipmade, confirm the address and open the first session.",
+    "summary": "Create your account, verify your email and secure the first session.",
     "group": "getting-started",
     "groupLabel": "Getting started",
     "keywords": [
@@ -12,12 +12,12 @@
       "email address",
       "password"
     ],
-    "updated": "2026-10-26"
+    "updated": "2026-11-01"
   },
   {
     "id": "first-app",
     "title": "Deploy your first app",
-    "summary": "How to order an application, what you find in the container and how to open the service.",
+    "summary": "Choose a product, review its real requirements and follow provisioning to a working service.",
     "group": "getting-started",
     "groupLabel": "Getting started",
     "keywords": [
@@ -27,7 +27,7 @@
       "checkout",
       "first app"
     ],
-    "updated": "2026-10-28"
+    "updated": "2026-11-01"
   },
   {
     "id": "order-values",
@@ -65,7 +65,7 @@
   {
     "id": "dashboard",
     "title": "The dashboard of your account",
-    "summary": "What the pages of the dashboard show and where the actions of the platform are.",
+    "summary": "Find services, billing, support, notifications and account security in the customer dashboard.",
     "group": "getting-started",
     "groupLabel": "Getting started",
     "keywords": [
@@ -75,12 +75,12 @@
       "services",
       "activity"
     ],
-    "updated": "2026-10-26"
+    "updated": "2026-11-01"
   },
   {
     "id": "wordpress",
     "title": "WordPress",
-    "summary": "The most widely used publishing platform, for sites, blogs and shops. What a deployment of WordPress does today, and what the platform checks.",
+    "summary": "Deploy and manage WordPress on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -88,29 +88,13 @@
       "web cms",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "wordpress"
-  },
-  {
-    "id": "ghost",
-    "title": "Ghost",
-    "summary": "What you get today when you order Ghost, and what the platform does not install yet.",
-    "group": "apps",
-    "groupLabel": "Apps",
-    "keywords": [
-      "ghost",
-      "blog",
-      "cms",
-      "node",
-      "deploy"
-    ],
-    "updated": "2026-10-27",
-    "catalogSlug": "ghost"
   },
   {
     "id": "forgejo",
     "title": "Forgejo",
-    "summary": "A self-hosted Git service with repositories, issues and pull requests. What a deployment of Forgejo does today, and what the platform checks.",
+    "summary": "Deploy and manage Forgejo on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -118,13 +102,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "forgejo"
   },
   {
     "id": "code-server",
     "title": "Code Server",
-    "summary": "Visual Studio Code in your browser, running on the resources you choose. What a deployment of Code Server does today, and what the platform checks.",
+    "summary": "Deploy and manage Code Server on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -132,13 +116,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "code-server"
   },
   {
     "id": "uptime-kuma",
     "title": "Uptime Kuma",
-    "summary": "Monitor websites and services, with status pages you can share. What a deployment of Uptime Kuma does today, and what the platform checks.",
+    "summary": "Deploy and manage Uptime Kuma on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -146,13 +130,13 @@
       "monitoring",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "uptime-kuma"
   },
   {
     "id": "grafana",
     "title": "Grafana",
-    "summary": "Dashboards and alerts for the metrics and logs of your services. What a deployment of Grafana does today, and what the platform checks.",
+    "summary": "Deploy and manage Grafana on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -160,29 +144,13 @@
       "monitoring",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "grafana"
-  },
-  {
-    "id": "n8n",
-    "title": "n8n",
-    "summary": "What you get today when you order n8n, and what the platform does not install yet.",
-    "group": "apps",
-    "groupLabel": "Apps",
-    "keywords": [
-      "n8n",
-      "automation",
-      "workflow",
-      "node",
-      "deploy"
-    ],
-    "updated": "2026-10-27",
-    "catalogSlug": "n8n"
   },
   {
     "id": "discord-bot",
     "title": "Discord Bot",
-    "summary": "Run a Node.js Discord bot around the clock, without keeping a computer on. What a deployment of Discord Bot does today, and what the platform checks.",
+    "summary": "Deploy and manage Discord Bot on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -190,13 +158,13 @@
       "bots",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "discord-bot"
   },
   {
     "id": "postgresql",
     "title": "PostgreSQL",
-    "summary": "A PostgreSQL database for your applications, with its own connection details and password. What a deployment of PostgreSQL does today, and what the platform checks.",
+    "summary": "Deploy and manage PostgreSQL on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
@@ -204,29 +172,13 @@
       "databases",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "postgresql"
-  },
-  {
-    "id": "mysql",
-    "title": "MySQL",
-    "summary": "What you get today when you order MySQL, and where the databases of an instance live.",
-    "group": "databases",
-    "groupLabel": "Databases",
-    "keywords": [
-      "mysql",
-      "sql",
-      "database",
-      "mariadb",
-      "deploy"
-    ],
-    "updated": "2026-10-27",
-    "catalogSlug": "mysql"
   },
   {
     "id": "redis",
     "title": "Redis",
-    "summary": "An in-memory data store, for caching and queues. What a deployment of Redis does today, and what the platform checks.",
+    "summary": "Deploy and manage Redis on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
@@ -234,13 +186,13 @@
       "databases",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "redis"
   },
   {
     "id": "mongodb",
     "title": "MongoDB",
-    "summary": "A MongoDB document database for applications with flexible data. What a deployment of MongoDB does today, and what the platform checks.",
+    "summary": "Deploy and manage MongoDB on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
@@ -248,7 +200,7 @@
       "databases",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "mongodb"
   },
   {
@@ -271,7 +223,7 @@
   {
     "id": "billing",
     "title": "Invoices and payment methods",
-    "summary": "What the billing page shows, when an invoice is written and how a payment is made today.",
+    "summary": "Understand checkout, invoices, subscriptions, renewals, discounts and payment methods.",
     "group": "resources-billing",
     "groupLabel": "Resources & billing",
     "keywords": [
@@ -282,7 +234,7 @@
       "price",
       "month"
     ],
-    "updated": "2026-10-26"
+    "updated": "2026-11-01"
   },
   {
     "id": "upgrade",
@@ -335,7 +287,7 @@
   {
     "id": "domains",
     "title": "Attach a domain to an instance",
-    "summary": "How to claim a hostname for an instance, prove that you own it, and take it back.",
+    "summary": "Attach a hostname, prove ownership and route it safely to an app instance.",
     "group": "domains-ssl",
     "groupLabel": "Domains & SSL",
     "keywords": [
@@ -346,7 +298,7 @@
       "ownership",
       "subdomain"
     ],
-    "updated": "2026-10-26"
+    "updated": "2026-11-01"
   },
   {
     "id": "dns",
@@ -368,7 +320,7 @@
   {
     "id": "ssl",
     "title": "SSL certificates",
-    "summary": "Where HTTPS on a hostname of yours stands today: the platform issues no certificate.",
+    "summary": "How HTTPS is issued for generated app hostnames and verified custom domains.",
     "group": "domains-ssl",
     "groupLabel": "Domains & SSL",
     "keywords": [
@@ -379,7 +331,7 @@
       "lets encrypt",
       "encryption"
     ],
-    "updated": "2026-10-26"
+    "updated": "2026-11-01"
   },
   {
     "id": "platform-domains",
@@ -583,7 +535,7 @@
   {
     "id": "backups",
     "title": "Backups of an instance",
-    "summary": "The archive of the files of an instance, how to take it, how to restore it, and what it does not hold.",
+    "summary": "Create, download and restore manual backups of an app instance safely.",
     "group": "backups-recovery",
     "groupLabel": "Backups & recovery",
     "keywords": [
@@ -595,7 +547,7 @@
       "files",
       "instance"
     ],
-    "updated": "2026-10-27"
+    "updated": "2026-11-01"
   },
   {
     "id": "troubleshooting",
@@ -696,7 +648,7 @@
   {
     "id": "faq",
     "title": "Frequently asked questions",
-    "summary": "The questions that come up again, with short and honest answers.",
+    "summary": "Short, current answers about products, billing, access, domains, backups and support.",
     "group": "reference",
     "groupLabel": "Reference",
     "keywords": [
@@ -707,7 +659,7 @@
       "can i",
       "why"
     ],
-    "updated": "2026-10-26"
+    "updated": "2026-11-01"
   },
   {
     "id": "common-errors",
@@ -728,7 +680,7 @@
   {
     "id": "elasticsearch",
     "title": "Elasticsearch",
-    "summary": "A search and analytics engine for indexing and querying text and logs. What a deployment of Elasticsearch does today, and what the platform checks.",
+    "summary": "Deploy and manage Elasticsearch on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -736,13 +688,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "elasticsearch"
   },
   {
     "id": "folding-at-home",
     "title": "Folding@Home",
-    "summary": "Donate spare computing power to medical research with Folding@home. What a deployment of Folding@Home does today, and what the platform checks.",
+    "summary": "Deploy and manage Folding@Home on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -750,13 +702,13 @@
       "automation",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "folding-at-home"
   },
   {
     "id": "gitea",
     "title": "Gitea",
-    "summary": "A lightweight self-hosted Git service with a wiki and issue tracking. What a deployment of Gitea does today, and what the platform checks.",
+    "summary": "Deploy and manage Gitea on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -764,13 +716,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "gitea"
   },
   {
     "id": "languagetool",
     "title": "LanguageTool",
-    "summary": "A grammar and spelling checker you host yourself. What a deployment of LanguageTool does today, and what the platform checks.",
+    "summary": "Deploy and manage LanguageTool on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -778,13 +730,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "languagetool"
   },
   {
     "id": "lavalink",
     "title": "Lavalink",
-    "summary": "An audio streaming node for Discord music bots. What a deployment of Lavalink does today, and what the platform checks.",
+    "summary": "Deploy and manage Lavalink on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -792,13 +744,13 @@
       "automation",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "lavalink"
   },
   {
     "id": "left-4-dead-2",
     "title": "Left 4 Dead 2",
-    "summary": "A co-operative zombie shooter server from Valve. What a deployment of Left 4 Dead 2 does today, and what the platform checks.",
+    "summary": "Deploy and manage Left 4 Dead 2 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -806,13 +758,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "left-4-dead-2"
   },
   {
     "id": "mariadb",
     "title": "MariaDB",
-    "summary": "A MariaDB database, compatible with MySQL, for applications that need it. What a deployment of MariaDB does today, and what the platform checks.",
+    "summary": "Deploy and manage MariaDB on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "databases",
     "groupLabel": "Databases",
     "keywords": [
@@ -820,13 +772,13 @@
       "databases",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "mariadb"
   },
   {
     "id": "meilisearch",
     "title": "Meilisearch",
-    "summary": "A fast search engine that tolerates typos, for your site or application. What a deployment of Meilisearch does today, and what the platform checks.",
+    "summary": "Deploy and manage Meilisearch on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -834,13 +786,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "meilisearch"
   },
   {
     "id": "minecraft-bedrock",
     "title": "Minecraft Bedrock",
-    "summary": "A Minecraft Bedrock server for players on phones, consoles and Windows. What a deployment of Minecraft Bedrock does today, and what the platform checks.",
+    "summary": "Deploy and manage Minecraft Bedrock on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -848,13 +800,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "minecraft-bedrock"
   },
   {
     "id": "nats",
     "title": "NATS",
-    "summary": "A lightweight messaging system for connecting your services. What a deployment of NATS does today, and what the platform checks.",
+    "summary": "Deploy and manage NATS on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -862,13 +814,13 @@
       "automation",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "nats"
   },
   {
     "id": "nodejs",
     "title": "Node.js",
-    "summary": "A runtime for Node.js services, for code you write in JavaScript or TypeScript. What a deployment of Node.js does today, and what the platform checks.",
+    "summary": "Deploy and manage Node.js on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -876,13 +828,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "nodejs"
   },
   {
     "id": "prometheus",
     "title": "Prometheus",
-    "summary": "A metrics collection and alerting system for your services. What a deployment of Prometheus does today, and what the platform checks.",
+    "summary": "Deploy and manage Prometheus on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -890,13 +842,13 @@
       "monitoring",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "prometheus"
   },
   {
     "id": "garrys-mod",
     "title": "Garry's Mod",
-    "summary": "A sandbox game server with community addons and game modes. What a deployment of Garry's Mod does today, and what the platform checks.",
+    "summary": "Deploy and manage Garry's Mod on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -904,13 +856,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "garrys-mod"
   },
   {
     "id": "minecraft-paper",
     "title": "Minecraft Paper",
-    "summary": "A fast Minecraft Java server with plugin support, based on Paper. What a deployment of Minecraft Paper does today, and what the platform checks.",
+    "summary": "Deploy and manage Minecraft Paper on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -918,13 +870,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "minecraft-paper"
   },
   {
     "id": "terraria",
     "title": "Terraria",
-    "summary": "A Terraria server with TShock, for exploring, building and fighting bosses together. What a deployment of Terraria does today, and what the platform checks.",
+    "summary": "Deploy and manage Terraria on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -932,13 +884,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "terraria"
   },
   {
     "id": "conan-exiles",
     "title": "Conan Exiles",
-    "summary": "A survival server set in the savage lands of Conan's world. What a deployment of Conan Exiles does today, and what the platform checks.",
+    "summary": "Deploy and manage Conan Exiles on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -946,13 +898,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "conan-exiles"
   },
   {
     "id": "core-keeper",
     "title": "Core Keeper",
-    "summary": "Mine, craft and fight underground in a shared Core Keeper world. What a deployment of Core Keeper does today, and what the platform checks.",
+    "summary": "Deploy and manage Core Keeper on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -960,13 +912,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "core-keeper"
   },
   {
     "id": "cs2d",
     "title": "CS2D",
-    "summary": "A free 2D take on Counter-Strike, light enough for a small server. What a deployment of CS2D does today, and what the platform checks.",
+    "summary": "Deploy and manage CS2D on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -974,13 +926,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "cs2d"
   },
   {
     "id": "factorio",
     "title": "Factorio",
-    "summary": "Build and automate factories together on a dedicated multiplayer server. What a deployment of Factorio does today, and what the platform checks.",
+    "summary": "Deploy and manage Factorio on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -988,13 +940,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "factorio"
   },
   {
     "id": "loki",
     "title": "Loki",
-    "summary": "Log aggregation for your services, designed to work with Grafana. What a deployment of Loki does today, and what the platform checks.",
+    "summary": "Deploy and manage Loki on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1002,13 +954,13 @@
       "monitoring",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "loki"
   },
   {
     "id": "minecraft-folia",
     "title": "Minecraft Folia",
-    "summary": "A Minecraft server built for many players at once, spreading the world over several CPU cores. What a deployment of Minecraft Folia does today, and what the platform checks.",
+    "summary": "Deploy and manage Minecraft Folia on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1016,13 +968,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "minecraft-folia"
   },
   {
     "id": "minecraft-forge",
     "title": "Minecraft Forge",
-    "summary": "A Minecraft server with the Forge mod loader, for modded play. What a deployment of Minecraft Forge does today, and what the platform checks.",
+    "summary": "Deploy and manage Minecraft Forge on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1030,13 +982,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "minecraft-forge"
   },
   {
     "id": "owncast",
     "title": "Owncast",
-    "summary": "A self-hosted live streaming server with its own chat and channel page. What a deployment of Owncast does today, and what the platform checks.",
+    "summary": "Deploy and manage Owncast on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1044,13 +996,13 @@
       "automation",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "owncast"
   },
   {
     "id": "palworld",
     "title": "Palworld",
-    "summary": "A survival server where you catch creatures and build bases. What a deployment of Palworld does today, and what the platform checks.",
+    "summary": "Deploy and manage Palworld on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1058,13 +1010,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "palworld"
   },
   {
     "id": "rabbitmq",
     "title": "RabbitMQ",
-    "summary": "A message broker that queues work between your services. What a deployment of RabbitMQ does today, and what the platform checks.",
+    "summary": "Deploy and manage RabbitMQ on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1072,13 +1024,13 @@
       "automation",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "rabbitmq"
   },
   {
     "id": "reposilite",
     "title": "Reposilite",
-    "summary": "A lightweight repository for Maven and other packages. What a deployment of Reposilite does today, and what the platform checks.",
+    "summary": "Deploy and manage Reposilite on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1086,13 +1038,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "reposilite"
   },
   {
     "id": "rust",
     "title": "Rust",
-    "summary": "A multiplayer survival server where you gather, build and raid. What a deployment of Rust does today, and what the platform checks.",
+    "summary": "Deploy and manage Rust on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1100,13 +1052,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "rust"
   },
   {
     "id": "samp",
     "title": "SA-MP",
-    "summary": "A San Andreas Multiplayer server for Grand Theft Auto: San Andreas. What a deployment of SA-MP does today, and what the platform checks.",
+    "summary": "Deploy and manage SA-MP on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1114,13 +1066,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "samp"
   },
   {
     "id": "space-engineers",
     "title": "Space Engineers",
-    "summary": "A server for building and surviving in space. What a deployment of Space Engineers does today, and what the platform checks.",
+    "summary": "Deploy and manage Space Engineers on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1128,13 +1080,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "space-engineers"
   },
   {
     "id": "team-fortress-2",
     "title": "Team Fortress 2",
-    "summary": "A free-to-play team shooter server with classes and game modes. What a deployment of Team Fortress 2 does today, and what the platform checks.",
+    "summary": "Deploy and manage Team Fortress 2 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1142,13 +1094,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "team-fortress-2"
   },
   {
     "id": "the-forest",
     "title": "The Forest",
-    "summary": "A survival horror server set in a forest. What a deployment of The Forest does today, and what the platform checks.",
+    "summary": "Deploy and manage The Forest on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1156,13 +1108,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "the-forest"
   },
   {
     "id": "unturned",
     "title": "Unturned",
-    "summary": "A zombie survival server for Unturned. What a deployment of Unturned does today, and what the platform checks.",
+    "summary": "Deploy and manage Unturned on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1170,13 +1122,13 @@
       "games",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "unturned"
   },
   {
     "id": "yarr",
     "title": "Yarr",
-    "summary": "A self-hosted RSS feed reader. What a deployment of Yarr does today, and what the platform checks.",
+    "summary": "Deploy and manage Yarr on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1184,13 +1136,13 @@
       "automation",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "yarr"
   },
   {
     "id": "lua",
     "title": "Lua",
-    "summary": "A runtime for Lua scripts and small services. What a deployment of Lua does today, and what the platform checks.",
+    "summary": "Deploy and manage Lua on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1198,13 +1150,13 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "lua"
   },
   {
     "id": "python",
     "title": "Python",
-    "summary": "A runtime for Python scripts and services, for code you write. What a deployment of Python does today, and what the platform checks.",
+    "summary": "Deploy and manage Python on Blipmade: plan details, setup fields, health checks and troubleshooting.",
     "group": "apps",
     "groupLabel": "Apps",
     "keywords": [
@@ -1212,7 +1164,7 @@
       "developer tools",
       "deploy"
     ],
-    "updated": "2026-10-29",
+    "updated": "2026-11-01",
     "catalogSlug": "python"
   }
 ]

@@ -235,15 +235,11 @@ describe('the pages of the products', () => {
     }
   });
 
-  it('keeps the pages of the products the platform cannot deploy in the content', () => {
-    // The content is written ahead of the catalog: a product that cannot be
-    // deployed today has its page written, and the site does not publish it.
-    // The site never describes something that cannot be ordered.
+  it('does not advertise products the platform cannot deploy', () => {
+    // Product guides are generated from the live catalog. A removed product
+    // must disappear from both search and the documentation index.
     const waiting = pages.filter((page) => page.catalogSlug && !deployable.has(page.catalogSlug));
-    assert.ok(waiting.length > 0, 'the content has no page of a product that is waiting');
-    for (const page of waiting) {
-      assert.equal(page.id, page.catalogSlug, `the page ${page.id} does not carry the name of its product`);
-    }
+    assert.deepEqual(waiting, []);
   });
 
   it('names every page of the content after the product it is about', () => {
