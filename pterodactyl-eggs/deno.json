@@ -16,7 +16,7 @@
     "startup": "./deno run --allow-net --allow-env {{JS_FILE}}",
     "config": {
         "files": "{}",
-        "startup": "{\r\n    \"done\": \"change this part\"\r\n}",
+        "startup": "{\"done\":\"listening on\"}",
         "logs": "{}",
         "stop": "^C"
     },

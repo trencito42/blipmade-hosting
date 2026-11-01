@@ -344,6 +344,29 @@ export const JAVA_MAIN_CLASS_VARIABLE = {
 };
 
 /**
+ * The line that tells the node that the program of the container is ready.
+ *
+ * The node reads the output of the program and waits for that line before it
+ * calls the container "running". The line of the eggs of the runtimes was the
+ * text of the place-holder of the upstream egg ("change this part"), which no
+ * program ever prints, so the container of a product that worked was still
+ * "offline" for the node. Every application of the platform says that it is
+ * listening, so the eggs of the runtimes wait for that word.
+ */
+export const READY_MARKER = 'listening on';
+
+/**
+ * Brings the line that tells the node that the program is ready to the word
+ * the application of the platform prints.
+ */
+export function withReadyMarker(config) {
+  const startup = typeof config?.startup === 'string' ? config.startup : '{}';
+  if (startup.includes(READY_MARKER)) return false;
+  config.startup = JSON.stringify({ done: READY_MARKER });
+  return true;
+}
+
+/**
  * The value of a variable of an egg, or nothing when the egg has no such
  * variable.
  */
@@ -361,6 +384,8 @@ const PATCHES = {
       egg.scripts.installation.script = install;
       changed = true;
     }
+
+    if (withReadyMarker(egg.config)) changed = true;
 
     return changed;
   },
@@ -381,6 +406,8 @@ const PATCHES = {
       changed = true;
     }
 
+    if (withReadyMarker(egg.config)) changed = true;
+
     return changed;
   },
 
@@ -399,6 +426,8 @@ const PATCHES = {
       project.default_value = 'Blipmade.csproj';
       changed = true;
     }
+
+    if (withReadyMarker(egg.config)) changed = true;
 
     return changed;
   },
@@ -448,6 +477,8 @@ const PATCHES = {
       changed = true;
     }
 
+    if (withReadyMarker(egg.config)) changed = true;
+
     return changed;
   },
 
@@ -470,14 +501,23 @@ const PATCHES = {
       changed = true;
     }
 
+    if (withReadyMarker(egg.config)) changed = true;
+
     return changed;
   },
 
   'dart.json': (egg) => {
+    let changed = false;
+
     const install = withEmptyRepositoryGuard(egg.scripts.installation.script);
-    if (install === egg.scripts.installation.script) return false;
-    egg.scripts.installation.script = install;
-    return true;
+    if (install !== egg.scripts.installation.script) {
+      egg.scripts.installation.script = install;
+      changed = true;
+    }
+
+    if (withReadyMarker(egg.config)) changed = true;
+
+    return changed;
   },
 
   'deno.json': (egg) => {
@@ -511,6 +551,8 @@ const PATCHES = {
       file.default_value = 'main.ts';
       changed = true;
     }
+
+    if (withReadyMarker(egg.config)) changed = true;
 
     return changed;
   },

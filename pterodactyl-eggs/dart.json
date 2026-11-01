@@ -20,7 +20,7 @@
     "startup": "if [[ -d .git ]] && [[ {{AUTO_RESET}} == \"1\" ]]; then git reset --hard; fi; if [[ -d .git ]] && [[ {{AUTO_UPDATE}} == \"1\" ]]; then git pull; fi; dart pub get; dart run",
     "config": {
         "files": "{}",
-        "startup": "{\r\n    \"done\": \"change this part\"\r\n}",
+        "startup": "{\"done\":\"listening on\"}",
         "logs": "{}",
         "stop": "^^C"
     },

@@ -19,7 +19,7 @@
     "startup": "export CARGO_HOME=/home/container/.cargo; if [[ -d .git ]] && [[ {{AUTO_UPDATE}} == \"1\" ]]; then git pull; fi; cargo run --release",
     "config": {
         "files": "{}",
-        "startup": "{\r\n    \"done\": [\r\n        \"change this part\"\r\n    ]\r\n}",
+        "startup": "{\"done\":\"listening on\"}",
         "logs": "{}",
         "stop": "^C"
     },

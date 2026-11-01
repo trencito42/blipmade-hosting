@@ -21,7 +21,7 @@
     "startup": "if [ ! -f {{JARFILE}} ]; then mkdir -p build && javac -d build *.java && jar cfe {{JARFILE}} {{MAIN_CLASS}} -C build .; fi; java -Dterminal.jline=false -Dterminal.ansi=true -jar {{JARFILE}}",
     "config": {
         "files": "{}",
-        "startup": "{\r\n    \"done\": \"change this text\"\r\n}",
+        "startup": "{\"done\":\"listening on\"}",
         "logs": "{}",
         "stop": "^C"
     },

@@ -18,7 +18,7 @@
     "startup": "go build -o {{EXECUTABLE}} . && ./{{EXECUTABLE}}",
     "config": {
         "files": "{}",
-        "startup": "{\r\n    \"done\": \"change this part\"\r\n}",
+        "startup": "{\"done\":\"listening on\"}",
         "logs": "{}",
         "stop": "^C"
     },
