@@ -1437,6 +1437,8 @@ model VpsService {
   /// The image the server is built from: a key of lib/vps-images.
   image          String        @default("debian-13")
   lastError      String?
+  /// Set when an operator gave or took resources without changing the bill: why, who, when, from and to.
+  resourceOverride Json?
   /// When the machine was stopped because the subscription is not paid. Its data is kept until the retention ends.
   suspendedAt    DateTime?
   createdAt      DateTime      @default(now())

@@ -15,6 +15,7 @@ import {
 } from '../plugins/auth.js';
 import { applyAllocationReport, destroyVps, ownedVps, reinstallVps, setVpsPower, vpsAllocationReport, vpsUsage, vpsView } from '../services/vps.js';
 import { enqueueVpsProvisioning } from '../services/queue.js';
+import { adjustVpsResources, applyVpsPlanChange, quoteVpsPlanChange, vpsBillingMismatches } from '../services/vps-plan.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import * as pve from '../services/proxmox.js';
 import { relayVpsConsole } from '../services/vps-console.js';
@@ -382,27 +383,48 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
   });
 
   /**
-   * Moves a server to another plan: its processor, memory and disk on the hypervisor, and its plan on
-   * the account. The disk can only grow. A running machine reads the new processor and memory at its next
-   * restart. The subscription is NOT changed here: the price a customer pays is changed on their billing.
+   * The commercial change of plan. It is a quote first: the answer says what the
+   * server costs now, what it would cost, and when. Nothing is written.
    */
-  app.post('/admin/vps/:id/plan', { preHandler: [requirePermission('services.write')] }, async (request) => {
+  app.get('/admin/vps/:id/plan-quote', { preHandler: [requirePermission('services.read')] }, async (request) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { slug } = z.object({ slug: z.string().min(1).max(80) }).parse(request.query);
+    return { quote: await quoteVpsPlanChange(id, slug) };
+  });
+
+  /**
+   * Moves a server to another plan and its subscription to the price of that plan, in one
+   * operation. The caller sends the amount it was quoted; a stale quote is refused. The disk
+   * can only grow. A running machine reads the new processor and memory at its next restart.
+   */
+  app.post('/admin/vps/:id/plan', { preHandler: [requirePermission('services.write'), requirePermission('pricing.write')] }, async (request) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const { slug } = z.object({ slug: z.string().min(1).max(80) }).parse(request.body ?? {});
-    const service = await serviceOf(id);
-    if (service.status !== 'ACTIVE' || !service.vmid) throw badRequest('Only a server that is built can change plan.');
-    const product = await prisma.product.findUnique({ where: { slug } });
-    if (!product || product.fulfilment !== 'VPS') throw notFound('That plan was not found.');
-    const ram = product.defaultRam;
-    const cpu = product.defaultCpu;
-    const disk = product.defaultDisk;
-    if (product.id === service.productId) throw badRequest('The server already has this plan.');
-    if (disk < service.disk) throw badRequest(`The disk cannot shrink (${service.disk} GB now, ${disk} GB in that plan). Choose a plan with the same disk or more.`);
-    await pve.configureVm(service.vmid, { cores: cpu, memory: ram });
-    if (disk > service.disk) await pve.resizeDisk(service.vmid, disk);
-    await prisma.vpsService.update({ where: { id }, data: { productId: product.id, ram, cpu, disk } });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.vps.plan', targetType: 'vps', targetId: id, meta: { from: service.product.slug, to: slug }, ip: request.ip });
-    return { ok: true, restartNeeded: true };
+    const body = z.object({ slug: z.string().min(1).max(80), expectedAmount: z.number().int().min(0) }).parse(request.body ?? {});
+    const quote = await applyVpsPlanChange({ serviceId: id, slug: body.slug, expectedAmount: body.expectedAmount, actor, ip: request.ip });
+    return { ok: true, restartNeeded: true, quote };
   });
+
+  /**
+   * The administrative adjustment. It changes the resources and nothing on the bill, so it
+   * says so in the request: a free override, a reason that a person can read later.
+   */
+  app.post('/admin/vps/:id/resources', { preHandler: [requirePermission('services.write'), requirePermission('pricing.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z
+      .object({
+        ram: z.number().int().min(256).max(262144).optional(),
+        cpu: z.number().int().min(1).max(64).optional(),
+        disk: z.number().int().min(1).max(8192).optional(),
+        reason: z.string().trim().min(10).max(500),
+        freeOverride: z.literal(true),
+      })
+      .parse(request.body ?? {});
+    const record = await adjustVpsResources({ serviceId: id, ram: body.ram, cpu: body.cpu, disk: body.disk, reason: body.reason, actor, ip: request.ip });
+    return { ok: true, restartNeeded: true, override: record };
+  });
+
+  /** The servers whose resources and bill disagree. It only reads. */
+  app.get('/admin/vps-billing-check', { preHandler: [requirePermission('services.read')] }, async () => ({ mismatches: await vpsBillingMismatches() }));
 }
