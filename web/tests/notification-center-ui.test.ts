@@ -387,10 +387,19 @@ describe('the preferences of the notifications', () => {
 
 describe('the state of the notification centre', () => {
   it('is not kept in the storage of the browser', () => {
-    for (const file of ['src/app/Notifications.tsx', 'src/ui-app.tsx', 'src/app/Settings.tsx']) {
+    for (const file of ['src/app/Notifications.tsx', 'src/app/Settings.tsx']) {
       const source = readFileSync(join(webRoot, file), 'utf8');
       assert.doesNotMatch(source, /localStorage/, `${file} keeps the notifications in the browser`);
       assert.doesNotMatch(source, /sessionStorage/, `${file} keeps the notifications in the browser`);
+    }
+
+    // The shell remembers which groups of the sidebar are open, and nothing else. That is a choice of layout,
+    // so the one key it uses is checked by name: any other use of the storage fails the test.
+    const shell = readFileSync(join(webRoot, 'src/ui-app.tsx'), 'utf8');
+    assert.doesNotMatch(shell, /sessionStorage/, 'src/ui-app.tsx keeps the notifications in the browser');
+    assert.match(shell, /const storageKey = 'bm_nav_groups'/);
+    for (const use of shell.matchAll(/localStorage\.\w+\(([^)]*)\)/g)) {
+      assert.match(use[1]!, /^storageKey\b/, `src/ui-app.tsx keeps something other than the sidebar in the browser: ${use[0]}`);
     }
   });
 

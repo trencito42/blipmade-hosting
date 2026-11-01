@@ -210,7 +210,7 @@
             "t": "list",
             "items": [
               "The operator cannot open a shell in your instance: there is no SSH and no SFTP in the platform. The file browser and the console are the way in.",
-              "The operator cannot restore the contents of an instance for you. The platform takes no automatic backup of the data inside your instance, so the copy you keep is yours.",
+              "The operator cannot restore the contents of an instance for you. No automatic backup is turned on for you, so choose a schedule in the Backups tab and keep a copy of your own too.",
               "The operator cannot promise an answer time, and there is no service credit for a period of interruption.",
               "The operator cannot make the platform reach a percentage of availability: the platform publishes none and promises none."
             ]
@@ -913,7 +913,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The platform takes no automatic backup of the data inside an instance. That is a decision about your data, not about ours: you know what the data is and how it should be restored."
+            "text": "No automatic backup is turned on for you. You choose, in the Backups tab of the instance, to run one every day or every Sunday at 03:30 UTC, or to take one by hand. The oldest unlocked backup is removed to make room for the next one, so lock the ones you want to keep. You know what the data is and how it should be restored."
           },
           {
             "t": "p",
@@ -1157,7 +1157,7 @@
               },
               {
                 "q": "Is my data backed up for me?",
-                "a": "The platform takes no automatic backup of the data inside an instance. The Backups tab of the instance lets you take a manual archive of the files of the container and download it, but it holds no dump of a database that runs somewhere else. The copy of a database is yours to take."
+                "a": "No automatic backup is turned on for you. The Backups tab of the instance lets you take an archive of the files of the container by hand, or switch on a daily or weekly one at 03:30 UTC, and download it, but it holds no dump of a database that runs somewhere else. The copy of a database is yours to take."
               }
             ]
           }

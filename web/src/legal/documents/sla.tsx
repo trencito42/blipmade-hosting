@@ -160,7 +160,7 @@ export const SLA: LegalDocument = {
         },
         {
           t: 'p',
-          text: 'The data inside your server is your responsibility: the platform does not take automatic backups of it, and it does not promise a time in which lost data can be restored. Take your own copy with the commands on the page of your product.',
+          text: 'The data inside your server is your responsibility: the backups you switch on in the Backups tab are a convenience and not a promise, and the platform does not promise a time in which lost data can be restored. Take your own copy with the commands on the page of your product.',
         },
       ],
     },

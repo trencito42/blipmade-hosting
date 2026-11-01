@@ -5015,7 +5015,7 @@
         "blocks": [
           {
             "t": "p",
-            "text": "The platform takes no automatic backup of the data inside an instance. That is a decision about your data, not about ours: you know what the data is and how it should be restored."
+            "text": "No automatic backup is turned on for you. You choose, in the Backups tab of the instance, to run one every day or every Sunday at 03:30 UTC, or to take one by hand. The oldest unlocked backup is removed to make room for the next one, so lock the ones you want to keep. You know what the data is and how it should be restored."
           },
           {
             "t": "p",

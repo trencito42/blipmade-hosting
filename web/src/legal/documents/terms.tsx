@@ -161,7 +161,7 @@ export const TERMS: LegalDocument = {
               You are responsible for what runs in the server you bought: the application, its configuration and its data.
             </>,
             <>
-              The platform does not take automatic backups of your data. That is a decision about your data and not about ours: you know what the data is and how it should be restored. Take your own copy with the commands on the page of your product.
+              The platform does not turn automatic backups on for you, and a backup that you switch on is a convenience and not a promise. The data is yours to protect: you know what it is and how it should be restored. Take your own copy with the commands on the page of your product.
             </>,
             <>
               You keep the rights to everything you put in your server. You give us the right to store it, to run it and to move it as part of running the service for you.

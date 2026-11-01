@@ -107,7 +107,7 @@ export const AUP: LegalDocument = {
         },
         {
           t: 'p',
-          text: 'The platform does not take automatic backups of the data in your server. Take your own copy: the documentation of each product has the commands for it.',
+          text: 'The platform does not turn automatic backups on for you. Switch one on in the Backups tab and take your own copy too: the documentation of each product has the commands for it.',
         },
       ],
     },

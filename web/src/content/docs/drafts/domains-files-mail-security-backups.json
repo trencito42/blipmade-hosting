@@ -1866,7 +1866,7 @@
           },
           {
             "t": "p",
-            "text": "It is manual. Nothing makes one on a schedule: you ask for a backup and the panel writes one in the background. There is no automatic backup of your instance today."
+            "text": "You choose. Nothing is scheduled until you switch it on: in the Backups tab you can ask for a backup now, or pick a daily or weekly one at 03:30 UTC. There is no automatic backup of your instance until you do."
           },
           {
             "t": "callout",
