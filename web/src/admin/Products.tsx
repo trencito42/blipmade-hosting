@@ -16,6 +16,7 @@ import {
 } from '../ui-app';
 import { DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
+import ProductEditor from './ProductEditor';
 
 /**
  * Staff catalog — GET /api/admin/products, POST /api/admin/products,
@@ -81,17 +82,12 @@ export default function Products() {
   const [toggle, setToggle] = useState<ToggleTarget | null>(null);
   const [removing, setRemoving] = useState<AdminProduct | null>(null);
   const [creating, setCreating] = useState(false);
-  // The egg that is being typed is kept here, so the table and the card list
-  // show the same value and the operator does not save a stale one.
-  const [eggs, setEggs] = useState<Record<string, string>>({});
-
+  const [editing, setEditing] = useState<string | null>(null);
   const state = useAsync((signal) => get<{ products: AdminProduct[] }>('/admin/products', undefined, signal), []);
   const products = state.data?.products ?? [];
   const mayWrite = can(staff, 'products.write');
 
-  const eggValue = (product: AdminProduct) => eggs[product.id] ?? (product.eggId ? String(product.eggId) : '');
-
-  const patchProduct = useAction(async (id: string, body: { visible?: boolean; deployable?: boolean; eggId?: number | null }) => {
+  const patchProduct = useAction(async (id: string, body: { visible?: boolean; deployable?: boolean; eggId?: number | null; confirmRisky?: boolean }) => {
     return api<{ product: AdminProduct }>(`/admin/products/${id}`, { method: 'PATCH', body });
   });
 
@@ -102,7 +98,7 @@ export default function Products() {
 
   const confirmToggle = async () => {
     if (!toggle) return;
-    const body = toggle.field === 'visible' ? { visible: toggle.next } : { deployable: toggle.next };
+    const body = { ...(toggle.field === 'visible' ? { visible: toggle.next } : { deployable: toggle.next }), confirmRisky: true };
     const result = await patchProduct.run(toggle.product.id, body);
     if (!result) return;
     toast.push(
@@ -148,6 +144,7 @@ export default function Products() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`${products.length} product${products.length === 1 ? '' : 's'}`} />
+      {editing && <ProductEditor id={editing} mayWrite={mayWrite} onClose={() => setEditing(null)} onSaved={state.reload} />}
       <Panel
         title="Catalog"
         description="Apps and databases that customers can buy. Visibility controls the catalog, deployable controls ordering."
@@ -283,34 +280,20 @@ export default function Products() {
                         <span className="block font-mono text-[12.5px] text-ink2">
                           {product.eggId ?? 'Not set — the product cannot be built yet'}
                         </span>
-                        {mayWrite && (
-                          <EggForm
-                            product={product}
-                            value={eggValue(product)}
-                            onChange={(value) => setEggs((current) => ({ ...current, [product.id]: value }))}
-                            onSaved={(id, value) => {
-                              patchProduct.run(id, { eggId: value });
-                            }}
-                            busy={patchProduct.pending}
-                          />
-                        )}
                       </span>
                     ),
                   },
-                  ...(mayWrite
-                    ? ([
-                        {
-                          key: 'actions',
-                          header: 'Action',
-                          align: 'right',
-                          render: (product: AdminProduct) => (
-                            <button type="button" onClick={() => setRemoving(product)} className={denseDanger}>
-                              Delete
-                            </button>
-                          ),
-                        },
-                      ] satisfies TableColumn<AdminProduct>[])
-                    : []),
+                  {
+                    key: 'actions',
+                    header: 'Action',
+                    align: 'right',
+                    render: (product: AdminProduct) => (
+                      <span className="inline-flex gap-1.5">
+                        <button type="button" onClick={() => setEditing(product.id)} className={denseGhost}>{mayWrite ? 'Edit' : 'View'}</button>
+                        {mayWrite && <button type="button" onClick={() => setRemoving(product)} className={denseDanger}>Delete</button>}
+                      </span>
+                    ),
+                  },
                 ]}
               />
               <CardList<AdminProduct> rows={products} rowKey={(product) => product.id}>
@@ -356,17 +339,7 @@ export default function Products() {
                         </dd>
                       </div>
                     </dl>
-                    {mayWrite && (
-                      <EggForm
-                        product={product}
-                        value={eggValue(product)}
-                        onChange={(value) => setEggs((current) => ({ ...current, [product.id]: value }))}
-                        onSaved={(id, value) => {
-                          patchProduct.run(id, { eggId: value });
-                        }}
-                        busy={patchProduct.pending}
-                      />
-                    )}
+                    <div className="mt-3"><button type="button" onClick={() => setEditing(product.id)} className={denseGhost}>{mayWrite ? 'Edit' : 'View'}</button></div>
                     {mayWrite && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
@@ -450,54 +423,6 @@ export default function Products() {
           {patchProduct.error ?? removeProduct.error}
         </p>
       )}
-    </div>
-  );
-}
-
-/**
- * The egg of the panel of a product.
- *
- * The product is opened for ordering only when the panel can build it, and
- * that needs the egg. The field is here so the staff area can set it without
- * the database.
- */
-function EggForm({
-  product,
-  value,
-  onChange,
-  onSaved,
-  busy,
-}: {
-  product: AdminProduct;
-  value: string;
-  onChange: (value: string) => void;
-  onSaved: (id: string, eggId: number | null) => void;
-  busy: boolean;
-}) {
-  const changed = value.trim() === '' ? product.eggId !== null : Number(value) !== product.eggId;
-
-  return (
-    <div className="mt-3 flex flex-wrap items-end gap-2">
-      <label className="grid gap-1 text-[12.5px] text-ink3">
-        Egg of the panel
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder="the id of the egg"
-          className="h-10 w-32 rounded-xl bg-s3 px-3 font-mono text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc"
-        />
-      </label>
-      <button
-        type="button"
-        disabled={!changed || busy || Number.isNaN(Number(value))}
-        onClick={() => onSaved(product.id, value.trim() === '' ? null : Number(value))}
-        className="h-10 rounded-full bg-s2 px-4 text-[13px] font-bold text-ink transition-colors duration-[180ms] hover:bg-s3 disabled:opacity-40"
-      >
-        Save the egg
-      </button>
     </div>
   );
 }
