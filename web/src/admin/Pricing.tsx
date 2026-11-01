@@ -5,6 +5,7 @@ import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Money, Pane
 import { DASH, LiveRegion, denseGhost, denseInput, densePrimary, denseSoft, useAdminSession } from './Overview';
 import { pricingGate } from './permissions';
 import Capacity from './Capacity';
+import { AddonsPanel, PriceHistoryPanel } from './Commerce';
 
 /**
  * Staff pricing — GET /api/admin/pricing, PUT /api/admin/pricing/:id
@@ -107,6 +108,8 @@ export default function Pricing() {
       <LiveRegion message={`${prices.length} price${prices.length === 1 ? '' : 's'}`} />
       {rates && <RateCard rates={rates} mayWrite={mayWrite} onSaved={state.reload} />}
       {mayRead && <Capacity />}
+      <AddonsPanel mayWrite={mayWrite} />
+      <PriceHistoryPanel />
       <Panel
         title="Pricing"
         description="Base price for the minimum configuration plus the rate for every extra gigabyte of memory, vCPU and disk."

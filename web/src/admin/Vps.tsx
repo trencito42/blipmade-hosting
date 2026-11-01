@@ -5,6 +5,7 @@ import { memLabel } from '../lib/pricing';
 import { Link } from '../router';
 import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, StatusPill, useToast } from '../ui-app';
 import { can, denseDanger, denseGhost, fmtDate, useAdminSession } from './Overview';
+import { VpsAllocations, VpsBillingCheck } from './VpsOperations';
 
 /**
  * Virtual private servers, for the staff: every server of the platform, with the owner,
@@ -232,6 +233,9 @@ export default function AdminVpsPage() {
           </ul>
         )}
       </Panel>
+
+      {can(session.staff, 'infrastructure.read') && <VpsAllocations mayWrite={can(session.staff, 'infrastructure.write')} />}
+      <VpsBillingCheck />
 
       <ConfirmDialog
         open={confirm !== null}
