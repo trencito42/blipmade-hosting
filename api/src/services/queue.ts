@@ -259,7 +259,62 @@ export function createVpsProvisionWorker(
   });
 }
 
+/* --------------------------------------------------------------------
+ * Git deployments
+ *
+ * A build can take many minutes inside the customer's container, so it has a queue of its own. Two at a
+ * time at most: each one restarts a container and polls the panel, and the builds themselves run in the
+ * containers, not here.
+ * ------------------------------------------------------------------ */
+
+export const GIT_DEPLOY_QUEUE = 'blipmade.git.deploy';
+
+export interface GitDeployJobData {
+  instanceId: string;
+  deployId: string;
+  action: 'build' | 'rollback';
+  release?: string;
+  /** Who asked: a user, or the webhook of the repository. */
+  by: string;
+}
+
+let gitDeployQueue: Queue<GitDeployJobData> | null = null;
+
+export function getGitDeployQueue(): Queue<GitDeployJobData> {
+  if (!gitDeployQueue) {
+    gitDeployQueue = new Queue<GitDeployJobData>(GIT_DEPLOY_QUEUE, {
+      connection: redis,
+      defaultJobOptions: { attempts: 1, removeOnComplete: { count: 200 }, removeOnFail: { age: FAILED_JOB_RETENTION_MS } },
+    });
+  }
+  return gitDeployQueue;
+}
+
+/**
+ * Queues a deployment. One per instance at a time: a request while another is waiting or running is refused,
+ * so a push storm cannot pile builds on one container.
+ */
+export async function enqueueGitDeploy(data: GitDeployJobData): Promise<boolean> {
+  const jobId = `git-deploy-${data.instanceId}`;
+  const existing = await getGitDeployQueue().getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state === 'waiting' || state === 'active' || state === 'delayed') return false;
+    await existing.remove().catch(() => undefined);
+  }
+  await getGitDeployQueue().add('deploy', data, { jobId });
+  return true;
+}
+
+export function createGitDeployWorker(handler: (job: Job<GitDeployJobData>) => Promise<void>): Worker<GitDeployJobData> {
+  return new Worker<GitDeployJobData>(GIT_DEPLOY_QUEUE, handler, { connection: redis, concurrency: 2, lockDuration: 600_000 });
+}
+
 export async function closeQueue(): Promise<void> {
+  if (gitDeployQueue) {
+    await gitDeployQueue.close();
+    gitDeployQueue = null;
+  }
   if (vpsProvisionQueue) {
     await vpsProvisionQueue.close();
     vpsProvisionQueue = null;

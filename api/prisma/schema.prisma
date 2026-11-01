@@ -883,6 +883,7 @@ model Instance {
   downAlertedAt DateTime?
   checks        InstanceCheck[]
   offsiteBackups OffsiteBackup[]
+  gitDeploy GitDeploy?
 }
 
 model InstanceEvent {
@@ -1684,4 +1685,25 @@ model OffsiteBackup {
   @@index([kind, state])
   @@index([instanceId])
   @@index([sourceId])
+}
+
+/// The Git deployment of an instance. The build runs inside the instance's own container, with its limits.
+model GitDeploy {
+  id              String   @id @default(cuid())
+  instanceId      String   @unique
+  instance        Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  repoUrl         String
+  branch          String   @default("main")
+  buildCommand    String   @default("")
+  startCommand    String   @default("npm start")
+  autoDeploy      Boolean  @default(false)
+  /// The secret of the signed webhook, encrypted. Shown to the customer once.
+  webhookSecret   String?
+  /// The startup command the server had before Git deployment took it over, so it can be given back.
+  previousStartup String?
+  lastDeployAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([repoUrl, branch])
 }

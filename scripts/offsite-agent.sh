@@ -8,7 +8,7 @@
 # accepted on the command line. The age IDENTITY (the private key) is never on the machines that make backups: only
 # the public recipient is.
 #
-# Modes:  customers | databases | vps | retention | destination | drill <remote path> <identity file>
+# Modes:  customers | databases | vps | platform | retention | destination | drill <remote path> <identity file>
 set -euo pipefail
 umask 077
 
@@ -201,6 +201,21 @@ mode_vps() {
   done
 }
 
+# ------------------------------------------------------------------ the platform
+# The newest archive of scripts/backup.sh (database dump and configuration without secrets) goes to the box as well.
+# The copy that backup-offsite.sh makes goes to another VM of the same machine, so it does not survive the loss of
+# the machine; this one does.
+mode_platform() {
+  local dir="${PLATFORM_BACKUP_DIR:-/var/backups/blipmade}" f name mt now; now="$(date +%s)"
+  f="$(ls -1t "$dir"/blipmade-scheduled-*.tar.gz 2>/dev/null | head -n 1 || true)"
+  [ -n "$f" ] || { log "no scheduled platform archive in $dir"; return 0; }
+  name="$(basename "$f")"
+  [ -e "$STATE_DIR/done/platform-$name" ] && { log "$name is already on the box"; return 0; }
+  mt="$(stat -c %Y "$f")"; [ $((now - mt)) -gt 120 ] || { log "$name is still being written"; return 0; }
+  tar -tzf "$f" >/dev/null 2>&1 || { report PLATFORM "platform/$NODE_NAME/$name.age" "$name" FAILED 0 "" "$(iso "$mt")" "the archive is not readable"; return 1; }
+  if upload_verified PLATFORM "$name" "$f" "platform/$NODE_NAME" "$name.age" "$(iso "$mt")"; then : > "$STATE_DIR/done/platform-$name"; fi
+}
+
 # ------------------------------------------------------------------- retention
 protected_list() {  # the newest verified copy of every source: never deleted
   curl -fsS -m 25 -H "Authorization: Bearer $REPORT_TOKEN" "$REPORT_URL/protected?kind=$1" | grep -o '"[^"]*"' | tr -d '"' | grep -v '^protected$' || true
@@ -232,6 +247,15 @@ mode_retention() {
       t_rm "databases/$NODE_NAME/$db/$f" && log "removed old dump $f"
     done < <(t_ls "databases/$NODE_NAME/$db" | sort -r)
   done < <(t_ls "databases/$NODE_NAME")
+  # the platform: the newest 14 archives
+  keep="$(protected_list PLATFORM)" || die "could not read the protected list"
+  n=0
+  while read -r f; do
+    [ -n "$f" ] || continue
+    n=$((n + 1)); [ "$n" -le "${RETENTION_PLATFORM_KEEP:-14}" ] && continue
+    grep -qx "platform/$NODE_NAME/$f" <<<"$keep" && continue
+    t_rm "platform/$NODE_NAME/$f" && log "removed old platform copy $f"
+  done < <(t_ls "platform/$NODE_NAME" | sort -r)
   # virtual servers: the newest few of each VM
   keep="$(protected_list VPS)" || die "could not read the protected list"
   while read -r vm; do
@@ -283,8 +307,9 @@ case "${1:-}" in
   customers) mode_customers ;;
   databases) mode_databases ;;
   vps) mode_vps ;;
+  platform) mode_platform ;;
   retention) mode_retention ;;
   destination) mode_destination ;;
   drill) shift; mode_drill "${1:?remote path}" "${2:?identity file}" ;;
-  *) echo "usage: $0 customers|databases|vps|retention|destination|drill <remote path> <identity>" >&2; exit 2 ;;
+  *) echo "usage: $0 customers|databases|vps|platform|retention|destination|drill <remote path> <identity>" >&2; exit 2 ;;
 esac

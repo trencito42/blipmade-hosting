@@ -10,6 +10,7 @@ import {
   createEmailWorker,
   createMailProvisionWorker,
   createVpsProvisionWorker,
+  createGitDeployWorker,
   createProvisionWorker,
   closeQueue,
   enqueueProvisioning,
@@ -29,6 +30,7 @@ import { watchDeadLetterQueue } from './services/dead-letter-monitor.js';
 import { pruneUptimeChecks } from './services/uptime.js';
 import { pruneDeviceSignals } from './services/device-signal.js';
 import { sweepBackupRetention } from './services/backup-policy.js';
+import { recordDeployEvent, runDeploy } from './services/git-deploy.js';
 import { reconcileRuntimeState, runtimeStateWarning } from './services/runtime-state.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
@@ -177,6 +179,22 @@ const vpsWorker = createVpsProvisionWorker(async (job) => {
 });
 vpsWorker.on('completed', (job) => console.info(`[worker] vps job ${job.id} completed`));
 vpsWorker.on('failed', (job, error) => console.error(`[worker] vps job ${job?.id} failed: ${error.message}`));
+
+/** The worker of the Git deployments: it asks the container to build, and writes down what came of it. */
+const gitWorker = createGitDeployWorker(async (job) => {
+  const { instanceId, deployId, action, release, by } = job.data;
+  const row = await prisma.instance.findUnique({
+    where: { id: instanceId },
+    select: { id: true, userId: true, pterodactylUuid: true, pterodactylServerId: true, status: true, generatedVariables: true, product: { select: { generatedVariables: true } } },
+  });
+  if (!row || !row.pterodactylUuid) return;
+  const instance = { id: row.id, userId: row.userId, pterodactylUuid: row.pterodactylUuid, pterodactylServerId: row.pterodactylServerId, status: row.status, generatedVariables: row.generatedVariables, productVariables: row.product.generatedVariables };
+  await recordDeployEvent(instanceId, `deploy:${deployId}:started:${action}:${by}`);
+  const result = await runDeploy(instance, deployId, action, release);
+  await recordDeployEvent(instanceId, `deploy:${deployId}:${result.state}:${result.release}:${result.commit}:${result.message}`);
+  await prisma.gitDeploy.updateMany({ where: { instanceId }, data: { lastDeployAt: new Date() } });
+});
+gitWorker.on('failed', (job, error) => console.error(`[worker] git deploy job ${job?.id} failed: ${error.message}`));
 
 /** Puts instances that were left running mid-flight back into the queue. */
 async function reconcile(): Promise<void> {
@@ -492,6 +510,7 @@ const shutdown = async () => {
   await emailWorker.close();
   await mailWorker.close();
   await vpsWorker.close();
+  await gitWorker.close();
   await closeQueue();
   await redis.quit().catch(() => undefined);
   await prisma.$disconnect().catch(() => undefined);

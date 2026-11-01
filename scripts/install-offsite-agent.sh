@@ -2,6 +2,7 @@
 # Installs the offsite agent and its timers on THIS machine. Run as root, on the node and on the hypervisor.
 #   node:        ./install-offsite-agent.sh node
 #   hypervisor:  ./install-offsite-agent.sh hypervisor
+#   platform:    ./install-offsite-agent.sh platform   (the VM that runs the API)
 # It does not write any secret: /etc/blipmade/offsite.env and the ssh key are put there by the operator.
 set -euo pipefail
 role="${1:?node or hypervisor}"
@@ -38,6 +39,9 @@ if [ "$role" = node ]; then
   unit customers customers '*-*-* 04:30:00'   # after the 03:30 schedules of the panel have finished
   unit databases databases '*-*-* 05:10:00'
   unit retention retention '*-*-* 06:00:00'
+elif [ "$role" = platform ]; then
+  unit platform platform '*-*-* 02:50:00'     # after the backup of the platform (about 02:16 to 02:25)
+  unit retention retention '*-*-* 06:40:00'
 elif [ "$role" = hypervisor ]; then
   unit vps vps 'Sun *-*-* 02:00:00'
   unit retention retention '*-*-* 06:30:00'

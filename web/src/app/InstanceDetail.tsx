@@ -43,6 +43,7 @@ type Tab =
   | 'resources'
   | 'domains'
   | 'uptime'
+  | 'git'
   | 'access';
 type PowerAction = 'start' | 'restart' | 'stop';
 
@@ -63,6 +64,7 @@ const NetworkTab = lazy(() => import('./instance/NetworkTab'));
 const StartupTab = lazy(() => import('./instance/StartupTab'));
 const SchedulesTab = lazy(() => import('./instance/SchedulesTab'));
 const UptimeTab = lazy(() => import('./instance/UptimeTab'));
+const GitTab = lazy(() => import('./instance/GitTab'));
 const AccessTab = lazy(() => import('./instance/AccessTab'));
 const SettingsTab = lazy(() => import('./instance/SettingsTab'));
 const ActivityTab = lazy(() => import('./instance/ActivityTab'));
@@ -106,13 +108,14 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'resources', label: 'Resources' },
   { value: 'domains', label: 'Domains' },
   { value: 'uptime', label: 'Uptime' },
+  { value: 'git', label: 'Deploy' },
   { value: 'access', label: 'Access' },
 ];
 
 /** What a member of a shared server does not get: the parts that belong to the owner. */
 const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
 /** A viewer only looks. */
-const VIEWER_HIDDEN: Tab[] = ['files', 'startup', 'schedules', 'databases', 'backups', 'network'];
+const VIEWER_HIDDEN: Tab[] = ['files', 'startup', 'schedules', 'databases', 'backups', 'network', 'git'];
 
 const POWER_LABEL: Record<PowerAction, string> = {
   start: 'Start',
@@ -621,6 +624,8 @@ export default function InstanceDetail() {
   );
   const visibleTabs = TABS.filter((entry) => {
     const access = data?.instance.access ?? 'owner';
+    // Deploy from Git is for the runtimes where the customer brings the code.
+    if (entry.value === 'git' && !['nodejs', 'discord-bot'].includes(data?.instance.product.slug ?? '')) return false;
     if (access === 'owner') return true;
     if (OWNER_ONLY.includes(entry.value)) return false;
     return access === 'manager' || !VIEWER_HIDDEN.includes(entry.value);
@@ -770,6 +775,7 @@ export default function InstanceDetail() {
           {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
           {tab === 'domains' && <DomainsTab instance={instance} />}
           {tab === 'uptime' && <UptimeTab instance={instance} />}
+          {tab === 'git' && <GitTab instance={instance} />}
           {tab === 'access' && <AccessTab instance={instance} />}
         </Suspense>
         )}
