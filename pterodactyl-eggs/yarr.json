@@ -24,7 +24,7 @@
         "installation": {
             "container": "golang:1.19.13-bookworm",
             "entrypoint": "bash",
-            "script": "#!/bin/bash\r\n\r\ncd /mnt/server\r\n\r\nmkdir yarr_source\r\ngit clone https://github.com/nkanaev/yarr yarr_source\r\n\r\ncd yarr_source\r\n\r\nmake build_default  # -> _output/yarr\r\n\r\ncp _output/yarr ../yarr\r\ncd ../\r\n\r\nrm -rf yarr_source\r\n\r\nchmod +x yarr\r\n\r\necho \"Install complete\""
+            "script": "#!/bin/bash\r\n\r\ncd /mnt/server\r\n\r\napt update\napt install -y unzip curl\n\n# The image of the platform does not carry the compiler of Go, so the\n# program is taken from the release of the project instead of being built\n# from its sources: \"make build_default\" fails with \"make: command not found\"\n# and the container starts with no program in it.\nYARR_VERSION=2.9\ncurl -L \"https://github.com/nkanaev/yarr/releases/download/v${YARR_VERSION}/yarr_linux_amd64.zip\" --output yarr.zip\nunzip -o yarr.zip\nrm -f yarr.zip\nchmod +x yarr\necho \"Install complete\""
         }
     },
     "variables": [

@@ -57,15 +57,46 @@ const PAPERMC_V3_BUILD = [
 ];
 
 /**
- * The line that makes the configuration of Loki readable by its own binary.
+ * The lines that make the configuration of Loki one its binary reads.
  *
  * The moment the schema starts is a date in the binary of Loki, and the file
- * of the release carries it as a full timestamp.
+ * of the release carries it as a full timestamp. The service listens on the
+ * port of the allocation and keeps its data in the volume of the instance,
+ * and the file of the release listens on 3100 and keeps it in /tmp.
  */
-export const LOKI_CONFIG_FIX =
-  '# The binary of Loki reads the moment the schema starts as a date, and the\n' +
-  '# file of the release carries it as a full timestamp.\n' +
-  'sed -i -E \'s|(from: ")[^"]*(")|\\12020-10-24\\2|\' loki-docker-config.yaml';
+export const LOKI_CONFIG_FIX = [
+  '# The binary of Loki reads the moment the schema starts as a date, and the',
+  '# file of the release carries it as a full timestamp.',
+  `sed -i -E 's|from: "?[^"]*"?|from: "2020-10-24"|' loki-docker-config.yaml`,
+  '# The service listens on the port of the allocation and keeps its data in',
+  '# the volume of the instance.',
+  `sed -i -E 's|http_listen_port: .*|http_listen_port: {{SERVER_PORT}}|' loki-docker-config.yaml`,
+  `sed -i 's|/tmp/loki|/home/container/loki|g' loki-docker-config.yaml`,
+].join('\n');
+
+/**
+ * The lines that take the program of Yarr from the release of the project.
+ *
+ * The image of the platform does not carry the compiler of Go, so the script
+ * that built the program from its sources failed with "make: command not
+ * found" and the container of Yarr started with no program in it. The project
+ * publishes the program itself, and the release is what the instance runs.
+ */
+export const YARR_BINARY_INSTALL = [
+  'apt update',
+  'apt install -y unzip curl',
+  '',
+  '# The image of the platform does not carry the compiler of Go, so the',
+  '# program is taken from the release of the project instead of being built',
+  '# from its sources: "make build_default" fails with "make: command not found"',
+  '# and the container starts with no program in it.',
+  'YARR_VERSION=2.9',
+  'curl -L "https://github.com/nkanaev/yarr/releases/download/v${YARR_VERSION}/yarr_linux_amd64.zip" --output yarr.zip',
+  'unzip -o yarr.zip',
+  'rm -f yarr.zip',
+  'chmod +x yarr',
+].join('\n');
+
 
 /**
  * Brings the script of an egg of Minecraft to the address that answers.
@@ -104,16 +135,44 @@ export function withPaperMcV3(script) {
 /**
  * Brings the script of the egg of Loki to a configuration its binary reads.
  *
- * The line goes right after the file of configuration is written.
+ * The lines of the older fix are taken out first: the whole block replaces
+ * them, and the block carries the port of the allocation as well.
  */
 export function withLokiConfigFix(script) {
-  if (script.includes('from: "')) return script;
+  if (script.includes('http_listen_port')) return script;
+  const base = script
+    .split('\n')
+    .filter((line) => {
+      if (line.includes("sed -i -E 's|(from: \"")) return false;
+      if (line.includes('# The binary of Loki reads the moment the schema starts as a date')) return false;
+      if (line.includes('# file of the release carries it as a full timestamp.')) return false;
+      return true;
+    })
+    .join('\n');
   const anchor = 'curl -L https://raw.githubusercontent.com/grafana/loki';
-  const at = script.indexOf(anchor);
+  const at = base.indexOf(anchor);
   if (at === -1) return script;
-  const lineEnd = script.indexOf('\n', at);
+  const lineEnd = base.indexOf('\n', at);
   if (lineEnd === -1) return script;
-  return `${script.slice(0, lineEnd + 1)}${LOKI_CONFIG_FIX}\n${script.slice(lineEnd + 1)}`;
+  return `${base.slice(0, lineEnd + 1)}${LOKI_CONFIG_FIX}\n${base.slice(lineEnd + 1)}`;
+}
+
+/**
+ * Brings the script of the egg of Yarr to the program the project publishes.
+ *
+ * The script that built the program from its sources is taken out, and the
+ * release of the project takes its place.
+ */
+export function withYarrBinary(script) {
+  if (script.includes('yarr_linux_amd64.zip')) return script;
+  const lines = script.split('\n');
+  const start = lines.findIndex((line) => line.includes('git clone') && line.includes('yarr'));
+  if (start === -1) return script;
+  const end = lines.findIndex((line, index) => index > start && line.includes('Install complete'));
+  if (end === -1) return script;
+  const before = lines.slice(0, start).filter((line) => !line.includes('mkdir yarr_source'));
+  const kept = [...before, ...YARR_BINARY_INSTALL.split('\n'), ...lines.slice(end)];
+  return kept.join('\n');
 }
 
 /** The patches of the eggs, by the name of the file of the egg. */
@@ -122,6 +181,7 @@ const PATCHES = {
   'minecraft-paper.json': withPaperMcV3,
   'minecraft-forge.json': withPaperMcV3,
   'loki.json': withLokiConfigFix,
+  'yarr.json': withYarrBinary,
 };
 
 async function main() {
