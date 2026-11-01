@@ -155,7 +155,19 @@ files over them and the service that starts is yours.
  * Every other product installs real software (a CMS, a database, a game), and a stand-in
  * server must never be put beside it, or its answer could pass for the product's.
  */
-const GENERIC_RUNTIME_SLUGS = new Set(['nodejs', 'discord-bot', 'python', 'lua']);
+const GENERIC_RUNTIME_SLUGS = new Set([
+  'nodejs',
+  'discord-bot',
+  'python',
+  'lua',
+  'elixir',
+  'dotnet',
+  'golang',
+  'java',
+  'rust-runtime',
+  'dart',
+  'deno',
+]);
 
 export const usesStarterApplication = (slug: string): boolean => GENERIC_RUNTIME_SLUGS.has(slug);
 
@@ -187,10 +199,41 @@ export function starterFiles(input: StarterAppInput): StarterFile[] {
  * written in a variable of the egg: `app.py` for Python and `app.lua` for Luvit.
  * The application is the same small server in the language of the product, so a
  * container of it answers on the port of the allocation and on the health path.
+ *
+ * The same holds for the other bare runtimes: the customer of Elixir, Go,
+ * .NET, Java, Rust, Dart or Deno brings the code, and the egg of the product
+ * starts that code with the tool of its language. Without an application the
+ * start-up command of the egg has nothing to run: `mix run` answers "Could not
+ * find a Mix.Project", `dotnet run` answers "The project file could not be
+ * found", and the container is alive but serves nobody.
  */
 const RUNTIME_STARTERS: Record<string, (input: StarterAppInput) => StarterFile[]> = {
   python: (input) => [{ path: 'app.py', content: appPy(input), kind: 'code' }],
   lua: (input) => [{ path: 'app.lua', content: appLua(input), kind: 'code' }],
+  elixir: (input) => [
+    { path: 'mix.exs', content: elixirMixExs(input), kind: 'package' },
+    { path: 'lib/blipmade_starter.ex', content: elixirStarterEx(input), kind: 'code' },
+    { path: 'lib/blipmade_starter/application.ex', content: elixirApplicationEx(input), kind: 'code' },
+    { path: 'lib/blipmade_starter/server.ex', content: elixirServerEx(input), kind: 'code' },
+  ],
+  'rust-runtime': (input) => [
+    { path: 'Cargo.toml', content: rustCargoToml(input), kind: 'package' },
+    { path: 'src/main.rs', content: rustMainRs(input), kind: 'code' },
+  ],
+  golang: (input) => [
+    { path: 'go.mod', content: goMod(input), kind: 'package' },
+    { path: 'main.go', content: goMain(input), kind: 'code' },
+  ],
+  dotnet: (input) => [
+    { path: 'Blipmade.csproj', content: dotnetCsproj(input), kind: 'package' },
+    { path: 'Program.cs', content: dotnetProgram(input), kind: 'code' },
+  ],
+  java: (input) => [{ path: 'Starter.java', content: javaStarter(input), kind: 'code' }],
+  dart: (input) => [
+    { path: 'pubspec.yaml', content: dartPubspec(input), kind: 'package' },
+    { path: 'bin/blipmade_starter.dart', content: dartMain(input), kind: 'code' },
+  ],
+  deno: (input) => [{ path: 'main.ts', content: denoMain(input), kind: 'code' }],
 };
 
 function appPy(input: StarterAppInput): string {
@@ -261,6 +304,661 @@ http.createServer(function (req, res)
 end):listen(port, '0.0.0.0')
 
 print('listening on :' .. port)
+`;
+}
+
+/**
+ * The file of the platform without the line of the port.
+ *
+ * The line of the port is the one that has to be repaired, so it is left out
+ * of the comparison. Everything else has to be the file of the platform, so a
+ * file that a customer wrote is never taken for it.
+ */
+/* ------------------------------------------------------------------ *
+ * The applications of the runtimes that are written in another language.
+ *
+ * Every one of them is the same small server: it listens on the port of the
+ * allocation, answers on the health path of the product with the body the
+ * platform recognises, and answers on every other path with a text that says
+ * the service is running. The code of a customer replaces the files of these
+ * applications, and the start-up command of the egg of the product runs it.
+ * ------------------------------------------------------------------ */
+
+/** The project of the application of Elixir. */
+function elixirMixExs(input: StarterAppInput): string {
+  return `defmodule BlipmadeStarter.MixProject do
+  use Mix.Project
+
+  # ${input.name}, deployed by Blipmade.
+  #
+  # The project of the application that the platform starts in this container.
+  # Replace the files of this directory with your own code.
+
+  def project do
+    [
+      app: :blipmade_starter,
+      version: "1.0.0",
+      elixir: ">= 1.12.0",
+      start_permanent: false,
+      deps: []
+    ]
+  end
+
+  def application do
+    [
+      extra_applications: [:logger],
+      mod: {BlipmadeStarter.Application, []}
+    ]
+  end
+end
+`;
+}
+
+/** The settings of the application of Elixir: the slug, the health path, the port. */
+function elixirStarterEx(input: StarterAppInput): string {
+  return `defmodule BlipmadeStarter do
+  @moduledoc """
+  The application that Blipmade places in a new container of ${input.name}.
+
+  It answers on the health path of the product, so a deployment is only
+  reported as successful when the application really responds. Replace the
+  files of this directory with your own code.
+  """
+
+  @slug ${JSON.stringify(input.slug)}
+  @health_path ${JSON.stringify(input.healthPath)}
+  @fallback_port ${input.port}
+
+  def slug, do: @slug
+  def health_path, do: @health_path
+
+  # The port of the allocation. The panel gives that port to the container in
+  # SERVER_PORT, so it is read first; the port of the allocation is the last
+  # resort.
+  def port do
+    case parse_port(System.get_env("SERVER_PORT")) do
+      nil ->
+        case parse_port(System.get_env("PORT")) do
+          nil -> @fallback_port
+          port -> port
+        end
+
+      port ->
+        port
+    end
+  end
+
+  defp parse_port(nil), do: nil
+
+  defp parse_port(raw) do
+    case Integer.parse(String.trim(raw)) do
+      {port, ""} when port > 0 and port < 65536 -> port
+      _ -> nil
+    end
+  end
+
+  # The body of the health path.
+  def health_body do
+    "{\\"status\\":\\"ok\\",\\"app\\":\\"" <> @slug <> "\\"}"
+  end
+
+  # The body of every other path.
+  def text_body do
+    "${input.name} is running on Blipmade.\\\\n"
+  end
+end
+`;
+}
+
+/** The application of Elixir: it opens the port of the allocation. */
+function elixirApplicationEx(input: StarterAppInput): string {
+  return `defmodule BlipmadeStarter.Application do
+  @moduledoc """
+  Starts the server of the application of ${input.name}.
+  """
+
+  use Application
+
+  @impl true
+  def start(_type, _args) do
+    BlipmadeStarter.Server.start_link(BlipmadeStarter.port())
+  end
+end
+`;
+}
+
+/** The server of Elixir: it answers on the health path and on every other path. */
+function elixirServerEx(input: StarterAppInput): string {
+  return `defmodule BlipmadeStarter.Server do
+  @moduledoc """
+  Answers on the port of the allocation of ${input.name}.
+  """
+
+  use GenServer
+
+  require Logger
+
+  @listen_options [:binary, packet: :http_bin, active: false, reuseaddr: true, backlog: 128]
+
+  def start_link(port) do
+    GenServer.start_link(__MODULE__, port, name: __MODULE__)
+  end
+
+  @impl true
+  def init(port) do
+    case :gen_tcp.listen(port, @listen_options) do
+      {:ok, socket} ->
+        Logger.info("listening on :#{port} (#{BlipmadeStarter.health_path()} answers the health check)")
+        {:ok, socket, {:continue, :accept}}
+
+      {:error, reason} ->
+        {:stop, reason}
+    end
+  end
+
+  @impl true
+  def handle_continue(:accept, socket) do
+    {:noreply, accept(socket)}
+  end
+
+  # The socket of the listener stays open, so a request never finds the port
+  # closed between two requests.
+  defp accept(socket) do
+    case :gen_tcp.accept(socket) do
+      {:ok, connection} ->
+        _ = Task.start(fn -> handle(connection) end)
+        accept(socket)
+
+      {:error, _reason} ->
+        socket
+    end
+  end
+
+  defp handle(socket) do
+    case :gen_tcp.recv(socket, 0, 5_000) do
+      {:ok, {:http_request, _method, path, _version}} ->
+        :gen_tcp.send(socket, response(path))
+
+      _ ->
+        :ok
+    end
+
+    :gen_tcp.close(socket)
+  end
+
+  defp response(path) do
+    if request_path(path) == BlipmadeStarter.health_path() do
+      body = BlipmadeStarter.health_body()
+      content_type = "application/json"
+    else
+      body = BlipmadeStarter.text_body()
+      content_type = "text/plain; charset=utf-8"
+    end
+
+    [
+      "HTTP/1.1 200 OK\\r\\n",
+      "Content-Type: ",
+      content_type,
+      "\\r\\n",
+      "Content-Length: ",
+      Integer.to_string(byte_size(body)),
+      "\\r\\n",
+      "Connection: close\\r\\n",
+      "\\r\\n",
+      body
+    ]
+  end
+
+  # The path of the request, without the query.
+  defp request_path({:abs_path, path}), do: path |> String.split("?") |> List.first()
+  defp request_path(path) when is_binary(path), do: path |> String.split("?") |> List.first()
+  defp request_path(path), do: path |> to_string() |> String.split("?") |> List.first()
+end
+`;
+}
+
+/** The project of the application of Rust. */
+function rustCargoToml(input: StarterAppInput): string {
+  return `[package]
+name = "blipmade_starter"
+version = "1.0.0"
+edition = "2021"
+
+# ${input.name}, deployed by Blipmade.
+#
+# The application that the platform starts in this container. Replace the files
+# of this directory with your own code.
+
+[dependencies]
+`;
+}
+
+/** The application of Rust: it answers on the port of the allocation. */
+function rustMainRs(input: StarterAppInput): string {
+  return `// ${input.name}, deployed by Blipmade.
+//
+// The application that the platform starts in this container. It answers on the
+// health path of the product, so a deployment is only reported as successful
+// when the application really responds. Replace this file with your own code.
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+
+const SLUG: &str = ${JSON.stringify(input.slug)};
+const HEALTH_PATH: &str = ${JSON.stringify(input.healthPath)};
+
+/// The port of the allocation. The panel gives that port to the container in
+/// SERVER_PORT, so it is read first; the port of the allocation is the last
+/// resort.
+fn port() -> u16 {
+    for name in ["SERVER_PORT", "PORT"] {
+        if let Ok(raw) = std::env::var(name) {
+            if let Ok(value) = raw.trim().parse::<u16>() {
+                if value > 0 {
+                    return value;
+                }
+            }
+        }
+    }
+    ${input.port}
+}
+
+fn main() {
+    let port = port();
+    let listener = TcpListener::bind(("0.0.0.0", port)).expect("the port of the allocation cannot be opened");
+    println!("listening on :{} ({} answers the health check)", port, HEALTH_PATH);
+
+    for stream in listener.incoming() {
+        match stream {
+            Ok(mut stream) => handle(&mut stream),
+            Err(_) => continue,
+        }
+    }
+}
+
+fn handle(stream: &mut TcpStream) {
+    let mut buffer = [0u8; 2048];
+    let read = match stream.read(&mut buffer) {
+        Ok(read) => read,
+        Err(_) => return,
+    };
+    let request = String::from_utf8_lossy(&buffer[..read]).to_string();
+    let path = request.split_whitespace().nth(1).unwrap_or("/");
+    let path = path.split('?').next().unwrap_or("/");
+
+    let (body, content_type) = if path == HEALTH_PATH {
+        (
+            format!(r#"{{"status":"ok","app":"{}"}}"#, SLUG),
+            "application/json",
+        )
+    } else {
+        ("${input.name} is running on Blipmade.\\n".to_string(), "text/plain; charset=utf-8")
+    };
+
+    let response = format!(
+        "HTTP/1.1 200 OK\\r\\nContent-Type: {}\\r\\nContent-Length: {}\\r\\nConnection: close\\r\\n\\r\\n{}",
+        content_type,
+        body.len(),
+        body
+    );
+    let _ = stream.write_all(response.as_bytes());
+}
+`;
+}
+
+/** The module of the application of Go. */
+function goMod(input: StarterAppInput): string {
+  return `// ${input.name}, deployed by Blipmade.
+//
+// The application that the platform starts in this container. Replace the files
+// of this directory with your own code.
+module blipmade_starter
+
+go 1.20
+`;
+}
+
+/** The application of Go: it answers on the port of the allocation. */
+function goMain(input: StarterAppInput): string {
+  return `// ${input.name}, deployed by Blipmade.
+//
+// The application that the platform starts in this container. It answers on the
+// health path of the product, so a deployment is only reported as successful
+// when the application really responds. Replace this file with your own code.
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const slug = ${JSON.stringify(input.slug)}
+const healthPath = ${JSON.stringify(input.healthPath)}
+
+// port is the port of the allocation. The panel gives that port to the
+// container in SERVER_PORT, so it is read first; the port of the allocation is
+// the last resort.
+func port() int {
+	for _, name := range []string{"SERVER_PORT", "PORT"} {
+		raw := strings.TrimSpace(os.Getenv(name))
+		if raw == "" {
+			continue
+		}
+		value, err := strconv.Atoi(raw)
+		if err == nil && value > 0 && value < 65536 {
+			return value
+		}
+	}
+	return ${input.port}
+}
+
+func main() {
+	portValue := port()
+	startedAt := time.Now()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == healthPath {
+			writer.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(writer).Encode(map[string]any{
+				"status": "ok",
+				"app":    slug,
+				"uptime": int(time.Since(startedAt).Seconds()),
+			})
+			return
+		}
+		writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprintln(writer, "${input.name} is running on Blipmade.")
+	})
+
+	fmt.Printf("listening on :%d (%s answers the health check)\\n", portValue, healthPath)
+
+	server := &http.Server{Addr: fmt.Sprintf("0.0.0.0:%d", portValue), Handler: mux}
+	if err := server.ListenAndServe(); err != nil {
+		fmt.Println("the server stopped:", err)
+	}
+}
+`;
+}
+
+/** The project of the application of .NET. */
+function dotnetCsproj(input: StarterAppInput): string {
+  return `<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ${input.name}, deployed by Blipmade.
+       The application that the platform starts in this container. Replace the
+       files of this directory with your own code. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AssemblyName>BlipmadeStarter</AssemblyName>
+    <RootNamespace>BlipmadeStarter</RootNamespace>
+  </PropertyGroup>
+
+</Project>
+`;
+}
+
+/** The application of .NET: it answers on the port of the allocation. */
+function dotnetProgram(input: StarterAppInput): string {
+  return `// ${input.name}, deployed by Blipmade.
+//
+// The application that the platform starts in this container. It answers on the
+// health path of the product, so a deployment is only reported as successful
+// when the application really responds. Replace this file with your own code.
+using System.Net;
+using System.Text;
+using System.Text.Json;
+
+const string slug = ${JSON.stringify(input.slug)};
+const string healthPath = ${JSON.stringify(input.healthPath)};
+
+var port = ReadPort();
+var startedAt = DateTimeOffset.UtcNow;
+
+using var listener = new HttpListener();
+listener.Prefixes.Add("http://*:" + port + "/");
+listener.Start();
+Console.WriteLine("listening on :" + port + " (" + healthPath + " answers the health check)");
+
+while (listener.IsListening)
+{
+    var context = await listener.GetContextAsync();
+    var path = context.Request.Url?.AbsolutePath ?? "/";
+
+    byte[] body;
+    string contentType;
+    if (path == healthPath)
+    {
+        body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            status = "ok",
+            app = slug,
+            uptime = (int)(DateTimeOffset.UtcNow - startedAt).TotalSeconds,
+        });
+        contentType = "application/json";
+    }
+    else
+    {
+        body = Encoding.UTF8.GetBytes("${input.name} is running on Blipmade.\\n");
+        contentType = "text/plain; charset=utf-8";
+    }
+
+    context.Response.ContentType = contentType;
+    context.Response.ContentLength64 = body.Length;
+    await context.Response.OutputStream.WriteAsync(body);
+    context.Response.Close();
+}
+
+// ReadPort is the port of the allocation. The panel gives that port to the
+// container in SERVER_PORT, so it is read first; the port of the allocation is
+// the last resort.
+static int ReadPort()
+{
+    foreach (var name in new[] { "SERVER_PORT", "PORT" })
+    {
+        var raw = Environment.GetEnvironmentVariable(name);
+        if (!string.IsNullOrWhiteSpace(raw) && int.TryParse(raw.Trim(), out var value) && value > 0)
+        {
+            return value;
+        }
+    }
+
+    return ${input.port};
+}
+`;
+}
+
+/** The application of Java: it answers on the port of the allocation. */
+function javaStarter(input: StarterAppInput): string {
+  return `// ${input.name}, deployed by Blipmade.
+//
+// The application that the platform starts in this container. It answers on the
+// health path of the product, so a deployment is only reported as successful
+// when the application really responds. Replace this file with your own code.
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+
+public class Starter {
+    private static final String SLUG = ${JSON.stringify(input.slug)};
+    private static final String HEALTH_PATH = ${JSON.stringify(input.healthPath)};
+    private static final int FALLBACK_PORT = ${input.port};
+
+    public static void main(String[] args) throws Exception {
+        int port = readPort();
+
+        HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+        server.createContext("/", new HttpHandler() {
+            @Override
+            public void handle(HttpExchange exchange) throws IOException {
+                String path = exchange.getRequestURI().getPath();
+                byte[] body;
+                String contentType;
+
+                if (HEALTH_PATH.equals(path)) {
+                    body = ("{\\"status\\":\\"ok\\",\\"app\\":\\"" + SLUG + "\\"}").getBytes(StandardCharsets.UTF_8);
+                    contentType = "application/json";
+                } else {
+                    body = ("${input.name} is running on Blipmade.\\n").getBytes(StandardCharsets.UTF_8);
+                    contentType = "text/plain; charset=utf-8";
+                }
+
+                exchange.getResponseHeaders().set("Content-Type", contentType);
+                exchange.sendResponseHeaders(200, body.length);
+                OutputStream out = exchange.getResponseBody();
+                out.write(body);
+                out.close();
+            }
+        });
+        server.setExecutor(null);
+        server.start();
+
+        System.out.println("listening on :" + port + " (" + HEALTH_PATH + " answers the health check)");
+    }
+
+    // The port of the allocation. The panel gives that port to the container in
+    // SERVER_PORT, so it is read first; the port of the allocation is the last
+    // resort.
+    private static int readPort() {
+        for (String name : new String[] {"SERVER_PORT", "PORT"}) {
+            String raw = System.getenv(name);
+            if (raw == null) {
+                continue;
+            }
+            try {
+                int value = Integer.parseInt(raw.trim());
+                if (value > 0 && value < 65536) {
+                    return value;
+                }
+            } catch (NumberFormatException ignored) {
+                // The value is not a port, so the next name is read.
+            }
+        }
+        return FALLBACK_PORT;
+    }
+}
+`;
+}
+
+/** The package of the application of Dart. */
+function dartPubspec(input: StarterAppInput): string {
+  return `name: blipmade_starter
+description: ${input.name}, deployed by Blipmade.
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: '>=2.17.0 <4.0.0'
+`;
+}
+
+/** The application of Dart: it answers on the port of the allocation. */
+function dartMain(input: StarterAppInput): string {
+  return `// ${input.name}, deployed by Blipmade.
+//
+// The application that the platform starts in this container. It answers on the
+// health path of the product, so a deployment is only reported as successful
+// when the application really responds. Replace this file with your own code.
+import 'dart:convert';
+import 'dart:io';
+
+const slug = ${JSON.stringify(input.slug)};
+const healthPath = ${JSON.stringify(input.healthPath)};
+const fallbackPort = ${input.port};
+
+/// The port of the allocation. The panel gives that port to the container in
+/// SERVER_PORT, so it is read first; the port of the allocation is the last
+/// resort.
+int readPort() {
+  for (final name in ['SERVER_PORT', 'PORT']) {
+    final raw = Platform.environment[name];
+    if (raw == null) {
+      continue;
+    }
+    final value = int.tryParse(raw.trim());
+    if (value != null && value > 0 && value < 65536) {
+      return value;
+    }
+  }
+  return fallbackPort;
+}
+
+Future<void> main() async {
+  final port = readPort();
+  final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
+  print('listening on :' + port.toString() + ' (' + healthPath + ' answers the health check)');
+
+  await for (final request in server) {
+    if (request.uri.path == healthPath) {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({'status': 'ok', 'app': slug}));
+    } else {
+      request.response.headers.contentType = ContentType.text;
+      request.response.write('${input.name} is running on Blipmade.\\n');
+    }
+    await request.response.close();
+  }
+}
+`;
+}
+
+/** The application of Deno: it answers on the port of the allocation. */
+function denoMain(input: StarterAppInput): string {
+  return `// ${input.name}, deployed by Blipmade.
+//
+// The application that the platform starts in this container. It answers on the
+// health path of the product, so a deployment is only reported as successful
+// when the application really responds. Replace this file with your own code.
+const slug = ${JSON.stringify(input.slug)};
+const healthPath = ${JSON.stringify(input.healthPath)};
+const fallbackPort = ${input.port};
+
+/// The port of the allocation. The panel gives that port to the container in
+/// SERVER_PORT, so it is read first; the port of the allocation is the last
+/// resort.
+function readPort(): number {
+  for (const name of ['SERVER_PORT', 'PORT']) {
+    const raw = (Deno.env.get(name) ?? '').trim();
+    if (raw === '') {
+      continue;
+    }
+    const value = Number(raw);
+    if (Number.isInteger(value) && value > 0 && value < 65536) {
+      return value;
+    }
+  }
+  return fallbackPort;
+}
+
+const port = readPort();
+const server = Deno.serve({ hostname: '0.0.0.0', port }, (request: Request) => {
+  const path = new URL(request.url).pathname;
+  if (path === healthPath) {
+    return new Response(JSON.stringify({ status: 'ok', app: slug }), {
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+  return new Response('${input.name} is running on Blipmade.\\n', {
+    headers: { 'content-type': 'text/plain; charset=utf-8' },
+  });
+});
+
+console.log('listening on :' + port.toString() + ' (' + healthPath + ' answers the health check)');
+await server.finished;
 `;
 }
 

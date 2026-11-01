@@ -6,6 +6,18 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/egg-environment.test.ts"],
+    // The guard of the stand-in server asks the platform to verify a
+    // deployment, and the platform reads its settings when it is loaded. The
+    // settings are here, but no query is made, so no database is needed.
+    env: {
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/blipmade",
+      SESSION_SECRET: "the-environment-suite-needs-a-secret",
+    },
+    include: [
+      "tests/egg-environment.test.ts",
+      "tests/starter-app.test.ts",
+      "tests/starter-guard.test.ts",
+      "tests/starter-runtime.test.ts",
+    ],
   },
 });
