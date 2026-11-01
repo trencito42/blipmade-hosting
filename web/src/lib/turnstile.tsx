@@ -47,6 +47,9 @@ export function Turnstile({ siteKey, onToken }: { siteKey: string; onToken: (tok
         if (gone || !box.current || !window.turnstile) return;
         widget = window.turnstile.render(box.current, {
           sitekey: siteKey,
+          // Fills the width of the form, in the theme of the page.
+          size: 'flexible',
+          theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
           callback: (token: string) => onToken(token),
           'expired-callback': () => onToken(null),
           'error-callback': () => onToken(null),
@@ -58,7 +61,7 @@ export function Turnstile({ siteKey, onToken }: { siteKey: string; onToken: (tok
       if (widget && window.turnstile) window.turnstile.remove(widget);
     };
   }, [siteKey, onToken]);
-  return <div ref={box} />;
+  return <div ref={box} className="w-full" />;
 }
 
 /**
