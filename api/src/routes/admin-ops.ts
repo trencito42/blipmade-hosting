@@ -12,6 +12,7 @@ import { notifyPaymentRefunded } from '../services/notifications.js';
 import { customerBalance, findPaymentIntentForSubscription, giveBalanceCredit, refundPartOfPayment, stripeLive } from '../services/stripe.js';
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
 import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
+import { assertValidWording } from './admin-email.js';
 
 /**
  * What the staff needs to run the business: notes and tags on customers, the reports (income,
@@ -475,17 +476,10 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
         note: z.string().trim().max(400).optional(),
       })
       .parse(request.body ?? {});
-    const allowed = new Set(defaults.placeholders);
-    for (const [field, text] of Object.entries(body)) {
-      for (const match of (text ?? '').matchAll(/\{\{\s*([^}]*?)\s*\}\}/g)) {
-        if (!allowed.has(match[1]!)) {
-          throw badRequest(`${field}: "{{${match[1]}}}" is not a placeholder of this template. Use: ${[...allowed].map((name) => `{{${name}}}`).join(', ') || 'none'}.`, { [field]: `"{{${match[1]}}}" is not a placeholder of this template.` });
-        }
-      }
-      if (/[<>]/.test(text ?? '')) throw badRequest(`${field}: write plain text, without < or >.`, { [field]: 'Plain text only.' });
-    }
+    assertValidWording(id, body);
+    const before = emailOverrideOf(id) ?? null;
     await saveEmailOverride(id, body);
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.email_template.update', targetType: 'email-template', targetId: id, ip: request.ip });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.email_template.update', targetType: 'email-template', targetId: id, meta: { before, after: emailOverrideOf(id) ?? null }, ip: request.ip });
     return { override: emailOverrideOf(id) ?? null };
   });
 
@@ -494,8 +488,9 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     if (!emailTemplateDefaults(id)) throw notFound('Template not found.');
+    const before = emailOverrideOf(id) ?? null;
     await saveEmailOverride(id, {});
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.email_template.reset', targetType: 'email-template', targetId: id, ip: request.ip });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.email_template.reset', targetType: 'email-template', targetId: id, meta: { before, after: null }, ip: request.ip });
     return { ok: true };
   });
 

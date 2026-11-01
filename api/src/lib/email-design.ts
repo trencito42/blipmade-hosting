@@ -59,7 +59,7 @@
  * throws on a value that is missing: `validateEmailTemplatePayload()` is
  * what tells the operator that a fact is missing.
  */
-import { emailOverrideOf } from './email-overrides.js';
+import { emailOverrideOf, type EmailOverride } from './email-overrides.js';
 import { env } from '../env.js';
 import { BRAND, publicLink, publicOrigin } from './email-templates.js';
 
@@ -2400,14 +2400,28 @@ function renderText(definition: TemplateDefinition, values: ValueMap): string {
  * that the catalogue does not know is refused in words, so a template that
  * nobody decided about cannot slip into the platform.
  */
-export function renderEmailTemplate(id: string, payload: Record<string, unknown>): EmailTemplate {
+export function renderEmailTemplate(id: string, payload: Record<string, unknown>, draft?: EmailOverride): EmailTemplate {
   const base = BY_ID.get(id);
   if (!base) {
     throw new Error(`Unknown email template: ${id}`);
   }
-  // The wording the staff changed from the back office replaces the wording of the code.
-  const changed = emailOverrideOf(id);
-  const definition = changed ? { ...base, ...changed } : base;
+  // The wording the staff changed from the back office replaces the wording of the code. A change that
+  // cannot be rendered never reaches a customer: the wording of the code, which is known to work, is used.
+  const wanted = draft ?? emailOverrideOf(id);
+  // A field that is undefined is not a change: it must not replace the wording of the code.
+  const changed = wanted ? (Object.fromEntries(Object.entries(wanted).filter(([, value]) => typeof value === 'string')) as EmailOverride) : undefined;
+  if (changed && Object.keys(changed).length > 0) {
+    try {
+      return renderDefinition({ ...base, ...changed }, payload);
+    } catch (error) {
+      if (draft) throw error;
+      console.error(`[email] the changed wording of ${id} could not be rendered, the wording of the code is used:`, (error as Error).message);
+    }
+  }
+  return renderDefinition(base, payload);
+}
+
+function renderDefinition(definition: TemplateDefinition, payload: Record<string, unknown>): EmailTemplate {
   const values = resolveValues(definition, payload ?? {});
 
   const subject = oneLine(interpolate(definition.subject, values, (value) => value));
@@ -2434,6 +2448,20 @@ export function emailTemplateDefaults(id: string): { subject: string; heading: s
     note: definition.note ?? '',
     placeholders: definition.facts.map(([path]) => path),
   };
+}
+
+/**
+ * A payload that fills every fact of a template with a made-up value, for the preview and the test message.
+ * Nothing of a customer is in it.
+ */
+export function emailTemplateSample(id: string): Record<string, unknown> {
+  const definition = BY_ID.get(id);
+  if (!definition) throw new Error(`Unknown email template: ${id}`);
+  const payload: Record<string, unknown> = {};
+  for (const [path, key] of definition.facts) {
+    payload[key] = /url|link/i.test(path) ? 'https://blipmade.com/app' : `Example ${path}`;
+  }
+  return payload;
 }
 
 /** Every template id of the catalogue. */
