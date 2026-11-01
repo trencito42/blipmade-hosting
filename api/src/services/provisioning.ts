@@ -16,7 +16,7 @@ import {
   resolveCustomerCredential,
 } from './panel/credentials.js';
 import { cancelSubscription, refundPayment } from './stripe.js';
-import { planStarterFiles, starterFiles } from './starter-apps.js';
+import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import {
   generateVariables,
   openVariables,
@@ -900,7 +900,7 @@ export async function verifyDeployment(
   ip: string,
   port: number,
   probe: DeploymentProbe = { kind: 'http', path: '/' },
-  options: { attempts?: number; delayMs?: number } = {},
+  options: { attempts?: number; delayMs?: number; rejectStarter?: boolean } = {},
 ): Promise<DeploymentProbeResult> {
   const attempts = options.attempts ?? 40;
   const delayMs = options.delayMs ?? 3000;
@@ -924,9 +924,13 @@ export async function verifyDeployment(
         const expected = probe.expectStatus ?? [200, 201, 204, 301, 302, 307, 308];
         if (!expected.includes(response.status)) {
           lastReason = `The application answered with HTTP ${response.status}, expected ${expected.join(' or ')}.`;
-        } else if (probe.expectBody) {
+        } else if (probe.expectBody || options.rejectStarter) {
           const body = await response.text();
-          if (!body.includes(probe.expectBody)) {
+          if (options.rejectStarter && looksLikeStarter(body)) {
+            // The stand-in server of the platform answered, not the product. A 200 from it
+            // proves nothing about the software that was ordered.
+            lastReason = 'Only the placeholder server of the platform answered, not the product itself.';
+          } else if (probe.expectBody && !body.includes(probe.expectBody)) {
             lastReason = `The application answered with HTTP ${response.status} but the body did not contain "${probe.expectBody}".`;
           } else {
             return { ok: true, status: response.status, reason: null };
@@ -1620,7 +1624,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     // it starts, so the start-up command of the egg finds something to run.
     // The application listens on the port of the allocation, because that is
     // the port the node publishes and the port the route of the domain uses.
-    await placeStarterApplication(instance, server, product, port);
+    if (usesStarterApplication(product.slug)) await placeStarterApplication(instance, server, product, port);
 
     if (!done('started')) {
       await beginProvisioning(instance, 'started');
@@ -1676,6 +1680,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
           const answer = await verifyDeployment(ip, port, httpProbeOf(probe), {
             attempts: 6,
             delayMs: 2000,
+            rejectStarter: !usesStarterApplication(product.slug),
           });
           if (!answer.ok) {
             health = {
@@ -1688,7 +1693,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
           }
         }
       } else {
-        health = await verifyDeployment(ip, port, probe);
+        health = await verifyDeployment(ip, port, probe, { rejectStarter: !usesStarterApplication(product.slug) });
       }
       if (!health.ok) {
         throw new ProvisioningError('health_verified', health.reason ?? 'The application did not answer as expected.');

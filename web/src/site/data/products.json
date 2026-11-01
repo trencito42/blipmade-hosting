@@ -3,7 +3,7 @@
     "slug": "wordpress",
     "name": "WordPress",
     "category": "WEB_CMS",
-    "description": "The most widely used CMS. It runs on a WordPress image of the panel, and that image is not installed on the platform yet, so it is listed but cannot be deployed.",
+    "description": "The most widely used publishing platform, for sites, blogs and shops.",
     "min": {
       "ram": 1024,
       "cpu": 1,

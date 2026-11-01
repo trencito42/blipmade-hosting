@@ -150,6 +150,21 @@ files over them and the service that starts is yours.
 }
 
 /**
+ * The products that are a bare runtime: the customer brings the code, and the platform
+ * only puts a small server there so the container answers until the code replaces it.
+ * Every other product installs real software (a CMS, a database, a game), and a stand-in
+ * server must never be put beside it, or its answer could pass for the product's.
+ */
+const GENERIC_RUNTIME_SLUGS = new Set(['nodejs', 'discord-bot', 'python', 'lua']);
+
+export const usesStarterApplication = (slug: string): boolean => GENERIC_RUNTIME_SLUGS.has(slug);
+
+/** True when an answer is the platform's own stand-in server and not the product. */
+export function looksLikeStarter(body: string): boolean {
+  return body.includes('is running on Blipmade.') || /"status":\s*"ok",\s*"app":/.test(body);
+}
+
+/**
  * The files of the application, in the order they have to be written.
  *
  * The package comes first: the start-up command of the egg is
