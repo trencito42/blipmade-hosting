@@ -1,4 +1,4 @@
-import type { NavEntry } from './ui-app';
+import type { NavEntry, NavGroup } from './ui-app';
 
 /**
  * The navigation of the customer area.
@@ -62,4 +62,21 @@ export const ADMIN_PHONE_TABS: NavEntry[] = [
   adminTab('/admin/customers'),
   adminTab('/admin/tickets'),
   adminTab('/admin/audit'),
+];
+
+const A = (to: string): NavEntry => {
+  const entry = ADMIN_NAV.find((item) => item.to === to);
+  if (!entry) throw new Error(`The admin page ${to} is not in the navigation.`);
+  return entry;
+};
+
+/** The admin sidebar: the same pages as ADMIN_NAV, grouped by the kind of work, so a long list becomes a short one. */
+export const ADMIN_GROUPS: NavGroup[] = [
+  { id: 'home', label: 'Dashboard', icon: 'chart', items: [A('/admin')] },
+  { id: 'sales', label: 'Customers & sales', icon: 'card', items: [A('/admin/customers'), A('/admin/orders'), A('/admin/promotions'), A('/admin/reports')] },
+  { id: 'services', label: 'Services & catalog', icon: 'rocket', items: [A('/admin/services'), A('/admin/vps'), A('/admin/mail'), A('/admin/products'), A('/admin/pricing')] },
+  { id: 'support', label: 'Support & trust', icon: 'doc', items: [A('/admin/tickets'), A('/admin/abuse'), A('/admin/incidents')] },
+  { id: 'ops', label: 'Operations', icon: 'heart', items: [A('/admin/ops'), A('/admin/infrastructure'), A('/admin/queues'), A('/admin/audit')] },
+  { id: 'comms', label: 'Messages', icon: 'mail', items: [A('/admin/notifications'), A('/admin/email-templates')] },
+  { id: 'config', label: 'Configuration', icon: 'shield', items: [A('/admin/settings'), A('/admin/staff')] },
 ];

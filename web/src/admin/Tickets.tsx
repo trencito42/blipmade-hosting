@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { get, post, type TicketMessage } from '../lib/api';
+import { get, post, put, type TicketMessage } from '../lib/api';
 import { TicketAttachments } from '../app/TicketAttachments';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useRouter } from '../router';
@@ -291,6 +291,13 @@ function TicketDetailPanel({
   const [status, setStatus] = useState('');
   const [assignee, setAssignee] = useState('');
   const [replyBody, setReplyBody] = useState('');
+  // Answers the team uses again. They are kept in the platform settings, one list for the whole team.
+  const savedReplies = useAsync<{ replies: { id: string; title: string; body: string }[] }>((signal) => get('/admin/support/replies', undefined, signal), []);
+  const [replyTitle, setReplyTitle] = useState('');
+  const saveReplies = useAction(async (next: { id: string; title: string; body: string }[]) => {
+    await put('/admin/support/replies', { replies: next });
+    savedReplies.reload();
+  });
   const [internal, setInternal] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
 
@@ -525,6 +532,39 @@ function TicketDetailPanel({
                 </button>
                 <button type="button" onClick={sendReply} disabled={reply.pending || !mayWrite} className={denseSoft}>
                   {reply.pending ? 'Sending…' : internal ? 'Add note' : 'Send reply'}
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label="Insert a saved reply"
+                  className={denseSelect}
+                  value=""
+                  onChange={(event) => {
+                    const found = savedReplies.data?.replies.find((entry) => entry.id === event.target.value);
+                    if (found) setReplyBody((current) => (current.trim() ? `${current}\n\n${found.body}` : found.body));
+                  }}
+                >
+                  <option value="">Insert a saved reply…</option>
+                  {(savedReplies.data?.replies ?? []).map((entry) => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
+                </select>
+                <input
+                  aria-label="Name for this reply"
+                  value={replyTitle}
+                  onChange={(event) => setReplyTitle(event.target.value)}
+                  placeholder="Save this text as…"
+                  className="h-9 min-w-[10rem] flex-1 rounded-xl border border-line bg-card px-3 text-[16px] text-ink sm:text-[13px]"
+                />
+                <button
+                  type="button"
+                  className={denseGhost}
+                  disabled={!replyBody.trim() || !replyTitle.trim() || saveReplies.pending}
+                  onClick={() => {
+                    void saveReplies
+                      .run([...(savedReplies.data?.replies ?? []), { id: Math.random().toString(36).slice(2, 10), title: replyTitle.trim(), body: replyBody.trim() }])
+                      .then(() => { setReplyTitle(''); toast.push('Saved for the team', 'ok'); });
+                  }}
+                >
+                  Save as reply
                 </button>
               </div>
               {!mayWrite && <p className="text-[13px] text-ink3">Your role does not hold &quot;tickets.write&quot;, so you cannot reply.</p>}

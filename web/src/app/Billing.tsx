@@ -634,6 +634,7 @@ export default function Billing() {
                       }}
                       disabled={resume.pending}
                       className="w-full sm:w-auto"
+                      aria-label={`Resume ${subscription.instanceName ?? 'this subscription'}`}
                     >
                       {busySubscriptionId === subscription.id ? 'Working…' : 'Resume'}
                     </SoftButton>
@@ -642,6 +643,7 @@ export default function Billing() {
                       onClick={() => setPendingCancel(subscription)}
                       disabled={cancel.pending}
                       className="w-full sm:w-auto"
+                      aria-label={`Cancel ${subscription.instanceName ?? 'this subscription'} at period end`}
                     >
                       Cancel at period end
                     </SoftButton>

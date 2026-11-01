@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { AppShell, ErrorState, LoadingBlock } from './ui-app';
-import { ADMIN_NAV, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS } from './nav';
+import { ADMIN_GROUPS, ADMIN_NAV, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS } from './nav';
 import { useSession } from './session';
 import { ParamsProvider, matchPath, useParams, useRouter } from './router';
 import { Link } from './router';
@@ -549,6 +549,7 @@ export default function AppRoutes() {
         <AppShell
           nav={nav}
           phoneTabs={tabs}
+          groups={route.area === 'admin' ? ADMIN_GROUPS : undefined}
           title={route.title}
           subtitle={route.subtitle}
           environment={route.area === 'admin' ? 'Staff · Production' : undefined}

@@ -121,6 +121,26 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     };
   });
 
+  // --- saved replies for support ---------------------------------------------------------------
+
+  // Short answers the team uses again. They are plain texts the team wrote: the platform makes no promise in them.
+  const REPLIES_KEY = 'support.replies';
+  const repliesSchema = z.array(z.object({ id: z.string().min(1).max(40), title: z.string().trim().min(1).max(80), body: z.string().trim().min(1).max(4000) })).max(60);
+
+  app.get('/admin/support/replies', { preHandler: [requirePermission('tickets.write')] }, async () => {
+    const row = await prisma.setting.findUnique({ where: { key: REPLIES_KEY } });
+    const parsed = repliesSchema.safeParse(row?.value);
+    return { replies: parsed.success ? parsed.data : [] };
+  });
+
+  app.put('/admin/support/replies', { preHandler: [requirePermission('tickets.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const replies = repliesSchema.parse((request.body as { replies?: unknown } | null)?.replies ?? []);
+    await prisma.setting.upsert({ where: { key: REPLIES_KEY }, create: { key: REPLIES_KEY, value: replies }, update: { value: replies } });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.support_replies_saved', meta: { count: replies.length }, ip: request.ip });
+    return { replies };
+  });
+
   // --- accounting export -----------------------------------------------------------------------
 
   // One row per invoice for the accountant or an accounting program. The tax and the country of

@@ -92,6 +92,99 @@ export interface NavEntry {
   primary?: boolean;
 }
 
+/** A group of the sidebar: a heading that opens and closes, with the pages of one kind of work under it. */
+export interface NavGroup {
+  id: string;
+  label: string;
+  icon: IconName;
+  items: NavEntry[];
+}
+
+/**
+ * The sidebar with groups and sub-menus. The group of the page that is open is always open; the others open and close
+ * with a click, and the choice is remembered in this browser.
+ */
+function GroupedNav({ groups, isActive }: { groups: NavGroup[]; isActive: (entry: NavEntry) => boolean }) {
+  const storageKey = 'bm_nav_groups';
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) ?? '{}') as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
+  const toggle = (id: string) => {
+    const next = { ...open, [id]: !(open[id] ?? false) };
+    setOpen(next);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      /* the choice is simply not remembered */
+    }
+  };
+  return (
+    <>
+      {groups.map((group) => {
+        const hasActive = group.items.some(isActive);
+        const single = group.items.length === 1;
+        const expanded = hasActive || (open[group.id] ?? false);
+        if (single) {
+          const entry = group.items[0]!;
+          return (
+            <Link
+              key={group.id}
+              to={entry.to}
+              aria-current={isActive(entry) ? 'page' : undefined}
+              className={cn(
+                'flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                isActive(entry) ? 'bg-card text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
+              )}
+            >
+              <Icon name={entry.icon} size={18} className={isActive(entry) ? 'text-acc' : 'text-ink3'} />
+              {entry.label}
+            </Link>
+          );
+        }
+        return (
+          <div key={group.id} className="grid gap-0.5">
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={`nav-group-${group.id}`}
+              onClick={() => toggle(group.id)}
+              className={cn(
+                'flex h-11 items-center gap-3 rounded-xl px-3 text-left text-[15px] font-medium transition-colors duration-[180ms] hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                hasActive ? 'text-ink' : 'text-ink2',
+              )}
+            >
+              <Icon name={group.icon} size={18} className={hasActive ? 'text-acc' : 'text-ink3'} />
+              <span className="min-w-0 flex-1 truncate">{group.label}</span>
+              <Icon name="chevronDown" size={15} className={cn('shrink-0 text-ink3 transition-transform duration-[180ms]', expanded && 'rotate-180')} />
+            </button>
+            {expanded && (
+              <div id={`nav-group-${group.id}`} className="ml-[22px] grid gap-0.5 border-l border-line pl-2.5">
+                {group.items.map((entry) => (
+                  <Link
+                    key={entry.to}
+                    to={entry.to}
+                    aria-current={isActive(entry) ? 'page' : undefined}
+                    className={cn(
+                      'flex h-9 items-center rounded-lg px-3 text-[14px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                      isActive(entry) ? 'bg-card text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
+                    )}
+                  >
+                    {entry.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /**
  * True while the software keyboard covers the bottom of the screen.
  *
@@ -133,6 +226,7 @@ export function AppShell({
   children,
   environment,
   phoneTabs,
+  groups,
 }: {
   nav: NavEntry[];
   title: string;
@@ -141,6 +235,8 @@ export function AppShell({
   children: ReactNode;
   environment?: string;
   phoneTabs?: NavEntry[];
+  /** When given, the desktop sidebar shows these groups with sub-menus instead of the flat list. */
+  groups?: NavGroup[];
 }) {
   const { path } = useRouter();
   const theme = useTheme();
@@ -216,20 +312,24 @@ export function AppShell({
             blipmade
           </Link>
           <nav aria-label="Main" className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto pr-1">
-            {nav.map((entry) => (
-              <Link
-                key={entry.to}
-                to={entry.to}
-                aria-current={isActive(entry) ? 'page' : undefined}
-                className={cn(
-                  'flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
-                  isActive(entry) ? 'bg-card text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
-                )}
-              >
-                <Icon name={entry.icon} size={18} className={isActive(entry) ? 'text-acc' : 'text-ink3'} />
-                {entry.label}
-              </Link>
-            ))}
+            {groups ? (
+              <GroupedNav groups={groups} isActive={isActive} />
+            ) : (
+              nav.map((entry) => (
+                <Link
+                  key={entry.to}
+                  to={entry.to}
+                  aria-current={isActive(entry) ? 'page' : undefined}
+                  className={cn(
+                    'flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h',
+                    isActive(entry) ? 'bg-card text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
+                  )}
+                >
+                  <Icon name={entry.icon} size={18} className={isActive(entry) ? 'text-acc' : 'text-ink3'} />
+                  {entry.label}
+                </Link>
+              ))
+            )}
           </nav>
           <div className="mt-2 shrink-0">
             {environment && (
