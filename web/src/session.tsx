@@ -40,7 +40,7 @@ interface SessionState {
   passkeyLogin: () => Promise<SessionUser>;
   /** Waits for a passkey picked from the field of the address. Null when the browser cannot offer it. */
   passkeyAutofill: () => Promise<SessionUser | null>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<SessionUser>;
+  register: (email: string, password: string, firstName: string, lastName: string, turnstileToken?: string) => Promise<SessionUser>;
   logout: () => Promise<void>;
 }
 
@@ -171,12 +171,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const passkeyLogin = useCallback(async () => adopt((await authenticateWithPasskey<{ user: SessionUser }>()).user), [adopt]);
 
-  const register = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
+  const register = useCallback(async (email: string, password: string, firstName: string, lastName: string, turnstileToken?: string) => {
     const data = await post<{ user: SessionUser; mail?: { state?: string; message?: string } }>('/auth/register', {
       email,
       password,
       firstName,
       lastName,
+      ...(turnstileToken ? { turnstileToken } : {}),
     });
     setUser(data.user);
     // The answer of the API says whether the confirmation could really be

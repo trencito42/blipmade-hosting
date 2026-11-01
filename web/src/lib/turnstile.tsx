@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { get } from './api';
 
 /** The public key of the human check, or null when the platform does not use one. */
@@ -59,4 +59,25 @@ export function Turnstile({ siteKey, onToken }: { siteKey: string; onToken: (tok
     };
   }, [siteKey, onToken]);
   return <div ref={box} />;
+}
+
+/**
+ * The human check of a form. `widget` is empty when the platform does not use one, `ready` says whether the
+ * form may be sent, and `reset` asks for a new check: a token works once, so every attempt uses it up.
+ */
+export function useHumanCheck(): { token: string | null; ready: boolean; widget: ReactNode; reset: () => void } {
+  const siteKey = useTurnstileKey();
+  const [token, setToken] = useState<string | null>(null);
+  const [round, setRound] = useState(0);
+  const onToken = useCallback((value: string | null) => setToken(value), []);
+  const reset = useCallback(() => {
+    setToken(null);
+    setRound((value) => value + 1);
+  }, []);
+  return {
+    token,
+    ready: siteKey === null || token !== null,
+    widget: siteKey ? <Turnstile key={round} siteKey={siteKey} onToken={onToken} /> : null,
+    reset,
+  };
 }

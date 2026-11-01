@@ -11,6 +11,7 @@ import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtRam } from './pricing';
 import { Icon } from '../icons';
 import { Btn, Logo, cx } from './ui';
+import { useHumanCheck } from '../lib/turnstile';
 
 /**
  * The five screens of the account.
@@ -409,6 +410,7 @@ export function AuthLogin() {
 export function AuthRegister() {
   const { search } = useRouter();
   const { register, registrationNotice } = useSession();
+  const human = useHumanCheck();
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [email, setEmail] = useState('');
@@ -436,7 +438,7 @@ export function AuthRegister() {
 
     setBusy(true);
     try {
-      await register(email.trim(), pw, first.trim(), last.trim());
+      await register(email.trim(), pw, first.trim(), last.trim(), human.token ?? undefined);
       setAccount(email.trim());
     } catch (error) {
       if (error instanceof ApiError) {
@@ -463,6 +465,7 @@ export function AuthRegister() {
       }
     } finally {
       setBusy(false);
+      human.reset();
     }
   };
 
@@ -549,7 +552,8 @@ export function AuthRegister() {
                 <Link to="/forgot-password" className="font-semibold text-ink underline underline-offset-4">reset your password</Link>.
               </p>
             ) : null}
-            <Btn type="submit" size="lg" disabled={busy} className="w-full">
+            {human.widget}
+            <Btn type="submit" size="lg" disabled={busy || !human.ready} className="w-full">
               {busy ? 'One moment…' : 'Create account'}
             </Btn>
             <p className="text-[14px] text-ink-3">
@@ -582,6 +586,7 @@ export function AuthForgot() {
   const [email, setEmail] = useState('');
   const [err, setErr] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState('');
+  const human = useHumanCheck();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [sent, setSent] = useState(false);
@@ -600,7 +605,7 @@ export function AuthForgot() {
       // and for one that has not, and it says whether the message could really
       // be sent. The page shows that answer and never claims that a link is on
       // its way while the relay is not configured.
-      const answer = await post<{ message?: string }>('/auth/forgot-password', { email: email.trim() });
+      const answer = await post<{ message?: string }>('/auth/forgot-password', { email: email.trim(), ...(human.token ? { turnstileToken: human.token } : {}) });
       setNotice(answer?.message ?? '');
       setSent(true);
     } catch (error) {
@@ -619,6 +624,7 @@ export function AuthForgot() {
       }
     } finally {
       setBusy(false);
+      human.reset();
     }
   };
 
@@ -648,7 +654,8 @@ export function AuthForgot() {
               </p>
             ) : null}
             <Field label="Email address" type="email" value={email} set={setEmail} auto="email" error={err.email} disabled={busy} />
-            <Btn type="submit" size="lg" disabled={busy} className="w-full">
+            {human.widget}
+            <Btn type="submit" size="lg" disabled={busy || !human.ready} className="w-full">
               {busy ? 'One moment…' : 'Send the link'}
             </Btn>
             <p className="text-[15.5px] text-ink-2">

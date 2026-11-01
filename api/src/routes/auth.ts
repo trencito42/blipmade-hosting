@@ -22,6 +22,13 @@ import {
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import { emailIdentity, isDisposableEmail } from '../lib/email-identity.js';
+import { verifyTurnstile } from '../services/promotion-policy.js';
+
+/** The token of the human check in a request body, if any. */
+function turnstileTokenOf(body: unknown): string | undefined {
+  const value = (body as { turnstileToken?: unknown } | null)?.turnstileToken;
+  return typeof value === 'string' && value.length <= 4096 ? value : undefined;
+}
 import {
   addressRateLimitKey,
   createSession,
@@ -306,6 +313,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     config: { rateLimit: { max: 20, timeWindow: '15 minutes', keyGenerator: addressKey } },
     preHandler: registerGuard,
     handler: async (request: FastifyRequest, reply) => {
+      // The human check, when the platform uses one. A token works once.
+      await verifyTurnstile(turnstileTokenOf(request.body), request.ip);
       const body = registerSchema.parse(request.body);
       if (isDisposableEmail(body.email, env.DISPOSABLE_EMAIL_DOMAINS)) {
         throw badRequest('Use a permanent email address.', { email: 'Temporary email addresses cannot create an account.' });
@@ -475,6 +484,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     config: { rateLimit: { max: 5, timeWindow: '15 minutes', keyGenerator: addressKey } },
     preHandler: mailGuard,
     handler: async (request: FastifyRequest, reply) => {
+      await verifyTurnstile(turnstileTokenOf(request.body), request.ip);
       const { email } = z.object({ email: emailSchema }).parse(request.body);
       const user = await prisma.user.findUnique({ where: { email } });
       if (user && !user.suspendedAt) {
