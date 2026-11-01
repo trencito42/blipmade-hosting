@@ -854,6 +854,11 @@ export interface DeploymentProbe {
   expectStatus?: number[];
   expectBody?: string;
   timeoutMs?: number;
+  /**
+   * How long a slow product may take to start answering, in seconds. A game that builds its world
+   * on the first start (Terraria) needs minutes, not the default two.
+   */
+  warmupSeconds?: number;
 }
 
 export interface DeploymentProbeResult {
@@ -864,11 +869,17 @@ export interface DeploymentProbeResult {
   message?: string;
 }
 
+/** The warm-up a product asks for, kept between nothing and half an hour. */
+function warmupOf(configured: Partial<DeploymentProbe>): number | undefined {
+  const value = configured.warmupSeconds;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.min(1800, Math.round(value)) : undefined;
+}
+
 /** The probe of a product, with the strict defaults. */
 export function probeFor(product: Pick<Product, 'healthProbe'>): DeploymentProbe {
   const configured = (product.healthProbe ?? null) as Partial<DeploymentProbe> | null;
   if (configured && configured.kind === 'tcp') {
-    return { kind: 'tcp', timeoutMs: configured.timeoutMs ?? 8000 };
+    return { kind: 'tcp', timeoutMs: configured.timeoutMs ?? 8000, warmupSeconds: warmupOf(configured) };
   }
   if (configured && configured.kind === 'container') {
     // A product that does not expose a port, like a bot that only talks to
@@ -931,8 +942,8 @@ export async function verifyDeployment(
   probe: DeploymentProbe = { kind: 'http', path: '/' },
   options: { attempts?: number; delayMs?: number; rejectStarter?: boolean } = {},
 ): Promise<DeploymentProbeResult> {
-  const attempts = options.attempts ?? 40;
   const delayMs = options.delayMs ?? 3000;
+  const attempts = options.attempts ?? Math.max(40, Math.ceil(((probe.warmupSeconds ?? 0) * 1000) / delayMs));
   const timeoutMs = probe.timeoutMs ?? 8000;
 
   let lastReason = `No answer from ${ip}:${port}.`;

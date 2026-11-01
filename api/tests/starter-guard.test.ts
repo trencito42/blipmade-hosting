@@ -43,3 +43,13 @@ describe('the stand-in server is never proof of a product', () => {
     expect((await verifyDeployment('127.0.0.1', port, { kind: 'http', path: '/' }, { attempts: 1, delayMs: 1 })).ok).toBe(true);
   });
 });
+
+import { probeFor } from '../src/services/provisioning.js';
+
+describe('slow products', () => {
+  it('lets a product ask for a longer warm-up, within limits', () => {
+    expect(probeFor({ healthProbe: { kind: 'tcp', warmupSeconds: 900 } as never }).warmupSeconds).toBe(900);
+    expect(probeFor({ healthProbe: { kind: 'tcp', warmupSeconds: 99999 } as never }).warmupSeconds).toBe(1800);
+    expect(probeFor({ healthProbe: { kind: 'tcp' } as never }).warmupSeconds).toBeUndefined();
+  });
+});
