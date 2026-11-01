@@ -50,7 +50,7 @@ test("the headings ask for the typeface of the display", () => {
   const stack = displayStack();
   assert.equal(stack[0], DISPLAY_FAMILY);
   assert.equal(stack[stack.length - 1], "sans-serif");
-  assert.equal(displayStackValue().startsWith(`"Funnel Display Variable"`), true);
+  assert.equal(displayStackValue().startsWith(`"Bricolage Grotesque Variable"`), true);
   // The headings fall back on the typeface of the text, so a page that has
   // only one of the two files still reads.
   assert.ok(DISPLAY_STACK.includes(SANS_FAMILY));
@@ -74,7 +74,7 @@ test("the stylesheet carries no face of a typeface of its own", () => {
 
 test("the stylesheet asks for the typeface of the site", () => {
   assert.ok(css.includes(`--font-sans: "Hanken Grotesk Variable"`));
-  assert.ok(css.includes(`--font-display: "Funnel Display Variable"`));
+  assert.ok(css.includes(`--font-display: "Bricolage Grotesque Variable"`));
   assert.ok(css.includes(`--font-mono: "JetBrains Mono Variable"`));
   // The typeface of the machine is still the last name of the stack, so the
   // page keeps reading when the files did not load.
@@ -83,7 +83,7 @@ test("the stylesheet asks for the typeface of the site", () => {
   assert.equal(css.includes("Geist"), false);
   // The files come from the package of the typeface, so the site asks no
   // house of typefaces for them.
-  assert.ok(css.includes(`@import "@fontsource-variable/funnel-display"`));
+  assert.ok(css.includes(`@import "@fontsource-variable/bricolage-grotesque"`));
   assert.ok(css.includes(`@import "@fontsource-variable/hanken-grotesk"`));
   assert.ok(css.includes(`@import "@fontsource-variable/jetbrains-mono"`));
 });
@@ -94,7 +94,7 @@ test("the typeface comes from a package of the site, and not from a third party"
   // The three packages of the typeface of the site are the only ones, and the
   // files they carry are written into the build of the page.
   assert.deepEqual(fontPackages.sort(), [
-    "@fontsource-variable/funnel-display",
+    "@fontsource-variable/bricolage-grotesque",
     "@fontsource-variable/hanken-grotesk",
     "@fontsource-variable/jetbrains-mono",
   ]);
@@ -119,7 +119,7 @@ test("the site does not ask a third party for a typeface", () => {
 test("the report of the site says that the typeface is served by the site", () => {
   const status = fontStatus();
   assert.equal(status.family, "Hanken Grotesk Variable");
-  assert.equal(status.display, "Funnel Display Variable");
+  assert.equal(status.display, "Bricolage Grotesque Variable");
   assert.equal(status.mono, "JetBrains Mono Variable");
   assert.equal(status.installed, true);
   assert.equal(status.webfont, true);

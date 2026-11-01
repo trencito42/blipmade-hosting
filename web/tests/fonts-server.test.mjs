@@ -79,7 +79,7 @@ test("the health of the site says that the typeface is served by the site", asyn
     const body = await answer.json();
     assert.equal(body.status, "ok");
     assert.equal(body.fonts.family, "Hanken Grotesk Variable");
-    assert.equal(body.fonts.display, "Funnel Display Variable");
+    assert.equal(body.fonts.display, "Bricolage Grotesque Variable");
     assert.equal(body.fonts.mono, "JetBrains Mono Variable");
     assert.equal(body.fonts.installed, true);
     assert.equal(body.fonts.webfont, true);

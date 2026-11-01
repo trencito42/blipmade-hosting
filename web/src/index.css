@@ -1,11 +1,11 @@
 @import "tailwindcss";
-@import "@fontsource-variable/funnel-display";
+@import "@fontsource-variable/bricolage-grotesque";
 @import "@fontsource-variable/hanken-grotesk";
 @import "@fontsource-variable/jetbrains-mono";
 
 /* The typefaces of the interface.
  *
- * Funnel Display carries the headings, Hanken Grotesk the text and JetBrains
+ * Bricolage Grotesque carries the headings, Hanken Grotesk the text and JetBrains
  * Mono the numbers, the ports and the codes. All three are served from the
  * host of the platform: the files of a typeface are in the build of the page,
  * so the visitor never asks a third party for a letter and the page never
@@ -49,7 +49,7 @@
   --color-ink3: #8c988f;
   --color-surface: #101512;
 
-  --font-display: "Funnel Display Variable", "Hanken Grotesk Variable", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Hanken Grotesk Variable", system-ui, sans-serif;
   --font-sans: "Hanken Grotesk Variable", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
 

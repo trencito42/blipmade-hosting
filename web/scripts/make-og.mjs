@@ -14,7 +14,7 @@ import { join, resolve } from 'node:path';
 const here = resolve('scripts');
 const fonts = [
   ['node_modules/@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2', 'hanken-grotesk-latin-wght-normal.woff2'],
-  ['node_modules/@fontsource-variable/funnel-display/files/funnel-display-latin-wght-normal.woff2', 'funnel-display-latin-wght-normal.woff2'],
+  ['node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2', 'bricolage-grotesque-latin-wght-normal.woff2'],
 ];
 
 const directory = mkdtempSync(join(tmpdir(), 'blipmade-og-'));

@@ -2,7 +2,7 @@
  * The typefaces of the interface.
  *
  * The interface asks for **Hanken Grotesk Variable** for the text, for
- * **Funnel Display Variable** for the headings and for **JetBrains Mono
+ * **Bricolage Grotesque Variable** for the headings and for **JetBrains Mono
  * Variable** for the numbers, the ports and the codes, and it asks this site
  * for them: the files of the typeface are written into the build of the page,
  * next to the other files of the site, and the server hands them out with
@@ -20,7 +20,7 @@
 export const SANS_FAMILY = "Hanken Grotesk Variable";
 
 /** The family the headings of the interface ask for first. */
-export const DISPLAY_FAMILY = "Funnel Display Variable";
+export const DISPLAY_FAMILY = "Bricolage Grotesque Variable";
 
 /** The family the console, the codes and the numbers ask for first. */
 export const MONO_FAMILY = "JetBrains Mono Variable";
@@ -51,7 +51,7 @@ export const SANS_STACK = [
  * The typeface of the headings falls back on the typeface of the text, so a
  * page that has only one of the two files still reads.
  */
-export const DISPLAY_STACK = ["Funnel Display Variable", "Hanken Grotesk Variable", "system-ui", "sans-serif"];
+export const DISPLAY_STACK = ["Bricolage Grotesque Variable", "Hanken Grotesk Variable", "system-ui", "sans-serif"];
 
 /**
  * The stack of the text of the console, of the codes and of the numbers.
