@@ -537,43 +537,6 @@
     }
   },
   {
-    "slug": "5e-tools",
-    "name": "5e Tools",
-    "category": "AUTOMATION",
-    "description": "A self-hosted reference for Dungeons & Dragons 5th edition, loaded from a repository you provide.",
-    "min": {
-      "ram": 1024,
-      "cpu": 1,
-      "disk": 10
-    },
-    "def": {
-      "ram": 2048,
-      "cpu": 1,
-      "disk": 20
-    },
-    "max": {
-      "ram": 8192,
-      "cpu": 4,
-      "disk": 100
-    },
-    "minPrice": 374,
-    "recPrice": 624,
-    "rates": {
-      "ramPerGb": 200,
-      "cpuPerUnit": 75,
-      "diskPerGb": 5,
-      "baseFee": 49
-    },
-    "currency": "EUR",
-    "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
-    }
-  },
-  {
     "slug": "fivem",
     "name": "FiveM",
     "category": "GAMES",
@@ -960,43 +923,6 @@
       "state": "DEPLOYABLE",
       "orderable": true,
       "blockers": []
-    }
-  },
-  {
-    "slug": "haste-server",
-    "name": "Haste",
-    "category": "DEVELOPER_TOOLS",
-    "description": "A pastebin for sharing code and text with a link.",
-    "min": {
-      "ram": 512,
-      "cpu": 1,
-      "disk": 5
-    },
-    "def": {
-      "ram": 1024,
-      "cpu": 1,
-      "disk": 10
-    },
-    "max": {
-      "ram": 4096,
-      "cpu": 2,
-      "disk": 50
-    },
-    "minPrice": 249,
-    "recPrice": 374,
-    "rates": {
-      "ramPerGb": 200,
-      "cpuPerUnit": 75,
-      "diskPerGb": 5,
-      "baseFee": 49
-    },
-    "currency": "EUR",
-    "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
     }
   },
   {
@@ -1482,43 +1408,6 @@
     },
     "minPrice": 249,
     "recPrice": 374,
-    "rates": {
-      "ramPerGb": 200,
-      "cpuPerUnit": 75,
-      "diskPerGb": 5,
-      "baseFee": 49
-    },
-    "currency": "EUR",
-    "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
-    }
-  },
-  {
-    "slug": "minio",
-    "name": "MinIO",
-    "category": "DEVELOPER_TOOLS",
-    "description": "S3-compatible object storage for files and backups.",
-    "min": {
-      "ram": 1024,
-      "cpu": 1,
-      "disk": 10
-    },
-    "def": {
-      "ram": 2048,
-      "cpu": 1,
-      "disk": 20
-    },
-    "max": {
-      "ram": 16384,
-      "cpu": 4,
-      "disk": 200
-    },
-    "minPrice": 374,
-    "recPrice": 624,
     "rates": {
       "ramPerGb": 200,
       "cpuPerUnit": 75,
