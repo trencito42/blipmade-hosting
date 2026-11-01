@@ -1732,3 +1732,22 @@ model GitDeploy {
 
   @@index([repoUrl, branch])
 }
+
+
+/// A version of a block of words of the public site. A block has at most one draft and one
+/// published version; the versions that were published before are kept as ARCHIVED, so the
+/// history is whole and any version can be put back.
+model ContentRevision {
+  id          String    @id @default(cuid())
+  key         String
+  /// DRAFT, PUBLISHED or ARCHIVED.
+  status      String
+  data        Json
+  note        String?
+  authorId    String?
+  authorEmail String?
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
+  @@index([key, status, createdAt])
+}

@@ -23,6 +23,8 @@ export const PERMISSIONS = [
   'staff.write',
   'settings.read',
   'settings.write',
+  'content.read',
+  'content.write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

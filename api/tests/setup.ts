@@ -15,6 +15,7 @@ assertDisposableDatabase({ label: 'run the tests' });
  */
 const TABLES = [
   'VpsSlot',
+  'ContentRevision',
   'MailJob',
   'MailAlias',
   'Mailbox',
