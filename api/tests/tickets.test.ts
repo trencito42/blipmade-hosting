@@ -184,8 +184,10 @@ describe('admin area', () => {
         visible: true,
         deployable: false,
         eggId: 5,
+        prices: { create: { period: 'MONTHLY', baseAmount: 300, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0, currency: 'EUR' } },
       },
     });
+    await prisma.egg.create({ data: { pterodactylId: 5, uuid: 'egg-5', name: 'WordPress', dockerImage: 'php:8', startup: 'php' } });
 
     const { client: admin } = await createAdmin(app);
     const response = await admin.request('PATCH', `/api/admin/products/${product.id}`, { deployable: true });

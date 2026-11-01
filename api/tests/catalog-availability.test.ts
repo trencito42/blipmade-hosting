@@ -228,6 +228,9 @@ describe('the staff area', () => {
 
   it('opens a product for ordering when the panel can build it', async () => {
     const product = await seedProduct({ slug: 'discord-bot', deployable: false, eggId: 7 });
+    // The panel must know the egg and the product must have a price, or it cannot be sold.
+    await prisma.egg.create({ data: { pterodactylId: 7, uuid: 'egg-7', name: 'Discord bot', dockerImage: 'node:22', startup: 'node index.js' } });
+    await prisma.productPrice.create({ data: { productId: product.id, period: 'MONTHLY', baseAmount: 300, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0, currency: 'EUR' } });
 
     const { client } = await createAdmin(app);
     const response = await client.request('PATCH', `/api/admin/products/${product.id}`, { deployable: true });
