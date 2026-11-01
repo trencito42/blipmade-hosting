@@ -431,6 +431,8 @@ export default function Deploy() {
   const [name, setName] = useState('');
   // The address under the platform's base. Empty means the one that follows from the name.
   const [subdomain, setSubdomain] = useState('');
+  // The Minecraft EULA is accepted by the customer, in the review step.
+  const [acceptEula, setAcceptEula] = useState(false);
   // The human check, shown only for an order that a promotion covers entirely and only when it is configured.
   const turnstileKey = useTurnstileKey();
   const [humanToken, setHumanToken] = useState<string | null>(null);
@@ -724,6 +726,7 @@ export default function Deploy() {
       // The order is placed with the period of the quote, so the sum that was
       // shown to the customer is the sum that is charged.
       ...(quote ? { period: quote.period } : {}),
+      ...(product.slug.startsWith('minecraft-') ? { acceptEula } : {}),
     });
     const createdOrder = created.order;
     setCheckoutIssue(null);
@@ -821,6 +824,7 @@ export default function Deploy() {
 
   const primaryDisabled =
     (step === 3 && (!quote || placeOrder.pending)) ||
+    (step === 3 && product.slug.startsWith('minecraft-') && !acceptEula) ||
     (step === 3 && quote?.total === 0 && turnstileKey !== null && !humanToken) ||
     (step === 4 && !orderFinished) ||
     // The order is never sent with a hosted mail add-on that has no hostname.
@@ -1213,6 +1217,16 @@ export default function Deploy() {
                 <p className="text-[13px] text-ink3">Optional for now. If you enter it, we save it to your account and use it on new invoices.</p>
                 <BillingAddressFields value={billingAddress} onChange={(value) => { setBillingAddress(value); setBillingTouched(true); }} errors={placeOrder.fieldErrors} />
               </div>
+              {product.slug.startsWith('minecraft-') && (
+                <label className="flex items-start gap-2 rounded-2xl bg-s2 p-4 text-[14px] text-ink">
+                  <input type="checkbox" checked={acceptEula} onChange={(event) => setAcceptEula(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--color-acc)]" />
+                  <span>
+                    I have read and accept the{' '}
+                    <a href="https://www.minecraft.net/en-us/eula" target="_blank" rel="noreferrer" className="underline underline-offset-4">Minecraft End User License Agreement</a>
+                    . This server runs under it, and I am the one who agrees to it.
+                  </span>
+                </label>
+              )}
               {quote?.total === 0 && turnstileKey && <Turnstile siteKey={turnstileKey} onToken={setHumanToken} />}
               {placeOrder.error && (
                 <div role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">

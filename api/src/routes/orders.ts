@@ -119,10 +119,18 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           // period as the one that was quoted, otherwise the order would be
           // priced with another period than the one the customer was shown.
           period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
+          // The customer accepted the Minecraft EULA. Required for a Minecraft server: the customer agrees, not us.
+          acceptEula: z.boolean().optional(),
         })
         .parse(request.body);
 
       const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
+
+      // A Minecraft server runs under the EULA of Mojang. The platform never accepts it on a customer's behalf.
+      const minecraft = quote.items.some((item) => item.productSlug.startsWith('minecraft-'));
+      if (minecraft && body.acceptEula !== true) {
+        throw badRequest('Accept the Minecraft EULA to order a Minecraft server.', { acceptEula: 'Required.' });
+      }
 
       // A fully sponsored service provisions real compute without ever going
       // through the payment provider. Require control of the account's email
@@ -197,6 +205,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 fulfilment: item.fulfilment,
                 mailDomain: item.mailDomain ?? null,
                 instanceName: item.instanceName ?? null,
+                eulaAcceptedAt: item.productSlug.startsWith('minecraft-') ? new Date().toISOString() : null,
                 subdomain: item.subdomain ?? null,
                 vps: item.vps ?? null,
                 // The values the customer gave for the variables of the
@@ -233,6 +242,9 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
       if (body.billingAddress) await prisma.user.update({ where: { id: user.id }, data: { billingAddress: body.billingAddress } });
       await audit({ actorId: user.id, actorEmail: user.email, action: 'order.created', targetType: 'order', targetId: order.id, meta: { total: order.total } });
+      if (minecraft) {
+        await audit({ actorId: user.id, actorEmail: user.email, action: 'order.minecraft_eula_accepted', targetType: 'order', targetId: order.id, meta: { eula: 'https://www.minecraft.net/en-us/eula' }, ip: request.ip });
+      }
 
       // The customer is told that the order exists. The payment demand is a
       // second event, published when the customer is really sent to the
