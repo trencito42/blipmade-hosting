@@ -2,24 +2,25 @@
 
 | Gap | State |
 |---|---|
-| Phase 2: complete product editor (egg, image, startup, variables, health check, states, preview, audit, slug change safety, provisionable check) | NOT IMPLEMENTED |
-| Phase 3: discounts, annual periods, tax configuration, price history, margin view, a single price engine audit | NOT IMPLEMENTED. The VPS plan change uses the catalogue price in integer cents; the rest of the pricing engine was not re-audited |
-| Phase 5: audit of every admin route (inert buttons, missing states, bulk actions) and the control map as a page | NOT IMPLEMENTED. Only the settings ownership table exists |
-| Phase 6: CMS with drafts, preview, versions, rollback, sanitization | NOT IMPLEMENTED. Public texts are still in code |
-| Phase 7: template versions, preview, test email, design variables, fallback | NOT IMPLEMENTED. The wiring tests pass for 84 events; 3 templates are known to be unreachable on purpose (`account-email-change-requested`, `ticket-resolved`, `mailbox-password-reset`) and each has its reason written in `api/tests/notification-template-wiring.test.ts` |
-| Phase 8: verify the live backup chain (schedule, offsite integrity, restore drill, VPS backups) | BLOCKED: needs the live infrastructure and a restore on disposable machines. Source support is not proof that it works |
-| Phase 9: lifecycle reconciliation across Stripe, PostgreSQL, Pterodactyl, Proxmox, Mailcow | NOT IMPLEMENTED except `GET /admin/vps-billing-check` |
-| VPS: dedicated page for allocations, billing check and repair, VPS plan editor, protected workflow for nodes, storage, templates, IP pools | NOT IMPLEMENTED |
-| VPS: yearly subscriptions in the plan change; a durable retry for a Stripe/Proxmox split; reuse of released slots | NOT IMPLEMENTED |
-| Settings: confirmation and step-up for the dangerous keys; dedicated forms instead of JSON rows | NOT IMPLEMENTED |
-| Legal documents: the backup wording in Terms, SLA and AUP changed and needs your legal review. There is no review-before-publish workflow | IMPLEMENTED BUT UNVERIFIED |
-| Dependencies: 10 vulnerabilities in API production dependencies (prisma, zod, @fastify/static, nodemailer, @sentry/node and their chains) | STILL BROKEN: each fix is a breaking upgrade that needs its own change and test run |
-| Playwright and a visual check of the admin changes | NOT RUN |
-| Tax rules, the jurisdiction decisions, Factorio listing, SSH key rotation to the storage box, legal data | operator decisions, not touched |
+| Phase 3: annual discount, discount rules beyond the existing promotions, tax configuration, margin view per product | NOT IMPLEMENTED. An annual discount touches the renewal and Stripe arithmetic in `billing.ts` and `stripe.ts` and needs its own change and tests. Tax is left alone on purpose: no rule was invented |
+| Phase 5: a screen-by-screen audit (inert buttons, missing loading, empty and error states, bulk actions) | NOT IMPLEMENTED. Only the wiring between screens and routes was compared by script (see 03) |
+| Backend operations without a screen: panel credential, instance import, database limit, confirm collection, mail health and jobs | NOT IMPLEMENTED |
+| Phase 6: a review step before publication (a second person), page-level content beyond four blocks, documentation pages, legal documents | NOT IMPLEMENTED. The CMS covers the home heading and text, the home FAQ, product words and search title and description. Search titles apply after the page loads; the prerendered file keeps the title of the code |
+| Phase 7: design variables and controlled HTML of the templates | INTENTIONALLY NON-CONFIGURABLE for now: the design stays in code so that a customer message cannot be broken or abused |
+| Phase 8: the schedule, the retention rules and the VPS backups were not re-verified; only the platform archive and its offsite copy were | The real restore drill passed (see 06). Customer backups and VPS backups are NOT VERIFIED live |
+| Phase 9: lifecycle reconciliation across Stripe, PostgreSQL, Pterodactyl, Proxmox, Mailcow | NOT IMPLEMENTED beyond `GET /admin/vps-billing-check` and the VPS allocation report |
+| VPS plans editor, protected workflow for nodes, storage, templates, IP pools | NOT IMPLEMENTED |
+| VPS: yearly subscriptions in the plan change; a durable retry for a Stripe and Proxmox split; reuse of released slots | NOT IMPLEMENTED |
+| Settings: confirmation and step-up authentication for the dangerous keys; forms instead of JSON rows | NOT IMPLEMENTED |
+| Product guide: stored and shown in the editor preview, not shown to customers | NOT IMPLEMENTED |
+| Legal wording about backups in the Terms, the SLA and the AUP | IMPLEMENTED BUT UNVERIFIED: needs your review |
+| Dependencies: `zod` (3, advisory fixed in 4.6.6), `prisma` and its config chain (build-time), `@sentry/node` build plugin chain | STILL BROKEN, on purpose: each is a major upgrade with a wide blast radius and the exposure is a denial of service on bounded inputs or a build-time tool. `nodemailer` was upgraded and the unused `@fastify/static` was removed |
+| Playwright and a look at the new screens in a browser | NOT RUN |
+| The real SMTP delivery with nodemailer 10, the real Stripe plan-change update, a real card payment of a VPS | NOT VERIFIED (the live test message after the deploy is reported in 06) |
 
 ## Operator actions that only you can do
-1. Give the Proxmox token `bmapi@pve!provision` the privilege `Pool.Audit` on `/pool/vps`, on the user and on the token (privilege separation is on). Until then `GET /admin/vps/allocations` says `poolUnavailable` and cannot find orphans or strangers. Not done here because it changes the access of a production principal.
+1. Run these two commands on the hypervisor (the permission change was refused to the assistant by the permission system, so it is yours): `pveum role add BlipmadePoolAudit --privs Pool.Audit`, then `pveum acl modify /pool/vps --roles BlipmadePoolAudit --users bmapi@pve` and `pveum acl modify /pool/vps --roles BlipmadePoolAudit --tokens 'bmapi@pve!provision'`. This gives the Proxmox token `bmapi@pve!provision` the privilege `Pool.Audit` on `/pool/vps`, on the user and on the token (privilege separation is on) `bmapi@pve!provision` the privilege `Pool.Audit` on `/pool/vps`, on the user and on the token (privilege separation is on). Until then `GET /admin/vps/allocations` says `poolUnavailable` and cannot find orphans or strangers. Not done here because it changes the access of a production principal.
 2. When Proxmox renews its certificate (about once a year), write the new fingerprint in `VPS_PROXMOX_FINGERPRINT` in `/opt/blipmade/.env` and restart `api` and `worker`, or the VPS service stops. Read it with `openssl x509 -in /etc/pve/local/pve-ssl.pem -noout -fingerprint -sha256`.
 3. Review the backup wording in the Terms, the SLA and the AUP before you rely on it.
-4. Decide on the API dependency upgrades (prisma, zod 4, @fastify/static 10, nodemailer 10, @sentry/node) and on the tax, legal and Factorio questions that were already open.
+4. Decide on the API dependency upgrades that are left (prisma, zod 4, the Sentry build plugins) and on the tax, legal and Factorio questions that were already open.
 5. Test a real card payment of a VPS and a plan change on a Stripe test-mode subscription before opening the VPS plans.
