@@ -10,6 +10,7 @@ import { closeApp, getApp, resetDatabase, VALID_PASSWORD } from './helpers.js';
  */
 const machines = new Map<number, { name: string; tags: string; description: string; status: string }>();
 const calls: string[] = [];
+const pool = { denied: false };
 
 vi.mock('../src/services/proxmox.js', () => ({
   proxmoxConfigured: () => true,
@@ -35,7 +36,10 @@ vi.mock('../src/services/proxmox.js', () => ({
     if (machine) Object.assign(machine, { tags: config.tags ?? machine.tags, description: config.description ?? machine.description });
   },
   resizeDisk: async () => undefined,
-  poolMembers: async () => [...machines.entries()].map(([vmid, machine]) => ({ vmid, name: machine.name, tags: machine.tags })),
+  poolMembers: async () => {
+    if (pool.denied) throw new Error('Proxmox GET /pools/vps answered 403: Permission check failed (/pool/vps, Pool.Audit)');
+    return [...machines.entries()].map(([vmid, machine]) => ({ vmid, name: machine.name, tags: machine.tags }));
+  },
 }));
 
 const { createVpsService, provisionVps, destroyVps, machineOwnership, vpsAllocationReport, applyAllocationReport, vmidOfSlot, maxSlot } = await import('../src/services/vps.js');
@@ -167,6 +171,19 @@ describe('a machine that is not ours', () => {
     await destroyVps(row.id);
     expect(machines.has(row.vmid!)).toBe(false);
     expect((await prisma.vpsSlot.findUniqueOrThrow({ where: { slot: row.slot } })).state).toBe('RETIRED');
+  });
+});
+
+describe('the reconciliation without the right to list the pool', () => {
+  it('says so and still checks the machines of the services', async () => {
+    const live = await service();
+    await prisma.vpsService.update({ where: { id: live.id }, data: { status: 'ACTIVE' } });
+    pool.denied = true;
+    const report = await vpsAllocationReport();
+    expect(report.poolUnavailable).toMatch(/Pool\.Audit/);
+    expect(report.orphans).toEqual([]);
+    expect(report.missing.map((row) => row.id)).toEqual([live.id]);
+    pool.denied = false;
   });
 });
 

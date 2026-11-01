@@ -166,6 +166,8 @@ export interface VpsAllocationReport {
   missing: { id: string; vmid: number; status: string }[];
   /** Services whose slot is not in the ledger. */
   unledgered: { id: string; slot: number }[];
+  /** Why the pool could not be listed, or null. Without the list the orphans and the strangers cannot be found. */
+  poolUnavailable: string | null;
   quarantined: number[];
   capacity: { used: number; max: number };
 }
@@ -175,11 +177,19 @@ export interface VpsAllocationReport {
  * what does not match, and `applyAllocationReport` is the only thing that writes.
  */
 export async function vpsAllocationReport(): Promise<VpsAllocationReport> {
-  const [services, ledger, members] = await Promise.all([
+  const [services, ledger] = await Promise.all([
     prisma.vpsService.findMany({ select: { id: true, slot: true, vmid: true, status: true } }),
     prisma.vpsSlot.findMany({ select: { slot: true, state: true } }),
-    pve.poolMembers(),
   ]);
+  // The token may not be allowed to list the pool. The report then says so and goes on with the checks that
+  // need only the machines of the services: it does not pretend that the pool is empty.
+  let members: Awaited<ReturnType<typeof pve.poolMembers>> = [];
+  let poolUnavailable: string | null = null;
+  try {
+    members = await pve.poolMembers();
+  } catch (error) {
+    poolUnavailable = (error as Error).message.slice(0, 200);
+  }
   const known = new Set(services.map((service) => service.vmid ?? vmidOfSlot(service.slot)));
   const first = vmidOfSlot(1);
   const last = vmidOfSlot(maxSlot());
@@ -197,6 +207,7 @@ export async function vpsAllocationReport(): Promise<VpsAllocationReport> {
     foreignInRange: foreignInRange.map(({ vmid, name }) => ({ vmid, name })),
     missing,
     unledgered: services.filter((service) => !ledgered.has(service.slot)).map(({ id, slot }) => ({ id, slot })),
+    poolUnavailable,
     quarantined: ledger.filter((row) => row.state === 'QUARANTINED').map((row) => row.slot),
     capacity: { used: Math.max(0, ...ledger.map((row) => row.slot), ...services.map((service) => service.slot)), max: maxSlot() },
   };
