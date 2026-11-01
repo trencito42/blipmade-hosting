@@ -487,13 +487,14 @@ function elixirServerEx(input: StarterAppInput): string {
   end
 
   defp response(path) do
-    if request_path(path) == BlipmadeStarter.health_path() do
-      body = BlipmadeStarter.health_body()
-      content_type = "application/json"
-    else
-      body = BlipmadeStarter.text_body()
-      content_type = "text/plain; charset=utf-8"
-    end
+    # The body and the type of the answer are bound together, because a
+    # variable of a branch of an "if" is not known after it.
+    {body, content_type} =
+      if request_path(path) == BlipmadeStarter.health_path() do
+        {BlipmadeStarter.health_body(), "application/json"}
+      else
+        {BlipmadeStarter.text_body(), "text/plain; charset=utf-8"}
+      end
 
     [
       "HTTP/1.1 200 OK\\r\\n",
