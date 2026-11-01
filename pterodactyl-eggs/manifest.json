@@ -2132,7 +2132,7 @@
       "description": "A Terraria server with TShock, for exploring, building and fighting bosses together.",
       "eggFile": "terraria.json",
       "eggName": "tshock",
-      "dockerImage": "ghcr.io/ptero-eggs/yolks:dotnet_6",
+      "dockerImage": "ghcr.io/ptero-eggs/yolks:dotnet_9",
       "priceBand": "bot",
       "baseAmount": 149,
       "minRam": 2048,

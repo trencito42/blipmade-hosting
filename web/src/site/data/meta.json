@@ -938,5 +938,19 @@
     ],
     "updated": "2026-10-29",
     "catalogSlug": "minecraft-paper"
+  },
+  {
+    "id": "terraria",
+    "title": "Terraria",
+    "summary": "The two dimensional adventure of sandbox and of bosses, on TShock. What a deployment of Terraria does today, and what the platform checks.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "terraria",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-10-29",
+    "catalogSlug": "terraria"
   }
 ]

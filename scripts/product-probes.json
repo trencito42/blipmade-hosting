@@ -12,5 +12,6 @@
   "minecraft-paper": { "kind": "tcp" },
   "nats": { "kind": "tcp" },
   "nodejs": { "kind": "http", "path": "/" },
-  "prometheus": { "kind": "http", "path": "/" }
+  "prometheus": { "kind": "http", "path": "/" },
+  "terraria": { "kind": "tcp", "warmupSeconds": 900 }
 }
