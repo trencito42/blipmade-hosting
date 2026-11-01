@@ -3,6 +3,7 @@ import { del, get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextInput, useToast } from '../ui-app';
 import { can, useAdminSession } from './Overview';
+import { EmailCoverage, TemplateTools } from './EmailTools';
 
 interface Wording { subject: string; heading: string; preheader: string; note: string }
 interface Template {
@@ -100,11 +101,17 @@ export default function EmailTemplates() {
                   {current.override && <SoftButton onClick={() => void reset.run()} disabled={reset.pending}>Back to the original</SoftButton>}
                 </div>
               )}
-              <p className="text-[12.5px] text-ink3">To see a message as a customer gets it, use the preview in Email and notifications.</p>
+              <TemplateTools
+                id={current.id}
+                mayWrite={mayWrite}
+                onRestored={state.reload}
+                draft={Object.fromEntries(FIELDS.filter((field) => form[field.key].trim() !== current.defaults![field.key]).map((field) => [field.key, form[field.key]]))}
+              />
             </>
           )}
         </div>
       </Panel>
+      <EmailCoverage />
     </div>
   );
 }
