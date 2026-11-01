@@ -28,7 +28,7 @@
     "@fastify/multipart": "^10.1.4",
     "@fastify/rate-limit": "^10.2.2",
     "@fastify/websocket": "^11.0.2",
-    "@prisma/client": "^6.2.1",
+    "@prisma/client": "^7.10.1",
     "@sentry/node": "^11.10.0",
     "@simplewebauthn/server": "^14.0.3",
     "bullmq": "^5.34.3",
