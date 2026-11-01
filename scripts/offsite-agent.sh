@@ -181,7 +181,9 @@ mode_databases() {
 mode_vps() {
   need vzdump; need pvesh
   local vmid last now stamp file name; now="$(date +%s)"
-  for vmid in $(pvesh get "/pools/$VPS_POOL" --output-format json 2>/dev/null | grep -o '"vmid":[0-9]*' | cut -d: -f2); do
+  local vms="${VPS_ONLY:-}"     # a space separated list of VM ids limits the run, for a test
+  [ -n "$vms" ] || vms="$(pvesh get "/pools/$VPS_POOL" --output-format json 2>/dev/null | grep -o '"vmid":[0-9]*' | cut -d: -f2)"
+  for vmid in $vms; do
     last="$(cat "$STATE_DIR/done/vm-$vmid" 2>/dev/null || echo 0)"
     # vzdump writes a full copy every time, so a VM is not copied again before the interval: no duplicate fulls.
     [ $((now - last)) -gt $((VPS_MIN_INTERVAL_HOURS * 3600)) ] || continue
@@ -260,14 +262,16 @@ mode_destination() {
 # Run where the age IDENTITY is (never on a node): fetches one copy, decrypts it, opens it, and only then tells the
 # platform it is restorable. drill <remote rel path under base> <identity file>
 mode_drill() {
-  local rel="$1" ident="$2" tmp out
+  local rel="$1" ident="$2" tmp out head_text
   [ -r "$ident" ] || die "identity file not readable"
   tmp="$(mktemp -p "$STAGING_DIR")"; out="$(mktemp -p "$STAGING_DIR")"
   t_fetch "$rel" "$tmp" || die "could not fetch $rel"
   age -d -i "$ident" -o "$out" "$tmp" || die "decryption failed: wrong identity or damaged copy"
   case "$rel" in
     customers/*) tar -tzf "$out" >/dev/null || die "the decrypted archive is not readable" ;;
-    databases/*) gzip -t "$out" && zcat "$out" | head -c 4096 | grep -q 'MariaDB dump\|MySQL dump' || die "the decrypted dump is not a database dump" ;;
+    databases/*) gzip -t "$out" || die "the decrypted dump is not a valid archive"
+      head_text="$(zcat "$out" 2>/dev/null | head -c 4096 || true)"
+      grep -q 'MariaDB dump\|MySQL dump' <<<"$head_text" || die "the decrypted dump is not a database dump" ;;
     vps/*) zstd -t "$out" >/dev/null 2>&1 || die "the decrypted VM copy is not a valid archive" ;;
   esac
   rm -f -- "${tmp:?}" "${out:?}"

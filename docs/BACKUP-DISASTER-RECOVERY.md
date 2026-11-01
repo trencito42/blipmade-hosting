@@ -608,41 +608,95 @@ the repository on the new host is not a substitute for it.
 * `docs/PRODUCTION_READINESS.md` — the state of the platform and what is
   still unverified.
 
-## 10. Backups of customer servers (the files of a container)
+## 10. Backups of customer servers, databases and virtual servers (offsite)
 
-This is a different chain from the one above. The backups of the platform (database, configuration, uploads) are
-made by `scripts/backup.sh` and leave the host through `backup-offsite.sh`. The backups of a customer's server are
-made by the panel on the node, and they have **no copy outside the node**.
+Two chains exist. The backups of the platform (database, configuration, uploads) are made by `scripts/backup.sh` and
+sent by `scripts/backup-offsite.sh` (sections 1 to 9). This section is the other chain: what belongs to customers.
 
-### What exists
+### 10.1 Architecture
 
-* A customer can make a backup by hand, or switch on an automatic one (daily or weekly, 03:30 UTC) in the Backups
-  tab. The automatic backup is one schedule of the panel named "Blipmade automatic backup".
-* The plan keeps 3 backups (up to 4 GB of memory), 4 (up to 8 GB) or 5 (above). Backups that are not locked are
-  rotated: at twenty past every hour the worker removes the oldest unlocked ones of servers that have an automatic
-  backup, so one slot is always free for the next. A locked backup is never removed by the rotation, and nothing is
-  removed for twenty minutes after a restore was started.
-* Existing servers get their limit with `scripts/apply-backup-limits.mjs --apply` (dry run without the flag).
+```
+games-node-01                      hypervisor                          platform (VM 103)
+  panel backups (03:30 schedule)     vzdump of customer VPS (Sundays)    OffsiteBackup table
+  MariaDB dumps (05:10)                      |                           /admin/backups/health
+        |                                    |                                  ^
+        +----- offsite-agent.sh -------------+---- reports state --------------+
+              1. age-encrypt with the PUBLIC recipient
+              2. rsync as name.part to the Storage Box (ssh, port 23)
+              3. read the hash back from the box, compare
+              4. move to the final name, report OFFSITE_VERIFIED
+```
 
-### What it does not give
+* **Destination:** Hetzner Storage Box (1 TB), reached with ssh on port 23, a key and a pinned host key
+  (`/etc/blipmade/storagebox_known_hosts`). The box is NOT S3 and is not configured as S3 storage in the panel.
+* **Paths:** `blipmade/customers/<node>/`, `blipmade/databases/<node>/<db>/`, `blipmade/vps/<host>/vm<id>/`.
+* **Agent:** `scripts/offsite-agent.sh`, installed by `scripts/install-offsite-agent.sh node|hypervisor` as
+  `/usr/local/sbin/blipmade-offsite-agent` with systemd timers: customers 04:30, databases 05:10, retention 06:00 (node),
+  VPS Sundays 02:00 and retention 06:30 (hypervisor), destination health hourly. Configuration is in
+  `/etc/blipmade/offsite.env` (root, mode 600); nothing secret is in the repository.
+* **States** (the admin page tells them apart): `LOCAL_ONLY` (made, not yet sent), `OFFSITE_PENDING` (uploading),
+  `OFFSITE_VERIFIED` (read back from the box and the hash matched), `FAILED` (with the reason). An uploaded file is not
+  "verified" until it was read back. A copy is only known to be *restorable* once a drill opened it:
+  `restoreVerifiedAt` is set by `offsite-agent.sh drill`.
 
-* **It does not survive the loss of the node.** The archives are written to the disk of `games-node-01`. A failed
-  disk, a deleted VM or a lost host takes the servers and their backups together. The page tells the customer so.
-* **No offsite copy of customers' data exists** until an independent storage destination is configured and a restore
-  from it has been proved. Do not promise it in the terms, the SLA or the product pages before that.
-* Databases of a server are not part of its file backup. They live in MariaDB on the node (`/var/lib/mysql`) and
-  need their own dump.
+### 10.2 Encryption and the key
 
-### Restore, by the operator
+* Every copy is encrypted with age (X25519 + ChaCha20-Poly1305) **before it leaves the machine**. The machines that make
+  backups hold only the public recipient (`OFFSITE_AGE_RECIPIENT`).
+* The private identity (`age-identity.txt`) must live somewhere independent of this infrastructure: a password manager and
+  an offline copy. **Without it no offsite copy can be decrypted.** It is never put on a node, a VM, or the Storage Box.
+  A copy of the identity was left on the hypervisor at `/root/offsite-identity/` only to run drills; once you hold your own
+  copies, delete it from there.
+* The ssh key to the Storage Box is on the node and on the hypervisor (`/etc/blipmade/storagebox_key`). A node that is
+  compromised could delete its offsite copies: use a separate Storage Box sub-account per machine, and turn on the box's
+  snapshots in the Hetzner console so a deletion can be undone.
 
-1. The customer restores from the Backups tab ("Restore"). That is the normal way and it is audited.
-2. If the panel is not reachable: the archives are on the node under `/var/lib/pterodactyl/backups/<backup uuid>.tar.gz`.
-   Stop the server, unpack into `/var/lib/pterodactyl/volumes/<server uuid>/` as the same owner as the existing files,
-   start the server. Check the archive with `tar -tzf` first.
-3. After a restore, nothing about the billing or the domain changes; only the files do.
+### 10.3 What is covered
 
-### What to watch
+* **Customer servers (panel backups):** every completed archive (older than 10 minutes, readable with `tar -t`) is
+  encrypted and sent. A half-written file is never taken; a failed upload is removed from the box and reported `FAILED`.
+* **Customer databases:** logical dumps (`mariadb-dump --single-transaction --routines --events --triggers`) of every
+  database named `s<server id>_*`, with a read-only user (`blipmade_backup`, SELECT/SHOW VIEW/TRIGGER/EVENT/LOCK TABLES).
+  The platform's own and the system databases are never included. Each database goes to its own folder, so customers' data
+  is never mixed. The data directory of a running database is never copied.
+* **Virtual private servers:** native `vzdump` in snapshot mode, zstd, one **full** copy per VM about weekly. There is no
+  incremental or deduplicated backup: vzdump does not provide it here. A snapshot makes the disk crash-consistent (file
+  systems are frozen through the guest agent); it does not make a running database inside the VM consistent.
 
-* The Ops page of the admin area shows the backup health: the disk of every node (allocated against the real
-  size) and the rotation or backup failures of the last days.
-* A full node disk stops backups and installs alike. Free space before the allocation reaches the node's disk.
+### 10.4 Retention (targets, not guarantees)
+
+* Databases: the last 7 daily dumps and the last 4 Sunday dumps. Customer archives: 30 days. VPS: the 3 newest per VM.
+* The newest verified copy of every source is **never deleted**, and retention refuses to run without the platform's
+  list of protected copies. New uploads stop at 85% of the box's capacity.
+
+### 10.5 Restore procedures
+
+All of them start with the identity file and the key to the box.
+
+1. **Fetch and decrypt** (any machine with `age` and `rsync`):
+   `rsync -e "ssh -i KEY -p 23" u706911@u706911.your-storagebox.de:blipmade/<path>.age .` then
+   `age -d -i age-identity.txt -o <file> <path>.age`.
+2. **Customer server files:** the decrypted file is a `.tar.gz`. Stop the server, unpack it into
+   `/var/lib/pterodactyl/volumes/<server uuid>/` as the same owner as the existing files, start the server. Which backup
+   belongs to which server: the platform links them (`OffsiteBackup.instanceId`), or the customer's Backups tab lists the uuid.
+3. **A database:** `zcat dump.sql.gz | mariadb <database>` into an empty database of the same name. Test first into a
+   scratch database (`CREATE DATABASE restore_tmp`), then drop it.
+4. **A VPS:** decrypt to `vzdump-qemu-<id>-...vma.zst`, then `qmrestore <file> <new vmid> --storage local --unique 1`. Remove
+   the network device or put it on an isolated bridge before the first start if the original may still be running (same IP).
+5. **Complete node loss:** rebuild the node (Wings), re-import the servers from the panel, restore each server's archive
+   (step 2) and each database dump (step 3). Servers that were created after the last backup, and everything since, are lost.
+
+### 10.6 What was tested
+
+* Tested on 2026-11-01: a real customer archive (272 MB) was encrypted, uploaded, read back, decrypted and extracted
+  (6141 files); a real database dump was restored into a scratch database with the same table count (12) and row count
+  (149 in `wp_options`); the encrypted copies were opened by drills which marked them restore-verified.
+* See the report of the day for the virtual-server test. Anything not listed here has not been tested.
+
+### 10.7 Confirmed limitations
+
+* RPO is up to about a day for archives and dumps and about a week for VPS. These are **targets, not promises**: do not
+  state an RPO, an RTO or "disaster recovery" on public pages until you have run and timed a full node-loss rehearsal.
+* The box is a single destination in one provider. It is independent of this hardware, but it is not a second copy.
+* Retention by age can only keep what the panel still reports: a service that was deleted keeps its copies 30 days.
+* A database is dumped once a day: changes since the last dump are not recoverable.
