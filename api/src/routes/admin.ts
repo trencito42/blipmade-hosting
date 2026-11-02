@@ -497,9 +497,23 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/admin/orders', { preHandler: requirePermission('orders.read') }, async (request: FastifyRequest) => {
-    const query = z.object({ status: z.string().optional() }).parse(request.query ?? {});
+    const query = z.object({
+      status: z.enum(['PENDING', 'AWAITING_PAYMENT', 'PAID', 'FULFILLED', 'FAILED', 'CANCELLED', 'REFUNDED']).optional(),
+      search: z.string().trim().max(160).optional(),
+    }).parse(request.query ?? {});
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
-    const where: Prisma.OrderWhereInput = query.status ? { status: query.status as never } : {};
+    const where: Prisma.OrderWhereInput = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.search ? { OR: [
+        { number: { contains: query.search, mode: 'insensitive' } },
+        { user: { is: { OR: [
+          { email: { contains: query.search, mode: 'insensitive' } },
+          { firstName: { contains: query.search, mode: 'insensitive' } },
+          { lastName: { contains: query.search, mode: 'insensitive' } },
+        ] } } },
+        { items: { some: { name: { contains: query.search, mode: 'insensitive' } } } },
+      ] } : {}),
+    };
     const rows = await prisma.order.findMany({
       where: withCursor(where, cursor, 'createdAt'),
       include: {
