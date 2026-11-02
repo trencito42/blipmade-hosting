@@ -104,3 +104,28 @@ export function validateAttachment(contentType: string, size: number): void {
     throw badRequest(`A file may not be larger than ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)} MB.`);
   }
 }
+
+const SIGNATURES: Record<string, (head: Buffer) => boolean> = {
+  'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  'image/gif': (b) => b.subarray(0, 4).toString('latin1') === 'GIF8',
+  'image/webp': (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP',
+  'application/pdf': (b) => b.subarray(0, 5).toString('latin1') === '%PDF-',
+  'application/zip': (b) => b[0] === 0x50 && b[1] === 0x4b,
+  'application/gzip': (b) => b[0] === 0x1f && b[1] === 0x8b,
+};
+
+const TEXT_TYPES = ['text/plain', 'text/csv', 'text/markdown', 'text/html', 'application/json'];
+
+/**
+ * Checks that the bytes are what the upload says they are. The declared type comes from the client, so a program that is
+ * called a picture is refused here: images, PDF, zip and gzip must start with their own signature, and a text type must
+ * not hold binary bytes.
+ */
+export function verifyAttachmentContent(contentType: string, content: Buffer): void {
+  const check = SIGNATURES[contentType];
+  if (check && !check(content)) throw badRequest('The content of the file is not of the type it says.');
+  if (TEXT_TYPES.includes(contentType) && content.subarray(0, 8192).includes(0)) {
+    throw badRequest('The content of the file is not of the type it says.');
+  }
+}

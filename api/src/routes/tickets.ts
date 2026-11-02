@@ -2,11 +2,13 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
-import { AppError, badRequest, forbidden, notFound } from '../lib/errors.js';
+import { AppError, badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requireStaff, type AuthUser } from '../plugins/auth.js';
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { audit } from '../lib/audit.js';
+import { redis } from '../redis.js';
+import { randomUUID } from 'node:crypto';
 import {
   notifyTicketClosed,
   notifyTicketCreated,
@@ -24,6 +26,7 @@ import {
   storageKeyFor,
   storeAttachment,
   validateAttachment,
+  verifyAttachmentContent,
 } from '../lib/attachments.js';
 
 /**
@@ -245,30 +248,39 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
   app.get('/tickets/:id', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = parse(z.object({ id: z.string() }), request.params);
+    const { before } = parse(z.object({ before: z.string().max(40).optional() }), request.query);
+    const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
     const ticket = await prisma.ticket.findUnique({
       where: { id },
       include: {
         instance: { select: { name: true } },
         mailService: { select: { product: { select: { name: true } } } },
         assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+        // The newest messages, a page at a time: a long conversation is not sent whole. The customer never receives an
+        // internal note, so it is left out by the query and not only by the filter below.
         messages: {
+          where: isStaff ? undefined : { internal: false },
           include: {
             author: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
             attachments: true,
           },
-          orderBy: { createdAt: 'asc' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: MESSAGE_PAGE + 1,
+          ...(before ? { cursor: { id: before }, skip: 1 } : {}),
         },
         events: { orderBy: { createdAt: 'asc' } },
+        _count: { select: { messages: true } },
       },
     });
     if (!ticket) throw notFound('Ticket not found.');
 
-    const isStaff = user.role === 'STAFF' || user.role === 'ADMIN';
     requireTicketPermission(user, 'tickets.read');
     if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
 
+    const hasMoreMessages = ticket.messages.length > MESSAGE_PAGE;
     const messages = ticket.messages
-      .filter((message) => isStaff || !message.internal)
+      .slice(0, MESSAGE_PAGE)
+      .reverse()
       .map((message) => ({
         id: message.id,
         body: message.body,
@@ -290,12 +302,15 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
           })),
         ],
       }));
+    // The customer is told what happened to the ticket, not that the staff talked among themselves or who took it.
+    const events = ticket.events.filter((event) => isStaff || !isInternalEvent(event));
 
     return {
       ticket: {
         ...serializeTicket({ ...ticket, _count: { messages: messages.length } }),
         messages,
-        events: ticket.events.map((event) => ({ id: event.id, type: event.type, message: event.message, createdAt: event.createdAt })),
+        hasMoreMessages,
+        events: events.map((event) => ({ id: event.id, type: event.type, message: event.message, createdAt: event.createdAt })),
       },
     };
   });
@@ -324,31 +339,63 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
     if (body.internal && !isStaff) throw forbidden('Only staff can add internal notes.');
 
-    const message = await prisma.ticketMessage.create({
-      data: {
-        ticketId: ticket.id,
-        authorId: user.id,
-        body: body.body,
-        internal: body.internal ?? false,
-        attachmentMeta: (body.attachments ?? []) as never,
-      },
-      include: { author: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } },
-    });
+    // A retried request (the network dropped, the button was pressed twice) carries the same key and is answered with
+    // the message that was already written instead of a second one.
+    const key = replyKey(request, user.id, ticket.id);
+    if (key) {
+      const claim = await claimKey(key);
+      if (claim.state === 'busy') throw conflict('This reply is already being saved.');
+      if (claim.state === 'replay') {
+        const existing = await prisma.ticketMessage.findFirst({
+          where: { id: claim.messageId, ticketId: ticket.id },
+          include: { author: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } },
+        });
+        if (existing) return reply.code(200).send({ message: serializeReply(existing), replayed: true });
+      }
+    }
 
+    const reopens = !body.internal && ticket.status === 'CLOSED';
     const nextStatus = body.internal
       ? ticket.status
       : isStaff
         ? 'AWAITING_CUSTOMER'
         : 'AWAITING_STAFF';
 
-    await prisma.ticket.update({
-      where: { id: ticket.id },
-      data: { lastReplyAt: new Date(), status: nextStatus },
-    });
-    await prisma.ticketEvent.create({
-      data: { ticketId: ticket.id, type: 'reply', message: body.internal ? 'Internal note added.' : 'Reply added.', actorId: user.id },
-    });
-    await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.replied', targetType: 'ticket', targetId: ticket.id, meta: { internal: Boolean(body.internal) } });
+    // The message, the state of the ticket and the event are one change: either all of them are written or none.
+    let message;
+    try {
+      message = await prisma.$transaction(async (tx) => {
+        const created = await tx.ticketMessage.create({
+          data: {
+            ticketId: ticket.id,
+            authorId: user.id,
+            body: body.body,
+            internal: body.internal ?? false,
+            attachmentMeta: (body.attachments ?? []) as never,
+          },
+          include: { author: { select: { id: true, firstName: true, lastName: true, email: true, role: true } } },
+        });
+        await tx.ticket.update({
+          where: { id: ticket.id },
+          data: { lastReplyAt: new Date(), status: nextStatus, ...(reopens ? { closedAt: null } : {}) },
+        });
+        if (reopens) {
+          await tx.ticketEvent.create({ data: { ticketId: ticket.id, type: 'reopened', message: 'Ticket reopened by a reply.', actorId: user.id } });
+        }
+        await tx.ticketEvent.create({
+          data: { ticketId: ticket.id, type: body.internal ? 'note' : 'reply', message: body.internal ? 'Internal note added.' : 'Reply added.', actorId: user.id },
+        });
+        return created;
+      });
+    } catch (error) {
+      if (key) await releaseKey(key);
+      throw error;
+    }
+    if (key) await finishKey(key, message.id);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.replied', targetType: 'ticket', targetId: ticket.id, meta: { internal: Boolean(body.internal), reopened: reopens } });
+    if (reopens) {
+      await notifyTicketReopened({ userId: ticket.userId, ticketId: ticket.id, ticketNumber: String(ticket.number), subject: ticket.subject, occurrence: `reopen-${message.id}` });
+    }
 
     if (!body.internal) {
       // The author of a reply is never told about their own reply: the
@@ -378,16 +425,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       }
     }
 
-    return reply.code(201).send({
-      message: {
-        id: message.id,
-        body: message.body,
-        internal: message.internal,
-        author: { id: message.author.id, name: fullName(message.author) || message.author.email, role: message.author.role },
-        createdAt: message.createdAt,
-        attachments: (message.attachmentMeta ?? []) as { name: string; size: number; type: string }[],
-      },
-    });
+    return reply.code(201).send({ message: serializeReply(message) });
   });
 
   /**
@@ -419,40 +457,47 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
     const content = await file.toBuffer();
     validateAttachment(file.mimetype, content.byteLength);
+    verifyAttachmentContent(file.mimetype, content);
 
-    // The web client uploads after creating the reply, so the stored file is
-    // attached to that exact message. The legacy standalone upload route still
-    // creates its own message when no message id is supplied.
-    const message = messageId
+    // The web client uploads after creating the reply, so the stored file is attached to that exact message. The legacy
+    // standalone upload route still creates its own message when no message id is supplied.
+    const existing = messageId
       ? await prisma.ticketMessage.findFirst({ where: { id: messageId, ticketId: ticket.id, authorId: user.id } })
-      : await prisma.ticketMessage.create({
+      : null;
+    if (messageId && !existing) throw notFound('Ticket message not found.');
+
+    // The file is written first: a message that points to a file that was never stored is worse than a file without a
+    // message, which is removed again when the rows cannot be written.
+    const folder = randomUUID();
+    const storageKey = storageKeyFor(ticket.id, folder, file.filename);
+    const stored = await storeAttachment({ storageKey, content });
+    let message;
+    let attachment;
+    try {
+      ({ message, attachment } = await prisma.$transaction(async (tx) => {
+        const created = existing ?? (await tx.ticketMessage.create({
+          data: { ticketId: ticket.id, authorId: user.id, body: `Attached ${file.filename}.`, internal: false },
+        }));
+        const row = await tx.attachment.create({
           data: {
+            ticketMessageId: created.id,
             ticketId: ticket.id,
-            authorId: user.id,
-            body: `Attached ${file.filename}.`,
-            internal: false,
+            filename: file.filename,
+            contentType: file.mimetype,
+            size: stored.size,
+            storageKey: stored.storageKey,
+            sha256: stored.sha256,
           },
         });
-    if (!message) throw notFound('Ticket message not found.');
-
-    const storageKey = storageKeyFor(ticket.id, message.id, file.filename);
-    const stored = await storeAttachment({ storageKey, content });
-
-    const attachment = await prisma.attachment.create({
-      data: {
-        ticketMessageId: message.id,
-        ticketId: ticket.id,
-        filename: file.filename,
-        contentType: file.mimetype,
-        size: stored.size,
-        storageKey: stored.storageKey,
-        sha256: stored.sha256,
-      },
-    });
-
-    await prisma.ticketEvent.create({
-      data: { ticketId: ticket.id, type: 'attachment', message: `File attached: ${file.filename}.`, actorId: user.id },
-    });
+        await tx.ticketEvent.create({
+          data: { ticketId: ticket.id, type: 'attachment', message: `File attached: ${file.filename}.`, actorId: user.id },
+        });
+        return { message: created, attachment: row };
+      }));
+    } catch (error) {
+      await removeAttachment(stored.storageKey).catch(() => {});
+      throw error;
+    }
     await audit({
       actorId: user.id,
       actorEmail: user.email,
@@ -484,8 +529,9 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     requireTicketPermission(user, 'tickets.read');
     if (ticket.userId !== user.id && !isStaff) throw notFound('Ticket not found.');
 
-    const attachment = await prisma.attachment.findFirst({ where: { id: attachmentId, ticketId: id } });
-    if (!attachment) throw notFound('Attachment not found.');
+    const attachment = await prisma.attachment.findFirst({ where: { id: attachmentId, ticketId: id }, include: { ticketMessage: { select: { internal: true } } } });
+    // A file of an internal note is for the staff; for anybody else it does not exist.
+    if (!attachment || (attachment.ticketMessage.internal && !isStaff)) throw notFound('Attachment not found.');
 
     const content = await readAttachment(attachment.storageKey);
     reply.header('content-type', attachment.contentType);
@@ -518,16 +564,19 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const user = await requireStaff(request);
     requireTicketPermission(user, 'tickets.write');
     const { id } = parse(z.object({ id: z.string() }), request.params);
-    const { status } = parse(z.object({ status: enumField(STATUSES) }), request.body);
+    const { status, ifUpdatedAt } = parse(z.object({ status: enumField(STATUSES), ifUpdatedAt: z.string().datetime().optional() }), request.body);
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
 
     const previousStatus = ticket.status;
-    await prisma.ticket.update({
-      where: { id: ticket.id },
+    // A staff member that read the ticket before somebody else changed it sends the moment they read it; the change is
+    // refused when the ticket moved since, so the last write does not silently win.
+    const changed = await prisma.ticket.updateMany({
+      where: { id: ticket.id, ...(ifUpdatedAt ? { updatedAt: new Date(ifUpdatedAt) } : {}) },
       data: { status, closedAt: status === 'CLOSED' ? new Date() : null },
     });
+    if (changed.count === 0) throw conflict('Somebody changed this ticket since you opened it. Reload it and try again.');
     const ticketEvent = await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'status', message: `Status changed to ${status}.`, actorId: user.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.status_changed', targetType: 'ticket', targetId: ticket.id, meta: { status } });
 
@@ -555,6 +604,70 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     });
     return { ticket: serializeTicket(updated!) };
   });
+}
+
+/** The messages of a ticket that are sent at once. */
+const MESSAGE_PAGE = 200;
+
+/** Events that only the staff reads: internal notes (also the ones written before they had a type of their own) and assignments. */
+function isInternalEvent(event: { type: string; message: string }): boolean {
+  return event.type === 'note' || event.type === 'assigned' || event.message === 'Internal note added.';
+}
+
+type ReplyRow = {
+  id: string;
+  body: string;
+  internal: boolean;
+  createdAt: Date;
+  attachmentMeta: unknown;
+  author: { id: string; firstName: string; lastName: string; email: string; role: string };
+};
+
+function serializeReply(message: ReplyRow) {
+  return {
+    id: message.id,
+    body: message.body,
+    internal: message.internal,
+    author: { id: message.author.id, name: fullName(message.author) || message.author.email, role: message.author.role },
+    createdAt: message.createdAt,
+    attachments: (message.attachmentMeta ?? []) as { name: string; size: number; type: string }[],
+  };
+}
+
+/** The key of a reply, from the `Idempotency-Key` header. Null when the client did not send one. */
+function replyKey(request: FastifyRequest, userId: string, ticketId: string): string | null {
+  const raw = request.headers['idempotency-key'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return null;
+  if (!/^[A-Za-z0-9_-]{8,100}$/.test(value)) throw badRequest('The Idempotency-Key must be 8 to 100 letters, digits, dashes or underscores.');
+  return `ticket-reply:${userId}:${ticketId}:${value}`;
+}
+
+type Claim = { state: 'new' } | { state: 'busy' } | { state: 'replay'; messageId: string };
+
+const KEY_SECONDS = 24 * 60 * 60;
+
+/**
+ * Claims a key for one day. When the key is taken, the claim says which message it produced; a request that is still
+ * running is "busy", so the same reply is not written twice at once. A Redis that does not answer lets the reply
+ * through: the reply is worth more than the protection.
+ */
+async function claimKey(key: string): Promise<Claim> {
+  try {
+    if ((await redis.set(key, 'pending', 'EX', KEY_SECONDS, 'NX')) === 'OK') return { state: 'new' };
+    const value = await redis.get(key);
+    return value && value !== 'pending' ? { state: 'replay', messageId: value } : { state: 'busy' };
+  } catch {
+    return { state: 'new' };
+  }
+}
+
+async function finishKey(key: string, messageId: string): Promise<void> {
+  await redis.set(key, messageId, 'EX', KEY_SECONDS).catch(() => {});
+}
+
+async function releaseKey(key: string): Promise<void> {
+  await redis.del(key).catch(() => {});
 }
 
 /**

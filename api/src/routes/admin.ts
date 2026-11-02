@@ -1172,7 +1172,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const { userId } = z.object({ userId: z.string().nullable() }).parse(request.body);
+    const { userId, ifUpdatedAt } = z.object({ userId: z.string().nullable(), ifUpdatedAt: z.string().datetime().optional() }).parse(request.body);
 
     const ticket = await prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw notFound('Ticket not found.');
@@ -1186,7 +1186,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       await prisma.staffMember.upsert({ where: { userId }, update: {}, create: { userId, permissions: [] } });
     }
 
-    await prisma.ticket.update({ where: { id }, data: { assignedToId: userId } });
+    const changed = await prisma.ticket.updateMany({
+      where: { id, ...(ifUpdatedAt ? { updatedAt: new Date(ifUpdatedAt) } : {}) },
+      data: { assignedToId: userId },
+    });
+    if (changed.count === 0) throw conflict('Somebody changed this ticket since you opened it. Reload it and try again.');
     const ticketEvent = await prisma.ticketEvent.create({ data: { ticketId: id, type: 'assigned', message: userId ? 'Ticket assigned.' : 'Ticket unassigned.', actorId: actor.id } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'ticket.assigned', targetType: 'ticket', targetId: id, meta: { userId }, ip: request.ip });
 
