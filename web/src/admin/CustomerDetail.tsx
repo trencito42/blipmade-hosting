@@ -234,6 +234,7 @@ function AccountAccess({
 
 export default function CustomerDetail() {
   const { id = '' } = useParams();
+  const [section, setSection] = useState<'overview' | 'services' | 'billing' | 'support' | 'security'>('overview');
   const session = useAdminSession();
   const staff = session.staff;
 
@@ -294,7 +295,6 @@ export default function CustomerDetail() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`Customer ${customer.name ?? customer.id} loaded`} />
-      <CreditSummary customerId={customer.id} />
       <Panel title={customer.name ?? 'No name'} description="Everything the API returns about this account.">
         <div className="grid gap-3">
           <dl className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -364,6 +364,32 @@ export default function CustomerDetail() {
         </div>
       </Panel>
 
+      <nav aria-label="Customer record sections" className="-mx-1 overflow-x-auto px-1 no-scrollbar">
+        <div className="flex min-w-max gap-1.5">
+          {([
+            ['overview', 'Overview'],
+            ['services', 'Services'],
+            ['billing', 'Billing'],
+            ['support', 'Support'],
+            ['security', 'Account & security'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-current={section === key ? 'page' : undefined}
+              onClick={() => setSection(key)}
+              className={section === key
+                ? 'rounded-xl bg-acc px-4 py-2.5 text-[13.5px] font-semibold text-on-acc'
+                : denseGhost}
+            >{label}</button>
+          ))}
+        </div>
+      </nav>
+      {section === 'overview' && (
+        <RiskPanel customerId={customer.id} mayWrite={mayWrite} onChanged={state.reload} />
+      )}
+      {section === 'security' && (
+        <>
       <AccountAccess
         customerId={customer.id}
         suspended={suspended}
@@ -374,9 +400,12 @@ export default function CustomerDetail() {
       />
 
       {mayWrite && <AccountTools customerId={customer.id} name={customer.name ?? ''} emailVerified={customer.emailVerified} onChanged={state.reload} />}
-      <RiskPanel customerId={customer.id} mayWrite={mayWrite} onChanged={state.reload} />
-      {mayWrite && <CreditPanel customerId={customer.id} />}
-      <NotesPanel customerId={customer.id} mayWrite={mayWrite} />
+        </>
+      )}
+      {section === 'billing' && <CreditSummary customerId={customer.id} />}
+      {section === 'billing' && mayWrite && <CreditPanel customerId={customer.id} />}
+      {section === 'services' && (
+        <>
       <SubscriptionsPanel customerId={customer.id} mayWrite={mayWrite} />
       <PanelAccessPanel customerId={customer.id} mayWrite={can(staff, 'services.write')} />
 
@@ -477,6 +506,10 @@ export default function CustomerDetail() {
         )}
       </Panel>
 
+        </>
+      )}
+      {section === 'billing' && (
+        <>
       <Panel title="Invoices" description={`${customer.invoices.length} invoice${customer.invoices.length === 1 ? '' : 's'}.`}>
         {!customer.invoices.length ? (
           <EmptyState
@@ -547,6 +580,11 @@ export default function CustomerDetail() {
         )}
       </Panel>
 
+        </>
+      )}
+      {section === 'support' && (
+        <>
+      <NotesPanel customerId={customer.id} mayWrite={mayWrite} />
       <Panel title="Tickets" description={`${customer.tickets.length} ticket${customer.tickets.length === 1 ? '' : 's'}.`}>
         {!customer.tickets.length ? (
           <EmptyState
@@ -616,6 +654,10 @@ export default function CustomerDetail() {
         )}
       </Panel>
 
+        </>
+      )}
+      {section === 'billing' && (
+        <>
       <Panel title="Orders" description={`${customer.orders.length} order${customer.orders.length === 1 ? '' : 's'}.`}>
         {!customer.orders.length ? (
           <EmptyState
@@ -674,6 +716,8 @@ export default function CustomerDetail() {
         )}
       </Panel>
 
+        </>
+      )}
       <p className="px-1 text-[13.5px] text-ink3">
         <Link to="/admin/customers" className="font-bold text-acc hover:underline">
           Back to the customer list
