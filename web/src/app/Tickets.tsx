@@ -1,3 +1,4 @@
+import { ArticleSuggestions } from './ArticleSuggestions';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { get, post, type Instance, type MailServiceView, type Ticket } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
@@ -394,6 +395,7 @@ function NewTicketForm({
         </div>
 
         <div className="grid gap-3">
+          <ArticleSuggestions text={subject} />
           <TextInput
             id="ticket-subject"
             label="Subject"

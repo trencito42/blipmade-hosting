@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { get, post, put, type TicketMessage } from '../lib/api';
 import { TicketAttachments } from '../app/TicketAttachments';
+import { ContextPanel } from './ContextPanel';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useRouter } from '../router';
 import {
@@ -331,6 +332,7 @@ function TicketDetailPanel({
 
   return (
     <div className="grid gap-4">
+      <ContextPanel ticketId={ticketId} />
       <Panel
         title={current ? `#${current.number} ${current.subject}` : 'Ticket'}
         description={current ? `Opened ${fmtDateTime(current.createdAt)}` : undefined}
