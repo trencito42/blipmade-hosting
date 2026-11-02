@@ -9,6 +9,7 @@ import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/
 import { notifyTicketOpenedForStaff } from '../services/notifications.js';
 import { humanAvailable } from '../services/support-availability.js';
 import { publishSupportEvent } from '../services/support-events.js';
+import { fireAutomations } from '../services/support-automation.js';
 
 /**
  * The live chat of a customer.
@@ -91,6 +92,7 @@ export async function registerSupportChatRoutes(app: FastifyInstance): Promise<v
     await audit({ actorId: user.id, actorEmail: user.email, action: 'support.chat_started', targetType: 'ticket', targetId: ticket.id, meta: { channel } });
     await notifyTicketOpenedForStaff({ userId: user.id, ticketId: ticket.id, ticketNumber: String(ticket.number), subject: ticket.subject, customer: fullName(user) || user.email, occurrence: ticket.id }).catch(() => undefined);
     await publishSupportEvent({ type: 'created', ticketId: ticket.id, ownerId: user.id, internal: false });
+    await fireAutomations('conversation_created', ticket.id, ticket.id);
     return reply.code(201).send({
       conversation: { id: ticket.id, number: ticket.number, channel: channel.toLowerCase() },
       mode: available ? 'chat' : 'ticket',

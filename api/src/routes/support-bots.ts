@@ -10,6 +10,7 @@ import { notifyTicketOpenedForStaff } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { humanAvailable } from '../services/support-availability.js';
 import { publishSupportEvent } from '../services/support-events.js';
+import { fireAutomations } from '../services/support-automation.js';
 import { advance, flowSchema, promptFor, startFlow, templateFlow, validateFlow, type BotSession, type Flow, type Hooks, type Out } from '../services/support-bot.js';
 
 /**
@@ -253,6 +254,7 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
       ctx.ticketId = ticket.id;
       await notifyTicketOpenedForStaff({ userId: user.id, ticketId: ticket.id, ticketNumber: String(ticket.number), subject: ticket.subject, customer: fullName({ firstName: user.firstName ?? '', lastName: user.lastName ?? '' }) || user.email, occurrence: ticket.id }).catch(() => undefined);
       await publishSupportEvent({ type: 'created', ticketId: ticket.id, ownerId: user.id, internal: false });
+      await fireAutomations('conversation_created', ticket.id, ticket.id);
       return ticket;
     };
     return {

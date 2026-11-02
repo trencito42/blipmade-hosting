@@ -980,6 +980,54 @@ enum SupportAvailability {
   OFFLINE
 }
 
+enum SupportAutomationRunStatus {
+  OK
+  FAILED
+  /// Failed too many times: kept for the operator to read and to try again by hand.
+  DEAD
+}
+
+/// A rule the operator writes: when something happens in a conversation and the conditions hold, do these things.
+model SupportAutomation {
+  id          String   @id @default(cuid())
+  name        String
+  enabled     Boolean  @default(false)
+  /// The lower number runs first.
+  priority    Int      @default(100)
+  trigger     String
+  /// For the triggers that look at waiting time: after how many minutes (of business time when hours are set).
+  afterMinutes Int?
+  conditions  Json     @default("{}")
+  actions     Json     @default("[]")
+  /// The staff member the messages of the rule are written as.
+  actorId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  runs SupportAutomationRun[]
+}
+
+/// One run of a rule on one conversation for one event. The pair (rule, event) is unique: an event is handled once.
+model SupportAutomationRun {
+  id           String                      @id @default(cuid())
+  automationId String
+  automation   SupportAutomation           @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  ticketId     String
+  eventKey     String
+  status       SupportAutomationRunStatus  @default(OK)
+  attempts     Int                         @default(1)
+  depth        Int                         @default(0)
+  /// What the rule did, in words, for the history.
+  done         Json                        @default("[]")
+  error        String?
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+
+  @@unique([automationId, eventKey])
+  @@index([ticketId])
+  @@index([status, updatedAt])
+}
+
 enum SupportBotState {
   ACTIVE
   HANDED_OFF

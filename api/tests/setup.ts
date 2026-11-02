@@ -26,6 +26,8 @@ const TABLES = [
   'ProvisioningJob',
   'InstanceEvent',
   'InstanceDomain',
+  'SupportAutomationRun',
+  'SupportAutomation',
   'SupportBotSession',
   'SupportBotVersion',
   'SupportBot',

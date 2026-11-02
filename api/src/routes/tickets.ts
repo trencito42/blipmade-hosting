@@ -9,6 +9,7 @@ import { hasPermission, type Permission } from '../lib/permissions.js';
 import { audit } from '../lib/audit.js';
 import { redis } from '../redis.js';
 import { publishSupportEvent } from '../services/support-events.js';
+import { fireAutomations } from '../services/support-automation.js';
 import { randomUUID } from 'node:crypto';
 import {
   notifyTicketClosed,
@@ -245,6 +246,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     });
 
     await publishSupportEvent({ type: 'created', ticketId: ticket.id, ownerId: ticket.userId, internal: false });
+    await fireAutomations('conversation_created', ticket.id, ticket.id);
     return reply.code(201).send({ ticket: serializeTicket(ticket) });
   });
 
@@ -439,6 +441,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     }
 
     await publishSupportEvent({ type: 'message', ticketId: ticket.id, ownerId: ticket.userId, internal: message.internal, seq: String(message.seq) });
+    if (!body.internal) {
+      if (reopens) await fireAutomations('reopened', ticket.id, message.id);
+      await fireAutomations(isStaff ? 'staff_replied' : 'customer_replied', ticket.id, message.id);
+    }
     return reply.code(201).send({ message: serializeReply(message) });
   });
 
@@ -618,6 +624,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
     });
     await publishSupportEvent({ type: 'status', ticketId: ticket.id, ownerId: ticket.userId, internal: false });
+    await fireAutomations('status_changed', ticket.id, ticketEvent.id);
     return { ticket: serializeTicket(updated!) };
   });
 }
@@ -627,7 +634,7 @@ const MESSAGE_PAGE = 200;
 
 /** Events that only the staff reads: internal notes (also the ones written before they had a type of their own) and assignments. */
 function isInternalEvent(event: { type: string; message: string }): boolean {
-  return event.type === 'note' || event.type === 'assigned' || event.type === 'department' || event.type === 'rating' || event.message === 'Internal note added.';
+  return event.type === 'note' || event.type === 'assigned' || event.type === 'department' || event.type === 'rating' || event.type === 'automation' || event.message === 'Internal note added.';
 }
 
 type ReplyRow = {
