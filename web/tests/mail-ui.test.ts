@@ -10,7 +10,7 @@
  * server, without a browser, which is enough to see what the customer is
  * told.
  *
- * Four things are checked here:
+ * Five things are checked here:
  *
  *   1. the name of a domain is checked before it is sent, so a page address
  *      is never taken for a hostname;
@@ -18,7 +18,9 @@
  *      told plainly when the mail is not delivered yet;
  *   3. the password the server made is shown once and stays on the screen
  *      while the list of the mailboxes is loaded again;
- *   4. nothing is deleted without a confirmation.
+ *   4. nothing is deleted without a confirmation;
+ *   5. the overview of the mail is compact: it adds a domain from one place
+ *      only, and the words of the area are the ones of the new design.
  */
 
 import { after, before, describe, it } from 'node:test';
@@ -32,6 +34,33 @@ import { createServer, type ViteDevServer } from 'vite';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(here, '..');
+
+/**
+ * The files that hold the code of the mail area.
+ *
+ * The password and the words of the interface are checked in every one of
+ * them, so a file that is added later has to be named here to be checked.
+ */
+const MAIL_FILES = [
+  'src/app/Mail.tsx',
+  'src/app/mail/MailOverview.tsx',
+  'src/app/mail/MailDomainPage.tsx',
+  'src/app/mail/MailSubscriptionSummary.tsx',
+  'src/app/mail/MailDomainList.tsx',
+  'src/app/mail/MailboxTable.tsx',
+  'src/app/mail/MailboxCreateDialog.tsx',
+  'src/app/mail/AliasTable.tsx',
+  'src/app/mail/AliasCreateDialog.tsx',
+  'src/app/mail/MailDnsPanel.tsx',
+  'src/app/mail/MailAddDomainDialog.tsx',
+  'src/app/mail/MailPlanChangeDialog.tsx',
+  'src/app/mail/MailDeleteDialog.tsx',
+  'src/app/mail/MailServiceCard.tsx',
+  'src/app/mail/MailDialog.tsx',
+  'src/app/mail/MailStat.tsx',
+  'src/app/mail/OneTimePasswordBox.tsx',
+  'src/app/mail/shared.ts',
+];
 
 /** The page under test, as the test uses it. */
 interface MailUi {
@@ -267,11 +296,15 @@ describe('the password of a new mailbox', () => {
   });
 
   it('is never written to the console, to the storage of the browser or to the address of the page', () => {
-    const source = readFileSync(join(webRoot, 'src/app/Mail.tsx'), 'utf8');
-    assert.doesNotMatch(source, /console\./);
-    assert.doesNotMatch(source, /localStorage/);
-    assert.doesNotMatch(source, /sessionStorage/);
-    assert.doesNotMatch(source, /document\.cookie/);
+    // The files that hold the code of the mail area are checked one by one:
+    // the password never leaves the box it is shown in.
+    for (const file of MAIL_FILES) {
+      const source = readFileSync(join(webRoot, file), 'utf8');
+      assert.doesNotMatch(source, /console\./);
+      assert.doesNotMatch(source, /localStorage/);
+      assert.doesNotMatch(source, /sessionStorage/);
+      assert.doesNotMatch(source, /document\.cookie/);
+    }
 
     const html = section({ oneTimePassword: { address: 'contact@acme.ro', password: secret } });
     // The password is not in a link of the page, so it is not in the address
@@ -346,11 +379,23 @@ describe('a delete needs a confirmation', () => {
 });
 
 describe('the page of the email hosting', () => {
-  it('draws the form of a new domain', () => {
+  it('draws the compact overview', () => {
     const html = render(createElement(ui.default, {}));
-    assert.match(html, /Add an email domain/);
-    assert.match(html, /Hostname/);
-    assert.match(html, /Your email domains/);
+    // The header of the page: the name of it, the line under it and the one
+    // action that adds a domain.
+    assert.match(html, />Email</);
+    assert.match(html, /Manage your email hosting, domains, and mailboxes\./);
+    assert.match(html, /Add domain/);
+    // The summary of the subscription.
+    assert.match(html, /Email hosting/);
+  });
+
+  it('adds a domain from one place only', () => {
+    const html = render(createElement(ui.default, {}));
+    // The button that opens the dialog of a new domain is the only one, so
+    // the function does not live in two places.
+    const buttons = html.match(/Add domain/g) ?? [];
+    assert.equal(buttons.length, 1);
   });
 
   it('has its own route in the customer area', () => {
@@ -367,10 +412,15 @@ describe('the page of the email hosting', () => {
   });
 
   it('is written in English', () => {
-    const source = readFileSync(join(webRoot, 'src/app/Mail.tsx'), 'utf8');
-    // The platform speaks English in the customer area.
-    assert.doesNotMatch(source, /[ăâîțșşțĂÂÎȚȘŞ]/);
-    assert.match(source, /Add an email domain/);
-    assert.match(source, /DNS records to publish/);
+    for (const file of MAIL_FILES) {
+      const source = readFileSync(join(webRoot, file), 'utf8');
+      // The platform speaks English in the customer area.
+      assert.doesNotMatch(source, /[ăâîțșşțĂÂÎȚȘŞ]/);
+    }
+    // The words of the mail area live in the files that hold them now.
+    const addDomain = readFileSync(join(webRoot, 'src/app/mail/MailAddDomainDialog.tsx'), 'utf8');
+    assert.match(addDomain, /Add an email domain/);
+    const dns = readFileSync(join(webRoot, 'src/app/mail/MailDnsPanel.tsx'), 'utf8');
+    assert.match(dns, /DNS records to publish/);
   });
 });

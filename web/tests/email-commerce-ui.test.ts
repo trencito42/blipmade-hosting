@@ -252,7 +252,20 @@ describe('the storefront of hosted mail', () => {
 });
 
 describe('the source of the interface of hosted mail', () => {
-  const files = ['src/app/EmailHosting.tsx', 'src/app/Mail.tsx', 'src/app/Deploy.tsx'];
+  // The mail area lives in `app/mail/` now, so the files that hold it are
+  // checked as well: no amount and no limit is ever written in them.
+  const files = [
+    'src/app/EmailHosting.tsx',
+    'src/app/Mail.tsx',
+    'src/app/Deploy.tsx',
+    'src/app/mail/MailOverview.tsx',
+    'src/app/mail/MailDomainPage.tsx',
+    'src/app/mail/MailSubscriptionSummary.tsx',
+    'src/app/mail/MailDomainList.tsx',
+    'src/app/mail/MailPlanChangeDialog.tsx',
+    'src/app/mail/MailServiceCard.tsx',
+    'src/app/mail/shared.ts',
+  ];
 
   for (const file of files) {
     it(`writes no amount and no limit in ${file}`, () => {
