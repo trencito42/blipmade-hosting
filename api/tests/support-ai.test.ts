@@ -377,3 +377,25 @@ describe('what the model wrote, cleaned', () => {
   });
 });
 
+describe('questions about the topic take the place of the menu', () => {
+  const flow: Flow = { start: 'menu', nodes: { menu: { type: 'buttons', text: 'What do you need?', options: [{ id: 'a', label: 'Plans', next: 'bye' }] }, bye: { type: 'end' } } };
+  const make = (answer: Hooks['answer']): Hooks => ({ services: async () => [], createTicket: async () => ({ number: 1 }), transfer: async () => ({ mode: 'chat', number: 1 }), setPriority: async () => undefined, assignDepartment: async () => true, answer, ai: true });
+
+  it('shows the questions and not the menu after them, and brings the menu back on the word "menu"', async () => {
+    const hooks = make(async () => ({ text: 'Pay by card.', handoff: false, followups: ['How do I update my card?'] }));
+    const start = await startFlow(flow, hooks);
+    const asked = await advance(flow, start.session, { text: 'how do I pay' }, hooks);
+    expect(asked.out.map((o) => o.kind)).toEqual(['text', 'suggestions']);
+    expect(asked.session.node).toBe('menu');
+    const menu = await advance(flow, asked.session, { text: 'Menu' }, make(async () => ({ text: 'should not be asked', handoff: false, followups: [] })));
+    expect(menu.out.map((o) => o.kind)).toEqual(['buttons']);
+  });
+
+  it('still shows the menu after an answer that has no questions after it', async () => {
+    const hooks = make(async () => ({ text: 'Pay by card.', handoff: false, followups: [] }));
+    const start = await startFlow(flow, hooks);
+    const asked = await advance(flow, start.session, { text: 'how do I pay' }, hooks);
+    expect(asked.out.map((o) => o.kind)).toEqual(['text', 'buttons']);
+  });
+});
+

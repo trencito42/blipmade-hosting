@@ -309,14 +309,22 @@ export async function advance(flow: Flow, current: BotSession, input: Input, hoo
   switch (node.type) {
     case 'buttons': {
       const chosen = node.options.find((option) => option.id === input.option) ?? node.options.find((option) => option.label.toLowerCase() === raw.toLowerCase());
+      if (!chosen && raw.toLowerCase() === 'menu') {
+        out.push({ kind: 'buttons', text: render(node.text, session.variables), options: visibleOptions(flow, current.node!, node.options, hooks) });
+        return { session, out };
+      }
       if (!chosen) {
         // Words that are not a choice: the assistant may answer them. When it cannot, or the customer asks for a person, the
         // conversation goes to a person; the choices are shown again after an answer.
         const answered = raw && hooks.answer ? await hooks.answer(raw) : null;
         if (answered?.handoff) return handoffTo(session, out, hooks);
         out.push(answered ? { kind: 'text', text: answered.text, ai: true } : { kind: 'text', text: 'Please choose one of the options.' });
-        if (answered?.followups?.length) out.push({ kind: 'suggestions', items: answered.followups });
-        out.push({ kind: 'buttons', text: render(node.text, session.variables), options: visibleOptions(flow, current.node!, node.options, hooks) });
+        if (answered?.followups?.length) {
+          // Questions about the same topic take the place of the menu; the word "menu" brings the menu back.
+          out.push({ kind: 'suggestions', items: answered.followups });
+        } else {
+          out.push({ kind: 'buttons', text: render(node.text, session.variables), options: visibleOptions(flow, current.node!, node.options, hooks) });
+        }
         return { session, out };
       }
       session.node = chosen.next;

@@ -406,6 +406,7 @@ export default function ChatWidget() {
                           {entry.suggestions.map((item) => (
                             <button key={item} type="button" onClick={() => void answerBot({ text: item }, item)} className="min-h-11 rounded-full border border-line bg-card px-3.5 text-[14px] text-ink hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">{item}</button>
                           ))}
+                          <button type="button" onClick={() => void answerBot({ text: 'menu' }, 'Menu')} className="min-h-11 rounded-full px-3.5 text-[14px] text-ink2 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Menu</button>
                         </div>
                       )}
                       {entry.ai && <span className="mt-0.5 px-1 text-[11px] text-ink3">AI answer, it can be wrong</span>}
