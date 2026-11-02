@@ -1309,11 +1309,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
@@ -1416,11 +1414,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
@@ -1490,11 +1486,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
@@ -1599,11 +1593,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
@@ -1706,11 +1698,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
@@ -2167,11 +2157,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {
@@ -2311,11 +2299,9 @@
     },
     "currency": "EUR",
     "availability": {
-      "state": "COMING_SOON",
-      "orderable": false,
-      "blockers": [
-        "It has not been validated for deployment yet."
-      ]
+      "state": "DEPLOYABLE",
+      "orderable": true,
+      "blockers": []
     }
   },
   {

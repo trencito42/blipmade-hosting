@@ -1166,5 +1166,103 @@
     ],
     "updated": "2026-11-01",
     "catalogSlug": "python"
+  },
+  {
+    "id": "dart",
+    "title": "Dart",
+    "summary": "Deploy and manage Dart on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "dart",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "dart"
+  },
+  {
+    "id": "deno",
+    "title": "Deno",
+    "summary": "Deploy and manage Deno on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "deno",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "deno"
+  },
+  {
+    "id": "elixir",
+    "title": "Elixir",
+    "summary": "Deploy and manage Elixir on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "elixir",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "elixir"
+  },
+  {
+    "id": "golang",
+    "title": "Go",
+    "summary": "Deploy and manage Go on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "go",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "golang"
+  },
+  {
+    "id": "java",
+    "title": "Java",
+    "summary": "Deploy and manage Java on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "java",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "java"
+  },
+  {
+    "id": "rust-runtime",
+    "title": "Rust Runtime",
+    "summary": "Deploy and manage Rust Runtime on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "rust runtime",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "rust-runtime"
+  },
+  {
+    "id": "teamspeak-6",
+    "title": "TeamSpeak 6",
+    "summary": "Deploy and manage TeamSpeak 6 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "teamspeak 6",
+      "bots",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "teamspeak-6"
   }
 ]

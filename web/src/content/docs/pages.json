@@ -10408,5 +10408,1010 @@
         ]
       }
     ]
+  },
+  {
+    "id": "dart",
+    "group": "apps",
+    "title": "Dart",
+    "summary": "Deploy and manage Dart on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "dart",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "dart",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About Dart",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A runtime for Dart services, for code you write in Dart. Blipmade installs Dart in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy Dart",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Dart exposes 7 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`GIT_ADDRESS` — editable in Startup",
+              "`BRANCH` — editable in Startup",
+              "`USER_UPLOAD` — default: `0` — editable in Startup",
+              "`AUTO_UPDATE` — default: `0` — editable in Startup",
+              "`AUTO_RESET` — default: `0` — editable in Startup",
+              "`USERNAME` — editable in Startup",
+              "`ACCESS_TOKEN` — editable in Startup"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration."
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "deno",
+    "group": "apps",
+    "title": "Deno",
+    "summary": "Deploy and manage Deno on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "deno",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "deno",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About Deno",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A runtime for Deno services, for the JavaScript and TypeScript you write. Blipmade installs Deno in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy Deno",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Deno exposes 6 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`USERNAME` — editable in Startup",
+              "`ACCESS_TOKEN` — editable in Startup",
+              "`GIT_ADDRESS` — editable in Startup",
+              "`USER_UPLOAD` — default: `0` — editable in Startup",
+              "`BRANCH` — editable in Startup",
+              "`JS_FILE` — default: `main.ts` — editable in Startup"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration."
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "elixir",
+    "group": "apps",
+    "title": "Elixir",
+    "summary": "Deploy and manage Elixir on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "elixir",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "elixir",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About Elixir",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A runtime for Elixir services, running on the Erlang VM. Blipmade installs Elixir in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy Elixir",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Elixir exposes 6 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`GIT_ADDRESS` — editable in Startup",
+              "`GIT_BRANCH` — editable in Startup",
+              "`USER_UPLOAD` — default: `0` — editable in Startup",
+              "`AUTO_UPDATE` — default: `0` — editable in Startup",
+              "`GIT_USERNAME` — editable in Startup",
+              "`GIT_ACCESS_TOKEN` — editable in Startup"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Checkout asks for `GIT_ADDRESS`, `GIT_BRANCH`, `GIT_USERNAME`, `GIT_ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration."
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "golang",
+    "group": "apps",
+    "title": "Go",
+    "summary": "Deploy and manage Go on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "go",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "golang",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About Go",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A runtime for Go services, started from a program you build and upload. Blipmade installs Go in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy Go",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Go exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`GO_PACKAGE` — editable in Startup",
+              "`EXECUTABLE` — default: `starter` — managed by Blipmade"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Checkout asks for `GO_PACKAGE`, `EXECUTABLE`. These values are saved with the service so a restart or reinstall can use the same configuration."
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "java",
+    "group": "apps",
+    "title": "Java",
+    "summary": "Deploy and manage Java on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "java",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "java",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About Java",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A runtime for Java services, started from a jar file you upload. Blipmade installs Java in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy Java",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Java exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`JARFILE` — default: `starter.jar` — editable in Startup",
+              "`MAIN_CLASS` — default: `Starter` — editable in Startup"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Checkout asks for `JARFILE`. These values are saved with the service so a restart or reinstall can use the same configuration."
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rust-runtime",
+    "group": "apps",
+    "title": "Rust Runtime",
+    "summary": "Deploy and manage Rust Runtime on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "rust runtime",
+      "developer tools",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "rust-runtime",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About Rust Runtime",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A runtime for Rust services, built from your own source code. Blipmade installs Rust Runtime in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Developer tools"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy Rust Runtime",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Rust Runtime exposes 5 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`GIT_ADDRESS` — editable in Startup",
+              "`BRANCH` — editable in Startup",
+              "`AUTO_UPDATE` — default: `0` — editable in Startup",
+              "`USERNAME` — editable in Startup",
+              "`ACCESS_TOKEN` — editable in Startup"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration."
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "teamspeak-6",
+    "group": "apps",
+    "title": "TeamSpeak 6",
+    "summary": "Deploy and manage TeamSpeak 6 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "teamspeak 6",
+      "bots",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "teamspeak-6",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About TeamSpeak 6",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "A voice chat server with channels of your own. Blipmade installs TeamSpeak 6 in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Bots"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy TeamSpeak 6",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "TeamSpeak 6 exposes 18 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`TSSERVER_QUERY_ADMIN_PASSWORD` — default: `ChangeMe` — editable in Startup",
+              "`TS_VERSION` — default: `6.0.0-beta13.1` — editable in Startup",
+              "`TSSERVER_LICENSE_ACCEPTED` — default: `accept` — managed by Blipmade",
+              "`TSSERVER_FILE_TRANSFER_PORT` — default: `30033` — editable in Startup",
+              "`TSSERVER_QUERY_SSH_ENABLED` — default: `0` — editable in Startup",
+              "`TSSERVER_QUERY_SSH_PORT` — default: `10022` — editable in Startup",
+              "`TSSERVER_QUERY_HTTP_ENABLED` — default: `0` — editable in Startup",
+              "`TSSERVER_QUERY_HTTP_PORT` — default: `10080` — editable in Startup",
+              "`TSSERVER_QUERY_HTTPS_ENABLED` — default: `0` — editable in Startup",
+              "`TSSERVER_QUERY_HTTPS_PORT` — default: `10443` — editable in Startup",
+              "`TSSERVER_S3FT_ENABLED` — default: `0` — editable in Startup",
+              "`TSSERVER_S3FT_ACCESS_KEY` — editable in Startup",
+              "`TSSERVER_S3FT_SECRET_KEY` — editable in Startup",
+              "`TSSERVER_S3FT_BUCKET` — editable in Startup",
+              "`TSSERVER_S3FT_DOMAIN` — editable in Startup",
+              "`TSSERVER_S3FT_REGION` — editable in Startup",
+              "`TSSERVER_QUERY_HTTPS_CERT` — editable in Startup",
+              "`TSSERVER_QUERY_HTTPS_PRIVATE_KEY` — editable in Startup"
+            ]
+          },
+          {
+            "t": "p",
+            "text": "Checkout asks for `TSSERVER_LICENSE_ACCEPTED`, `TSSERVER_QUERY_ADMIN_PASSWORD`. These values are saved with the service so a restart or reinstall can use the same configuration."
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]
