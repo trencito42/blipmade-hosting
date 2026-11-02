@@ -285,9 +285,17 @@ Changed web/src/nav.ts:
 - moved phone support shortcut to /admin/support;
 - left ADMIN_NAV and all 35 route registrations intact.
 
+Changed web/src/admin/CustomerDetail.tsx:
+- added Overview / Services / Billing / Support / Account & Security tabs;
+- preserved all 11 existing domain panels, controls, deep links and backend operations;
+- reduced the default customer screen from a full vertical stack to the profile summary and risk section. URL-based tab selection and browser E2E still need implementation.
+
 Changed web/src/admin/OrderDetail.tsx:
 - added orders.write frontend gating for high-impact buttons and confirmation dialog, while preserving backend authorization;
 - collapsed the long audit section by default so it can still be opened with every original record intact.
+
+Added web/tests/admin-nav-coverage.test.mjs:
+- regression assertions for all 28 primary navigation entries, sidebar coverage, registered routes and support phone shortcut; not yet executed.
 
 Not changed: database, production infrastructure, API behavior, deployed UI or customer data.
 
@@ -297,4 +305,4 @@ Verified by code inspection: menu/route count, file inventory, listed UI feature
 
 Not verified: live browser interactions, build/typecheck, tests, production deploy, external billing/provider behavior, permissions under every role, data accuracy against a live Stripe ledger, operational runtime and accessibility under assistive technologies. Do not label these as passed.
 
-This audit does not certify every admin view as "perfect". It defines route-by-route remediation and two limited non-destructive code changes; a production-grade completion claim requires all quality gates above to be executed and passed.
+This audit does not certify every admin view as "perfect". It defines route-by-route remediation, a sidebar reorganization, a first-pass customer detail tab layout and a limited order detail fix; a production-grade completion claim requires all quality gates above to be executed and passed.
