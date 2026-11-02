@@ -125,6 +125,8 @@ export async function stream(request: FastifyRequest, reply: FastifyReply, user:
 async function touchPresence(userId: string): Promise<void> {
   try {
     const now = new Date();
+    // An administrator holds every permission without a row of staff of their own; the presence belongs to a row of staff.
+    await prisma.staffMember.upsert({ where: { userId }, update: {}, create: { userId, permissions: [] } });
     await prisma.supportPresence.upsert({
       where: { userId },
       // A first connection of a person who never chose a state means they are here.
@@ -159,6 +161,7 @@ export async function registerSupportStreamRoutes(app: FastifyInstance): Promise
     if (!hasPermission(user.role, user.permissions, 'tickets.write')) throw forbidden('Your role does not allow "tickets.write".');
     const { status } = z.object({ status: z.enum(['AVAILABLE', 'BUSY', 'AWAY', 'OFFLINE']) }).parse(request.body);
     const now = new Date();
+    await prisma.staffMember.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id, permissions: [] } });
     const row = await prisma.supportPresence.upsert({
       where: { userId: user.id },
       create: { userId: user.id, status, lastSeenAt: now },

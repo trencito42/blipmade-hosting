@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db.js';
 import { closeSupportEvents, visibleTo, type SupportEvent } from '../src/services/support-events.js';
-import { closeApp, createAdmin, getApp, registerAndLogin, resetDatabase, type TestClient } from './helpers.js';
+import { closeApp, createAdmin, getApp, makeClient, registerAndLogin, resetDatabase, VALID_PASSWORD, type TestClient } from './helpers.js';
 import type { FastifyInstance } from 'fastify';
 
 let app: FastifyInstance;
@@ -137,5 +137,21 @@ describe('support stream: the order of the greeting', () => {
     // The row exists by the time the greeting went out: a client that reads the presence after "hello" sees itself.
     const row = await prisma.supportPresence.findFirst();
     expect(row?.status).toBe('AVAILABLE');
+  });
+});
+
+describe('support stream: an administrator without a row of staff', () => {
+  it('is recorded as present too: an administrator holds every permission without a row of their own', async () => {
+    const { hashPassword } = await import('../src/lib/password.js');
+    const user = await prisma.user.create({ data: { email: 'bare-admin@blipmade.test', passwordHash: await hashPassword(VALID_PASSWORD), role: 'ADMIN', firstName: 'Bare', lastName: 'Admin', emailVerifiedAt: new Date() } });
+    expect(await prisma.staffMember.count({ where: { userId: user.id } })).toBe(0);
+    const client = makeClient(app);
+    expect((await client.request('POST', '/api/auth/login', { email: user.email, password: VALID_PASSWORD })).status).toBe(200);
+    await listen(client, '/api/admin/support/stream', 600);
+    expect((await prisma.supportPresence.findUnique({ where: { userId: user.id } }))?.status).toBe('AVAILABLE');
+    // And the choice of a state works for them as well.
+    expect((await client.request('PUT', '/api/admin/support/presence', { status: 'BUSY' })).status).toBe(200);
+    const list = (await client.request('GET', '/api/admin/support/presence')).body.staff as { userId: string; chosen: string }[];
+    expect(list.find((row) => row.userId === user.id)?.chosen).toBe('BUSY');
   });
 });

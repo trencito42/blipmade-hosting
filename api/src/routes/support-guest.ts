@@ -65,7 +65,7 @@ export async function registerSupportGuestRoutes(app: FastifyInstance): Promise<
         message: z.string().trim().min(1, 'Write a message.').max(2000),
         contact: z.string().trim().max(200).optional(),
         departmentId: z.string().max(40).optional(),
-        consent: z.literal(true, { errorMap: () => ({ message: 'Agree to the notice to start the chat.' }) }),
+        consent: z.boolean().refine((value) => value === true, 'Agree to the notice to start the chat.'),
       })
       .parse(request.body);
     if (body.departmentId && !(await prisma.supportDepartment.findFirst({ where: { id: body.departmentId, visible: true } }))) throw badRequest('That department is not available.');
