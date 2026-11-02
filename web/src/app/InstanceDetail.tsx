@@ -5,7 +5,7 @@ import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
 import { listEvents } from '../lib/instance-api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { Link, useParams } from '../router';
+import { Link, useParams, useRouter } from '../router';
 import OverviewTab from './instance/OverviewTab';
 import {
   ConfirmDialog,
@@ -647,9 +647,12 @@ function ClosedService({ instance }: { instance: Instance }) {
 }
 
 export default function InstanceDetail() {
-  const { id } = useParams();
+  const { id, tab: tabParam } = useParams();
+  const { navigate } = useRouter();
   const { push } = useToast();
-  const [tab, setTab] = useState<Tab>('overview');
+  // The section is part of the address, so a link opens it, Back returns to the one before, and the page is not loaded again.
+  const tab: Tab = TABS.some((entry) => entry.value === tabParam) ? (tabParam as Tab) : 'overview';
+  const setTab = (next: Tab) => navigate(next === 'overview' ? `/app/instances/${id}` : `/app/instances/${id}/${next}`, { scroll: false });
   const tabsRef = useRef<HTMLDivElement>(null);
   useRevealOnChange(tabsRef, [tab], 120);
   const [powerCooldown, setPowerCooldown] = useState(0);

@@ -21,6 +21,7 @@ import {
   DangerButton,
   EmptyState,
   ErrorState,
+  FadedLoadMore,
   LoadingBlock,
   Money,
   Select,
@@ -30,6 +31,7 @@ import {
   StatusPill,
   TextArea,
   TextInput,
+  useReveal,
   useToast,
 } from '../ui-app';
 
@@ -668,6 +670,7 @@ function ActivityPanel({ id }: { id: string }) {
     },
     [id],
   );
+  const reveal = useReveal(list.items.length, list.hasMore, list.loadMore);
   return (
     <Panel title="Activity" description="What was done to this server.">
       {list.loading ? (
@@ -678,7 +681,7 @@ function ActivityPanel({ id }: { id: string }) {
         <p className="text-[14px] text-ink2">Nothing yet. Power actions, snapshots and changes appear here.</p>
       ) : (
         <ul className="grid gap-1.5">
-          {list.items.map((row) => (
+          {list.items.slice(0, reveal.shown).map((row) => (
             <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
               <p className="text-[14px] font-medium text-ink">
                 {row.text}
@@ -687,15 +690,11 @@ function ActivityPanel({ id }: { id: string }) {
               <span className="whitespace-nowrap font-mono text-[12px] text-ink3">{new Date(row.createdAt).toLocaleString()}</span>
             </li>
           ))}
-          <li>
-            {list.hasMore ? (
-              <div ref={list.sentinel} className="grid justify-items-center pt-2">
-                {list.loadingMore ? <p role="status" className="text-[12.5px] text-ink3">Loading more…</p> : <SoftButton onClick={list.loadMore}>Load more</SoftButton>}
-              </div>
-            ) : (
-              <p className="pt-2 text-center text-[12.5px] text-ink3">That is everything.</p>
-            )}
-          </li>
+          {reveal.hidden && (
+            <li>
+              <FadedLoadMore loadingMore={list.loadingMore} faded onClick={reveal.more} />
+            </li>
+          )}
         </ul>
       )}
     </Panel>

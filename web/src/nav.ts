@@ -18,6 +18,19 @@ const SETTINGS: NavEntry = { to: '/app/settings', label: 'Settings', shortLabel:
 
 export const CUSTOMER_NAV: NavEntry[] = [OVERVIEW, DEPLOY, INSTANCES, VPS, DOMAINS, MAIL, BILLING, SUPPORT, SETTINGS];
 
+/**
+ * The sidebar of the customer: the places that sell something or hold the account stand alone, and the services the
+ * customer already has are one group that opens and closes.
+ */
+export const CUSTOMER_GROUPS: NavGroup[] = [
+  { id: 'overview', label: OVERVIEW.label, icon: OVERVIEW.icon, items: [OVERVIEW] },
+  { id: 'deploy', label: DEPLOY.label, icon: DEPLOY.icon, items: [DEPLOY] },
+  { id: 'my-services', label: 'My services', icon: 'box', defaultOpen: true, items: [INSTANCES, VPS, DOMAINS, MAIL] },
+  { id: 'billing', label: BILLING.label, icon: BILLING.icon, items: [BILLING] },
+  { id: 'support', label: SUPPORT.label, icon: SUPPORT.icon, items: [SUPPORT] },
+  { id: 'settings', label: SETTINGS.label, icon: SETTINGS.icon, items: [SETTINGS] },
+];
+
 /** Phone bottom bar: Overview, Apps, the round Deploy button, Support. The rest opens from More. */
 export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, INSTANCES, { ...DEPLOY, primary: true }, SUPPORT];
 

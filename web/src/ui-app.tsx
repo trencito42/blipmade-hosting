@@ -98,6 +98,8 @@ export interface NavGroup {
   label: string;
   icon: IconName;
   items: NavEntry[];
+  /** Open until the customer closes it. */
+  defaultOpen?: boolean;
 }
 
 /**
@@ -114,7 +116,8 @@ function GroupedNav({ groups, isActive }: { groups: NavGroup[]; isActive: (entry
     }
   });
   const toggle = (id: string) => {
-    const next = { ...open, [id]: !(open[id] ?? false) };
+    const current = open[id] ?? groups.find((group) => group.id === id)?.defaultOpen ?? false;
+    const next = { ...open, [id]: !current };
     setOpen(next);
     try {
       localStorage.setItem(storageKey, JSON.stringify(next));
@@ -127,7 +130,7 @@ function GroupedNav({ groups, isActive }: { groups: NavGroup[]; isActive: (entry
       {groups.map((group) => {
         const hasActive = group.items.some(isActive);
         const single = group.items.length === 1;
-        const expanded = hasActive || (open[group.id] ?? false);
+        const expanded = hasActive || (open[group.id] ?? group.defaultOpen ?? false);
         if (single) {
           const entry = group.items[0]!;
           return (
@@ -867,7 +870,7 @@ const errorRing = 'border-bad focus-visible:ring-bad/40';
 
 const inputBase = cn(fieldBase, 'h-12 px-4 text-[15px]');
 const areaBase = cn(fieldBase, 'rounded-xl p-4 text-[15px] leading-relaxed');
-const selectBase = cn(fieldBase, 'h-12 appearance-none pl-4 pr-10 text-[15px]');
+const selectBase = cn(fieldBase, 'h-12 appearance-none bg-none pl-4 pr-10 text-[15px]');
 
 /** The chevron of the dropdown, drawn with the icon font and not with a picture. */
 const selectChevron = "pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink3";
@@ -1658,6 +1661,31 @@ export function NotificationBellPanel({
       >
         Open the notification centre
       </Link>
+    </div>
+  );
+}
+
+const REVEAL_FIRST = 6;
+const REVEAL_STEP = 10;
+
+/**
+ * Six rows at first, with the last one fading out; the button shows ten more and reads the next page when the rows
+ * that are already here have all been shown.
+ */
+export function useReveal(total: number, hasMore: boolean, loadMore: () => void) {
+  const [shown, setShown] = useState(REVEAL_FIRST);
+  const more = () => {
+    const next = shown + REVEAL_STEP;
+    setShown(next);
+    if (hasMore && next > total) loadMore();
+  };
+  return { shown, more, hidden: total > shown || hasMore };
+}
+
+export function FadedLoadMore({ loadingMore, faded, onClick }: { loadingMore: boolean; faded: boolean; onClick: () => void }) {
+  return (
+    <div className={faded ? '-mt-14 grid justify-items-center gap-2 bg-gradient-to-t from-card via-card/85 to-transparent pt-12' : 'grid justify-items-center gap-2 pt-2'}>
+      {loadingMore ? <p role="status" className="text-[12.5px] text-ink3">Loading more…</p> : <SoftButton onClick={onClick}>Load more</SoftButton>}
     </div>
   );
 }

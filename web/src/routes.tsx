@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { AppShell, ErrorState, LoadingBlock } from './ui-app';
-import { ADMIN_GROUPS, ADMIN_NAV, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS } from './nav';
+import { ADMIN_GROUPS, ADMIN_NAV, CUSTOMER_GROUPS, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS } from './nav';
 import { useSession } from './session';
 import { ParamsProvider, matchPath, useParams, useRouter } from './router';
 import { Link } from './router';
@@ -119,6 +119,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app', component: AppOverview, title: 'Overview', area: 'customer', exact: true },
   { pattern: '/app/instances', component: AppInstances, title: 'Apps & databases', area: 'customer' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
+  { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
@@ -555,7 +556,7 @@ export default function AppRoutes() {
         <AppShell
           nav={nav}
           phoneTabs={tabs}
-          groups={route.area === 'admin' ? ADMIN_GROUPS : undefined}
+          groups={route.area === 'admin' ? ADMIN_GROUPS : CUSTOMER_GROUPS}
           title={route.title}
           subtitle={route.subtitle}
           environment={route.area === 'admin' ? 'Staff · Production' : undefined}

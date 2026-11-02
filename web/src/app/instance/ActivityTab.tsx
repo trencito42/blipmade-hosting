@@ -3,7 +3,7 @@ import { useInfiniteList } from '../../lib/useInfinite';
 import { listActivityPage, listEventsPage, type InstanceEvent, type PanelActivity } from '../../lib/instance-api';
 import { describeEvent } from '../../lib/activity';
 import { describePanelAction, eventTypeLabel } from '../../lib/event-labels';
-import { EmptyState, ListRow, LoadingBlock, Panel, Select, SoftButton } from '../../ui-app';
+import { EmptyState, FadedLoadMore, ListRow, LoadingBlock, Panel, Select, useReveal } from '../../ui-app';
 import { ApiErrorState, fmtDateTime, type TabProps } from './common';
 
 /**
@@ -16,15 +16,6 @@ import { ApiErrorState, fmtDateTime, type TabProps } from './common';
 
 const when = (value: string) => <span className="whitespace-nowrap font-mono text-[12px] text-ink3">{fmtDateTime(value)}</span>;
 
-function LoadMore({ sentinel, hasMore, loadingMore, onClick }: { sentinel: React.RefObject<HTMLDivElement | null>; hasMore: boolean; loadingMore: boolean; onClick: () => void }) {
-  if (!hasMore) return <p className="pt-2 text-center text-[12.5px] text-ink3">That is everything.</p>;
-  return (
-    <div ref={sentinel} className="grid justify-items-center gap-2 pt-2">
-      {loadingMore ? <p role="status" className="text-[12.5px] text-ink3">Loading more…</p> : <SoftButton onClick={onClick}>Load more</SoftButton>}
-    </div>
-  );
-}
-
 function BlipmadeEvents({ instance }: TabProps) {
   const [type, setType] = useState('');
   const [kinds, setKinds] = useState<{ type: string; count: number }[]>([]);
@@ -36,6 +27,7 @@ function BlipmadeEvents({ instance }: TabProps) {
     },
     [instance.id, type],
   );
+  const reveal = useReveal(list.items.length, list.hasMore, list.loadMore);
   return (
     <Panel title="The instance in Blipmade" description="What the platform did with this instance.">
       <div className="grid gap-3">
@@ -55,7 +47,7 @@ function BlipmadeEvents({ instance }: TabProps) {
           <EmptyState title="Nothing here." description={type ? 'No event of this kind.' : 'Every step of the instance is written here.'} />
         ) : (
           <div className="grid gap-1.5">
-            {list.items.map((event) => {
+            {list.items.slice(0, reveal.shown).map((event) => {
               const text = describeEvent(event, instance.name);
               return (
                 <ListRow
@@ -66,7 +58,7 @@ function BlipmadeEvents({ instance }: TabProps) {
                 />
               );
             })}
-            <LoadMore sentinel={list.sentinel} hasMore={list.hasMore} loadingMore={list.loadingMore} onClick={list.loadMore} />
+            {reveal.hidden && <FadedLoadMore loadingMore={list.loadingMore} faded onClick={reveal.more} />}
             {list.error && <p role="alert" className="text-[12.5px] text-bad">{list.error.message}</p>}
           </div>
         )}
@@ -87,6 +79,7 @@ function PanelActivityList({ instance }: TabProps) {
   const described = useMemo(() => list.items.map((row) => ({ row, ...describePanelAction(row.action) })), [list.items]);
   const kinds = useMemo(() => [...new Set(described.map((entry) => entry.kind))].sort(), [described]);
   const shown = kind ? described.filter((entry) => entry.kind === kind) : described;
+  const reveal = useReveal(shown.length, list.hasMore, list.loadMore);
   return (
     <Panel title="The server on the panel" description="What the panel recorded on the server of the instance.">
       <div className="grid gap-3">
@@ -109,7 +102,7 @@ function PanelActivityList({ instance }: TabProps) {
           />
         ) : (
           <div className="grid gap-1.5">
-            {shown.map(({ row, text, kind: group }, index) => (
+            {shown.slice(0, reveal.shown).map(({ row, text, kind: group }, index) => (
               <ListRow
                 key={`${row.action}-${row.createdAt}-${index}`}
                 title={<span className="break-words">{text}</span>}
@@ -117,7 +110,7 @@ function PanelActivityList({ instance }: TabProps) {
                 right={when(row.createdAt)}
               />
             ))}
-            <LoadMore sentinel={list.sentinel} hasMore={list.hasMore} loadingMore={list.loadingMore} onClick={list.loadMore} />
+            {reveal.hidden && <FadedLoadMore loadingMore={list.loadingMore} faded onClick={reveal.more} />}
             {list.error && <p role="alert" className="text-[12.5px] text-bad">{list.error.message}</p>}
           </div>
         )}
