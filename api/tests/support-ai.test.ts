@@ -193,7 +193,7 @@ describe('the assistant answers customers in the chat', () => {
     expect(await answerCustomer('How do I sign in?')).toBeNull();
     expect(seen).toHaveLength(0);
     await configure(admin, { customerAnswers: true });
-    expect(await answerCustomer('How do I sign in to my account?')).toContain('A member of the staff');
+    expect((await answerCustomer('How do I sign in to my account?'))?.text).toContain('A member of the staff');
     expect(seen).toHaveLength(1);
   });
 
@@ -205,8 +205,8 @@ describe('the assistant answers customers in the chat', () => {
     const messages = seen[0]!.body.messages as { role: string; content: string }[];
     const system = messages.find((m) => m.role === 'system')!.content;
     const user = messages.find((m) => m.role === 'user')!.content;
-    expect(system).toContain('Answer only from the <doc> blocks');
-    expect(system).toContain('Never state or promise');
+    expect(system).toContain('use only the <doc> blocks');
+    expect(system).toContain('Never promise or state');
     expect(user).not.toContain('internal account sign in procedure');
     expect(user).not.toContain('hunter2hunter2');
     expect(user.match(/<\/customer_message>/g)?.length).toBe(1);
@@ -232,8 +232,8 @@ describe('the assistant answers customers in the chat', () => {
 
   it('answers words that are not a choice and shows the choices again; without it, asks to choose', async () => {
     const start = await startFlow(flow, hooks());
-    const withAi = await advance(flow, start.session, { text: 'are you there?' }, hooks(async () => 'Yes, how can I help?'));
-    expect(withAi.out[0]).toEqual({ kind: 'text', text: 'Yes, how can I help?' });
+    const withAi = await advance(flow, start.session, { text: 'are you there?' }, hooks(async () => ({ text: 'Yes, how can I help?', handoff: false })));
+    expect(withAi.out[0]).toEqual({ kind: 'text', text: 'Yes, how can I help?', ai: true });
     expect(withAi.out.at(-1)?.kind).toBe('buttons');
     expect(withAi.session.node).toBe('q');
     const without = await advance(flow, start.session, { text: 'are you there?' }, hooks(async () => null));
@@ -242,8 +242,9 @@ describe('the assistant answers customers in the chat', () => {
 
   it('runs the block "Answer with the assistant", and goes on when there is no answer', async () => {
     const ai: Flow = { start: 'a', nodes: { a: { type: 'ai_answer', query: 'sign in', next: 'e' }, e: { type: 'end', text: 'Bye' } } };
-    const got = await startFlow(ai, hooks(async () => 'Use the login page.'));
+    const got = await startFlow(ai, hooks(async () => ({ text: 'Use the login page.', handoff: false })));
     expect(got.out.map((o) => (o.kind === 'text' ? o.text : ''))).toEqual(['Use the login page.', 'Bye']);
+    expect(got.out[0]).toMatchObject({ ai: true });
     const none = await startFlow(ai, hooks(async () => null));
     expect(none.out.map((o) => (o.kind === 'text' ? o.text : ''))).toEqual(['Bye']);
   });
@@ -254,6 +255,61 @@ describe('searching the documentation', () => {
     expect(searchDocs('hello my server is not reachable please help')).toEqual([]);
     expect(searchDocs('are you there')).toEqual([]);
     expect(searchDocs('how do I sign in to my account').length).toBeGreaterThan(0);
+  });
+});
+
+describe('the assistant hands over when it cannot help', () => {
+  const flow: Flow = {
+    start: 'menu',
+    nodes: {
+      menu: { type: 'buttons', text: 'Pick', options: [{ id: 'a', label: 'Plans', next: 'more' }, { id: 'p', label: 'Talk to an agent', next: 'human' }] },
+      more: { type: 'buttons', text: 'Anything else?', options: [{ id: 'done', label: 'That is all', next: 'bye' }, { id: 'p2', label: 'Talk to an agent', next: 'human' }] },
+      human: { type: 'transfer' },
+      bye: { type: 'end' },
+    },
+  };
+  const make = (answer: Hooks['answer'], ai = true, log: string[] = []): Hooks => ({
+    services: async () => [],
+    createTicket: async () => ({ number: 1 }),
+    transfer: async () => {
+      log.push('transfer');
+      return { mode: 'chat', number: 5 };
+    },
+    setPriority: async () => undefined,
+    assignDepartment: async () => true,
+    answer,
+    ai,
+  });
+
+  it('goes to a person when the assistant says it cannot answer', async () => {
+    const log: string[] = [];
+    const start = await startFlow(flow, make(async () => ({ text: '', handoff: true }), true, log));
+    const result = await advance(flow, start.session, { text: 'my invoice is wrong' }, make(async () => ({ text: '', handoff: true }), true, log));
+    expect(result.session.state).toBe('HANDED_OFF');
+    expect(log).toEqual(['transfer']);
+    expect(result.out.at(-1)).toMatchObject({ kind: 'text', text: expect.stringContaining('connect you to a person') });
+  });
+
+  it('keeps the way to a person on the first menu, and leaves it out of the later buttons while the assistant is on', async () => {
+    const start = await startFlow(flow, make(undefined, true));
+    expect(start.out.at(-1)).toMatchObject({ kind: 'buttons', options: [{ label: 'Plans' }, { label: 'Talk to an agent' }] });
+    const later = await advance(flow, start.session, { option: 'a' }, make(undefined, true));
+    expect((later.out.at(-1) as { options: { label: string }[] }).options.map((o) => o.label)).toEqual(['That is all']);
+    // Without the assistant the button stays: it is the only way.
+    const plain = await advance(flow, start.session, { option: 'a' }, make(undefined, false));
+    expect((plain.out.at(-1) as { options: { label: string }[] }).options.map((o) => o.label)).toEqual(['That is all', 'Talk to an agent']);
+  });
+});
+
+describe('the answer of the assistant to a customer', () => {
+  it('turns the marker of the model into a hand-over, and gives it the earlier messages for the language', async () => {
+    const { client: admin } = await createAdmin(app);
+    await configure(admin, { customerAnswers: true });
+    expect((await answerCustomer('Hello?', ['Salut, am o problema']))?.handoff).toBe(false);
+    const messages = seen[0]!.body.messages as { role: string; content: string }[];
+    expect(messages.find((m) => m.role === 'user')!.content).toContain('<earlier>');
+    expect(messages.find((m) => m.role === 'system')!.content).toContain('[[HANDOFF]]');
+    expect(messages.find((m) => m.role === 'system')!.content).toContain("language of the customer's latest message");
   });
 });
 

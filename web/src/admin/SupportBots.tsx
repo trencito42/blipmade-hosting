@@ -17,7 +17,7 @@ import { can, useAdminSession } from './Overview';
 type Option = { id: string; label: string; next: string };
 type Case = { equals?: string; contains?: string; next: string };
 type Node = { type: string; text?: string; next?: string; variable?: string; options?: Option[]; cases?: Case[]; else?: string; query?: string; empty?: string; article?: string; subject?: string; priority?: string; departmentId?: string };
-type Flow = { start: string; welcome?: string; nodes: Record<string, Node>; layout?: Record<string, { x: number; y: number }> };
+type Flow = { start: string; welcome?: string; persona?: { name?: string; avatarUrl?: string }; nodes: Record<string, Node>; layout?: Record<string, { x: number; y: number }> };
 type Validation = { ok: boolean; errors: string[]; warnings: string[] };
 type Out = { kind: string; text?: string; options?: { id: string; label: string }[]; articles?: { title: string; url: string }[]; input?: string };
 
@@ -266,6 +266,8 @@ function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClos
               {nodeIds.map((key) => <option key={key} value={key}>{key}</option>)}
             </Select>
             <TextInput label="Welcome message" value={flow.welcome ?? ''} onChange={(event) => change({ ...flow, welcome: event.target.value })} maxLength={1000} disabled={!mayEdit} />
+            <TextInput label="Name shown at the top of the chat" value={flow.persona?.name ?? ''} onChange={(event) => change({ ...flow, persona: { ...flow.persona, name: event.target.value } })} maxLength={40} disabled={!mayEdit} />
+            <TextInput label="Picture (https address, optional)" value={flow.persona?.avatarUrl ?? ''} onChange={(event) => change({ ...flow, persona: { ...flow.persona, avatarUrl: event.target.value } })} maxLength={300} disabled={!mayEdit} />
           </div>
           {nodeIds.map((key) => (
             <NodeCard key={key} selected={selected === key} id={key} node={flow.nodes[key]!} nodeIds={nodeIds} departments={departments.data?.departments ?? []} readOnly={!mayEdit} isStart={flow.start === key} onChange={(node) => setNode(key, node)} onRemove={() => removeNode(key)} onRename={(to) => rename(key, to)} />

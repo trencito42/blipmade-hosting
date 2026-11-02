@@ -11,7 +11,8 @@
       "password"
     ],
     "url": "/docs?p=getting-started",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "Create your account Open Create account and enter your real name, email address and a unique password. One person should use one account; free promotions are protected against duplicate accounts and repeated payment identities. Submit the form: Complete the four fields and submit the registration form. The page explains any field that needs attention. Verify your email: Open the verification message and follow its link. If it does not arrive, use Resend verification from Settings and check the delivery address and spam folder. Sign in: Open Sign in. If two-factor authentication is enabled, complete the second step with your authenticator, passkey or recovery code. Secure the account Settings shows email verification, password, two-factor authentication, passkeys and active sessions. Revoke any session you do not recognise. Staff will never ask for your password, recovery codes or API keys. Enable two-factor authentication before adding payment details or production services. Next Go to Deploy your first app, or open the catalog first if you are still choosing a product."
   },
   {
     "id": "first-app",
@@ -25,7 +26,8 @@
       "first app"
     ],
     "url": "/docs?p=first-app",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "Choose the product Open Deploy and select the product you actually want to run. Products are installed automatically from their own template; an app, a database, a game server, hosted email and a VPS do not all use the same image or setup. The product page shows its minimum resources, editable settings and current availability. A product that has not passed its deployment checks is not offered for purchase. Configure and review Choose resources: Set RAM, vCPU and storage inside the limits shown by the product. Fixed-plan products show their plan instead of resource sliders. Complete product fields: Enter only the settings shown for that product, such as a server name, token, domain or EULA acceptance. Secret values are encrypted. Review the order: Confirm the service, billing address, discount, tax, recurring total and renewal interval. Stripe handles card details; an eligible 100% discount can finish without a card charge. Follow provisioning The order and service pages show provisioning progress. Do not repeat checkout because a service is still starting. If provisioning fails, the existing order remains visible and support can retry the idempotent delivery instead of creating a duplicate. When the service is online, open Console for first-start output and use the product guide for its own setup. The generated app hostname works through HTTPS; verified custom domains can be attached later."
   },
   {
     "id": "order-values",
@@ -41,7 +43,8 @@
       "key"
     ],
     "url": "/docs?p=order-values",
-    "updated": "2026-10-28"
+    "updated": "2026-10-28",
+    "text": "Which products ask for a value Most products ask for nothing: you choose the resources and the order is enough. Some products need something that only you have, and the page of the product shows a field for each of those values before the order. A value that the product does not ask for is refused by the platform. The order is never sent with a value the product does not know. What the platform does with the values The value is sealed: The platform encrypts the value before it is written anywhere. It is kept on the instance and it is never shown again in the clear. The value goes into the container: When the instance is built, the value is written into the environment of the container, under the name the application expects. The value stays out of the address: A value is never put in the web address of the platform and never sent in a message. An account of Steam whose guard is on stops the download and asks again for a code. Turn the guard off for the account you give here, and keep the account for the game itself. If a value is wrong"
   },
   {
     "id": "account",
@@ -56,7 +59,8 @@
       "close account"
     ],
     "url": "/docs?p=account",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "The profile of the account The settings of the account hold the name, the address and the password. Everything else of the account has a page of its own: the services, the domains, the invoices and the tickets. The address of the account is also where the platform writes about your services: a deployment that is finished, an invoice, a change of resources that was refused. Change the address of the account Open the settings: Choose Settings in the menu and open the panel Profile. Write the new address: Fill in the field New email address and send the form. Confirm the new address: Open the message that arrives at the new address and follow the link of the message. An address that another account already uses is refused. Only one request is open at a time: a new request replaces the one that is waiting for its confirmation. Change the password Open the settings: Choose Settings in the menu and open the panel Password. Write the new password: Fill in the three fields and save the form. The sessions of the other devices end with the change. The session you are using stays, so you are not signed out of the page you are on. The rules of the password are the same as when the account was created: at least ten characters, a lowercase letter, an uppercase letter and a number. The sessions of the account The panel Sessions lists the sessions that are open for the account, with the device and the date of each one. The session you are in is marked with This device. A session lasts fourteen days and is not extended by the activity. You can end one session, or all the other sessions at o"
   },
   {
     "id": "dashboard",
@@ -70,7 +74,8 @@
       "activity"
     ],
     "url": "/docs?p=dashboard",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "Where things are Read a service state The visible state combines the platform record with the latest node check. Starting means the product is still coming up; Online means the runtime and health check agree; stale means the node could not provide a fresh answer. Recent activity translates internal events into customer-facing sentences. Search and notifications Use Ctrl+K (Cmd+K on macOS) to find pages, services, tickets and domains. Opening a notification marks it as read and takes you to the relevant page when a destination exists."
   },
   {
     "id": "wordpress",
@@ -82,7 +87,8 @@
       "deploy"
     ],
     "url": "/docs?p=wordpress",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About WordPress The most widely used publishing platform, for sites, blogs and shops. Blipmade installs WordPress in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy WordPress Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup WordPress exposes 24 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means t"
   },
   {
     "id": "forgejo",
@@ -94,7 +100,8 @@
       "deploy"
     ],
     "url": "/docs?p=forgejo",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Forgejo A self-hosted Git service with repositories, issues and pull requests. Blipmade installs Forgejo in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Forgejo Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Forgejo exposes 3 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means the conta"
   },
   {
     "id": "code-server",
@@ -106,7 +113,8 @@
       "deploy"
     ],
     "url": "/docs?p=code-server",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Code Server Visual Studio Code in your browser, running on the resources you choose. Blipmade installs Code Server in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Code Server Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Code Server exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Onli"
   },
   {
     "id": "uptime-kuma",
@@ -118,7 +126,8 @@
       "deploy"
     ],
     "url": "/docs?p=uptime-kuma",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Uptime Kuma Monitor websites and services, with status pages you can share. Blipmade installs Uptime Kuma in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Uptime Kuma Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Uptime Kuma exposes 3 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means "
   },
   {
     "id": "grafana",
@@ -130,7 +139,8 @@
       "deploy"
     ],
     "url": "/docs?p=grafana",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Grafana Dashboards and alerts for the metrics and logs of your services. Blipmade installs Grafana in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Grafana Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Grafana exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means the container a"
   },
   {
     "id": "discord-bot",
@@ -142,7 +152,8 @@
       "deploy"
     ],
     "url": "/docs?p=discord-bot",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Discord Bot Run a Node.js Discord bot around the clock, without keeping a computer on. Blipmade installs Discord Bot in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Discord Bot Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Discord Bot exposes 0 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; On"
   },
   {
     "id": "postgresql",
@@ -154,7 +165,8 @@
       "deploy"
     ],
     "url": "/docs?p=postgresql",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About PostgreSQL A PostgreSQL database for your applications, with its own connection details and password. Blipmade installs PostgreSQL in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy PostgreSQL Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup PostgreSQL exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page uses that check together with the container state; it does not inspect yo"
   },
   {
     "id": "redis",
@@ -166,7 +178,8 @@
       "deploy"
     ],
     "url": "/docs?p=redis",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Redis An in-memory data store, for caching and queues. Blipmade installs Redis in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Redis Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Redis exposes 1 startup setting. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `SERVER_PASSWORD`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page u"
   },
   {
     "id": "mongodb",
@@ -178,7 +191,8 @@
       "deploy"
     ],
     "url": "/docs?p=mongodb",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About MongoDB A MongoDB document database for applications with flexible data. Blipmade installs MongoDB in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy MongoDB Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup MongoDB exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `MONGO_USER`, `MONGO_USER_PASS`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade checks whether the service accepts a connection on"
   },
   {
     "id": "resources",
@@ -194,7 +208,8 @@
       "price"
     ],
     "url": "/docs?p=resources",
-    "updated": "2026-10-28"
+    "updated": "2026-10-28",
+    "text": "The three resources An instance runs in a container with three limits. The container gets exactly what you buy, and the limits are the limits of the service until a change of resources is applied. The minimum and the maximum belong to the product in the catalog. A configuration under the minimum or over the maximum is refused. How the price follows the resources The price of a configuration is calculated by the platform from the resources you choose. The price is in euros and the period is the month. The price follows the resources and nothing else: the memory, the processors and the storage of the configuration. Every product of the catalog is priced with the same card of rates, so the same resources cost the same in every product. A product that would be cheaper because it asks for fewer resources could be bought by a customer who wants something else in it, and the resources they really use would be paid for by nobody. Every product of the catalog carries a minimum of resources. The page of the product shows the minimum in the panel Minimum resources, and the card of the product in the catalog shows the price of that smallest configuration. The card is the price of a month. A plan of a year is the twelve months of that card, and it is only quoted for a product that has a price of a year. The tab Resources of an instance shows what you bought: the purchased limits, the price of the month and, when a change is being prepared, the price the change would bring. A plan of hosted mail is not priced by its resources: it is a subscription of a service, and it keeps the price of "
   },
   {
     "id": "billing",
@@ -209,7 +224,8 @@
       "month"
     ],
     "url": "/docs?p=billing",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "Checkout Before payment, checkout shows every line, discount, tax, billing address, amount due now and recurring amount. Stripe collects card details. Blipmade stores provider identifiers and billing records, not your card number. Billing page Billing lists orders, invoices and one subscription per service. A new subscription may not have a renewal date until Stripe has confirmed its billing period; the page must show that as pending rather than inventing a date. Use the payment portal to update the card and provider billing details. The billing address saved in Settings is used for future checkout and invoices. Free and discounted orders A promotion can reduce an eligible order, including to 100%. Free campaigns can require a verified email, limit the product and term, and reject duplicate accounts or payment identities. The review page explains the applied code before you confirm. If billing and service state disagree Do not place the order again. Open the order in Billing and include its number in a support ticket. Staff can inspect the Stripe webhook, invoice, payment, fulfilment and service chain from the same order record."
   },
   {
     "id": "upgrade",
@@ -224,7 +240,8 @@
       "restart"
     ],
     "url": "/docs?p=upgrade",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "A change of resources is an order The resources of an instance are not changed on the spot. A change is an order that has to be paid, and the service keeps the resources it has until the order is settled. The resources of a service that has not been paid for are never changed. Order the change Open the tab Resources: Open the instance and choose the tab Resources. Write the new values: Change the memory, the vCPU or the storage and choose Save resources. Pay the difference: When the change costs more, the platform writes an order for it and asks for the payment. The service is not touched before the payment. Watch the change: An increase is applied as soon as the order is paid. A decrease is settled by the platform and lowers the amount of the next invoice. When the change cannot be applied If the platform cannot apply a change that was paid for, the money goes back to you by itself: the order is marked as refunded and the instance keeps the resources it had. The event is written in the tab Activity of the instance. A change that was never paid for is simply not applied. There is nothing to refund, because the money was never taken. See Refunds and credits for the whole of the subject. Questions about a change"
   },
   {
     "id": "cancel",
@@ -239,7 +256,8 @@
       "delete"
     ],
     "url": "/docs?p=cancel",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "Cancel the instance Open the tab Settings: Open the instance and choose the tab Settings. Choose Cancel instance: The button is at the bottom of the panel. A dialog asks you to write the name of the instance to confirm. Confirm: Write the name of the instance and confirm. The instance keeps running until the end of the paid period, then it is removed. You can resume it from billing before then. What happens after the cancellation The subscription of the instance is set to end with the period that was paid. When the period is over, the instance is withdrawn and the subscription is not renewed. A cancelled instance is kept for a term of retention, thirty days by default. The data of the instance is exported before anything is deleted, and the container itself is removed only when the term is over and the operator has allowed the automatic deletion. The data of the instance is not gone when the period ends. Your data The export of the instance is written when the service is cancelled and it stays available after the service is deleted. The billing page lists the cancelled services and says whether the export is available. The export describes the service and the records of the account: the name of the instance, its product, its limits, its price, its hostnames, its events, its invoices and its payments. It is not a copy of the files of the container — a copy of the files is a backup. Cancel from the billing page The panel Subscriptions of the billing page carries the action Cancel at period end for each instance. The dialog says that the instance keeps running until the date o"
   },
   {
     "id": "refunds",
@@ -254,7 +272,8 @@
       "money"
     ],
     "url": "/docs?p=refunds",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "The refunds that are automatic There are two cases where the money goes back without anybody having to ask for it: A refund that the provider itself refuses is flagged, and the operator returns the money by hand instead of the platform keeping a payment for a service that does not exist. The refunds that are decided by a person Outside those two cases a refund is not automatic. A request is looked at by the operator and the decision is taken by a person. Open a ticket: Open the menu Support and write to the team. Describe the service, the order and what you expect. Wait for the answer: The team answers in the ticket. The platform does not promise how long a refund takes. The payment provider states the delay. Credits A decrease of the resources is not refunded. The difference is carried to the next invoice of the account. What the platform does not do"
   },
   {
     "id": "domains",
@@ -269,7 +288,8 @@
       "subdomain"
     ],
     "url": "/docs?p=domains",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "Add the hostname Choose the service: Open the instance and its Domains or Network tab, then enter the full hostname you control. Publish verification DNS: Copy the TXT record exactly to your DNS provider. Verification prevents another account from claiming your hostname. Point traffic to Blipmade: Publish the target record shown by the dashboard. Keep proxying disabled while diagnosing DNS unless the page explicitly supports the proxy in front of the service. Wait for Active: Blipmade verifies DNS, creates the gateway route and provisions HTTPS. DNS and certificate issuance can take several minutes. Remove a hostname Remove it from the service before reusing it on another account. Then remove the DNS records you no longer need. Removing a hostname does not delete the service or its files."
   },
   {
     "id": "dns",
@@ -285,7 +305,8 @@
       "nameserver"
     ],
     "url": "/docs?p=dns",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "The records Every domain in your dashboard lists the records it expects, each with a name, a type and a value. Blipmade does not guess them and it does not write them: it tells you what to create at your DNS provider, because the DNS of your domain belongs to you. If your provider has a CNAME flattening or a proxy setting, turn it off for these records. A proxied hostname does not answer the verification check. Create the records Open the domain in the dashboard: The list of records is on the domain itself. Create them at your provider: Add one record per line, exactly as listed. Verify: Start the verification again from the domain page. Propagation Propagation is the time between creating a record and every resolver seeing it. It is usually minutes and at worst a few hours, and it depends on the TTL of your record rather than on Blipmade. A claim that is never proved runs out after seven days, so verify again as soon as your records are published. The records of a mail domain A domain of mail needs other records: the mail server that has to receive the mail, the signature of the domain and the two records that let a mail client find its settings by itself. They are listed on the domain itself in the Email page of the dashboard, and they are described in the DNS records of a mail domain. A hostname that carries both an instance and a mail domain needs both sets of records. Publish them one after the other and check each of them where it belongs."
   },
   {
     "id": "ssl",
@@ -300,7 +321,8 @@
       "encryption"
     ],
     "url": "/docs?p=ssl",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "Automatic HTTPS Generated `*.apps.blipmade.com` hostnames and verified custom app hostnames are routed by the gateway and receive HTTPS automatically. You do not upload a certificate in the dashboard. While a certificate is pending First confirm that DNS resolves to the target shown by Blipmade. A proxy, CAA restriction or old IPv6 record can prevent validation. Do not repeatedly remove and add the hostname; wait a few minutes and check again. TLS errors"
   },
   {
     "id": "platform-domains",
@@ -315,7 +337,8 @@
       "network"
     ],
     "url": "/docs?p=platform-domains",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "The domain of the platform The platform has one domain of its own: apps.blipmade.com. It is the base under which the platform reserves its names, and it is not yours to claim. The claim of the base, and of anything under it, is refused with the message That hostname is reserved by the platform. The address of an instance Open the instance: Go to the instance page and open the Network tab. Find the primary one: The panel assigns an address to every server, and the primary one is the address the service is reached at. Read it as it is: The address is an IP address and a port. It is not a name, and it carries no certificate. A hostname under the domain of the platform A hostname under apps.blipmade.com is a name of the platform. The platform keeps the name and its zone, and it reserves the whole base, so no account can claim one. Today no route of an instance is published under that base: every hostname of a customer is a hostname of a domain the customer owns. The difference is who proves the ownership and who is responsible for the DNS. For a hostname of your own, you publish the records at your provider and you prove that the hostname is yours; the platform then routes it to your instance and keeps the route up. For a name of the platform, the platform is the owner and nobody has to prove anything. A hostname of yours that is claimed for an instance is described in Attach a domain to an instance, and the records it needs are in The DNS records you need. The certificate of the platform The certificate of blipmade.com covers the addresses of the platform, so the dashboard and"
   },
   {
     "id": "files",
@@ -331,7 +354,8 @@
       "disk"
     ],
     "url": "/docs?p=files",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "Open the file browser Open the instance: Go to the files section of the instance. Walk into a folder: Open folders to see what is inside, and go back with the breadcrumb. Edit a file Open the file: Open a text file to see its content. Change it and save: Edit the content and press Save file. Saving replaces the whole file. If the application is running and holds it open, it may keep working with the old content until it is restarted. The browser also renames a file, moves or copies it into another folder of the same instance, and changes its permissions. A file that is not text is not shown in the editor: download it and change it outside. Upload and download The Folders panel of the browser has an Upload button, and every file has a Download action. The upload goes to the folder that is open in the panel. The file browser is meant for configuration and small edits. For large uploads, use the console: a download in the instance is faster and does not depend on the browser. Delete a file Select the file: Open the folder that holds the file. Delete it: Press Delete and confirm. The browser warns that the file is removed from the instance and that this cannot be undone. There is no trash folder, and nothing takes a copy of the file for you. Take a [backup](/docs?p=backups) before you delete something. What the browser does not do"
   },
   {
     "id": "console",
@@ -346,7 +370,8 @@
       "instance"
     ],
     "url": "/docs?p=console",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "Open the console Open the instance: Go to the console section of the instance. Wait for a prompt: The console attaches to the process of the instance as the user the application runs as. The browser asks the platform for the console, and the platform opens it on the server with the key of your account. The key never reaches the browser. What to use it for The console and the output The console shows the output as it arrives. The browser keeps the last lines it received and the platform keeps no history of them: a reload of the page loses the output, and a restart of the instance loses it for good. The details are in The logs of a service. What the console does not do Put anything you want to run on every start into the startup command of the instance. The console is for the one-off job."
   },
   {
     "id": "logs",
@@ -361,7 +386,8 @@
       "diagnostics"
     ],
     "url": "/docs?p=logs",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "Where the output comes from The output of your application is written by the process that runs in the container. The console of the instance shows it while it is produced, and that is the only place the platform shows it to you. The platform does not collect the logs of your application. There is no log page in the dashboard, no log file is written for you and no history of the output is kept. What the platform keeps Keep your own log Write the log where you want it: Ask your application to write its own log to a file in the container, for example in the folder of the project. Read or download it: Open the file in the file browser of the instance, or download it. Put it in a backup: Ask for a backup of the instance and download it. A file you write yourself is a file of the container: it is in the backup and in the file browser. The platform does not keep a log for you and does not rotate it. When you need the output of a crash"
   },
   {
     "id": "account-security",
@@ -376,7 +402,8 @@
       "reset"
     ],
     "url": "/docs?p=account-security",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "Your session Signing in creates a session on the server and hands the browser an HttpOnly cookie. Scripts in the page cannot read it. The session lasts fourteen days from the moment you signed in, and your activity does not make it last longer. After fourteen days the session ends on its own and you sign in again. You can end it earlier from the Sessions panel of the settings page, one session at a time. The sessions Open the settings: Go to the Settings page of your account and open the Sessions panel. Read the line of a session: The line shows the address of the session, the moment you signed in and the last activity of that session. The session you are on is marked This device. Close the ones you do not want: Press Close session on the session you do not recognise, or Close the other sessions to end every session but this one. Change your password Open the Password panel: The settings page of your account has a Password panel. Choose a password of ten characters or more: The password needs at least ten characters, with a lowercase letter, an uppercase letter and a digit. Save it: Press Change the password. Changing the password closes the other sessions of the account, and a script that holds your cookie stops working at the same moment. Reset your password When you cannot sign in, the password is reset with a link that the platform mails to the address of the account. The reset link opens the reset page of the platform with a token in it, not the settings page. Ask for a reset link: Open the forgot password page, which is linked from the sign-in page. Open the link: The"
   },
   {
     "id": "instance-access",
@@ -392,7 +419,8 @@
       "access"
     ],
     "url": "/docs?p=instance-access",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "The ways in Everything you do to an instance goes through the account you signed in with. The credential of the platform stays on the server, in your account only. Environment variables Open the instance: Go to the startup and environment section of the instance. Set the variables: Add or change the variables the application needs and save. Wait for the next start: Saving the environment does not restart the instance. The values that are running are the ones the instance had when it started. Environment variables are readable by anyone who can open the instance and by everything that runs inside it. Keep tokens and database passwords out of your code. The startup command The startup command is what the instance runs when it starts. Put your migrations and your installs in it, so a restart comes back in a working state. Saving it does not restart the instance either. Using the API The API lives under /api of the same address you use for the dashboard. Requests are same-origin and carry your session cookie. Every request that changes something also needs the X-CSRF-Token header, whose value is the readable bm_csrf cookie. API keys Programmatic keys are {{planned}}. The API does not expose key management, so the dashboard does not offer a button to create one. Until then, scripts use the session of an account, which means they need the cookie and the CSRF token of a signed-in user. Do not put the session cookie of a real account into a script that runs unattended. Treat every cookie like a password."
   },
   {
     "id": "permissions",
@@ -408,7 +436,8 @@
       "account"
     ],
     "url": "/docs?p=permissions",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "In your own account Everything in the dashboard belongs to the account you signed in with. The instances, the hostnames, the tickets, the subscriptions and the files are checked against the owner on every request, and an instance of somebody else answers like an instance that does not exist. There is no second level of permission in the customer area. An account that can open an instance can read its files, run commands in it, change its environment, take a backup of it and remove it. What your account can do The roles of the back office The staff of the platform works in a back office that is separate from the customer area. It has two roles. Every permission comes in two: one to read and one to write. The areas are the customers, the orders, the services, the catalog, the prices, the tickets, the promotions, the infrastructure, the mail, the audit log, the staff and the settings of the platform. A staff member who does not hold a permission cannot hand it out either: nobody can grant more than they hold. The access to the container of a customer always goes through the credential of the customer, so the staff of the platform never reaches your files with its own privileges. When something is not yours"
   },
   {
     "id": "email-hosting",
@@ -423,7 +452,8 @@
       "plan"
     ],
     "url": "/docs?p=email-hosting",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "Not on sale today The hosted mail is not on sale today, so no plan of hosted mail can be bought and no mail service can be started. Do not expect a mail plan, a mail domain or a mailbox that you can order today. So that you know what you are waiting for, here is what the feature holds. Nothing of it can be bought today. What hosted mail is The plans A plan of hosted mail sets a number of domains, a number of mailboxes per domain, a number of aliases per domain, a number of forwarding rules per domain, the space of the plan, the space of one mailbox and a sending limit. The Email page of the dashboard shows these limits for each plan, and shows that the plan is not on sale yet. The plans carry no price yet. A price that nobody decided is not an offer, so none is written here either. What you can do today Use the mail of the platform: The address of your account receives the notifications of the account: the verification of the address, the change of the password, the state of your tickets and the life of your instances. Keep that address in good order: The address of the account is changed in the Profile panel of the settings page, and the change is only made when you open the link of the confirmation mail. Decide what you want to hear: The groups of the messages are switched in the Notifications panel of the settings page. The hosted mail of the platform is a different thing from the mail of the platform. The second one is the channel of your account; the first one is a service you would buy, and it is not for sale."
   },
   {
     "id": "mailboxes",
@@ -439,7 +469,8 @@
       "mail"
     ],
     "url": "/docs?p=mailboxes",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "Not available today Hosted mail is not on sale today, so there is no mail domain and no mailbox in your account today. Here is what you get when the sale opens. The mailboxes A mailbox is an address that receives mail and that you open in the webmail or in a mail client. It has a password, a space of its own and a status. The password of a mailbox is shown once, when the mailbox is created. It is not written down anywhere else, so a lost password means a new mailbox. The aliases An alias is an address that delivers into a mailbox instead of being a mailbox of its own. It is the way to have info@ and support@ reach the same mailbox, and the way to publish an address without opening it. An alias points at one mailbox, and the dashboard shows that mailbox in the column Goes to. When the mailbox goes, the aliases that deliver to it go with it: the mail system removes them, because an alias that the platform shows and the mail system does not have is an alias that delivers nowhere. The space of a domain A domain of mail has a space of its own and its mailboxes share it. The plan sets both: the space of the plan and the space of one mailbox. The suspension of a mail service The mail service is suspended as a whole, not mailbox by mailbox. When the service is cancelled it goes through a period of grace, and it is suspended when the grace ends. The data of the service is kept through the grace and after the suspension, and the service can be brought back while it is not cancelled."
   },
   {
     "id": "mail-dns",
@@ -456,7 +487,8 @@
       "mail"
     ],
     "url": "/docs?p=mail-dns",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "Not available today Hosted mail is not on sale today, so there is no domain of mail in your account today. Here are the records it needs. The records A domain of mail needs six kinds of record. The Email page of the dashboard lists them with the value to publish and a line that says what each of them is for. The platform does not write them The platform does not write these records. The DNS of a domain belongs to the customer, so the platform tells you what to publish and then checks, with a real lookup, what is really published. A record that the platform would write itself could overwrite something that you need. Checking the records Open the Email page: The domain of mail lists the records it needs and, next to each of them, what is really published. Publish what is missing: Add the records at your provider, exactly as listed, with the same names and the same values. Check again: Ask the page for the state of the records again. The check is made when you ask for it and not on a timer. The difference with the records of an instance These records have nothing to do with the records of an instance. An instance needs an address record and a proof of ownership; a domain of mail needs the records above. A hostname that carries both needs both sets. The records of an instance are in The DNS records you need."
   },
   {
     "id": "webmail",
@@ -472,7 +504,8 @@
       "mail"
     ],
     "url": "/docs?p=webmail",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "Not available today Hosted mail is not on sale today, so there is no domain of mail and no mailbox in your account today. Here is what you get when the sale opens. The webmail The webmail is where the mail of a domain is read, in the browser. The address comes from the platform, and the page says when there is no webmail set up instead of showing an address that does not work. The mail clients A mail client needs the settings of the mailbox: the host of the incoming and the outgoing server, and the ports they listen on. The platform does not publish them today, so a client cannot be set up from the dashboard alone. The records of the domain are what makes it possible for a client to find those settings by itself: the autodiscover and the autoconfig records point a client at the mail server of the platform. They are described in The DNS records of a mail domain. If you need the settings of a mail client and they are not published, open a ticket and say which client and which domain you use. How the mail is read Open the Email page: The domain of mail shows the webmail of the platform. Sign in with the mailbox: Sign in with the address and the password of the mailbox. Or use a mail client: Set your client up with the settings of the platform and the address of the mailbox."
   },
   {
     "id": "notifications",
@@ -487,7 +520,8 @@
       "mail"
     ],
     "url": "/docs?p=notifications",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "Where the notifications are The platform tells you two ways, and both carry the same messages. The two are one setting on the server: switching one of them off stops the whole group. The groups of the messages Switch a group off Open the settings: Go to the Settings page of your account and open the Notifications panel. Switch the group off: Untick the channel of the group you do not want to hear from. Leave the account group on: The group that protects the account is marked Always on and offers no switch. Those messages keep coming whatever you tick. The marketing The marketing is off until you agree to it. Turning it on is your agreement to receive the offers of the platform by mail, and every one of them carries a way to stop them. The date of your agreement is kept, and switching the group off again takes it away. What the platform will not turn off"
   },
   {
     "id": "backups",
@@ -503,7 +537,8 @@
       "instance"
     ],
     "url": "/docs?p=backups",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "What an instance backup contains A backup is an archive created by the service panel from the files of that app container. It is not a full account backup, a VPS snapshot or a guaranteed export of data stored in an external database. A backup kept only on the same node is not an independent disaster-recovery copy. Download important backups and keep them elsewhere. Create and download Open Backups: Open the instance and select Backups. The current limit and existing archives are shown there. Create the backup: Choose New backup, give it a useful name and wait for the background job to finish. Do not restart or reinstall the service while the archive is being created. Download important copies: Download the finished archive and verify that the file is not empty before relying on it. Restore Restore replaces the current container files with the selected archive. Stop writes to the service first, confirm you selected the correct backup and expect a restart. Files created after the backup can be lost. If creation fails Reload the list once, check the backup limit and try a short name. If it still fails, open a ticket linked to the service and include the time of the attempt; do not create repeated jobs continuously."
   },
   {
     "id": "troubleshooting",
@@ -518,7 +553,8 @@
       "help"
     ],
     "url": "/docs?p=troubleshooting",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "Check the state of the instance Look at the state: Open the instance. The state is shown next to its name, and the Overview tab tells you what it may use against what it uses right now. Start it if it is stopped: Use the Start action of the instance. It is offered when the instance is Stopped or Failed. Read the console: Open the Console tab. It shows the output of the application, and the reason it did not start is written there. The state you read is the real state of the container: when it reads Online, your container is answering. Check the resources The Overview tab shows the memory, the disk and the processor of the instance against the limits it was given, and the state of the container. An application that asks for more memory than the limit of the container is stopped by the container itself; that is the usual reason an instance that worked yesterday is stopped today. The disk of an instance is one disk. The database, the logs and the uploads end up on the same one, and a full disk stops the application. Give the application the memory it needs. When the memory of the instance sits at its limit, raise Memory in the Resources tab of the instance. Check the activity The Activity tab records what happened to the instance: when it was started, stopped, resized or renamed. It is the fastest way to see whether something changed on our side. Check the billing If the instance stopped on its own and the payment method is old, the subscription may be past due. An invoice that was not paid puts the subscription in Past due, and after a grace of seven days the instance is stop"
   },
   {
     "id": "support",
@@ -533,7 +569,8 @@
       "ticket"
     ],
     "url": "/docs?p=support",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "How to reach us A support ticket is the only way to reach the operator. There is no phone number and no live chat today. The mail of the platform carries the notifications, and the mail that announces a new ticket goes to the staff that works the queue. Open the Support page: Sign in to the dashboard and choose Support in the menu on the left. Choose New ticket: Fill in Subject, Category, Priority, Related instance and Message. Send it: Choose Create ticket. The notifications of the platform come from no-reply@blipmade.com, so a reply to them reaches nobody. Answer inside the ticket. Every ticket is one thread. The answer of the operator is written in the same ticket, and you are told about it by mail and in the notification centre. The page Support tickets describes the thread in full. What the operator can and cannot do The operator works on your account with the same data you see: the instance, its events, the output of its console, the orders and the invoices. Hours and answer times The platform publishes no opening hours and no answer time for a ticket. A ticket is not answered at a promised moment. What decides where it sits in the queue is the priority you give it, and the category decides which desk it goes to. What the platform does publish is the truth of the ticket itself: the time of every message, the state of the ticket and the date of every message in the notification centre. A ticket that has been answered says so, and says when. If a problem blocks all of your work, set the priority to High and say so in the message. If the platform itself has a problem, th"
   },
   {
     "id": "tickets",
@@ -548,7 +585,8 @@
       "thread"
     ],
     "url": "/docs?p=tickets",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "Open a ticket Go to Support: Choose Support in the menu of the dashboard. The page is called Your tickets. Choose New ticket: The form asks for a Subject, a Category, a Priority, an optional Related instance and a Message. Fill it in and send: Choose Create ticket. The message is the first message of the ticket. The category and the priority are accepted in any case. If you write technical in a script, it is stored as Technical. What you see The page Your tickets lists every conversation with the support of Blipmade, newest activity first. Every line carries the subject, the category, the number, the state and the time of the last reply. The page of one ticket shows Category, Priority, Related instance and Last activity, the panel Conversation with every message in the order it was written, and the panel Reply where you answer. The state follows the conversation: your reply puts the ticket in Awaiting support, and the answer of the operator puts it in Awaiting your reply. Add a message Open the ticket: Choose the ticket in Your tickets. The conversation is above, the Reply panel is below. Write your message: Use the field Your message. A reply of 20 000 characters at most is accepted. Send it: Choose Send reply. Keep everything in one thread. A question answered in a second ticket loses the context of the first. Attach a file The Attachment field of the Reply panel adds the name, the size and the type of a file to your message. The file itself is not uploaded from that form, so you have to describe it. The bytes are uploaded with the API, as multipart form data. The file is"
   },
   {
     "id": "status",
@@ -563,7 +601,8 @@
       "maintenance"
     ],
     "url": "/docs?p=status",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "The status page Open the status page: The page is called Service status and lives at /status. It needs no session. Read the banner: The banner says All systems operational, Degraded performance, Partial outage, Major outage, No components reported or Status partially reported. Read the components: Each line carries the name of a part of the platform and its state: Operational, Degraded performance, Partial outage, Outage or Reported state. Check the moment: The bottom of the page carries Last checked, the moment the answer was given. The page asks the platform itself, at the moment you open it. Every component is measured on its own, so a green light means that this part was really checked and not that it is assumed to work. What an incident is An incident is a note that the operator writes when the platform is not in its normal state. It holds what is happening and, optionally, until when it is expected to last. The state of the components on the page is what is measured; the incident is the explanation of the operator. The note is written once and kept in the file of the operations of the platform, so everybody reads the same words. The sweep of the health of the platform turns it into an alarm, and the platform then says out loud what the operator already knows. How an incident is declared The operator declares it from the Operations page, where the panel is called Incident, with the fields What is happening and Until. Until is optional and empty means that the incident has no announced end. The incident is closed with DELETE /api/ops/incident, which is also what the ope"
   },
   {
     "id": "limits",
@@ -578,7 +617,8 @@
       "rate limit"
     ],
     "url": "/docs?p=limits",
-    "updated": "2026-10-27"
+    "updated": "2026-10-27",
+    "text": "The limits of your instance Every product in the catalog has a minimum and a maximum for memory, CPU and disk. The configurator refuses anything outside those values, so an instance can never ask for more than the plan allows. A change of plan is checked against the same numbers. Those bounds come from the catalog itself. You do not have to remember them: the form shows what is allowed. The limits you can hit Some of these limits are not written where you would meet them. They are here, with the number the platform really uses. What is not limited Blipmade does not publish quotas for traffic, tickets, accounts or the number of instances you may run. Staying within your resources An instance that is used only as it was deployed — the application, its configuration and its data — is what the platform is built for. Backups No automatic backup is turned on for you. You choose, in the Backups tab of the instance, to run one every day or every Sunday at 03:30 UTC, or to take one by hand. The oldest unlocked backup is removed to make room for the next one, so lock the ones you want to keep. You know what the data is and how it should be restored. What the platform does offer is a manual backup of the files of the container, taken from the Backups tab of the instance. It is an archive you can download, and restoring it replaces the files of the container with the archive. It holds no dump of a database that runs somewhere else, so the copy of a database is yours to take. Take your own copy with the commands on the page of your product. The page [Backups](/docs?p=backups) says what "
   },
   {
     "id": "glossary",
@@ -593,7 +633,8 @@
       "subscription"
     ],
     "url": "/docs?p=glossary",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "The words of the account The words of the operation How the words follow each other You choose a product: The catalog gives you its limits and its price. You set the memory, the processor and the disk you want. The quote becomes an order: The order is the purchase. Its state says where the money is: Pending, Awaiting payment, Paid, Fulfilled, Failed, Cancelled or Refunded. The order produces a subscription and an invoice: A paid order opens the subscription of the service and the invoice of the period. The subscription produces the instance: The deployment of the instance is a job of the queue of the platform. The steps of the deployment are written down, so the page of the instance can say where it stopped. The instance produces notifications: Every moment of the life of the service is published as a notification: the building, the suspension, the invoice, the answer of the support."
   },
   {
     "id": "faq",
@@ -608,7 +649,8 @@
       "why"
     ],
     "url": "/docs?p=faq",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "Services Billing Domains, backups and support"
   },
   {
     "id": "common-errors",
@@ -623,7 +665,8 @@
       "status code"
     ],
     "url": "/docs?p=common-errors",
-    "updated": "2026-10-26"
+    "updated": "2026-10-26",
+    "text": "The shape of an answer Every error of the API has the same shape: an object error with a code, a message and the identifier of the request. The dashboard shows the message, and the code is what a script reads. The fields are only there when the error is about a field: they name the field that is wrong and say what is allowed there, so the interface can show the problem next to the input instead of a general message. The codes What to do with the identifier of the request Keep the identifier: The answer of the API carries requestId, and the dashboard writes it under the message of the error, as request <id>. Keep what you did: The address, the moment and the body you sent. A call that is refused with a requestId and nothing else is hard to find. Open a ticket: Put the identifier and the details in a ticket, with the instance if there is one. A message that names the field that is wrong is the most useful thing a script can print. The answer already carries it, one line per field."
   },
   {
     "id": "elasticsearch",
@@ -635,7 +678,8 @@
       "deploy"
     ],
     "url": "/docs?p=elasticsearch",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Elasticsearch A search and analytics engine for indexing and querying text and logs. Blipmade installs Elasticsearch in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Elasticsearch Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Elasticsearch exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page uses that check together with the container state; it does not inspect your priva"
   },
   {
     "id": "folding-at-home",
@@ -647,7 +691,8 @@
       "deploy"
     ],
     "url": "/docs?p=folding-at-home",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Folding@Home Donate spare computing power to medical research with Folding@home. Blipmade installs Folding@Home in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Folding@Home Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Folding@Home exposes 7 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `FAH_USERNAME`, `FAH_PASSKEY`, `FAH_PASSWORD`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade checks whethe"
   },
   {
     "id": "gitea",
@@ -659,7 +704,8 @@
       "deploy"
     ],
     "url": "/docs?p=gitea",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Gitea A lightweight self-hosted Git service with a wiki and issue tracking. Blipmade installs Gitea in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Gitea Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Gitea exposes 3 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means the container and "
   },
   {
     "id": "languagetool",
@@ -671,7 +717,8 @@
       "deploy"
     ],
     "url": "/docs?p=languagetool",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About LanguageTool A grammar and spelling checker you host yourself. Blipmade installs LanguageTool in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy LanguageTool Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup LanguageTool exposes 1 startup setting. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. This product normally answers with HTTP 400, so that response is accepted by its health check. Starting means the process is still comin"
   },
   {
     "id": "lavalink",
@@ -683,7 +730,8 @@
       "deploy"
     ],
     "url": "/docs?p=lavalink",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Lavalink An audio streaming node for Discord music bots. Blipmade installs Lavalink in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Lavalink Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Lavalink exposes 3 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. This product normally answers with HTTP 401, so that response is accepted by its health check. Starting means the process is still coming up; Online mean"
   },
   {
     "id": "left-4-dead-2",
@@ -695,7 +743,8 @@
       "deploy"
     ],
     "url": "/docs?p=left-4-dead-2",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Left 4 Dead 2 A co-operative zombie shooter server from Valve. Blipmade installs Left 4 Dead 2 in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Left 4 Dead 2 Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Left 4 Dead 2 exposes 3 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page uses that check together with the container state; it does not inspect your private data. Starting mean"
   },
   {
     "id": "mariadb",
@@ -707,7 +756,8 @@
       "deploy"
     ],
     "url": "/docs?p=mariadb",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About MariaDB A MariaDB database, compatible with MySQL, for applications that need it. Blipmade installs MariaDB in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy MariaDB Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup MariaDB exposes 0 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page uses that check together with the container state; it does not inspect your private data. Starting mea"
   },
   {
     "id": "meilisearch",
@@ -719,7 +769,8 @@
       "deploy"
     ],
     "url": "/docs?p=meilisearch",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Meilisearch A fast search engine that tolerates typos, for your site or application. Blipmade installs Meilisearch in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Meilisearch Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Meilisearch exposes 8 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `MEILI_MASTER_KEY`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on"
   },
   {
     "id": "minecraft-bedrock",
@@ -731,7 +782,8 @@
       "deploy"
     ],
     "url": "/docs?p=minecraft-bedrock",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Minecraft Bedrock A Minecraft Bedrock server for players on phones, consoles and Windows. Blipmade installs Minecraft Bedrock in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Minecraft Bedrock Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Minecraft Bedrock exposes 6 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. This product normally answers with HTTP 404, so that response is accepted by its health check"
   },
   {
     "id": "nats",
@@ -743,7 +795,8 @@
       "deploy"
     ],
     "url": "/docs?p=nats",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About NATS A lightweight messaging system for connecting your services. Blipmade installs NATS in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy NATS Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup NATS exposes 5 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `USERNAME`, `PASSWORD`, `AUTH_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade checks whether the service accepts a connection on its assign"
   },
   {
     "id": "nodejs",
@@ -755,7 +808,8 @@
       "deploy"
     ],
     "url": "/docs?p=nodejs",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Node.js A runtime for Node.js services, for code you write in JavaScript or TypeScript. Blipmade installs Node.js in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Node.js Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Node.js exposes 10 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP "
   },
   {
     "id": "prometheus",
@@ -767,7 +821,8 @@
       "deploy"
     ],
     "url": "/docs?p=prometheus",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Prometheus A metrics collection and alerting system for your services. Blipmade installs Prometheus in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Prometheus Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Prometheus exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means the cont"
   },
   {
     "id": "garrys-mod",
@@ -779,7 +834,8 @@
       "deploy"
     ],
     "url": "/docs?p=garrys-mod",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Garry's Mod A sandbox game server with community addons and game modes. Blipmade installs Garry's Mod in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Garry's Mod Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Garry's Mod exposes 8 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `STEAM_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade checks whether the service accepts a connection on its as"
   },
   {
     "id": "minecraft-paper",
@@ -791,7 +847,8 @@
       "deploy"
     ],
     "url": "/docs?p=minecraft-paper",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Minecraft Paper A fast Minecraft Java server with plugin support, based on Paper. Blipmade installs Minecraft Paper in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Minecraft Paper Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Minecraft Paper exposes 5 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. The EULA of the game This game requires acceptance of its EULA. Checkout shows the agreement and records your acceptance with the order; provisioning does not start without it. The customer accepts t"
   },
   {
     "id": "terraria",
@@ -803,7 +860,8 @@
       "deploy"
     ],
     "url": "/docs?p=terraria",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Terraria A Terraria server with TShock, for exploring, building and fighting bosses together. Blipmade installs Terraria in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Terraria Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Terraria exposes 4 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page uses that check together with the container state; it does not inspect your private dat"
   },
   {
     "id": "conan-exiles",
@@ -815,7 +873,8 @@
       "deploy"
     ],
     "url": "/docs?p=conan-exiles",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Conan Exiles A survival server set in the savage lands of Conan's world. Blipmade installs Conan Exiles in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Conan Exiles Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Conan Exiles exposes 10 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means"
   },
   {
     "id": "core-keeper",
@@ -827,7 +886,8 @@
       "deploy"
     ],
     "url": "/docs?p=core-keeper",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Core Keeper Mine, craft and fight underground in a shared Core Keeper world. Blipmade installs Core Keeper in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Core Keeper Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Core Keeper exposes 11 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GAME_ID`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assigned po"
   },
   {
     "id": "cs2d",
@@ -839,7 +899,8 @@
       "deploy"
     ],
     "url": "/docs?p=cs2d",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About CS2D A free 2D take on Counter-Strike, light enough for a small server. Blipmade installs CS2D in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy CS2D Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup CS2D exposes 3 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means the container and product"
   },
   {
     "id": "factorio",
@@ -851,7 +912,8 @@
       "deploy"
     ],
     "url": "/docs?p=factorio",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Factorio Build and automate factories together on a dedicated multiplayer server. Blipmade installs Factorio in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Factorio Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Factorio exposes 10 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `SERVER_TOKEN`, `SERVER_USERNAME`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the servic"
   },
   {
     "id": "loki",
@@ -863,7 +925,8 @@
       "deploy"
     ],
     "url": "/docs?p=loki",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Loki Log aggregation for your services, designed to work with Grafana. Blipmade installs Loki in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Loki Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Loki exposes 1 startup setting. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page uses that check together with the container state; it does not inspect your private data. Starting means the process is sti"
   },
   {
     "id": "minecraft-folia",
@@ -875,7 +938,8 @@
       "deploy"
     ],
     "url": "/docs?p=minecraft-folia",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Minecraft Folia A Minecraft server built for many players at once, spreading the world over several CPU cores. Blipmade installs Minecraft Folia in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Minecraft Folia Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Minecraft Folia exposes 5 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. The EULA of the game This game requires acceptance of its EULA. Checkout shows the agreement and records your acceptance with the order; provisioning does not start witho"
   },
   {
     "id": "minecraft-forge",
@@ -887,7 +951,8 @@
       "deploy"
     ],
     "url": "/docs?p=minecraft-forge",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Minecraft Forge A Minecraft server with the Forge mod loader, for modded play. Blipmade installs Minecraft Forge in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Minecraft Forge Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Minecraft Forge exposes 5 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. The EULA of the game This game requires acceptance of its EULA. Checkout shows the agreement and records your acceptance with the order; provisioning does not start without it. The customer accepts the "
   },
   {
     "id": "owncast",
@@ -899,7 +964,8 @@
       "deploy"
     ],
     "url": "/docs?p=owncast",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Owncast A self-hosted live streaming server with its own chat and channel page. Blipmade installs Owncast in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Owncast Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Owncast exposes 7 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GITHUB_USER`, `GITHUB_OAUTH_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Blipmade generates `STREAM_KEY`. Copy generated credentials from the pro"
   },
   {
     "id": "palworld",
@@ -911,7 +977,8 @@
       "deploy"
     ],
     "url": "/docs?p=palworld",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Palworld A survival server where you catch creatures and build bases. Blipmade installs Palworld in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Palworld Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Palworld exposes 11 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Blipmade generates `ADMIN_PASSWORD`. Copy generated credentials from the protected credentials panel; they are not printed into public activity or support messages. Health and availability Blipmade makes an HTTP request to the serv"
   },
   {
     "id": "rabbitmq",
@@ -923,7 +990,8 @@
       "deploy"
     ],
     "url": "/docs?p=rabbitmq",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About RabbitMQ A message broker that queues work between your services. Blipmade installs RabbitMQ in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy RabbitMQ Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup RabbitMQ exposes 1 startup setting. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade checks whether the service accepts a connection on its assigned port. The Overview page uses that check together with the container state; it does not inspect your private data. Starting means the process"
   },
   {
     "id": "reposilite",
@@ -935,7 +1003,8 @@
       "deploy"
     ],
     "url": "/docs?p=reposilite",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Reposilite A lightweight repository for Maven and other packages. Blipmade installs Reposilite in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Reposilite Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Reposilite exposes 1 startup setting. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means the container "
   },
   {
     "id": "rust",
@@ -947,7 +1016,8 @@
       "deploy"
     ],
     "url": "/docs?p=rust",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Rust A multiplayer survival server where you gather, build and raid. Blipmade installs Rust in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Rust Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Rust exposes 19 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Blipmade generates `RCON_PASS`. Copy generated credentials from the protected credentials panel; they are not printed into public activity or support messages. Health and availability Blipmade makes an HTTP request to the service on its assigne"
   },
   {
     "id": "samp",
@@ -959,7 +1029,8 @@
       "deploy"
     ],
     "url": "/docs?p=samp",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About SA-MP A San Andreas Multiplayer server for Grand Theft Auto: San Andreas. Blipmade installs SA-MP in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy SA-MP Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup SA-MP exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Blipmade generates `RCON_PASS`. Copy generated credentials from the protected credentials panel; they are not printed into public activity or support messages. Health and availability Blipmade makes an HTTP request to the service on its "
   },
   {
     "id": "space-engineers",
@@ -971,7 +1042,8 @@
       "deploy"
     ],
     "url": "/docs?p=space-engineers",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Space Engineers A server for building and surviving in space. Blipmade installs Space Engineers in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Space Engineers Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Space Engineers exposes 19 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is still coming up; Online means t"
   },
   {
     "id": "team-fortress-2",
@@ -983,7 +1055,8 @@
       "deploy"
     ],
     "url": "/docs?p=team-fortress-2",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Team Fortress 2 A free-to-play team shooter server with classes and game modes. Blipmade installs Team Fortress 2 in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Team Fortress 2 Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Team Fortress 2 exposes 11 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `STEAM_GSLT`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade checks whether the service accepts a "
   },
   {
     "id": "the-forest",
@@ -995,7 +1068,8 @@
       "deploy"
     ],
     "url": "/docs?p=the-forest",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About The Forest A survival horror server set in a forest. Blipmade installs The Forest in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy The Forest Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup The Forest exposes 15 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `STEAM_ACC`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or r"
   },
   {
     "id": "unturned",
@@ -1007,7 +1081,8 @@
       "deploy"
     ],
     "url": "/docs?p=unturned",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Unturned A zombie survival server for Unturned. Blipmade installs Unturned in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Unturned Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Unturned exposes 7 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GSLT`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the"
   },
   {
     "id": "yarr",
@@ -1019,7 +1094,8 @@
       "deploy"
     ],
     "url": "/docs?p=yarr",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Yarr A self-hosted RSS feed reader. Blipmade installs Yarr in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Yarr Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Yarr exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `USERNAME`, `PASSWORD`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the applica"
   },
   {
     "id": "lua",
@@ -1031,7 +1107,8 @@
       "deploy"
     ],
     "url": "/docs?p=lua",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Lua A runtime for Lua scripts and small services. Blipmade installs Lua in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Lua Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Lua exposes 7 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A norm"
   },
   {
     "id": "python",
@@ -1043,7 +1120,8 @@
       "deploy"
     ],
     "url": "/docs?p=python",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Python A runtime for Python scripts and services, for code you write. Blipmade installs Python in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Python Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Python exposes 9 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service"
   },
   {
     "id": "dart",
@@ -1055,7 +1133,8 @@
       "deploy"
     ],
     "url": "/docs?p=dart",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Dart A runtime for Dart services, for code you write in Dart. Blipmade installs Dart in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Dart Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Dart exposes 7 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assign"
   },
   {
     "id": "deno",
@@ -1067,7 +1146,8 @@
       "deploy"
     ],
     "url": "/docs?p=deno",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Deno A runtime for Deno services, for the JavaScript and TypeScript you write. Blipmade installs Deno in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Deno Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Deno exposes 6 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the serv"
   },
   {
     "id": "elixir",
@@ -1079,7 +1159,8 @@
       "deploy"
     ],
     "url": "/docs?p=elixir",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Elixir A runtime for Elixir services, running on the Erlang VM. Blipmade installs Elixir in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Elixir Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Elixir exposes 6 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GIT_ADDRESS`, `GIT_BRANCH`, `GIT_USERNAME`, `GIT_ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the s"
   },
   {
     "id": "golang",
@@ -1091,7 +1172,8 @@
       "deploy"
     ],
     "url": "/docs?p=golang",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Go A runtime for Go services, started from a program you build and upload. Blipmade installs Go in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Go Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Go exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GO_PACKAGE`, `EXECUTABLE`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal "
   },
   {
     "id": "java",
@@ -1103,7 +1185,8 @@
       "deploy"
     ],
     "url": "/docs?p=java",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Java A runtime for Java services, started from a jar file you upload. Blipmade installs Java in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Java Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Java exposes 2 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `JARFILE`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redir"
   },
   {
     "id": "rust-runtime",
@@ -1115,7 +1198,8 @@
       "deploy"
     ],
     "url": "/docs?p=rust-runtime",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Rust Runtime A runtime for Rust services, built from your own source code. Blipmade installs Rust Runtime in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Rust Runtime Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Rust Runtime exposes 5 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `GIT_ADDRESS`, `BRANCH`, `USERNAME`, `ACCESS_TOKEN`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP"
   },
   {
     "id": "teamspeak-6",
@@ -1127,7 +1211,8 @@
       "deploy"
     ],
     "url": "/docs?p=teamspeak-6",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About TeamSpeak 6 A voice chat server with channels of your own. Blipmade installs TeamSpeak 6 in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy TeamSpeak 6 Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup TeamSpeak 6 exposes 18 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Checkout asks for `TSSERVER_LICENSE_ACCEPTED`, `TSSERVER_QUERY_ADMIN_PASSWORD`. These values are saved with the service so a restart or reinstall can use the same configuration. Health and availability Blipmade makes an HTTP request "
   },
   {
     "id": "counter-strike-1-6",
@@ -1139,6 +1224,7 @@
       "deploy"
     ],
     "url": "/docs?p=counter-strike-1-6",
-    "updated": "2026-11-01"
+    "updated": "2026-11-01",
+    "text": "About Counter-Strike 1.6 The classic competitive shooter, running on the ReHLDS engine. Blipmade installs Counter-Strike 1.6 in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself. After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change. Plan details Deploy Counter-Strike 1.6 Order the product: Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order. Wait for provisioning: The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online. Finish the product setup: Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready. Settings available in Startup Counter-Strike 1.6 exposes 10 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted. Health and availability Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable. Starting means the process is st"
   }
 ]

@@ -6,7 +6,7 @@ import { audit } from '../lib/audit.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/auth.js';
-import { answerCustomer } from '../services/support-ai.js';
+import { answerCustomer, customerAnswersOn } from '../services/support-ai.js';
 import { notifyTicketOpenedForStaff } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { humanAvailable } from '../services/support-availability.js';
@@ -236,7 +236,7 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
   });
 
   /** The hooks of one conversation: what the flow may do for this customer, and nothing for any other. */
-  function hooksFor(user: { id: string; email: string; firstName?: string | null; lastName?: string | null }, ctx: { ticketId: string | null; priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'; departmentId?: string; transcript: () => string }): Hooks {
+  function hooksFor(user: { id: string; email: string; firstName?: string | null; lastName?: string | null }, ctx: { ai?: boolean; ticketId: string | null; priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'; departmentId?: string; transcript: () => string }): Hooks {
     const makeTicket = async (subject: string, channel: 'CHAT' | 'TICKET') => {
       const ticket = await prisma.ticket.create({
         data: {
@@ -259,7 +259,8 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
       return ticket;
     };
     return {
-      answer: (question: string) => answerCustomer(question),
+      ai: ctx.ai,
+      answer: (question: string) => answerCustomer(question, ctx.transcript().split('\n').filter((line) => line.startsWith('Customer: ')).map((line) => line.slice(10)).slice(0, -1)),
       async services() {
         const [instances, servers] = await Promise.all([
           prisma.instance.findMany({ where: { userId: user.id, status: { not: 'CANCELLED' } }, select: { id: true, name: true }, take: 20 }),
@@ -300,7 +301,9 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
     };
   }
 
-  const answer = (sessionId: string, session: BotSession, out: Out[]) => ({ sessionId, state: session.state.toLowerCase(), messages: out });
+  /** How the bot is shown at the top of the chat: its name, its picture, and whether it answers with an assistant. */
+  const persona = (flow: Flow, botName: string, ai: boolean) => ({ name: flow.persona?.name || botName, avatarUrl: flow.persona?.avatarUrl || null, ai });
+  const answer = (sessionId: string, session: BotSession, out: Out[], bot?: ReturnType<typeof persona>) => ({ sessionId, state: session.state.toLowerCase(), messages: out, bot });
 
   /** Starts a conversation with the bot that is switched on. 404 when there is none: the widget then offers the normal chat. */
   app.post('/support/bot/start', customer(app), async (request: FastifyRequest, response) => {
@@ -311,25 +314,27 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
     if (!version) throw notFound('No assistant is available.');
     const flow = flowSchema.parse(version.flow);
     const transcript: Entry[] = [];
-    const ctx = { ticketId: null as string | null, transcript: () => transcript.map((entry) => `${entry.from === 'bot' ? 'Assistant' : 'Customer'}: ${entry.text}`).join('\n') };
+    const ai = await customerAnswersOn();
+    const ctx = { ai, ticketId: null as string | null, transcript: () => transcript.map((entry) => `${entry.from === 'bot' ? 'Assistant' : 'Customer'}: ${entry.text}`).join('\n') };
     const result = await startFlow(flow, hooksFor(user, ctx));
     const now = new Date().toISOString();
     for (const out of result.out) transcript.push({ from: 'bot', text: plain(out), at: now });
     const row = await prisma.supportBotSession.create({
       data: { botId: bot.id, versionId: version.id, userId: user.id, state: result.session.state, node: result.session.node, variables: result.session.variables, steps: result.session.steps, transcript: transcript as unknown as Prisma.InputJsonValue, ticketId: ctx.ticketId },
     });
-    return response.code(201).send(answer(row.id, result.session, result.out));
+    return response.code(201).send(answer(row.id, result.session, result.out, persona(flow, bot.name, ai)));
   });
 
   /** The conversation with the bot that is still going, so the widget picks it up again after a reload. */
   app.get('/support/bot/current', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
-    const row = await prisma.supportBotSession.findFirst({ where: { userId: user.id, state: 'ACTIVE' }, orderBy: { createdAt: 'desc' }, include: { version: true } });
+    const row = await prisma.supportBotSession.findFirst({ where: { userId: user.id, state: 'ACTIVE' }, orderBy: { createdAt: 'desc' }, include: { version: true, bot: { select: { name: true } } } });
     if (!row) return { session: null };
     const flow = flowSchema.parse(row.version.flow);
     const session: BotSession = { node: row.node, variables: row.variables as Record<string, string>, steps: row.steps, state: row.state };
-    const prompt = await promptFor(flow, session, hooksFor(user, { ticketId: row.ticketId, transcript: () => '' }));
-    return { session: { id: row.id, transcript: (row.transcript as unknown as Entry[]).slice(-60), prompt } };
+    const ai = await customerAnswersOn();
+    const prompt = await promptFor(flow, session, hooksFor(user, { ai, ticketId: row.ticketId, transcript: () => '' }));
+    return { session: { id: row.id, transcript: (row.transcript as unknown as Entry[]).slice(-60), prompt, bot: persona(flow, row.bot.name, ai) } };
   });
 
   /** One to five, with an optional comment, once, for a conversation with the assistant. The staff reads it in the numbers of the support. */
@@ -359,7 +364,7 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const input = z.object({ text: z.string().max(1000).optional(), option: z.string().max(60).optional() }).parse(request.body);
-    const row = await prisma.supportBotSession.findFirst({ where: { id, userId: user.id }, include: { version: true } });
+    const row = await prisma.supportBotSession.findFirst({ where: { id, userId: user.id }, include: { version: true, bot: { select: { name: true } } } });
     if (!row) throw notFound('Conversation not found.');
     if (row.state !== 'ACTIVE') return { ...answer(row.id, { node: row.node, variables: row.variables as Record<string, string>, steps: row.steps, state: row.state }, []), messages: [] };
     const flow = flowSchema.parse(row.version.flow);
@@ -369,7 +374,8 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
     const waiting = row.node ? flow.nodes[row.node] : undefined;
     const said = input.text ?? (waiting?.type === 'buttons' ? waiting.options.find((option) => option.id === input.option)?.label : undefined) ?? input.option;
     if (said) transcript.push({ from: 'customer', text: said, at: now });
-    const ctx = { ticketId: row.ticketId, transcript: () => transcript.map((entry) => `${entry.from === 'bot' ? 'Assistant' : 'Customer'}: ${entry.text}`).join('\n') };
+    const ai = await customerAnswersOn();
+    const ctx = { ai, ticketId: row.ticketId, transcript: () => transcript.map((entry) => `${entry.from === 'bot' ? 'Assistant' : 'Customer'}: ${entry.text}`).join('\n') };
     const current: BotSession = { node: row.node, variables: row.variables as Record<string, string>, steps: row.steps, state: row.state };
     const result = await advance(flow, current, input, hooksFor(user, ctx));
     for (const out of result.out) transcript.push({ from: 'bot', text: plain(out), at: now });
@@ -377,6 +383,6 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
       where: { id },
       data: { state: result.session.state, node: result.session.node, variables: result.session.variables, steps: result.session.steps, transcript: transcript as unknown as Prisma.InputJsonValue, ticketId: ctx.ticketId },
     });
-    return { ...answer(id, result.session, result.out), ticketId: ctx.ticketId };
+    return { ...answer(id, result.session, result.out, persona(flow, row.bot.name, ai)), ticketId: ctx.ticketId };
   });
 }

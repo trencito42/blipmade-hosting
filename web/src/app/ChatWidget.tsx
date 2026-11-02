@@ -32,6 +32,7 @@ interface Thread {
 interface BotOut {
   kind: string;
   text?: string;
+  ai?: boolean;
   options?: { id: string; label: string }[];
   articles?: { title: string; url: string; summary: string }[];
   input?: string;
@@ -41,8 +42,21 @@ interface BotView {
   id: string;
   /** The flow reached its end: the customer is asked how it was. */
   ended?: boolean;
-  entries: { from: 'bot' | 'customer'; text: string; links?: { title: string; url: string }[] }[];
+  entries: { from: 'bot' | 'customer'; text: string; ai?: boolean; links?: { title: string; url: string }[] }[];
   prompt: BotOut | null;
+  /** How the assistant is shown at the top: its name, its picture, and whether it answers with an AI. */
+  persona?: { name: string; avatarUrl: string | null; ai: boolean };
+}
+
+/** The picture of the assistant at the top of the chat; without one, or when it does not load, its initial. */
+function Avatar({ persona }: { persona?: BotView['persona'] }) {
+  const [failed, setFailed] = useState(false);
+  const name = persona?.name || 'Assistant';
+  return persona?.avatarUrl && !failed ? (
+    <img src={persona.avatarUrl} alt="" width={40} height={40} onError={() => setFailed(true)} className="size-10 shrink-0 rounded-full object-cover" referrerPolicy="no-referrer" />
+  ) : (
+    <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-acc text-[16px] font-bold text-on-acc">{name.slice(0, 1).toUpperCase()}</span>
+  );
 }
 
 const PANEL_ID = 'bm-chat-panel';
@@ -95,11 +109,11 @@ export default function ChatWidget() {
       .then((res) => {
         if (!live) return;
         if (!res.conversation) {
-          void get<{ session: { id: string; transcript: { from: 'bot' | 'customer'; text: string }[]; prompt: BotOut | null } | null }>('/support/bot/current')
+          void get<{ session: { id: string; transcript: { from: 'bot' | 'customer'; text: string }[]; prompt: BotOut | null; bot?: BotView['persona'] } | null }>('/support/bot/current')
             .then((current) => {
               if (live && current.session) {
                 botTried.current = true;
-                setBot({ id: current.session.id, entries: current.session.transcript, prompt: current.session.prompt });
+                setBot({ id: current.session.id, entries: current.session.transcript, prompt: current.session.prompt, persona: current.session.bot });
               }
             })
             .catch(() => undefined);
@@ -156,8 +170,8 @@ export default function ChatWidget() {
     if (!conversation && !bot && !botTried.current) {
       botTried.current = true;
       // 404 means no assistant is switched on: the chat is the ordinary one.
-      void post<{ sessionId: string; state: string; messages: BotOut[] }>('/support/bot/start')
-        .then((res) => applyBot(res.sessionId, res.state, res.messages, []))
+      void post<{ sessionId: string; state: string; messages: BotOut[]; bot?: BotView['persona'] }>('/support/bot/start')
+        .then((res) => applyBot(res.sessionId, res.state, res.messages, [], res.bot))
         .catch(() => undefined);
     }
     const onKey = (event: KeyboardEvent) => {
@@ -178,14 +192,16 @@ export default function ChatWidget() {
   }
 
   function entriesOf(messages: BotOut[]): BotView['entries'] {
-    return messages
-      .filter((out) => out.kind !== 'buttons' && !(out.kind === 'ask'))
-      .map((out) => (out.kind === 'articles' ? { from: 'bot' as const, text: 'These pages may help:', links: (out.articles ?? []).map((a) => ({ title: a.title, url: a.url })) } : { from: 'bot' as const, text: out.text ?? '' }))
-      .concat(messages.filter((out) => out.kind === 'buttons' || out.kind === 'ask').map((out) => ({ from: 'bot' as const, text: out.text ?? '' })));
+    const shown: BotView['entries'] = messages
+      .filter((out) => out.kind !== 'buttons' && out.kind !== 'ask')
+      .map((out) => (out.kind === 'articles' ? { from: 'bot', text: 'These pages may help:', links: (out.articles ?? []).map((a) => ({ title: a.title, url: a.url })) } : { from: 'bot', text: out.text ?? '', ai: out.ai }));
+    // The question that waits for an answer is the last thing said.
+    const asks: BotView['entries'] = messages.filter((out) => out.kind === 'buttons' || out.kind === 'ask').map((out) => ({ from: 'bot', text: out.text ?? '' }));
+    return [...shown, ...asks];
   }
 
   /** Shows what the assistant said; when it handed over, the chat of the person takes its place. */
-  function applyBot(sessionId: string, state: string, messages: BotOut[], before: BotView['entries']) {
+  function applyBot(sessionId: string, state: string, messages: BotOut[], before: BotView['entries'], persona?: BotView['persona']) {
     const prompt = [...messages].reverse().find((out) => out.kind === 'buttons' || out.kind === 'ask') ?? null;
     const entries = [...before, ...entriesOf(messages)];
     if (state === 'handed_off' || state === 'ended') {
@@ -197,16 +213,16 @@ export default function ChatWidget() {
             await loadThread(res.conversation.id);
           } else {
             // The conversation was kept as a ticket: it is in the support center.
-            setBot({ id: sessionId, entries, prompt: null });
+            setBot({ id: sessionId, entries, prompt: null, persona });
           }
         }).catch(() => undefined);
       } else {
         // The flow reached its end: the entries stay on the screen and the customer is asked how it was.
-        setBot({ id: sessionId, entries, prompt: null, ended: true });
+        setBot({ id: sessionId, entries, prompt: null, ended: true, persona });
       }
       return;
     }
-    setBot({ id: sessionId, entries, prompt });
+    setBot({ id: sessionId, entries, prompt, persona });
   }
 
   async function answerBot(input: { text?: string; option?: string }, shown: string) {
@@ -214,8 +230,8 @@ export default function ChatWidget() {
     setSending(true);
     setError(null);
     try {
-      const res = await post<{ sessionId: string; state: string; messages: BotOut[] }>(`/support/bot/${bot.id}/input`, input);
-      applyBot(bot.id, res.state, res.messages, [...bot.entries, { from: 'customer', text: shown }]);
+      const res = await post<{ sessionId: string; state: string; messages: BotOut[]; bot?: BotView['persona'] }>(`/support/bot/${bot.id}/input`, input);
+      applyBot(bot.id, res.state, res.messages, [...bot.entries, { from: 'customer', text: shown }], res.bot ?? bot.persona);
       setDraft('');
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : 'The message could not be sent. Try again.');
@@ -342,11 +358,17 @@ export default function ChatWidget() {
           className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-bg pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:inset-auto sm:bottom-24 sm:right-4 sm:h-[min(600px,calc(100dvh-8rem))] sm:w-[380px] sm:rounded-3xl sm:border sm:border-line sm:pb-0 sm:pt-0 sm:shadow-2xl lg:bottom-24"
         >
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-            <div className="min-w-0">
-              <h2 className="truncate text-[16px] font-semibold text-ink">Chat with support</h2>
-              <p className="truncate text-[12.5px] text-ink3">
-                {conversation ? `Conversation #${thread?.number ?? conversation.number}` : bot ? 'Automated assistant · a person is one tap away' : available === null ? 'Checking…' : available ? 'A person is connected.' : 'Nobody is connected right now.'}
-              </p>
+            <div className="flex min-w-0 items-center gap-3">
+              {bot && !conversation && <Avatar persona={bot.persona} />}
+              <div className="min-w-0">
+                <h2 className="flex items-center gap-2 truncate text-[16px] font-semibold text-ink">
+                  <span className="truncate">{bot && !conversation ? bot.persona?.name || 'Assistant' : 'Chat with support'}</span>
+                  {bot && !conversation && bot.persona?.ai && <span className="shrink-0 rounded-full bg-acc-bg px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-acc">AI</span>}
+                </h2>
+                <p className="truncate text-[12.5px] text-ink3">
+                  {conversation ? `Conversation #${thread?.number ?? conversation.number}` : bot ? (bot.persona?.ai ? 'Answers with AI, and can be wrong · a person is one tap away' : 'Automated assistant · a person is one tap away') : available === null ? 'Checking…' : available ? 'A person is connected.' : 'Nobody is connected right now.'}
+                </p>
+              </div>
             </div>
             <button type="button" onClick={close} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink2 hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
               <span aria-hidden="true" className="text-[22px] leading-none">×</span>
@@ -361,6 +383,7 @@ export default function ChatWidget() {
                   {bot.entries.map((entry, index) => (
                     <li key={index} className={cn('flex flex-col', entry.from === 'customer' ? 'items-end' : 'items-start')}>
                       <p className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14.5px]', entry.from === 'customer' ? 'bg-acc text-on-acc' : 'bg-s2 text-ink')}>{entry.text}</p>
+                      {entry.ai && <span className="mt-0.5 px-1 text-[11px] text-ink3">AI answer, it can be wrong</span>}
                       {entry.links && (
                         <ul className="mt-1 grid gap-1">
                           {entry.links.map((link) => (
@@ -370,8 +393,16 @@ export default function ChatWidget() {
                       )}
                     </li>
                   ))}
+                  {sending && (
+                    <li className="flex flex-col items-start" role="status">
+                      <span className="sr-only">The assistant is writing</span>
+                      <span aria-hidden="true" className="flex gap-1 rounded-2xl bg-s2 px-3.5 py-3">
+                        {[0, 1, 2].map((dot) => <span key={dot} className="size-2 rounded-full bg-ink3 motion-safe:animate-pulse" style={{ animationDelay: `${dot * 160}ms` }} />)}
+                      </span>
+                    </li>
+                  )}
                 </ul>
-                {bot.prompt && (bot.prompt.kind === 'buttons' || bot.prompt.input === 'service') && (
+                {bot.prompt && !sending && (bot.prompt.kind === 'buttons' || bot.prompt.input === 'service') && (
                   <div className="flex flex-wrap gap-1.5" role="group" aria-label="Choose">
                     {(bot.prompt.options ?? []).map((option) => (
                       <button key={option.id} type="button" disabled={sending} onClick={() => void answerBot({ option: option.id }, option.label)} className="min-h-11 rounded-full border border-line bg-card px-3.5 text-[14px] font-medium text-ink hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
@@ -380,7 +411,7 @@ export default function ChatWidget() {
                     ))}
                   </div>
                 )}
-                {!bot.ended && <button type="button" onClick={() => void skipBot()} className="min-h-11 justify-self-start text-[13.5px] text-ink2 underline">Talk to a person instead</button>}
+                {!bot.ended && !(bot.prompt?.options ?? []).some((option) => /agent|person|human/i.test(option.label)) && <button type="button" onClick={() => void skipBot()} className="min-h-11 justify-self-start text-[13.5px] text-ink2 underline">Talk to a person instead</button>}
               </div>
             ) : messages.length === 0 ? (
               <div className="grid gap-2 py-6 text-[14px] text-ink2">

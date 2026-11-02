@@ -51,6 +51,8 @@ export const nodeSchema = z.discriminatedUnion('type', [
 export const flowSchema = z.object({
   start: id,
   welcome: z.string().trim().max(MAX_TEXT).optional(),
+  /** How the bot introduces itself in the chat: the name and a picture. Shown at the top of the chat. */
+  persona: z.object({ name: z.string().trim().max(40).optional(), avatarUrl: z.string().trim().max(300).refine((value) => value === '' || /^https:\/\/[^\s]+$/.test(value), 'The picture must be an https address.').optional() }).optional(),
   /** Where the editor drew each block. Only the editor reads it; it has no effect on how the bot runs. */
   layout: z.record(id, z.object({ x: z.number().min(-10_000).max(10_000), y: z.number().min(-10_000).max(10_000) })).optional(),
   nodes: z.record(id, nodeSchema).refine((nodes) => Object.keys(nodes).length <= MAX_NODES, `A flow has at most ${MAX_NODES} blocks.`),
@@ -143,7 +145,7 @@ export function validateFlow(input: unknown): Validation {
 // --- running ----------------------------------------------------------------
 
 export type Out =
-  | { kind: 'text'; text: string }
+  | { kind: 'text'; text: string; ai?: boolean }
   | { kind: 'buttons'; text: string; options: { id: string; label: string }[] }
   | { kind: 'ask'; text: string; input: 'text' | 'email' | 'service'; options?: { id: string; label: string }[] }
   | { kind: 'articles'; articles: { title: string; url: string; summary: string }[] };
@@ -164,13 +166,17 @@ export interface Hooks {
   setPriority(priority: (typeof PRIORITIES)[number]): Promise<void>;
   assignDepartment(departmentId: string): Promise<boolean>;
   /** An answer of the assistant to a question, from the public documentation. Null when there is none: the flow then goes on without it. */
-  answer?(question: string): Promise<string | null>;
+  answer?(question: string): Promise<{ text: string; handoff: boolean } | null>;
+  /** True when the assistant can answer customers: the buttons that only lead to a person are then shown on the first menu only. */
+  ai?: boolean;
 }
 
 export interface Article {
   title: string;
   url: string;
   summary: string;
+  /** The start of the text of the page, for a model to answer from. */
+  text?: string;
 }
 
 /** The published documentation that matches the words, best first. Only the public documentation: never the notes of the team. */
@@ -187,8 +193,9 @@ const COMMON = new Set(['server', 'servers', 'service', 'services', 'app', 'apps
 export function searchDocs(query: string, limit = 3): Article[] {
   const words = [...new Set(query.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2 && !STOP.has(word)))];
   if (words.length === 0) return [];
-  return (DOCS as { id: string; title: string; summary: string; keywords: string[]; url: string }[])
+  return (DOCS as { id: string; title: string; summary: string; keywords: string[]; url: string; text?: string }[])
     .map((page) => {
+      const body = (page.text ?? '').toLowerCase();
       const title = page.title.toLowerCase();
       const summary = page.summary.toLowerCase();
       const keywords = page.keywords.join(' ').toLowerCase();
@@ -196,9 +203,10 @@ export function searchDocs(query: string, limit = 3): Article[] {
       let decisive = false;
       for (const word of words) {
         const weight = COMMON.has(word) ? 0.5 : 1;
-        const hit = (title.includes(word) ? 5 : 0) + (keywords.includes(word) ? 3 : 0) + (summary.includes(word) ? 1 : 0);
+        const hit = (title.includes(word) ? 5 : 0) + (keywords.includes(word) ? 3 : 0) + (summary.includes(word) ? 1 : 0) + (body.includes(word) ? 0.5 : 0);
         score += hit * weight;
-        if (hit > 0 && !COMMON.has(word)) decisive = true;
+        // A word found only in the body of a page helps to rank it; it does not make it a match.
+        if (hit >= 1 && !COMMON.has(word)) decisive = true;
       }
       // A page must match on a word that is about a topic, not only on the name of the product.
       return { page, score: decisive ? score : 0 };
@@ -206,7 +214,7 @@ export function searchDocs(query: string, limit = 3): Article[] {
     .filter((entry) => entry.score >= 3)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map(({ page }) => ({ title: page.title, url: page.url, summary: page.summary }));
+    .map(({ page }) => ({ title: page.title, url: page.url, summary: page.summary, text: page.text }));
 }
 
 export function articleById(idOrUrl: string): Article | null {
@@ -236,13 +244,19 @@ function handOver(session: BotSession, out: Out[], reason: string): StepResult {
   return { session: { ...session, state: 'HANDED_OFF', node: null }, out };
 }
 
+/** The buttons to show. With the assistant on, a button that only leads to a person is kept on the first menu and left out later: the assistant answers, and hands over by itself when it cannot. */
+function visibleOptions(flow: Flow, key: string, options: { id: string; label: string; next: string }[], hooks: Hooks): { id: string; label: string }[] {
+  const keep = hooks.ai && key !== flow.start ? options.filter((option) => flow.nodes[option.next]?.type !== 'transfer') : options;
+  return (keep.length > 0 ? keep : options).map(({ id: optionId, label }) => ({ id: optionId, label }));
+}
+
 /** What the bot is waiting for now: the question or the buttons of the block the conversation stopped at. */
 export async function promptFor(flow: Flow, session: BotSession, hooks: Hooks): Promise<Out | null> {
   const node = session.node ? flow.nodes[session.node] : undefined;
   if (!node || session.state !== 'ACTIVE') return null;
   switch (node.type) {
     case 'buttons':
-      return { kind: 'buttons', text: render(node.text, session.variables), options: node.options.map(({ id: key, label }) => ({ id: key, label })) };
+      return { kind: 'buttons', text: render(node.text, session.variables), options: visibleOptions(flow, session.node!, node.options, hooks) };
     case 'ask_text':
       return { kind: 'ask', text: render(node.text, session.variables), input: 'text' };
     case 'ask_email':
@@ -254,6 +268,13 @@ export async function promptFor(flow: Flow, session: BotSession, hooks: Hooks): 
     default:
       return null;
   }
+}
+
+/** The assistant could not answer, or the customer asked for a person: the conversation goes to a person (a chat, or a ticket when nobody is online). */
+async function handoffTo(session: BotSession, out: Out[], hooks: Hooks): Promise<StepResult> {
+  const result = await hooks.transfer(undefined, session.variables);
+  session.variables.ticket_number = String(result.number);
+  return handOver(session, out, result.mode === 'chat' ? 'I will connect you to a person of the team. They will answer here.' : 'I cannot help with that here, and nobody is online right now. Your conversation is saved as a ticket and a person will answer it.');
 }
 
 /** Starts a conversation at the first block of the flow. */
@@ -276,10 +297,12 @@ export async function advance(flow: Flow, current: BotSession, input: Input, hoo
     case 'buttons': {
       const chosen = node.options.find((option) => option.id === input.option) ?? node.options.find((option) => option.label.toLowerCase() === raw.toLowerCase());
       if (!chosen) {
-        // Words that are not a choice: the assistant may answer them, and the choices are shown again either way.
+        // Words that are not a choice: the assistant may answer them. When it cannot, or the customer asks for a person, the
+        // conversation goes to a person; the choices are shown again after an answer.
         const answered = raw && hooks.answer ? await hooks.answer(raw) : null;
-        out.push({ kind: 'text', text: answered ?? 'Please choose one of the options.' });
-        out.push({ kind: 'buttons', text: render(node.text, session.variables), options: node.options.map(({ id: key, label }) => ({ id: key, label })) });
+        if (answered?.handoff) return handoffTo(session, out, hooks);
+        out.push(answered ? { kind: 'text', text: answered.text, ai: true } : { kind: 'text', text: 'Please choose one of the options.' });
+        out.push({ kind: 'buttons', text: render(node.text, session.variables), options: visibleOptions(flow, current.node!, node.options, hooks) });
         return { session, out };
       }
       session.node = chosen.next;
@@ -344,7 +367,7 @@ async function run(flow: Flow, start: BotSession, out: Out[], hooks: Hooks): Pro
         go(node.next);
         break;
       case 'buttons':
-        out.push({ kind: 'buttons', text: render(node.text, session.variables), options: node.options.map(({ id: optionId, label }) => ({ id: optionId, label })) });
+        out.push({ kind: 'buttons', text: render(node.text, session.variables), options: visibleOptions(flow, key, node.options, hooks) });
         return { session, out };
       case 'ask_text':
         out.push({ kind: 'ask', text: render(node.text, session.variables), input: 'text' });
@@ -376,7 +399,8 @@ async function run(flow: Flow, start: BotSession, out: Out[], hooks: Hooks): Pro
       case 'ai_answer': {
         const question = render(node.query, session.variables);
         const answered = hooks.answer && question.trim() ? await hooks.answer(question) : null;
-        if (answered) out.push({ kind: 'text', text: answered });
+        if (answered?.handoff) return handoffTo(session, out, hooks);
+        if (answered) out.push({ kind: 'text', text: answered.text, ai: true });
         go(node.next);
         break;
       }
@@ -444,8 +468,8 @@ export function templateFlow(): Flow {
         text: 'Did that help?',
         options: [
           { id: 'solved', label: 'Yes, thanks', next: 'bye' },
+          { id: 'ticket', label: 'Not yet, open a ticket', next: 'ticket' },
           { id: 'human', label: 'Talk to an agent', next: 'human' },
-          { id: 'ticket', label: 'Open a ticket', next: 'ticket' },
         ],
       },
       billing_info: { type: 'message', text: 'Invoices, payment methods and your plan are under Billing in the menu. A refund or a dispute is decided by a person.', next: 'billing_next' },

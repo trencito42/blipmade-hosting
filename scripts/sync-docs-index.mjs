@@ -8,6 +8,20 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pages = JSON.parse(readFileSync(join(root, 'web/src/content/docs/pages.json'), 'utf8'));
+/** The words of a page, for finding it and for giving a model something to answer from: the titles of its sections and the start of its text. */
+function excerpt(page) {
+  const parts = [];
+  for (const section of page.sections ?? []) {
+    parts.push(section.title);
+    for (const block of section.blocks ?? []) {
+      if (block.t === 'p' && block.text) parts.push(block.text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'));
+      if (block.t === 'steps') for (const step of block.items ?? []) parts.push(`${step.title}: ${step.body ?? ''}`);
+      if (block.t === 'callout' && block.text) parts.push(block.text);
+    }
+  }
+  return parts.join(' ').replace(/\s+/g, ' ').trim().slice(0, 1600);
+}
+
 const index = pages.map((page) => ({
   id: page.id,
   title: page.title,
@@ -15,6 +29,7 @@ const index = pages.map((page) => ({
   keywords: page.keywords ?? [],
   url: `/docs?p=${page.id}`,
   updated: page.updated ?? null,
+  text: excerpt(page),
 }));
 const text = `${JSON.stringify(index, null, 2)}\n`;
 const target = join(root, 'api/src/data/docs-index.json');
