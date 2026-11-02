@@ -81,6 +81,7 @@ export const ICONS = {
   game: { name: "gamepad" },
   mail: { name: "envelope" },
   bell: { name: "bell" },
+  chat: { name: "comments" },
   heart: { name: "heart-pulse" },
   pen: { name: "pen" },
   cut: { name: "scissors" },

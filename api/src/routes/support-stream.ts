@@ -6,6 +6,7 @@ import { addressRateLimitKey, requireAuth, requirePermission, type AuthUser } fr
 import { hasPermission } from '../lib/permissions.js';
 import { forbidden } from '../lib/errors.js';
 import { onSupportEvent, visibleTo, type Viewer } from '../services/support-events.js';
+import { PRESENCE_WINDOW_MS } from '../services/support-availability.js';
 
 /**
  * The live stream of the support conversations, for a customer and for the staff.
@@ -19,8 +20,6 @@ import { onSupportEvent, visibleTo, type Viewer } from '../services/support-even
 const HEARTBEAT_MS = 25_000;
 const CATCH_UP = 200;
 const MAX_STREAMS_PER_USER = 5;
-/** A staff member counts as present while a connection of theirs was alive in this time. */
-export const PRESENCE_WINDOW_MS = 60_000;
 
 const open = new Map<string, Set<() => void>>();
 
@@ -86,7 +85,7 @@ async function stream(request: FastifyRequest, reply: FastifyReply, user: AuthUs
   const unlisten = onSupportEvent((event) => {
     if (!visibleTo(event, viewer)) return;
     const id = event.seq ? `id: ${event.seq}\n` : '';
-    send(`${id}event: ${event.type}\ndata: ${JSON.stringify({ ticketId: event.ticketId, at: event.at, ...(viewer.staff ? { internal: event.internal } : {}) })}\n\n`);
+    send(`${id}event: ${event.type}\ndata: ${JSON.stringify({ ticketId: event.ticketId, at: event.at, ...(event.actor ? { actor: event.actor } : {}), ...(viewer.staff ? { internal: event.internal } : {}) })}\n\n`);
   });
   const heartbeat = setInterval(() => {
     send(': ping\n\n');

@@ -70,6 +70,7 @@ const AdminProducts = lazy(() => import('./admin/Products'));
 const AdminPricing = lazy(() => import('./admin/Pricing'));
 const AdminTickets = lazy(() => import('./admin/Tickets'));
 const AdminSupport = lazy(() => import('./admin/Support'));
+const ChatWidget = lazy(() => import('./app/ChatWidget'));
 const AdminKnowledge = lazy(() => import('./admin/Knowledge'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
 const AdminPromotionDetail = lazy(() => import('./admin/PromotionDetail'));
@@ -567,6 +568,11 @@ export default function AppRoutes() {
           {route.area === 'customer' && <ImpersonationBanner />}
           {route.area === 'customer' && <AnnouncementBanner />}
           {content}
+          {route.area === 'customer' && (
+            <Suspense fallback={null}>
+              <ChatWidget />
+            </Suspense>
+          )}
         </AppShell>
       </Guard>
     );

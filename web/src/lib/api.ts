@@ -57,6 +57,7 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined | null>;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 }
 
 function buildUrl(path: string, query?: RequestOptions['query']): string {
@@ -73,7 +74,7 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
 
 export async function api<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = (options.method ?? 'GET').toUpperCase();
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
   const init: RequestInit = { method, credentials: 'include', headers, signal: options.signal };
 
   if (options.body !== undefined) {

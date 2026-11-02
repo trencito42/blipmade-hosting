@@ -209,6 +209,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         status: 'OPEN',
         instanceId: body.instanceId ?? null,
         mailServiceId: body.mailServiceId ?? null,
+        lastCustomerAt: new Date(),
         messages: {
           create: {
             authorId: user.id,
@@ -364,6 +365,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         : 'AWAITING_STAFF';
 
     // The message, the state of the ticket and the event are one change: either all of them are written or none.
+    const now = new Date();
     let message;
     try {
       message = await prisma.$transaction(async (tx) => {
@@ -379,8 +381,17 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         });
         await tx.ticket.update({
           where: { id: ticket.id },
-          data: { lastReplyAt: new Date(), status: nextStatus, ...(reopens ? { closedAt: null } : {}) },
+          data: {
+            lastReplyAt: now,
+            status: nextStatus,
+            ...(reopens ? { closedAt: null, reopenedAt: now } : {}),
+            // The moments the answer times are counted from. A note is not an answer, and neither is a bot.
+            ...(body.internal ? {} : isStaff ? { lastStaffAt: now } : { lastCustomerAt: now }),
+          },
         });
+        if (isStaff && !body.internal) {
+          await tx.ticket.updateMany({ where: { id: ticket.id, firstHumanResponseAt: null }, data: { firstHumanResponseAt: now } });
+        }
         if (reopens) {
           await tx.ticketEvent.create({ data: { ticketId: ticket.id, type: 'reopened', message: 'Ticket reopened by a reply.', actorId: user.id } });
         }
@@ -616,7 +627,7 @@ const MESSAGE_PAGE = 200;
 
 /** Events that only the staff reads: internal notes (also the ones written before they had a type of their own) and assignments. */
 function isInternalEvent(event: { type: string; message: string }): boolean {
-  return event.type === 'note' || event.type === 'assigned' || event.type === 'department' || event.message === 'Internal note added.';
+  return event.type === 'note' || event.type === 'assigned' || event.type === 'department' || event.type === 'rating' || event.message === 'Internal note added.';
 }
 
 type ReplyRow = {

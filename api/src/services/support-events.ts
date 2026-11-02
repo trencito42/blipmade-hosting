@@ -11,7 +11,9 @@ import { redis } from '../redis.js';
  */
 
 export interface SupportEvent {
-  type: 'created' | 'message' | 'attachment' | 'status' | 'assigned';
+  type: 'created' | 'message' | 'attachment' | 'status' | 'assigned' | 'typing';
+  /** Who caused a typing event, so a person does not hear their own. */
+  actor?: 'customer' | 'staff';
   ticketId: string;
   /** The customer the conversation belongs to. */
   ownerId: string;
@@ -30,6 +32,7 @@ export interface Viewer {
 /** Whether a viewer may hear of an event. Applied to every event of every stream, not only when the stream opens. */
 export function visibleTo(event: SupportEvent, viewer: Viewer): boolean {
   if (viewer.staff) return true;
+  if (event.type === 'typing' && event.actor === 'customer') return false;
   return event.ownerId === viewer.userId && !event.internal;
 }
 
