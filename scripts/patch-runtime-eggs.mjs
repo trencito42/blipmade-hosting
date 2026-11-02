@@ -152,9 +152,16 @@ export const GOLANG_IMAGES = {
  * The command ran a jar that no one had built: the container of a customer who
  * brought the code had nothing to run. The sources of the directory are
  * compiled when the jar is not there yet.
+ *
+ * The command is written the way the image of Java reads it: the entry point
+ * of the image evaluates the command as `eval echo "<command>"`, so the first
+ * command of the line is only written in the log and a semicolon in the line
+ * breaks the reading of it. The work is therefore put in a command of its own,
+ * between quotes, and the first word of the line is a word that always works.
  */
 export const JAVA_STARTUP =
-  'if [ ! -f {{JARFILE}} ]; then mkdir -p build && javac -d build *.java && jar cfe {{JARFILE}} {{MAIN_CLASS}} -C build .; fi; ' +
+  "true && sh -c 'if [ ! -f {{JARFILE}} ]; then mkdir -p build && javac -d build *.java && " +
+  'jar cfe {{JARFILE}} {{MAIN_CLASS}} -C build .; fi' && ' +
   'java -Dterminal.jline=false -Dterminal.ansi=true -jar {{JARFILE}}';
 
 /**

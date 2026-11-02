@@ -18,7 +18,7 @@
         "ghcr.io/ptero-eggs/yolks:java_21": "ghcr.io/ptero-eggs/yolks:java_21"
     },
     "file_denylist": [],
-    "startup": "if [ ! -f {{JARFILE}} ]; then mkdir -p build && javac -d build *.java && jar cfe {{JARFILE}} {{MAIN_CLASS}} -C build .; fi; java -Dterminal.jline=false -Dterminal.ansi=true -jar {{JARFILE}}",
+    "startup": "true && sh -c 'if [ ! -f {{JARFILE}} ]; then mkdir -p build && javac -d build *.java && jar cfe {{JARFILE}} {{MAIN_CLASS}} -C build .; fi' && java -Dterminal.jline=false -Dterminal.ansi=true -jar {{JARFILE}}",
     "config": {
         "files": "{}",
         "startup": "{\"done\":\"listening on\"}",
