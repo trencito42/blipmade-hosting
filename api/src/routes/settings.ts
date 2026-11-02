@@ -624,9 +624,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       const body = parse(
         z.object({
           password: z.string().min(1, 'Enter your password.'),
-          confirmation: z.literal('CLOSE MY ACCOUNT', {
-            errorMap: () => ({ message: 'Type CLOSE MY ACCOUNT to confirm.' }),
-          }),
+          confirmation: z.literal('CLOSE MY ACCOUNT', { error: 'Type CLOSE MY ACCOUNT to confirm.' }),
         }),
         request.body ?? {},
       );

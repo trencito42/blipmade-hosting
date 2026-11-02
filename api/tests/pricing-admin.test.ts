@@ -134,12 +134,13 @@ describe('the arithmetic of a price', () => {
     }
   });
 
-  it('prices a year as twelve months of the card, with the add-ons counted once', () => {
+  it('prices a year as twelve months of the card, with a recurring add-on twelve times and a one-off add-on once', () => {
     const config = { ram: 2048, cpu: 1.5, disk: 20 };
     const option = { id: 'o', productId: null, code: 'x', name: 'x', description: null, amount: 399, currency: 'EUR', recurring: true, active: true };
     const monthly = priceConfiguration(row, product, config, [], rates, 'MONTHLY');
     expect(priceConfiguration(row, product, config, [], rates, 'YEARLY')).toBe(monthly * 12);
-    expect(priceConfiguration(row, product, config, [option], rates, 'YEARLY')).toBe(monthly * 12 + 399);
+    expect(priceConfiguration(row, product, config, [option], rates, 'YEARLY')).toBe(monthly * 12 + 399 * 12);
+    expect(priceConfiguration(row, product, config, [{ ...option, recurring: false }], rates, 'YEARLY')).toBe(monthly * 12 + 399);
     expect(priceConfiguration(row, product, config, [option], rates, 'MONTHLY')).toBe(monthly + 399);
   });
 

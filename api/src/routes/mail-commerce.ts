@@ -11,7 +11,7 @@ import { deploymentAvailability, type DeploymentAvailability } from '../services
 import * as mailCommerce from '../services/mail-commerce.js';
 import * as mail from '../services/mail.js';
 import { nextOrderNumber } from '../services/order-numbers.js';
-import { buildQuote } from '../services/pricing.js';
+import { buildQuote, termOfSubscription } from '../services/pricing.js';
 
 /**
  * The API of the customer of hosted mail.
@@ -76,10 +76,17 @@ function pricesOfPlan(prices: ProductPrice[]): MailPlanPriceView[] {
     if (!current || newerPrice(price, current)) byPeriod.set(price.period, price);
   }
   const periods: BillingPeriod[] = ['MONTHLY', 'YEARLY'];
-  return periods
+  const listed: MailPlanPriceView[] = periods
     .map((period) => byPeriod.get(period))
     .filter((price): price is ProductPrice => Boolean(price))
     .map((price) => ({ period: price.period, amount: price.baseAmount, currency: price.currency }));
+  // A plan with a monthly price and no yearly one can still be bought for a year,
+  // at twelve months. The order prices it the same way (loadResourcePrice).
+  const monthly = byPeriod.get('MONTHLY');
+  if (monthly && !byPeriod.has('YEARLY')) {
+    listed.push({ period: 'YEARLY', amount: monthly.baseAmount * 12, currency: monthly.currency });
+  }
+  return listed;
 }
 
 /** True when the first price is the newer one. */
@@ -305,6 +312,16 @@ export async function registerMailCommerceRoutes(app: FastifyInstance): Promise<
     if (product.fulfilment !== 'EMAIL') throw notFound('This product is not a plan of hosted mail.');
     if (product.slug === service.plan.slug) {
       throw conflict('This mail service already has this plan.');
+    }
+
+    // A year that was paid up front is not switched to another plan in the middle
+    // of it: the credit of the rest of the year is not computed by the platform.
+    const held = await prisma.mailService.findUnique({ where: { id: service.id }, select: { subscriptionId: true } });
+    if (held?.subscriptionId) {
+      const current = await prisma.subscription.findUnique({ where: { id: held.subscriptionId }, include: { orderItem: { select: { config: true } } } });
+      if (termOfSubscription(current) === 'YEARLY') {
+        throw conflict('This mail service is billed yearly. Contact support to change its plan, so the rest of the year is settled correctly.');
+      }
     }
 
     // A line of mail carries the domain it brings, so the price of the plan

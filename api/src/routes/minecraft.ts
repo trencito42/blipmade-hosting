@@ -97,7 +97,7 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
 
   app.put('/instances/:id/minecraft/properties', write, async (request: FastifyRequest) => {
     const { user, instance, token, uuid } = await load(request);
-    const { changes } = z.object({ changes: z.record(z.string().max(300)) }).parse(request.body ?? {});
+    const { changes } = z.object({ changes: z.record(z.string(), z.string().max(300)) }).parse(request.body ?? {});
     const text = await readText(token, uuid, '/server.properties');
     if (!text) throw conflict('server.properties does not exist yet. Start the server once, so it is made.');
     await client.writeFile(token, uuid, '/server.properties', applyProperties(text, changes));

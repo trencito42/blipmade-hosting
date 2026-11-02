@@ -49,7 +49,7 @@ const orderItemSchema = z.object({
   // The values of the variables the product asks the customer for, such as
   // the licence of a game. They are checked and sealed before they are
   // written anywhere.
-  variables: z.record(z.string().max(400)).optional(),
+  variables: z.record(z.string(), z.string().max(400)).optional(),
 });
 
 function serializeOrder(order: {

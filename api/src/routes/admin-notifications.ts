@@ -637,7 +637,7 @@ export async function registerAdminNotificationRoutes(app: FastifyInstance): Pro
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
-      .object({ payload: boundedRecord(z.record(z.unknown()), MAX_TEMPLATE_PAYLOAD_KEYS, 'The payload').default({}) })
+      .object({ payload: boundedRecord(z.record(z.string(), z.unknown()), MAX_TEMPLATE_PAYLOAD_KEYS, 'The payload').default({}) })
       .parse(request.body ?? {});
 
     if (!emailTemplateCatalog().some((entry) => entry.id === id)) {
@@ -694,7 +694,7 @@ export async function registerAdminNotificationRoutes(app: FastifyInstance): Pro
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
-      .object({ payload: boundedRecord(z.record(z.unknown()), MAX_TEMPLATE_PAYLOAD_KEYS, 'The payload').default({}) })
+      .object({ payload: boundedRecord(z.record(z.string(), z.unknown()), MAX_TEMPLATE_PAYLOAD_KEYS, 'The payload').default({}) })
       .parse(request.body ?? {});
 
     if (!emailTemplateCatalog().some((entry) => entry.id === id)) {
@@ -746,7 +746,7 @@ export async function registerAdminNotificationRoutes(app: FastifyInstance): Pro
             message: 'The address of a test message must be a real address, not a name.',
           }),
         templateId: z.string().trim().min(1).max(120),
-        payload: boundedRecord(z.record(z.unknown()), MAX_TEMPLATE_PAYLOAD_KEYS, 'The payload').optional(),
+        payload: boundedRecord(z.record(z.string(), z.unknown()), MAX_TEMPLATE_PAYLOAD_KEYS, 'The payload').optional(),
       })
       .parse(request.body ?? {});
 

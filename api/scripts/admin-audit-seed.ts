@@ -38,6 +38,13 @@ const product = await prisma.product.create({
     prices: { create: { period: 'MONTHLY', baseAmount: 300, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0, currency: 'EUR' } },
   } as never,
 });
+await prisma.product.create({
+  data: {
+    slug: 'audit-vps', name: 'Audit VPS', category: 'VPS', fulfilment: 'VPS', description: 'A virtual server for the browser audit.', icon: 'server',
+    visible: true, deployable: true, defaultRam: 1024, defaultCpu: 1, defaultDisk: 20, minRam: 1024, maxRam: 1024, minCpu: 1, maxCpu: 1, minDisk: 20, maxDisk: 20,
+    prices: { create: { period: 'MONTHLY', baseAmount: 249, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0, currency: 'EUR' } },
+  } as never,
+});
 const instance = await prisma.instance.create({
   data: { userId: customer.id, productId: product.id, name: 'audit-live', status: 'ONLINE', pterodactylServerId: 900, pterodactylUuid: 'audit-uuid', ram: 1024, cpu: 1, disk: 10, price: 300 },
 });

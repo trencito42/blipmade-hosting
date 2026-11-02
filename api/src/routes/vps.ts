@@ -21,7 +21,7 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/vps/plans', async () => {
     const products = await prisma.product.findMany({
       where: { fulfilment: 'VPS', visible: true },
-      include: { prices: { where: { active: true, period: 'MONTHLY' }, take: 1 } },
+      include: { prices: { where: { active: true }, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }] } },
       orderBy: { sortOrder: 'asc' },
     });
     // The address of its own is an option of the platform, not of one plan.
@@ -32,6 +32,14 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
         .filter((product) => deploymentAvailability(product).orderable)
         .map((product) => {
           const dedicated = dedicatedOption;
+          const monthly = product.prices.find((price) => price.period === 'MONTHLY') ?? null;
+          // A plan without a yearly row of its own is sold for a year at twelve months of the monthly price.
+          const yearlyRow = product.prices.find((price) => price.period === 'YEARLY') ?? null;
+          const yearly = yearlyRow
+            ? { amount: yearlyRow.baseAmount, currency: yearlyRow.currency, period: 'YEARLY' }
+            : monthly
+              ? { amount: monthly.baseAmount * 12, currency: monthly.currency, period: 'YEARLY' }
+              : null;
           return {
             slug: product.slug,
             name: product.name,
@@ -39,8 +47,9 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
             ram: product.minRam,
             cpu: product.minCpu,
             disk: product.minDisk,
-            price: product.prices[0] ? { amount: product.prices[0].baseAmount, currency: product.prices[0].currency, period: 'MONTHLY' } : null,
-            dedicatedIp: dedicated && dedicatedFree ? { code: dedicated.code, amount: dedicated.amount } : null,
+            price: monthly ? { amount: monthly.baseAmount, currency: monthly.currency, period: 'MONTHLY' } : null,
+            yearlyPrice: yearly,
+            dedicatedIp: dedicated && dedicatedFree ? { code: dedicated.code, amount: dedicated.amount, yearlyAmount: dedicated.amount * 12 } : null,
           };
         }),
       sharedAddress: env.VPS_SHARED_IP || null,
@@ -51,7 +60,7 @@ export async function registerVpsRoutes(app: FastifyInstance): Promise<void> {
     const user = await requireAuth(request);
     const services = await prisma.vpsService.findMany({
       where: { userId: user.id, status: { not: 'CANCELLED' } },
-      include: { product: { select: { slug: true, name: true } }, subscription: true },
+      include: { product: { select: { slug: true, name: true } }, subscription: { include: { orderItem: { select: { config: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
     return { servers: await Promise.all(services.map((service) => vpsView(service))) };

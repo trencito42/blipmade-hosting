@@ -25,3 +25,5 @@ My first test runs wrote fake backup receipts into the real status directory and
 
 ## Rollback
 Images `blipmade-{api,worker,web}:before-round2-20261101T184355Z` (and `before-editor-...`, `before-overhaul-...` for the earlier steps), the dumps `~/pre-round2-20261101T184355Z.dump`, `~/pre-editor-20261101T174718Z.dump`, `~/pre-overhaul-20261101T171214Z.dump` on VM 103. The four migrations of this work only add tables and columns, so the previous images run on the new schema.
+
+- Round four (10): yearly term for VPS and mail, recurring add-ons priced for a year, dependency findings at 0 in the API, first verified offsite copy of the second VPS. Open: a yearly subscription on Stripe, backups of customers servers are opt-in, the node jobs were not inspected.

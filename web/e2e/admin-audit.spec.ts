@@ -167,3 +167,20 @@ test('a customer can choose a yearly term on Deploy and the price follows', asyn
     await setDiscount(page, 0);
   }
 });
+
+test('a customer can choose a yearly term for a virtual server', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const login = await page.request.post('/api/auth/login', { data: { email: 'customer@audit.test', password: seed.password } });
+  expect(login.status(), 'the customer can sign in').toBe(200);
+  await page.goto('/app/vps/new', { waitUntil: 'domcontentloaded' });
+  const monthly = page.getByRole('radio', { name: 'Monthly' });
+  const yearly = page.getByRole('radio', { name: 'Yearly' });
+  await expect(monthly).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
+  await expect(page.getByText('a month').first()).toBeVisible();
+  await yearly.click();
+  await expect(yearly).toHaveAttribute('aria-checked', 'true');
+  // 12 x 2.49 = 29.88, from the server's quote.
+  await expect(page.getByText('a year').first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/29[.,]88/).first()).toBeVisible({ timeout: 10_000 });
+  await page.screenshot({ path: `${OUT}/shots/vps-yearly.png`, fullPage: true });
+});

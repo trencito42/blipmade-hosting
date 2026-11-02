@@ -1208,8 +1208,10 @@ export interface VpsPlanView {
   cpu: number;
   disk: number;
   price: { amount: number; currency: string; period: string } | null;
+  /** What a year costs, when the plan can be bought for one. */
+  yearlyPrice?: { amount: number; currency: string; period: string } | null;
   /** The address of its own, when one can be bought. */
-  dedicatedIp: { code: string; amount: number } | null;
+  dedicatedIp: { code: string; amount: number; yearlyAmount?: number } | null;
 }
 
 /** A virtual private server of the customer. */
@@ -1240,7 +1242,7 @@ export interface VpsServerView {
   sshPort: number | null;
   dedicatedIp: boolean;
   image?: { slug: string; label: string };
-  contract?: { subscriptionId: string; status: string; amount: number; currency: string; periodEnd: string | null; cancelAtPeriodEnd: boolean } | null;
+  contract?: { subscriptionId: string; status: string; amount: number; currency: string; interval?: 'MONTHLY' | 'YEARLY'; periodEnd: string | null; cancelAtPeriodEnd: boolean } | null;
   sshCommand: string | null;
   lastError: string | null;
   createdAt: string;

@@ -40,7 +40,7 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
     startCommand: z.string().max(500).default('npm start'),
     autoDeploy: z.boolean().default(false),
     // Names and values of the variables of the app. A value of null keeps the value that is already there.
-    env: z.record(z.string().nullable()).optional(),
+    env: z.record(z.string(), z.string().nullable()).optional(),
   });
 
   app.get('/instances/:id/git', async (request: FastifyRequest) => {

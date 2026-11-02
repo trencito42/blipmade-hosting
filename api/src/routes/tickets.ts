@@ -80,9 +80,7 @@ const attachmentSchema = z.object({
 function enumField<T extends string>(allowed: readonly [T, ...T[]]) {
   return z.preprocess(
     (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
-    z.enum(allowed, {
-      errorMap: () => ({ message: `must be one of: ${allowed.join(', ')}.` }),
-    }),
+    z.enum(allowed, { error: `must be one of: ${allowed.join(', ')}.` }),
   );
 }
 

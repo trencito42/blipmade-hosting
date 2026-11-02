@@ -10,7 +10,7 @@
 | Phase 8: the schedule, the retention rules and the VPS backups were not re-verified; only the platform archive and its offsite copy were | The real restore drill passed (see 06). Customer backups and VPS backups are NOT VERIFIED live |
 | Phase 9: lifecycle reconciliation across Stripe, PostgreSQL, Pterodactyl, Proxmox, Mailcow | NOT IMPLEMENTED beyond `GET /admin/vps-billing-check` and the VPS allocation report |
 | VPS plans editor, protected workflow for nodes, storage, templates, IP pools | NOT IMPLEMENTED |
-| VPS: yearly subscriptions in the plan change; a durable retry for a Stripe and Proxmox split; reuse of released slots | NOT IMPLEMENTED |
+| VPS: a durable retry for a Stripe and Proxmox split; reuse of released slots | NOT IMPLEMENTED |
 | Settings: confirmation and step-up authentication for the dangerous keys; forms instead of JSON rows | NOT IMPLEMENTED |
 | Product guide: stored and shown in the editor preview, not shown to customers | NOT IMPLEMENTED |
 | Legal wording about backups in the Terms, the SLA and the AUP | IMPLEMENTED BUT UNVERIFIED: needs your review |

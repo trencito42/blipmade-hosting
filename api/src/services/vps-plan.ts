@@ -5,6 +5,7 @@ import * as pve from './proxmox.js';
 import { updateSubscriptionAmount } from './stripe.js';
 import { audit } from '../lib/audit.js';
 import { DEDICATED_IP_OPTION } from '../lib/vps-plans.js';
+import { monthsOfPeriod, termOfSubscription } from './pricing.js';
 
 /**
  * The two ways a VPS changes size.
@@ -56,7 +57,10 @@ async function monthlyPlanAmount(productId: string, dedicatedIp: boolean): Promi
 }
 
 async function load(serviceId: string) {
-  const service = await prisma.vpsService.findUnique({ where: { id: serviceId }, include: { product: true, subscription: true } });
+  const service = await prisma.vpsService.findUnique({
+    where: { id: serviceId },
+    include: { product: true, subscription: { include: { orderItem: { select: { config: true } } } } },
+  });
   if (!service) throw notFound('That server was not found.');
   return service;
 }
@@ -79,6 +83,7 @@ export async function quoteVpsPlanChange(serviceId: string, slug: string): Promi
   else if (!['ACTIVE', 'TRIALING'].includes(service.subscription.status)) blocked = 'The subscription is not active, so the price cannot be changed now.';
   else if (service.subscription.cancelAtPeriodEnd) blocked = 'The subscription ends at the end of the period. Resume it first.';
   else if (service.subscription.quantity !== 1) blocked = 'The subscription has more than one unit.';
+  else if (termOfSubscription(service.subscription) === 'YEARLY') blocked = 'The subscription is billed yearly. A year that was paid up front is not switched to another plan here, because the credit of the rest of the year is not computed.';
   return {
     serviceId,
     currency: now.currency,
@@ -213,7 +218,7 @@ export interface BillingMismatch {
 export async function vpsBillingMismatches(): Promise<BillingMismatch[]> {
   const services = await prisma.vpsService.findMany({
     where: { status: { in: ['ACTIVE', 'SUSPENDED'] } },
-    include: { product: true, subscription: true },
+    include: { product: true, subscription: { include: { orderItem: { select: { config: true } } } } },
   });
   const found: BillingMismatch[] = [];
   for (const service of services) {
@@ -227,7 +232,10 @@ export async function vpsBillingMismatches(): Promise<BillingMismatch[]> {
     const price = await prisma.productPrice.findFirst({ where: { productId: service.productId, period: 'MONTHLY' } });
     if (price) {
       const option = service.dedicatedIp ? await prisma.productOption.findUnique({ where: { code: DEDICATED_IP_OPTION.code } }) : null;
-      const expected = price.baseAmount + (option?.amount ?? 0);
+      // A year is twelve months of the monthly price, unless the plan has a yearly row of its own.
+      const months = monthsOfPeriod(termOfSubscription(service.subscription));
+      const yearly = months === 1 ? null : await prisma.productPrice.findFirst({ where: { productId: service.productId, period: 'YEARLY', active: true } });
+      const expected = yearly ? yearly.baseAmount + (option?.amount ?? 0) * months : (price.baseAmount + (option?.amount ?? 0)) * months;
       // The price of the catalogue may have moved since the customer bought. That is a protected price, not an error,
       // so only a subscription that is not the price of any moment is reported by the plan change itself.
       if (service.subscription.amount !== expected && service.resourceOverride === null) {

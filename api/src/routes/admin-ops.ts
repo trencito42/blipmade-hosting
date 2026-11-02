@@ -70,6 +70,12 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
   // Backups of customers live on the node only: there is no copy outside it, and the page says so.
   app.get('/admin/backups/health', { preHandler: [requirePermission('infrastructure.read')] }, async () => {
     const day = 86_400_000;
+    // A server is copied about once a week, so a copy older than nine days is a gap.
+    const vpsServices = await prisma.vpsService.findMany({ where: { status: { in: ['ACTIVE', 'SUSPENDED'] }, vmid: { not: null } }, select: { id: true, name: true, vmid: true } });
+    const vpsCopies = await prisma.offsiteBackup.groupBy({ by: ['sourceId'], where: { kind: 'VPS', state: 'OFFSITE_VERIFIED', sourceId: { in: vpsServices.map((service) => `vm${service.vmid}`) } }, _max: { verifiedAt: true } });
+    const vpsGaps = vpsServices
+      .map((service) => ({ id: service.id, name: service.name, vmid: service.vmid as number, lastCopyAt: vpsCopies.find((row) => row.sourceId === `vm${service.vmid}`)?._max.verifiedAt ?? null }))
+      .filter((service) => !service.lastCopyAt || Date.now() - service.lastCopyAt.getTime() > 9 * day);
     const [nodes, failures, destinationRow, counts, recentOffsiteFailures, latestVerified, latestByKind, restoreChecked, instances, linked] = await Promise.all([
       ptero.listNodes().catch(() => []),
       prisma.instanceEvent.findMany({
@@ -107,6 +113,8 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
       lastVerifiedAt: latestVerified?.verifiedAt ?? null,
       // Services with no verified offsite copy in the last two days.
       gaps: instances.filter((instance) => !covered.has(instance.id)).map((instance) => ({ id: instance.id, name: instance.name })),
+      // Virtual servers with no verified copy in the last nine days.
+      vpsGaps,
       offsiteFailures: recentOffsiteFailures.map((row) => ({ id: row.id, kind: row.kind, source: row.sourceId, error: row.error, at: row.updatedAt })),
       nodes: nodes.map((node) => {
         const sellable = Math.round(node.disk * (1 + node.disk_overallocate / 100));

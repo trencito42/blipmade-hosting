@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { badRequest, notFound } from '../lib/errors.js';
 import * as pve from './proxmox.js';
+import { termOfSubscription } from './pricing.js';
 import { imageLabel, templateOfImage } from '../lib/vps-images.js';
 import net from 'node:net';
 
@@ -337,7 +338,7 @@ export interface VpsView {
   /** The line to type to log in. */
   sshCommand: string | null;
   /** The subscription that pays for it: when it renews and whether it will. */
-  contract: { subscriptionId: string; status: string; amount: number; currency: string; periodEnd: Date | null; cancelAtPeriodEnd: boolean } | null;
+  contract: { subscriptionId: string; status: string; amount: number; currency: string; interval: 'MONTHLY' | 'YEARLY'; periodEnd: Date | null; cancelAtPeriodEnd: boolean } | null;
   lastError: string | null;
   createdAt: Date;
 }
@@ -345,7 +346,7 @@ export interface VpsView {
 export async function vpsView(
   service: VpsService & {
     product: { slug: string; name: string };
-    subscription?: { id: string; status: string; amount: number; currency: string; currentPeriodEnd: Date | null; cancelAtPeriodEnd: boolean } | null;
+    subscription?: { id: string; status: string; amount: number; currency: string; currentPeriodStart?: Date | null; currentPeriodEnd: Date | null; cancelAtPeriodEnd: boolean; orderItem?: { config: unknown } | null } | null;
   },
   live = true,
 ): Promise<VpsView> {
@@ -383,6 +384,7 @@ export async function vpsView(
           status: service.subscription.status.toLowerCase(),
           amount: service.subscription.amount,
           currency: service.subscription.currency,
+          interval: termOfSubscription(service.subscription),
           periodEnd: service.subscription.currentPeriodEnd,
           cancelAtPeriodEnd: service.subscription.cancelAtPeriodEnd,
         }
@@ -393,7 +395,7 @@ export async function vpsView(
 }
 
 export async function ownedVps(userId: string, id: string) {
-  const service = await prisma.vpsService.findFirst({ where: { id, userId }, include: { product: { select: { slug: true, name: true } }, subscription: true } });
+  const service = await prisma.vpsService.findFirst({ where: { id, userId }, include: { product: { select: { slug: true, name: true } }, subscription: { include: { orderItem: { select: { config: true } } } } } });
   if (!service) throw notFound('That server was not found.');
   return service;
 }

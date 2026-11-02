@@ -999,7 +999,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
       .object({
         image: z.string().trim().min(1).max(255).optional(),
         command: z.string().max(4096).optional(),
-        environment: z.record(z.string().max(4096)).optional(),
+        environment: z.record(z.string(), z.string().max(4096)).optional(),
       })
       .parse(request.body ?? {});
     const user = await requireAuth(request);
@@ -1149,7 +1149,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
         cron: z.string().trim().min(1).max(100),
         action: z.enum(['power', 'command', 'backup']),
         active: z.boolean().default(true),
-        payload: z.record(z.unknown()).default({}),
+        payload: z.record(z.string(), z.unknown()).default({}),
       })
       .parse(request.body);
     const user = await requireAuth(request);
@@ -1180,7 +1180,7 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
         name: z.string().trim().min(1).max(100).optional(),
         cron: z.string().trim().min(1).max(100).optional(),
         active: z.boolean().optional(),
-        payload: z.record(z.unknown()).optional(),
+        payload: z.record(z.string(), z.unknown()).optional(),
       })
       .parse(request.body ?? {});
     return withInstance(request, async (token, instance) => {

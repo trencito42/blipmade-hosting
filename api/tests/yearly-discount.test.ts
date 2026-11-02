@@ -8,6 +8,7 @@ import {
   breakdownForPeriod,
   DEFAULT_RESOURCE_RATES,
   forgetYearlyDiscount,
+  optionsAmountForPeriod,
   priceConfiguration,
   yearlyDiscountOf,
   yearlyDiscountPercent,
@@ -59,7 +60,7 @@ describe('the arithmetic of the yearly reduction', () => {
   });
 
   it('reduces the resources of a year and not the add-ons', () => {
-    const options = [{ amount: 500 }] as never;
+    const options = [{ amount: 500, recurring: false }] as never;
     const full = priceConfiguration(price, product, config, options, DEFAULT_RESOURCE_RATES, 'YEARLY', 0);
     const reduced = priceConfiguration(price, product, config, options, DEFAULT_RESOURCE_RATES, 'YEARLY', 10);
     const resources = full - 500;
@@ -75,7 +76,7 @@ describe('the arithmetic of the yearly reduction', () => {
     const options = [{ amount: 500 }] as never;
     for (const percent of [0, 5, 10, 33, 50]) {
       const quoted = priceConfiguration(price, product, config, options, DEFAULT_RESOURCE_RATES, 'YEARLY', percent);
-      const parts = breakdownForPeriod(config, DEFAULT_RESOURCE_RATES, 'YEARLY', 500, percent);
+      const parts = breakdownForPeriod(config, DEFAULT_RESOURCE_RATES, 'YEARLY', optionsAmountForPeriod(options, 'YEARLY'), percent);
       expect(parts.total).toBe(quoted);
       expect(parts.ram + parts.cpu + parts.disk + parts.base + parts.options + (parts.discount ?? 0)).toBe(parts.total);
     }

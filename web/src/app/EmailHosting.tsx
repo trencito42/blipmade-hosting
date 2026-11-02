@@ -101,17 +101,18 @@ export function MailPlanLimitList({ limits }: { limits: MailPlanLimits }) {
  * The amount and the currency are the ones of the platform: the page never
  * writes an amount of its own.
  */
-export function MailPlanPriceLine({ plan }: { plan: MailPlanView }) {
-  if (!plan.price) {
+export function MailPlanPriceLine({ plan, price: chosen }: { plan: MailPlanView; price?: MailPlanView['price'] }) {
+  const price = chosen ?? plan.price;
+  if (!price) {
     return <p className="text-[15px] font-semibold text-ink2">This plan has no price yet.</p>;
   }
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
       <span className="font-mono text-[26px] font-semibold tracking-[-0.03em] text-ink">
-        <Money amount={plan.price.amount} currency={plan.price.currency} />
+        <Money amount={price.amount} currency={price.currency} />
       </span>
       <span className="text-[13px] text-ink3">
-        {periodSuffix(plan.price.period)} · {periodLabel(plan.price.period)}
+        {periodSuffix(price.period)} · {periodLabel(price.period)}
       </span>
     </div>
   );
@@ -299,12 +300,16 @@ export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
   const [domain, setDomain] = useState('');
   const [domainError, setDomainError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [term, setTerm] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
 
   const state = useAsync<{ plans: MailPlanView[] }>(
     (signal) => get<{ plans: MailPlanView[] }>('/mail/plans', undefined, signal),
     [],
   );
   const plan = planProp ?? state.data?.plans.find((entry) => entry.slug === slug) ?? null;
+  // The platform lists the terms it sells the plan for; the order is priced by the server.
+  const yearlyPrice = plan?.prices.find((entry) => entry.period === 'YEARLY') ?? null;
+  const chosenPrice = term === 'YEARLY' && yearlyPrice ? yearlyPrice : plan?.price ?? null;
 
   const order = useAction(async () => {
     if (!plan) return;
@@ -317,7 +322,7 @@ export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
       return;
     }
     setDomainError(null);
-    const period = planPeriod(plan);
+    const period = term === 'YEARLY' && yearlyPrice ? 'YEARLY' : planPeriod(plan);
     const created = await post<{ order: Order }>('/orders', {
       items: [{ productSlug: plan.slug, mailDomain: hostname }],
       ...(period ? { period } : {}),
@@ -371,12 +376,34 @@ export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
               <MailPlanLimitList limits={plan.limits} />
             </div>
             <div className="mt-4">
-              <MailPlanPriceLine plan={plan} />
+              <MailPlanPriceLine plan={plan} price={chosenPrice} />
             </div>
           </div>
 
           {onSale ? (
             <>
+              {yearlyPrice && (
+                <div className="grid gap-2">
+                  <p id="mail-term-label" className="text-[13.5px] font-medium text-ink">Billing term</p>
+                  <div role="radiogroup" aria-labelledby="mail-term-label" className="grid max-w-sm grid-cols-2 gap-2">
+                    {(['MONTHLY', 'YEARLY'] as const).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        role="radio"
+                        aria-checked={term === option}
+                        onClick={() => setTerm(option)}
+                        className={`rounded-2xl border px-3.5 py-3 text-[13.5px] font-medium transition-colors ${
+                          term === option ? 'border-acc bg-acc-bg text-acc' : 'border-line bg-card text-ink hover:border-ink3'
+                        }`}
+                      >
+                        {option === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <TextInput
                 label="Mail domain"
                 value={domain}

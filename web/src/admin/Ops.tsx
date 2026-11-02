@@ -467,6 +467,7 @@ function BackupHealth() {
     kinds: { kind: string; pending: number; verified: number; failed: number; lastVerifiedAt: string | null; lastRestoreCheckAt: string | null }[];
     lastVerifiedAt: string | null;
     gaps: { id: string; name: string }[];
+    vpsGaps?: { id: string; name: string; vmid: number; lastCopyAt: string | null }[];
     offsiteFailures: { id: string; kind: string; source: string; error: string | null; at: string }[];
     nodes: { id: number; name: string; diskMb: number; allocatedMb: number; allocatedPercent: number | null }[];
     failures: { id: string; instance: string; message: string; at: string }[];
@@ -516,6 +517,15 @@ function BackupHealth() {
             <div className="grid gap-1 rounded-2xl bg-warn/12 p-4">
               <p className="text-[14px] font-semibold text-ink">{data.gaps.length} service(s) with no verified offsite copy in the last 2 days</p>
               <p className="break-words text-[12.5px] text-ink2">{data.gaps.map((gap) => gap.name).join(', ')}</p>
+            </div>
+          )}
+
+          {(data.vpsGaps?.length ?? 0) > 0 && (
+            <div className="grid gap-1 rounded-2xl bg-warn/12 p-4">
+              <p className="text-[14px] font-semibold text-ink">{data.vpsGaps!.length} virtual server(s) with no verified copy in the last 9 days</p>
+              <p className="break-words text-[12.5px] text-ink2">
+                {data.vpsGaps!.map((gap) => `${gap.name} (${gap.lastCopyAt ? `last copy ${new Date(gap.lastCopyAt).toLocaleDateString('en-GB')}` : 'never copied'})`).join(', ')}
+              </p>
             </div>
           )}
 

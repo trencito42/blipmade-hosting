@@ -778,12 +778,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         eggId: z.number().int().positive().nullable().optional(),
         eggName: z.string().trim().min(1).max(120).nullable().optional(),
         dockerImage: z.string().trim().max(300).nullable().optional(),
-        startup: z.record(z.string()).nullable().optional(),
+        startup: z.record(z.string(), z.string()).nullable().optional(),
         startupCommand: z.string().trim().max(4000).nullable().optional(),
         // The variables of the egg that the customer has to fill at the order,
         // such as the licence of a game.
         customerVariables: z
           .record(
+            z.string(),
             z.object({
               label: z.string().trim().max(120).optional(),
               required: z.boolean().optional(),
@@ -1781,7 +1782,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     preHandler: [requirePermission('settings.write'), customerLimit(app, LIMITS.adminWrite)],
   }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
-    const body = boundedRecord(z.record(z.unknown()), MAX_SETTINGS, 'The settings').parse(request.body);
+    const body = boundedRecord(z.record(z.string(), z.unknown()), MAX_SETTINGS, 'The settings').parse(request.body);
     const keys = Object.keys(body);
     const stored = new Map((await prisma.setting.findMany({ where: { key: { in: keys } } })).map((row) => [row.key, row.value]));
 

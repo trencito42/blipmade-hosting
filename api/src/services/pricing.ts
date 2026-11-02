@@ -112,6 +112,19 @@ export interface PromotionResult {
  * service, and the plan itself is what the customer buys, so it keeps its own
  * base price.
  */
+/**
+ * What the add-ons cost for a term. An add-on that recurs is charged every
+ * month, so a year carries twelve of it; an add-on that does not recur is
+ * charged once. The yearly reduction never applies to them.
+ */
+export function optionsAmountForPeriod(
+  options: Pick<ProductOption, 'amount' | 'recurring'>[],
+  period: BillingPeriod,
+): number {
+  const months = monthsOfPeriod(period);
+  return options.reduce((sum, option) => sum + (option.recurring === false ? option.amount : option.amount * months), 0);
+}
+
 export function priceConfiguration(
   price: Pick<ProductPrice, 'baseAmount' | 'ramPerGb' | 'cpuPerUnit' | 'diskPerGb'>,
   product: { minRam: number; minCpu: number; minDisk: number; fulfilment: string },
@@ -121,7 +134,7 @@ export function priceConfiguration(
   period: BillingPeriod = 'MONTHLY',
   yearlyDiscountPercent = 0,
 ): number {
-  const addons = options.reduce((sum, option) => sum + option.amount, 0);
+  const addons = optionsAmountForPeriod(options, period);
 
   // A plan of mail is a subscription of a service: the plan is what the
   // customer buys, and the resources of the plan are part of it.
@@ -137,9 +150,8 @@ export function priceConfiguration(
   }
 
   // The card of the resources is the price of a month. A year is twelve
-  // months of that card, and the options of the configuration are added
-  // once, as they are part of the configuration and not of the month.
-  // The reduction of a year applies to the resources and not to the options.
+  // months of that card. The add-ons that recur are twelve months of them too,
+  // and the reduction of a year applies to the resources and not to the add-ons.
   const resources = normalizeAmount(priceOfResources(config, rates) * monthsOfPeriod(period));
   return normalizeAmount(resources - yearlyDiscountOf(resources, period, yearlyDiscountPercent) + addons);
 }
@@ -201,8 +213,8 @@ export function monthsOfPeriod(period: BillingPeriod): number {
  * The breakdown of a configuration for the period it was priced for.
  *
  * The card of the resources is the price of a month, so a year is twelve
- * months of the same breakdown. The add-ons are priced once and they are not
- * multiplied.
+ * months of the same breakdown. The add-ons are passed in already priced for
+ * the term (see optionsAmountForPeriod).
  */
 export function breakdownForPeriod(
   config: { ram: number; cpu: number; disk: number },
@@ -456,7 +468,7 @@ export async function loadPrice(
  * row is used and carries the period that was asked for. That period is the
  * one written on the order, so the renewal and the Stripe interval follow it.
  */
-export async function loadResourcePrice(productId: string, period: BillingPeriod): Promise<ProductPrice> {
+export async function loadResourcePrice(productId: string, period: BillingPeriod, fulfilment = 'SERVER'): Promise<ProductPrice> {
   const exact = await prisma.productPrice.findFirst({
     where: { productId, period, active: true },
     orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
@@ -464,6 +476,20 @@ export async function loadResourcePrice(productId: string, period: BillingPeriod
   if (exact) return exact;
   if (period === 'MONTHLY') throw notFound('This product has no active price.');
   const monthly = await loadPrice(productId, 'MONTHLY');
+  // A plan of mail or of a VPS is a fixed price, so its year is twelve months of
+  // every figure of the row. The row is derived and never written: the admin sets
+  // a cheaper yearly row of their own when they want one.
+  if (fulfilment === 'EMAIL' || fulfilment === 'VPS') {
+    const months = monthsOfPeriod(period);
+    return {
+      ...monthly,
+      period,
+      baseAmount: monthly.baseAmount * months,
+      ramPerGb: monthly.ramPerGb * months,
+      cpuPerUnit: monthly.cpuPerUnit * months,
+      diskPerGb: monthly.diskPerGb * months,
+    };
+  }
   return { ...monthly, period };
 }
 
@@ -482,6 +508,25 @@ export function periodOfConfig(config: unknown): BillingPeriod {
  */
 export function monthlyEquivalent(amount: number, period: BillingPeriod): number {
   return normalizeAmount(Math.round(amount / monthsOfPeriod(period)));
+}
+
+/**
+ * The term of a subscription. The period written on its order line is what was
+ * bought; for a subscription that has none, a period of about a year is a year.
+ */
+export function termOfSubscription(subscription: {
+  orderItem?: { config?: unknown } | null;
+  currentPeriodStart?: Date | null;
+  currentPeriodEnd?: Date | null;
+} | null | undefined): BillingPeriod {
+  if (!subscription) return 'MONTHLY';
+  const written = (subscription.orderItem?.config as { period?: unknown } | null | undefined)?.period;
+  if (written === 'YEARLY' || written === 'MONTHLY') return written;
+  if (subscription.currentPeriodStart && subscription.currentPeriodEnd) {
+    const days = (subscription.currentPeriodEnd.getTime() - subscription.currentPeriodStart.getTime()) / 86_400_000;
+    if (days >= 300) return 'YEARLY';
+  }
+  return 'MONTHLY';
 }
 
 /** The term of the order line that created an instance. */
@@ -564,7 +609,7 @@ export async function priceItems(
     const accepted = checkCustomerVariables(specs, item.variables);
     const sealedVariables = Object.keys(accepted).length > 0 ? sealVariables(accepted) : undefined;
 
-    const price = isMail || isVps ? await loadPrice(product.id, period) : await loadResourcePrice(product.id, period);
+    const price = await loadResourcePrice(product.id, period, product.fulfilment);
     const optionCodes = item.optionCodes ?? [];
     const options = await loadOptions(product.id, optionCodes);
     const found = new Set(options.map((option) => option.code));
@@ -584,7 +629,7 @@ export async function priceItems(
           config,
           rates,
           period,
-          options.reduce((sum, option) => sum + option.amount, 0),
+          optionsAmountForPeriod(options, period),
           discountPercent,
         );
     priced.push({

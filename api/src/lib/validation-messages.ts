@@ -21,7 +21,7 @@ const LABELS: Record<string, string> = {
   vpsName: 'Server name',
 };
 
-export function labelOf(path: (string | number)[]): string {
+export function labelOf(path: PropertyKey[]): string {
   const last = String(path[path.length - 1] ?? 'form');
   if (LABELS[last]) return LABELS[last]!;
   const words = last.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]/g, ' ').toLowerCase();
@@ -32,23 +32,24 @@ export function describeIssue(issue: ZodIssue): string {
   const label = labelOf(issue.path);
   switch (issue.code) {
     case 'invalid_type':
-      return issue.received === 'undefined' || issue.received === 'null' ? `${label} is required.` : `${label} has the wrong format.`;
+      // The library says what it received in its own message: "... received undefined".
+      return /received (undefined|null)\b/.test(issue.message) ? `${label} is required.` : `${label} has the wrong format.`;
     case 'too_small':
-      if (issue.type === 'string' || issue.type === 'array') {
+      if (issue.origin === 'string' || issue.origin === 'array') {
         const min = Number(issue.minimum);
-        return min <= 1 ? `${label} cannot be empty.` : `${label} needs at least ${min} ${issue.type === 'string' ? 'characters' : 'items'}.`;
+        return min <= 1 ? `${label} cannot be empty.` : `${label} needs at least ${min} ${issue.origin === 'string' ? 'characters' : 'items'}.`;
       }
       return `${label} must be at least ${String(issue.minimum)}.`;
     case 'too_big':
-      if (issue.type === 'string') return `${label} is too long (at most ${String(issue.maximum)} characters).`;
+      if (issue.origin === 'string') return `${label} is too long (at most ${String(issue.maximum)} characters).`;
       return `${label} must be at most ${String(issue.maximum)}.`;
-    case 'invalid_string':
-      if (issue.validation === 'email') return `${label} is not a valid email address.`;
-      if (issue.validation === 'url') return `${label} is not a valid address.`;
+    case 'invalid_format':
+      if (issue.format === 'email') return `${label} is not a valid email address.`;
+      if (issue.format === 'url') return `${label} is not a valid address.`;
       // A rule the schema wrote its own message for keeps that message.
-      return issue.message && issue.message !== 'Invalid' ? issue.message : `${label} has the wrong format.`;
-    case 'invalid_enum_value':
-      return `${label} must be one of: ${issue.options.join(', ')}.`;
+      return issue.message && !/^Invalid /.test(issue.message) ? issue.message : `${label} has the wrong format.`;
+    case 'invalid_value':
+      return `${label} must be one of: ${issue.values.join(', ')}.`;
     case 'custom':
       return issue.message || `${label} is not valid.`;
     default:

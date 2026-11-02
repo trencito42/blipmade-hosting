@@ -157,6 +157,7 @@ export function VpsCheckout() {
   const [key, setKey] = useState('');
   const [dedicated, setDedicated] = useState(false);
   const [promo, setPromo] = useState('');
+  const [period, setPeriod] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrs, setFieldErrs] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
@@ -166,13 +167,17 @@ export function VpsCheckout() {
   }, [plans, slug]);
 
   const plan = plans.find((entry) => entry.slug === slug) ?? null;
-  const listTotal = plan?.price ? plan.price.amount + (dedicated && plan.dedicatedIp ? plan.dedicatedIp.amount : 0) : null;
+  const yearly = period === 'YEARLY';
+  // The list price is only a first figure: the quote of the server is what is charged.
+  const shownPrice = yearly ? plan?.yearlyPrice ?? null : plan?.price ?? null;
+  const addressAmount = plan?.dedicatedIp ? (yearly ? plan.dedicatedIp.yearlyAmount ?? plan.dedicatedIp.amount * 12 : plan.dedicatedIp.amount) : 0;
+  const listTotal = shownPrice ? shownPrice.amount + (dedicated ? addressAmount : 0) : null;
 
   // The price comes from the server, with the promotion code applied, so the sum that is shown is the sum that is charged.
   const trimmedPromo = promo.trim();
   const quoteState = useAsync<{ total: number; subtotal: number; discount: number; currency: string; promotion: { code: string; valid: boolean; reason?: string } | null } | null>(
     async (signal) => {
-      if (!plan || !trimmedPromo) return null;
+      if (!plan || (!trimmedPromo && !yearly)) return null;
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(resolve, 250);
         signal.addEventListener('abort', () => { clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }, { once: true });
@@ -181,16 +186,18 @@ export function VpsCheckout() {
         method: 'POST',
         body: {
           items: [{ productSlug: plan.slug, ...(dedicated && plan.dedicatedIp ? { optionCodes: [plan.dedicatedIp.code] } : {}) }],
-          promotionCode: trimmedPromo,
+          ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
+          period,
         },
         signal,
       });
     },
-    [plan?.slug, dedicated, trimmedPromo],
+    [plan?.slug, dedicated, trimmedPromo, period],
   );
   const quote = quoteState.data ?? null;
   const promotion = quote?.promotion ?? null;
-  const total = quote && promotion?.valid ? quote.total : listTotal;
+  // A year is always the price of the server; a month is the quote only when a code applies.
+  const total = quote && (promotion?.valid || yearly) ? quote.total : listTotal;
 
   const order = useAction(async () => {
     if (!plan) return;
@@ -203,6 +210,7 @@ export function VpsCheckout() {
     try {
       const created = await post<{ order: Order }>('/orders', {
         ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
+        period,
         items: [
           {
             productSlug: plan.slug,
@@ -253,12 +261,37 @@ export function VpsCheckout() {
                       </span>
                     </span>
                     <span className="text-[15px] font-semibold text-ink">
-                      {entry.price ? <Money amount={entry.price.amount} currency={entry.price.currency} /> : '—'}
+                      {(yearly ? entry.yearlyPrice : entry.price) ? (
+                        <>
+                          <Money amount={(yearly ? entry.yearlyPrice : entry.price)!.amount} currency={(yearly ? entry.yearlyPrice : entry.price)!.currency} />
+                          <span className="ml-1 text-[12px] font-normal text-ink3">{yearly ? '/ year' : '/ month'}</span>
+                        </>
+                      ) : '—'}
                     </span>
                   </label>
                 ))}
               </div>
             </fieldset>
+
+            <div className="grid gap-2">
+              <p id="vps-term-label" className="text-[13.5px] font-medium text-ink">Billing term</p>
+              <div role="radiogroup" aria-labelledby="vps-term-label" className="grid max-w-sm grid-cols-2 gap-2">
+                {(['MONTHLY', 'YEARLY'] as const).map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    role="radio"
+                    aria-checked={period === term}
+                    onClick={() => setPeriod(term)}
+                    className={`rounded-2xl border px-3.5 py-3 text-[13.5px] font-medium transition-colors ${
+                      period === term ? 'border-acc bg-acc-bg text-acc' : 'border-line bg-card text-ink hover:border-ink3'
+                    }`}
+                  >
+                    {term === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <TextInput
               label="Name of the server"
@@ -288,7 +321,7 @@ export function VpsCheckout() {
               <span>
                 <span className="block text-[14.5px] font-medium text-ink">
                   Dedicated IPv4 address
-                  {plan?.dedicatedIp ? <> · <Money amount={plan.dedicatedIp.amount} currency="EUR" /> / month</> : null}
+                  {plan?.dedicatedIp ? <> · <Money amount={addressAmount} currency="EUR" /> {yearly ? '/ year' : '/ month'}</> : null}
                 </span>
                 <span className="block text-[13px] text-ink2">
                   {plan?.dedicatedIp
@@ -334,7 +367,7 @@ export function VpsCheckout() {
                 {promotion?.valid && listTotal !== null && total !== listTotal && (
                   <span className="mr-2 text-[14px] text-ink3 line-through"><Money amount={listTotal} currency="EUR" /></span>
                 )}
-                <span className="text-[20px] font-semibold text-ink">{total !== null ? <Money amount={total} currency="EUR" /> : '—'}</span> a month
+                <span className="text-[20px] font-semibold text-ink">{total !== null ? <Money amount={total} currency="EUR" /> : '—'}</span> {yearly ? 'a year' : 'a month'}
               </p>
               <PrimaryButton onClick={() => void order.run()} disabled={order.pending || !plan || !key.trim()}>
                 {order.pending ? (total === 0 ? 'Placing the order…' : 'Opening the payment…') : total === 0 ? 'Place the order' : 'Continue to payment'}
@@ -722,7 +755,7 @@ function ContractCard({ server, onChanged }: { server: VpsServerView; onChanged:
         <div className="grid gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[14px] text-ink2">
-              <Money amount={contract.amount} currency={contract.currency} /> a month ·{' '}
+              <Money amount={contract.amount} currency={contract.currency} /> {contract.interval === 'YEARLY' ? 'a year' : 'a month'} ·{' '}
               {contract.cancelAtPeriodEnd ? 'ends' : 'renews'} {end ? end.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'on the next period'}
             </p>
             {days !== null && days <= 7 && days >= 0 && (
