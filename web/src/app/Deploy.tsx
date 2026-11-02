@@ -443,6 +443,9 @@ export default function Deploy() {
   const [humanToken, setHumanToken] = useState<string | null>(null);
   const [subdomainCheck, setSubdomainCheck] = useState<{ available: boolean; reason: string | null } | null>(null);
   const [promotionCode, setPromotionCode] = useState('');
+  // The term the customer pays for. The server prices it: a yearly term is twelve
+  // months of the rate card, less the yearly discount the operator set.
+  const [period, setPeriod] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [billingAddress, setBillingAddress] = useState<BillingAddressValue>(emptyBillingAddress);
   const [billingTouched, setBillingTouched] = useState(false);
   const [checkoutIssue, setCheckoutIssue] = useState<string | null>(null);
@@ -505,6 +508,8 @@ export default function Deploy() {
     if (!mailPlan || mailDomainProblem || !mailHostname) return null;
     return { productSlug: mailPlan.slug, mailDomain: mailHostname };
   }, [mailPlan, mailDomainProblem, mailHostname]);
+  // Hosted mail is sold by the month, so a yearly term cannot carry it.
+  const quotePeriod: 'MONTHLY' | 'YEARLY' = mailPlan ? 'MONTHLY' : period;
   const mailLineKey = mailLine ? `${mailLine.productSlug}:${mailLine.mailDomain}` : '';
 
   // --- product ------------------------------------------------------------
@@ -626,11 +631,12 @@ export default function Deploy() {
           ...(mailLine ? [mailLine] : []),
         ],
         ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
+        period: quotePeriod,
       ...(billingAddress.line1.trim() ? { billingAddress } : {}),
       },
       signal,
     });
-  }, [product?.slug, ram, cpu, disk, optionKey, trimmedPromo, mailLineKey]);
+  }, [product?.slug, ram, cpu, disk, optionKey, trimmedPromo, mailLineKey, quotePeriod]);
 
   const quote = quoteState.data ?? null;
 
@@ -1114,6 +1120,32 @@ export default function Deploy() {
               </div>
               <div className="mt-5 grid gap-3">
             <div className="grid gap-2">
+              <p id="billing-term-label" className="text-[13.5px] font-medium text-ink">Billing term</p>
+              <div role="radiogroup" aria-labelledby="billing-term-label" className="grid grid-cols-2 gap-2">
+                {(['MONTHLY', 'YEARLY'] as const).map((term) => {
+                  const chosen = quotePeriod === term;
+                  const blocked = term === 'YEARLY' && Boolean(mailPlan);
+                  return (
+                    <button
+                      key={term}
+                      type="button"
+                      role="radio"
+                      aria-checked={chosen}
+                      disabled={blocked}
+                      onClick={() => setPeriod(term)}
+                      className={`rounded-2xl border px-3.5 py-3 text-[13.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        chosen ? 'border-acc bg-acc-bg text-acc' : 'border-line bg-card text-ink hover:border-ink3'
+                      }`}
+                    >
+                      {term === 'MONTHLY' ? 'Monthly' : 'Yearly'}
+                    </button>
+                  );
+                })}
+              </div>
+              {mailPlan && <p className="text-[12.5px] text-ink3">Hosted mail is billed monthly, so the yearly term is off while it is added.</p>}
+            </div>
+
+            <div className="grid gap-2">
               <TextInput
                 label="Promotion code"
                 hint="Optional. The server confirms whether it applies."
@@ -1204,6 +1236,7 @@ export default function Deploy() {
                 <Row label="Memory">{memLabel(ram)}</Row>
                 <Row label="vCPU">{cpu}</Row>
                 <Row label="Storage">{disk} GB</Row>
+                <Row label="Billing term">{quote?.period === 'YEARLY' ? 'Yearly' : 'Monthly'}</Row>
                 {/* The hosted mail is a line of its own, under the line of the
                     server, with the price the platform asks for it. */}
                 <DeployMailLine

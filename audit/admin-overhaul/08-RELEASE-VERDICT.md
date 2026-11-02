@@ -12,7 +12,7 @@
 
 ### What is not true yet
 - The tax configuration is not built. No tax rule was invented.
-- The yearly discount was not tried against Stripe (a discounted yearly subscription, its renewal, a plan change).
+- The yearly discount and the yearly term of Deploy were not tried against Stripe (a yearly subscription, its renewal, a refund). A change of resources on a yearly service is refused and goes to support.
 - Every admin screen was opened in a browser on a disposable stack (09), but not every button was clicked, and the live site was not browsed.
 - Customer backups and VPS backups were not verified live. A real VPS card payment and a real Stripe plan change were not tried.
 - Eight advisories remain in the API dependencies (`zod`, `prisma` and its config chain, the Sentry build plugins).

@@ -448,6 +448,49 @@ export async function loadPrice(
   return price;
 }
 
+/**
+ * The price row of a product that is priced by its resources.
+ *
+ * A server has one rate card and a term is only a number of months of it, so a
+ * yearly term needs no row of its own: when the product has none, the monthly
+ * row is used and carries the period that was asked for. That period is the
+ * one written on the order, so the renewal and the Stripe interval follow it.
+ */
+export async function loadResourcePrice(productId: string, period: BillingPeriod): Promise<ProductPrice> {
+  const exact = await prisma.productPrice.findFirst({
+    where: { productId, period, active: true },
+    orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+  });
+  if (exact) return exact;
+  if (period === 'MONTHLY') throw notFound('This product has no active price.');
+  const monthly = await loadPrice(productId, 'MONTHLY');
+  return { ...monthly, period };
+}
+
+/**
+ * The term an order line was bought for. A line that does not say is monthly.
+ */
+export function periodOfConfig(config: unknown): BillingPeriod {
+  return (config as { period?: unknown } | null)?.period === 'YEARLY' ? 'YEARLY' : 'MONTHLY';
+}
+
+/**
+ * What a term costs per month. The price of an instance is kept per month
+ * whatever the term, so the monthly revenue, the change of resources and the
+ * correction of prices all read the same unit. The sum that is charged for the
+ * term stays on the order and on the subscription.
+ */
+export function monthlyEquivalent(amount: number, period: BillingPeriod): number {
+  return normalizeAmount(Math.round(amount / monthsOfPeriod(period)));
+}
+
+/** The term of the order line that created an instance. */
+export async function instanceTerm(orderItemId: string | null): Promise<BillingPeriod> {
+  if (!orderItemId) return 'MONTHLY';
+  const item = await prisma.orderItem.findUnique({ where: { id: orderItemId }, select: { config: true } });
+  return periodOfConfig(item?.config);
+}
+
 export async function loadOptions(
   productId: string,
   codes: string[],
@@ -521,7 +564,7 @@ export async function priceItems(
     const accepted = checkCustomerVariables(specs, item.variables);
     const sealedVariables = Object.keys(accepted).length > 0 ? sealVariables(accepted) : undefined;
 
-    const price = await loadPrice(product.id, period);
+    const price = isMail || isVps ? await loadPrice(product.id, period) : await loadResourcePrice(product.id, period);
     const optionCodes = item.optionCodes ?? [];
     const options = await loadOptions(product.id, optionCodes);
     const found = new Set(options.map((option) => option.code));

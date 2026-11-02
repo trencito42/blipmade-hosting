@@ -36,3 +36,24 @@ What was added after report 08, what was tried, and what was found.
 - The discount was tested in the arithmetic, the setting and the screen. It was **not** tried against Stripe: a yearly subscription created with a discount, its renewal and a plan change were not run against a Stripe test account. Services that exist keep their price until the prices are reconciled (Operator tools, with a dry run first).
 - The margin depends on the cost of the nodes that the operator declared.
 - The announcement was tested through the API and the content tests; its look on the public site was not captured in a browser.
+
+## Round three, part two: the yearly term on Deploy
+
+The first part of the round built the yearly discount in the price, but a customer had no way to ask for a year: the page of Deploy had no choice of term. This part adds it.
+
+### Built
+- Deploy has a "Billing term" choice (Monthly / Yearly) in the summary. The quote carries the period, the review step shows it, and the order is placed with the period of the quote. A yearly term is off while hosted mail is added, because hosted mail is sold by the month.
+- A server is priced by its resources, so a year needs no price row of its own: `loadResourcePrice` uses the monthly row and writes the period that was asked for. A product that has its own yearly row still uses it. Mail and VPS plans keep needing a row of the period.
+- The price of an instance is kept per month whatever the term (`monthlyEquivalent`). Before this, an order bought for a year would have written the sum of the year as the monthly price, which inflates the monthly revenue twelve times and breaks the change of resources.
+- The correction of prices (Operator tools) compares a yearly instance by what it costs per month, and the renewal for a year finds the price through the monthly row.
+- A change of resources on a yearly instance is refused with a message that sends the customer to support. The credit of the rest of a paid year is not computed by the platform, so it is refused instead of charged wrongly.
+
+### Tests
+- API: 1377 passed in the full run, one failed: `phase2-payment-safety` asserted that a yearly quote of a product with no yearly row is refused. That rule changed on purpose for servers, and the test now asserts the new rule (twelve months, never the monthly sum). The file passes. A full run was not repeated after that one edit.
+- New: `api/tests/yearly-term.test.ts` (11 tests: the quote, the discount, the period written on the line, the yearly row that wins, the correction of prices, the refused change, the renewal).
+- Browser: 6 of 6, including a customer who picks Yearly on Deploy and sees "Total per year" and the discount line, then goes back to Monthly.
+
+### Not verified
+- A real yearly subscription on Stripe in test mode: its creation, its renewal a year later and its cancellation. The interval of the subscription follows the period of the order line, and that was read in the code and not run.
+- A refund of a yearly order was not looked at.
+- Hosted mail and VPS plans have no yearly term on Deploy.

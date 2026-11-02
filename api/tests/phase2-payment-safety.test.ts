@@ -250,7 +250,7 @@ describe('the period of the price travels with the order', () => {
     expect(response.body.order.total).toBe(MONTHLY);
   });
 
-  it('refuses a yearly quote for a product that has no yearly price', async () => {
+  it('quotes a year of a server that has no yearly row as twelve months, never as the monthly sum', async () => {
     await prisma.product.create({
       data: {
         slug: 'monthly-only',
@@ -279,10 +279,12 @@ describe('the period of the price travels with the order', () => {
       period: 'YEARLY',
     });
 
-    // A product without a yearly price has no yearly quote. The answer is
-    // refused, never replaced with the monthly sum.
-    expect(quote.status).toBeGreaterThanOrEqual(400);
-    expect(quote.body.total).toBeUndefined();
+    // A server is priced by its resources, so its year is twelve months of the
+    // rate card. What must never happen is the monthly sum under a yearly label.
+    expect(quote.status).toBe(200);
+    expect(quote.body.period).toBe('YEARLY');
+    expect(quote.body.total).toBe(MONTHLY * 12);
+    expect(quote.body.total).not.toBe(MONTHLY);
   });
 });
 

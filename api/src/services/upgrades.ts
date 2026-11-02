@@ -2,7 +2,7 @@ import { prisma } from '../db.js';
 import { nextOrderNumber } from './order-numbers.js';
 import { badRequest } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
-import { priceConfiguration, resourceRates, validateConfiguration } from './pricing.js';
+import { instanceTerm, priceConfiguration, resourceRates, validateConfiguration } from './pricing.js';
 import { refundPayment, updateSubscriptionAmount } from './stripe.js';
 import { notifyUpgradeCompleted, notifyUpgradeFailed } from './notifications.js';
 import * as pteroApp from './pterodactyl/application.js';
@@ -196,6 +196,13 @@ export async function quoteResourceChange(
   });
   if (!price) throw badRequest('This product has no active price.');
 
+  // A yearly term is paid up front for the whole year, and the change of a
+  // price in the middle of it is a credit that the platform does not compute.
+  // It is refused rather than charged wrongly.
+  if ((await instanceTerm(instance.orderItemId)) === 'YEARLY') {
+    throw badRequest('This service is billed yearly. Contact support to change its resources, so the rest of the year is settled correctly.');
+  }
+
   validateConfiguration(instance.product, request);
 
   const newPrice = priceConfiguration(price, instance.product, request, [], await resourceRates());
@@ -221,6 +228,9 @@ export async function createUpgradeOrder(
   quote: ResourceQuote,
   user: { id: string; email: string },
 ): Promise<Order> {
+  if ((await instanceTerm(instance.orderItemId)) === 'YEARLY') {
+    throw badRequest('This service is billed yearly. Contact support to change its resources.');
+  }
   const order = await prisma.order.create({
     data: {
       // The number comes from the counter of the platform, so an upgrade order

@@ -21,7 +21,7 @@ import { normalizeAmount } from '../lib/money.js';
 import * as client from './pterodactyl/client.js';
 import { resolveCustomerCredential } from './panel/credentials.js';
 import { stripeLive, upsertInvoice, removeStripeSubscriptionItem } from './stripe.js';
-import { loadOptions, monthsOfPeriod, priceConfiguration, resourceRates, yearlyDiscountPercent } from './pricing.js';
+import { loadOptions, monthlyEquivalent, monthsOfPeriod, periodOfConfig, priceConfiguration, resourceRates, yearlyDiscountPercent } from './pricing.js';
 import type { BillingPeriod } from '@prisma/client';
 
 /**
@@ -130,10 +130,19 @@ export async function configurationPrice(
   period: BillingPeriod = 'MONTHLY',
   optionCodes: string[] = [],
 ): Promise<number | null> {
-  const price = await prisma.productPrice.findFirst({
+  let price = await prisma.productPrice.findFirst({
     where: { productId: product.id, period, active: true },
     orderBy: { createdAt: 'desc' },
   });
+  // A server is priced by its resources, so its yearly term needs no row of
+  // its own: it is twelve months of the monthly row. The quote of an order
+  // does the same.
+  if (!price && period === 'YEARLY' && product.fulfilment === 'SERVER') {
+    price = await prisma.productPrice.findFirst({
+      where: { productId: product.id, period: 'MONTHLY', active: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
   if (!price) return null;
   const options = optionCodes.length ? await loadOptions(product.id, optionCodes) : [];
   return priceConfiguration(price, product, config, options, await resourceRates(), period, await yearlyDiscountPercent());
@@ -212,12 +221,16 @@ export async function reconcileInstancePrices(
   const differences: InstancePriceDifference[] = [];
 
   for (const instance of instances) {
-    const configured = await configurationPrice(
+    // The price of an instance is per month, so a yearly term is compared by
+    // what it costs per month.
+    const term = periodOfConfig(instance.orderItem?.config);
+    const configuredForTerm = await configurationPrice(
       instance.product,
       instance,
-      'MONTHLY',
+      term,
       optionCodesOf(instance.orderItem?.config),
     );
+    const configured = configuredForTerm === null ? null : monthlyEquivalent(configuredForTerm, term);
     // A product without an active price has nothing to compare with.
     if (configured === null) continue;
 

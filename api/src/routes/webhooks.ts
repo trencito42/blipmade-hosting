@@ -28,6 +28,7 @@ import {
 } from '../services/notifications.js';
 import { applyUpgradeOrder } from '../services/upgrades.js';
 import { allocateUnitPrices } from '../services/order-amounts.js';
+import { monthlyEquivalent, periodOfConfig } from '../services/pricing.js';
 import { applyRenewalToSubscription, readRenewalMarker, resolveInvoiceUser } from '../services/billing.js';
 import { audit } from '../lib/audit.js';
 
@@ -431,6 +432,7 @@ export async function fulfilOrder(orderId: string): Promise<void> {
       mailDomain?: string | null;
       instanceName?: string | null;
       sealedVariables?: string | null;
+      period?: string;
     };
 
     // A line of mail is delivered by the mail system and not by the panel.
@@ -464,7 +466,8 @@ export async function fulfilOrder(orderId: string): Promise<void> {
           ram: config.ram ?? 512,
           cpu: config.cpu ?? 1,
           disk: config.disk ?? 5,
-          price: unitPrices[index] ?? item.unitAmount,
+          // The price of an instance is per month, whatever the term it was bought for.
+          price: monthlyEquivalent(unitPrices[index] ?? item.unitAmount, periodOfConfig(config)),
           currency: order.currency,
           provisioningKey,
           // The values the customer gave for the variables of the product

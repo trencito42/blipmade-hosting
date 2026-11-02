@@ -120,3 +120,50 @@ test('an open invoice can be marked as paid from the customer screen', async ({ 
   await page.getByRole('button', { name: 'Mark as paid' }).last().click();
   await expect(page.getByText(/INV-AUDIT-1 is paid/)).toBeVisible({ timeout: 10_000 });
 });
+
+async function setDiscount(page: Page, value: number) {
+  const state = await page.request.storageState();
+  const csrf = state.cookies.find((cookie) => cookie.name === 'bm_csrf')?.value ?? '';
+  return page.request.put('/api/admin/settings', { headers: { 'X-CSRF-Token': csrf }, data: { 'pricing.yearly_discount_percent': { value } } });
+}
+
+test('a customer can choose a yearly term on Deploy and the price follows', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const set = await setDiscount(page, 10);
+  expect(set.status(), 'the administrator can set the discount').toBe(200);
+  try {
+    const login = await page.request.post('/api/auth/login', { data: { email: 'customer@audit.test', password: seed.password } });
+    expect(login.status(), 'the customer can sign in').toBe(200);
+
+    const quoted: { period?: string; total: number; items: { breakdown?: { discount?: number } }[] }[] = [];
+    page.on('response', async (response) => {
+      if (response.url().endsWith('/api/catalog/quote') && response.ok()) quoted.push(await response.json());
+    });
+
+    await page.goto('/app/deploy/audit-bot', { waitUntil: 'domcontentloaded' });
+    const monthly = page.getByRole('radio', { name: 'Monthly' });
+    const yearly = page.getByRole('radio', { name: 'Yearly' });
+    await expect(monthly).toHaveAttribute('aria-checked', 'true', { timeout: 15_000 });
+    await expect(page.getByText('Total per month').first()).toBeVisible();
+
+    await yearly.click();
+    await expect(yearly).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByText('Total per year').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Yearly discount').first()).toBeVisible();
+    await page.screenshot({ path: `${OUT}/shots/deploy-yearly.png`, fullPage: true });
+
+    const month = quoted.find((entry) => entry.period === 'MONTHLY');
+    const year = quoted.find((entry) => entry.period === 'YEARLY');
+    expect(month, 'a monthly quote was asked for').toBeTruthy();
+    expect(year, 'a yearly quote was asked for').toBeTruthy();
+    expect(year!.total).toBe(Math.round(month!.total * 12 * 0.9));
+    expect(year!.items[0].breakdown?.discount).toBeLessThan(0);
+
+    await monthly.click();
+    await expect(page.getByText('Total per month').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Yearly discount')).toHaveCount(0);
+  } finally {
+    await page.request.post('/api/auth/login', { data: { email: seed.adminEmail, password: seed.password } });
+    await setDiscount(page, 0);
+  }
+});

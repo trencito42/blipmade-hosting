@@ -2,7 +2,7 @@
 
 | Gap | State |
 |---|---|
-| Phase 3: annual discount, margin per product | IMPLEMENTED in round three (see 09). The discount is not verified against Stripe. Discount rules beyond the existing promotions and the tax configuration: NOT IMPLEMENTED (no tax rule was invented) |
+| Phase 3: annual discount, margin per product | IMPLEMENTED in round three (see 09). The discount and the yearly term on Deploy are not verified against Stripe. Discount rules beyond the existing promotions and the tax configuration: NOT IMPLEMENTED (no tax rule was invented) |
 | Phase 5: a screen-by-screen audit | PARTLY DONE: every admin route was opened in a browser on a desktop and on a phone and the result is in 09. Not every button was clicked, and bulk actions were not built |
 | Backend operations without a screen | DONE for panel credential, import and confirm collection (see 09). The database limit is superseded by "Save limits", `GET /admin/money` is a stub, and the mail operations already had screens |
 | Phase 6: a review step before publication (a second person), page-level content beyond five blocks, documentation pages, legal documents | NOT IMPLEMENTED. The CMS covers the home heading and text, the home FAQ, product words, search title and description, and a notice above the menu. Search titles apply after the page loads; the prerendered file keeps the title of the code |
