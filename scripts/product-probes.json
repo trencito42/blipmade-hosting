@@ -23,13 +23,6 @@
   "discord-bot": {
     "kind": "container"
   },
-  "dont-starve-together": {
-    "kind": "container"
-  },
-  "dotnet": {
-    "kind": "http",
-    "path": "/"
-  },
   "elasticsearch": {
     "kind": "tcp"
   },
@@ -160,9 +153,6 @@
   },
   "samp": {
     "kind": "container"
-  },
-  "sftp-share": {
-    "kind": "tcp"
   },
   "space-engineers": {
     "kind": "container"

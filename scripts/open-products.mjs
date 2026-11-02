@@ -27,6 +27,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,12 +47,29 @@ const ACTOR_EMAIL = process.env.PROBE_ACTOR_EMAIL ?? 'admin@blipmade.com';
  * The reason that each product that waits is written down in.
  *
  * It is the same file that the platform reads to answer a customer who asks
- * why a product is not on sale, so the two never say different things.
+ * why a product is not on sale, so the two never say different things. The
+ * file is looked for in the repository and in the container of the API, where
+ * the path of the environment is the one that is given.
  */
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const documented = JSON.parse(
-  await readFile(join(root, 'api/src/services/product-blockers.json'), 'utf8'),
-);
+const blockersFile = () => {
+  const candidates = [
+    process.env.BLOCKERS_FILE,
+    join(dirname(fileURLToPath(import.meta.url)), '..', 'api/src/services/product-blockers.json'),
+    join(process.cwd(), 'api/src/services/product-blockers.json'),
+    join(process.cwd(), 'src/services/product-blockers.json'),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(readFileSync(candidate, 'utf8'));
+    } catch {
+      continue;
+    }
+  }
+  console.log('the file of the reasons was not found; the reasons of the products are the ones of the measurement');
+  return {};
+};
+
+const documented = blockersFile();
 
 async function main() {
   const results = JSON.parse(await readFile(resultFile, 'utf-8'));
