@@ -1,9 +1,26 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import type { AbuseReport, Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
-import { assertMayActOnAccount, requirePermission, requireStaff } from '../plugins/auth.js';
+import { hasPermission } from '../lib/permissions.js';
+import { assertMayActOnAccount, requirePermission, requireStaff, type AuthUser } from '../plugins/auth.js';
+import {
+  ENFORCEMENT_SERVICE_SUSPENDED,
+  actionAllowed,
+  actionTargetState,
+  allowedActions,
+  abuseAuditAction,
+  enforcementLabel,
+  filterStates,
+  isStatusFilter,
+  normalizeState,
+  refusal,
+  requiresReason,
+  stateLabel,
+  storedStates,
+} from '../services/abuse-lifecycle.js';
 import { getEmailQueue, getMailProvisionQueue, getQueue, getVpsProvisionQueue } from '../services/queue.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { assessCustomer } from '../services/risk.js';
@@ -13,6 +30,127 @@ import { customerBalance, findPaymentIntentForSubscription, giveBalanceCredit, r
 import { emailTemplateCatalog, emailTemplateDefaults } from '../lib/email-design.js';
 import { emailOverrideOf, loadEmailOverrides, saveEmailOverride } from '../lib/email-overrides.js';
 import { assertValidWording } from './admin-email.js';
+
+/**
+ * The service a report is about, as the staff desk reads it.
+ */
+interface AbuseServiceView {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
+  suspendedAt: string | null;
+  customer: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    suspendedAt: string | null;
+  };
+  product: { name: string; slug: string } | null;
+}
+
+/**
+ * The services of a set of reports, read once.
+ *
+ * A report is about a service of the platform, and the staff needs to know
+ * which one and who owns it. The services are read in one go, so a list of
+ * reports does not ask the database once per row.
+ */
+async function servicesOf(instanceIds: Array<string | null>): Promise<Map<string, AbuseServiceView>> {
+  const ids = instanceIds.filter((id): id is string => Boolean(id));
+  if (!ids.length) return new Map();
+  const rows = await prisma.instance.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      createdAt: true,
+      suspendedAt: true,
+      user: { select: { id: true, email: true, firstName: true, lastName: true, role: true, suspendedAt: true } },
+      product: { select: { name: true, slug: true } },
+    },
+  });
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        id: row.id,
+        name: row.name,
+        status: row.status,
+        createdAt: row.createdAt.toISOString(),
+        suspendedAt: row.suspendedAt?.toISOString() ?? null,
+        customer: {
+          id: row.user.id,
+          email: row.user.email,
+          name: [row.user.firstName, row.user.lastName].filter(Boolean).join(' '),
+          role: row.user.role,
+          suspendedAt: row.user.suspendedAt?.toISOString() ?? null,
+        },
+        product: row.product,
+      },
+    ]),
+  );
+}
+
+/**
+ * The moment of the last entry of the journal for every report of a list.
+ *
+ * The last activity of a report is what was done with it, so it comes from the
+ * journal and not from the row of the report, which only knows when it was
+ * written.
+ */
+async function lastActivityOf(reportIds: string[]): Promise<Map<string, Date>> {
+  if (!reportIds.length) return new Map();
+  const rows = await prisma.auditLog.groupBy({
+    by: ['targetId'],
+    where: { targetType: 'abuse', targetId: { in: reportIds } },
+    _max: { createdAt: true },
+  });
+  const out = new Map<string, Date>();
+  for (const row of rows) {
+    if (row.targetId && row._max.createdAt) out.set(row.targetId, row._max.createdAt);
+  }
+  return out;
+}
+
+/**
+ * A report of abuse, as the staff desk reads it.
+ *
+ * The state of the case and the enforcement are two facts and they are told
+ * apart: the state says where the case is, the enforcement says what was done
+ * to the service of the report.
+ */
+function reportView(
+  row: AbuseReport,
+  service: AbuseServiceView | null,
+  maySuspend: boolean,
+): Record<string, unknown> {
+  const state = normalizeState(row.status);
+  return {
+    id: row.id,
+    category: row.category,
+    target: row.target,
+    details: row.details,
+    evidenceUrl: row.evidenceUrl,
+    reporterName: row.reporterName,
+    reporterEmail: row.reporterEmail,
+    status: state,
+    statusLabel: stateLabel(state),
+    resolution: row.resolution,
+    instanceId: row.instanceId,
+    createdAt: row.createdAt.toISOString(),
+    resolvedAt: row.resolvedAt?.toISOString() ?? null,
+    reopenedAt: row.reopenedAt?.toISOString() ?? null,
+    enforcement: row.enforcement,
+    enforcementLabel: enforcementLabel(row.enforcement),
+    enforcementAt: row.enforcementAt?.toISOString() ?? null,
+    enforcedBy: row.enforcedBy,
+    service,
+    allowedActions: allowedActions(state, { canSuspend: maySuspend, hasService: Boolean(row.instanceId) }),
+  };
+}
 
 /**
  * What the staff needs to run the business: notes and tags on customers, the reports (income,
@@ -414,42 +552,310 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
 
   // --- reports of abuse ------------------------------------------------------------------------
 
+  /**
+   * The queue of the reports of abuse.
+   *
+   * The list is read in pages and says how many reports there are in total, so
+   * a page is never shown as if it were the whole of the queue. The filter of
+   * the state is the one the staff desk works with: "active" is the queue that
+   * is still open, and the closed cases are kept apart, so they do not crowd
+   * the cases that still need a decision.
+   */
   app.get('/admin/abuse', { preHandler: [requirePermission('services.read')] }, async (request) => {
-    const { status } = z.object({ status: z.string().optional() }).parse(request.query ?? {});
-    const rows = await prisma.abuseReport.findMany({ where: status ? { status } : {}, orderBy: { createdAt: 'desc' }, take: 200 });
-    const ids = rows.map((row) => row.instanceId).filter((value): value is string => Boolean(value));
-    const instances = ids.length ? await prisma.instance.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, status: true, user: { select: { id: true, email: true } } } }) : [];
-    return { reports: rows.map((row) => ({ ...row, instance: instances.find((instance) => instance.id === row.instanceId) ?? null })) };
+    const actor = await requireStaff(request);
+    const maySuspend = hasPermission(actor.role, actor.permissions, 'services.write');
+    const query = z
+      .object({
+        status: z.string().trim().max(40).optional(),
+        page: z.coerce.number().int().min(1).max(10_000).default(1),
+        pageSize: z.coerce.number().int().min(1).max(100).default(25),
+        q: z.string().trim().max(200).optional(),
+      })
+      .parse(request.query ?? {});
+
+    const filter = (query.status ?? 'all').toLowerCase();
+    if (!isStatusFilter(filter)) throw badRequest('Choose one of: active, open, investigating, resolved, dismissed, all.');
+    const states = filterStates(filter);
+
+    const where: Prisma.AbuseReportWhereInput = {};
+    if (states) where.status = { in: states.flatMap((state) => storedStates(state)) };
+    if (query.q) {
+      // The search reaches the closed cases as well: the archive is where an
+      // old report is found again.
+      const text = query.q;
+      const named = await prisma.instance.findMany({
+        where: { name: { contains: text, mode: 'insensitive' } },
+        select: { id: true },
+        take: 100,
+      });
+      where.OR = [
+        { target: { contains: text, mode: 'insensitive' } },
+        { details: { contains: text, mode: 'insensitive' } },
+        { category: { contains: text, mode: 'insensitive' } },
+        { reporterName: { contains: text, mode: 'insensitive' } },
+        { reporterEmail: { contains: text, mode: 'insensitive' } },
+        { resolution: { contains: text, mode: 'insensitive' } },
+        ...(named.length ? [{ instanceId: { in: named.map((row) => row.id) } }] : []),
+      ];
+    }
+
+    const [rows, total] = await prisma.$transaction([
+      prisma.abuseReport.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.abuseReport.count({ where }),
+    ]);
+
+    const services = await servicesOf(rows.map((row) => row.instanceId));
+    const last = await lastActivityOf(rows.map((row) => row.id));
+
+    return {
+      reports: rows.map((row) => ({
+        ...reportView(row, services.get(row.instanceId ?? '') ?? null, maySuspend),
+        lastActivityAt: (last.get(row.id) ?? row.createdAt).toISOString(),
+      })),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      pages: Math.ceil(total / query.pageSize),
+    };
   });
 
   /**
-   * What the staff does with a report: suspend the service it is about, warn its owner, mark it
-   * investigated, or dismiss it. Every action is written to the log, and the reporter's address is
-   * never shown to the customer.
+   * One report of abuse, with everything the staff needs to work on it: the
+   * report itself, the service it is about, the internal notes of the case and
+   * the trail of what was done with it.
+   *
+   * The reporter is a person who wrote to the platform. Their name, their
+   * address and the address they wrote from stay in the staff area: nothing of
+   * it is in the answer of a customer.
+   */
+  app.get('/admin/abuse/:id', { preHandler: [requirePermission('services.read')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const maySuspend = hasPermission(actor.role, actor.permissions, 'services.write');
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const report = await prisma.abuseReport.findUnique({ where: { id } });
+    if (!report) throw notFound('Report not found.');
+
+    const services = await servicesOf(report.instanceId ? [report.instanceId] : []);
+    const [notes, activity, related] = await Promise.all([
+      prisma.abuseReportNote.findMany({ where: { reportId: id }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.auditLog.findMany({ where: { targetType: 'abuse', targetId: id }, orderBy: { createdAt: 'desc' }, take: 100 }),
+      prisma.abuseReport.findMany({
+        where: {
+          id: { not: id },
+          OR: [...(report.instanceId ? [{ instanceId: report.instanceId }] : []), { target: report.target }],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    const service = services.get(report.instanceId ?? '') ?? null;
+    return {
+      report: { ...reportView(report, service, maySuspend), reporterIp: report.reporterIp },
+      service,
+      notes: notes.map((note) => ({
+        id: note.id,
+        body: note.body,
+        authorId: note.authorId,
+        authorEmail: note.authorEmail,
+        createdAt: note.createdAt.toISOString(),
+      })),
+      activity: activity.map((entry) => ({
+        id: entry.id,
+        action: entry.action,
+        actorEmail: entry.actorEmail,
+        meta: entry.meta,
+        createdAt: entry.createdAt.toISOString(),
+      })),
+      related: related.map((row) => ({
+        id: row.id,
+        category: row.category,
+        target: row.target,
+        status: normalizeState(row.status),
+        statusLabel: stateLabel(normalizeState(row.status)),
+        createdAt: row.createdAt.toISOString(),
+      })),
+    };
+  });
+
+  /** A note of the staff on a report. The note is never shown to a customer. */
+  app.post('/admin/abuse/:id/notes', { preHandler: [requirePermission('services.write')] }, async (request) => {
+    const actor = await requireStaff(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { body } = z.object({ body: z.string().trim().min(1).max(2000) }).parse(request.body ?? {});
+    const report = await prisma.abuseReport.findUnique({ where: { id }, select: { id: true } });
+    if (!report) throw notFound('Report not found.');
+    const note = await prisma.abuseReportNote.create({
+      data: { reportId: id, authorId: actor.id, authorEmail: actor.email, body },
+    });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.abuse.note_added', targetType: 'abuse', targetId: id, ip: request.ip });
+    return { note: { ...note, createdAt: note.createdAt.toISOString() } };
+  });
+
+  /**
+   * What the staff does with a report.
+   *
+   * The server holds the rules of the case: a closed case is read-only until
+   * it is reopened with a reason, a dismissed case never suspends a service,
+   * and a suspension names the service before it does anything and happens
+   * once. Every change of the case and every enforcement is written to the
+   * journal.
    */
   app.post('/admin/abuse/:id/action', { preHandler: [requirePermission('services.write')] }, async (request) => {
     const actor = await requireStaff(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z.object({ action: z.enum(['investigating', 'suspend', 'dismiss', 'resolve']), note: z.string().trim().max(1000).optional() }).parse(request.body ?? {});
+    const body = z
+      .object({
+        action: z.enum(['investigating', 'resolve', 'dismiss', 'reopen', 'suspend']),
+        reason: z.string().trim().max(1000).optional(),
+        /** The older name of the reason. It is still read, so an old screen keeps working. */
+        note: z.string().trim().max(1000).optional(),
+        /** The name of the service the staff typed to confirm a suspension. */
+        confirmService: z.string().trim().max(200).optional(),
+      })
+      .parse(request.body ?? {});
+
     const report = await prisma.abuseReport.findUnique({ where: { id } });
     if (!report) throw notFound('Report not found.');
 
-    if (body.action === 'suspend') {
-      if (!report.instanceId) throw badRequest('This report is not linked to a service, so there is nothing to suspend. Link it first or act by hand.');
-      const instance = await prisma.instance.findUnique({ where: { id: report.instanceId }, include: { user: { select: { role: true } } } });
-      if (!instance || !instance.pterodactylServerId) throw badRequest('The service has no server on the panel.');
-      assertMayActOnAccount(actor, instance.user.role, instance.userId);
-      await ptero.applicationRequest('POST', `/api/application/servers/${instance.pterodactylServerId}/suspend`, {});
-      await prisma.instance.update({ where: { id: instance.id }, data: { status: 'SUSPENDED', suspendedAt: new Date() } });
+    const state = normalizeState(report.status);
+    const reason = (body.reason ?? body.note ?? '').trim();
+
+    // The state of the case decides what may be done with it. A refusal is a
+    // conflict and not a bad request: the request was well made, the case was
+    // not in a state that allows it.
+    if (!actionAllowed(state, body.action)) throw conflict(refusal(state, body.action));
+    if (requiresReason(body.action) && reason.length < 5) {
+      throw badRequest('Write a reason of at least 5 characters. It is written into the journal of the case.');
     }
-    const status = body.action === 'investigating' ? 'investigating' : body.action === 'dismiss' ? 'dismissed' : 'action_taken';
-    const updated = await prisma.abuseReport.update({
-      where: { id },
-      data: { status, resolution: body.note ?? report.resolution, resolvedAt: status === 'investigating' ? null : new Date() },
-    });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: `admin.abuse.${body.action}`, targetType: 'abuse', targetId: id, meta: { instanceId: report.instanceId }, ip: request.ip });
-    return { report: updated };
+
+    if (body.action === 'suspend') {
+      await suspendServiceOfReport({ request, actor, report, reason, confirmed: body.confirmService });
+    } else {
+      const target = actionTargetState(body.action);
+      if (!target) throw badRequest('This action changes nothing.');
+      // The change is made against the state that was read, so two requests at
+      // the same time cannot both carry the case forward.
+      const changed = await prisma.abuseReport.updateMany({
+        where: { id, status: report.status },
+        data: {
+          status: target,
+          resolution: body.action === 'investigating' ? report.resolution : reason,
+          resolvedAt: body.action === 'reopen' ? null : new Date(),
+          reopenedAt: body.action === 'reopen' ? new Date() : report.reopenedAt,
+        },
+      });
+      if (changed.count === 0) throw conflict('This report changed while you were working on it. Read it again.');
+      await audit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: abuseAuditAction(body.action),
+        targetType: 'abuse',
+        targetId: id,
+        meta: { from: state, to: target, reason },
+        ip: request.ip,
+      });
+    }
+
+    const updated = await prisma.abuseReport.findUnique({ where: { id } });
+    if (!updated) throw notFound('Report not found.');
+    const services = await servicesOf(updated.instanceId ? [updated.instanceId] : []);
+    return {
+      report: {
+        ...reportView(updated, services.get(updated.instanceId ?? '') ?? null, true),
+        lastActivityAt: new Date().toISOString(),
+      },
+    };
   });
+
+  /**
+   * Suspends the service of a report.
+   *
+   * The suspension is the heaviest thing the staff desk does from a report, so
+   * it asks for three things: a case that is still open, a reason, and the
+   * name of the service. The service is claimed before the panel is asked, so
+   * a request that is replayed and a second request that arrives at the same
+   * time cannot suspend twice. When the panel refuses, the claim is given
+   * back and nothing is marked: the service is not suspended and the case is
+   * not marked as taken.
+   */
+  const suspendServiceOfReport = async ({
+    request,
+    actor,
+    report,
+    reason,
+    confirmed,
+  }: {
+    request: FastifyRequest;
+    actor: AuthUser;
+    report: AbuseReport;
+    reason: string;
+    confirmed?: string;
+  }): Promise<void> => {
+    if (!report.instanceId) {
+      throw badRequest('This report is not linked to a service, so there is nothing to suspend. Link it first or act by hand.');
+    }
+    const instance = await prisma.instance.findUnique({
+      where: { id: report.instanceId },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        pterodactylServerId: true,
+        userId: true,
+        user: { select: { role: true } },
+      },
+    });
+    if (!instance) throw notFound('The service of this report was not found.');
+    if (!instance.pterodactylServerId) throw badRequest('The service has no server on the panel.');
+    assertMayActOnAccount(actor, instance.user.role, instance.userId);
+
+    // The staff names the service they are about to suspend, so the wrong
+    // service cannot be suspended by accident.
+    if (!confirmed || confirmed.trim().toLowerCase() !== instance.name.trim().toLowerCase()) {
+      throw badRequest(`Type the name of the service (${instance.name}) to confirm the suspension.`);
+    }
+    if (instance.status === 'SUSPENDED') {
+      throw conflict('This service is already suspended, so it is not suspended again.');
+    }
+
+    // The claim: one request at a time may suspend, and a request that is
+    // replayed finds the report already done.
+    const claim = await prisma.abuseReport.updateMany({
+      where: { id: report.id, enforcement: null },
+      data: { enforcement: ENFORCEMENT_SERVICE_SUSPENDED, enforcementAt: new Date(), enforcedBy: actor.email },
+    });
+    if (claim.count === 0) throw conflict('This report already suspended its service. It is not suspended twice.');
+
+    try {
+      await ptero.applicationRequest('POST', `/api/application/servers/${instance.pterodactylServerId}/suspend`, {});
+    } catch (error) {
+      // The panel refused. The service is not suspended and the case is not
+      // marked as taken, and the claim is given back so the request can be
+      // made again.
+      await prisma.abuseReport.updateMany({
+        where: { id: report.id, enforcement: ENFORCEMENT_SERVICE_SUSPENDED },
+        data: { enforcement: null, enforcementAt: null, enforcedBy: null },
+      });
+      throw badRequest(`The panel refused the suspension: ${(error as Error).message}`);
+    }
+
+    await prisma.instance.update({ where: { id: instance.id }, data: { status: 'SUSPENDED', suspendedAt: new Date() } });
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'admin.abuse.service_suspended',
+      targetType: 'abuse',
+      targetId: report.id,
+      meta: { instanceId: instance.id, instanceName: instance.name, reason, enforcement: ENFORCEMENT_SERVICE_SUSPENDED },
+      ip: request.ip,
+    });
+  };
 
   // --- the wording of the emails ---------------------------------------------------------------
 

@@ -1784,15 +1784,44 @@ model AbuseReport {
   target        String
   details       String
   evidenceUrl   String?
-  /// open | investigating | action_taken | dismissed
+  /// open | investigating | resolved | dismissed
+  /// The historical value "action_taken" is read as "resolved": the case was
+  /// closed after an action was taken.
   status        String    @default("open")
   resolution    String?
   instanceId    String?
   reporterIp    String?
   createdAt     DateTime  @default(now())
   resolvedAt    DateTime?
+  /// The enforcement that was made on the service of this report. It is a fact
+  /// of its own: the state of the case says where the case is, and this says
+  /// what was done to the service.
+  enforcement   String?
+  /// When the enforcement was made.
+  enforcementAt DateTime?
+  /// Who made the enforcement.
+  enforcedBy    String?
+  /// When the case was reopened after it was closed.
+  reopenedAt    DateTime?
+
+  notes AbuseReportNote[]
 
   @@index([status, createdAt])
+  @@index([instanceId])
+}
+
+/// A note of the staff on a report of abuse. It stays inside the staff area:
+/// the reporter never reads it and the customer never sees it.
+model AbuseReportNote {
+  id          String      @id @default(cuid())
+  reportId    String
+  report      AbuseReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  authorId    String?
+  authorEmail String?
+  body        String
+  createdAt   DateTime    @default(now())
+
+  @@index([reportId, createdAt])
 }
 
 /// A credit given to a customer, or a partial refund of an order, written by the staff.
