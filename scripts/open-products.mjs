@@ -27,6 +27,9 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const prisma = new PrismaClient();
 const args = process.argv.slice(2);
@@ -39,8 +42,18 @@ const DEFAULT_STATUSES = [200, 201, 204, 301, 302, 307, 308];
 /** The operator that runs the script. */
 const ACTOR_EMAIL = process.env.PROBE_ACTOR_EMAIL ?? 'admin@blipmade.com';
 
+/**
+ * The reason that each product that waits is written down in.
+ *
+ * It is the same file that the platform reads to answer a customer who asks
+ * why a product is not on sale, so the two never say different things.
+ */
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const documented = JSON.parse(
+  await readFile(join(root, 'api/src/services/product-blockers.json'), 'utf8'),
+);
+
 async function main() {
-  const { readFile } = await import('node:fs/promises');
   const results = JSON.parse(await readFile(resultFile, 'utf-8'));
   const known = new Map(results.map((entry) => [entry.slug, entry]));
 
@@ -52,18 +65,55 @@ async function main() {
   const opened = [];
   const kept = [];
 
+  /**
+   * Keeps a product closed and writes down why it waits.
+   *
+   * The reason that the operator wrote in the file of the blockers is the one
+   * that is kept: it says what is missing for the product to open, and not
+   * only what the last measurement failed on. The measurement is written in
+   * the journal next to it, so nothing is lost.
+   */
+  const keep = async (product, reason) => {
+    const probe = known.get(product.slug);
+    const text = documented[product.slug] ?? reason;
+    kept.push({ slug: product.slug, reason: text });
+    if (!apply) return;
+    await prisma.auditLog.create({
+      data: {
+        actorEmail: ACTOR_EMAIL,
+        action: 'product.updated',
+        targetType: 'product',
+        targetId: product.id,
+        meta: {
+          deployable: false,
+          reason: text,
+          measurement: probe
+            ? {
+                egg: probe.egg,
+                installed: probe.installed,
+                started: probe.started,
+                portOpen: probe.portOpen,
+                httpStatus: probe.httpStatus,
+                error: probe.error ? String(probe.error).slice(0, 200) : null,
+              }
+            : null,
+        },
+      },
+    });
+  };
+
   for (const product of products) {
     const probe = known.get(product.slug);
     if (!probe) {
-      kept.push({ slug: product.slug, reason: 'it was not probed' });
+      await keep(product, 'it was not probed');
       continue;
     }
     if (probe.error) {
-      kept.push({ slug: product.slug, reason: probe.error.slice(0, 160) });
+      await keep(product, probe.error.slice(0, 160));
       continue;
     }
     if (!probe.installed) {
-      kept.push({ slug: product.slug, reason: 'the node did not build the container' });
+      await keep(product, 'the node did not build the container');
       continue;
     }
     // A product that does not answer on a TCP port but that the node reports as running is
@@ -86,10 +136,7 @@ async function main() {
       continue;
     }
     if (!probe.portOpen) {
-      kept.push({
-        slug: product.slug,
-        reason: 'the container runs but nothing answers on the port of the allocation',
-      });
+      await keep(product, 'the container runs but nothing answers on the port of the allocation');
       continue;
     }
 
@@ -141,6 +188,15 @@ async function main() {
   console.log(`kept closed: ${kept.length}`);
   for (const entry of kept) {
     console.log(`  - ${entry.slug}: ${entry.reason}`);
+  }
+
+  // A reason that is written for a product that is on sale is a reason that
+  // nobody reads, and it hides the reason of a product that waits. It is
+  // named here, so the file stays the truth about the products that wait.
+  const closed = new Set(kept.map((entry) => entry.slug));
+  const stale = Object.keys(documented).filter((slug) => !closed.has(slug));
+  if (stale.length) {
+    console.log(`reasons written for products that are not waiting: ${stale.join(', ')}`);
   }
 
   await prisma.$disconnect();

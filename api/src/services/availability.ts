@@ -1,4 +1,5 @@
 import type { Product } from '@prisma/client';
+import PRODUCT_BLOCKERS from './product-blockers.json' with { type: 'json' };
 
 /**
  * The availability of a product: one model, used by the catalog, by the
@@ -48,8 +49,20 @@ export interface DeploymentAvailability {
 /** The fields of a product the availability is derived from. */
 export type AvailabilityProduct = Pick<
   Product,
-  'name' | 'deployable' | 'eggId' | 'eggName' | 'visible' | 'fulfilment'
+  'name' | 'slug' | 'deployable' | 'eggId' | 'eggName' | 'visible' | 'fulfilment'
 >;
+
+/**
+ * Why a product is not on sale yet, when the platform knows it.
+ *
+ * The file is written by hand, one line for each product that waits, and it
+ * says what is missing and not what is wrong with the product. It is the same
+ * reason that the operator reads in the staff area and in the log of the
+ * certification, so a customer, an operator and a support answer the same
+ * question with the same words.
+ */
+export const documentedBlocker = (slug: string): string | undefined =>
+  (PRODUCT_BLOCKERS as Record<string, string>)[slug];
 
 /**
  * What the platform knows besides the row of the product.
@@ -102,10 +115,14 @@ export function deploymentAvailability(
 
   const blockers: string[] = [];
   if (!enabled) {
+    // The reason that the operator wrote is the one that is shown: it says
+    // what is missing, and a customer that reads "it has not been validated"
+    // learns nothing.
     blockers.push(
-      isMail || isVps
-        ? 'It has not been put on sale yet.'
-        : 'It has not been validated for deployment yet.',
+      documentedBlocker(product.slug) ??
+        (isMail || isVps
+          ? 'It has not been put on sale yet.'
+          : 'It has not been validated for deployment yet.'),
     );
   } else if (isMail) {
     // The switch is closed unless it is opened on purpose. A caller that
