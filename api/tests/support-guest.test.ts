@@ -80,6 +80,17 @@ describe('a visitor starts a chat', () => {
     expect((await prisma.ticket.findFirstOrThrow()).channel).toBe('CHAT');
   });
 
+  it('accepts the origin of the site even when the API sees another host name behind the proxies', async () => {
+    const { env } = await import('../src/env.js');
+    const { client: admin } = await createAdmin(app);
+    await enable(admin);
+    const guest = makeClient(app);
+    // The proxies hand the API a Host of its own ("api:3100"); the browser's Origin is the address of the site.
+    const origin = env.publicWebUrl;
+    const started = await start(guest, {}, { origin, host: 'api:3100' });
+    expect(started.status).toBe(201);
+  });
+
   it('refuses a request from another site, and the start past the limit of one address in an hour (a refused one counts)', async () => {
     const { client: admin } = await createAdmin(app);
     await enable(admin);
@@ -128,7 +139,8 @@ describe('the conversation of a guest', () => {
     expect((await guest.request('GET', '/api/instances')).status).toBe(401);
     // A signed in customer without the credential of a guest is not a guest.
     const { client: customer } = await registerAndLogin(app, 'customer@example.com');
-    expect((await customer.request('GET', '/api/support/guest/thread')).status).toBe(401);
+    // A signed in customer is not a guest: they simply have no guest conversation.
+    expect((await customer.request('GET', '/api/support/guest/thread')).body.conversation).toBeNull();
   });
 
   it('keeps one guest out of the chat of another', async () => {
@@ -148,11 +160,13 @@ describe('the conversation of a guest', () => {
     await enable(admin);
     const guest = makeClient(app);
     await start(guest);
-    expect((await guest.request('GET', '/api/support/guest/thread')).status).toBe(200);
+    expect((await guest.request('GET', '/api/support/guest/thread')).body.conversation).not.toBeNull();
     await prisma.supportGuestToken.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
-    expect((await guest.request('GET', '/api/support/guest/thread')).status).toBe(401);
+    expect((await guest.request('GET', '/api/support/guest/thread')).body.conversation).toBeNull();
+    expect((await guest.request('POST', '/api/support/guest/messages', { body: 'Still there?' })).status).toBe(401);
     await prisma.supportGuestToken.updateMany({ data: { expiresAt: new Date(Date.now() + 3_600_000), createdAt: new Date(Date.now() - 8 * 86_400_000) } });
-    expect((await guest.request('GET', '/api/support/guest/thread')).status).toBe(401);
+    expect((await guest.request('GET', '/api/support/guest/thread')).body.conversation).toBeNull();
+    expect((await guest.request('POST', '/api/support/guest/messages', { body: 'Still there?' })).status).toBe(401);
   });
 
   it('stores only the hash of the credential', async () => {

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
 import { clearGuestCookie, GUEST_EMAIL_DOMAIN, issueGuestToken, requireGuest, readOptionalGuest } from '../lib/guest.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
@@ -29,18 +30,25 @@ import { readAvatars, shownName } from '../lib/avatar.js';
 const MAX_MESSAGES = 200;
 const GLOBAL_STARTS_PER_MINUTE = 60;
 
-/** A request from another site is refused: the chat is used from the pages of this one. */
+/**
+ * A request from another site is refused: the chat is used from the pages of this one. The origin that the browser sends is
+ * compared with the addresses of the site that the platform is configured with. The `Host` header is not enough: behind the
+ * proxies of the platform the API sees the name of its own container, not the address the visitor typed.
+ */
 function sameOrigin(request: FastifyRequest): void {
   const origin = request.headers.origin;
   if (!origin) return;
-  const host = String(request.headers['x-forwarded-host'] ?? request.headers.host ?? '').split(',')[0]!.trim();
-  let given = '';
+  let given: URL;
   try {
-    given = new URL(origin).host;
+    given = new URL(origin);
   } catch {
     throw forbidden('That origin is not allowed.');
   }
-  if (given !== host) throw forbidden('That origin is not allowed.');
+  const allowed = new Set([...env.APP_ORIGIN.split(','), env.publicWebUrl].map((value) => value.trim().replace(/\/+$/, '').toLowerCase()).filter(Boolean));
+  if (allowed.has(given.origin.toLowerCase())) return;
+  const host = String(request.headers['x-forwarded-host'] ?? request.headers.host ?? '').split(',')[0]!.trim().toLowerCase();
+  if (given.host.toLowerCase() === host) return;
+  throw forbidden('That origin is not allowed.');
 }
 
 export async function registerSupportGuestRoutes(app: FastifyInstance): Promise<void> {
@@ -121,7 +129,10 @@ export async function registerSupportGuestRoutes(app: FastifyInstance): Promise<
   /** The conversation of the guest, public messages only. */
   app.get('/support/guest/thread', async (request: FastifyRequest) => {
     await config();
-    const guest = await requireGuest(request);
+    // A visitor without a credential, or with one that expired, simply has no conversation: the widget asks on every page,
+    // and an error for that would fill the console of every visitor.
+    const guest = await readOptionalGuest(request);
+    if (!guest) return { conversation: null, messages: [], agent: null };
     const ticket = await prisma.ticket.findFirst({
       where: { userId: guest.userId },
       orderBy: { createdAt: 'desc' },
