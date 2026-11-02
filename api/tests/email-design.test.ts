@@ -342,16 +342,20 @@ afterEach(() => {
 });
 
 describe('the catalogue of the templates', () => {
+  // The number of the templates is not written by hand. It is read from the
+  // catalogue itself, so a template that is added does not rot this test: what
+  // is checked here is that the catalogue, the list of the templates and the
+  // registry of the events are the same set.
   it('holds exactly the templates the events of the platform expect', () => {
-    expect(REQUIRED_IDS).toHaveLength(84);
+    expect(REQUIRED_IDS).toHaveLength(emailTemplateCatalog().length);
     expect([...emailTemplateIds()].sort()).toEqual([...REQUIRED_IDS].sort());
     expect(emailTemplateCatalog().map((entry) => entry.id).sort()).toEqual([...REQUIRED_IDS].sort());
-    expect(emailTemplateCatalog()).toHaveLength(84);
+    expect(emailTemplateCatalog()).toHaveLength(REQUIRED_IDS.length);
   });
 
   it('holds the same templates as the registry of the events', () => {
     const expected = Object.values(EVENT_DEFINITIONS).map((definition) => definition.template);
-    expect(expected).toHaveLength(84);
+    expect(expected).toHaveLength(emailTemplateCatalog().length);
     expect([...emailTemplateIds()].sort()).toEqual([...expected].sort());
   });
 
