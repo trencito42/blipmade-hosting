@@ -409,6 +409,7 @@ function planView(product: PlanWithPrices, counts: { services: number; customers
     availability: deploymentAvailability(
       {
         name: product.name,
+        slug: product.slug,
         deployable: product.deployable,
         eggId: product.eggId,
         eggName: product.eggName,

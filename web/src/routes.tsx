@@ -37,6 +37,7 @@ const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
 const AppMail = lazy(() => import('./app/Mail'));
+const AppMailDomain = lazy(() => import('./app/mail/MailDomainPage'));
 const EmailStorefront = lazy(() => import('./app/EmailHosting'));
 const VpsStorefront = lazy(() => import('./app/Vps'));
 const VpsCheckout = lazy(() => import('./app/Vps').then((module) => ({ default: module.VpsCheckout })));
@@ -54,6 +55,7 @@ const AdminIncidents = lazy(() => import('./admin/Incidents'));
 const AdminReports = lazy(() => import('./admin/Reports'));
 const AdminQueues = lazy(() => import('./admin/Queues'));
 const AdminAbuse = lazy(() => import('./admin/Abuse'));
+const AdminAbuseDetail = lazy(() => import('./admin/abuse/AbuseDetail'));
 const ReportAbusePage = lazy(() => import('./pages/ReportAbuse'));
 const AdminEmailTemplates = lazy(() => import('./admin/EmailTemplates'));
 const AdminContent = lazy(() => import('./admin/Content'));
@@ -76,6 +78,7 @@ const AdminSupportAnalytics = lazy(() => import('./admin/SupportAnalytics'));
 const ChatWidget = lazy(() => import('./app/ChatWidget'));
 const GuestChatWidget = lazy(() => import('./app/GuestChatWidget'));
 const AdminKnowledge = lazy(() => import('./admin/Knowledge'));
+const AdminTicketDetail = lazy(() => import('./admin/tickets/TicketDetail'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
 const AdminPromotionDetail = lazy(() => import('./admin/PromotionDetail'));
 const AdminInfrastructure = lazy(() => import('./admin/Infrastructure'));
@@ -130,6 +133,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
+  { pattern: '/app/mail/domains/:id', component: AppMailDomain, title: 'Email', area: 'customer' },
   { pattern: '/app/servers', component: ServersRedirect, title: 'Servers', area: 'customer', exact: true },
   { pattern: '/app/servers/:id', component: ServersRedirect, title: 'Servers', area: 'customer' },
   { pattern: '/app/vps', component: VpsList, title: 'Servers', area: 'customer', exact: true },
@@ -159,6 +163,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/support', component: AdminSupport, title: 'Support console', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
   { pattern: '/admin/knowledge', component: AdminKnowledge, title: 'Knowledge base', area: 'admin', exact: true },
+  { pattern: '/admin/tickets/:id', component: AdminTicketDetail, title: 'Ticket', area: 'admin' },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
   { pattern: '/admin/promotions/:id', component: AdminPromotionDetail, title: 'Campaign control', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
@@ -166,6 +171,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/reports', component: AdminReports, title: 'Reports', area: 'admin' },
   { pattern: '/admin/queues', component: AdminQueues, title: 'Job queues', area: 'admin' },
   { pattern: '/admin/abuse', component: AdminAbuse, title: 'Abuse reports', area: 'admin' },
+  { pattern: '/admin/abuse/:id', component: AdminAbuseDetail, title: 'Abuse report', area: 'admin' },
   { pattern: '/admin/ops', component: AdminOps, title: 'Operations', area: 'admin' },
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
   { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },
