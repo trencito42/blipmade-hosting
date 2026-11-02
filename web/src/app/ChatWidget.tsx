@@ -78,6 +78,8 @@ export default function ChatWidget() {
   // The assistant answers first when the company has switched one on; a person is one tap away.
   const [bot, setBot] = useState<BotView | null>(null);
   const botTried = useRef(false);
+  // A message that was sent and is not yet in the conversation: it is shown at once, marked as sending.
+  const [outbox, setOutbox] = useState<string | null>(null);
   const [botRating, setBotRating] = useState<number | null>(null);
   const [botComment, setBotComment] = useState('');
   const viewport = useVisualViewport(open);
@@ -232,12 +234,18 @@ export default function ChatWidget() {
     if (!bot || sending) return;
     setSending(true);
     setError(null);
+    // The message is on the screen at once and the box is empty; the assistant is shown writing until it answers.
+    const before = bot.entries;
+    setBot({ ...bot, entries: [...before, { from: 'customer', text: shown }], prompt: null });
+    setDraft('');
     try {
       const res = await post<{ sessionId: string; state: string; messages: BotOut[]; bot?: BotView['persona'] }>(`/support/bot/${bot.id}/input`, input);
-      applyBot(bot.id, res.state, res.messages, [...bot.entries, { from: 'customer', text: shown }], res.bot ?? bot.persona);
-      setDraft('');
+      applyBot(bot.id, res.state, res.messages, [...before, { from: 'customer', text: shown }], res.bot ?? bot.persona);
     } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : 'The message could not be sent. Try again.');
+      // It did not go: the message leaves the screen and comes back to the box, so nothing is lost.
+      setBot({ ...bot, entries: before });
+      if (input.text) setDraft(shown);
+      setError(failure instanceof ApiError ? failure.message : 'The message could not be sent. It is back in the box: try again.');
     } finally {
       setSending(false);
     }
@@ -271,6 +279,8 @@ export default function ChatWidget() {
     setSending(true);
     setError(null);
     if (!attempt.current || attempt.current.text !== text) attempt.current = { text, key: crypto.randomUUID() };
+    setOutbox(text);
+    setDraft('');
     try {
       if (!conversation) {
         const res = await post<{ conversation: Conversation; mode: 'chat' | 'ticket' }>('/support/chat', { message: text });
@@ -281,10 +291,11 @@ export default function ChatWidget() {
         await loadThread(conversation.id);
       }
       attempt.current = null;
-      setDraft('');
     } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : 'The message could not be sent. It is still here: try again.');
+      setDraft(text);
+      setError(failure instanceof ApiError ? failure.message : 'The message could not be sent. It is back in the box: try again.');
     } finally {
+      setOutbox(null);
       setSending(false);
     }
   }
@@ -449,6 +460,12 @@ export default function ChatWidget() {
                   );
                 })}
               </ul>
+            )}
+            {outbox && (
+              <div className="mt-2 flex flex-col items-end">
+                <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-acc px-3.5 py-2 text-[14.5px] text-on-acc opacity-70">{outbox}</p>
+                <span className="mt-0.5 px-1 text-[11.5px] text-ink3" role="status">Sending…</span>
+              </div>
             )}
             {typing && <p className="pt-2 text-[12.5px] text-ink3" role="status">A person is typing…</p>}
           </div>
