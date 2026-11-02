@@ -11,11 +11,8 @@
     "features": null,
     "docker_images": {
         "Dotnet_8": "ghcr.io/ptero-eggs/yolks:dotnet_8",
-        "Dotnet_7": "ghcr.io/ptero-eggs/yolks:dotnet_7",
-        "Dotnet_6": "ghcr.io/ptero-eggs/yolks:dotnet_6",
-        "Dotnet_5": "ghcr.io/ptero-eggs/yolks:dotnet_5",
-        "Dotnet_3.1": "ghcr.io/ptero-eggs/yolks:dotnet_3.1",
-        "Dotnet_2.1": "ghcr.io/ptero-eggs/yolks:dotnet_2.1"
+        "Dotnet_9": "ghcr.io/ptero-eggs/yolks:dotnet_9",
+        "Dotnet_6": "ghcr.io/ptero-eggs/yolks:dotnet_6"
     },
     "file_denylist": [],
     "startup": "if [[ -d .git ]] && [[ {{AUTO_UPDATE}} == \"1\" ]]; then git pull; fi; cd {{PROJECT_DIR}}; dotnet restore; dotnet run --project {{PROJECT_FILE}}",

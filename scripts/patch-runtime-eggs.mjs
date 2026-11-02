@@ -119,6 +119,22 @@ export const GOLANG_INSTALL = [
 export const GOLANG_STARTUP = 'go build -o {{EXECUTABLE}} . && ./{{EXECUTABLE}}';
 
 /**
+ * The images of the runtime of .NET.
+ *
+ * The images of the eggs are the ones of the platform. The container of a
+ * product of .NET cannot serve on the node of the games, because the runtime
+ * of .NET cannot create a lock of a named mutex as the user the node runs the
+ * containers with, and the client of NuGet fails at its first use with
+ * "The system cannot open the device or file specified. : 'NuGet-Migrations'".
+ * The reason is in the report of the certification.
+ */
+export const DOTNET_IMAGES = {
+  'Dotnet_8': 'ghcr.io/ptero-eggs/yolks:dotnet_8',
+  'Dotnet_9': 'ghcr.io/ptero-eggs/yolks:dotnet_9',
+  'Dotnet_6': 'ghcr.io/ptero-eggs/yolks:dotnet_6',
+};
+
+/**
  * The images of the runtime of Go.
  *
  * The image of the egg carried no compiler, so the program could not be built
@@ -424,6 +440,11 @@ const PATCHES = {
     const project = variableOf(egg, 'PROJECT_FILE');
     if (project && project.default_value !== 'Blipmade.csproj') {
       project.default_value = 'Blipmade.csproj';
+      changed = true;
+    }
+
+    if (JSON.stringify(egg.docker_images) !== JSON.stringify(DOTNET_IMAGES)) {
+      egg.docker_images = DOTNET_IMAGES;
       changed = true;
     }
 
