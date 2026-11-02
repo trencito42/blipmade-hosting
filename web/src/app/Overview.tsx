@@ -7,7 +7,7 @@ import { describeEvent, type ServiceEvent } from '../lib/activity';
 import { countLine, latePayments, serviceRows, type ServiceRow } from '../lib/services';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
-import { ButtonLink, EmptyState, ErrorState, ListRow, LoadingBlock, Money, Panel, SoftButton, StatTile, StatusPill } from '../ui-app';
+import { ButtonLink, EmptyState, ErrorState, ListRow, LoadingBlock, Money, Panel, StatTile, StatusPill } from '../ui-app';
 import { catalogPath, useDeployableProducts } from '../lib/pricing';
 import { deployPathFor, startingConfiguration } from '../lib/pricing-contract';
 
@@ -177,13 +177,12 @@ export default function Overview() {
 
   // Closed (cancelled) services go to the end, so the five that are shown first are the ones that are alive.
   const SERVICES_SHOWN = 5;
-  const [showAll, setShowAll] = useState(false);
   const orderedRows = useMemo(
     () => [...rows].sort((a, b) => Number(a.status.toLowerCase() === 'cancelled') - Number(b.status.toLowerCase() === 'cancelled')),
     [rows],
   );
-  const visibleRows = showAll ? orderedRows : orderedRows.slice(0, SERVICES_SHOWN);
-  const hiddenCount = Math.max(0, orderedRows.length - SERVICES_SHOWN);
+  const visibleRows = orderedRows.slice(0, SERVICES_SHOWN);
+  const hiddenRows = orderedRows.slice(SERVICES_SHOWN);
 
   // The sources are read apart, so one that fails is said to be unavailable and the rest still show.
   const unavailable = [
@@ -320,16 +319,17 @@ export default function Overview() {
               <ServiceLine key={row.key} row={row} />
             ))}
           </ul>
-          {/* A long list is cut after five, with a soft fade, and one button opens the rest. */}
-          {hiddenCount > 0 && !showAll && (
+          {/* A long list is cut after five, with a soft fade. */}
+          {hiddenRows.length > 0 && (
             <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card via-card/80 to-transparent" />
           )}
         </div>
-        {orderedRows.length > SERVICES_SHOWN && (
-          <div className="relative mt-3 flex justify-center">
-            <SoftButton onClick={() => setShowAll((value) => !value)} aria-expanded={showAll}>
-              {showAll ? 'Show fewer' : `View more (${hiddenCount})`}
-            </SoftButton>
+        {hiddenRows.length > 0 && (
+          <div className="relative mt-3 flex flex-wrap justify-center gap-2">
+            {/* The rest is on the pages that hold it: apps and databases, servers, email. */}
+            {hiddenRows.some((row) => row.kind === 'app') && <ButtonLink to="/app/instances" variant="soft">View all</ButtonLink>}
+            {hiddenRows.some((row) => row.kind === 'server') && <ButtonLink to="/app/vps" variant="soft">{hiddenRows.some((row) => row.kind === 'app') ? 'Servers' : 'View all servers'}</ButtonLink>}
+            {hiddenRows.some((row) => row.kind === 'mail') && <ButtonLink to="/app/mail" variant="soft">{hiddenRows.some((row) => row.kind !== 'mail') ? 'Email' : 'View all email'}</ButtonLink>}
           </div>
         )}
       </Panel>
