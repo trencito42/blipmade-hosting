@@ -169,6 +169,18 @@ const POLICIES: SettingPolicy[] = [
     schema: z.number().int().min(0).max(30),
   },
 
+  {
+    // The reduction of a yearly term of a game server. Zero means no reduction.
+    key: 'pricing.yearly_discount_percent',
+    domain: 'pricing',
+    read: 'pricing.read',
+    write: 'pricing.write',
+    general: true,
+    public: false,
+    effect: 'cached',
+    schema: z.object({ value: z.number().int().min(0).max(50) }).strict(),
+  },
+
   // --- keys with a dedicated owner: the general endpoint never writes them ----------------
   {
     key: 'pricing_resources',

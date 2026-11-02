@@ -123,3 +123,32 @@ describe('the words of the public site', () => {
     expect(r.headers['cache-control']).toContain('max-age');
   });
 });
+
+describe('the notice above the menu', () => {
+  it('is published, shown to visitors, and taken down again', async () => {
+    const { client } = await createAdmin(app);
+    const notice = { message: 'Maintenance on Sunday from 02:00 to 03:00 UTC.', linkLabel: 'Status', linkTo: '/status' };
+    expect((await client.request('PUT', '/api/admin/content/site.announcement/draft', { data: notice })).status).toBe(200);
+    expect((await client.request('POST', '/api/admin/content/site.announcement/publish')).status).toBe(200);
+    expect((await publicContent())['site.announcement']).toEqual(notice);
+    expect((await client.request('POST', '/api/admin/content/site.announcement/unpublish')).status).toBe(200);
+    expect((await publicContent())['site.announcement']).toBeUndefined();
+  });
+
+  it('refuses markup, a link without its label and a path that is not a path', async () => {
+    const { client } = await createAdmin(app);
+    for (const data of [
+      { message: 'Click <a href="x">here</a>' },
+      { message: 'Fine', linkLabel: 'Status' },
+      { message: 'Fine', linkTo: '/status' },
+      { message: 'Fine', linkLabel: 'Go', linkTo: 'https://evil.example' },
+      { message: 'Fine', extra: 'field' },
+    ]) {
+      expect((await client.request('PUT', '/api/admin/content/site.announcement/draft', { data })).status).toBe(400);
+    }
+  });
+
+  it('is one of the registered blocks', () => {
+    expect(Object.keys(BLOCKS)).toContain('site.announcement');
+  });
+});

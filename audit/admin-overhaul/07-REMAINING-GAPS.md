@@ -2,10 +2,10 @@
 
 | Gap | State |
 |---|---|
-| Phase 3: annual discount, discount rules beyond the existing promotions, tax configuration, margin view per product | NOT IMPLEMENTED. An annual discount touches the renewal and Stripe arithmetic in `billing.ts` and `stripe.ts` and needs its own change and tests. Tax is left alone on purpose: no rule was invented |
-| Phase 5: a screen-by-screen audit (inert buttons, missing loading, empty and error states, bulk actions) | NOT IMPLEMENTED. Only the wiring between screens and routes was compared by script (see 03) |
-| Backend operations without a screen: panel credential, instance import, database limit, confirm collection, mail health and jobs | NOT IMPLEMENTED |
-| Phase 6: a review step before publication (a second person), page-level content beyond four blocks, documentation pages, legal documents | NOT IMPLEMENTED. The CMS covers the home heading and text, the home FAQ, product words and search title and description. Search titles apply after the page loads; the prerendered file keeps the title of the code |
+| Phase 3: annual discount, margin per product | IMPLEMENTED in round three (see 09). The discount is not verified against Stripe. Discount rules beyond the existing promotions and the tax configuration: NOT IMPLEMENTED (no tax rule was invented) |
+| Phase 5: a screen-by-screen audit | PARTLY DONE: every admin route was opened in a browser on a desktop and on a phone and the result is in 09. Not every button was clicked, and bulk actions were not built |
+| Backend operations without a screen | DONE for panel credential, import and confirm collection (see 09). The database limit is superseded by "Save limits", `GET /admin/money` is a stub, and the mail operations already had screens |
+| Phase 6: a review step before publication (a second person), page-level content beyond five blocks, documentation pages, legal documents | NOT IMPLEMENTED. The CMS covers the home heading and text, the home FAQ, product words, search title and description, and a notice above the menu. Search titles apply after the page loads; the prerendered file keeps the title of the code |
 | Phase 7: design variables and controlled HTML of the templates | INTENTIONALLY NON-CONFIGURABLE for now: the design stays in code so that a customer message cannot be broken or abused |
 | Phase 8: the schedule, the retention rules and the VPS backups were not re-verified; only the platform archive and its offsite copy were | The real restore drill passed (see 06). Customer backups and VPS backups are NOT VERIFIED live |
 | Phase 9: lifecycle reconciliation across Stripe, PostgreSQL, Pterodactyl, Proxmox, Mailcow | NOT IMPLEMENTED beyond `GET /admin/vps-billing-check` and the VPS allocation report |
@@ -15,7 +15,7 @@
 | Product guide: stored and shown in the editor preview, not shown to customers | NOT IMPLEMENTED |
 | Legal wording about backups in the Terms, the SLA and the AUP | IMPLEMENTED BUT UNVERIFIED: needs your review |
 | Dependencies: `zod` (3, advisory fixed in 4.6.6), `prisma` and its config chain (build-time), `@sentry/node` build plugin chain | STILL BROKEN, on purpose: each is a major upgrade with a wide blast radius and the exposure is a denial of service on bounded inputs or a build-time tool. `nodemailer` was upgraded and the unused `@fastify/static` was removed |
-| Playwright and a look at the new screens in a browser | NOT RUN |
+| Playwright and a look at the new screens in a browser | DONE on a disposable stack (see 09). Not run against the live site |
 | The real SMTP delivery with nodemailer 10, the real Stripe plan-change update, a real card payment of a VPS | NOT VERIFIED (the live test message after the deploy is reported in 06) |
 
 ## Operator actions that only you can do

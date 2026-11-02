@@ -21,7 +21,7 @@ import { normalizeAmount } from '../lib/money.js';
 import * as client from './pterodactyl/client.js';
 import { resolveCustomerCredential } from './panel/credentials.js';
 import { stripeLive, upsertInvoice, removeStripeSubscriptionItem } from './stripe.js';
-import { loadOptions, monthsOfPeriod, priceConfiguration, resourceRates } from './pricing.js';
+import { loadOptions, monthsOfPeriod, priceConfiguration, resourceRates, yearlyDiscountPercent } from './pricing.js';
 import type { BillingPeriod } from '@prisma/client';
 
 /**
@@ -136,7 +136,7 @@ export async function configurationPrice(
   });
   if (!price) return null;
   const options = optionCodes.length ? await loadOptions(product.id, optionCodes) : [];
-  return priceConfiguration(price, product, config, options, await resourceRates(), period);
+  return priceConfiguration(price, product, config, options, await resourceRates(), period, await yearlyDiscountPercent());
 }
 
 /**

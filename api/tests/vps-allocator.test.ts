@@ -46,16 +46,17 @@ const { createVpsService, provisionVps, destroyVps, machineOwnership, vpsAllocat
 
 let seq = 0;
 async function fixture() {
-  seq += 1;
+  // Taken before the first await: orders built at the same moment must not share a number.
+  const n = (seq += 1);
   const user = await prisma.user.create({
-    data: { email: `vps${seq}@blipmade.test`, passwordHash: await hashPassword(VALID_PASSWORD), role: 'CUSTOMER', firstName: 'V', lastName: 'P', emailVerifiedAt: new Date() },
+    data: { email: `vps${n}@blipmade.test`, passwordHash: await hashPassword(VALID_PASSWORD), role: 'CUSTOMER', firstName: 'V', lastName: 'P', emailVerifiedAt: new Date() },
   });
   const product = await prisma.product.upsert({
     where: { slug: 'vps-test' },
     update: {},
     create: { slug: 'vps-test', name: 'VPS test', category: 'DEVELOPER_TOOLS', description: 'x', icon: 'server' },
   });
-  const order = await prisma.order.create({ data: { number: `T-${seq}-${Date.now()}`, userId: user.id, total: 100 } });
+  const order = await prisma.order.create({ data: { number: `T-${n}-${Date.now()}`, userId: user.id, total: 100 } });
   const item = await prisma.orderItem.create({ data: { orderId: order.id, productId: product.id, name: 'VPS', unitAmount: 100, total: 100 } });
   return { user, product, item };
 }

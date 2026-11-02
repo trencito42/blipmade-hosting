@@ -332,6 +332,8 @@ export interface ResourceBreakdown {
   disk: number;
   base: number;
   options: number;
+  /** The reduction of a yearly term, negative. Absent when there is none. */
+  discount?: number;
   total: number;
 }
 

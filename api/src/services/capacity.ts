@@ -197,7 +197,7 @@ export interface RevenueSummary {
   /** The storage that is sold, in gigabytes. */
   diskGb: number;
   /** The revenue of every product, the biggest first. */
-  byProduct: { productId: string; name: string; slug: string; count: number; amount: number }[];
+  byProduct: { productId: string; name: string; slug: string; count: number; amount: number; ramMb: number }[];
 }
 
 export async function revenueSummary(): Promise<RevenueSummary> {
@@ -213,7 +213,7 @@ export async function revenueSummary(): Promise<RevenueSummary> {
     },
   });
 
-  const byProduct = new Map<string, { productId: string; name: string; slug: string; count: number; amount: number }>();
+  const byProduct = new Map<string, { productId: string; name: string; slug: string; count: number; amount: number; ramMb: number }>();
   let mrr = 0;
   let ramMb = 0;
   let cpu = 0;
@@ -230,9 +230,11 @@ export async function revenueSummary(): Promise<RevenueSummary> {
       slug: instance.product.slug,
       count: 0,
       amount: 0,
+      ramMb: 0,
     };
     row.count += 1;
     row.amount += instance.price;
+    row.ramMb += instance.ram;
     byProduct.set(instance.product.id, row);
   }
 
@@ -246,4 +248,30 @@ export async function revenueSummary(): Promise<RevenueSummary> {
     diskGb,
     byProduct: [...byProduct.values()].sort((left, right) => right.amount - left.amount),
   };
+}
+
+/**
+ * The margin of every product.
+ *
+ * The nodes cost one sum a month, and no node knows which product a gigabyte
+ * of its memory serves. The cost is shared between the products in proportion to the memory they
+ * sell, which is the same rule for every product, and the margin of a product is its revenue minus
+ * that share. It is an allocation and not a measurement, and the panel says so. When the cost of
+ * the nodes is not declared the cost and the margin are `null`, never zero.
+ *
+ * The shares add up to the cost: the whole units that the division leaves go to the products with
+ * the biggest remainder, so the margins add up to the margin of the platform.
+ */
+export function allocateProductMargin<T extends { amount: number; ramMb: number }>(
+  rows: T[],
+  monthlyCost: number | null,
+): (T & { cost: number | null; margin: number | null })[] {
+  const totalRam = rows.reduce((sum, row) => sum + row.ramMb, 0);
+  if (monthlyCost === null || totalRam <= 0) return rows.map((row) => ({ ...row, cost: null, margin: null }));
+  const exact = rows.map((row) => (monthlyCost * row.ramMb) / totalRam);
+  const costs = exact.map((value) => Math.floor(value));
+  let left = Math.round(monthlyCost) - costs.reduce((sum, value) => sum + value, 0);
+  const order = exact.map((value, index) => ({ index, rest: value - Math.floor(value) })).sort((a, b) => b.rest - a.rest);
+  for (let i = 0; left > 0 && i < order.length; i += 1, left -= 1) costs[order[i]!.index]! += 1;
+  return rows.map((row, index) => ({ ...row, cost: costs[index]!, margin: row.amount - costs[index]! }));
 }

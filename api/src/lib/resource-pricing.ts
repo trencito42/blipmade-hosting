@@ -115,6 +115,8 @@ export interface ResourceBreakdown {
    * a month, so they are a part of their own in the breakdown.
    */
   options: number;
+  /** The reduction of a yearly term, as a negative amount. Absent when there is none. */
+  discount?: number;
   /** The price of the configuration, for the period it was priced for. */
   total: number;
 }

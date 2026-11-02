@@ -32,6 +32,7 @@ import {
   resourceRates,
   saveResourceRates,
   RESOURCE_RATES_KEY,
+  forgetYearlyDiscount,
 } from '../services/pricing.js';
 import {
   cpuOversubscription,
@@ -40,6 +41,7 @@ import {
   DEFAULT_NODE_CORES,
   nodeCpuCapacity,
   revenueSummary,
+  allocateProductMargin,
 } from '../services/capacity.js';
 import { configurationPrice, confirmLocalCollection, reconcileInstancePrices } from '../services/billing.js';
 import {
@@ -1102,7 +1104,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         defaultNodeCores: DEFAULT_NODE_CORES,
         declaredNodes: cores.size,
       },
-      revenue,
+      revenue: { ...revenue, byProduct: allocateProductMargin(revenue.byProduct, monthlyCost) },
       costs: {
         // The cost of the nodes, in the currency of the platform, for a month.
         monthly: monthlyCost,
@@ -1810,6 +1812,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     await prisma.$transaction(
       changes.map(({ key, value }) => prisma.setting.upsert({ where: { key }, create: { key, value: value as never }, update: { value: value as never } })),
     );
+    forgetYearlyDiscount();
     if (changes.length > 0) {
       await audit({
         actorId: actor.id,
@@ -1837,6 +1840,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       throw forbidden(`Removing "${key}" needs the permission "${policy.write}".`);
     }
     await prisma.setting.deleteMany({ where: { key } });
+    forgetYearlyDiscount();
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'settings.removed', meta: { key, domain: policy.domain }, ip: request.ip });
     return { removed: true, key };
   });

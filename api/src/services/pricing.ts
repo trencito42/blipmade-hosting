@@ -119,6 +119,7 @@ export function priceConfiguration(
   options: ProductOption[] = [],
   rates: ResourceRates = DEFAULT_RESOURCE_RATES,
   period: BillingPeriod = 'MONTHLY',
+  yearlyDiscountPercent = 0,
 ): number {
   const addons = options.reduce((sum, option) => sum + option.amount, 0);
 
@@ -138,9 +139,51 @@ export function priceConfiguration(
   // The card of the resources is the price of a month. A year is twelve
   // months of that card, and the options of the configuration are added
   // once, as they are part of the configuration and not of the month.
-  return normalizeAmount(
-    normalizeAmount(priceOfResources(config, rates) * monthsOfPeriod(period)) + addons,
-  );
+  // The reduction of a year applies to the resources and not to the options.
+  const resources = normalizeAmount(priceOfResources(config, rates) * monthsOfPeriod(period));
+  return normalizeAmount(resources - yearlyDiscountOf(resources, period, yearlyDiscountPercent) + addons);
+}
+
+/**
+ * The reduction a yearly term gets, in minor units.
+ *
+ * A monthly term never gets one, whatever the setting says. The percentage is
+ * a whole number kept between 0 and 50 by the registry of the settings; the
+ * clamp here is the second line, so a bad value in the table cannot make a year
+ * free or negative.
+ */
+export function yearlyDiscountOf(resourcesForPeriod: number, period: BillingPeriod, percent: number): number {
+  if (period !== 'YEARLY') return 0;
+  const safe = Number.isInteger(percent) ? Math.min(50, Math.max(0, percent)) : 0;
+  return Math.round((resourcesForPeriod * safe) / 100);
+}
+
+/** The setting where the reduction of a yearly term is kept. */
+export const YEARLY_DISCOUNT_KEY = 'pricing.yearly_discount_percent';
+
+let cachedDiscount: { value: number; at: number } | null = null;
+
+/**
+ * The reduction of a yearly term, in percent. Zero when the setting is not
+ * there or not readable: the platform never refuses to price because of it.
+ */
+export async function yearlyDiscountPercent(): Promise<number> {
+  if (cachedDiscount && Date.now() - cachedDiscount.at < RATES_CACHE_MS) return cachedDiscount.value;
+  let value = 0;
+  try {
+    const setting = await prisma.setting.findUnique({ where: { key: YEARLY_DISCOUNT_KEY } });
+    const raw = (setting?.value as { value?: unknown } | undefined)?.value;
+    if (typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 50) value = raw;
+  } catch {
+    value = 0;
+  }
+  cachedDiscount = { value, at: Date.now() };
+  return value;
+}
+
+/** Forgets the cached reduction, after the setting was written. */
+export function forgetYearlyDiscount(): void {
+  cachedDiscount = null;
 }
 
 /**
@@ -166,16 +209,19 @@ export function breakdownForPeriod(
   rates: ResourceRates,
   period: BillingPeriod,
   optionsAmount = 0,
+  yearlyDiscountPercent = 0,
 ): ResourceBreakdown {
   const months = monthsOfPeriod(period);
   const monthly = breakdownOfResources(config, rates);
+  const discount = yearlyDiscountOf(monthly.total * months, period, yearlyDiscountPercent);
   return {
     ram: monthly.ram * months,
     cpu: monthly.cpu * months,
     disk: monthly.disk * months,
     base: monthly.base * months,
     options: optionsAmount,
-    total: monthly.total * months + optionsAmount,
+    ...(discount > 0 ? { discount: -discount } : {}),
+    total: monthly.total * months - discount + optionsAmount,
   };
 }
 
@@ -483,7 +529,8 @@ export async function priceItems(
     if (missing.length) throw badRequest(`Unknown option: ${missing.join(', ')}`);
 
     const rates = await resourceRates();
-    const unitAmount = priceConfiguration(price, product, config, options, rates, period);
+    const discountPercent = await yearlyDiscountPercent();
+    const unitAmount = priceConfiguration(price, product, config, options, rates, period, discountPercent);
     const quantity = isVps ? 1 : Math.max(1, item.quantity ?? 1);
     // The line of a server is broken down into what it is made of, so the
     // customer sees the price of the memory, of the processor, of the storage
@@ -495,6 +542,7 @@ export async function priceItems(
           rates,
           period,
           options.reduce((sum, option) => sum + option.amount, 0),
+          discountPercent,
         );
     priced.push({
       productId: product.id,

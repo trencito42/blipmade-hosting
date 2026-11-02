@@ -57,7 +57,7 @@ interface CapacityReport {
     ramMb: number;
     cpu: number;
     diskGb: number;
-    byProduct: { productId: string; name: string; slug: string; count: number; amount: number }[];
+    byProduct: { productId: string; name: string; slug: string; count: number; amount: number; ramMb: number; cost: number | null; margin: number | null }[];
   };
   costs: { monthly: number | null; declared: boolean; note: string | null };
   margin: { monthly: number | null; percent: number | null };
@@ -260,7 +260,7 @@ export default function Capacity() {
       </Panel>
 
       {revenue.byProduct.length > 0 && (
-        <Panel title="Revenue by product" description="The price of the running instances, per product.">
+        <Panel title="Revenue by product" description="The price of the running instances, per product. The cost is the cost of the nodes shared by the memory each product sells, so the margin is an allocation and not a measurement.">
           <DataTable
             columns={[
               { key: 'product', header: 'Product', render: (row) => row.name },
@@ -272,10 +272,24 @@ export default function Capacity() {
                 render: (row) => <Money amount={row.amount} currency={revenue.currency} />,
                 nowrap: true,
               },
+              {
+                key: 'cost',
+                header: 'Allocated cost',
+                align: 'right',
+                render: (row) => (row.cost === null ? 'Not declared' : <Money amount={row.cost} currency={revenue.currency} />),
+                nowrap: true,
+              },
+              {
+                key: 'margin',
+                header: 'Margin',
+                align: 'right',
+                render: (row) => (row.margin === null ? 'Unknown' : <Money amount={row.margin} currency={revenue.currency} />),
+                nowrap: true,
+              },
             ]}
             rows={revenue.byProduct}
             rowKey={(row) => row.productId}
-            minWidth="420px"
+            minWidth="640px"
           />
         </Panel>
       )}

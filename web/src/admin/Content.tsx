@@ -23,6 +23,7 @@ const pretty = (value: unknown) => JSON.stringify(value, null, 2);
 function Preview({ keyName, data }: { keyName: string; data: any }) {
   if (!data || typeof data !== 'object') return null;
   if (keyName === 'home.hero') return <div className="grid gap-1"><p className="text-[18px] font-semibold text-ink">{data.title}</p><p className="text-ink2">{data.lead}</p></div>;
+  if (keyName === 'site.announcement') return <p className="rounded-xl bg-s2 px-3 py-2 text-ink">{data.message}{data.linkLabel ? <span className="ml-2 font-semibold underline">{data.linkLabel}</span> : null}</p>;
   if (keyName === 'home.faq' && Array.isArray(data.items)) return <div className="grid gap-2">{data.items.map((item: { q: string; a: string }, index: number) => <div key={index}><p className="font-semibold text-ink">{item.q}</p><p className="text-ink2">{item.a}</p></div>)}</div>;
   return <pre className="whitespace-pre-wrap font-sans text-ink2">{pretty(data)}</pre>;
 }

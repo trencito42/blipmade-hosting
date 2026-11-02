@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, get, post } from '../lib/api';
+import { api, get, post, put } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, useToast } from '../ui-app';
 import { denseGhost, denseInput, densePrimary } from './Overview';
@@ -90,6 +90,52 @@ export function PriceHistoryPanel() {
             </li>
           ))}
         </ul>
+      )}
+    </Panel>
+  );
+}
+
+/**
+ * The reduction of a yearly term. Zero means none. It applies to the resources of a game server and
+ * not to the add-ons, to a monthly term or to a plan of mail, and it reaches new orders: a service
+ * that exists keeps its price until the prices are reconciled on the tools page, which has a dry run.
+ */
+export function YearlyDiscountPanel({ mayWrite }: { mayWrite: boolean }) {
+  const toast = useToast();
+  const state = useAsync<{ settings: Record<string, { value?: number } | undefined> }>((signal) => get('/admin/settings', undefined, signal), []);
+  const current = state.data?.settings['pricing.yearly_discount_percent']?.value ?? 0;
+  const [typed, setTyped] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const shown = typed ?? String(current);
+  const parsed = /^\d{1,2}$/.test(shown.trim()) ? Number(shown.trim()) : null;
+  const valid = parsed !== null && parsed >= 0 && parsed <= 50;
+  const changed = valid && parsed !== current;
+
+  const save = async () => {
+    if (!valid) return;
+    setBusy(true);
+    try {
+      await put('/admin/settings', { 'pricing.yearly_discount_percent': { value: parsed } });
+      toast.push(parsed === 0 ? 'The yearly discount is off.' : `Yearly terms now get ${parsed}% off the resources.`, 'ok');
+      setTyped(null);
+      state.reload();
+    } catch (failure) {
+      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Panel title="Yearly discount" description="Percent off the resources of a game server when a customer pays for a year. 0 means no discount. New orders only.">
+      {state.loading ? <LoadingBlock rows={1} label="Loading the discount" /> : state.error ? <ErrorState title="The discount could not be read" message={state.error.message} onRetry={state.reload} /> : (
+        <div className="flex flex-wrap items-end gap-3">
+          <Field label="Percent (0 to 50)" htmlFor="yearly-discount" error={valid ? undefined : 'Use a whole number from 0 to 50.'}>
+            <input id="yearly-discount" className={denseInput} inputMode="numeric" value={shown} disabled={!mayWrite || busy} onChange={(event) => setTyped(event.target.value)} />
+          </Field>
+          {mayWrite && <button type="button" className={densePrimary} disabled={!changed || busy} onClick={save}>Save</button>}
+          {!mayWrite && <span className="text-[13px] text-muted">Your role can read this but not change it.</span>}
+        </div>
       )}
     </Panel>
   );

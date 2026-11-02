@@ -6,6 +6,7 @@ import { CATEGORIES } from './categories';
 import { LEGAL_PAGE_LIST } from '../legal/links';
 import { useSession } from '../session';
 import { homeOf } from '../auth-guard';
+import { useSiteContent } from './siteContent';
 
 /**
  * The atoms of the public site.
@@ -232,8 +233,17 @@ export function Nav() {
   const dashboard = user ? homeOf(user.role) : null;
   const here = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
   const plain = (active: boolean) => cx(NAV_LINK, active ? 'bg-night-3 text-ink' : 'text-ink-2 hover:text-ink');
+  const notice = useSiteContent()['site.announcement'] as { message: string; linkLabel?: string; linkTo?: string } | undefined;
   return (
     <header className="sticky top-0 z-30 border-b border-line/70 bg-paper/85 backdrop-blur-md">
+      {notice?.message && (
+        <div role="status" className="border-b border-line/70 bg-night-3 px-4 py-2 text-center text-[13.5px] text-ink">
+          {notice.message}
+          {notice.linkLabel && notice.linkTo && (
+            <Link to={notice.linkTo} className="ml-2 font-semibold underline">{notice.linkLabel}</Link>
+          )}
+        </div>
+      )}
       <Wrap className="flex h-[68px] items-center gap-6">
         <Logo />
         <nav aria-label="Main" className="ml-4 hidden items-center gap-1 rounded-full border border-line bg-card/70 p-1 md:flex">

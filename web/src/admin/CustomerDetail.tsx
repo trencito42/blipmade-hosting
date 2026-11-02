@@ -245,6 +245,7 @@ export default function CustomerDetail() {
   const customer = state.data?.customer;
   const suspended = Boolean(customer?.suspendedAt);
   const mayWrite = can(staff, 'customers.write');
+  const mayCollect = can(staff, 'orders.write');
 
   if (session.loading) {
     return (
@@ -377,6 +378,7 @@ export default function CustomerDetail() {
       {mayWrite && <CreditPanel customerId={customer.id} />}
       <NotesPanel customerId={customer.id} mayWrite={mayWrite} />
       <SubscriptionsPanel customerId={customer.id} mayWrite={mayWrite} />
+      <PanelAccessPanel customerId={customer.id} mayWrite={can(staff, 'services.write')} />
 
       <Panel title="Instances" description={`${instanceCount} instance${instanceCount === 1 ? '' : 's'} on this account.`}>
         {!customer.instances.length ? (
@@ -512,6 +514,15 @@ export default function CustomerDetail() {
                   nowrap: true,
                   render: (invoice: DetailInvoice) => <span className="text-ink2">{fmtDate(invoice.createdAt)}</span>,
                 },
+                ...(mayCollect
+                  ? [{
+                      key: 'collect',
+                      header: '',
+                      align: 'right' as const,
+                      nowrap: true,
+                      render: (invoice: DetailInvoice) => <CollectionConfirm invoice={invoice} onDone={state.reload} />,
+                    }]
+                  : []),
               ]}
             />
             <CardList<DetailInvoice> rows={customer.invoices} rowKey={(invoice) => invoice.id}>
@@ -526,6 +537,7 @@ export default function CustomerDetail() {
                   <div className="flex shrink-0 items-center gap-2">
                     <Money amount={invoice.total} currency={invoice.currency} />
                     <StatusPill status={invoice.status} />
+                    {mayCollect && <CollectionConfirm invoice={invoice} onDone={state.reload} />}
                   </div>
                 </div>
               )}
@@ -950,6 +962,122 @@ function CreditPanel({ customerId }: { customerId: string }) {
             .catch((failure: Error) => toast.push(failure.message, 'error'))
             .finally(() => setBusy(false));
         }}
+      />
+    </Panel>
+  );
+}
+
+/**
+ * Marks an invoice as paid when the money arrived outside the payment provider.
+ *
+ * Only an open invoice shows the button. The reference of the payment is required and goes to the
+ * audit log; the server pays the invoice and extends the period of the service once, and confirming
+ * the same invoice again does nothing.
+ */
+function CollectionConfirm({ invoice, onDone }: { invoice: DetailInvoice; onDone: () => void }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [reference, setReference] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (invoice.status.toLowerCase() !== 'open') return null;
+
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      await post(`/admin/invoices/${invoice.id}/confirm-collection`, { reference: reference.trim() });
+      toast.push(`Invoice ${invoice.number} is paid.`, 'ok');
+      setOpen(false);
+      setReference('');
+      onDone();
+    } catch (failure) {
+      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" className={denseGhost} onClick={() => setOpen(true)}>Mark as paid</button>
+      <ConfirmWithReason
+        open={open}
+        title={`Mark invoice ${invoice.number} as paid?`}
+        description="Use this only when the money arrived outside the payment provider, for example a bank transfer. The invoice becomes paid and the period of the service is extended once."
+        confirmLabel="Mark as paid"
+        reasonLabel="Reference of the payment"
+        reason={reference}
+        onReasonChange={setReference}
+        onCancel={() => setOpen(false)}
+        onConfirm={() => { if (reference.trim().length >= 3) void confirm(); }}
+        busy={busy}
+        error={reference.trim().length < 3 ? 'Write the reference of the payment, at least three characters.' : null}
+        destructive={false}
+      />
+    </>
+  );
+}
+
+interface PanelAccess { userId: number | null; externalId: string | null; hasCredential: boolean; credentialSource: string | null; credentialUsedAt: string | null; bridgeEnabled: boolean }
+
+/**
+ * The game panel account of the customer and the key that opens it.
+ *
+ * The key is never shown, only whether there is one, where it came from and when it was last used.
+ * An operator can paste a key when the bridge of the panel is not installed, or forget the stored
+ * one. The key goes to the server over the session and is stored encrypted.
+ */
+function PanelAccessPanel({ customerId, mayWrite }: { customerId: string; mayWrite: boolean }) {
+  const toast = useToast();
+  const state = useAsync<{ panel: PanelAccess }>((signal) => get(`/admin/customers/${customerId}/panel`, undefined, signal), [customerId]);
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [forgetting, setForgetting] = useState(false);
+  const panel = state.data?.panel;
+
+  const run = async (work: () => Promise<unknown>, message: string) => {
+    setBusy(true);
+    try {
+      await work();
+      toast.push(message, 'ok');
+      setToken('');
+      setForgetting(false);
+      state.reload();
+    } catch (failure) {
+      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Panel title="Game panel access" description="The panel account of this customer and the key the platform uses for it. The key is never shown.">
+      {state.loading ? <LoadingBlock rows={2} label="Loading the panel account" /> : state.error || !panel ? <ErrorState title="The panel account could not be read" message={state.error?.message ?? 'No answer.'} onRetry={state.reload} /> : (
+        <div className="grid gap-3">
+          <dl className="grid gap-2 text-[13.5px] sm:grid-cols-2">
+            <div className="rounded-2xl bg-s2 px-4 py-3"><dt className="text-ink3">Panel account</dt><dd className="text-ink">{panel.userId ?? 'None yet'}</dd></div>
+            <div className="rounded-2xl bg-s2 px-4 py-3"><dt className="text-ink3">Stored key</dt><dd className="text-ink">{panel.hasCredential ? `Yes (${panel.credentialSource ?? 'unknown source'}), last used ${panel.credentialUsedAt ? fmtDate(panel.credentialUsedAt) : 'never'}` : 'No'}</dd></div>
+            <div className="rounded-2xl bg-s2 px-4 py-3 sm:col-span-2"><dt className="text-ink3">Key bridge of the panel</dt><dd className="text-ink">{panel.bridgeEnabled ? 'Installed: keys are issued by the panel.' : 'Not installed: a key has to be pasted here.'}</dd></div>
+          </dl>
+          {mayWrite && panel.userId !== null && (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="grid min-w-0 flex-1 gap-1 text-[12.5px] font-medium text-ink">New key
+                <input className={denseInput} type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} placeholder="Client key from the panel" />
+              </label>
+              <button type="button" className={denseGhost} disabled={busy || token.trim().length < 20} onClick={() => void run(() => post(`/admin/customers/${customerId}/panel/credential`, { token: token.trim() }), 'The key is stored.')}>Store key</button>
+              {panel.hasCredential && <button type="button" className={denseDanger} disabled={busy} onClick={() => setForgetting(true)}>Forget key</button>}
+            </div>
+          )}
+          {mayWrite && panel.userId === null && <p className="text-[13px] text-ink2">This customer has no panel account yet. It is created with their first game server.</p>}
+        </div>
+      )}
+      <ConfirmDialog
+        open={forgetting}
+        title="Forget the stored key?"
+        description="The next operation on this customer's servers asks for a new key. Nothing is deleted on the panel."
+        confirmLabel="Forget key"
+        busy={busy}
+        onCancel={() => setForgetting(false)}
+        onConfirm={() => void run(() => del(`/admin/customers/${customerId}/panel/credential`), 'The key is forgotten.')}
       />
     </Panel>
   );

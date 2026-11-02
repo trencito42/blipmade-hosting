@@ -274,6 +274,11 @@ function Breakdown({
           <Money amount={breakdown.options} currency={currency} />
         </Row>
       )}
+      {breakdown.discount != null && breakdown.discount < 0 && (
+        <Row label="Yearly discount">
+          <Money amount={breakdown.discount} currency={currency} />
+        </Row>
+      )}
     </dl>
   );
 }

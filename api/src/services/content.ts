@@ -48,6 +48,15 @@ export const BLOCKS: Record<string, BlockDefinition> = {
     schema: z.object({ items: z.array(z.object({ q: text(200), a: text(2000) }).strict()).min(1).max(30) }).strict(),
     example: { items: [{ q: 'What will I pay?', a: 'The configurator shows the price. Memory costs {{ramPerGb}} per GB.' }] },
   },
+  'site.announcement': {
+    label: 'Every public page: a notice above the menu',
+    description: 'A short notice shown above the menu of the public pages, for example a maintenance window. Take it down when it is no longer true. A link needs both its label and its path.',
+    schema: z
+      .object({ message: text(200), linkLabel: text(40).optional(), linkTo: path.optional() })
+      .strict()
+      .refine((value) => (value.linkLabel === undefined) === (value.linkTo === undefined), 'Give both the label and the path of the link, or neither.'),
+    example: { message: 'Scheduled maintenance on Sunday from 02:00 to 03:00 UTC.', linkLabel: 'Status', linkTo: '/status' },
+  },
   'product.copy': {
     label: 'Products: marketing words',
     description: 'For each product (by slug): the tagline, the introduction, the list of what it fits and an optional note.',
