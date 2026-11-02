@@ -141,7 +141,10 @@ export class ErrorBoundary extends Component<BoundaryProps, BoundaryState> {
     // A tab that was open before a deploy asks for a file of the old build, which is gone. That is
     // not a crash of the page: it is loaded again once, to pick up the new files. The guard keeps
     // a real outage from becoming a loop of reloads.
-    if (/dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError/i.test(String(error?.message ?? error))) {
+    // A page that was loaded lazily from a build that is gone can also fail as "reading 'default'" of an empty module.
+    const stale = /dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError/i.test(String(error?.message ?? error))
+      || (/reading 'default'/.test(String(error?.message ?? error)) && /Lazy/.test(String(info.componentStack ?? '')));
+    if (stale) {
       try {
         const last = Number(sessionStorage.getItem('bm-reloaded-at') ?? 0);
         if (Date.now() - last > 15000) {

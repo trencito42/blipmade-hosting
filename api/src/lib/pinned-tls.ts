@@ -29,7 +29,9 @@ export function fingerprintMatches(presented: string | undefined, pinned: Buffer
 export function pinnedAgent(fingerprint: string): https.Agent {
   const pinned = parseFingerprint(fingerprint);
   if (!pinned) throw new Error('The pinned fingerprint is not a SHA-256 fingerprint.');
-  const agent = new https.Agent({ rejectUnauthorized: false, keepAlive: true });
+  // No cache of TLS sessions: a resumed session has no certificate to read, so the second connection made soon after the
+  // first one was refused as "not the pinned one" and the VPS pages failed one request in two.
+  const agent = new https.Agent({ rejectUnauthorized: false, keepAlive: true, maxCachedSessions: 0 });
   const create = agent.createConnection.bind(agent) as (options: object, callback?: (error: Error | null, socket: TLSSocket) => void) => TLSSocket;
   (agent as unknown as { createConnection: typeof create }).createConnection = (options, callback) => {
     const socket = create(options, callback);
