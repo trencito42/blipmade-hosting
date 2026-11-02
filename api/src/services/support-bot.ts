@@ -218,6 +218,26 @@ function handOver(session: BotSession, out: Out[], reason: string): StepResult {
   return { session: { ...session, state: 'HANDED_OFF', node: null }, out };
 }
 
+/** What the bot is waiting for now: the question or the buttons of the block the conversation stopped at. */
+export async function promptFor(flow: Flow, session: BotSession, hooks: Hooks): Promise<Out | null> {
+  const node = session.node ? flow.nodes[session.node] : undefined;
+  if (!node || session.state !== 'ACTIVE') return null;
+  switch (node.type) {
+    case 'buttons':
+      return { kind: 'buttons', text: render(node.text, session.variables), options: node.options.map(({ id: key, label }) => ({ id: key, label })) };
+    case 'ask_text':
+      return { kind: 'ask', text: render(node.text, session.variables), input: 'text' };
+    case 'ask_email':
+      return { kind: 'ask', text: render(node.text, session.variables), input: 'email' };
+    case 'ask_service': {
+      const services = await hooks.services();
+      return { kind: 'ask', text: render(node.text, session.variables), input: 'service', options: services.map((service) => ({ id: service.id, label: service.name })) };
+    }
+    default:
+      return null;
+  }
+}
+
 /** Starts a conversation at the first block of the flow. */
 export async function startFlow(flow: Flow, hooks: Hooks): Promise<StepResult> {
   const out: Out[] = [];

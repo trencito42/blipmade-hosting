@@ -28,6 +28,20 @@ interface Thread {
   messages: TicketMessage[];
 }
 
+interface BotOut {
+  kind: string;
+  text?: string;
+  options?: { id: string; label: string }[];
+  articles?: { title: string; url: string; summary: string }[];
+  input?: string;
+}
+
+interface BotView {
+  id: string;
+  entries: { from: 'bot' | 'customer'; text: string; links?: { title: string; url: string }[] }[];
+  prompt: BotOut | null;
+}
+
 const PANEL_ID = 'bm-chat-panel';
 
 export default function ChatWidget() {
@@ -41,6 +55,9 @@ export default function ChatWidget() {
   const [unread, setUnread] = useState(0);
   const [typing, setTyping] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
+  // The assistant answers first when the company has switched one on; a person is one tap away.
+  const [bot, setBot] = useState<BotView | null>(null);
+  const botTried = useRef(false);
   const launcher = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const log = useRef<HTMLDivElement>(null);
@@ -64,7 +81,18 @@ export default function ChatWidget() {
     let live = true;
     get<{ conversation: Conversation | null }>('/support/chat/current')
       .then((res) => {
-        if (!live || !res.conversation) return;
+        if (!live) return;
+        if (!res.conversation) {
+          void get<{ session: { id: string; transcript: { from: 'bot' | 'customer'; text: string }[]; prompt: BotOut | null } | null }>('/support/bot/current')
+            .then((current) => {
+              if (live && current.session) {
+                botTried.current = true;
+                setBot({ id: current.session.id, entries: current.session.transcript, prompt: current.session.prompt });
+              }
+            })
+            .catch(() => undefined);
+          return;
+        }
         setConversation(res.conversation);
         void loadThread(res.conversation.id).catch(() => undefined);
       })
@@ -113,6 +141,13 @@ export default function ChatWidget() {
     setUnread(0);
     window.setTimeout(() => field.current?.focus(), 50);
     if (!conversation) void get<{ available: boolean }>('/support/availability').then((res) => setAvailable(res.available)).catch(() => setAvailable(false));
+    if (!conversation && !bot && !botTried.current) {
+      botTried.current = true;
+      // 404 means no assistant is switched on: the chat is the ordinary one.
+      void post<{ sessionId: string; state: string; messages: BotOut[] }>('/support/bot/start')
+        .then((res) => applyBot(res.sessionId, res.state, res.messages, []))
+        .catch(() => undefined);
+    }
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
@@ -130,7 +165,65 @@ export default function ChatWidget() {
     launcher.current?.focus();
   }
 
+  function entriesOf(messages: BotOut[]): BotView['entries'] {
+    return messages
+      .filter((out) => out.kind !== 'buttons' && !(out.kind === 'ask'))
+      .map((out) => (out.kind === 'articles' ? { from: 'bot' as const, text: 'These pages may help:', links: (out.articles ?? []).map((a) => ({ title: a.title, url: a.url })) } : { from: 'bot' as const, text: out.text ?? '' }))
+      .concat(messages.filter((out) => out.kind === 'buttons' || out.kind === 'ask').map((out) => ({ from: 'bot' as const, text: out.text ?? '' })));
+  }
+
+  /** Shows what the assistant said; when it handed over, the chat of the person takes its place. */
+  function applyBot(sessionId: string, state: string, messages: BotOut[], before: BotView['entries']) {
+    const prompt = [...messages].reverse().find((out) => out.kind === 'buttons' || out.kind === 'ask') ?? null;
+    const entries = [...before, ...entriesOf(messages)];
+    if (state === 'handed_off' || state === 'ended') {
+      setBot(null);
+      if (state === 'handed_off') {
+        void get<{ conversation: Conversation | null }>('/support/chat/current').then(async (res) => {
+          if (res.conversation) {
+            setConversation(res.conversation);
+            await loadThread(res.conversation.id);
+          } else {
+            // The conversation was kept as a ticket: it is in the support center.
+            setBot({ id: sessionId, entries, prompt: null });
+          }
+        }).catch(() => undefined);
+      } else {
+        setBot({ id: sessionId, entries, prompt: null });
+      }
+      return;
+    }
+    setBot({ id: sessionId, entries, prompt });
+  }
+
+  async function answerBot(input: { text?: string; option?: string }, shown: string) {
+    if (!bot || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      const res = await post<{ sessionId: string; state: string; messages: BotOut[] }>(`/support/bot/${bot.id}/input`, input);
+      applyBot(bot.id, res.state, res.messages, [...bot.entries, { from: 'customer', text: shown }]);
+      setDraft('');
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : 'The message could not be sent. Try again.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function skipBot() {
+    if (!bot) return;
+    await post(`/support/bot/${bot.id}/skip`).catch(() => undefined);
+    setBot(null);
+    window.setTimeout(() => field.current?.focus(), 50);
+  }
+
   async function send() {
+    if (bot && !conversation) {
+      const text = draft.trim();
+      if (text) await answerBot({ text }, text);
+      return;
+    }
     const text = draft.trim();
     if (!text || sending) return;
     setSending(true);
@@ -238,7 +331,34 @@ export default function ChatWidget() {
           </header>
 
           <div ref={log} role="log" aria-live="polite" aria-label="Messages" className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            {messages.length === 0 ? (
+            {bot && !conversation ? (
+              <div className="grid gap-2">
+                <ul className="grid gap-2">
+                  {bot.entries.map((entry, index) => (
+                    <li key={index} className={cn('flex flex-col', entry.from === 'customer' ? 'items-end' : 'items-start')}>
+                      <p className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14.5px]', entry.from === 'customer' ? 'bg-acc text-on-acc' : 'bg-s2 text-ink')}>{entry.text}</p>
+                      {entry.links && (
+                        <ul className="mt-1 grid gap-1">
+                          {entry.links.map((link) => (
+                            <li key={link.url}><a href={link.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-[13.5px] text-acc underline">{link.title}</a></li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {bot.prompt && (bot.prompt.kind === 'buttons' || bot.prompt.input === 'service') && (
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Choose">
+                    {(bot.prompt.options ?? []).map((option) => (
+                      <button key={option.id} type="button" disabled={sending} onClick={() => void answerBot({ option: option.id }, option.label)} className="min-h-11 rounded-full border border-line bg-card px-3.5 text-[14px] font-medium text-ink hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => void skipBot()} className="min-h-11 justify-self-start text-[13.5px] text-ink2 underline">Talk to a person instead</button>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="grid gap-2 py-6 text-[14px] text-ink2">
                 <p className="font-medium text-ink">How can we help?</p>
                 {available === false ? (

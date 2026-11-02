@@ -252,4 +252,19 @@ describe('the bots API', () => {
     const sessionId = (await owner.request('POST', '/api/support/bot/start')).body.sessionId as string;
     expect((await stranger.request('POST', `/api/support/bot/${sessionId}/input`, { option: 'billing' })).status).toBe(404);
   });
+
+  it('finds the conversation again after a reload, with the question it waits on, and lets the customer skip it', async () => {
+    const { client: admin } = await createAdmin(app);
+    const id = (await admin.request('POST', '/api/admin/support/bots', { name: 'Helper', template: true })).body.bot.id as string;
+    await admin.request('POST', `/api/admin/support/bots/${id}/publish`);
+    await admin.request('PUT', `/api/admin/support/bots/${id}`, { enabled: true });
+    const { client } = await registerAndLogin(app, 'reload@example.com');
+    const sessionId = (await client.request('POST', '/api/support/bot/start')).body.sessionId as string;
+    const current = await client.request('GET', '/api/support/bot/current');
+    expect(current.body.session.id).toBe(sessionId);
+    expect(current.body.session.prompt.kind).toBe('buttons');
+    expect(current.body.session.transcript.length).toBeGreaterThan(0);
+    expect((await client.request('POST', `/api/support/bot/${sessionId}/skip`)).status).toBe(200);
+    expect((await client.request('GET', '/api/support/bot/current')).body.session).toBeNull();
+  });
 });

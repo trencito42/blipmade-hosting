@@ -10,7 +10,7 @@ import { notifyTicketOpenedForStaff } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { humanAvailable } from '../services/support-availability.js';
 import { publishSupportEvent } from '../services/support-events.js';
-import { advance, flowSchema, startFlow, templateFlow, validateFlow, type BotSession, type Flow, type Hooks, type Out } from '../services/support-bot.js';
+import { advance, flowSchema, promptFor, startFlow, templateFlow, validateFlow, type BotSession, type Flow, type Hooks, type Out } from '../services/support-bot.js';
 
 /**
  * The bots of the support: the editor's API for the staff and the conversation API for the customer.
@@ -315,6 +315,27 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
       data: { botId: bot.id, versionId: version.id, userId: user.id, state: result.session.state, node: result.session.node, variables: result.session.variables, steps: result.session.steps, transcript: transcript as unknown as Prisma.InputJsonValue, ticketId: ctx.ticketId },
     });
     return response.code(201).send(answer(row.id, result.session, result.out));
+  });
+
+  /** The conversation with the bot that is still going, so the widget picks it up again after a reload. */
+  app.get('/support/bot/current', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const row = await prisma.supportBotSession.findFirst({ where: { userId: user.id, state: 'ACTIVE' }, orderBy: { createdAt: 'desc' }, include: { version: true } });
+    if (!row) return { session: null };
+    const flow = flowSchema.parse(row.version.flow);
+    const session: BotSession = { node: row.node, variables: row.variables as Record<string, string>, steps: row.steps, state: row.state };
+    const prompt = await promptFor(flow, session, hooksFor(user, { ticketId: row.ticketId, transcript: () => '' }));
+    return { session: { id: row.id, transcript: (row.transcript as unknown as Entry[]).slice(-60), prompt } };
+  });
+
+  /** The customer does not want the assistant: the conversation ends and the chat goes on with a person. */
+  app.post('/support/bot/:id/skip', customer(app), async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const row = await prisma.supportBotSession.findFirst({ where: { id, userId: user.id } });
+    if (!row) throw notFound('Conversation not found.');
+    await prisma.supportBotSession.update({ where: { id }, data: { state: 'ENDED', node: null } });
+    return { skipped: true };
   });
 
   app.post('/support/bot/:id/input', customer(app), async (request: FastifyRequest) => {
