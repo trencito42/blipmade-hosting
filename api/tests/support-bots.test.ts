@@ -278,4 +278,24 @@ describe('the bots API', () => {
     draft.layout.hello = { x: 99999, y: 0 };
     expect((await admin.request('PUT', `/api/admin/support/bots/${id}/draft`, { flow: draft })).status).toBe(400);
   });
+
+  it('takes one rating of a conversation with the assistant, and shows it to the staff with the others', async () => {
+    const { client: admin } = await createAdmin(app);
+    const id = (await admin.request('POST', '/api/admin/support/bots', { name: 'Helper', template: true })).body.bot.id as string;
+    await admin.request('POST', `/api/admin/support/bots/${id}/publish`);
+    await admin.request('PUT', `/api/admin/support/bots/${id}`, { enabled: true });
+    const { client } = await registerAndLogin(app, 'rater@example.com');
+    const { client: stranger } = await registerAndLogin(app, 'rater2@example.com');
+    const sessionId = (await client.request('POST', '/api/support/bot/start')).body.sessionId as string;
+    expect((await stranger.request('POST', `/api/support/bot/${sessionId}/rating`, { rating: 5 })).status).toBe(404);
+    expect((await client.request('POST', `/api/support/bot/${sessionId}/rating`, { rating: 6 })).status).toBe(400);
+    expect((await client.request('POST', `/api/support/bot/${sessionId}/rating`, { rating: 4, comment: 'Quick answers.' })).status).toBe(200);
+    expect((await client.request('POST', `/api/support/bot/${sessionId}/rating`, { rating: 5 })).status).toBe(400);
+
+    const list = (await admin.request('GET', '/api/admin/support/ratings')).body.ratings as { source: string; rating: number; comment: string | null }[];
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ source: 'assistant', rating: 4, comment: 'Quick answers.' });
+    expect((await admin.request('GET', '/api/admin/support/analytics?days=7')).body.satisfaction).toEqual({ count: 1, average: 4 });
+    expect((await client.request('GET', '/api/admin/support/ratings')).status).toBe(403);
+  });
 });

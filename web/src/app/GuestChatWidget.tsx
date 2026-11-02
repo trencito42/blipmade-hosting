@@ -4,6 +4,7 @@ import { Icon } from '../icons';
 import { Link } from '../router';
 import { cn } from '../lib';
 import { useSession } from '../session';
+import { useVisualViewport } from '../lib/useVisualViewport';
 
 /**
  * The chat of the public site, for a visitor who has not signed in.
@@ -35,6 +36,7 @@ export default function GuestChatWidget() {
   const [unread, setUnread] = useState(0);
   const launcher = useRef<HTMLButtonElement>(null);
   const log = useRef<HTMLDivElement>(null);
+  const viewport = useVisualViewport(open);
   const openRef = useRef(open);
   openRef.current = open;
 
@@ -142,6 +144,7 @@ export default function GuestChatWidget() {
           id="bm-guest-chat"
           role="dialog"
           aria-label="Chat with us"
+          style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined}
           className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-bg pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:inset-auto sm:bottom-24 sm:right-4 sm:h-[min(600px,calc(100dvh-8rem))] sm:w-[380px] sm:rounded-3xl sm:border sm:border-line sm:pb-0 sm:pt-0 sm:shadow-2xl"
         >
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
@@ -165,15 +168,15 @@ export default function GuestChatWidget() {
             >
               <label className="grid gap-1 text-[13.5px] font-medium text-ink">
                 Your name
-                <input value={name} onChange={(event) => setName(event.target.value)} maxLength={60} required autoComplete="given-name" className="h-12 rounded-xl border border-line bg-card px-3 text-[15px] font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc" />
+                <input value={name} onChange={(event) => setName(event.target.value)} maxLength={60} required autoComplete="given-name" className="h-12 rounded-xl border border-line bg-card px-3 text-[16px] font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc" />
               </label>
               <label className="grid gap-1 text-[13.5px] font-medium text-ink">
                 How can we help?
-                <textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} required rows={4} className="rounded-xl border border-line bg-card px-3 py-2.5 text-[15px] font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc" />
+                <textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={2000} required rows={4} className="rounded-xl border border-line bg-card px-3 py-2.5 text-[16px] font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc" />
               </label>
               <label className="grid gap-1 text-[13.5px] font-medium text-ink">
                 Email or phone, if you want us to be able to reach you (optional, not verified)
-                <input value={contact} onChange={(event) => setContact(event.target.value)} maxLength={200} className="h-12 rounded-xl border border-line bg-card px-3 text-[15px] font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc" />
+                <input value={contact} onChange={(event) => setContact(event.target.value)} maxLength={200} className="h-12 rounded-xl border border-line bg-card px-3 text-[16px] font-normal text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc" />
               </label>
               <label className="flex items-start gap-2 text-[13px] text-ink2">
                 <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5 size-5 shrink-0" />
@@ -225,7 +228,7 @@ export default function GuestChatWidget() {
                         }
                       }}
                       placeholder="Write a message"
-                      className="min-h-11 flex-1 resize-none rounded-2xl border border-line bg-card px-3.5 py-2.5 text-[15px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      className="min-h-11 flex-1 resize-none rounded-2xl border border-line bg-card px-3.5 py-2.5 text-[16px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc"
                     />
                     <button type="submit" disabled={busy || !draft.trim()} className="h-11 shrink-0 rounded-full bg-acc px-4 text-[14px] font-semibold text-on-acc disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
                       {busy ? 'Sending…' : 'Send'}

@@ -330,6 +330,19 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
     return { session: { id: row.id, transcript: (row.transcript as unknown as Entry[]).slice(-60), prompt } };
   });
 
+  /** One to five, with an optional comment, once, for a conversation with the assistant. The staff reads it in the numbers of the support. */
+  app.post('/support/bot/:id/rating', customer(app), async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ rating: z.number().int().min(1).max(5), comment: z.string().trim().max(500).optional() }).parse(request.body);
+    const row = await prisma.supportBotSession.findFirst({ where: { id, userId: user.id } });
+    if (!row) throw notFound('Conversation not found.');
+    const variables = row.variables as Record<string, string>;
+    if (variables._rating) throw badRequest('This conversation was already rated.');
+    await prisma.supportBotSession.update({ where: { id }, data: { variables: { ...variables, _rating: String(body.rating), ...(body.comment ? { _comment: body.comment } : {}), _rated_at: new Date().toISOString() } } });
+    return { rated: true };
+  });
+
   /** The customer does not want the assistant: the conversation ends and the chat goes on with a person. */
   app.post('/support/bot/:id/skip', customer(app), async (request: FastifyRequest) => {
     const user = await requireAuth(request);

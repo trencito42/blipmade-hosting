@@ -49,6 +49,24 @@ export async function registerAdminSupportAnalyticsRoutes(app: FastifyInstance):
     return body;
   });
 
+  /** The latest ratings with what the customer wrote, from the chats and from the assistant. */
+  app.get('/admin/support/ratings', { preHandler: requirePermission('tickets.read') }, async () => {
+    const [events, sessions] = await Promise.all([
+      prisma.ticketEvent.findMany({ where: { type: 'rating' }, orderBy: { createdAt: 'desc' }, take: 50, include: { ticket: { select: { id: true, number: true, subject: true } } } }),
+      prisma.supportBotSession.findMany({ where: { updatedAt: { gte: new Date(Date.now() - 90 * 86_400_000) } }, orderBy: { updatedAt: 'desc' }, take: 300, select: { id: true, variables: true, ticketId: true } }),
+    ]);
+    const fromChats = events.map((event) => {
+      const match = /^Rated (\d)\/5(?:: (.*))?$/s.exec(event.message);
+      return { source: 'chat' as const, rating: Number(match?.[1] ?? 0), comment: match?.[2] ?? null, at: event.createdAt, conversation: { id: event.ticket.id, number: event.ticket.number, subject: event.ticket.subject } };
+    });
+    const fromBots = sessions
+      .map((session) => ({ session, variables: session.variables as Record<string, string> }))
+      .filter(({ variables }) => Number(variables._rating) >= 1)
+      .map(({ session, variables }) => ({ source: 'assistant' as const, rating: Number(variables._rating), comment: variables._comment ?? null, at: new Date(variables._rated_at ?? Date.now()), conversation: session.ticketId ? { id: session.ticketId, number: 0, subject: '' } : null }));
+    const all = [...fromChats, ...fromBots].filter((entry) => entry.rating >= 1).sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 50);
+    return { ratings: all };
+  });
+
   app.get('/admin/support/analytics', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {
     const q = query.parse(request.query ?? {});
     const now = new Date();
@@ -92,9 +110,13 @@ export async function registerAdminSupportAnalyticsRoutes(app: FastifyInstance):
     const completed = sessions.filter((s) => s.state === 'ENDED' && !skipped(s.variables)).length;
     const deflected = sessions.filter((s) => s.state === 'ENDED' && !skipped(s.variables) && !s.ticketId && JSON.stringify(s.transcript).includes('Suggested:')).length;
 
-    // The ratings.
+    // The ratings: of the chats, as events of the conversation, and of the conversations with the assistant.
     const ratings = await prisma.ticketEvent.findMany({ where: { type: 'rating', createdAt: { gte: since } }, select: { message: true }, take: 5000 });
     const values = ratings.map((r) => Number(/^Rated (\d)\/5/.exec(r.message)?.[1])).filter((n) => n >= 1 && n <= 5);
+    for (const session of sessions) {
+      const given = Number((session.variables as Record<string, string>)?._rating);
+      if (given >= 1 && given <= 5) values.push(given);
+    }
 
     const staff = await prisma.user.findMany({ where: { id: { in: [...load.keys()] } }, select: { id: true, firstName: true, lastName: true, email: true } });
     return {

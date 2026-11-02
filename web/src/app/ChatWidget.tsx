@@ -3,6 +3,7 @@ import { ApiError, api, get, post, type TicketMessage } from '../lib/api';
 import { Icon } from '../icons';
 import { Link } from '../router';
 import { cn } from '../lib';
+import { useVisualViewport } from '../lib/useVisualViewport';
 
 /**
  * The live chat of the customer, on every page of the dashboard.
@@ -38,6 +39,8 @@ interface BotOut {
 
 interface BotView {
   id: string;
+  /** The flow reached its end: the customer is asked how it was. */
+  ended?: boolean;
   entries: { from: 'bot' | 'customer'; text: string; links?: { title: string; url: string }[] }[];
   prompt: BotOut | null;
 }
@@ -58,6 +61,9 @@ export default function ChatWidget() {
   // The assistant answers first when the company has switched one on; a person is one tap away.
   const [bot, setBot] = useState<BotView | null>(null);
   const botTried = useRef(false);
+  const [botRating, setBotRating] = useState<number | null>(null);
+  const [botComment, setBotComment] = useState('');
+  const viewport = useVisualViewport(open);
   const launcher = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
   const log = useRef<HTMLDivElement>(null);
@@ -195,7 +201,8 @@ export default function ChatWidget() {
           }
         }).catch(() => undefined);
       } else {
-        setBot({ id: sessionId, entries, prompt: null });
+        // The flow reached its end: the entries stay on the screen and the customer is asked how it was.
+        setBot({ id: sessionId, entries, prompt: null, ended: true });
       }
       return;
     }
@@ -215,6 +222,16 @@ export default function ChatWidget() {
     } finally {
       setSending(false);
     }
+  }
+
+  async function rateBot(value: number | null) {
+    if (!bot) return;
+    if (value) await post(`/support/bot/${bot.id}/rating`, { rating: value, comment: botComment.trim() || undefined }).catch(() => undefined);
+    setBot(null);
+    setBotRating(null);
+    setBotComment('');
+    // The next time the panel opens, a new conversation with the assistant starts.
+    botTried.current = false;
   }
 
   async function skipBot() {
@@ -321,13 +338,14 @@ export default function ChatWidget() {
           id={PANEL_ID}
           role="dialog"
           aria-label="Chat with support"
+          style={viewport ? { top: viewport.top, height: viewport.height, bottom: 'auto' } : undefined}
           className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-bg pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:inset-auto sm:bottom-24 sm:right-4 sm:h-[min(600px,calc(100dvh-8rem))] sm:w-[380px] sm:rounded-3xl sm:border sm:border-line sm:pb-0 sm:pt-0 sm:shadow-2xl lg:bottom-24"
         >
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
             <div className="min-w-0">
               <h2 className="truncate text-[16px] font-semibold text-ink">Chat with support</h2>
               <p className="truncate text-[12.5px] text-ink3">
-                {conversation ? `Conversation #${thread?.number ?? conversation.number}` : available === null ? 'Checking…' : available ? 'A person is connected.' : 'Nobody is connected right now.'}
+                {conversation ? `Conversation #${thread?.number ?? conversation.number}` : bot ? 'Automated assistant · a person is one tap away' : available === null ? 'Checking…' : available ? 'A person is connected.' : 'Nobody is connected right now.'}
               </p>
             </div>
             <button type="button" onClick={close} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink2 hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
@@ -362,7 +380,7 @@ export default function ChatWidget() {
                     ))}
                   </div>
                 )}
-                <button type="button" onClick={() => void skipBot()} className="min-h-11 justify-self-start text-[13.5px] text-ink2 underline">Talk to a person instead</button>
+                {!bot.ended && <button type="button" onClick={() => void skipBot()} className="min-h-11 justify-self-start text-[13.5px] text-ink2 underline">Talk to a person instead</button>}
               </div>
             ) : messages.length === 0 ? (
               <div className="grid gap-2 py-6 text-[14px] text-ink2">
@@ -389,7 +407,22 @@ export default function ChatWidget() {
             {typing && <p className="pt-2 text-[12.5px] text-ink3" role="status">A person is typing…</p>}
           </div>
 
-          {rating !== null ? (
+          {bot?.ended && !conversation ? (
+            <div className="grid gap-2 border-t border-line px-4 py-3">
+              <p className="text-[14px] font-medium text-ink">How was the assistant?</p>
+              <div className="flex gap-1.5" role="group" aria-label="Rating">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button key={value} type="button" aria-pressed={botRating === value} onClick={() => setBotRating(value)} className={cn('h-11 min-w-11 flex-1 rounded-xl border text-[16px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc', botRating === value ? 'border-acc bg-acc text-on-acc' : 'border-line bg-card text-ink hover:bg-s2')}>{value}</button>
+                ))}
+              </div>
+              <label className="sr-only" htmlFor="bm-bot-comment">Comment (optional)</label>
+              <textarea id="bm-bot-comment" value={botComment} onChange={(event) => setBotComment(event.target.value)} rows={2} maxLength={500} placeholder="Anything we should know? (optional)" className="rounded-xl border border-line bg-card px-3 py-2 text-[16px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc" />
+              <div className="flex gap-2">
+                <button type="button" disabled={!botRating} onClick={() => void rateBot(botRating)} className="h-11 flex-1 rounded-full bg-acc px-4 text-[14px] font-semibold text-on-acc disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h">Send</button>
+                <button type="button" onClick={() => void rateBot(null)} className="h-11 rounded-full px-4 text-[14px] text-ink2 underline">Skip</button>
+              </div>
+            </div>
+          ) : rating !== null ? (
             <div className="grid gap-2 border-t border-line px-4 py-3">
               <p className="text-[14px] font-medium text-ink">How was this chat?</p>
               <div className="flex gap-1.5" role="group" aria-label="Rating">
@@ -428,7 +461,7 @@ export default function ChatWidget() {
                     }
                   }}
                   placeholder="Write a message"
-                  className="min-h-11 flex-1 resize-none rounded-2xl border border-line bg-card px-3.5 py-2.5 text-[15px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  className="min-h-11 flex-1 resize-none rounded-2xl border border-line bg-card px-3.5 py-2.5 text-[16px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-acc"
                 />
                 <button type="submit" disabled={sending || !draft.trim()} className="h-11 shrink-0 rounded-full bg-acc px-4 text-[14px] font-semibold text-on-acc disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h">
                   {sending ? 'Sending…' : 'Send'}

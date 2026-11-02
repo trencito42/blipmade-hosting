@@ -106,6 +106,7 @@ export default function SupportAnalytics() {
           </Panel>
         </>
       )}
+      <Ratings />
       <Policies mayEdit={can(session.staff, 'settings.write')} onSaved={data.reload} />
       <AiSettings mayEdit={can(session.staff, 'settings.write')} />
     </div>
@@ -147,6 +148,32 @@ function Policies({ mayEdit, onSaved }: { mayEdit: boolean; onSaved: () => void 
           </div>
         )}
       </div>
+    </Panel>
+  );
+}
+
+function Ratings() {
+  const loaded = useAsync((signal) => get<{ ratings: { source: 'chat' | 'assistant'; rating: number; comment: string | null; at: string; conversation: { id: string; number: number; subject: string } | null }[] }>('/admin/support/ratings', undefined, signal), []);
+  return (
+    <Panel title="What customers rated" description="The latest ratings of the chats and of the assistant, one to five, with what the customer wrote.">
+      {loaded.loading && !loaded.data ? (
+        <LoadingBlock rows={2} label="Loading the ratings" />
+      ) : (loaded.data?.ratings.length ?? 0) === 0 ? (
+        <p className="text-[14px] text-ink2">No rating yet.</p>
+      ) : (
+        <ul className="grid gap-1.5">
+          {loaded.data!.ratings.map((row, index) => (
+            <li key={index} className="grid gap-0.5 rounded-2xl bg-s2 px-4 py-3 text-[14px]">
+              <p className="flex flex-wrap items-center justify-between gap-2 text-ink">
+                <span><span className="font-mono font-semibold tabular-nums">{row.rating} / 5</span> <span className="text-ink3">· {row.source === 'assistant' ? 'the assistant' : 'a chat'}</span></span>
+                <span className="font-mono text-[12px] text-ink3">{new Date(row.at).toLocaleString()}</span>
+              </p>
+              {row.comment && <p className="whitespace-pre-wrap break-words text-ink2">{row.comment}</p>}
+              {row.conversation && row.conversation.number > 0 && <a className="text-[12.5px] text-acc underline" href={`/admin/tickets?ticket=${row.conversation.id}`}>#{row.conversation.number} {row.conversation.subject}</a>}
+            </li>
+          ))}
+        </ul>
+      )}
     </Panel>
   );
 }
