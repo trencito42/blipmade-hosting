@@ -133,3 +133,33 @@ describe('the moments of a conversation', () => {
     expect((await read()).firstHumanResponseAt?.getTime()).toBe(answered.firstHumanResponseAt?.getTime());
   });
 });
+
+describe('a chat is not a ticket of the customer', () => {
+  it('is left out of the list of tickets, still opens in the chat, and joins the list when it is turned into a ticket', async () => {
+    await staffHere();
+    const { client } = await registerAndLogin(app, 'list@example.com');
+    const chat = (await client.request('POST', '/api/support/chat', { message: 'A live question.' })).body.conversation.id as string;
+    expect((await client.request('GET', '/api/tickets')).body.tickets).toHaveLength(0);
+    // The chat is still read through the ticket route, which the widget uses.
+    expect((await client.request('GET', `/api/tickets/${chat}`)).status).toBe(200);
+    await client.request('POST', `/api/support/chat/${chat}/convert`);
+    expect((await client.request('GET', '/api/tickets')).body.tickets.map((t: { id: string }) => t.id)).toEqual([chat]);
+  });
+
+  it('lists a message that was left while nobody was online: that one is a ticket', async () => {
+    const { client } = await registerAndLogin(app, 'left@example.com');
+    await client.request('POST', '/api/support/chat', { message: 'Anybody?' });
+    expect((await client.request('GET', '/api/tickets')).body.tickets).toHaveLength(1);
+  });
+
+  it('does not tell the customer that their chat was "closed" as a ticket when they end it', async () => {
+    await staffHere();
+    const { client, userId } = await registerAndLogin(app, 'endchat@example.com');
+    const chat = (await client.request('POST', '/api/support/chat', { message: 'Hello.' })).body.conversation.id as string;
+    const before = await prisma.notification.count({ where: { userId } });
+    expect((await client.request('POST', `/api/tickets/${chat}/close`)).status).toBe(200);
+    expect(await prisma.notification.count({ where: { userId } })).toBe(before);
+    const events = (await client.request('GET', `/api/tickets/${chat}`)).body.ticket.events as { message: string }[];
+    expect(events.some((event) => event.message === 'The customer ended the chat.')).toBe(true);
+  });
+});

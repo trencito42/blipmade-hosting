@@ -165,7 +165,9 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const user = await requireAuth(request);
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 100, maxSize: 200 });
     const rows = await prisma.ticket.findMany({
-      where: withCursor({ userId: user.id }, cursor, 'updatedAt'),
+      // A live chat is a conversation, not a ticket: it is not listed here, and it is read in the chat. It joins the list when the
+      // customer turns it into a ticket; what was said stays in the conversation either way.
+      where: withCursor({ userId: user.id, channel: { not: 'CHAT' } }, cursor, 'updatedAt'),
       include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
       orderBy: pageOrder('updatedAt'),
       take: limit + 1,
@@ -572,9 +574,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     if (!ticket) throw notFound('Ticket not found.');
     if (ticket.status === 'CLOSED') return { closed: true };
     await prisma.ticket.update({ where: { id }, data: { status: 'CLOSED', closedAt: new Date() } });
-    const event = await prisma.ticketEvent.create({ data: { ticketId: id, type: 'closed', message: 'Customer closed the ticket.', actorId: user.id } });
+    const event = await prisma.ticketEvent.create({ data: { ticketId: id, type: 'closed', message: ticket.channel === 'CHAT' ? 'The customer ended the chat.' : 'Customer closed the ticket.', actorId: user.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'ticket.closed_by_customer', targetType: 'ticket', targetId: id });
-    await notifyTicketClosed({ userId: user.id, ticketId: id, ticketNumber: String(ticket.number), subject: ticket.subject, occurrence: event.id });
+    // Ending a chat is not told to the customer as a closed ticket: they just did it, and it was never a ticket to them.
+    if (ticket.channel !== 'CHAT') await notifyTicketClosed({ userId: user.id, ticketId: id, ticketNumber: String(ticket.number), subject: ticket.subject, occurrence: event.id });
     return { closed: true };
   });
 
