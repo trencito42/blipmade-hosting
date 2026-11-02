@@ -285,6 +285,17 @@ Changed web/src/nav.ts:
 - moved phone support shortcut to /admin/support;
 - left ADMIN_NAV and all 35 route registrations intact.
 
+Changed api/src/routes/admin.ts:
+- added validated, case-insensitive order search by order number, customer's name/email, and ordered product name; existing status filter and server cursor are preserved.
+- did NOT change financial calculations or authorize additional writes.
+
+Changed web/src/admin/Customers.tsx:
+- added 50-row cursor-based Next/Previous navigation, filter reset and selection reset; existing bulk tagging and privacy masking remain intact.
+
+Changed web/src/admin/Orders.tsx:
+- added order search with debouncing, cursor pagination and status-filter reset.
+- hid zero-total refund buttons in the list, while leaving backend refund eligibility checks as the authoritative control.
+
 Changed web/src/admin/CustomerDetail.tsx:
 - added Overview / Services / Billing / Support / Account & Security tabs;
 - preserved all 11 existing domain panels, controls, deep links and backend operations;
@@ -292,7 +303,7 @@ Changed web/src/admin/CustomerDetail.tsx:
 
 Changed web/src/admin/OrderDetail.tsx:
 - added orders.write frontend gating for high-impact buttons and confirmation dialog, while preserving backend authorization;
-- collapsed the long audit section by default so it can still be opened with every original record intact.
+- separated the fetched recent order-specific activity from account-wide activity, each collapsible by default, retaining every fetched entry and the original backend query.
 
 Added web/tests/admin-nav-coverage.test.mjs:
 - regression assertions for all 28 primary navigation entries, sidebar coverage, registered routes and support phone shortcut; not yet executed.
@@ -305,4 +316,4 @@ Verified by code inspection: menu/route count, file inventory, listed UI feature
 
 Not verified: live browser interactions, build/typecheck, tests, production deploy, external billing/provider behavior, permissions under every role, data accuracy against a live Stripe ledger, operational runtime and accessibility under assistive technologies. Do not label these as passed.
 
-This audit does not certify every admin view as "perfect". It defines route-by-route remediation, a sidebar reorganization, a first-pass customer detail tab layout and a limited order detail fix; a production-grade completion claim requires all quality gates above to be executed and passed.
+This audit does not certify every admin view as "perfect". It defines route-by-route remediation, a sidebar reorganization, a first-pass customer detail tab layout, cursor-based list navigation, order search and an order detail audit/permission fix; a production-grade completion claim requires all quality gates above to be executed and passed.
