@@ -45,6 +45,8 @@ async function publish(
   occurrence?: string | Date | number | null,
 ): Promise<void> {
   try {
+    // A guest of the chat has no email to write to: what the staff says reaches them in the chat.
+    if (userId && (await prisma.user.findUnique({ where: { id: userId }, select: { isGuest: true } }))?.isGuest) return;
     await publishEvent({
       type,
       subject,

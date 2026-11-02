@@ -197,6 +197,7 @@ export default function Support() {
           </ul>
         )}
 
+        <GuestPanel mayEdit={can(session.staff, 'settings.write')} />
         <DepartmentsPanel departments={departments.data?.departments ?? []} canEdit={can(session.staff, 'settings.write')} reload={departments.reload} toast={toast} />
       </div>
     </div>
@@ -258,6 +259,33 @@ function DepartmentsPanel({ departments, canEdit, reload, toast }: { departments
           <p className="text-[12.5px] text-ink3">Only a role with settings access can change the departments.</p>
         )}
         {(create.error || toggle.error || remove.error) && <p role="alert" className="text-[13px] text-bad">{create.error || toggle.error || remove.error}</p>}
+      </div>
+    </Panel>
+  );
+}
+
+function GuestPanel({ mayEdit }: { mayEdit: boolean }) {
+  const toast = useToast();
+  const loaded = useAsync((signal) => get<{ config: { enabled: boolean; retentionDays: number; notice: string } }>('/admin/support/guest', undefined, signal), []);
+  const [config, setConfig] = useState<{ enabled: boolean; retentionDays: number; notice: string } | null>(null);
+  useEffect(() => setConfig(loaded.data?.config ?? null), [loaded.data]);
+  const save = useAction(async () => {
+    await put('/admin/support/guest', config);
+    toast.push('Saved.', 'ok');
+    loaded.reload();
+  });
+  if (!config) return null;
+  return (
+    <Panel title="Chat for visitors who are not signed in" description="Off by default. A visitor agrees to the notice, gets a credential that opens only their chat, is never sent an email, and is removed with what they wrote after the retention period.">
+      <div className="grid gap-3">
+        <label className="flex items-center gap-2 text-[14px] text-ink">
+          <input type="checkbox" checked={config.enabled} onChange={(event) => setConfig({ ...config, enabled: event.target.checked })} disabled={!mayEdit} className="size-5" />
+          Open to visitors on the public site
+        </label>
+        <TextInput label="Keep what a visitor wrote for (days)" type="number" value={String(config.retentionDays)} onChange={(event) => setConfig({ ...config, retentionDays: Number(event.target.value) || 1 })} disabled={!mayEdit} />
+        <TextInput label="The notice the visitor agrees to" value={config.notice} onChange={(event) => setConfig({ ...config, notice: event.target.value })} maxLength={1000} disabled={!mayEdit} />
+        {save.error && <p role="alert" className="text-[13px] text-bad">{save.error}</p>}
+        {mayEdit && <SoftButton onClick={() => void save.run()} disabled={save.pending}>Save</SoftButton>}
       </div>
     </Panel>
   );

@@ -9,7 +9,8 @@
 5. **Bots** (`/admin/support/bots`): create from the template, edit, try in "Try it", Publish, Switch on. A bot that is off starts nothing new.
 6. **Rules** (`/admin/support/automations`): a new rule is off. Try it on a real conversation first. Runs and failures are in History; a dead run is retried by hand.
 7. **Assistant:** set `SUPPORT_AI_API_KEY` in the environment of the API, then configure address and model in `/admin/support/analytics` and switch it on. Without the key it stays "not configured".
-8. **Email in:** set `SUPPORT_INBOUND_TOKEN` in the environment of the API. The mail system (Mailcow) must hand each message for the support address to `POST /api/internal/support/inbound` with that token, the parsed headers and its SPF/DKIM result. The platform does not read a mailbox. This hand-over is not configured by the code and has not been run against the real mail server.
+8. **Visitors who are not signed in** (`/admin/support`, "Chat for visitors"): off by default. Turn it on, read the notice the visitor agrees to and set the retention. The worker deletes the guests that did not come back, hourly. A guest cannot be written to: the widget says so.
+9. **Email in:** set `SUPPORT_INBOUND_TOKEN` in the environment of the API. The mail system (Mailcow) must hand each message for the support address to `POST /api/internal/support/inbound` with that token, the parsed headers and its SPF/DKIM result. The platform does not read a mailbox. This hand-over is not configured by the code and has not been run against the real mail server.
 
 ## Environment
 
@@ -24,7 +25,7 @@ The worker runs `sweepAutomations` every five minutes: rules that wait for the c
 
 ## Deploy and rollback
 
-Three additive migrations, in this order: `20261102190000_support_conversations`, `20261102220000_support_bots`, `20261102230000_support_automations`, `20261102235000_support_email`. Take a `pg_dump` first. The images of the previous version are tagged `before-*` on the platform VM; to roll back, tag the previous image as `latest` and recreate `api` and `web`. The migrations stay: the old code runs on the new schema.
+Additive migrations, in this order: `20261102190000_support_conversations`, `20261102220000_support_bots`, `20261102230000_support_automations`, `20261102235000_support_email`, `20261103000000_support_guests`. Take a `pg_dump` first. The images of the previous version are tagged `before-*` on the platform VM; to roll back, tag the previous image as `latest` and recreate `api` and `web`. The migrations stay: the old code runs on the new schema.
 
 ## What to watch
 
@@ -32,4 +33,4 @@ Three additive migrations, in this order: `20261102190000_support_conversations`
 
 ## Known limits
 
-No anonymous visitors, no attachments by email, no paused resolution clock while a customer is slow to answer, no drawing board for bots (blocks are edited as forms), no load test was run, and the pages were not opened in a browser by the author.
+No paused resolution clock while a customer is slow to answer, no way to draw a connection by dragging between blocks (connections are chosen in the forms; the map shows them, moves blocks and zooms), no load test was run, and the pages were not opened in a browser by the author.

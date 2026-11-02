@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { fullName } from '../lib/people.js';
+import { displayEmail } from '../lib/guest.js';
 import { notFound } from '../lib/errors.js';
 import { requirePermission } from '../plugins/auth.js';
 import { hasPermission } from '../lib/permissions.js';
@@ -50,8 +51,8 @@ export async function registerAdminSupportContextRoutes(app: FastifyInstance): P
     return {
       customer: {
         id: ticket.user.id,
-        name: fullName(ticket.user) || ticket.user.email,
-        email: ticket.user.email,
+        name: fullName(ticket.user) || displayEmail(ticket.user.email),
+        email: displayEmail(ticket.user.email),
         verified: Boolean(ticket.user.emailVerifiedAt),
         suspended: Boolean(ticket.user.suspendedAt),
         since: ticket.user.createdAt,

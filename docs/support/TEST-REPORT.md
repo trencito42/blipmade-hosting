@@ -6,7 +6,7 @@ Everything here was run. Where something was not run, it says so. Date: 2026-11-
 
 | Run | Result |
 |---|---|
-| Support and ticket suites (14 files: `support-p0, -stream, -queue, -chat, -bots, -hours, -automations, -sla, -email, -context, -ai`, `tickets`, `tickets-create`, `notification-ticket-events`) | **141 passed**, 0 failed |
+| Support and ticket suites since the addition of guests, email attachments and the map (see the last run below). Before: (14 files: `support-p0, -stream, -queue, -chat, -bots, -hours, -automations, -sla, -email, -context, -ai`, `tickets`, `tickets-create`, `notification-ticket-events`) | **141 passed**, 0 failed |
 | Whole API suite, in the working copy used for tests | 1409 passed, 94 failed, 6 skipped (164 files, 17 minutes) |
 | The same 20 failing files on the base that was in production before this work (`05e02433`, full checkout) | 79 failed: **15 files fail the same way without any of this work** (provisioning, panel identity, payments, webhooks, upgrades, runtime state, starter port). Their errors name the panel URL or the environment of the test machine |
 | The other 5 of the 20 files (`backup-offsite-drill, egg-environment, panel-eggs, perf-data-compose, script-node-exit`) | They failed only in the working copy, which lacks `compose.yml` and `pterodactyl-eggs/` (ENOENT). In a full checkout of `main` with this work: **passed** (with `support-p0` and `support-bots`: 72 tests) |
@@ -31,7 +31,7 @@ One process, one database on the same machine; one staff stream and n customer s
 
 | # | Scenario | State |
 |---|---|---|
-| 1 | Anonymous visitor starts chat | **Not built** (no guest credential) |
+| 1 | Anonymous visitor starts chat | Tested at the API (`support-guest`: consent, credential, isolation, claim, retention); the widget was not opened in a browser |
 | 2 | Authenticated customer starts chat | Tested (`support-chat`) |
 | 3 | Refresh recovers the history | Tested at the API (`chat/current`, `bot/current`, thread read); not in a browser |
 | 4 | Same account in two tabs | Tested at the API (one open chat, the same conversation); not in a browser |
@@ -62,4 +62,4 @@ One process, one database on the same machine; one staff stream and n customer s
 
 ## Not done
 
-Browser end-to-end tests, accessibility audit, contrast checks, mobile viewport tests at the listed widths, anonymous visitors, load on production, a real mail hand-over, a real AI provider.
+Browser end-to-end tests, accessibility audit, contrast checks, mobile viewport tests at the listed widths, guest uploads, drawing a connection by dragging, load on production, a real mail hand-over, a real AI provider.

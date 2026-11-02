@@ -74,6 +74,7 @@ const AdminSupportBots = lazy(() => import('./admin/SupportBots'));
 const AdminSupportAutomations = lazy(() => import('./admin/SupportAutomations'));
 const AdminSupportAnalytics = lazy(() => import('./admin/SupportAnalytics'));
 const ChatWidget = lazy(() => import('./app/ChatWidget'));
+const GuestChatWidget = lazy(() => import('./app/GuestChatWidget'));
 const AdminKnowledge = lazy(() => import('./admin/Knowledge'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
 const AdminPromotionDetail = lazy(() => import('./admin/PromotionDetail'));
@@ -526,6 +527,9 @@ export default function AppRoutes() {
       <>
         <SiteHead path={path} />
         {match.guestOnly ? <GuestOnly>{page}</GuestOnly> : page}
+        <Suspense fallback={null}>
+          <GuestChatWidget />
+        </Suspense>
       </>
     );
   }

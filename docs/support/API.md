@@ -19,6 +19,10 @@ All paths are under `/api`. Customer routes need a session. Staff routes need th
 
 `GET /support/availability?departmentId=` · `GET /support/chat/current` · `POST /support/chat` · `POST /support/chat/:id/convert` · `POST /support/chat/:id/rating` · `POST /support/chat/:id/typing` · `GET /support/departments` · `GET /support/suggest?q=` (public documentation only).
 
+## Guests of the public chat
+
+Off until switched on. `GET /support/guest/config` (public) · `POST /support/guest/start` (name, message, `consent: true`, optional `contact`, `departmentId`) · `GET /support/guest/thread` · `POST /support/guest/messages` · `POST /support/guest/end` · `GET /support/guest/stream` · `POST /support/guest/claim` (needs a session and the guest credential). The credential is the cookie `bm_guest`. Staff: `GET/PUT /admin/support/guest` (`tickets.read` / `settings.write`).
+
 ## Bots
 
 Customer: `POST /support/bot/start` (404 when none is on) · `GET /support/bot/current` · `POST /support/bot/:id/input` · `POST /support/bot/:id/skip`.
@@ -50,4 +54,4 @@ Views: `all, mine, unassigned, chat, tickets, email, waiting_customer, waiting_s
 
 ## Email in
 
-`POST /internal/support/inbound` with `Authorization: Bearer $SUPPORT_INBOUND_TOKEN`. Body: `from{email,name}`, `subject`, `messageId`, `inReplyTo`, `references[]`, `text`, `headers{}`, `auth{spf,dkim}`. Answers 201 (created or added), 200 (`duplicate`), 202 (`accepted:false`, with a `reason`). Without the secret on the server the route does not exist (404).
+`POST /internal/support/inbound` with `Authorization: Bearer $SUPPORT_INBOUND_TOKEN`. Body: `from{email,name}`, `subject`, `messageId`, `inReplyTo`, `references[]`, `text`, `headers{}`, `auth{spf,dkim}`, `attachments[]{filename,contentType,contentBase64}` (five at most; each is checked like an upload and a refused file is said so in the conversation). Answers 201 (created or added), 200 (`duplicate`), 202 (`accepted:false`, with a `reason`). Without the secret on the server the route does not exist (404).

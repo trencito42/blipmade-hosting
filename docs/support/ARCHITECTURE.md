@@ -4,7 +4,7 @@ A conversation is a `Ticket`. A chat is a ticket of channel `CHAT`, an email one
 
 ## Schema (additive)
 
-`Ticket`: `channel, departmentId, firstHumanResponseAt, lastCustomerAt, lastStaffAt, reopenedAt`. `TicketMessage`: `seq` (global order, used to resume streams), `externalId` (Message-ID of an email). New tables: `SupportDepartment`, `SupportDepartmentMember`, `SupportPresence`, `SupportBot`, `SupportBotVersion`, `SupportBotSession`, `SupportAutomation`, `SupportAutomationRun`. Business hours, SLA policies, the assistant's settings and its daily usage are rows of `Setting` (`support.hours`, `support.sla`, `support.ai`, `support.ai.usage`). No credential is stored.
+`Ticket`: `channel, departmentId, firstHumanResponseAt, lastCustomerAt, lastStaffAt, reopenedAt`. `TicketMessage`: `seq` (global order, used to resume streams), `externalId` (Message-ID of an email). `User.isGuest`. New tables: `SupportGuestToken`, `SupportDepartment`, `SupportDepartmentMember`, `SupportPresence`, `SupportBot`, `SupportBotVersion`, `SupportBotSession`, `SupportAutomation`, `SupportAutomationRun`. Business hours, SLA policies, the assistant's settings and its daily usage are rows of `Setting` (`support.hours`, `support.sla`, `support.ai`, `support.ai.usage`). No credential is stored.
 
 ## Moving parts
 

@@ -47,7 +47,8 @@ function lastSeen(request: FastifyRequest): bigint {
   return /^\d{1,18}$/.test(raw) ? BigInt(raw) : 0n;
 }
 
-async function stream(request: FastifyRequest, reply: FastifyReply, user: AuthUser, viewer: Viewer): Promise<void> {
+/** The stream of one reader. `user` is only who it belongs to: a customer, a staff member or a guest of the chat. */
+export async function stream(request: FastifyRequest, reply: FastifyReply, user: { id: string }, viewer: Viewer): Promise<void> {
   reply.hijack();
   const res = reply.raw;
   res.writeHead(200, {

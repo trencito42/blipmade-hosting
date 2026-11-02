@@ -33,6 +33,7 @@ import { sweepBackupRetention } from './services/backup-policy.js';
 import { recordDeployEvent, runDeploy } from './services/git-deploy.js';
 import { sweepResourceAlerts } from './services/resource-alerts.js';
 import { sweepAutomations } from './services/support-automation.js';
+import { sweepGuests } from './services/support-guest.js';
 import { reconcileRuntimeState, runtimeStateWarning } from './services/runtime-state.js';
 import { deliverMail, mailDeliverySummary, MailDeliveryError } from './lib/mailer.js';
 import {
@@ -387,6 +388,7 @@ async function watchRuntimeState(): Promise<void> {
   if (warning) console.warn(warning);
   // Once an hour, on the hour, the checks older than 35 days go.
   // Every five minutes, the services whose owner asked for an alert on the memory or the disk.
+  if (new Date().getMinutes() === 7) await sweepGuests().catch((error) => console.error('[support] the guest pass failed', error));
   if (new Date().getMinutes() % 5 === 0) await sweepAutomations().catch((error) => console.error('[support] the automation pass failed', error));
   if (new Date().getMinutes() % 5 === 0) await sweepResourceAlerts().catch((error) => console.error('[alerts] the resource pass failed', error));
   // Twenty past the hour, servers with an automatic backup get a free slot for the next one.

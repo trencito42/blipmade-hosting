@@ -83,6 +83,9 @@ model User {
   // table.
   @@index([createdAt, id])
   supportBotSessions SupportBotSession[]
+  /// A visitor of the public chat who has not signed in. Never able to sign in, never sent an email, removed after the retention period.
+  isGuest Boolean @default(false)
+  supportGuestTokens SupportGuestToken[]
 }
 
 /// What is known about one message of the platform.
@@ -1026,6 +1029,20 @@ model SupportAutomationRun {
   @@unique([automationId, eventKey])
   @@index([ticketId])
   @@index([status, updatedAt])
+}
+
+/// The credential of a guest of the chat: only the hash is kept, it is valid for a day at a time and for a week at most, and it opens only the chat of its own guest.
+model SupportGuestToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 enum SupportBotState {

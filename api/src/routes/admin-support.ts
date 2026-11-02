@@ -9,6 +9,7 @@ import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/auth.js';
 import { publishSupportEvent } from '../services/support-events.js';
+import { displayEmail } from '../lib/guest.js';
 import { readHours } from '../services/support-automation.js';
 import { clocksOf, readPolicies, worstOpenState } from '../services/support-sla.js';
 
@@ -207,7 +208,7 @@ export async function registerAdminSupportRoutes(app: FastifyInstance): Promise<
         priority: ticket.priority.toLowerCase(),
         status: ticket.status.toLowerCase(),
         department: ticket.department,
-        customer: { id: ticket.user.id, email: ticket.user.email, name: fullName(ticket.user) },
+        customer: { id: ticket.user.id, email: displayEmail(ticket.user.email), name: fullName(ticket.user) },
         assignedToId: ticket.assignedToId,
         assignedTo: ticket.assignedTo ? fullName(ticket.assignedTo.user) || ticket.assignedTo.user.email : null,
         lastCustomerAt: ticket.lastCustomerAt,

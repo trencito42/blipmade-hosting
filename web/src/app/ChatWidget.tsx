@@ -76,6 +76,12 @@ export default function ChatWidget() {
     return data.ticket;
   }, []);
 
+  // A visitor who chatted as a guest and then signed in brings the conversation along. Without a credential of a guest it answers 401, which is fine.
+  const [claimed, setClaimed] = useState(0);
+  useEffect(() => {
+    void post<{ claimed: number }>('/support/guest/claim').then((res) => setClaimed(res.claimed)).catch(() => undefined);
+  }, []);
+
   // The chat that is open is found again after a reload, and in every tab.
   useEffect(() => {
     let live = true;
@@ -100,7 +106,7 @@ export default function ChatWidget() {
     return () => {
       live = false;
     };
-  }, [loadThread]);
+  }, [loadThread, claimed]);
 
   // The stream is kept while there is a conversation to follow.
   useEffect(() => {

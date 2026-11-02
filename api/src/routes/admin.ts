@@ -1,3 +1,4 @@
+import { displayEmail } from '../lib/guest.js';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
@@ -123,7 +124,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       subscriptions,
       deadLetters,
     ] = await Promise.all([
-      prisma.user.count({ where: { role: 'CUSTOMER' } }),
+      prisma.user.count({ where: { role: 'CUSTOMER', isGuest: false } }),
       prisma.instance.count(),
       prisma.instance.count({ where: { status: { in: ['ONLINE', 'PROVISIONING', 'RESTARTING'] } } }),
       prisma.ticket.count({ where: { status: { not: 'CLOSED' } } }),
@@ -161,6 +162,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
     const where: Prisma.UserWhereInput = {
       // Customers by default. "staff" is the staff and the administrators, "all" is every account.
+      // A visitor of the public chat is not a customer: it is not listed with them.
+      isGuest: false,
       ...(query.role === 'customer' ? { role: 'CUSTOMER' } : query.role === 'staff' ? { role: { in: ['STAFF', 'ADMIN'] } } : {}),
       ...(query.tag ? { tags: { has: query.tag } } : {}),
       ...(query.search
@@ -1156,7 +1159,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         createdAt: ticket.createdAt,
         updatedAt: ticket.updatedAt,
         messageCount: ticket._count.messages,
-        customer: { id: ticket.user.id, email: ticket.user.email, name: fullName(ticket.user) },
+        customer: { id: ticket.user.id, email: displayEmail(ticket.user.email), name: fullName(ticket.user) },
         instance: ticket.instance,
         assignedTo: ticket.assignedTo
           ? fullName(ticket.assignedTo.user) || ticket.assignedTo.user.email

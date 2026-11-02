@@ -50,7 +50,8 @@ export function onUnauthorized(handler: UnauthorizedHandler | null): void {
 }
 
 /** The paths where a 401 is an answer, not the end of a session. */
-const UNAUTHORIZED_IS_ANSWER = ['/auth/session', '/auth/login', '/auth/register', '/auth/logout'];
+// The chat of a guest answers 401 when the guest has no credential or it expired: that is an answer, not a lost session.
+const UNAUTHORIZED_IS_ANSWER = ['/auth/session', '/auth/login', '/auth/register', '/auth/logout', '/support/guest/thread', '/support/guest/messages', '/support/guest/end', '/support/guest/claim', '/support/guest/start'];
 
 export interface RequestOptions {
   method?: string;
