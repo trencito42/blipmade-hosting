@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
@@ -6,7 +6,7 @@ import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
 import { ConfirmDialog } from '../ui-app';
 import { denseInput } from './Overview';
-import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
+import { ConfirmWithReason, DASH, LiveRegion, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
 
 /**
@@ -59,7 +59,7 @@ function PartRefund({ order }: { order: AdminOrder }) {
 }
 
 function canBeRefunded(order: AdminOrder): boolean {
-  return order.status === 'paid' || order.status === 'fulfilled';
+  return order.total > 0 && (order.status === 'paid' || order.status === 'fulfilled');
 }
 
 export default function Orders() {
@@ -68,6 +68,15 @@ export default function Orders() {
   const mayWrite = can(staff, 'orders.write');
   const toast = useToast();
   const [status, setStatus] = useState('');
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [pageCursors, setPageCursors] = useState<string[]>([]);
+  const cursor = pageCursors[pageCursors.length - 1];
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+  useEffect(() => { setPageCursors([]); }, [status, query]);
   const [showEmails, setShowEmails] = useState(false);
   const [refunding, setRefunding] = useState<AdminOrder | null>(null);
   const [partial, setPartial] = useState<AdminOrder | null>(null);
@@ -78,8 +87,13 @@ export default function Orders() {
   const [reasonTouched, setReasonTouched] = useState(false);
 
   const state = useAsync(
-    (signal) => get<{ orders: AdminOrder[]; total?: number }>('/admin/orders', { status: status || undefined }, signal),
-    [status],
+    (signal) => get<{ orders: AdminOrder[]; total?: number; pagination?: { hasMore: boolean; nextCursor: string | null } }>('/admin/orders', {
+      status: status || undefined,
+      search: query || undefined,
+      cursor,
+      limit: 50,
+    }, signal),
+    [status, query, cursor],
   );
 
   const refund = useAction(async (order: AdminOrder) => {
@@ -91,6 +105,7 @@ export default function Orders() {
 
   const orders = state.data?.orders ?? [];
   const total = state.data?.total;
+  const pagination = state.data?.pagination;
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
   const itemsLabel = (order: AdminOrder) =>
@@ -166,6 +181,13 @@ export default function Orders() {
         }
       >
         <div className="grid gap-3">
+          <label className="grid gap-1 text-[13.5px] font-medium text-ink">
+            Search orders
+            <input type="search" inputMode="search" autoComplete="off" value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Order number, customer or product"
+              className={denseInput} />
+          </label>
           <Segmented
             ariaLabel="Filter orders by status"
             value={status}
@@ -300,7 +322,15 @@ export default function Orders() {
                   </div>
                 )}
               </CardList>
-              <TruncationNote shown={orders.length} total={total} />
+              <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-ink2" role="navigation" aria-label="Order pages">
+                 <span>Page {pageCursors.length + 1} · {orders.length} shown{typeof total === 'number' ? ` · ${total} matching orders` : ''}</span>
+                 <div className="flex gap-2">
+                   <button type="button" className={denseGhost} disabled={pageCursors.length === 0 || state.loading} onClick={() => setPageCursors((current) => current.slice(0, -1))}>Previous</button>
+                   <button type="button" className={denseGhost} disabled={!pagination?.hasMore || !pagination.nextCursor || state.loading} onClick={() => {
+                     if (pagination?.nextCursor) setPageCursors((current) => [...current, pagination.nextCursor!]);
+                   }}>Next</button>
+                 </div>
+               </div>
             </div>
           )}
         </div>
