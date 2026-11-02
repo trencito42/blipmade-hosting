@@ -107,6 +107,50 @@ const healthProbeSchema = z.union([
   }),
 ]);
 
+/**
+ * The values of an enum of a ticket, read in any case.
+ *
+ * The staff write "open" and the database holds "OPEN", so the value is read
+ * in any case and kept in the form the database holds. An empty value means
+ * "no filter", as it always meant, and a value that is not allowed is refused
+ * with a message that says which values are allowed.
+ */
+function ticketEnum<T extends string>(allowed: readonly T[]) {
+  return z
+    .string()
+    .transform((value) => value.trim().toUpperCase())
+    .refine((value) => value === '' || (allowed as readonly string[]).includes(value), {
+      message: `must be one of: ${allowed.join(', ')}.`,
+    });
+}
+
+const TICKET_STATUSES = ['OPEN', 'AWAITING_CUSTOMER', 'AWAITING_STAFF', 'ON_HOLD', 'CLOSED'] as const;
+const TICKET_CATEGORIES = ['TECHNICAL', 'BILLING', 'ACCOUNT', 'ABUSE', 'OTHER'] as const;
+const TICKET_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
+
+/**
+ * The cursor of a list that is read from the oldest row to the newest one.
+ *
+ * The shared helper walks a list downwards: the next page holds the rows
+ * that come after the last row of this one. A list that is ordered upwards
+ * needs the other comparison, so the boundary is written here. The cursor
+ * itself is the one of the shared helper, so both directions use the same
+ * page of the address.
+ */
+function withCursorAscending<T extends Record<string, unknown>>(
+  where: T,
+  cursor: { at: Date; id: string } | null,
+  column: 'updatedAt',
+): T {
+  if (!cursor) return where;
+  const filter = {
+    OR: [{ [column]: { gt: cursor.at } }, { [column]: cursor.at, id: { gt: cursor.id } }],
+  };
+  const existing = where.AND;
+  const and = Array.isArray(existing) ? existing : existing ? [existing] : [];
+  return { ...where, AND: [...and, filter] } as T;
+}
+
 export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.get('/admin/overview', { preHandler: requirePermission('customers.read') }, async (request: FastifyRequest) => {
     const now = new Date();
@@ -1129,19 +1173,83 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * The queue of the support desk.
+   *
+   * The inbox of the staff reads the queue with the filters of the page: the
+   * free text of the search, the state, the category, the priority and the
+   * owner of the ticket. The list answers with one page of the queue, so the
+   * page of the staff never holds more rows than it shows.
+   *
+   * The answer keeps the shape it always had: the tickets, the number of
+   * tickets the filter really found and the pagination of the page. The one
+   * field that was added is the id of the owner of the ticket, so the page of
+   * a conversation can show the owner the ticket really has.
+   */
   app.get('/admin/tickets', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {
-    const query = z.object({ status: z.string().optional() }).parse(request.query ?? {});
+    const query = z
+      .object({
+        // The one ticket of the address. The page of a conversation reads the
+        // customer of its ticket with it.
+        id: z.string().trim().max(64).optional(),
+        status: ticketEnum(TICKET_STATUSES).optional(),
+        category: ticketEnum(TICKET_CATEGORIES).optional(),
+        priority: ticketEnum(TICKET_PRIORITIES).optional(),
+        // "assigned" keeps the tickets that have an owner, "unassigned" the
+        // ones that have none.
+        assigned: z.enum(['assigned', 'unassigned']).optional(),
+        // The free text of the search: the number of the ticket, its subject
+        // and its customer.
+        search: z.string().trim().max(160).optional(),
+        // "recent" is the newest activity first, "oldest" the other way round.
+        sort: z.enum(['recent', 'oldest']).default('recent'),
+      })
+      .parse(request.query ?? {});
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 200, maxSize: 200 });
-    const where: Prisma.TicketWhereInput = query.status ? { status: query.status as never } : {};
+
+    // The search is written the way the staff write it: "#42" is the number
+    // of a ticket and "42" is the number of a ticket too.
+    const search = query.search?.trim().replace(/^#/, '');
+    const number = search && /^\d+$/.test(search) ? Number(search) : null;
+
+    const where: Prisma.TicketWhereInput = {
+      ...(query.id ? { id: query.id } : {}),
+      ...(query.status ? { status: query.status as never } : {}),
+      ...(query.category ? { category: query.category as never } : {}),
+      ...(query.priority ? { priority: query.priority as never } : {}),
+      ...(query.assigned === 'assigned' ? { assignedToId: { not: null } } : {}),
+      ...(query.assigned === 'unassigned' ? { assignedToId: null } : {}),
+      ...(search
+        ? {
+            OR: [
+              ...(number !== null ? [{ number }] : []),
+              { subject: { contains: search, mode: 'insensitive' } },
+              { user: { email: { contains: search, mode: 'insensitive' } } },
+              {
+                user: {
+                  OR: [
+                    { firstName: { contains: search, mode: 'insensitive' } },
+                    { lastName: { contains: search, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    // The oldest queue is walked with the other comparison of the cursor,
+    // because the rows come the other way round.
+    const oldest = query.sort === 'oldest';
     const rows = await prisma.ticket.findMany({
-      where: withCursor(where, cursor, 'updatedAt'),
+      where: oldest ? withCursorAscending(where, cursor, 'updatedAt') : withCursor(where, cursor, 'updatedAt'),
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         instance: { select: { id: true, name: true } },
         assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
         _count: { select: { messages: true } },
       },
-      orderBy: pageOrder('updatedAt'),
+      orderBy: oldest ? [{ updatedAt: 'asc' }, { id: 'asc' }] : pageOrder('updatedAt'),
       take: limit + 1,
     });
     const page = pageOf(rows, limit, 'updatedAt');
@@ -1164,6 +1272,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         assignedTo: ticket.assignedTo
           ? fullName(ticket.assignedTo.user) || ticket.assignedTo.user.email
           : null,
+        // The owner of the ticket, so the page of a conversation can show the
+        // owner it really has and not only the name of it.
+        assignedToId: ticket.assignedToId,
       })),
       total,
       pagination: page.pagination,
