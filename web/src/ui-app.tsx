@@ -1,3 +1,4 @@
+import { HamburgerIcon } from './HamburgerIcon';
 import {
   cloneElement,
   createContext,
@@ -462,7 +463,7 @@ export function AppShell({
               moreOpen || restActive ? 'bg-s3 text-ink' : 'text-ink3',
             )}
           >
-            <Icon name="menu" size={21} className={moreOpen || restActive ? 'text-acc' : undefined} />
+            <HamburgerIcon open={moreOpen} size={24} className={moreOpen || restActive ? 'text-acc' : undefined} />
             More
           </button>
         )}

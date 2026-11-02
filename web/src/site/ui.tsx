@@ -1,3 +1,4 @@
+import { HamburgerIcon } from '../HamburgerIcon';
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Icon } from '../icons';
 import { Link, useRouter } from '../router';
@@ -272,7 +273,7 @@ export function Nav() {
           aria-label={open ? 'Close menu' : 'Open menu'}
           onClick={() => setOpen(!open)}
         >
-          <Icon name={open ? 'close' : 'menu'} size={20} />
+          <HamburgerIcon open={open} />
         </button>
       </Wrap>
       {open ? (
