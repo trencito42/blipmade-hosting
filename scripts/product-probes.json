@@ -9,6 +9,9 @@
   "core-keeper": {
     "kind": "container"
   },
+  "counter-strike-1-6": {
+    "kind": "container"
+  },
   "cs2d": {
     "kind": "container"
   },

@@ -1264,5 +1264,19 @@
     ],
     "updated": "2026-11-01",
     "catalogSlug": "teamspeak-6"
+  },
+  {
+    "id": "counter-strike-1-6",
+    "title": "Counter-Strike 1.6",
+    "summary": "Deploy and manage Counter-Strike 1.6 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "group": "apps",
+    "groupLabel": "Apps",
+    "keywords": [
+      "counter-strike 1.6",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "counter-strike-1-6"
   }
 ]

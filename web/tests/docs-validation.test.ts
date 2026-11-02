@@ -232,7 +232,7 @@ function writeContent(content: { groups: unknown[]; pages: unknown[] }): string 
 describe('the content of the documentation', () => {
   it('has fifteen groups and the current published pages', () => {
     assert.equal(DOC_GROUPS.length, 15);
-    assert.equal(DOC_PAGES.length, 85);
+    assert.equal(DOC_PAGES.length, 86);
     assert.deepEqual(
       DOC_GROUPS.map((group) => group.id),
       KNOWN_GROUPS,
@@ -266,7 +266,7 @@ describe('the content of the documentation', () => {
 
   it('leaves the price and the resources of a product to the catalog', () => {
     const products = DOC_PAGES.filter((page) => page.catalogSlug);
-    assert.equal(products.length, 51);
+    assert.equal(products.length, 52);
     for (const page of products) {
       const text = pageTexts(page).join(' ');
       assert.match(text, /\{\{catalog\.price\}\}/, `the page ${page.id} has no price of the catalog`);
@@ -319,7 +319,7 @@ describe('the check of the content', () => {
   it('accepts the content of the repository', () => {
     const content = parseDocs(groupsInput, pagesInput);
     assert.equal(content.groups.length, 15);
-    assert.equal(content.pages.length, 85);
+    assert.equal(content.pages.length, 86);
   });
 
   it('refuses a group that is written twice', () => {

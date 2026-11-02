@@ -11413,5 +11413,148 @@
         ]
       }
     ]
+  },
+  {
+    "id": "counter-strike-1-6",
+    "group": "apps",
+    "title": "Counter-Strike 1.6",
+    "summary": "Deploy and manage Counter-Strike 1.6 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "counter-strike 1.6",
+      "games",
+      "deploy"
+    ],
+    "updated": "2026-11-01",
+    "catalogSlug": "counter-strike-1-6",
+    "next": [
+      "first-app",
+      "files"
+    ],
+    "related": [
+      "resources",
+      "backups",
+      "console",
+      "support"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "title": "About Counter-Strike 1.6",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "The classic competitive shooter, running on the ReHLDS engine. Blipmade installs Counter-Strike 1.6 in an isolated container and applies the resources and settings selected during checkout. You do not need to upload an installer or assemble the container yourself."
+          },
+          {
+            "t": "p",
+            "text": "After provisioning, use Overview for state and usage, Console for live output, Files for persistent files, Startup for the settings this product exposes, and Backups before a risky change."
+          }
+        ]
+      },
+      {
+        "id": "the-catalog-entry",
+        "title": "Plan details",
+        "blocks": [
+          {
+            "t": "spec",
+            "rows": [
+              {
+                "k": "Category",
+                "v": "Games"
+              },
+              {
+                "k": "Minimum resources",
+                "v": "{{catalog.minResources}}"
+              },
+              {
+                "k": "Starting price",
+                "v": "{{catalog.price}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy Counter-Strike 1.6",
+        "blocks": [
+          {
+            "t": "steps",
+            "items": [
+              {
+                "title": "Order the product",
+                "body": "Open the product page, choose the resources and complete the fields shown for this product. Review the monthly total, discount and tax before confirming the order."
+              },
+              {
+                "title": "Wait for provisioning",
+                "body": "The order creates the service and shows its progress. Keep the page open or return from Apps; provisioning continues in the background. If a step fails, the page shows the failure instead of claiming the service is online."
+              },
+              {
+                "title": "Finish the product setup",
+                "body": "Open the service, read Console for the first-start output and complete any setup page or credential prompt the product exposes. Use the generated app hostname or attach a verified domain when the service is ready."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings available in Startup",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Counter-Strike 1.6 exposes 10 startup settings. Blipmade keeps infrastructure values read-only and only lets you change the fields intended for the customer. Secret values are stored encrypted."
+          },
+          {
+            "t": "list",
+            "items": [
+              "`VERSION` — default: `latest` — managed by Blipmade",
+              "`INSTALL_MODULES` — default: `rehlds,reunion,amxmodx,metamod-r,reapi,ReGameDLL_CS` — editable in Startup",
+              "`HOSTNAME` — default: `Counter-Strike 1.6 Server` — editable in Startup",
+              "`SRCDS_MAP` — default: `de_dust2` — editable in Startup",
+              "`AUTO_UPDATE` — default: `0` — managed by Blipmade",
+              "`SRCDS_APPID` — default: `90` — managed by Blipmade",
+              "`HLDS_GAME` — default: `cstrike` — managed by Blipmade",
+              "`SRCDS_BETAID` — default: `steam_legacy` — managed by Blipmade",
+              "`VAC_PORT` — default: `26900` — managed by Blipmade",
+              "`VALIDATE` — default: `0` — managed by Blipmade"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "health",
+        "title": "Health and availability",
+        "blocks": [
+          {
+            "t": "p",
+            "text": "Blipmade makes an HTTP request to the service on its assigned port. A normal success or redirect marks the application as reachable."
+          },
+          {
+            "t": "p",
+            "text": "Starting means the process is still coming up; Online means the container and product check agree. If the node cannot be reached, the last known state is marked as stale instead of being presented as a fresh result."
+          }
+        ]
+      },
+      {
+        "id": "troubleshooting",
+        "title": "Troubleshooting",
+        "blocks": [
+          {
+            "t": "trouble",
+            "items": [
+              {
+                "q": "The instance is not reachable on its address.",
+                "a": "Check Overview for the live state, then Console for the first error after startup. Confirm that the assigned port and editable Startup values match the product guide. If the state is marked stale, wait for the node check before reinstalling anything."
+              },
+              {
+                "q": "The service answers on its port, but not the way the customer expects.",
+                "a": "The service may be running but still require its own first-time setup. Open its address, read Console and check the product settings. Include the service in a support ticket if the container is online but the application remains unusable."
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]
