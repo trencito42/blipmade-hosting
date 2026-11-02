@@ -18,7 +18,11 @@ export function initErrorReporting(service: 'api' | 'worker'): void {
     environment: env.SENTRY_ENVIRONMENT,
     serverName: service,
     tracesSampleRate: 0,
-    beforeSend(event) {
+    beforeSend(event, hint) {
+      // A customer who types a wrong value in a form makes a ZodError. It is answered with a 400 and it is not a fault of
+      // the platform, so it does not go to the tracker (it made an alert out of every empty field of a login form).
+      const original = hint?.originalException as { name?: string } | undefined;
+      if (original?.name === 'ZodError' || event.exception?.values?.some((value) => value.type === 'ZodError')) return null;
       if (event.request) {
         delete event.request.cookies;
         delete event.request.headers;
