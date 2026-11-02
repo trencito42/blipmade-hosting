@@ -336,7 +336,7 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const row = await prisma.supportBotSession.findFirst({ where: { id, userId: user.id } });
     if (!row) throw notFound('Conversation not found.');
-    await prisma.supportBotSession.update({ where: { id }, data: { state: 'ENDED', node: null } });
+    await prisma.supportBotSession.update({ where: { id }, data: { state: 'ENDED', node: null, variables: { ...(row.variables as Record<string, string>), _skipped: 'true' } } });
     return { skipped: true };
   });
 

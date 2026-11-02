@@ -9,6 +9,8 @@ import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/auth.js';
 import { publishSupportEvent } from '../services/support-events.js';
+import { readHours } from '../services/support-automation.js';
+import { clocksOf, readPolicies, worstOpenState } from '../services/support-sla.js';
 
 /**
  * The unified queue of the support staff and the departments it is sorted into.
@@ -18,7 +20,7 @@ import { publishSupportEvent } from '../services/support-events.js';
  * staff does not decide who else may see which queue.
  */
 
-export const VIEWS = ['all', 'mine', 'unassigned', 'chat', 'tickets', 'email', 'waiting_customer', 'waiting_staff', 'closed'] as const;
+export const VIEWS = ['all', 'mine', 'unassigned', 'chat', 'tickets', 'email', 'waiting_customer', 'waiting_staff', 'sla_at_risk', 'closed'] as const;
 export type View = (typeof VIEWS)[number];
 
 /** The filter of a view. `me` is the staff member that asks. */
@@ -38,6 +40,8 @@ export function viewFilter(view: View, me: string): Prisma.TicketWhereInput {
       return { status: 'AWAITING_CUSTOMER' };
     case 'waiting_staff':
       return { status: { in: ['OPEN', 'AWAITING_STAFF'] } };
+    case 'sla_at_risk':
+      return { status: { not: 'CLOSED' } };
     case 'closed':
       return { status: 'CLOSED' };
     default:
@@ -65,6 +69,18 @@ function serializeDepartment(row: { id: string; slug: string; name: string; desc
     members: row._count?.members ?? 0,
     conversations: row._count?.tickets ?? 0,
   };
+}
+
+/** The conversations whose clocks are at risk or late now. Read from the open ones; there are never many. */
+async function slaAtRiskIds(): Promise<string[]> {
+  const [policies, hours] = await Promise.all([readPolicies(), readHours()]);
+  if (policies.length === 0) return [];
+  const open = await prisma.ticket.findMany({
+    where: { status: { not: 'CLOSED' } },
+    select: { id: true, priority: true, status: true, createdAt: true, closedAt: true, firstHumanResponseAt: true, lastCustomerAt: true, lastStaffAt: true },
+    take: 2000,
+  });
+  return open.filter((ticket) => ['at_risk', 'breached'].includes(worstOpenState(clocksOf(ticket, policies, hours)))).map((ticket) => ticket.id);
 }
 
 export async function registerAdminSupportRoutes(app: FastifyInstance): Promise<void> {
@@ -165,7 +181,8 @@ export async function registerAdminSupportRoutes(app: FastifyInstance): Promise<
           ],
         }
       : {};
-    const where: Prisma.TicketWhereInput = { ...viewFilter(query.view, me.id), ...(query.departmentId ? { departmentId: query.departmentId } : {}), ...search };
+    const atRisk = query.view === 'sla_at_risk' ? await slaAtRiskIds() : null;
+    const where: Prisma.TicketWhereInput = { ...viewFilter(query.view, me.id), ...(atRisk ? { id: { in: atRisk } } : {}), ...(query.departmentId ? { departmentId: query.departmentId } : {}), ...search };
 
     const rows = await prisma.ticket.findMany({
       where: withCursor(where, cursor, 'updatedAt'),
@@ -179,8 +196,10 @@ export async function registerAdminSupportRoutes(app: FastifyInstance): Promise<
       take: limit + 1,
     });
     const page = pageOf(rows, limit, 'updatedAt');
+    const [policies, hours] = await Promise.all([readPolicies(), readHours()]);
     return {
       conversations: page.rows.map((ticket) => ({
+        sla: worstOpenState(clocksOf(ticket, policies, hours)),
         id: ticket.id,
         number: ticket.number,
         subject: ticket.subject,
@@ -203,7 +222,8 @@ export async function registerAdminSupportRoutes(app: FastifyInstance): Promise<
   /** How many conversations each view holds, for the left side of the console. */
   app.get('/admin/support/counts', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {
     const me = await requirePermission('tickets.read')(request);
-    const entries = await Promise.all(VIEWS.map(async (view) => [view, await prisma.ticket.count({ where: viewFilter(view, me.id) })] as const));
+    const risky = await slaAtRiskIds();
+    const entries = await Promise.all(VIEWS.map(async (view) => [view, view === 'sla_at_risk' ? risky.length : await prisma.ticket.count({ where: viewFilter(view, me.id) })] as const));
     return { counts: Object.fromEntries(entries) };
   });
 

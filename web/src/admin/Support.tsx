@@ -23,6 +23,7 @@ const VIEWS: { value: string; label: string }[] = [
   { value: 'email', label: 'Email' },
   { value: 'waiting_customer', label: 'Waiting for customer' },
   { value: 'waiting_staff', label: 'Waiting for staff' },
+  { value: 'sla_at_risk', label: 'SLA at risk' },
   { value: 'closed', label: 'Closed' },
 ];
 
@@ -39,6 +40,7 @@ interface Conversation {
   lastCustomerAt: string | null;
   updatedAt: string;
   messageCount: number;
+  sla?: string;
 }
 
 interface Department {
@@ -171,6 +173,7 @@ export default function Support() {
                 <Link to={`/admin/tickets?ticket=${row.id}`} className="grid gap-1 rounded-2xl border border-line bg-card px-4 py-3 transition-colors hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="min-w-0 flex-1 break-words text-[14.5px] font-semibold text-ink">#{row.number} · {row.subject}</span>
+                    {(row.sla === 'breached' || row.sla === 'at_risk') && <StatusPill status={row.sla === 'breached' ? 'late' : 'at risk'} />}
                     <StatusPill status={row.status} />
                   </span>
                   <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-ink3">
