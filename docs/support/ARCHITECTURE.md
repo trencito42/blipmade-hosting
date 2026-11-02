@@ -31,3 +31,10 @@ Server-sent events for the customer widget and the staff console, with `Last-Eve
 | P4 | AI adapter (off by default) | a provider and a credential, set by the operator in the admin |
 
 Each phase ends with typecheck, tests run on a `_test` database, a commit, and a note of what is **not** verified. Deploys and migrations on production wait for an explicit yes.
+
+## P1a/P1b status (built, on the test database only)
+
+- Migration `20261102190000_support_conversations`: `SupportChannel`, `SupportAvailability`, `SupportDepartment`, `SupportDepartmentMember`, `SupportPresence`; `Ticket` gains `channel`, `departmentId`, `firstHumanResponseAt`, `lastCustomerAt`, `lastStaffAt`, `reopenedAt`; `TicketMessage` gains `seq` (global, unique, backfilled in the order of `createdAt`). The moments of the conversation are back-filled from the existing messages. Applied and checked against an empty-schema diff on the disposable database; **not applied to production**.
+- Transport: SSE. `GET /api/support/stream` (customer, own public events) and `GET /api/admin/support/stream` (`tickets.read`). Events are hints, fan-out through Redis (`support:events`), `Last-Event-ID` = message `seq` recovers what was written while the connection was down (200 messages, then `resync`), heartbeat every 25 s, at most 5 streams per user, a slow reader is dropped events and told to `resync`.
+- Presence: `PUT /api/admin/support/presence`, `GET /api/admin/support/presence`; a person counts as present only for 60 s after the last heartbeat of a connection.
+- Not built yet: departments admin, inbox UI, widget, writes that use `channel`/`department`.

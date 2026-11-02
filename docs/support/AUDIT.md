@@ -1,6 +1,6 @@
 # Support audit
 
-Commit audited: `fbb909ac081858923db7547db89853f486a9efe6` (`origin/main`, 2026-11-02).
+Commit audited: `fbb909ac081858923db7547db89853f486a9efe6`. **Correction:** that SHA came from a stale local mirror; the real `main` was ahead of it (attachments tied to a message, tickets about a mail service). The P0 fixes were rebased onto the real main (`8745855b`) and the attachment findings re-read there; the other findings were unaffected by the newer commits.
 Method: the code was read at that commit. **Nothing in this file was executed unless it says so.** Items marked "to reproduce" still need a test or a run on a disposable database before they are called confirmed.
 
 ## What exists today

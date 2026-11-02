@@ -313,6 +313,8 @@ model StaffMember {
   updatedAt   DateTime @updatedAt
 
   assignedTickets Ticket[] @relation("TicketAssignee")
+  departments     SupportDepartmentMember[]
+  presence        SupportPresence?
 }
 
 // ---------------------------------------------------------------------------
@@ -962,6 +964,57 @@ enum TicketCategory {
   OTHER
 }
 
+/// Where a conversation started. A chat and an email are tickets of their own channel: one history, one set of rules.
+enum SupportChannel {
+  TICKET
+  CHAT
+  EMAIL
+}
+
+/// What a member of the staff says about their own availability. The live state is the one in SupportPresence.
+enum SupportAvailability {
+  AVAILABLE
+  BUSY
+  AWAY
+  OFFLINE
+}
+
+/// A queue the conversations are sorted into. Edited by the operator; nothing in the code names one.
+model SupportDepartment {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  /// Whether a customer can pick it when they open a conversation.
+  visible     Boolean  @default(true)
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members SupportDepartmentMember[]
+  tickets Ticket[]
+}
+
+model SupportDepartmentMember {
+  departmentId String
+  department   SupportDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  userId       String
+  staff        StaffMember       @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  createdAt    DateTime          @default(now())
+
+  @@id([departmentId, userId])
+  @@index([userId])
+}
+
+/// The presence of one staff member: the choice they made and the last moment a connection of theirs was alive.
+model SupportPresence {
+  userId     String              @id
+  staff      StaffMember         @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  status     SupportAvailability @default(OFFLINE)
+  lastSeenAt DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+}
+
 model Ticket {
   id           String         @id @default(cuid())
   number       Int            @unique @default(autoincrement())
@@ -980,6 +1033,14 @@ model Ticket {
   assignedTo   StaffMember?   @relation("TicketAssignee", fields: [assignedToId], references: [userId], onDelete: SetNull)
   lastReplyAt  DateTime?
   closedAt     DateTime?
+  channel      SupportChannel @default(TICKET)
+  departmentId String?
+  department   SupportDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  /// The first answer of a person. A greeting of a bot is not one.
+  firstHumanResponseAt DateTime?
+  lastCustomerAt       DateTime?
+  lastStaffAt          DateTime?
+  reopenedAt           DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -993,6 +1054,8 @@ model Ticket {
   // the id.
   @@index([updatedAt, id])
   @@index([mailServiceId])
+  @@index([departmentId, status])
+  @@index([channel, status])
 }
 
 model TicketMessage {
@@ -1008,6 +1071,8 @@ model TicketMessage {
   // stored as Attachment rows and referenced from here.
   attachmentMeta Json?
   attachments Attachment[]
+  /// The order of the messages of the whole platform: a stream resumes from the last one it saw.
+  seq        BigInt   @unique @default(autoincrement())
   createdAt  DateTime @default(now())
 
   @@index([ticketId, createdAt])

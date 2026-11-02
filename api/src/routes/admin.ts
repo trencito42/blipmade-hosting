@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { badRequest, conflict, forbidden, notFound, unavailable, upstream } from '../lib/errors.js';
+import { publishSupportEvent } from '../services/support-events.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireStaff, requirePermission, assertMayActOnAccount } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
@@ -1207,6 +1208,7 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         occurrence: ticketEvent.id,
       });
     }
+    await publishSupportEvent({ type: 'assigned', ticketId: id, ownerId: ticket.userId, internal: true });
     return { ticket: { id, assignedToId: userId } };
   });
 

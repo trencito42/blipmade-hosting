@@ -8,6 +8,7 @@ import { addressRateLimitKey, requireAuth, requireStaff, type AuthUser } from '.
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { audit } from '../lib/audit.js';
 import { redis } from '../redis.js';
+import { publishSupportEvent } from '../services/support-events.js';
 import { randomUUID } from 'node:crypto';
 import {
   notifyTicketClosed,
@@ -242,6 +243,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       occurrence: ticket.id,
     });
 
+    await publishSupportEvent({ type: 'created', ticketId: ticket.id, ownerId: ticket.userId, internal: false });
     return reply.code(201).send({ ticket: serializeTicket(ticket) });
   });
 
@@ -425,6 +427,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       }
     }
 
+    await publishSupportEvent({ type: 'message', ticketId: ticket.id, ownerId: ticket.userId, internal: message.internal, seq: String(message.seq) });
     return reply.code(201).send({ message: serializeReply(message) });
   });
 
@@ -507,6 +510,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       meta: { filename: file.filename, size: stored.size },
     });
 
+    await publishSupportEvent({ type: 'attachment', ticketId: ticket.id, ownerId: ticket.userId, internal: message.internal });
     return reply.code(201).send({
       attachment: {
         id: attachment.id,
@@ -602,6 +606,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       where: { id: ticket.id },
       include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
     });
+    await publishSupportEvent({ type: 'status', ticketId: ticket.id, ownerId: ticket.userId, internal: false });
     return { ticket: serializeTicket(updated!) };
   });
 }
