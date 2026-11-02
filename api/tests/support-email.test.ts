@@ -134,7 +134,7 @@ describe('reading a message', () => {
   });
 
   it('knows a program from a person', () => {
-    const base = { from: { email: 'p@example.com' }, subject: 'Hi', messageId: '<a@b>', references: [], text: 'x', headers: {}, auth: {} };
+    const base = { from: { email: 'p@example.com' }, subject: 'Hi', messageId: '<a@b>', references: [], text: 'x', attachments: [], headers: {}, auth: {} };
     expect(isAutomatic(base)).toBeNull();
     expect(isAutomatic({ ...base, headers: { 'Auto-Submitted': 'no' } })).toBeNull();
     expect(isAutomatic({ ...base, headers: { 'Auto-Submitted': 'auto-generated' } })).toBe('automatic');

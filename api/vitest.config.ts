@@ -13,9 +13,16 @@ export default defineConfig({
     unstubGlobals: true,
     testTimeout: 60_000,
     hookTimeout: 60_000,
-    // The suite shares one database, so the files run one after another.
+    // The suite shares one database, so the files run one after another, and
+    // never at the same time.
+    //
+    // The upgrade of the runner of the tests took away the option that kept
+    // the files in one worker, and the runner of the version 5 hangs when it
+    // is asked for a single worker, so the files run one after another in
+    // the workers the runner uses. The globals are put back after every test,
+    // so a stub of a global that a file installs is not found by the next
+    // file.
     pool: 'forks',
-    poolOptions: { forks: { singleFork: true } },
     fileParallelism: false,
   },
 });
