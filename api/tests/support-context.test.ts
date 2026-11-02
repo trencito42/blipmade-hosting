@@ -72,3 +72,14 @@ describe('articles', () => {
     expect(Array.isArray(found.public)).toBe(true);
   });
 });
+
+describe('saved replies with variables', () => {
+  it('fills only the variables on the list, on the server, for the conversation', async () => {
+    const { client } = await registerAndLogin(app, 'vars@example.com');
+    const ticket = (await client.request('POST', '/api/tickets', { subject: 'Vars', body: 'Hello.' })).body.ticket as { id: string; number: number };
+    const { client: admin } = await createAdmin(app);
+    const result = await admin.request('POST', `/api/admin/support/conversations/${ticket.id}/render`, { text: 'Hi {{customer_first_name}}, ticket {{ticket_number}}. {{password_hash}} {{agent_name}}' });
+    expect(result.body.text).toBe(`Hi Test, ticket ${ticket.number}.  Test Administrator`);
+    expect((await client.request('POST', `/api/admin/support/conversations/${ticket.id}/render`, { text: 'x' })).status).toBe(403);
+  });
+});

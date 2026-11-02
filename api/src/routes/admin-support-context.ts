@@ -75,6 +75,23 @@ export async function registerAdminSupportContextRoutes(app: FastifyInstance): P
     };
   });
 
+  /**
+   * Fills the variables of a saved reply for one conversation, on the server. Only a short list of values can be used, and
+   * nothing is read from the database by name: a template cannot reach a field that is not on the list.
+   */
+  app.post('/admin/support/conversations/:id/render', { preHandler: requirePermission('tickets.write') }, async (request: FastifyRequest) => {
+    const staff = await requirePermission('tickets.write')(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { text } = z.object({ text: z.string().max(20_000) }).parse(request.body);
+    const { loadTicket, fill } = await import('../services/support-automation.js');
+    const ticket = await loadTicket(id);
+    if (!ticket) throw notFound('Conversation not found.');
+    const agent = fullName(await prisma.user.findUniqueOrThrow({ where: { id: staff.id }, select: { firstName: true, lastName: true } })) || 'Support';
+    // The name of the agent first: the other values are read from the conversation, and an unknown name becomes empty.
+    const filled = fill(text.replace(/\{\{\s*agent_name\s*\}\}/g, () => agent), ticket);
+    return { text: filled };
+  });
+
   /** Articles for a reply or for the customer's question: the public documentation and, for the staff only, the notes of the team. */
   app.get('/admin/support/articles', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {
     await requirePermission('tickets.read')(request);

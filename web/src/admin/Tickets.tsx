@@ -545,7 +545,7 @@ function TicketDetailPanel({
                   value=""
                   onChange={(event) => {
                     const found = savedReplies.data?.replies.find((entry) => entry.id === event.target.value);
-                    if (found) setReplyBody((current) => (current.trim() ? `${current}\n\n${found.body}` : found.body));
+                    if (found) void post<{ text: string }>(`/admin/support/conversations/${ticketId}/render`, { text: found.body }).then((res) => setReplyBody((current) => (current.trim() ? `${current}\n\n${res.text}` : res.text))).catch(() => setReplyBody((current) => (current.trim() ? `${current}\n\n${found.body}` : found.body)));
                   }}
                 >
                   <option value="">Insert a saved reply…</option>
