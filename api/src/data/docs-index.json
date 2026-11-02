@@ -1,0 +1,1144 @@
+[
+  {
+    "id": "getting-started",
+    "title": "Create an account and sign in",
+    "summary": "Create your account, verify your email and secure the first session.",
+    "keywords": [
+      "account",
+      "sign in",
+      "register",
+      "email address",
+      "password"
+    ],
+    "url": "/docs?p=getting-started",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "first-app",
+    "title": "Deploy your first app",
+    "summary": "Choose a product, review its real requirements and follow provisioning to a working service.",
+    "keywords": [
+      "deploy",
+      "catalog",
+      "order",
+      "checkout",
+      "first app"
+    ],
+    "url": "/docs?p=first-app",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "order-values",
+    "title": "The values a product asks for",
+    "summary": "When a product asks for an account, a licence or a key, and what the platform does with it.",
+    "keywords": [
+      "order",
+      "variables",
+      "licence",
+      "steam",
+      "account",
+      "secret",
+      "key"
+    ],
+    "url": "/docs?p=order-values",
+    "updated": "2026-10-28"
+  },
+  {
+    "id": "account",
+    "title": "Your profile, your address and your sessions",
+    "summary": "What the settings of the account hold and how to change the name, the address, the password and the sessions.",
+    "keywords": [
+      "profile",
+      "settings",
+      "email address",
+      "password",
+      "sessions",
+      "close account"
+    ],
+    "url": "/docs?p=account",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "dashboard",
+    "title": "The dashboard of your account",
+    "summary": "Find services, billing, support, notifications and account security in the customer dashboard.",
+    "keywords": [
+      "dashboard",
+      "overview",
+      "menu",
+      "services",
+      "activity"
+    ],
+    "url": "/docs?p=dashboard",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "wordpress",
+    "title": "WordPress",
+    "summary": "Deploy and manage WordPress on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "wordpress",
+      "web cms",
+      "deploy"
+    ],
+    "url": "/docs?p=wordpress",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "forgejo",
+    "title": "Forgejo",
+    "summary": "Deploy and manage Forgejo on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "forgejo",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=forgejo",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "code-server",
+    "title": "Code Server",
+    "summary": "Deploy and manage Code Server on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "code server",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=code-server",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "uptime-kuma",
+    "title": "Uptime Kuma",
+    "summary": "Deploy and manage Uptime Kuma on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "uptime kuma",
+      "monitoring",
+      "deploy"
+    ],
+    "url": "/docs?p=uptime-kuma",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "grafana",
+    "title": "Grafana",
+    "summary": "Deploy and manage Grafana on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "grafana",
+      "monitoring",
+      "deploy"
+    ],
+    "url": "/docs?p=grafana",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "discord-bot",
+    "title": "Discord Bot",
+    "summary": "Deploy and manage Discord Bot on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "discord bot",
+      "bots",
+      "deploy"
+    ],
+    "url": "/docs?p=discord-bot",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "postgresql",
+    "title": "PostgreSQL",
+    "summary": "Deploy and manage PostgreSQL on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "postgresql",
+      "databases",
+      "deploy"
+    ],
+    "url": "/docs?p=postgresql",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "redis",
+    "title": "Redis",
+    "summary": "Deploy and manage Redis on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "redis",
+      "databases",
+      "deploy"
+    ],
+    "url": "/docs?p=redis",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "mongodb",
+    "title": "MongoDB",
+    "summary": "Deploy and manage MongoDB on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "mongodb",
+      "databases",
+      "deploy"
+    ],
+    "url": "/docs?p=mongodb",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "resources",
+    "title": "Choose the right resources",
+    "summary": "What the memory, the vCPU and the storage of an instance mean and how the price follows them.",
+    "keywords": [
+      "resources",
+      "memory",
+      "ram",
+      "cpu",
+      "storage",
+      "disk",
+      "price"
+    ],
+    "url": "/docs?p=resources",
+    "updated": "2026-10-28"
+  },
+  {
+    "id": "billing",
+    "title": "Invoices and payment methods",
+    "summary": "Understand checkout, invoices, subscriptions, renewals, discounts and payment methods.",
+    "keywords": [
+      "billing",
+      "invoice",
+      "payment",
+      "subscription",
+      "price",
+      "month"
+    ],
+    "url": "/docs?p=billing",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "upgrade",
+    "title": "Upgrade or resize an instance",
+    "summary": "How a change of resources is ordered, what it costs and when it is applied.",
+    "keywords": [
+      "upgrade",
+      "resize",
+      "resources",
+      "order",
+      "price difference",
+      "restart"
+    ],
+    "url": "/docs?p=upgrade",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "cancel",
+    "title": "Cancel an instance",
+    "summary": "What happens to an instance when you cancel it, how long it is kept and what happens to your data.",
+    "keywords": [
+      "cancel",
+      "cancellation",
+      "retention",
+      "export",
+      "data",
+      "delete"
+    ],
+    "url": "/docs?p=cancel",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "refunds",
+    "title": "Refunds and credits",
+    "summary": "When the platform returns a payment by itself, when a person decides, and what the platform does not do.",
+    "keywords": [
+      "refund",
+      "credit",
+      "payment",
+      "invoice",
+      "cancel",
+      "money"
+    ],
+    "url": "/docs?p=refunds",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "domains",
+    "title": "Attach a domain to an instance",
+    "summary": "Attach a hostname, prove ownership and route it safely to an app instance.",
+    "keywords": [
+      "domain",
+      "hostname",
+      "dns",
+      "txt record",
+      "ownership",
+      "subdomain"
+    ],
+    "url": "/docs?p=domains",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "dns",
+    "title": "The DNS records you need",
+    "summary": "Which records to publish at your DNS provider, and where to read their values.",
+    "keywords": [
+      "dns",
+      "records",
+      "a record",
+      "cname",
+      "txt",
+      "propagation",
+      "nameserver"
+    ],
+    "url": "/docs?p=dns",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "ssl",
+    "title": "SSL certificates",
+    "summary": "How HTTPS is issued for generated app hostnames and verified custom domains.",
+    "keywords": [
+      "ssl",
+      "tls",
+      "https",
+      "certificate",
+      "lets encrypt",
+      "encryption"
+    ],
+    "url": "/docs?p=ssl",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "platform-domains",
+    "title": "The domain of the platform",
+    "summary": "What apps.blipmade.com is, how it differs from a domain of yours, and which address your instance gets.",
+    "keywords": [
+      "apps.blipmade.com",
+      "platform domain",
+      "hostname",
+      "address",
+      "reserved",
+      "network"
+    ],
+    "url": "/docs?p=platform-domains",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "files",
+    "title": "Browse and edit files",
+    "summary": "What the file browser of an instance can do, and what it cannot do for you.",
+    "keywords": [
+      "files",
+      "file browser",
+      "editor",
+      "upload",
+      "download",
+      "delete",
+      "disk"
+    ],
+    "url": "/docs?p=files",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "console",
+    "title": "Open the console",
+    "summary": "A shell on the instance, straight from the dashboard, and what it is for.",
+    "keywords": [
+      "console",
+      "terminal",
+      "shell",
+      "commands",
+      "output",
+      "instance"
+    ],
+    "url": "/docs?p=console",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "logs",
+    "title": "The logs of a service",
+    "summary": "Where the output of an application comes from, what the platform keeps of it, and what you have to keep yourself.",
+    "keywords": [
+      "logs",
+      "output",
+      "activity",
+      "history",
+      "console",
+      "diagnostics"
+    ],
+    "url": "/docs?p=logs",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "account-security",
+    "title": "Account security",
+    "summary": "Your password, your sessions and the mail of your account.",
+    "keywords": [
+      "security",
+      "password",
+      "sessions",
+      "sign out",
+      "verification",
+      "reset"
+    ],
+    "url": "/docs?p=account-security",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "instance-access",
+    "title": "Instance access and secrets",
+    "summary": "How you reach an instance, where its environment is read, and why there are no keys.",
+    "keywords": [
+      "api",
+      "environment variables",
+      "secrets",
+      "startup command",
+      "csrf",
+      "sftp",
+      "access"
+    ],
+    "url": "/docs?p=instance-access",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "permissions",
+    "title": "Who can do what",
+    "summary": "What your account can do in the dashboard, and how the back office of the platform is split.",
+    "keywords": [
+      "permissions",
+      "roles",
+      "owner",
+      "staff",
+      "admin",
+      "access",
+      "account"
+    ],
+    "url": "/docs?p=permissions",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "email-hosting",
+    "title": "Email hosting",
+    "summary": "What the hosted mail of the platform is, and that it is not on sale today.",
+    "keywords": [
+      "email hosting",
+      "hosted mail",
+      "mail",
+      "mailbox",
+      "not on sale",
+      "plan"
+    ],
+    "url": "/docs?p=email-hosting",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "mailboxes",
+    "title": "Mailboxes and aliases",
+    "summary": "What a mailbox of a mail domain is, what an alias does, and the space a mailbox may use.",
+    "keywords": [
+      "mailbox",
+      "alias",
+      "quota",
+      "space",
+      "password",
+      "suspension",
+      "mail"
+    ],
+    "url": "/docs?p=mailboxes",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "mail-dns",
+    "title": "The DNS records of a mail domain",
+    "summary": "The records a domain of mail needs, what each of them is for, and how the platform checks them.",
+    "keywords": [
+      "mx",
+      "dkim",
+      "dmarc",
+      "spf",
+      "autodiscover",
+      "autoconfig",
+      "dns",
+      "mail"
+    ],
+    "url": "/docs?p=mail-dns",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "webmail",
+    "title": "The webmail and the mail clients",
+    "summary": "Where the mail of a domain is read, and what a mail client is given to read it.",
+    "keywords": [
+      "webmail",
+      "imap",
+      "smtp",
+      "ports",
+      "mail client",
+      "settings",
+      "mail"
+    ],
+    "url": "/docs?p=webmail",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "notifications",
+    "title": "Notifications",
+    "summary": "What the platform tells you, where it reaches you, and how to switch a group of messages off.",
+    "keywords": [
+      "notifications",
+      "email",
+      "preferences",
+      "alerts",
+      "notification centre",
+      "mail"
+    ],
+    "url": "/docs?p=notifications",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "backups",
+    "title": "Backups of an instance",
+    "summary": "Create, download and restore manual backups of an app instance safely.",
+    "keywords": [
+      "backup",
+      "restore",
+      "archive",
+      "download",
+      "recovery",
+      "files",
+      "instance"
+    ],
+    "url": "/docs?p=backups",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "troubleshooting",
+    "title": "Common problems",
+    "summary": "What to check, in the order that usually finds the cause.",
+    "keywords": [
+      "troubleshooting",
+      "problem",
+      "error",
+      "not working",
+      "stopped",
+      "help"
+    ],
+    "url": "/docs?p=troubleshooting",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "support",
+    "title": "Support",
+    "summary": "How to reach the operator, what the operator can and cannot do, and what to write in a ticket so the answer comes quickly.",
+    "keywords": [
+      "support",
+      "help",
+      "contact",
+      "operator",
+      "assistance",
+      "ticket"
+    ],
+    "url": "/docs?p=support",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "tickets",
+    "title": "Support tickets",
+    "summary": "How to open a ticket, how to answer it, how to attach a file, and what the operator sees when the ticket arrives.",
+    "keywords": [
+      "ticket",
+      "support",
+      "reply",
+      "attachment",
+      "conversation",
+      "thread"
+    ],
+    "url": "/docs?p=tickets",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "status",
+    "title": "Status and incidents",
+    "summary": "What the status page reports, what an incident is, and what the platform does not promise about availability.",
+    "keywords": [
+      "status",
+      "incident",
+      "outage",
+      "availability",
+      "uptime",
+      "maintenance"
+    ],
+    "url": "/docs?p=status",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "limits",
+    "title": "Limits and fair use",
+    "summary": "The bounds the platform really enforces, and the ones it does not have.",
+    "keywords": [
+      "limits",
+      "fair use",
+      "abuse",
+      "policy",
+      "quotas",
+      "rate limit"
+    ],
+    "url": "/docs?p=limits",
+    "updated": "2026-10-27"
+  },
+  {
+    "id": "glossary",
+    "title": "Glossary",
+    "summary": "The words the platform uses, explained in one line each.",
+    "keywords": [
+      "glossary",
+      "words",
+      "terms",
+      "definition",
+      "instance",
+      "subscription"
+    ],
+    "url": "/docs?p=glossary",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "faq",
+    "title": "Frequently asked questions",
+    "summary": "Short, current answers about products, billing, access, domains, backups and support.",
+    "keywords": [
+      "faq",
+      "question",
+      "answer",
+      "how",
+      "can i",
+      "why"
+    ],
+    "url": "/docs?p=faq",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "common-errors",
+    "title": "Common errors",
+    "summary": "The errors you see in the dashboard or in the API, what each one means and what to do about it.",
+    "keywords": [
+      "error",
+      "code",
+      "message",
+      "failed",
+      "refused",
+      "status code"
+    ],
+    "url": "/docs?p=common-errors",
+    "updated": "2026-10-26"
+  },
+  {
+    "id": "elasticsearch",
+    "title": "Elasticsearch",
+    "summary": "Deploy and manage Elasticsearch on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "elasticsearch",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=elasticsearch",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "folding-at-home",
+    "title": "Folding@Home",
+    "summary": "Deploy and manage Folding@Home on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "folding@home",
+      "automation",
+      "deploy"
+    ],
+    "url": "/docs?p=folding-at-home",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "gitea",
+    "title": "Gitea",
+    "summary": "Deploy and manage Gitea on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "gitea",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=gitea",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "languagetool",
+    "title": "LanguageTool",
+    "summary": "Deploy and manage LanguageTool on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "languagetool",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=languagetool",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "lavalink",
+    "title": "Lavalink",
+    "summary": "Deploy and manage Lavalink on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "lavalink",
+      "automation",
+      "deploy"
+    ],
+    "url": "/docs?p=lavalink",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "left-4-dead-2",
+    "title": "Left 4 Dead 2",
+    "summary": "Deploy and manage Left 4 Dead 2 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "left 4 dead 2",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=left-4-dead-2",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "mariadb",
+    "title": "MariaDB",
+    "summary": "Deploy and manage MariaDB on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "mariadb",
+      "databases",
+      "deploy"
+    ],
+    "url": "/docs?p=mariadb",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "meilisearch",
+    "title": "Meilisearch",
+    "summary": "Deploy and manage Meilisearch on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "meilisearch",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=meilisearch",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "minecraft-bedrock",
+    "title": "Minecraft Bedrock",
+    "summary": "Deploy and manage Minecraft Bedrock on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "minecraft bedrock",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=minecraft-bedrock",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "nats",
+    "title": "NATS",
+    "summary": "Deploy and manage NATS on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "nats",
+      "automation",
+      "deploy"
+    ],
+    "url": "/docs?p=nats",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "nodejs",
+    "title": "Node.js",
+    "summary": "Deploy and manage Node.js on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "node.js",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=nodejs",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "prometheus",
+    "title": "Prometheus",
+    "summary": "Deploy and manage Prometheus on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "prometheus",
+      "monitoring",
+      "deploy"
+    ],
+    "url": "/docs?p=prometheus",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "garrys-mod",
+    "title": "Garry's Mod",
+    "summary": "Deploy and manage Garry's Mod on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "garry's mod",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=garrys-mod",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "minecraft-paper",
+    "title": "Minecraft Paper",
+    "summary": "Deploy and manage Minecraft Paper on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "minecraft paper",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=minecraft-paper",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "terraria",
+    "title": "Terraria",
+    "summary": "Deploy and manage Terraria on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "terraria",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=terraria",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "conan-exiles",
+    "title": "Conan Exiles",
+    "summary": "Deploy and manage Conan Exiles on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "conan exiles",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=conan-exiles",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "core-keeper",
+    "title": "Core Keeper",
+    "summary": "Deploy and manage Core Keeper on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "core keeper",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=core-keeper",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "cs2d",
+    "title": "CS2D",
+    "summary": "Deploy and manage CS2D on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "cs2d",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=cs2d",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "factorio",
+    "title": "Factorio",
+    "summary": "Deploy and manage Factorio on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "factorio",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=factorio",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "loki",
+    "title": "Loki",
+    "summary": "Deploy and manage Loki on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "loki",
+      "monitoring",
+      "deploy"
+    ],
+    "url": "/docs?p=loki",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "minecraft-folia",
+    "title": "Minecraft Folia",
+    "summary": "Deploy and manage Minecraft Folia on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "minecraft folia",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=minecraft-folia",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "minecraft-forge",
+    "title": "Minecraft Forge",
+    "summary": "Deploy and manage Minecraft Forge on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "minecraft forge",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=minecraft-forge",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "owncast",
+    "title": "Owncast",
+    "summary": "Deploy and manage Owncast on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "owncast",
+      "automation",
+      "deploy"
+    ],
+    "url": "/docs?p=owncast",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "palworld",
+    "title": "Palworld",
+    "summary": "Deploy and manage Palworld on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "palworld",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=palworld",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "rabbitmq",
+    "title": "RabbitMQ",
+    "summary": "Deploy and manage RabbitMQ on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "rabbitmq",
+      "automation",
+      "deploy"
+    ],
+    "url": "/docs?p=rabbitmq",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "reposilite",
+    "title": "Reposilite",
+    "summary": "Deploy and manage Reposilite on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "reposilite",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=reposilite",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "rust",
+    "title": "Rust",
+    "summary": "Deploy and manage Rust on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "rust",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=rust",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "samp",
+    "title": "SA-MP",
+    "summary": "Deploy and manage SA-MP on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "sa-mp",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=samp",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "space-engineers",
+    "title": "Space Engineers",
+    "summary": "Deploy and manage Space Engineers on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "space engineers",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=space-engineers",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "team-fortress-2",
+    "title": "Team Fortress 2",
+    "summary": "Deploy and manage Team Fortress 2 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "team fortress 2",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=team-fortress-2",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "the-forest",
+    "title": "The Forest",
+    "summary": "Deploy and manage The Forest on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "the forest",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=the-forest",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "unturned",
+    "title": "Unturned",
+    "summary": "Deploy and manage Unturned on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "unturned",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=unturned",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "yarr",
+    "title": "Yarr",
+    "summary": "Deploy and manage Yarr on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "yarr",
+      "automation",
+      "deploy"
+    ],
+    "url": "/docs?p=yarr",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "lua",
+    "title": "Lua",
+    "summary": "Deploy and manage Lua on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "lua",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=lua",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "python",
+    "title": "Python",
+    "summary": "Deploy and manage Python on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "python",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=python",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "dart",
+    "title": "Dart",
+    "summary": "Deploy and manage Dart on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "dart",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=dart",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "deno",
+    "title": "Deno",
+    "summary": "Deploy and manage Deno on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "deno",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=deno",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "elixir",
+    "title": "Elixir",
+    "summary": "Deploy and manage Elixir on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "elixir",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=elixir",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "golang",
+    "title": "Go",
+    "summary": "Deploy and manage Go on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "go",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=golang",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "java",
+    "title": "Java",
+    "summary": "Deploy and manage Java on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "java",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=java",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "rust-runtime",
+    "title": "Rust Runtime",
+    "summary": "Deploy and manage Rust Runtime on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "rust runtime",
+      "developer tools",
+      "deploy"
+    ],
+    "url": "/docs?p=rust-runtime",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "teamspeak-6",
+    "title": "TeamSpeak 6",
+    "summary": "Deploy and manage TeamSpeak 6 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "teamspeak 6",
+      "bots",
+      "deploy"
+    ],
+    "url": "/docs?p=teamspeak-6",
+    "updated": "2026-11-01"
+  },
+  {
+    "id": "counter-strike-1-6",
+    "title": "Counter-Strike 1.6",
+    "summary": "Deploy and manage Counter-Strike 1.6 on Blipmade: plan details, setup fields, health checks and troubleshooting.",
+    "keywords": [
+      "counter-strike 1.6",
+      "games",
+      "deploy"
+    ],
+    "url": "/docs?p=counter-strike-1-6",
+    "updated": "2026-11-01"
+  }
+]

@@ -82,6 +82,7 @@ model User {
   // the id, so the page after the first one is read without sorting the whole
   // table.
   @@index([createdAt, id])
+  supportBotSessions SupportBotSession[]
 }
 
 /// What is known about one message of the platform.
@@ -977,6 +978,66 @@ enum SupportAvailability {
   BUSY
   AWAY
   OFFLINE
+}
+
+enum SupportBotState {
+  ACTIVE
+  HANDED_OFF
+  ENDED
+}
+
+/// A support bot. The flow is data the operator edits; the code only runs it. The draft is what the editor saves, a version is what was published.
+model SupportBot {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  /// A bot that is not enabled starts no new conversation. Conversations that already started go on.
+  enabled            Boolean  @default(false)
+  draft              Json
+  publishedVersionId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  versions SupportBotVersion[]
+  sessions SupportBotSession[]
+}
+
+model SupportBotVersion {
+  id            String   @id @default(cuid())
+  botId         String
+  bot           SupportBot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  version       Int
+  flow          Json
+  publishedById String?
+  createdAt     DateTime @default(now())
+
+  sessions SupportBotSession[]
+
+  @@unique([botId, version])
+}
+
+/// One conversation of a customer with a bot. It keeps the version it started on, so a publication does not change it midway.
+model SupportBotSession {
+  id         String            @id @default(cuid())
+  botId      String
+  bot        SupportBot        @relation(fields: [botId], references: [id], onDelete: Cascade)
+  versionId  String
+  version    SupportBotVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  state      SupportBotState   @default(ACTIVE)
+  /// The node that waits for the customer, or null when the flow is over.
+  node       String?
+  variables  Json              @default("{}")
+  transcript Json              @default("[]")
+  /// The blocks that ran in this conversation: the ceiling that stops a loop.
+  steps      Int               @default(0)
+  ticketId   String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([userId, state])
+  @@index([botId])
 }
 
 /// A queue the conversations are sorted into. Edited by the operator; nothing in the code names one.
