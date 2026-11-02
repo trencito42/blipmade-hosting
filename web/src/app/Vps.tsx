@@ -583,7 +583,7 @@ export function VpsDetail() {
             <Panel title="Console" description="A serial console, for when SSH does not work: a boot that fails, a firewall that locks you out.">
               {server.power === 'running' ? (
                 <Suspense fallback={<LoadingBlock rows={2} label="Opening the console" />}>
-                  <VpsConsole path={`/api/vps/${encodeURIComponent(server.id)}/console/stream`} />
+                  <VpsConsole path={`/api/vps/${encodeURIComponent(server.id)}/console/stream`} name={server.name} />
                 </Suspense>
               ) : (
                 <p className="text-[14px] text-ink2">The server is not running. Start it to open the console.</p>
