@@ -634,7 +634,7 @@ const MESSAGE_PAGE = 200;
 
 /** Events that only the staff reads: internal notes (also the ones written before they had a type of their own) and assignments. */
 function isInternalEvent(event: { type: string; message: string }): boolean {
-  return event.type === 'note' || event.type === 'assigned' || event.type === 'department' || event.type === 'rating' || event.type === 'automation' || event.message === 'Internal note added.';
+  return event.type === 'note' || event.type === 'assigned' || event.type === 'department' || event.type === 'rating' || event.type === 'automation' || event.type === 'bounce' || event.message === 'Internal note added.';
 }
 
 type ReplyRow = {

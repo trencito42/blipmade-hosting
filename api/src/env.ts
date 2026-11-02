@@ -88,6 +88,8 @@ const schema = z.object({
   PROMOTION_FREE_MAX_DISK_GB: z.coerce.number().positive().default(5),
   /** The shared secret the backup agents use to report to the platform. Empty turns the report endpoints off. */
   BACKUP_REPORT_TOKEN: z.string().default(''),
+  /// The shared secret of the mail system that hands the support the emails it receives. Empty: the route does not exist.
+  SUPPORT_INBOUND_TOKEN: z.string().default(''),
   /** HMAC key for the browser identifier of a free activation. Empty keeps the signal off. */
   DEVICE_FINGERPRINT_SECRET: z.string().default(''),
   /** How long a hashed browser identifier is kept. */

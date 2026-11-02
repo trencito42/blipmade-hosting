@@ -1182,6 +1182,8 @@ model TicketMessage {
   attachments Attachment[]
   /// The order of the messages of the whole platform: a stream resumes from the last one it saw.
   seq        BigInt   @unique @default(autoincrement())
+  /// The Message-ID of an email this message came from. An email is taken in once.
+  externalId String?  @unique
   createdAt  DateTime @default(now())
 
   @@index([ticketId, createdAt])
