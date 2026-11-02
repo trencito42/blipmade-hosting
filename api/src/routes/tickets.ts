@@ -133,6 +133,7 @@ function serializeTicket(ticket: {
   instance: { name: string } | null;
   mailServiceId?: string | null;
   mailService?: { product: { name: string } } | null;
+  assignedToId?: string | null;
   assignedTo: { user: { firstName: string; lastName: string; email: string } } | null;
   _count?: { messages: number };
 }) {
@@ -151,6 +152,7 @@ function serializeTicket(ticket: {
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
     lastReplyAt: ticket.lastReplyAt,
+    assignedToId: ticket.assignedToId ?? null,
     assignedTo: ticket.assignedTo
       ? fullName(ticket.assignedTo.user) || ticket.assignedTo.user.email
       : null,

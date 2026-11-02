@@ -57,6 +57,7 @@ interface AdminTicketDetail {
   updatedAt: string;
   lastReplyAt: string | null;
   assignedTo: string | null;
+  assignedToId?: string | null;
   messageCount: number;
   messages: TicketMessage[];
 }
@@ -316,6 +317,8 @@ function TicketDetailPanel({
   });
 
   const current = detail.data?.ticket;
+  // The menu shows who the ticket is assigned to now, so saving never looks like clearing it.
+  useEffect(() => setAssignee(current?.assignedToId ?? ''), [current?.assignedToId, current?.id]);
   const messages = current?.messages ?? [];
 
   const sendReply = async () => {
@@ -410,7 +413,7 @@ function TicketDetailPanel({
                     onClick={async () => {
                       const result = await assignAction.run(assignee || null);
                       if (!result) return;
-                      setAssignee('');
+                      toast.push(assignee ? 'Assignment saved.' : 'Assignment cleared.', 'ok');
                       detail.reload();
                       onChanged();
                     }}
