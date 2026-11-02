@@ -399,3 +399,28 @@ describe('questions about the topic take the place of the menu', () => {
   });
 });
 
+describe('the catalog the assistant answers from', () => {
+  it('gives the provider what can be ordered now, and not what is hidden or cannot be deployed', async () => {
+    await prisma.product.createMany({
+      data: [
+        { slug: 'cs16-test', name: 'Counter Strike 1.6', category: 'GAMES', description: 'x', icon: 'gamepad', deployable: true, visible: true, eggId: 1 },
+        { slug: 'cs2-hidden-test', name: 'Counter Strike 2 Secret', category: 'GAMES', description: 'x', icon: 'gamepad', deployable: false, visible: true, eggId: 2 },
+        { slug: 'cs2-off-test', name: 'Counter Strike 2 Off', category: 'GAMES', description: 'x', icon: 'gamepad', deployable: true, visible: false, eggId: 3 },
+      ],
+    });
+    const { client: admin } = await createAdmin(app);
+    await configure(admin, { customerAnswers: true });
+    const { catalogText, resetCatalogCache } = await import('../src/services/support-ai.js');
+    resetCatalogCache();
+    await answerCustomer('can I host a counter strike server?');
+    const user = (seen.at(-1)!.body.messages as { role: string; content: string }[]).find((m) => m.role === 'user')!.content;
+    const system = (seen.at(-1)!.body.messages as { role: string; content: string }[]).find((m) => m.role === 'system')!.content;
+    expect(user).toContain('<catalog>');
+    expect(user).toContain('Counter Strike 1.6');
+    expect(user).not.toContain('Counter Strike 2 Secret');
+    expect(user).not.toContain('Counter Strike 2 Off');
+    expect(system).toContain('answer yes only if X is in <catalog>');
+    expect(typeof catalogText).toBe('function');
+  });
+});
+
