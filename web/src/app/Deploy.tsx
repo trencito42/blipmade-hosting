@@ -241,45 +241,67 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/**
- * The parts of the price of a line of server.
- *
- * The price of a server is the price of what it holds, plus the fee of the
- * instance itself. The parts come from the server, and they add up to the
- * price that was quoted: the page never derives an amount of its own.
- */
-function Breakdown({
-  breakdown,
-  currency,
-}: {
-  breakdown: ResourceBreakdown;
-  currency: string;
-}) {
+/** One line of the price: the name on the left, the amount on the right. No box around it. */
+function PriceLine({ label, children, strong }: { label: string; children: ReactNode; strong?: boolean }) {
   return (
-    <dl className="grid gap-2">
-      <Row label="Memory">
-        <Money amount={breakdown.ram} currency={currency} />
-      </Row>
-      <Row label="Processor">
-        <Money amount={breakdown.cpu} currency={currency} />
-      </Row>
-      <Row label="Storage">
-        <Money amount={breakdown.disk} currency={currency} />
-      </Row>
-      <Row label="Instance fee">
-        <Money amount={breakdown.base} currency={currency} />
-      </Row>
-      {breakdown.options > 0 && (
-        <Row label="Add-ons">
-          <Money amount={breakdown.options} currency={currency} />
-        </Row>
-      )}
-      {breakdown.discount != null && breakdown.discount < 0 && (
-        <Row label="Yearly discount">
-          <Money amount={breakdown.discount} currency={currency} />
-        </Row>
-      )}
-    </dl>
+    <div className={`flex items-baseline justify-between gap-3 ${strong ? 'font-semibold text-ink' : 'text-ink2'}`}>
+      <dt className="text-[13.5px]">{label}</dt>
+      <dd className="font-mono text-[13.5px] text-ink">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * What the customer pays, and how it is made.
+ *
+ * One number leads: the amount that is charged for the term, with the VAT in it when the platform adds VAT. The parts
+ * (memory, processor, storage, fee, add-ons, discounts, VAT) are one click away, so the card stays short. The numbers all
+ * come from the server; nothing is calculated here.
+ */
+function PriceSummary({ quote, breakdown }: { quote: Quote; breakdown: ResourceBreakdown | null }) {
+  const tax = quote.tax;
+  const withTax = Boolean(tax?.applies);
+  const payable = withTax && tax ? tax.total : quote.total;
+  const word = periodWord(quote.period);
+  return (
+    <div className="grid gap-2.5">
+      <div className="rounded-2xl bg-s3 px-4 py-3.5">
+        <p className="text-[13px] text-ink2">You pay per {word}</p>
+        <p className="font-mono text-[26px] font-semibold tracking-[-0.03em] text-ink">
+          <Money amount={payable} currency={quote.currency} />
+        </p>
+        {withTax && tax && (
+          <p className="text-[12.5px] text-ink3">
+            Includes VAT ({tax.rate}%) of <Money amount={tax.amount} currency={quote.currency} />
+          </p>
+        )}
+        {!withTax && tax?.note && <p className="text-[12.5px] text-ink3">{tax.note}</p>}
+      </div>
+      <details className="group rounded-2xl border border-line bg-card">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 text-[13.5px] font-medium text-ink [&::-webkit-details-marker]:hidden">
+          How this price is made
+          <Icon name="chevronDown" size={15} className="text-ink3 transition-transform duration-[180ms] group-open:rotate-180" />
+        </summary>
+        <dl className="grid gap-1.5 px-4 pb-4">
+          {breakdown && (
+            <>
+              <PriceLine label="Memory"><Money amount={breakdown.ram} currency={quote.currency} /></PriceLine>
+              <PriceLine label="Processor"><Money amount={breakdown.cpu} currency={quote.currency} /></PriceLine>
+              <PriceLine label="Storage"><Money amount={breakdown.disk} currency={quote.currency} /></PriceLine>
+              <PriceLine label="Instance fee"><Money amount={breakdown.base} currency={quote.currency} /></PriceLine>
+              {breakdown.options > 0 && <PriceLine label="Add-ons"><Money amount={breakdown.options} currency={quote.currency} /></PriceLine>}
+              {breakdown.discount != null && breakdown.discount < 0 && <PriceLine label="Yearly discount"><Money amount={breakdown.discount} currency={quote.currency} /></PriceLine>}
+            </>
+          )}
+          <PriceLine label="Subtotal"><Money amount={quote.subtotal} currency={quote.currency} /></PriceLine>
+          {quote.discount > 0 && <PriceLine label="Promotion"><span className="text-acc">-<Money amount={quote.discount} currency={quote.currency} /></span></PriceLine>}
+          {withTax && tax && <PriceLine label={`VAT (${tax.rate}%)`}><Money amount={tax.amount} currency={quote.currency} /></PriceLine>}
+          <div className="mt-1 border-t border-line pt-2">
+            <PriceLine label={`Total per ${word}`} strong><Money amount={payable} currency={quote.currency} /></PriceLine>
+          </div>
+        </dl>
+      </details>
+    </div>
   );
 }
 
@@ -291,42 +313,6 @@ function Breakdown({
  */
 function periodWord(period: string | undefined): string {
   return period === 'YEARLY' ? 'year' : 'month';
-}
-
-/**
- * The tax of the invoice.
- *
- * The platform adds the tax to the invoices it writes itself, and only when
- * the operator wrote a rate and a tax identifier. The note says why the line
- * is zero, so the customer is never left guessing.
- */
-function TaxLine({ tax, currency }: { tax: QuoteTax | undefined; currency: string }) {
-  if (!tax) return null;
-  if (!tax.applies) {
-    return (
-      <div className="rounded-xl border border-line bg-card px-3.5 py-3">
-        <p className="text-[12.5px] leading-relaxed text-ink3">
-          {tax.note ?? 'No tax is added to this invoice.'}
-        </p>
-      </div>
-    );
-  }
-  return (
-    <>
-      <div className="flex items-center justify-between rounded-xl border border-line bg-card px-3.5 py-3">
-        <span className="text-[13.5px] text-ink2">VAT ({tax.rate}%)</span>
-        <span className="text-[14.5px] font-medium text-ink">
-          <Money amount={tax.amount} currency={currency} />
-        </span>
-      </div>
-      <div className="flex items-center justify-between rounded-xl border border-line bg-card px-3.5 py-3">
-        <span className="text-[13.5px] text-ink2">Total on the invoice</span>
-        <span className="text-[14.5px] font-medium text-ink">
-          <Money amount={tax.total} currency={currency} />
-        </span>
-      </div>
-    </>
-  );
 }
 
 /**
@@ -1182,32 +1168,7 @@ export default function Deploy() {
                   />
                 ) : quote ? (
                   <>
-                    {/* The parts of the price of the line of the server, so
-                        the customer sees what the amount is made of. */}
-                    {serverBreakdown && <Breakdown breakdown={serverBreakdown} currency={quote.currency} />}
-                    <div className="flex items-center justify-between rounded-2xl bg-s2 px-3.5 py-3">
-                      <span className="text-[13.5px] text-ink2">Subtotal</span>
-                      <span className="text-[14.5px] font-medium text-ink">
-                        <Money amount={quote.subtotal} currency={quote.currency} />
-                      </span>
-                    </div>
-                    {quote.discount > 0 && (
-                      <div className="flex items-center justify-between rounded-2xl bg-acc-bg px-3.5 py-3">
-                        <span className="text-[13.5px] text-ink2">Discount</span>
-                        <span className="text-[14.5px] font-medium text-acc">
-                          -<Money amount={quote.discount} currency={quote.currency} />
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between rounded-2xl bg-s3 px-3.5 py-3.5">
-                      <span className="text-[14px] font-medium text-ink">Total per {periodWord(quote.period)}</span>
-                      <span className="font-mono text-[20px] font-semibold tracking-[-0.03em] text-ink">
-                        <Money amount={quote.total} currency={quote.currency} />
-                      </span>
-                    </div>
-                    {/* The tax of the invoice. It is added by the platform to
-                        the invoices it writes itself. */}
-                    <TaxLine tax={quote.tax} currency={quote.currency} />
+                    <PriceSummary quote={quote} breakdown={serverBreakdown} />
                   </>
                 ) : (
                   <p className="text-[14px] text-ink3">Not available yet</p>

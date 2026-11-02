@@ -286,7 +286,11 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       // uses is used here, so the amount the configurator shows is the amount
       // that lands on the invoice.
       const company = await companyDetails();
-      const tax = company.taxApplies && company.taxRate !== null ? taxOf(quote.total, company.taxRate) : 0;
+      // With real payments the card is charged the sum of the order: the flat rate of the settings is not collected, so it
+      // is not promised either. VAT is shown only when the platform really adds it and says how much.
+      const flatRateCollected = !env.paymentsEnabled;
+      const applies = company.taxApplies && flatRateCollected;
+      const tax = applies && company.taxRate !== null ? taxOf(quote.total, company.taxRate) : 0;
       return {
         period: body.period,
         items: quote.items.map((item) => ({
@@ -315,8 +319,8 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         tax: {
           rate: company.taxRate,
           amount: tax,
-          applies: company.taxApplies,
-          note: company.taxNote,
+          applies,
+          note: company.taxNote ?? (company.taxApplies && !flatRateCollected ? 'No VAT is added to this price.' : null),
           total: quote.total + tax,
         },
       };
