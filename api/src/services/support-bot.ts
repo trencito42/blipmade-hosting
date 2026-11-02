@@ -39,6 +39,7 @@ export const nodeSchema = z.discriminatedUnion('type', [
     else: next,
   }),
   z.object({ type: z.literal('search_kb'), query: text, next, empty: next }),
+  z.object({ type: z.literal('ai_answer'), query: text, next }),
   z.object({ type: z.literal('suggest_article'), article: z.string().min(1).max(80), next }),
   z.object({ type: z.literal('create_ticket'), subject: text, next }),
   z.object({ type: z.literal('set_priority'), priority: z.enum(PRIORITIES), next }),
@@ -162,6 +163,8 @@ export interface Hooks {
   transfer(departmentId: string | undefined, variables: Record<string, string>): Promise<{ mode: 'chat' | 'ticket'; number: number }>;
   setPriority(priority: (typeof PRIORITIES)[number]): Promise<void>;
   assignDepartment(departmentId: string): Promise<boolean>;
+  /** An answer of the assistant to a question, from the public documentation. Null when there is none: the flow then goes on without it. */
+  answer?(question: string): Promise<string | null>;
 }
 
 export interface Article {
@@ -171,8 +174,18 @@ export interface Article {
 }
 
 /** The published documentation that matches the words, best first. Only the public documentation: never the notes of the team. */
+/** Words that say nothing about a topic: they never make a page match on their own. */
+const STOP = new Set(['the', 'and', 'for', 'are', 'you', 'there', 'hello', 'hi', 'hey', 'please', 'help', 'with', 'have', 'has', 'not', 'cant', 'can', 'does', 'doesnt', 'did', 'how', 'what', 'why', 'when', 'where', 'who', 'this', 'that', 'it', 'its', 'my', 'me', 'our', 'your', 'from', 'but', 'was', 'were', 'been', 'being', 'will', 'would', 'could', 'should', 'about', 'any', 'some', 'get', 'got', 'need', 'want', 'like', 'just', 'now', 'today', 'problem', 'issue', 'working', 'work', 'works', 'thanks', 'thank']);
+/** Words that name the product itself: real, but too common to decide a page alone. */
+const COMMON = new Set(['server', 'servers', 'service', 'services', 'app', 'apps', 'site', 'account', 'hosting', 'blipmade']);
+
+/**
+ * The published documentation that matches the words, best first. Only the public documentation: never the notes of the
+ * team. A page needs a real match: a word of its title or of its keywords, or several words of its summary. A word that only
+ * names the product ("server") is not enough alone, so "my server is not reachable" does not list every page about a server.
+ */
 export function searchDocs(query: string, limit = 3): Article[] {
-  const words = query.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2);
+  const words = [...new Set(query.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2 && !STOP.has(word)))];
   if (words.length === 0) return [];
   return (DOCS as { id: string; title: string; summary: string; keywords: string[]; url: string }[])
     .map((page) => {
@@ -180,14 +193,17 @@ export function searchDocs(query: string, limit = 3): Article[] {
       const summary = page.summary.toLowerCase();
       const keywords = page.keywords.join(' ').toLowerCase();
       let score = 0;
+      let decisive = false;
       for (const word of words) {
-        if (title.includes(word)) score += 5;
-        if (keywords.includes(word)) score += 3;
-        if (summary.includes(word)) score += 1;
+        const weight = COMMON.has(word) ? 0.5 : 1;
+        const hit = (title.includes(word) ? 5 : 0) + (keywords.includes(word) ? 3 : 0) + (summary.includes(word) ? 1 : 0);
+        score += hit * weight;
+        if (hit > 0 && !COMMON.has(word)) decisive = true;
       }
-      return { page, score };
+      // A page must match on a word that is about a topic, not only on the name of the product.
+      return { page, score: decisive ? score : 0 };
     })
-    .filter((entry) => entry.score > 0)
+    .filter((entry) => entry.score >= 3)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(({ page }) => ({ title: page.title, url: page.url, summary: page.summary }));
@@ -260,7 +276,9 @@ export async function advance(flow: Flow, current: BotSession, input: Input, hoo
     case 'buttons': {
       const chosen = node.options.find((option) => option.id === input.option) ?? node.options.find((option) => option.label.toLowerCase() === raw.toLowerCase());
       if (!chosen) {
-        out.push({ kind: 'text', text: 'Please choose one of the options.' });
+        // Words that are not a choice: the assistant may answer them, and the choices are shown again either way.
+        const answered = raw && hooks.answer ? await hooks.answer(raw) : null;
+        out.push({ kind: 'text', text: answered ?? 'Please choose one of the options.' });
         out.push({ kind: 'buttons', text: render(node.text, session.variables), options: node.options.map(({ id: key, label }) => ({ id: key, label })) });
         return { session, out };
       }
@@ -355,6 +373,13 @@ async function run(flow: Flow, start: BotSession, out: Out[], hooks: Hooks): Pro
         }
         break;
       }
+      case 'ai_answer': {
+        const question = render(node.query, session.variables);
+        const answered = hooks.answer && question.trim() ? await hooks.answer(question) : null;
+        if (answered) out.push({ kind: 'text', text: answered });
+        go(node.next);
+        break;
+      }
       case 'suggest_article': {
         const article = articleById(node.article);
         if (article) out.push({ kind: 'articles', articles: [article] });
@@ -410,7 +435,9 @@ export function templateFlow(): Flow {
       },
       tech_ask: { type: 'ask_service', text: 'Which service is it about?', variable: 'service', next: 'tech_problem' },
       tech_problem: { type: 'ask_text', text: 'What is the problem? A sentence is enough.', variable: 'problem', next: 'tech_search' },
-      tech_search: { type: 'search_kb', query: '{{problem}}', next: 'tech_check', empty: 'tech_check' },
+      tech_search: { type: 'search_kb', query: '{{problem}}', next: 'tech_ai', empty: 'tech_ai' },
+      // Answers from the documentation when the operator has switched the assistant on for customers; otherwise the flow goes on.
+      tech_ai: { type: 'ai_answer', query: '{{problem}}', next: 'tech_check' },
       tech_check: { type: 'message', text: 'First steps that fix most problems: restart the service from its page, read the last lines of the console, and check that the disk is not full.', next: 'tech_next' },
       tech_next: {
         type: 'buttons',

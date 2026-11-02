@@ -20,7 +20,7 @@ const GAP_X = 92;
 const GAP_Y = 36;
 
 const LABEL: Record<string, string> = {
-  message: 'Message', buttons: 'Buttons', ask_text: 'Asks', ask_email: 'Asks email', ask_service: 'Asks service', branch: 'Branch', search_kb: 'Searches docs',
+  message: 'Message', buttons: 'Buttons', ask_text: 'Asks', ask_email: 'Asks email', ask_service: 'Asks service', branch: 'Branch', search_kb: 'Searches docs', ai_answer: 'Assistant',
   suggest_article: 'Article', create_ticket: 'Ticket', set_priority: 'Priority', assign_department: 'Department', transfer: 'Person', end: 'End',
 };
 

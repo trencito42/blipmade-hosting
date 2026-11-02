@@ -6,6 +6,7 @@ import { audit } from '../lib/audit.js';
 import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/auth.js';
+import { answerCustomer } from '../services/support-ai.js';
 import { notifyTicketOpenedForStaff } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { humanAvailable } from '../services/support-availability.js';
@@ -258,6 +259,7 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
       return ticket;
     };
     return {
+      answer: (question: string) => answerCustomer(question),
       async services() {
         const [instances, servers] = await Promise.all([
           prisma.instance.findMany({ where: { userId: user.id, status: { not: 'CANCELLED' } }, select: { id: true, name: true }, take: 20 }),

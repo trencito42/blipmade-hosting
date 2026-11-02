@@ -29,6 +29,7 @@ const TYPES: { value: string; label: string }[] = [
   { value: 'ask_service', label: 'Ask for a service' },
   { value: 'branch', label: 'Branch on an answer' },
   { value: 'search_kb', label: 'Search the documentation' },
+  { value: 'ai_answer', label: 'Answer with the assistant' },
   { value: 'suggest_article', label: 'Suggest an article' },
   { value: 'create_ticket', label: 'Create a ticket' },
   { value: 'set_priority', label: 'Set the priority' },
@@ -45,6 +46,7 @@ const NEW_NODE: Record<string, Node> = {
   ask_service: { type: 'ask_service', text: 'Which service is it about?', variable: 'service' },
   branch: { type: 'branch', variable: 'answer', cases: [{ contains: 'word', next: '' }] },
   search_kb: { type: 'search_kb', query: '{{answer}}' },
+  ai_answer: { type: 'ai_answer', query: '{{answer}}' },
   suggest_article: { type: 'suggest_article', article: '' },
   create_ticket: { type: 'create_ticket', subject: 'From the assistant' },
   set_priority: { type: 'set_priority', priority: 'NORMAL' },
@@ -367,6 +369,8 @@ function NodeCard({ id, selected, node, nodeIds, departments, readOnly, isStart,
       {['message', 'buttons', 'ask_text', 'ask_email', 'ask_service', 'end'].includes(node.type) && text('text', node.type === 'end' ? 'Closing message (optional)' : 'What the customer reads', true)}
       {['ask_text', 'ask_email', 'ask_service', 'branch'].includes(node.type) && text('variable', node.type === 'branch' ? 'The variable to look at' : 'Keep the answer in the variable')}
       {node.type === 'search_kb' && text('query', 'Search for (you can use {{variable}})')}
+      {node.type === 'ai_answer' && text('query', 'The question the assistant answers (you can use {{variable}})')}
+      {node.type === 'ai_answer' && <p className="text-[12.5px] text-ink3">Answers from the public documentation, only when the assistant is switched on for customers in the numbers page. Otherwise this block does nothing.</p>}
       {node.type === 'suggest_article' && text('article', 'The id of the article')}
       {node.type === 'create_ticket' && text('subject', 'Subject of the ticket')}
       {node.type === 'set_priority' && (

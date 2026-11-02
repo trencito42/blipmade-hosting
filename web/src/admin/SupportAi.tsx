@@ -21,6 +21,7 @@ interface Config {
   instructions: string;
   useDocs: boolean;
   useTeamNotes: boolean;
+  customerAnswers: boolean;
 }
 
 export function AiSettings({ mayEdit }: { mayEdit: boolean }) {
@@ -57,6 +58,7 @@ export function AiSettings({ mayEdit }: { mayEdit: boolean }) {
         <TextArea label="Extra instructions (tone, signature). The safety rules stay above them." value={config.instructions} onChange={(event) => set({ instructions: event.target.value })} rows={3} maxLength={2000} disabled={!mayEdit} />
         <label className="flex items-center gap-2 text-[14px] text-ink"><input type="checkbox" checked={config.useDocs} onChange={(event) => set({ useDocs: event.target.checked })} disabled={!mayEdit} className="size-5" />Use the public documentation</label>
         <label className="flex items-center gap-2 text-[14px] text-ink"><input type="checkbox" checked={config.useTeamNotes} onChange={(event) => set({ useTeamNotes: event.target.checked })} disabled={!mayEdit} className="size-5" />Use the notes of the team (they go to the provider)</label>
+        <label className="flex items-start gap-2 text-[14px] text-ink"><input type="checkbox" checked={config.customerAnswers} onChange={(event) => set({ customerAnswers: event.target.checked })} disabled={!mayEdit} className="mt-0.5 size-5 shrink-0" /><span>Let the assistant answer customers in the chat, from the public documentation only. It answers when a customer writes words instead of choosing a button, and in the blocks "Answer with the assistant". It never sees the notes of the team and cannot promise refunds, prices, times or the state of a service. What the customer types goes to the provider.</span></label>
         {save.error && <p role="alert" className="text-[13px] text-bad">{save.error}</p>}
         {mayEdit && <PrimaryButton onClick={() => void save.run()} disabled={save.pending}>Save</PrimaryButton>}
       </div>
