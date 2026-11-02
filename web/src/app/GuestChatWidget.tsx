@@ -18,6 +18,7 @@ import { useVisualViewport } from '../lib/useVisualViewport';
 interface Thread {
   conversation: { id: string; number: number; status: string; channel: string } | null;
   messages: { id: string; from: 'you' | 'support'; body: string; at: string }[];
+  agent?: { name: string; avatar: string | null } | null;
 }
 
 export default function GuestChatWidget() {
@@ -148,8 +149,9 @@ export default function GuestChatWidget() {
           className="fixed inset-0 z-50 flex h-[100dvh] flex-col bg-bg pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] sm:inset-auto sm:bottom-24 sm:right-4 sm:h-[min(600px,calc(100dvh-8rem))] sm:w-[380px] sm:rounded-3xl sm:border sm:border-line sm:pb-0 sm:pt-0 sm:shadow-2xl"
         >
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-            <div className="min-w-0">
-              <h2 className="truncate text-[16px] font-semibold text-ink">Chat with us</h2>
+            {thread?.agent && (thread.agent.avatar ? <img src={thread.agent.avatar} alt="" width={40} height={40} className="mr-3 size-10 shrink-0 rounded-full object-cover" /> : <span aria-hidden="true" className="mr-3 flex size-10 shrink-0 items-center justify-center rounded-full bg-acc text-[16px] font-bold text-on-acc">{thread.agent.name.slice(0, 1).toUpperCase()}</span>)}
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-[16px] font-semibold text-ink">{thread?.agent?.name ?? 'Chat with us'}</h2>
               <p className="truncate text-[12.5px] text-ink3">{thread?.conversation ? `Conversation #${thread.conversation.number}` : 'You are not signed in'}</p>
             </div>
             <button type="button" onClick={close} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink2 hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">

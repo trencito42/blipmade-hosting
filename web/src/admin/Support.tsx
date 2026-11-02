@@ -3,6 +3,7 @@ import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { EmptyState, ErrorState, LoadingBlock, Panel, Select, SoftButton, StatusPill, TextInput, useToast } from '../ui-app';
+import { pictureFromFile } from '../lib/avatar';
 import { can, fmtDateTime, useAdminSession } from './Overview';
 
 /**
@@ -197,6 +198,7 @@ export default function Support() {
           </ul>
         )}
 
+        <PhotoPanel mayEdit={can(session.staff, 'tickets.write')} />
         <GuestPanel mayEdit={can(session.staff, 'settings.write')} />
         <DepartmentsPanel departments={departments.data?.departments ?? []} canEdit={can(session.staff, 'settings.write')} reload={departments.reload} toast={toast} />
       </div>
@@ -286,6 +288,45 @@ function GuestPanel({ mayEdit }: { mayEdit: boolean }) {
         <TextInput label="The notice the visitor agrees to" value={config.notice} onChange={(event) => setConfig({ ...config, notice: event.target.value })} maxLength={1000} disabled={!mayEdit} />
         {save.error && <p role="alert" className="text-[13px] text-bad">{save.error}</p>}
         {mayEdit && <SoftButton onClick={() => void save.run()} disabled={save.pending}>Save</SoftButton>}
+      </div>
+    </Panel>
+  );
+}
+
+/** The photo a customer sees at the top of the chat when they talk to you. It is yours: you change only your own. */
+function PhotoPanel({ mayEdit }: { mayEdit: boolean }) {
+  const toast = useToast();
+  const me = useAsync((signal) => get<{ name: string; avatar: string | null }>('/admin/support/me', undefined, signal), []);
+  const save = useAction(async (avatar: string | null) => {
+    await put('/admin/support/me/avatar', { avatar });
+    me.reload();
+    toast.push(avatar ? 'Photo saved.' : 'Photo removed.', 'ok');
+  });
+  const choose = useAction(async (file: File) => {
+    await save.run(await pictureFromFile(file));
+  });
+  if (!me.data) return null;
+  return (
+    <Panel title="Your name and photo in the chat" description="A customer who talks to you sees your first name, the initial of your last name and this photo at the top of the chat. Without a photo they see your initial.">
+      <div className="flex flex-wrap items-center gap-4">
+        {me.data.avatar ? (
+          <img src={me.data.avatar} alt="" width={56} height={56} className="size-14 rounded-full object-cover" />
+        ) : (
+          <span aria-hidden="true" className="flex size-14 items-center justify-center rounded-full bg-acc text-[20px] font-bold text-on-acc">{me.data.name.slice(0, 1).toUpperCase()}</span>
+        )}
+        <div className="grid gap-2">
+          <p className="text-[14px] font-medium text-ink">{me.data.name}</p>
+          {mayEdit && (
+            <div className="flex flex-wrap gap-2">
+              <label className="inline-flex h-11 cursor-pointer items-center rounded-full border border-line bg-card px-4 text-[14px] font-medium text-ink hover:bg-s2 focus-within:ring-2 focus-within:ring-acc">
+                {me.data.avatar ? 'Change the photo' : 'Upload a photo'}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void choose.run(file); event.target.value = ''; }} />
+              </label>
+              {me.data.avatar && <SoftButton onClick={() => void save.run(null)} disabled={save.pending}>Remove</SoftButton>}
+            </div>
+          )}
+          {(choose.error || save.error) && <p role="alert" className="text-[13px] text-bad">{choose.error || save.error}</p>}
+        </div>
       </div>
     </Panel>
   );

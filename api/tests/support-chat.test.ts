@@ -163,3 +163,28 @@ describe('a chat is not a ticket of the customer', () => {
     expect(events.some((event) => event.message === 'The customer ended the chat.')).toBe(true);
   });
 });
+
+describe('who the customer talks to', () => {
+  const dot = 'data:image/png;base64,iVBORw0KGgo=';
+
+  it('names the person who answered, with their photo when they set one, and nobody before an answer', async () => {
+    const { client: admin, userId } = await createAdmin(app);
+    const { client } = await registerAndLogin(app, 'who@example.com');
+    const id = (await client.request('POST', '/api/tickets', { subject: 'Who', body: 'Hello.' })).body.ticket.id as string;
+    expect((await client.request('GET', `/api/tickets/${id}`)).body.ticket.agent).toBeNull();
+    expect((await admin.request('PUT', '/api/admin/support/me/avatar', { avatar: dot })).status).toBe(200);
+    await admin.request('POST', `/api/tickets/${id}/replies`, { body: 'Hi, I am here.' });
+    expect((await client.request('GET', `/api/tickets/${id}`)).body.ticket.agent).toEqual({ name: 'Test A.', avatar: dot });
+    expect(userId).toBeTruthy();
+  });
+
+  it('refuses a picture that is not a small image, and a customer cannot set one', async () => {
+    const { client: admin } = await createAdmin(app);
+    expect((await admin.request('PUT', '/api/admin/support/me/avatar', { avatar: 'https://evil.example/a.png' })).status).toBe(400);
+    expect((await admin.request('PUT', '/api/admin/support/me/avatar', { avatar: `data:image/png;base64,${'A'.repeat(70_000)}` })).status).toBe(400);
+    expect((await admin.request('PUT', '/api/admin/support/me/avatar', { avatar: 'data:image/svg+xml;base64,PHN2Zz4=' })).status).toBe(400);
+    expect((await admin.request('PUT', '/api/admin/support/me/avatar', { avatar: null })).status).toBe(200);
+    const { client } = await registerAndLogin(app, 'nopic@example.com');
+    expect((await client.request('PUT', '/api/admin/support/me/avatar', { avatar: dot })).status).toBe(403);
+  });
+});

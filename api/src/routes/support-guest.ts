@@ -13,6 +13,7 @@ import { humanAvailable } from '../services/support-availability.js';
 import { publishSupportEvent } from '../services/support-events.js';
 import { guestConfigSchema, readGuestConfig, saveGuestConfig } from '../services/support-guest.js';
 import { stream } from './support-stream.js';
+import { readAvatars, shownName } from '../lib/avatar.js';
 
 /**
  * The chat for a visitor who has not signed in.
@@ -124,12 +125,16 @@ export async function registerSupportGuestRoutes(app: FastifyInstance): Promise<
     const ticket = await prisma.ticket.findFirst({
       where: { userId: guest.userId },
       orderBy: { createdAt: 'desc' },
-      include: { messages: { where: { internal: false }, orderBy: { seq: 'asc' }, take: MAX_MESSAGES + 50, select: { id: true, body: true, authorId: true, createdAt: true } } },
+      include: { messages: { where: { internal: false }, orderBy: { seq: 'asc' }, take: MAX_MESSAGES + 50, select: { id: true, body: true, authorId: true, createdAt: true } }, assignedTo: { select: { userId: true, user: { select: { firstName: true, lastName: true } } } } },
     });
-    if (!ticket) return { conversation: null, messages: [] };
+    if (!ticket) return { conversation: null, messages: [], agent: null };
+    const lastStaffId = [...ticket.messages].reverse().find((message) => message.authorId !== guest.userId)?.authorId;
+    const person = lastStaffId ? await prisma.user.findUnique({ where: { id: lastStaffId }, select: { id: true, firstName: true, lastName: true } }) : ticket.assignedTo ? { id: ticket.assignedTo.userId, ...ticket.assignedTo.user } : null;
+    const agent = person ? { name: shownName(person), avatar: (await readAvatars())[person.id] ?? null } : null;
     return {
       conversation: { id: ticket.id, number: ticket.number, status: ticket.status.toLowerCase(), channel: ticket.channel.toLowerCase() },
       messages: ticket.messages.map((message) => ({ id: message.id, from: message.authorId === guest.userId ? 'you' : 'support', body: message.body, at: message.createdAt })),
+      agent,
     };
   });
 

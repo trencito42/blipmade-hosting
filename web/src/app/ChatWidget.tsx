@@ -27,6 +27,8 @@ interface Thread {
   number: number;
   status: string;
   messages: TicketMessage[];
+  /** The person the customer is talking to: who answered last, or who the conversation is assigned to. */
+  agent: { name: string; avatar: string | null } | null;
 }
 
 interface BotOut {
@@ -92,8 +94,8 @@ export default function ChatWidget() {
   conversationRef.current = conversation;
 
   const loadThread = useCallback(async (id: string) => {
-    const data = await get<{ ticket: { id: string; number: number; status: string; messages: TicketMessage[] } }>(`/tickets/${id}`);
-    setThread({ id: data.ticket.id, number: data.ticket.number, status: data.ticket.status, messages: data.ticket.messages });
+    const data = await get<{ ticket: { id: string; number: number; status: string; messages: TicketMessage[]; agent?: Thread['agent'] } }>(`/tickets/${id}`);
+    setThread({ id: data.ticket.id, number: data.ticket.number, status: data.ticket.status, messages: data.ticket.messages, agent: data.ticket.agent ?? null });
     return data.ticket;
   }, []);
 
@@ -361,13 +363,14 @@ export default function ChatWidget() {
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
             <div className="flex min-w-0 items-center gap-3">
               {bot && !conversation && <Avatar persona={bot.persona} />}
+              {conversation && thread?.agent && <Avatar persona={{ name: thread.agent.name, avatarUrl: thread.agent.avatar, ai: false }} />}
               <div className="min-w-0">
                 <h2 className="flex items-center gap-2 truncate text-[16px] font-semibold text-ink">
-                  <span className="truncate">{bot && !conversation ? bot.persona?.name || 'Assistant' : 'Chat with support'}</span>
+                  <span className="truncate">{bot && !conversation ? bot.persona?.name || 'Assistant' : conversation && thread?.agent ? thread.agent.name : 'Chat with support'}</span>
                   {bot && !conversation && bot.persona?.ai && <span className="shrink-0 rounded-full bg-acc-bg px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.06em] text-acc">AI</span>}
                 </h2>
                 <p className="truncate text-[12.5px] text-ink3">
-                  {conversation ? `Conversation #${thread?.number ?? conversation.number}` : bot ? (bot.persona?.ai ? 'Answers with AI, and can be wrong · a person is one tap away' : 'Automated assistant · a person is one tap away') : available === null ? 'Checking…' : available ? 'A person is connected.' : 'Nobody is connected right now.'}
+                  {conversation ? `${thread?.agent ? 'Support · ' : ''}Conversation #${thread?.number ?? conversation.number}` : bot ? (bot.persona?.ai ? 'Answers with AI, and can be wrong · a person is one tap away' : 'Automated assistant · a person is one tap away') : available === null ? 'Checking…' : available ? 'A person is connected.' : 'Nobody is connected right now.'}
                 </p>
               </div>
             </div>

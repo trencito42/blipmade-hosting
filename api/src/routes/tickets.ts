@@ -8,6 +8,7 @@ import { addressRateLimitKey, requireAuth, requireStaff, type AuthUser } from '.
 import { hasPermission, type Permission } from '../lib/permissions.js';
 import { audit } from '../lib/audit.js';
 import { redis } from '../redis.js';
+import { readAvatars, shownName } from '../lib/avatar.js';
 import { publishSupportEvent } from '../services/support-events.js';
 import { fireAutomations } from '../services/support-automation.js';
 import { randomUUID } from 'node:crypto';
@@ -311,6 +312,10 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
           })),
         ],
       }));
+    // Who the customer is talking to: the person who answered last, or the one the conversation is assigned to.
+    const lastStaff = ticket.messages.find((message) => !message.internal && message.author.id !== ticket.userId && message.author.role !== 'CUSTOMER');
+    const agentUser = lastStaff ? { id: lastStaff.author.id, firstName: lastStaff.author.firstName, lastName: lastStaff.author.lastName } : ticket.assignedTo ? { id: ticket.assignedTo.userId, firstName: ticket.assignedTo.user.firstName, lastName: ticket.assignedTo.user.lastName } : null;
+    const agent = agentUser ? { name: shownName(agentUser), avatar: (await readAvatars())[agentUser.id] ?? null } : null;
     // The customer is told what happened to the ticket, not that the staff talked among themselves or who took it.
     const events = ticket.events.filter((event) => isStaff || !isInternalEvent(event));
 
@@ -319,6 +324,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         ...serializeTicket({ ...ticket, _count: { messages: messages.length } }),
         messages,
         hasMoreMessages,
+        agent,
         events: events.map((event) => ({ id: event.id, type: event.type, message: event.message, createdAt: event.createdAt })),
       },
     };

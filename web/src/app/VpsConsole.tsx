@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { StatusPill, SoftButton } from '../ui-app';
+import { Icon, type IconName } from '../icons';
+import { StatusPill } from '../ui-app';
 
 /**
  * The serial console of a server.
@@ -13,15 +14,15 @@ import { StatusPill, SoftButton } from '../ui-app';
  * (Esc, Tab, Ctrl+C, the arrows), a line for a command with its history, the size of the text, copy, clear and the whole screen.
  */
 
-const KEYS: { label: string; aria: string; send: string }[] = [
+const KEYS: { label: string; icon?: IconName; aria: string; send: string }[] = [
   { label: 'Esc', aria: 'Escape', send: '\u001b' },
   { label: 'Tab', aria: 'Tab', send: '\t' },
   { label: 'Ctrl+C', aria: 'Control C', send: '\u0003' },
   { label: 'Ctrl+D', aria: 'Control D', send: '\u0004' },
-  { label: '↑', aria: 'Arrow up', send: '\u001b[A' },
-  { label: '↓', aria: 'Arrow down', send: '\u001b[B' },
-  { label: '←', aria: 'Arrow left', send: '\u001b[D' },
-  { label: '→', aria: 'Arrow right', send: '\u001b[C' },
+  { label: 'Up', icon: 'arrowUp', aria: 'Arrow up', send: '\u001b[A' },
+  { label: 'Down', icon: 'arrowDown', aria: 'Arrow down', send: '\u001b[B' },
+  { label: 'Left', icon: 'arrowLeft', aria: 'Arrow left', send: '\u001b[D' },
+  { label: 'Right', icon: 'arrow', aria: 'Arrow right', send: '\u001b[C' },
 ];
 
 const SIZES = [12, 13, 14, 16, 18];
@@ -46,6 +47,16 @@ const readSize = () => {
     return 14;
   }
 };
+
+/** An icon button of the console: the icon says what it does, the label is for the screen reader and the tooltip. */
+function Tool({ label, icon, onClick, disabled, pressed, text }: { label: string; icon: IconName; onClick: () => void; disabled?: boolean; pressed?: boolean; text?: string }) {
+  return (
+    <button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onClick={onClick} className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-line bg-card px-3 text-[13.5px] font-medium text-ink hover:bg-s2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+      <Icon name={icon} size={15} />
+      {text && <span>{text}</span>}
+    </button>
+  );
+}
 
 export default function VpsConsole({ path, name }: { path: string; name?: string }) {
   const host = useRef<HTMLDivElement>(null);
@@ -210,13 +221,13 @@ export default function VpsConsole({ path, name }: { path: string; name?: string
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <SoftButton onClick={() => setSize(SIZES[Math.max(0, SIZES.indexOf(size) - 1)]!)} disabled={size === SIZES[0]} aria-label="Smaller text">A−</SoftButton>
-          <SoftButton onClick={() => setSize(SIZES[Math.min(SIZES.length - 1, SIZES.indexOf(size) + 1)]!)} disabled={size === SIZES.at(-1)} aria-label="Larger text">A+</SoftButton>
-          <SoftButton onClick={() => void copyScreen()}>Copy</SoftButton>
-          <SoftButton onClick={() => void paste()}>Paste</SoftButton>
-          <SoftButton onClick={() => termRef.current?.clear()}>Clear</SoftButton>
-          <SoftButton onClick={() => setFull((value) => !value)} aria-pressed={full}>{full ? 'Exit full screen' : 'Full screen'}</SoftButton>
-          {state === 'closed' && <SoftButton onClick={() => setAttempt((n) => n + 1)}>Reconnect</SoftButton>}
+          <Tool label="Smaller text" icon="zoomOut" onClick={() => setSize(SIZES[Math.max(0, SIZES.indexOf(size) - 1)]!)} disabled={size === SIZES[0]} />
+          <Tool label="Larger text" icon="zoomIn" onClick={() => setSize(SIZES[Math.min(SIZES.length - 1, SIZES.indexOf(size) + 1)]!)} disabled={size === SIZES.at(-1)} />
+          <Tool label="Copy the selection, or the whole screen" icon="copy" onClick={() => void copyScreen()} />
+          <Tool label="Paste" icon="paste" onClick={() => void paste()} />
+          <Tool label="Clear the screen" icon="trash" onClick={() => termRef.current?.clear()} />
+          <Tool label={full ? 'Exit full screen' : 'Full screen'} icon={full ? 'compress' : 'expand'} pressed={full} onClick={() => setFull((value) => !value)} />
+          {state === 'closed' && <Tool label="Reconnect" icon="refresh" onClick={() => setAttempt((n) => n + 1)} text="Reconnect" />}
         </div>
       </div>
 
@@ -226,7 +237,7 @@ export default function VpsConsole({ path, name }: { path: string; name?: string
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 bm-hide-scroll" role="group" aria-label="Keys">
           {KEYS.map((key) => (
             <button key={key.label} type="button" aria-label={key.aria} disabled={state !== 'open'} onClick={() => send(key.send)} className="h-11 min-w-12 shrink-0 rounded-xl border border-line bg-card px-3 font-mono text-[13px] text-ink hover:bg-s2 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
-              {key.label}
+              {key.icon ? <Icon name={key.icon} size={14} /> : key.label}
             </button>
           ))}
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
+import { pictureFromFile } from '../lib/avatar';
 import { FlowCanvas } from './FlowCanvas';
 import { can, useAdminSession } from './Overview';
 
@@ -281,7 +282,21 @@ function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClos
             </Select>
             <TextInput label="Welcome message" value={flow.welcome ?? ''} onChange={(event) => change({ ...flow, welcome: event.target.value })} maxLength={1000} disabled={!mayEdit} />
             <TextInput label="Name shown at the top of the chat" value={flow.persona?.name ?? ''} onChange={(event) => change({ ...flow, persona: { ...flow.persona, name: event.target.value } })} maxLength={40} disabled={!mayEdit} />
-            <TextInput label="Picture (https address, optional)" value={flow.persona?.avatarUrl ?? ''} onChange={(event) => change({ ...flow, persona: { ...flow.persona, avatarUrl: event.target.value } })} maxLength={300} disabled={!mayEdit} />
+            <div className="grid gap-1.5">
+              <p className="text-[13.5px] font-medium text-ink">Picture (optional)</p>
+              <div className="flex flex-wrap items-center gap-3">
+                {flow.persona?.avatarUrl ? <img src={flow.persona.avatarUrl} alt="" width={48} height={48} className="size-12 rounded-full object-cover" /> : <span aria-hidden="true" className="flex size-12 items-center justify-center rounded-full bg-acc text-[18px] font-bold text-on-acc">{(flow.persona?.name || 'A').slice(0, 1).toUpperCase()}</span>}
+                {mayEdit && (
+                  <>
+                    <label className="inline-flex h-11 cursor-pointer items-center rounded-full border border-line bg-card px-4 text-[14px] font-medium text-ink hover:bg-s2 focus-within:ring-2 focus-within:ring-acc">
+                      Upload
+                      <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void pictureFromFile(file).then((url) => change({ ...flow, persona: { ...flow.persona, avatarUrl: url } })).catch((failure: Error) => toast.push(failure.message, 'error')); }} />
+                    </label>
+                    {flow.persona?.avatarUrl && <SoftButton onClick={() => change({ ...flow, persona: { ...flow.persona, avatarUrl: '' } })}>Remove</SoftButton>}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
           {nodeIds.map((key) => (
             <NodeCard key={key} selected={selected === key} id={key} node={flow.nodes[key]!} nodeIds={nodeIds} departments={departments.data?.departments ?? []} readOnly={!mayEdit} isStart={flow.start === key} onChange={(node) => setNode(key, node)} onRemove={() => removeNode(key)} onRename={(to) => rename(key, to)} />

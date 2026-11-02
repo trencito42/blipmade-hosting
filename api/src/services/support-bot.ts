@@ -52,7 +52,7 @@ export const flowSchema = z.object({
   start: id,
   welcome: z.string().trim().max(MAX_TEXT).optional(),
   /** How the bot introduces itself in the chat: the name and a picture. Shown at the top of the chat. */
-  persona: z.object({ name: z.string().trim().max(40).optional(), avatarUrl: z.string().trim().max(300).refine((value) => value === '' || /^https:\/\/[^\s]+$/.test(value), 'The picture must be an https address.').optional() }).optional(),
+  persona: z.object({ name: z.string().trim().max(40).optional(), avatarUrl: z.string().trim().max(60_000).refine((value) => value === '' || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value), 'The picture must be a small uploaded image.').optional() }).optional(),
   /** Where the editor drew each block. Only the editor reads it; it has no effect on how the bot runs. */
   layout: z.record(id, z.object({ x: z.number().min(-10_000).max(10_000), y: z.number().min(-10_000).max(10_000) })).optional(),
   nodes: z.record(id, nodeSchema).refine((nodes) => Object.keys(nodes).length <= MAX_NODES, `A flow has at most ${MAX_NODES} blocks.`),

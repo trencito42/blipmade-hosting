@@ -10,6 +10,7 @@ import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/auth.js';
 import { publishSupportEvent } from '../services/support-events.js';
 import { displayEmail } from '../lib/guest.js';
+import { readAvatars, setAvatar, shownName, validAvatar } from '../lib/avatar.js';
 import { readHours } from '../services/support-automation.js';
 import { clocksOf, readPolicies, worstOpenState } from '../services/support-sla.js';
 
@@ -86,6 +87,24 @@ async function slaAtRiskIds(): Promise<string[]> {
 
 export async function registerAdminSupportRoutes(app: FastifyInstance): Promise<void> {
   const write = { config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } } };
+
+  // --- the photo of the member of the staff, in the chat --------------------
+
+  app.get('/admin/support/me', { preHandler: requirePermission('tickets.read') }, async (request: FastifyRequest) => {
+    const me = await requirePermission('tickets.read')(request);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: me.id }, select: { firstName: true, lastName: true } });
+    return { name: shownName(user), avatar: (await readAvatars())[me.id] ?? null };
+  });
+
+  /** A staff member changes only their own photo. `null` removes it. */
+  app.put('/admin/support/me/avatar', { ...write, preHandler: [requirePermission('tickets.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request: FastifyRequest) => {
+    const me = await requirePermission('tickets.write')(request);
+    const { avatar } = z.object({ avatar: z.string().nullable() }).parse(request.body);
+    if (avatar !== null && !validAvatar(avatar)) throw badRequest('The picture must be a small PNG, JPEG or WebP image.');
+    await setAvatar(me.id, avatar);
+    await audit({ actorId: me.id, actorEmail: me.email, action: 'support.avatar_changed', meta: { removed: avatar === null }, ip: request.ip });
+    return { avatar };
+  });
 
   // --- departments ----------------------------------------------------------
 
