@@ -50,6 +50,8 @@ export const nodeSchema = z.discriminatedUnion('type', [
 export const flowSchema = z.object({
   start: id,
   welcome: z.string().trim().max(MAX_TEXT).optional(),
+  /** Where the editor drew each block. Only the editor reads it; it has no effect on how the bot runs. */
+  layout: z.record(id, z.object({ x: z.number().min(-10_000).max(10_000), y: z.number().min(-10_000).max(10_000) })).optional(),
   nodes: z.record(id, nodeSchema).refine((nodes) => Object.keys(nodes).length <= MAX_NODES, `A flow has at most ${MAX_NODES} blocks.`),
 });
 

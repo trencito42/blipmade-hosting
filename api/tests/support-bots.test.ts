@@ -267,4 +267,15 @@ describe('the bots API', () => {
     expect((await client.request('POST', `/api/support/bot/${sessionId}/skip`)).status).toBe(200);
     expect((await client.request('GET', '/api/support/bot/current')).body.session).toBeNull();
   });
+
+  it('keeps where the editor drew the blocks, and refuses a position that is not a number in range', async () => {
+    const { client: admin } = await createAdmin(app);
+    const id = (await admin.request('POST', '/api/admin/support/bots', { name: 'Layout' })).body.bot.id as string;
+    const draft = (await admin.request('GET', `/api/admin/support/bots/${id}`)).body.draft;
+    draft.layout = { hello: { x: 120, y: -40 }, bye: { x: 400, y: 80 } };
+    expect((await admin.request('PUT', `/api/admin/support/bots/${id}/draft`, { flow: draft })).status).toBe(200);
+    expect((await admin.request('GET', `/api/admin/support/bots/${id}`)).body.draft.layout.hello).toEqual({ x: 120, y: -40 });
+    draft.layout.hello = { x: 99999, y: 0 };
+    expect((await admin.request('PUT', `/api/admin/support/bots/${id}/draft`, { flow: draft })).status).toBe(400);
+  });
 });

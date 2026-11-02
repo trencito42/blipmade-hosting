@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
+import { FlowCanvas } from './FlowCanvas';
 import { can, useAdminSession } from './Overview';
 
 /**
@@ -16,7 +17,7 @@ import { can, useAdminSession } from './Overview';
 type Option = { id: string; label: string; next: string };
 type Case = { equals?: string; contains?: string; next: string };
 type Node = { type: string; text?: string; next?: string; variable?: string; options?: Option[]; cases?: Case[]; else?: string; query?: string; empty?: string; article?: string; subject?: string; priority?: string; departmentId?: string };
-type Flow = { start: string; welcome?: string; nodes: Record<string, Node> };
+type Flow = { start: string; welcome?: string; nodes: Record<string, Node>; layout?: Record<string, { x: number; y: number }> };
 type Validation = { ok: boolean; errors: string[]; warnings: string[] };
 type Out = { kind: string; text?: string; options?: { id: string; label: string }[]; articles?: { title: string; url: string }[]; input?: string };
 
@@ -136,6 +137,7 @@ function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClos
   const [validation, setValidation] = useState<Validation | null>(null);
   const [addType, setAddType] = useState('message');
   const [importText, setImportText] = useState('');
+  const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
     if (loaded.data) {
@@ -242,6 +244,19 @@ function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClos
         </Panel>
       )}
 
+      <Panel title="The map" description="Every block and where it leads. Click a block to edit it below, drag it to move it, drag the board to move the view, scroll or use + and − to zoom. Lines that lead nowhere are red.">
+        <FlowCanvas
+          flow={flow as never}
+          selected={selected}
+          readOnly={!mayEdit}
+          onSelect={(key) => {
+            setSelected(key);
+            document.getElementById(`block-${key}`)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+          }}
+          onMove={(key, pos) => change({ ...flow, layout: { ...(flow.layout ?? {}), [key]: pos } })}
+        />
+      </Panel>
+
       <Panel title="The flow">
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -251,7 +266,7 @@ function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClos
             <TextInput label="Welcome message" value={flow.welcome ?? ''} onChange={(event) => change({ ...flow, welcome: event.target.value })} maxLength={1000} disabled={!mayEdit} />
           </div>
           {nodeIds.map((key) => (
-            <NodeCard key={key} id={key} node={flow.nodes[key]!} nodeIds={nodeIds} departments={departments.data?.departments ?? []} readOnly={!mayEdit} isStart={flow.start === key} onChange={(node) => setNode(key, node)} onRemove={() => removeNode(key)} onRename={(to) => rename(key, to)} />
+            <NodeCard key={key} selected={selected === key} id={key} node={flow.nodes[key]!} nodeIds={nodeIds} departments={departments.data?.departments ?? []} readOnly={!mayEdit} isStart={flow.start === key} onChange={(node) => setNode(key, node)} onRemove={() => removeNode(key)} onRename={(to) => rename(key, to)} />
           ))}
           {mayEdit && (
             <div className="flex flex-wrap items-end gap-2">
@@ -326,7 +341,7 @@ function NextSelect({ label, value, nodeIds, onChange, disabled, empty = 'The co
   );
 }
 
-function NodeCard({ id, node, nodeIds, departments, readOnly, isStart, onChange, onRemove, onRename }: { id: string; node: Node; nodeIds: string[]; departments: { id: string; name: string }[]; readOnly: boolean; isStart: boolean; onChange: (node: Node) => void; onRemove: () => void; onRename: (to: string) => void }) {
+function NodeCard({ id, selected, node, nodeIds, departments, readOnly, isStart, onChange, onRemove, onRename }: { id: string; selected?: boolean; node: Node; nodeIds: string[]; departments: { id: string; name: string }[]; readOnly: boolean; isStart: boolean; onChange: (node: Node) => void; onRemove: () => void; onRename: (to: string) => void }) {
   const [draftId, setDraftId] = useState(id);
   useEffect(() => setDraftId(id), [id]);
   const set = (patch: Partial<Node>) => onChange({ ...node, ...patch });
@@ -340,7 +355,7 @@ function NodeCard({ id, node, nodeIds, departments, readOnly, isStart, onChange,
   const next = (title = 'Then') => <NextSelect label={title} value={node.next} nodeIds={nodeIds} onChange={(value) => set({ next: value })} disabled={readOnly} />;
 
   return (
-    <section className="grid gap-3 rounded-2xl border border-line bg-card p-4" aria-label={`Block ${id}`}>
+    <section id={`block-${id}`} className={`grid gap-3 rounded-2xl border bg-card p-4 ${selected ? 'border-acc' : 'border-line'}`} aria-label={`Block ${id}`}>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-wrap items-end gap-2">
           <TextInput label="Block id" value={draftId} onChange={(event) => setDraftId(event.target.value)} onBlur={() => onRename(draftId)} maxLength={32} disabled={readOnly} />
