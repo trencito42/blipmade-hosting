@@ -167,7 +167,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     const rows = await prisma.ticket.findMany({
       // A live chat is a conversation, not a ticket: it is not listed here, and it is read in the chat. It joins the list when the
       // customer turns it into a ticket; what was said stays in the conversation either way.
-      where: withCursor({ userId: user.id, channel: { not: 'CHAT' } }, cursor, 'updatedAt'),
+      where: withCursor({ userId: user.id, channel: { not: 'CHAT' as const } }, cursor, 'updatedAt'),
       include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
       orderBy: pageOrder('updatedAt'),
       take: limit + 1,
