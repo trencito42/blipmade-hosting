@@ -164,7 +164,7 @@ export function TicketReplyComposer({
    * A text that was written somewhere else, for example by the assistant. It
    * lands in the composer, where the staff read it before they send it.
    */
-  suggestion?: { text: string; at: number } | null;
+  suggestion?: { text: string; at: number; append?: boolean } | null;
 }) {
   const toast = useToast();
   const [internal, setInternal] = useState(false);
@@ -176,9 +176,15 @@ export function TicketReplyComposer({
   );
 
   // The text that comes from outside lands in the composer, and the moment it
-  // arrived is what tells it apart from the text that is already there.
+  // arrived is what tells it apart from the text that is already there. A
+  // saved answer is added under what the staff wrote, a draft from the
+  // assistant takes its place.
   useEffect(() => {
-    if (suggestion?.text) setBody(suggestion.text);
+    if (!suggestion?.text) return;
+    setBody((current) => {
+      if (!suggestion.append) return suggestion.text;
+      return current.trim() ? `${current}\n\n${suggestion.text}` : suggestion.text;
+    });
   }, [suggestion?.at]);
 
   const send = async () => {
@@ -255,14 +261,21 @@ export default function TicketDetail(props: TicketDetailProps = {}) {
   const staff = session.staff;
   const mayWrite = can(staff, 'tickets.write');
   const mayReadStaff = can(staff, 'staff.read');
-
+  const toast = useToast();
 
   const [filter, setFilter] = useState<MessageFilter>('all');
   const [status, setStatus] = useState('');
   const [assignee, setAssignee] = useState('');
   // The text that the assistant wrote lands in the composer. The moment it
   // arrived is what tells a new text from the one that is already there.
-  const [suggestion, setSuggestion] = useState<{ text: string; at: number } | null>(null);
+  const [suggestion, setSuggestion] = useState<{ text: string; at: number; append?: boolean } | null>(null);
+
+  // The answers the team uses again. They are kept in the settings of the
+  // platform, one list for the whole team.
+  const savedReplies = useAsync<{ replies: { id: string; title: string; body: string }[] }>(
+    async (signal) => get<{ replies: { id: string; title: string; body: string }[] }>('/admin/support/replies', undefined, signal),
+    [],
+  );
 
   // The thread of the conversation. The endpoint of the customer is used,
   // because it holds the internal notes as well.
@@ -444,6 +457,32 @@ export default function TicketDetail(props: TicketDetailProps = {}) {
             title="Reply"
             description="A public reply goes to the customer. An internal note stays in the queue of the staff."
           >
+            {/* The answers the team uses again. The text is written by the
+                platform, with the names of the customer, and lands in the
+                composer, where the staff read it before they send it. */}
+            {savedReplies.data?.replies.length ? (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <select
+                  aria-label="Insert a saved reply"
+                  className={denseSelect}
+                  value=""
+                  onChange={(event) => {
+                    const found = savedReplies.data?.replies.find((entry) => entry.id === event.target.value);
+                    if (!found) return;
+                    void post<{ text: string }>(`/admin/support/conversations/${encodeURIComponent(ticketId)}/render`, { text: found.body })
+                      .then((answer) => setSuggestion({ text: answer.text || found.body, at: Date.now(), append: true }))
+                      .catch(() => setSuggestion({ text: found.body, at: Date.now(), append: true }));
+                  }}
+                >
+                  <option value="">Insert a saved reply</option>
+                  {savedReplies.data.replies.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <TicketReplyComposer ticketId={ticketId} mayWrite={mayWrite} onSent={reloadAll} suggestion={suggestion} />
           </Panel>
 
@@ -569,6 +608,7 @@ export default function TicketDetail(props: TicketDetailProps = {}) {
                       onClick={async () => {
                         const answer = await assign.run(assignee || null);
                         if (!answer) return;
+                        toast.push(assignee ? 'Assignment saved.' : 'Assignment cleared.', 'ok');
                         reloadAll();
                       }}
                       disabled={assign.pending || !mayReadStaff || staffList.loading}
