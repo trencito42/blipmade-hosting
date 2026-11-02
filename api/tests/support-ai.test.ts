@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db.js';
-import { answerCustomer, buildMessages, checkBaseUrl, configSchema } from '../src/services/support-ai.js';
+import { answerCustomer, buildMessages, cleanAnswer, checkBaseUrl, configSchema } from '../src/services/support-ai.js';
 import { advance, searchDocs, startFlow, type Flow, type Hooks } from '../src/services/support-bot.js';
 import { closeApp, createAdmin, getApp, makeClient, registerAndLogin, resetDatabase, VALID_PASSWORD, type TestClient } from './helpers.js';
 import type { FastifyInstance } from 'fastify';
@@ -353,6 +353,27 @@ describe('questions that follow an answer', () => {
     expect(got).toEqual({ text: 'Open the login page.', handoff: false, followups: ['How do I reset my password?', 'Is there two-factor?', 'Where is my API key?'] });
     mode = 'handoff';
     expect(await answerCustomer('My invoice is wrong')).toEqual({ text: '', handoff: true, followups: [] });
+  });
+});
+
+describe('what the model wrote, cleaned', () => {
+  it('drops the reasoning between think tags, also when it never closes', () => {
+    expect(cleanAnswer('<think>The customer asks about payment.</think>Pay by card.', false)).toBe('Pay by card.');
+    expect(cleanAnswer('Pay by card.<think>and then I should', false)).toBe('Pay by card.');
+  });
+
+  it('cuts an answer that was stopped by the limit back to its last whole sentence', () => {
+    const cut = 'Choose your service or plan and continue through checkout. Stripe collects your card details. Before confirming';
+    expect(cleanAnswer(cut, true)).toBe('Choose your service or plan and continue through checkout. Stripe collects your card details.');
+    expect(cleanAnswer(cut, false)).toBe(cut);
+    expect(cleanAnswer('Short.', true)).toBe('Short.');
+  });
+
+  it('asks the provider for room for a model that thinks first', async () => {
+    const { client: admin } = await createAdmin(app);
+    await configure(admin, { customerAnswers: true, maxOutputTokens: 300 });
+    await answerCustomer('How do I pay?');
+    expect(seen[0]!.body.max_tokens).toBeGreaterThanOrEqual(800);
   });
 });
 

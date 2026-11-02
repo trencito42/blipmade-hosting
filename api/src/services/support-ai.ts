@@ -155,12 +155,12 @@ export async function runAi(action: Action, conversation: ConversationForAi, lan
     const response = await fetch(`${config.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.SUPPORT_AI_API_KEY}` },
-      body: JSON.stringify({ model: config.model, temperature: config.temperature, max_tokens: config.maxOutputTokens, messages: buildMessages(action, conversation, docs, notes, config, language) }),
+      body: JSON.stringify({ model: config.model, temperature: config.temperature, max_tokens: Math.max(config.maxOutputTokens, 800), messages: buildMessages(action, conversation, docs, notes, config, language) }),
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`The provider answered ${response.status}.`);
-    const data = (await response.json()) as { choices?: { message?: { content?: string } }[]; usage?: { total_tokens?: number } };
-    const text = data.choices?.[0]?.message?.content?.trim();
+    const data = (await response.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[]; usage?: { total_tokens?: number } };
+    const text = cleanAnswer(data.choices?.[0]?.message?.content ?? '', data.choices?.[0]?.finish_reason === 'length');
     if (!text) throw new Error('The provider gave no text.');
     const tokens = data.usage?.total_tokens ?? Math.ceil((text.length + 2000) / 4);
     await addUsage({ tokens, calls: 1 });
@@ -196,6 +196,20 @@ Rules you always follow:
  * An answer for a customer in the chat, from the public documentation only. Null when the assistant is off, not configured,
  * over its daily limit, or the provider failed: the chat then carries on without it. It never sees the notes of the team.
  */
+/**
+ * What the model wrote, cleaned: a model that thinks aloud puts its reasoning between <think> tags, which a customer must
+ * never read; and an answer that was cut by the limit of tokens is cut back to its last whole sentence instead of stopping in
+ * the middle of one.
+ */
+export function cleanAnswer(text: string, cut: boolean): string {
+  let out = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*$/i, '').trim();
+  if (cut) {
+    const end = Math.max(out.lastIndexOf('. '), out.lastIndexOf('.\n'), out.lastIndexOf('! '), out.lastIndexOf('? '), out.endsWith('.') ? out.length - 1 : -1);
+    if (end > 40) out = out.slice(0, end + 1);
+  }
+  return out;
+}
+
 /** Whether the assistant answers customers now: switched on for them, configured, and under its daily limit. */
 export async function customerAnswersOn(): Promise<boolean> {
   const config = await readConfig();
@@ -220,7 +234,8 @@ export async function answerCustomer(question: string, earlier: string[] = []): 
       body: JSON.stringify({
         model: config.model,
         temperature: Math.min(config.temperature, 0.3),
-        max_tokens: Math.min(config.maxOutputTokens, 300),
+        // A model that thinks first spends part of the limit on it, so the room is generous; the answer itself is asked to be short.
+        max_tokens: Math.min(Math.max(config.maxOutputTokens, 800), 1500),
         messages: [
           { role: 'system', content: `${CUSTOMER_SYSTEM}${config.instructions ? `\nExtra instructions from the operator:\n${config.instructions}` : ''}` },
           { role: 'user', content: `${docs.map((doc) => block('doc', `${doc.title}: ${doc.summary} ${(doc.text ?? '').slice(0, 900)}`)).join('\n')}\n${earlier.slice(-3).map((line) => block('earlier', line.slice(0, 300))).join('\n')}\n${block('customer_message', question.slice(0, 1000))}` },
@@ -229,8 +244,8 @@ export async function answerCustomer(question: string, earlier: string[] = []): 
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`The provider answered ${response.status}.`);
-    const data = (await response.json()) as { choices?: { message?: { content?: string } }[]; usage?: { total_tokens?: number } };
-    const text = data.choices?.[0]?.message?.content?.trim();
+    const data = (await response.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[]; usage?: { total_tokens?: number } };
+    const text = cleanAnswer(data.choices?.[0]?.message?.content ?? '', data.choices?.[0]?.finish_reason === 'length');
     if (!text) throw new Error('The provider gave no text.');
     await addUsage({ tokens: data.usage?.total_tokens ?? Math.ceil((text.length + 2500) / 4), calls: 1 });
     // The model says it cannot help with a marker: the chat hands the conversation to a person.
