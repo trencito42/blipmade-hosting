@@ -141,3 +141,45 @@ describe('reading a message', () => {
     expect(isAutomatic({ ...base, from: { email: 'postmaster@example.com' } })).toBe('bounce');
   });
 });
+
+describe('files that come with an email', () => {
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('rest of the picture')]);
+
+  it('stores an allowed file on the message, and the owner can download it', async () => {
+    const { client } = await verified('files@example.com');
+    const result = await inbound(mail('files@example.com', 'f1', { attachments: [{ filename: 'screen.png', contentType: 'image/png', contentBase64: png.toString('base64') }] }));
+    expect(result.status).toBe(201);
+    const file = await prisma.attachment.findFirst();
+    expect(file).toMatchObject({ filename: 'screen.png', contentType: 'image/png', size: png.byteLength });
+    const download = await client.request('GET', `/api/tickets/${file!.ticketId}/attachments/${file!.id}`);
+    expect(download.status).toBe(200);
+  });
+
+  it('refuses a program that says it is a picture, a type that is not allowed and a file that is too large, and says so', async () => {
+    const { client } = await verified('badfiles@example.com');
+    const big = Buffer.alloc(5 * 1024 * 1024 + 10, 1);
+    const result = await inbound(mail('badfiles@example.com', 'f2', {
+      attachments: [
+        { filename: 'cat.png', contentType: 'image/png', contentBase64: Buffer.from('MZ not a png').toString('base64') },
+        { filename: 'run.exe', contentType: 'application/x-msdownload', contentBase64: Buffer.from('MZ').toString('base64') },
+        { filename: 'huge.zip', contentType: 'application/zip', contentBase64: Buffer.concat([Buffer.from('PK'), big]).toString('base64') },
+      ],
+    }));
+    expect(result.status).toBe(201);
+    expect(await prisma.attachment.count()).toBe(0);
+    const ticket = await prisma.ticket.findFirstOrThrow();
+    const events = (await client.request('GET', `/api/tickets/${ticket.id}`)).body.ticket.events as { message: string }[];
+    expect(events.filter((event) => event.message.startsWith('An attachment was not accepted'))).toHaveLength(3);
+  });
+
+  it('adds the file of a reply to that reply', async () => {
+    const { client } = await verified('replyfile@example.com');
+    const id = (await client.request('POST', '/api/tickets', { subject: 'Thread files', body: 'First.' })).body.ticket.id as string;
+    const number = (await prisma.ticket.findUniqueOrThrow({ where: { id } })).number;
+    await inbound(mail('replyfile@example.com', 'f3', { subject: `Re: [#${number}] Thread files`, attachments: [{ filename: 'log.txt', contentType: 'text/plain', contentBase64: Buffer.from('the log').toString('base64') }] }));
+    const file = await prisma.attachment.findFirstOrThrow();
+    const message = await prisma.ticketMessage.findUniqueOrThrow({ where: { id: file.ticketMessageId } });
+    expect(message.externalId).toBe('f3@mail.example.com');
+    expect(file.ticketId).toBe(id);
+  });
+});

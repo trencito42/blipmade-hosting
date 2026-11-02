@@ -94,8 +94,9 @@ async function stream(request: FastifyRequest, reply: FastifyReply, user: AuthUs
   request.raw.on('close', stop);
   request.raw.on('error', stop);
 
-  send(`event: hello\ndata: ${JSON.stringify({ serverTime: new Date().toISOString() })}\n\n`);
+  // The presence is written before the greeting: whoever reads it after "hello" sees this connection.
   if (viewer.staff) await touchPresence(user.id);
+  send(`event: hello\ndata: ${JSON.stringify({ serverTime: new Date().toISOString() })}\n\n`);
 
   // What was written while the connection was down.
   const after = lastSeen(request);

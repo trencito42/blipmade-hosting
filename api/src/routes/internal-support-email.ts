@@ -8,6 +8,8 @@ import { notFound, unauthorized } from '../lib/errors.js';
 import { notifyTicketCustomerReplied, notifyTicketOpenedForStaff, notifyTicketReopened } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { fireAutomations } from '../services/support-automation.js';
+import { MAX_ATTACHMENT_BYTES, removeAttachment, storageKeyFor, storeAttachment, validateAttachment, verifyAttachmentContent } from '../lib/attachments.js';
+import { randomUUID } from 'node:crypto';
 import { publishSupportEvent } from '../services/support-events.js';
 
 /**
@@ -38,6 +40,8 @@ const mailSchema = z.object({
   inReplyTo: messageId.optional(),
   references: z.array(messageId).max(50).default([]),
   text: z.string().max(200_000),
+  /** The files of the message, as the mail system decoded them. At most five. A file larger than an upload may be is dropped by itself (and said so); only an absurd size refuses the whole message. */
+  attachments: z.array(z.object({ filename: z.string().min(1).max(200), contentType: z.string().min(1).max(100), contentBase64: z.string().max(Math.ceil((20 * 1024 * 1024 * 4) / 3) + 8) })).max(5).default([]),
   /** Headers that say the message was written by a program. */
   headers: z.record(z.string(), z.string().max(500)).default({}),
   /** What the mail system checked about the sender. */
@@ -66,10 +70,35 @@ export function stripQuoted(text: string): string {
   return out.join('\n').trim();
 }
 
+/**
+ * Stores the files of an email on the message they came with. A file that is not allowed (type, size, or bytes that are not
+ * what the type says) is not stored, and the conversation says so, so the customer and the staff both know what is missing.
+ */
+async function takeAttachments(mail: z.infer<typeof mailSchema>, ticketId: string, messageId: string, actorId: string): Promise<void> {
+  for (const file of mail.attachments) {
+    let reason: string | null = null;
+    let stored: { storageKey: string; sha256: string; size: number } | null = null;
+    try {
+      const content = Buffer.from(file.contentBase64, 'base64');
+      validateAttachment(file.contentType, content.byteLength);
+      verifyAttachmentContent(file.contentType, content);
+      stored = await storeAttachment({ storageKey: storageKeyFor(ticketId, randomUUID(), file.filename), content });
+      await prisma.$transaction([
+        prisma.attachment.create({ data: { ticketMessageId: messageId, ticketId, filename: file.filename.slice(0, 200), contentType: file.contentType, size: stored.size, storageKey: stored.storageKey, sha256: stored.sha256 } }),
+        prisma.ticketEvent.create({ data: { ticketId, type: 'attachment', message: `File attached by email: ${file.filename.slice(0, 120)}.`, actorId } }),
+      ]);
+    } catch (error) {
+      if (stored) await removeAttachment(stored.storageKey).catch(() => undefined);
+      reason = error instanceof Error ? error.message : 'could not be stored';
+      await prisma.ticketEvent.create({ data: { ticketId, type: 'attachment', message: `An attachment was not accepted: ${file.filename.slice(0, 120)} (${reason.slice(0, 100)})`, actorId } });
+    }
+  }
+}
+
 const normalizeId = (value: string) => value.trim().replace(/^<|>$/g, '').toLowerCase();
 
 export async function registerInternalSupportEmailRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/internal/support/inbound', async (request, reply) => {
+  app.post('/internal/support/inbound', { bodyLimit: 40 * 1024 * 1024 }, async (request, reply) => {
     requireMailSystem(request);
     const mail = mailSchema.parse(request.body);
     const ignore = async (reason: string) => {
@@ -125,6 +154,8 @@ export async function registerInternalSupportEmailRoutes(app: FastifyInstance): 
           events: { create: { type: 'created', message: 'Opened by email.', actorId: sender.id } },
         },
       });
+      const first = await prisma.ticketMessage.findFirstOrThrow({ where: { ticketId: created.id }, select: { id: true } });
+      await takeAttachments(mail, created.id, first.id, sender.id);
       await audit({ actorId: sender.id, actorEmail: sender.email, action: 'support.email_received', targetType: 'ticket', targetId: created.id });
       await notifyTicketOpenedForStaff({ userId: sender.id, ticketId: created.id, ticketNumber: String(created.number), subject: created.subject, customer: fullName(sender) || sender.email, occurrence: created.id }).catch(() => undefined);
       await publishSupportEvent({ type: 'created', ticketId: created.id, ownerId: sender.id, internal: false });
@@ -140,6 +171,7 @@ export async function registerInternalSupportEmailRoutes(app: FastifyInstance): 
       await tx.ticketEvent.create({ data: { ticketId: ticket!.id, type: 'reply', message: 'Reply added by email.', actorId: sender.id } });
       return added;
     });
+    await takeAttachments(mail, ticket.id, message.id, sender.id);
     await publishSupportEvent({ type: 'message', ticketId: ticket.id, ownerId: ticket.userId, internal: false, seq: String(message.seq) });
     if (reopens) await notifyTicketReopened({ userId: ticket.userId, ticketId: ticket.id, ticketNumber: String(ticket.number), subject: ticket.subject, occurrence: `reopen-${message.id}` }).catch(() => undefined);
     await notifyTicketCustomerReplied({ userId: ticket.userId, ticketId: ticket.id, ticketNumber: String(ticket.number), subject: ticket.subject, excerpt: body.slice(0, 300), staffId: ticket.assignedToId, occurrence: message.id }).catch(() => undefined);

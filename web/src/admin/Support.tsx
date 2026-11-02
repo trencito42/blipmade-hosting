@@ -73,11 +73,18 @@ function useLiveRefresh(onChange: () => void): boolean {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => handler.current(), 300);
     };
-    source.addEventListener('hello', () => setLive(true));
+    // After "hello" the server has recorded this connection as present, so the list of who is here is read again.
+    source.addEventListener('hello', () => {
+      setLive(true);
+      changed();
+    });
+    // A person who left is noticed without waiting for a conversation to change.
+    const poll = window.setInterval(() => handler.current(), 30_000);
     for (const type of ['created', 'message', 'attachment', 'status', 'assigned', 'resync']) source.addEventListener(type, changed);
     source.onerror = () => setLive(false);
     return () => {
       window.clearTimeout(timer);
+      window.clearInterval(poll);
       source.close();
     };
   }, []);

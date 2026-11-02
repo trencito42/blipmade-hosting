@@ -128,3 +128,14 @@ describe('support stream: over HTTP', () => {
     expect(stale.body.staff[0].chosen).toBe('AVAILABLE');
   });
 });
+
+describe('support stream: the order of the greeting', () => {
+  it('records the staff member as present before it says hello', async () => {
+    const { client: admin } = await createAdmin(app);
+    const heard = await listen(admin, '/api/admin/support/stream', 700);
+    expect(heard.text).toContain('event: hello');
+    // The row exists by the time the greeting went out: a client that reads the presence after "hello" sees itself.
+    const row = await prisma.supportPresence.findFirst();
+    expect(row?.status).toBe('AVAILABLE');
+  });
+});
