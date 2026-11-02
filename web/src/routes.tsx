@@ -70,6 +70,7 @@ const AdminProducts = lazy(() => import('./admin/Products'));
 const AdminPricing = lazy(() => import('./admin/Pricing'));
 const AdminTickets = lazy(() => import('./admin/Tickets'));
 const AdminSupport = lazy(() => import('./admin/Support'));
+const AdminSupportBots = lazy(() => import('./admin/SupportBots'));
 const ChatWidget = lazy(() => import('./app/ChatWidget'));
 const AdminKnowledge = lazy(() => import('./admin/Knowledge'));
 const AdminPromotions = lazy(() => import('./admin/Promotions'));
@@ -149,6 +150,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
+  { pattern: '/admin/support/bots', component: AdminSupportBots, title: 'Support bots', area: 'admin' },
   { pattern: '/admin/support', component: AdminSupport, title: 'Support console', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
   { pattern: '/admin/knowledge', component: AdminKnowledge, title: 'Knowledge base', area: 'admin', exact: true },
