@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db.js';
+import { rotateRateLimitRun } from '../src/lib/rate-limit.js';
+import { publishSupportEvent } from '../src/services/support-events.js';
 import { closeSupportEvents } from '../src/services/support-events.js';
 import { closeApp, createAdmin, getApp, registerAndLogin, resetDatabase, type TestClient } from './helpers.js';
 import type { FastifyInstance } from 'fastify';
@@ -9,8 +11,9 @@ import type { FastifyInstance } from 'fastify';
  *
  *     LOAD=1 LOAD_USERS=100 npx vitest run tests/support-load.test.ts
  *
- * N customers each open a live stream and write one message; one member of the staff has the staff stream open and answers
- * every conversation. It reports how long a message takes to reach the staff stream and how long an answer takes to reach
+ * N customers each open a live stream; one member of the staff has the staff stream open. The customers write and the staff
+ * answers every conversation. The messages are written straight to the database and announced like the routes announce them,
+ * because every route has a limit per address and one machine is one address: this measures the live transport, not the routes. It reports how long a message takes to reach the staff stream and how long an answer takes to reach
  * the customer's stream, and that nothing was lost. It runs in one process against one database, so it is a floor, not a
  * promise about production.
  */
@@ -66,8 +69,13 @@ describe.skipIf(!run)('the live support under load', () => {
 
   it('delivers every message and every answer', async () => {
     const { client: admin } = await createAdmin(app);
-    const customers: { client: TestClient; ticketId?: string }[] = [];
-    for (let i = 0; i < USERS; i++) customers.push({ client: (await registerAndLogin(app, `load${i}@example.com`)).client });
+    const customers: { client: TestClient; userId: string; ticketId?: string }[] = [];
+    for (let i = 0; i < USERS; i++) {
+      // The limit of registrations is per address: the counters are rotated between small batches.
+      if (i % 10 === 0) rotateRateLimitRun();
+      const made = await registerAndLogin(app, `load${i}@example.com`);
+      customers.push({ client: made.client, userId: made.userId });
+    }
 
     const sentAt = new Map<string, number>();
     const toStaff: number[] = [];
@@ -75,14 +83,16 @@ describe.skipIf(!run)('the live support under load', () => {
     const answeredAt = new Map<string, number>();
     const closers: (() => void)[] = [];
 
+    rotateRateLimitRun();
     closers.push(await openStream(admin, '/api/admin/support/stream', (name, data) => {
       if (name !== 'message') return;
       const ticketId = (JSON.parse(data) as { ticketId: string }).ticketId;
       const start = sentAt.get(ticketId);
       if (start && !answeredAt.has(ticketId)) toStaff.push(Date.now() - start);
     }));
-    for (const entry of customers) {
-      closers.push(await openStream(entry.client, '/api/support/stream', (name, data) => {
+    for (let i = 0; i < customers.length; i++) {
+      if (i % 20 === 0) rotateRateLimitRun();
+      closers.push(await openStream(customers[i]!.client, '/api/support/stream', (name, data) => {
         if (name !== 'message') return;
         const ticketId = (JSON.parse(data) as { ticketId: string }).ticketId;
         const start = answeredAt.get(ticketId);
@@ -91,22 +101,24 @@ describe.skipIf(!run)('the live support under load', () => {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // All the customers write at once.
     const started = Date.now();
+    for (const entry of customers) {
+      const ticket = await prisma.ticket.create({ data: { userId: entry.userId, subject: 'Load', messages: { create: { authorId: entry.userId, body: 'Hello.' } } } });
+      entry.ticketId = ticket.id;
+    }
+    // All the customers write at once; the clock starts when the message is announced.
     await Promise.all(customers.map(async (entry) => {
-      const created = await entry.client.request('POST', '/api/tickets', { subject: 'Load', body: 'Hello.' });
-      entry.ticketId = created.body.ticket.id as string;
-    }));
-    // A message after creation, timed from the moment it is sent.
-    await Promise.all(customers.map(async (entry) => {
+      const message = await prisma.ticketMessage.create({ data: { ticketId: entry.ticketId!, authorId: entry.userId, body: 'Are you there?' } });
       sentAt.set(entry.ticketId!, Date.now());
-      await entry.client.request('POST', `/api/tickets/${entry.ticketId}/replies`, { body: 'Are you there?' });
+      await publishSupportEvent({ type: 'message', ticketId: entry.ticketId!, ownerId: entry.userId, internal: false, seq: String(message.seq) });
     }));
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    // The staff answers all of them.
+    // The staff answers all of them at once.
+    const staffId = (await prisma.user.findFirstOrThrow({ where: { role: 'ADMIN' } })).id;
     await Promise.all(customers.map(async (entry) => {
+      const message = await prisma.ticketMessage.create({ data: { ticketId: entry.ticketId!, authorId: staffId, body: 'Yes.' } });
       answeredAt.set(entry.ticketId!, Date.now());
-      await admin.request('POST', `/api/tickets/${entry.ticketId}/replies`, { body: 'Yes.' });
+      await publishSupportEvent({ type: 'message', ticketId: entry.ticketId!, ownerId: entry.userId, internal: false, seq: String(message.seq) });
     }));
     await new Promise((resolve) => setTimeout(resolve, 2500));
     for (const close of closers) close();
@@ -114,7 +126,7 @@ describe.skipIf(!run)('the live support under load', () => {
     const messages = await prisma.ticketMessage.count({ where: { internal: false } });
     console.log(`LOAD users=${USERS} created+wrote in ${Date.now() - started} ms; to staff stream: n=${toStaff.length} p50=${percentile(toStaff, 0.5)} ms p95=${percentile(toStaff, 0.95)} ms max=${Math.max(0, ...toStaff)} ms; to customers: n=${toCustomer.length} p50=${percentile(toCustomer, 0.5)} ms p95=${percentile(toCustomer, 0.95)} ms max=${Math.max(0, ...toCustomer)} ms; messages stored=${messages}`);
     expect(messages).toBe(USERS * 3);
-    expect(toStaff.length).toBeGreaterThanOrEqual(USERS);
+    expect(toStaff.length).toBe(USERS);
     expect(toCustomer.length).toBe(USERS);
   }, 300_000);
 });
