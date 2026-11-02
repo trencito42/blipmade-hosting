@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextInput, useToast } from '../ui-app';
+import { AiSettings } from './SupportAi';
 import { can, useAdminSession } from './Overview';
 
 /**
@@ -106,6 +107,7 @@ export default function SupportAnalytics() {
         </>
       )}
       <Policies mayEdit={can(session.staff, 'settings.write')} onSaved={data.reload} />
+      <AiSettings mayEdit={can(session.staff, 'settings.write')} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { get, post, put, type TicketMessage } from '../lib/api';
 import { TicketAttachments } from '../app/TicketAttachments';
 import { ContextPanel } from './ContextPanel';
+import { AiAssistant } from './SupportAi';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useRouter } from '../router';
 import {
@@ -333,6 +334,7 @@ function TicketDetailPanel({
   return (
     <div className="grid gap-4">
       <ContextPanel ticketId={ticketId} />
+      {mayWrite && <AiAssistant ticketId={ticketId} onUse={(text) => setReplyBody(text)} />}
       <Panel
         title={current ? `#${current.number} ${current.subject}` : 'Ticket'}
         description={current ? `Opened ${fmtDateTime(current.createdAt)}` : undefined}

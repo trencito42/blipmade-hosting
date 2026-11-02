@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    env: { SUPPORT_INBOUND_TOKEN: 'test-inbound-token-123456' },
+    env: { SUPPORT_INBOUND_TOKEN: 'test-inbound-token-123456', SUPPORT_AI_ALLOW_PRIVATE: '1', SUPPORT_AI_API_KEY: 'test-provider-key-0000' },
     include: ['tests/**/*.test.ts'],
     globalSetup: ['tests/globalSetup.ts'],
     setupFiles: ['tests/setup.ts'],
