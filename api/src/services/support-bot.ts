@@ -148,7 +148,9 @@ export type Out =
   | { kind: 'text'; text: string; ai?: boolean }
   | { kind: 'buttons'; text: string; options: { id: string; label: string }[] }
   | { kind: 'ask'; text: string; input: 'text' | 'email' | 'service'; options?: { id: string; label: string }[] }
-  | { kind: 'articles'; articles: { title: string; url: string; summary: string }[] };
+  | { kind: 'articles'; articles: { title: string; url: string; summary: string }[] }
+  /** Questions the customer may want to ask next, about the same topic. Shown as buttons that send the question. */
+  | { kind: 'suggestions'; items: string[] };
 
 export interface BotSession {
   /** The block that waits for the customer. Null when the flow is over. */
@@ -166,7 +168,9 @@ export interface Hooks {
   setPriority(priority: (typeof PRIORITIES)[number]): Promise<void>;
   assignDepartment(departmentId: string): Promise<boolean>;
   /** An answer of the assistant to a question, from the public documentation. Null when there is none: the flow then goes on without it. */
-  answer?(question: string): Promise<{ text: string; handoff: boolean } | null>;
+  answer?(question: string): Promise<{ text: string; handoff: boolean; followups?: string[] } | null>;
+  /** Where the documentation is searched, when it is more than the public pages (the notes the operator marked for customers). */
+  search?(query: string): Promise<Article[]>;
   /** True when the assistant can answer customers: the buttons that only lead to a person are then shown on the first menu only. */
   ai?: boolean;
 }
@@ -180,6 +184,15 @@ export interface Article {
 }
 
 /** The published documentation that matches the words, best first. Only the public documentation: never the notes of the team. */
+export interface DocItem {
+  id: string;
+  title: string;
+  summary: string;
+  keywords: string[];
+  url: string;
+  text?: string;
+}
+
 /** Words that say nothing about a topic: they never make a page match on their own. */
 const STOP = new Set(['the', 'and', 'for', 'are', 'you', 'there', 'hello', 'hi', 'hey', 'please', 'help', 'with', 'have', 'has', 'not', 'cant', 'can', 'does', 'doesnt', 'did', 'how', 'what', 'why', 'when', 'where', 'who', 'this', 'that', 'it', 'its', 'my', 'me', 'our', 'your', 'from', 'but', 'was', 'were', 'been', 'being', 'will', 'would', 'could', 'should', 'about', 'any', 'some', 'get', 'got', 'need', 'want', 'like', 'just', 'now', 'today', 'problem', 'issue', 'working', 'work', 'works', 'thanks', 'thank']);
 /** Words that name the product itself: real, but too common to decide a page alone. */
@@ -190,10 +203,10 @@ const COMMON = new Set(['server', 'servers', 'service', 'services', 'app', 'apps
  * team. A page needs a real match: a word of its title or of its keywords, or several words of its summary. A word that only
  * names the product ("server") is not enough alone, so "my server is not reachable" does not list every page about a server.
  */
-export function searchDocs(query: string, limit = 3): Article[] {
+export function searchDocs(query: string, limit = 3, extra: DocItem[] = []): Article[] {
   const words = [...new Set(query.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2 && !STOP.has(word)))];
   if (words.length === 0) return [];
-  return (DOCS as { id: string; title: string; summary: string; keywords: string[]; url: string; text?: string }[])
+  return [...(DOCS as DocItem[]), ...extra]
     .map((page) => {
       const body = (page.text ?? '').toLowerCase();
       const title = page.title.toLowerCase();
@@ -302,6 +315,7 @@ export async function advance(flow: Flow, current: BotSession, input: Input, hoo
         const answered = raw && hooks.answer ? await hooks.answer(raw) : null;
         if (answered?.handoff) return handoffTo(session, out, hooks);
         out.push(answered ? { kind: 'text', text: answered.text, ai: true } : { kind: 'text', text: 'Please choose one of the options.' });
+        if (answered?.followups?.length) out.push({ kind: 'suggestions', items: answered.followups });
         out.push({ kind: 'buttons', text: render(node.text, session.variables), options: visibleOptions(flow, current.node!, node.options, hooks) });
         return { session, out };
       }
@@ -387,7 +401,7 @@ async function run(flow: Flow, start: BotSession, out: Out[], hooks: Hooks): Pro
         break;
       }
       case 'search_kb': {
-        const found = searchDocs(render(node.query, session.variables));
+        const found = hooks.search ? await hooks.search(render(node.query, session.variables)) : searchDocs(render(node.query, session.variables));
         if (found.length > 0) {
           out.push({ kind: 'articles', articles: found });
           go(node.next);
@@ -401,6 +415,7 @@ async function run(flow: Flow, start: BotSession, out: Out[], hooks: Hooks): Pro
         const answered = hooks.answer && question.trim() ? await hooks.answer(question) : null;
         if (answered?.handoff) return handoffTo(session, out, hooks);
         if (answered) out.push({ kind: 'text', text: answered.text, ai: true });
+        if (answered?.followups?.length) out.push({ kind: 'suggestions', items: answered.followups });
         go(node.next);
         break;
       }

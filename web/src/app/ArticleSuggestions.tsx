@@ -32,11 +32,11 @@ export function ArticleSuggestions({ text }: { text: string }) {
       <p className="mb-1 text-[13px] font-semibold text-ink">These pages may answer it before you send</p>
       <ul className="grid gap-0.5">
         {articles.map((article) => (
-          <li key={article.url}>
-            <a href={article.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 flex-col justify-center text-[13.5px] text-acc underline">
+          <li key={article.url || article.title}>
+            {article.url ? <a href={article.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 flex-col justify-center text-[13.5px] text-acc underline">
               {article.title}
               <span className="text-[12px] text-ink3 no-underline">{article.summary}</span>
-            </a>
+            </a> : <span className="inline-flex min-h-11 flex-col justify-center text-[13.5px] text-ink">{article.title}<span className="text-[12px] text-ink3">{article.summary}</span></span>}
           </li>
         ))}
       </ul>

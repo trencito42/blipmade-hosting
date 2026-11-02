@@ -152,7 +152,7 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
 
   // --- knowledge base for the team ---------------------------------------------------------------
   const KB_KEY = 'support.knowledge';
-  const kbSchema = z.array(z.object({ id: z.string().min(1).max(40), title: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(20_000), tags: z.array(z.string().trim().toLowerCase().max(24)).max(8).default([]) })).max(300);
+  const kbSchema = z.array(z.object({ id: z.string().min(1).max(40), title: z.string().trim().min(1).max(120), body: z.string().trim().min(1).max(20_000), tags: z.array(z.string().trim().toLowerCase().max(24)).max(8).default([]), assistant: z.boolean().default(false) })).max(300);
 
   app.get('/admin/support/knowledge', { preHandler: [requirePermission('tickets.read')] }, async () => {
     const row = await prisma.setting.findUnique({ where: { key: KB_KEY } });

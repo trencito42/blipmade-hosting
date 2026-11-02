@@ -111,7 +111,7 @@ export async function registerSupportSuggestRoutes(app: FastifyInstance): Promis
   app.get('/support/suggest', async (request: FastifyRequest) => {
     await requireAuth(request);
     const { q } = z.object({ q: z.string().trim().min(3).max(200) }).parse(request.query ?? {});
-    const { searchDocs } = await import('../services/support-bot.js');
-    return { articles: searchDocs(q, 4) };
+    const { searchKnowledge } = await import('../services/support-knowledge.js');
+    return { articles: await searchKnowledge(q, 4) };
   });
 }

@@ -4,6 +4,7 @@ import { env } from '../env.js';
 import { prisma } from '../db.js';
 import { redact } from './diagnosis.js';
 import { searchDocs } from './support-bot.js';
+import { searchKnowledge } from './support-knowledge.js';
 
 /**
  * The optional assistant for the staff of the support.
@@ -188,7 +189,8 @@ Rules you always follow:
 - Never promise or state: refunds, discounts, SLA times, the cause or the end of an incident, or what an invoice says.
 - Never ask for a password, a recovery code or a key.
 - Answer in the language of the customer's latest message. If that message is too short to tell, use the language of the earlier messages, and otherwise English.
-- At most 90 words, plain text, no links of your own: the pages of the docs are shown separately.`;
+- At most 90 words, plain text, no links of your own: the pages of the docs are shown separately.
+- After your answer, on a new line, write FOLLOWUPS: and then up to three short questions this customer may want to ask next about the same topic (at most six words each, separated by |), in the language of the customer. Leave that line out when you answer with [[HANDOFF]].`;
 
 /**
  * An answer for a customer in the chat, from the public documentation only. Null when the assistant is off, not configured,
@@ -201,14 +203,14 @@ export async function customerAnswersOn(): Promise<boolean> {
   return (await readUsage()).tokens < config.dailyTokenLimit;
 }
 
-export async function answerCustomer(question: string, earlier: string[] = []): Promise<{ text: string; handoff: boolean } | null> {
+export async function answerCustomer(question: string, earlier: string[] = []): Promise<{ text: string; handoff: boolean; followups: string[] } | null> {
   const config = await readConfig();
   if (!config.enabled || !config.customerAnswers || !credentialConfigured() || !config.model) return null;
   const usage = await readUsage();
   if (usage.tokens >= config.dailyTokenLimit) return null;
   if (checkBaseUrl(config.baseUrl)) return null;
   // What the customer wrote before helps to find the page and to know the language of a short message.
-  const docs = searchDocs(`${earlier.slice(-2).join(' ')} ${question}`, 4);
+  const docs = await searchKnowledge(`${earlier.slice(-2).join(' ')} ${question}`, 4);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.min(config.timeoutMs, 15_000));
   try {
@@ -232,8 +234,10 @@ export async function answerCustomer(question: string, earlier: string[] = []): 
     if (!text) throw new Error('The provider gave no text.');
     await addUsage({ tokens: data.usage?.total_tokens ?? Math.ceil((text.length + 2500) / 4), calls: 1 });
     // The model says it cannot help with a marker: the chat hands the conversation to a person.
-    if (text.includes('[[HANDOFF]]')) return { text: '', handoff: true };
-    return { text: text.slice(0, 1200), handoff: false };
+    if (text.includes('[[HANDOFF]]')) return { text: '', handoff: true, followups: [] };
+    const [answer, tail = ''] = text.split(/\n?\s*FOLLOWUPS:/i);
+    const followups = tail.split('|').map((item) => item.replace(/^[\s\-*\d.]+/, '').trim()).filter((item) => item.length >= 3 && item.length <= 60).slice(0, 3);
+    return { text: answer!.trim().slice(0, 1200), handoff: false, followups };
   } catch (error) {
     console.warn('[support-ai] the answer for a customer failed:', error instanceof Error ? error.message : error);
     await addUsage({ failures: 1 }).catch(() => undefined);

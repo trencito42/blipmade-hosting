@@ -298,4 +298,21 @@ describe('the bots API', () => {
     expect((await admin.request('GET', '/api/admin/support/analytics?days=7')).body.satisfaction).toEqual({ count: 1, average: 4 });
     expect((await client.request('GET', '/api/admin/support/ratings')).status).toBe(403);
   });
+
+  it('deletes a bot that has conversations only when asked to, with their records, and keeps the tickets', async () => {
+    const { client: admin } = await createAdmin(app);
+    const id = (await admin.request('POST', '/api/admin/support/bots', { name: 'Old', template: true })).body.bot.id as string;
+    await admin.request('POST', `/api/admin/support/bots/${id}/publish`);
+    await admin.request('PUT', `/api/admin/support/bots/${id}`, { enabled: true });
+    const { client } = await registerAndLogin(app, 'bye@example.com');
+    const sessionId = (await client.request('POST', '/api/support/bot/start')).body.sessionId as string;
+    await client.request('POST', `/api/support/bot/${sessionId}/input`, { option: 'agent' });
+    expect(await prisma.ticket.count()).toBe(1);
+    const refused = await admin.request('DELETE', `/api/admin/support/bots/${id}`);
+    expect(refused.status).toBe(409);
+    expect((await admin.request('DELETE', `/api/admin/support/bots/${id}?force=true`)).status).toBe(200);
+    expect(await prisma.supportBot.count()).toBe(0);
+    expect(await prisma.supportBotSession.count()).toBe(0);
+    expect(await prisma.ticket.count()).toBe(1);
+  });
 });

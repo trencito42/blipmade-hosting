@@ -10,7 +10,7 @@ let app: FastifyInstance;
 let provider: Server;
 let base = '';
 let seen: { auth: string; body: Record<string, unknown> }[] = [];
-let mode: 'ok' | 'error' | 'slow' | 'heavy' = 'ok';
+let mode: 'ok' | 'error' | 'slow' | 'heavy' | 'followups' | 'handoff' = 'ok';
 
 beforeAll(async () => {
   app = await getApp();
@@ -25,7 +25,8 @@ beforeAll(async () => {
       }
       const reply = () => {
         response.writeHead(200, { 'content-type': 'application/json' });
-        response.end(JSON.stringify({ choices: [{ message: { content: 'Hello, thanks for writing. A member of the staff will check it.' } }], usage: { total_tokens: mode === 'heavy' ? 1500 : 120 } }));
+        const content = mode === 'followups' ? 'Open the login page.\nFOLLOWUPS: How do I reset my password? | Is there two-factor? | Where is my API key? | a fourth one that is dropped' : mode === 'handoff' ? '[[HANDOFF]]' : 'Hello, thanks for writing. A member of the staff will check it.';
+        response.end(JSON.stringify({ choices: [{ message: { content } }], usage: { total_tokens: mode === 'heavy' ? 1500 : 120 } }));
       };
       if (mode === 'slow') setTimeout(reply, 4000);
       else reply();
@@ -310,6 +311,48 @@ describe('the answer of the assistant to a customer', () => {
     expect(messages.find((m) => m.role === 'user')!.content).toContain('<earlier>');
     expect(messages.find((m) => m.role === 'system')!.content).toContain('[[HANDOFF]]');
     expect(messages.find((m) => m.role === 'system')!.content).toContain("language of the customer's latest message");
+  });
+});
+
+describe('the notes the operator marks for customers', () => {
+  it('are searched with the public pages by the assistant, and the other notes are not', async () => {
+    const { client: admin } = await createAdmin(app);
+    await admin.request('PUT', '/api/admin/support/knowledge', { articles: [
+      { id: 'pay', title: 'Payment methods', body: 'We accept cards through Stripe and nothing else.', tags: ['payment', 'card'], assistant: true },
+      { id: 'priv', title: 'Refund exceptions', body: 'Internal: refund exceptions for payment disputes.', tags: ['payment'] },
+    ] });
+    await configure(admin, { customerAnswers: true });
+    await answerCustomer('Which payment methods do you accept?');
+    const user = (seen[0]!.body.messages as { role: string; content: string }[]).find((m) => m.role === 'user')!.content;
+    expect(user).toContain('We accept cards through Stripe');
+    expect(user).not.toContain('Internal: refund exceptions');
+    const { searchKnowledge } = await import('../src/services/support-knowledge.js');
+    expect((await searchKnowledge('payment methods card')).map((a) => a.title)).toContain('Payment methods');
+    expect((await searchKnowledge('refund exceptions disputes')).map((a) => a.title)).not.toContain('Refund exceptions');
+  });
+
+  it('are shown to a customer who is about to write a ticket, as text without a link, and the private ones are not', async () => {
+    const { client: admin } = await createAdmin(app);
+    await admin.request('PUT', '/api/admin/support/knowledge', { articles: [{ id: 'pay', title: 'Payment methods', body: 'We accept cards.', tags: ['payment'], assistant: true }, { id: 'priv', title: 'Private payment rule', body: 'secret', tags: ['payment'] }] });
+    const { client } = await registerAndLogin(app, 'reader2@example.com');
+    const found = (await client.request('GET', '/api/support/suggest?q=payment methods')).body.articles as { title: string; url: string }[];
+    expect(found.find((a) => a.title === 'Payment methods')?.url).toBe('');
+    expect(found.some((a) => a.title === 'Private payment rule')).toBe(false);
+  });
+});
+
+describe('questions that follow an answer', () => {
+  it('are taken from the line the model adds, at most three, and left out when it hands over', async () => {
+    const { client: admin } = await createAdmin(app);
+    await configure(admin, { customerAnswers: true });
+    const before = seen.length;
+    expect(before).toBe(0);
+    // The fake provider answers the same text every time; the parsing is checked on the real function through a second provider mode.
+    mode = 'followups';
+    const got = await answerCustomer('How do I sign in?');
+    expect(got).toEqual({ text: 'Open the login page.', handoff: false, followups: ['How do I reset my password?', 'Is there two-factor?', 'Where is my API key?'] });
+    mode = 'handoff';
+    expect(await answerCustomer('My invoice is wrong')).toEqual({ text: '', handoff: true, followups: [] });
   });
 });
 

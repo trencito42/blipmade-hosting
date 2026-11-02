@@ -7,6 +7,7 @@ import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/auth.js';
 import { answerCustomer, customerAnswersOn } from '../services/support-ai.js';
+import { searchKnowledge } from '../services/support-knowledge.js';
 import { notifyTicketOpenedForStaff } from '../services/notifications.js';
 import { fullName } from '../lib/people.js';
 import { humanAvailable } from '../services/support-availability.js';
@@ -44,6 +45,8 @@ function plain(out: Out): string {
       return `${out.text} [${out.options.map((option) => option.label).join(' / ')}]`;
     case 'articles':
       return `Suggested: ${out.articles.map((article) => article.title).join('; ')}`;
+    case 'suggestions':
+      return `You may also ask: ${out.items.join(' / ')}`;
   }
 }
 
@@ -115,11 +118,14 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
   app.delete('/admin/support/bots/:id', write(app), async (request: FastifyRequest) => {
     const actor = await requirePermission('settings.write')(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { force } = z.object({ force: z.enum(['true']).optional() }).parse(request.query ?? {});
     const row = await prisma.supportBot.findUnique({ where: { id }, include: { _count: { select: { sessions: true } } } });
     if (!row) throw notFound('Bot not found.');
-    if (row._count.sessions > 0) throw conflict('This bot has conversations. Switch it off instead of deleting it.');
-    await prisma.supportBot.delete({ where: { id } });
-    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'support.bot_deleted', targetType: 'support_bot', targetId: id, ip: request.ip });
+    // A bot with conversations is deleted only when the operator says so: the records of those conversations go with it. The
+    // tickets that came out of them stay.
+    if (row._count.sessions > 0 && !force) throw conflict(`This bot has ${row._count.sessions} conversations. Deleting it deletes their records too; the tickets that came out of them stay.`);
+    await prisma.$transaction([prisma.supportBotSession.deleteMany({ where: { botId: id } }), prisma.supportBot.delete({ where: { id } })]);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'support.bot_deleted', targetType: 'support_bot', targetId: id, meta: { conversations: row._count.sessions }, ip: request.ip });
     return { deleted: true };
   });
 
@@ -260,6 +266,7 @@ export async function registerSupportBotRoutes(app: FastifyInstance): Promise<vo
     };
     return {
       ai: ctx.ai,
+      search: (query: string) => searchKnowledge(query, 3),
       answer: (question: string) => answerCustomer(question, ctx.transcript().split('\n').filter((line) => line.startsWith('Customer: ')).map((line) => line.slice(10)).slice(0, -1)),
       async services() {
         const [instances, servers] = await Promise.all([

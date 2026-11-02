@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
+import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
 import { FlowCanvas } from './FlowCanvas';
 import { can, useAdminSession } from './Overview';
 
@@ -72,8 +72,9 @@ export default function SupportBots() {
     list.reload();
     toast.push(enabled ? 'The bot is on for new conversations.' : 'The bot is off. Conversations that started go on.', 'ok');
   });
+  const [deleting, setDeleting] = useState<{ id: string; name: string; conversations: number } | null>(null);
   const remove = useAction(async (id: string) => {
-    await del(`/admin/support/bots/${id}`);
+    await del(`/admin/support/bots/${id}?force=true`);
     list.reload();
     toast.push('Bot deleted.', 'ok');
   });
@@ -106,7 +107,7 @@ export default function SupportBots() {
                 <span className="flex flex-wrap gap-2">
                   <SoftButton onClick={() => setOpenId(bot.id)}>{mayEdit ? 'Edit' : 'View'}</SoftButton>
                   {mayEdit && <SoftButton onClick={() => void toggle.run(bot.id, !bot.enabled)} disabled={!bot.publishedVersion && !bot.enabled}>{bot.enabled ? 'Switch off' : 'Switch on'}</SoftButton>}
-                  {mayEdit && <SoftButton onClick={() => void remove.run(bot.id)} disabled={bot.conversations > 0}>Delete</SoftButton>}
+                  {mayEdit && <SoftButton onClick={() => setDeleting({ id: bot.id, name: bot.name, conversations: bot.conversations })}>Delete</SoftButton>}
                 </span>
               </li>
             ))}
@@ -114,6 +115,19 @@ export default function SupportBots() {
         )}
         {(toggle.error || remove.error) && <p role="alert" className="mt-2 text-[13px] text-bad">{toggle.error || remove.error}</p>}
       </Panel>
+      <ConfirmDialog
+        open={deleting !== null}
+        title={`Delete ${deleting?.name ?? 'this bot'}?`}
+        description={deleting && deleting.conversations > 0 ? `It has ${deleting.conversations} conversations. Their records are deleted with it. The tickets that came out of them stay. This cannot be undone.` : 'This cannot be undone.'}
+        confirmLabel="Delete"
+        busy={remove.pending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          const target = deleting;
+          setDeleting(null);
+          if (target) void remove.run(target.id);
+        }}
+      />
       {mayEdit && (
         <Panel title="New bot" description="Start from the template (a menu with technical, billing, account, plans and a person) or from an empty bot. Both are drafts that you edit.">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">

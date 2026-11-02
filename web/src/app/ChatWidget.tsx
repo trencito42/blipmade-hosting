@@ -35,6 +35,7 @@ interface BotOut {
   ai?: boolean;
   options?: { id: string; label: string }[];
   articles?: { title: string; url: string; summary: string }[];
+  items?: string[];
   input?: string;
 }
 
@@ -42,7 +43,7 @@ interface BotView {
   id: string;
   /** The flow reached its end: the customer is asked how it was. */
   ended?: boolean;
-  entries: { from: 'bot' | 'customer'; text: string; ai?: boolean; links?: { title: string; url: string }[] }[];
+  entries: { from: 'bot' | 'customer'; text: string; ai?: boolean; links?: { title: string; url: string }[]; suggestions?: string[] }[];
   prompt: BotOut | null;
   /** How the assistant is shown at the top: its name, its picture, and whether it answers with an AI. */
   persona?: { name: string; avatarUrl: string | null; ai: boolean };
@@ -194,7 +195,7 @@ export default function ChatWidget() {
   function entriesOf(messages: BotOut[]): BotView['entries'] {
     const shown: BotView['entries'] = messages
       .filter((out) => out.kind !== 'buttons' && out.kind !== 'ask')
-      .map((out) => (out.kind === 'articles' ? { from: 'bot', text: 'These pages may help:', links: (out.articles ?? []).map((a) => ({ title: a.title, url: a.url })) } : { from: 'bot', text: out.text ?? '', ai: out.ai }));
+      .map((out) => (out.kind === 'suggestions' ? { from: 'bot', text: '', suggestions: out.items ?? [] } : out.kind === 'articles' ? { from: 'bot', text: 'These may help:', links: (out.articles ?? []).map((a) => ({ title: a.title, url: a.url })) } : { from: 'bot', text: out.text ?? '', ai: out.ai }));
     // The question that waits for an answer is the last thing said.
     const asks: BotView['entries'] = messages.filter((out) => out.kind === 'buttons' || out.kind === 'ask').map((out) => ({ from: 'bot', text: out.text ?? '' }));
     return [...shown, ...asks];
@@ -380,19 +381,30 @@ export default function ChatWidget() {
             {bot && !conversation ? (
               <div className="grid gap-2">
                 <ul className="grid gap-2">
-                  {bot.entries.map((entry, index) => (
+                  {bot.entries.map((entry, index, all) => {
+                    // Only the latest suggestions are offered, and only until the customer writes again.
+                    const lastSuggestions = all.reduce((found, item, i) => (item.suggestions ? i : item.from === 'customer' ? -1 : found), -1);
+                    return (
                     <li key={index} className={cn('flex flex-col', entry.from === 'customer' ? 'items-end' : 'items-start')}>
-                      <p className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14.5px]', entry.from === 'customer' ? 'bg-acc text-on-acc' : 'bg-s2 text-ink')}>{entry.text}</p>
+                      {entry.text && <p className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[14.5px]', entry.from === 'customer' ? 'bg-acc text-on-acc' : 'bg-s2 text-ink')}>{entry.text}</p>}
+                      {entry.suggestions && index === lastSuggestions && !sending && (
+                        <div className="mt-1 flex flex-wrap gap-1.5" role="group" aria-label="You may also ask">
+                          {entry.suggestions.map((item) => (
+                            <button key={item} type="button" onClick={() => void answerBot({ text: item }, item)} className="min-h-11 rounded-full border border-line bg-card px-3.5 text-[14px] text-ink hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">{item}</button>
+                          ))}
+                        </div>
+                      )}
                       {entry.ai && <span className="mt-0.5 px-1 text-[11px] text-ink3">AI answer, it can be wrong</span>}
                       {entry.links && (
                         <ul className="mt-1 grid gap-1">
                           {entry.links.map((link) => (
-                            <li key={link.url}><a href={link.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-[13.5px] text-acc underline">{link.title}</a></li>
+                            <li key={link.url || link.title}>{link.url ? <a href={link.url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-[13.5px] text-acc underline">{link.title}</a> : <span className="inline-flex min-h-8 items-center text-[13.5px] text-ink2">{link.title}</span>}</li>
                           ))}
                         </ul>
                       )}
                     </li>
-                  ))}
+                    );
+                  })}
                   {sending && (
                     <li className="flex flex-col items-start" role="status">
                       <span className="sr-only">The assistant is writing</span>
