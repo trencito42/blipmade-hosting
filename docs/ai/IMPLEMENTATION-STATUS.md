@@ -12,6 +12,8 @@ Billing/capacity review ported the missing compare-and-set guards and their regr
 
 Signed Pterodactyl downloads are ported from the final old-branch design: the panel's `signed_url` envelope is resolved server-side, every HTTPS destination/redirect is checked against an exact operator allowlist, large file/backup bodies are streamed without whole-response buffering, and browser disconnect closes the upstream stream. Deployment remains blocked on the operator setting and validating `PTERODACTYL_DOWNLOAD_HOSTS`.
 
+All 56 old-branch commits now have an explicit decision in `docs/ai/LAUNCH-HARDENING-REVIEW.md`: ported, already present, or superseded. Task C code review/porting is complete, but remains IN_PROGRESS rather than IMPLEMENTED because the required disposable-database API suite and operator staging checks have not run.
+
 ## Approved Admin follow-up (Task A)
 
 IN_PROGRESS. Staff role/permission step-up backend checkpoint added: session-scoped ten-minute confirmation by password or TOTP, server enforcement, audit events, migration and API coverage. API typecheck passes; database tests and `StaffEdit` confirmation UI remain, so this is not marked IMPLEMENTED. Task C now takes priority before completing Task A.

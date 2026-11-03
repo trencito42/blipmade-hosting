@@ -155,15 +155,13 @@ describe('the key of the rate limit', () => {
     expect(rateLimitKey(request)).toBe(CLIENT);
   });
 
-  it('is the connection when the proxy is not trusted', () => {
+  it('keeps the same peer-IP counter across new connections from an untrusted proxy', () => {
     const first = fakeRequest({ ip: UNTRUSTED_PROXY, peer: UNTRUSTED_PROXY, port: 40_001, forwardedFor: CLIENT });
-    const second = fakeRequest({ ip: UNTRUSTED_PROXY, peer: UNTRUSTED_PROXY, port: 40_002, forwardedFor: CLIENT });
+    const second = fakeRequest({ ip: UNTRUSTED_PROXY, peer: UNTRUSTED_PROXY, port: 40_002, forwardedFor: '198.51.100.20' });
 
-    // The address of the client is not known, so the counter is the counter
-    // of the connection and not one counter for the whole platform.
-    expect(rateLimitKey(first)).not.toBe(UNTRUSTED_PROXY);
-    expect(rateLimitKey(first)).toBe(`${UNTRUSTED_PROXY}:40001`);
-    expect(rateLimitKey(first)).not.toBe(rateLimitKey(second));
+    // Untrusted forwarded headers and ephemeral ports must not reset a limit.
+    expect(rateLimitKey(first)).toBe(UNTRUSTED_PROXY);
+    expect(rateLimitKey(first)).toBe(rateLimitKey(second));
   });
 
   it('is the address of the caller when there is no chain of proxies', () => {
