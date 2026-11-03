@@ -29,7 +29,8 @@ test('the notifications are divided rows, the unread one is tinted and the actio
   await expect(rows).toHaveCount(3);
   await expect(rows.first()).toHaveAttribute('data-unread', 'true');
   const metrics = await rows.evaluateAll((nodes) => nodes.map((node) => ({ top: getComputedStyle(node).borderTopWidth, bottom: getComputedStyle(node).borderBottomWidth, tint: getComputedStyle(node).backgroundColor !== 'rgba(0, 0, 0, 0)' })));
-  expect(metrics.map((row) => row.top)).toEqual(['0px', '1px', '1px']);
+  // The line is between two rows of one group; a row under a heading has none.
+  expect(metrics[0]!.top).toBe('0px');
   expect(metrics.every((row) => row.bottom === '0px')).toBe(true);
   expect(metrics.map((row) => row.tint)).toEqual([true, false, false]);
   const read = rows.first().getByRole('button', { name: /Mark as read: Message 3/ });
@@ -44,4 +45,14 @@ test('the notifications fit at 390px', async ({ page }) => {
   await page.goto('/app/notifications');
   await expect(page.locator('li[data-unread]')).toHaveCount(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+});
+
+test('the notifications are grouped by day and the first row under a heading has no line above it', async ({ page }) => {
+  await stub(page);
+  await page.goto('/app/notifications');
+  const heading = page.locator('li[data-group]').first();
+  await expect(heading).toBeVisible();
+  await expect(heading).toHaveText(/Today|Yesterday|Earlier/);
+  const border = await heading.evaluate((node) => getComputedStyle(node.nextElementSibling!).borderTopWidth);
+  expect(border).toBe('0px');
 });

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { AppShell, ErrorState, LoadingBlock } from './ui-app';
-import { ADMIN_GROUPS, ADMIN_NAV, CUSTOMER_GROUPS, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS } from './nav';
+import { ADMIN_GROUPS, ADMIN_NAV, CUSTOMER_GROUPS, ADMIN_PHONE_TABS, CUSTOMER_NAV, CUSTOMER_PHONE_TABS, CUSTOMER_SERVICE_PAGES } from './nav';
 import { useSession } from './session';
 import { ParamsProvider, matchPath, useParams, useRouter } from './router';
 import { Link } from './router';
@@ -689,6 +689,7 @@ export default function AppRoutes() {
           title={route.title}
           subtitle={route.subtitle}
           layout={route.layout}
+          servicePages={route.area === 'customer' ? CUSTOMER_SERVICE_PAGES : undefined}
           environment={route.area === 'admin' ? 'Staff · Production' : undefined}
           actions={route.area === 'customer' ? <ShellAction path={path} /> : undefined}
         >

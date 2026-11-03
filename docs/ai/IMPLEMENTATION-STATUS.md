@@ -11,6 +11,7 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 | Top bar primary action per list page | IMPLEMENTED | `routes.tsx` contextAction |
 
 ## App routes (VIEW-MATRIX)
+Phone bar: Overview, Services (apps, servers, domains, email via switch on each page), Deploy (round), Support, More (all pages). IMPLEMENTED (`web/src/nav.ts`, `ui-app.tsx` AppShell `servicePages`).
 | Route | Status | Remaining |
 |---|---|---|
 | /app Overview | IMPLEMENTED (basic) | richer cross-product alerts, activity beyond apps |
@@ -24,7 +25,7 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 | /app/billing tabs, order, subscription pages | IMPLEMENTED | credit/history tabs (no history API) |
 | /app/tickets list, new, :id (compact header, sticky reply) | IMPLEMENTED | – |
 | /app/settings (profile, billing address, email, password, 2FA, passkeys, API keys, closure) | IMPLEMENTED | sessions page, notification prefs stay inline |
-| /app/notifications | IMPLEMENTED | grouped sections |
+| /app/notifications (grouped Today/Yesterday/Earlier) | IMPLEMENTED | – |
 
 ## Admin 3.0
 IN_PROGRESS. 35 admin routes. Done: `/admin/products/:id/edit` (first dedicated admin editor, shell `layout: 'editor'`). Not done: Customer 360 tabs, Activity Explorer, other editors (orders, VPS, pricing, staff, notifications, content, settings, bots, automations, promotions still inline/overlay editors). Spec: `audit/admin-master-2026-11-03/*`. Shares tooltip/table/pager components; DataTable restyle already affects admin (unverified).

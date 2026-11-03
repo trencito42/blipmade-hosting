@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import {
   del,
   formatMoment,
@@ -66,6 +66,13 @@ export function categoryLabel(categories: NotificationCategoryView[], key: strin
  * A link inside the platform keeps the router of the application, a link
  * outside of it is a plain address.
  */
+/** The section of a message: today, yesterday or earlier. */
+function dayGroup(iso: string): string {
+  const day = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const diff = Math.round((day(new Date()) - day(new Date(iso))) / 86_400_000);
+  return diff <= 0 ? 'Today' : diff === 1 ? 'Yesterday' : 'Earlier';
+}
+
 function actionTarget(url: string): { to?: string; href?: string } {
   return /^https?:\/\//i.test(url) ? { href: url } : { to: url };
 }
@@ -369,15 +376,25 @@ export function NotificationList({
 
   return (
     <ul className="grid">
-      {notifications.map((notification) => (
-        <NotificationRow
-          key={notification.id}
-          notification={notification}
-          label={categoryLabel(categories, notification.category)}
-          onMarkRead={onMarkRead}
-          onDelete={onDelete}
-        />
-      ))}
+      {notifications.map((notification, index) => {
+        const group = dayGroup(notification.createdAt);
+        const heading = index === 0 || group !== dayGroup(notifications[index - 1]!.createdAt);
+        return (
+          <Fragment key={notification.id}>
+            {heading && (
+              <li role="presentation" data-group={group} className="px-1 pb-1.5 pt-4 text-[12px] font-bold uppercase tracking-[0.1em] text-ink3 first:pt-0">
+                {group}
+              </li>
+            )}
+            <NotificationRow
+              notification={notification}
+              label={categoryLabel(categories, notification.category)}
+              onMarkRead={onMarkRead}
+              onDelete={onDelete}
+            />
+          </Fragment>
+        );
+      })}
     </ul>
   );
 }
@@ -416,7 +433,7 @@ export function NotificationRow({
       data-unread={unread ? 'true' : 'false'}
       onClick={onRowClick}
       className={cn(
-        'grid gap-1.5 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0',
+        'grid gap-1.5 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0 [li[role=presentation]+&]:border-t-0 [li[role=presentation]+&]:pt-0',
         // A message that was not read is drawn apart by a tint; the line between the rows stays.
         unread && 'cursor-pointer -mx-3 bg-acc-bg px-3 first:pt-3.5 last:pb-3.5',
       )}

@@ -12,6 +12,8 @@ const INSTANCES: NavEntry = { to: '/app/instances', label: 'Apps & databases', s
 const DOMAINS: NavEntry = { to: '/app/domains', label: 'Domains', shortLabel: 'Domains', icon: 'globe' };
 const MAIL: NavEntry = { to: '/app/mail', label: 'Email', shortLabel: 'Email', icon: 'mail' };
 const VPS: NavEntry = { to: '/app/vps', label: 'Servers', shortLabel: 'Servers', icon: 'server' };
+/** The phone tab for everything the customer owns: apps, servers, domains, email. A switch on the page moves between them. */
+const SERVICES: NavEntry = { to: '/app/instances', label: 'Services', shortLabel: 'Services', icon: 'box', also: ['/app/vps', '/app/domains', '/app/mail'] };
 const BILLING: NavEntry = { to: '/app/billing', label: 'Billing', shortLabel: 'Billing', icon: 'card' };
 const SUPPORT: NavEntry = { to: '/app/tickets', label: 'Support', shortLabel: 'Support', icon: 'doc' };
 const SETTINGS: NavEntry = { to: '/app/settings', label: 'Settings', shortLabel: 'Settings', icon: 'shield' };
@@ -31,8 +33,11 @@ export const CUSTOMER_GROUPS: NavGroup[] = [
   { id: 'settings', label: SETTINGS.label, icon: SETTINGS.icon, items: [SETTINGS] },
 ];
 
-/** Phone bottom bar: Overview, Apps, the round Deploy button, Support. The rest opens from More. */
-export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, INSTANCES, { ...DEPLOY, primary: true }, SUPPORT];
+/** Phone bottom bar: Overview, Services, the round Deploy button, Support. Billing and Settings open from More. */
+export const CUSTOMER_PHONE_TABS: NavEntry[] = [OVERVIEW, SERVICES, { ...DEPLOY, primary: true }, SUPPORT];
+
+/** The pages the Services tab holds, as a switch at the top of each on a phone. */
+export const CUSTOMER_SERVICE_PAGES: NavEntry[] = [INSTANCES, VPS, DOMAINS, MAIL];
 
 export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin', label: 'Dashboard', shortLabel: 'Home', icon: 'chart', exact: true },

@@ -92,6 +92,8 @@ export interface NavEntry {
   shortLabel?: string;
   /** The main action of the phone bar: a round button of the accent colour. */
   primary?: boolean;
+  /** Other pages that belong to this entry: it is active on them and they leave the More sheet. */
+  also?: string[];
 }
 
 /** A group of the sidebar: a heading that opens and closes, with the pages of one kind of work under it. */
@@ -264,6 +266,7 @@ export function AppShell({
   phoneTabs,
   groups,
   layout,
+  servicePages,
 }: {
   nav: NavEntry[];
   title: string;
@@ -276,14 +279,16 @@ export function AppShell({
   groups?: NavGroup[];
   /** `editor`: a dedicated create/edit page. The top bar carries the way back, the page carries the heading. */
   layout?: 'editor';
+  /** Pages that share the Services tab of the phone: a switch between them is shown at the top of each. */
+  servicePages?: NavEntry[];
 }) {
   const { path } = useRouter();
   const editor = layout === 'editor';
   const [back, setBack] = useState<EditorBack | null>(null);
   const backControl = useMemo(() => ({ present: editor, set: setBack }), [editor]);
   const theme = useTheme();
-  const isActive = (entry: NavEntry) =>
-    entry.exact ? path === entry.to : path === entry.to || path.startsWith(`${entry.to}/`);
+  const under = (base: string) => path === base || path.startsWith(`${base}/`);
+  const isActive = (entry: NavEntry) => (entry.exact ? path === entry.to : under(entry.to) || Boolean(entry.also?.some(under)));
 
   // The bell of the notifications belongs to the customer area. The staff
   // area has its own queue and its own log, and a member of the staff does
@@ -298,7 +303,7 @@ export function AppShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const moreButton = useRef<HTMLButtonElement>(null);
   const sheet = useRef<HTMLDivElement>(null);
-  const rest = useMemo(() => nav.filter((entry) => !tabs.some((tab) => tab.to === entry.to)), [nav, tabs]);
+  const rest = useMemo(() => nav.filter((entry) => !tabs.some((tab) => tab.to === entry.to || tab.also?.includes(entry.to))), [nav, tabs]);
   const { user, logout } = useSession();
   const restActive = rest.some(isActive);
 
@@ -462,7 +467,26 @@ export function AppShell({
               the bottom: the last row of a table is never hidden. The reserve
               is on the footer, because the footer is the last thing on the
               page. */}
-          <main className="flex-1 px-4 pb-8 pt-2 sm:px-6 lg:pb-10">{children}</main>
+          <main className="flex-1 px-4 pb-8 pt-2 sm:px-6 lg:pb-10">
+            {!editor && servicePages && servicePages.some((page) => path === page.to || path.startsWith(`${page.to}/`)) && (
+              <nav aria-label="Services" className="mb-3 flex gap-1.5 overflow-x-auto no-scrollbar lg:hidden">
+                {servicePages.map((page) => {
+                  const on = path === page.to || path.startsWith(`${page.to}/`);
+                  return (
+                    <Link
+                      key={page.to}
+                      to={page.to}
+                      aria-current={on ? 'page' : undefined}
+                      className={cn('flex min-h-11 shrink-0 items-center rounded-full border px-4 text-[14px] font-semibold', on ? 'border-acc/40 bg-acc-bg text-ink' : 'border-line text-ink2')}
+                    >
+                      {page.shortLabel ?? page.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+            {children}
+          </main>
           {/* The legal links are on every page of the app, so the terms
               are never further than one click away. */}
           <footer data-print-hide="" className={cn('px-4 pt-6 sm:px-6 lg:pb-10', editor ? 'pb-8' : 'pb-32')}>
