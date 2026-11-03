@@ -9,6 +9,7 @@ interface Proposal {
   runtime: string | null;
   confidence: 'confirmed' | 'likely' | 'unknown';
   start: string | null;
+  build?: string | null;
   files: string[];
   notes: string[];
   services?: { slug: string; reason: string }[];
@@ -44,7 +45,7 @@ export function ImportProject() {
   });
 
   return (
-    <Panel title="Import a project" description="Paste a public GitHub or GitLab URL, or a zip of at most 8 MB. Blipmade reads the manifest files only. After you order the server, upload the same zip on its Deploy tab. The build runs inside that server.">
+    <Panel title="Import a project" description="Paste a public GitHub or GitLab URL, or a zip of at most 8 MB. Blipmade reads the manifest files only and keeps that zip for the order. The build runs inside the new server. You do not upload the zip again.">
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-[240px] flex-1">
           <TextInput label="Repository URL" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/owner/project" autoComplete="off" spellCheck={false} />
@@ -59,7 +60,8 @@ export function ImportProject() {
       {proposal && (
         <div className="mt-3 grid gap-1 text-[14px] text-ink2">
           <p>{proposal.productSlug ? <>This looks like <span className="font-semibold text-ink">{proposal.runtime}</span>. Confidence: {proposal.confidence}.</> : 'No supported runtime was found.'}</p>
-          {proposal.start && <p>Start script: <code className="font-mono text-[13px]">{proposal.start}</code></p>}
+          {proposal.build && <p>Build: <code className="font-mono text-[13px]">{proposal.build}</code></p>}
+          {proposal.start && <p>Start: <code className="font-mono text-[13px]">{proposal.start}</code></p>}
           {proposal.files.length > 0 && <p>Read: {proposal.files.join(', ')}</p>}
           {proposal.notes.map((note) => <p key={note}>{note}</p>)}
           {(proposal.services ?? []).map((service) => <p key={service.slug}>{service.reason} <Link to={`/app/deploy/${encodeURIComponent(service.slug)}`} className="font-semibold text-acc">Order {service.slug}</Link></p>)}

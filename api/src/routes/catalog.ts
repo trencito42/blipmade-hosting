@@ -256,7 +256,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       }).parse(request.body ?? {});
       if (body.zipBase64) return { proposal: inspectZip(Buffer.from(body.zipBase64, 'base64')) };
       if (body.url) return { proposal: await inspectGitUrl(body.url) };
-      return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, files: [], services: [], notes: ['Paste a repository URL or choose a zip.'] } };
+      return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, build: null, files: [], services: [], notes: ['Paste a repository URL or choose a zip.'] } };
     },
   });
 
@@ -284,10 +284,10 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         if (quota) throw badRequest(quota);
       }
       const proposal = zip ? inspectZip(zip) : body.url ? await inspectGitUrl(body.url) : null;
-      if (!proposal?.productSlug || !proposal.start) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
+      if (!proposal?.productSlug || !proposal.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
       const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, deployable: true, visible: true } });
       if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
-      const buildCommand = cleanCommand(body.buildCommand ?? (proposal.runtime === 'python' ? 'pip install -r requirements.txt' : 'npm install'), 'buildCommand', false);
+      const buildCommand = cleanCommand(body.buildCommand ?? proposal.build, 'buildCommand', false);
       const startCommand = cleanCommand(body.startCommand ?? proposal.start, 'startCommand', true);
       const repoUrl = body.url ? cleanRepoUrl(body.url) : null;
       const quote = await buildQuote([{ productSlug: product.slug, ram: product.defaultRam, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug }], null, user.id);

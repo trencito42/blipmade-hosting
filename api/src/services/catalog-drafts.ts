@@ -74,10 +74,11 @@ const PLAN_FAMILIES: DraftFamily[] = [
     slug: 'custom-runtime',
     name: 'Custom runtime',
     group: 'custom-runtime',
-    summary: 'Node.js, Python, Go and the other language runtimes.',
+    summary: 'Node.js, Python, PHP, Go and the other language runtimes.',
     variants: [
       { slug: 'nodejs', label: 'Node.js' },
       { slug: 'python', label: 'Python' },
+      { slug: 'php', label: 'PHP' },
       { slug: 'golang', label: 'Go' },
       { slug: 'java', label: 'Java' },
       { slug: 'rust-runtime', label: 'Rust' },
@@ -98,11 +99,11 @@ function groupFor(category: string, slug: string): CatalogGroup {
   if (slug === 'teamspeak-6' || slug === 'lavalink') return 'voice';
   if (category === 'WEB_CMS') return 'websites-apps';
   if (category === 'DATABASES') return 'databases-caches';
-  if (category === 'DEVELOPER_TOOLS' && ['dotnet', 'dart', 'deno', 'elixir', 'golang', 'java', 'lua', 'nodejs', 'python', 'rust-runtime'].includes(slug)) return 'custom-runtime';
+  if (category === 'DEVELOPER_TOOLS' && ['dotnet', 'dart', 'deno', 'elixir', 'golang', 'java', 'lua', 'nodejs', 'python', 'php', 'rust-runtime'].includes(slug)) return 'custom-runtime';
   return 'tools-automation';
 }
 
-/** The 68 eggs, grouped for the admin draft. Nothing here is prepared or visible. */
+/** Every manifest egg, grouped for the admin draft. Nothing here is prepared or visible. */
 export function draftFamilies(products: { slug: string; name: string; category: string }[]): DraftFamily[] {
   const bySlug = new Map(products.map((product) => [product.slug, product]));
   const families: DraftFamily[] = [];

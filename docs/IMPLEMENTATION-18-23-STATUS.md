@@ -8,19 +8,23 @@ Acceptance: every manifest egg in a family; single-variant families visible; pre
 
 Done before this pass: `draftFamilies` groups all products, `publishReadyFamilies` keeps one-variant families, checkout stores `catalog` on the order item.
 
-This pass: `catalogInstallPlan` writes the chosen preset into the container after the server is online (`applyCatalogInstall`). Discord presets use `npm install && node index.js`. Paper survival merges `server.properties`. CS2, CS 1.6, Rust and Valheim set egg environment. FiveM writes `blipmade-freeroam` and appends `ensure` once. `installationManifest` records installed or failed. Worker retries failures.
+`3f5400a`: `catalogInstallPlan` writes the chosen preset into the container after the server is online. Discord presets use `npm install && node index.js`. Paper survival merges `server.properties`. CS2, CS 1.6, Rust and Valheim set egg environment. FiveM writes `blipmade-freeroam` and appends `ensure` once. `installationManifest` records installed or failed. Worker retries failures. Unit test `catalog-install.test.ts` passed. Not proven on a live panel.
 
-Remaining: `publishReadyFamilies` is not run by deploy. Preset install is not proven on a live Pterodactyl server. Not every egg has a gameplay preset; eggs without one stay orderable as themselves.
+This pass: PHP is a manifest product (`php`, egg `php.json`, image `php:8.3-cli`). It is created not deployable until the egg is imported on the panel and an operator marks it deployable. Existing product flags and prices are not changed.
 
-Next: run the draft sync and publish on a disposable database, then a disposable Discord and Paper server.
+Remaining: `publishReadyFamilies` is not run by deploy. Preset install is not proven on a live Pterodactyl server. Not every egg has a gameplay preset.
+
+Next: import `php.json` on a disposable panel, then order one PHP server.
 
 ## #18 Smart Deploy
 
 Done: inspect, stored import, checkout handoff, container build, health before fulfillment, zip quota.
 
-Remaining: one wizard that does not upload the zip twice; Python and PHP runtimes; MySQL, Postgres and Redis provisioning with injected credentials; project grouping; redeploy and rollback.
+This pass: Node, Next.js, Vite, FastAPI and Laravel get a build and a start command from the manifest. Confidence is `likely` when the entry file is assumed. Suggested databases stay suggestions. The stored zip is the one used at order time; the import page no longer asks for a second upload. `GIT_RUNTIMES` includes `python` and `php`. Unit test `import-runtime.test.ts` passed. The build still runs only inside the container.
 
-Next: extend `GIT_RUNTIMES` and the import plan so a detected Python or PHP project builds inside its container.
+Remaining: MySQL, Postgres and Redis are not provisioned or injected. No project grouping. No disposable multi-service deploy. PHP cannot be ordered until its egg is on the panel and the product is deployable. Go and Rust are detected but have no start command.
+
+Next: provision a database instance for a confirmed suggestion and write its URL into the application env file inside the app container.
 
 ## #19 Game panel
 

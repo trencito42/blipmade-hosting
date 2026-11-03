@@ -1,0 +1,30 @@
+{
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-11-03T21:00:00+00:00",
+    "name": "PHP 8.3",
+    "author": "blipmade@blipmade.com",
+    "description": "PHP 8.3 for Composer and Laravel. Blipmade installs the project inside this container. The image is the official php:8.3-cli image.",
+    "features": null,
+    "docker_images": {
+        "PHP 8.3": "php:8.3-cli"
+    },
+    "file_denylist": [],
+    "startup": "php -S 0.0.0.0:{{SERVER_PORT}} -t /home/container/public",
+    "config": {
+        "files": "{}",
+        "startup": "{\n    \"done\": \"Development Server\"\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\nmkdir -p /mnt/server/public\nexit 0\n",
+            "container": "php:8.3-cli",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": []
+}
