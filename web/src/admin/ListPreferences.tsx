@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Icon } from '../icons';
@@ -9,6 +9,14 @@ export type SavedViewScope = 'customers' | 'orders' | 'services' | 'tickets';
 export type SavedQuery = Record<string, string | number | boolean | null>;
 
 interface SavedView { id: string; name: string; query: SavedQuery; createdAt: string }
+
+function sameQuery(current: SavedQuery, saved: SavedQuery) {
+  const keys = new Set([...Object.keys(current), ...Object.keys(saved)]);
+  for (const key of keys) {
+    if ((current[key] ?? null) !== (saved[key] ?? null)) return false;
+  }
+  return true;
+}
 export interface ColumnChoice { key: string; label: string; required?: boolean }
 
 export function useColumnPicker(scope: SavedViewScope, columns: ColumnChoice[]) {
@@ -56,6 +64,7 @@ export function ListPreferences({
   onResetColumns: () => void;
 }) {
   const toast = useToast();
+  const viewsMenu = useRef<HTMLDetailsElement>(null);
   const [name, setName] = useState('');
   const views = useAsync((signal) => get<{ views: SavedView[] }>('/admin/saved-views', { scope }, signal), [scope]);
   const save = useAction(async () => post<{ view: SavedView }>('/admin/saved-views', { scope, name: name.trim(), query }));
@@ -77,9 +86,15 @@ export function ListPreferences({
     toast.push(`Deleted “${view.name}”`, 'ok');
   };
 
+  const applyView = (view: SavedView) => {
+    onApply(view.query);
+    if (viewsMenu.current) viewsMenu.current.open = false;
+    toast.push(`Showing “${view.name}”`, 'ok');
+  };
+
   return (
     <div className="flex flex-wrap items-start gap-2" aria-label="List preferences">
-      <details className="group relative">
+      <details ref={viewsMenu} className="group relative z-30">
         <summary className={`${denseGhost} cursor-pointer list-none`}><Icon name="eye" size={15} /> Views</summary>
         <div className="absolute left-0 z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-line bg-card p-4 shadow-xl">
           <p className="text-[13px] font-semibold text-ink">Private views</p>
@@ -91,14 +106,25 @@ export function ListPreferences({
           {save.error && <p role="alert" className="mt-2 text-[12px] text-bad">{save.error}</p>}
           {views.loading ? <p className="mt-3 text-[12px] text-ink3">Loading views…</p> : views.error ? <button type="button" onClick={views.reload} className="mt-3 text-[12px] text-bad underline">Could not load views. Retry</button> : (
             <ul className="mt-3 grid max-h-56 gap-1 overflow-y-auto">
-              {(views.data?.views ?? []).map((view) => <li key={view.id} className="flex items-center gap-2 rounded-xl hover:bg-s2"><button type="button" className="min-w-0 flex-1 truncate px-3 py-2 text-left text-[13px] text-ink" onClick={() => onApply(view.query)}>{view.name}</button><button type="button" aria-label={`Delete ${view.name}`} disabled={remove.pending} onClick={() => void deleteView(view)} className="rounded-lg p-2 text-ink3 hover:bg-s3 hover:text-bad"><Icon name="trash" size={14} /></button></li>)}
+              {(views.data?.views ?? []).map((view) => {
+                const active = sameQuery(query, view.query);
+                return (
+                  <li key={view.id} className={`flex items-center gap-1 rounded-xl ${active ? 'bg-s2' : 'hover:bg-s2'}`}>
+                    <button type="button" aria-label={view.name} aria-pressed={active} className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-[13px] text-ink" onClick={() => applyView(view)}>
+                      <span className="min-w-0 flex-1 truncate">{view.name}</span>
+                      <span aria-hidden="true" className="shrink-0 text-[12px] font-semibold text-acc">{active ? 'On' : 'Use'}</span>
+                    </button>
+                    <button type="button" aria-label={`Delete ${view.name}`} disabled={remove.pending} onClick={() => void deleteView(view)} className="rounded-lg p-2 text-ink3 hover:bg-s3 hover:text-bad"><Icon name="trash" size={14} /></button>
+                  </li>
+                );
+              })}
               {!views.data?.views.length && <li className="px-3 py-2 text-[12px] text-ink3">No saved views yet.</li>}
             </ul>
           )}
           {remove.error && <p role="alert" className="mt-2 text-[12px] text-bad">{remove.error}</p>}
         </div>
       </details>
-      <details className="group relative">
+      <details className="group relative z-30">
         <summary className={`${denseGhost} cursor-pointer list-none`}><Icon name="menu" size={15} /> Columns</summary>
         <div className="absolute left-0 z-30 mt-2 w-64 rounded-2xl border border-line bg-card p-4 shadow-xl">
           <p className="text-[13px] font-semibold text-ink">Visible columns</p>

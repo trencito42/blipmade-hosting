@@ -32,9 +32,12 @@ test('an operator saves, reapplies and keeps personal list preferences', async (
   await page.getByLabel('Accounts').selectOption('all');
   await page.getByRole('searchbox', { name: 'Search' }).fill('');
   await page.getByText('Views', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Staff named Ada', exact: true })).toContainText('Use');
   await page.getByRole('button', { name: 'Staff named Ada', exact: true }).click();
   await expect(page.getByLabel('Accounts')).toHaveValue('staff');
   await expect(page.getByRole('searchbox', { name: 'Search' })).toHaveValue('Ada');
+  await page.getByText('Views', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Staff named Ada', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
   await page.getByText('Views', { exact: true }).click();
   await page.getByText('Columns', { exact: true }).click();
