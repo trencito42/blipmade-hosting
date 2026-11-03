@@ -503,7 +503,7 @@ This checklist records executable implementation work on `audit/admin-master-spe
 
 ### Verification executed
 
-- Web TypeScript check and full web unit suite: pass.
+- Web TypeScript check: pass. Full web unit suite: the first run of this checkpoint had 3 failures (two table tests and the editor contract test asserted the old card rows and the fixed action bar); the code was deployed before they were fixed, and the tests were updated to the new contract in the next commit. After that: 489 pass, 0 fail.
 - New Playwright spec `app-editor-shell` at 1440px and 390px over 9 editors (email, password, billing address, new domain, new ticket, backup create, startup, cancel subscription, mail domain): 18/18 pass (one visible h1 that is not the error page, one `main`, one Back in the header, one footer, no horizontal overflow, no wide fixed layer at the bottom, legal links at the bottom of a short page, phone bar hidden). Screenshots reviewed for the email and startup editors.
 - All other Playwright suites except the admin audit ones that need a seed file: 116 pass; 13 fail on the public site and login (`auth`, `public`, `mobile` specs: two "Log in" buttons, price assertions on the home page). They are in code this checkpoint did not touch.
 - Not covered: 320/430/768/1024/1920px, 200% zoom, software keyboard and safe-area behavior, and the admin area with the shared table style; no real device or browser session.

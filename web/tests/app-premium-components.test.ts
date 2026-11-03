@@ -116,15 +116,30 @@ describe('premium customer controls', () => {
     assert.match(html, /Up to 5 files, 5\.0 MB each/);
   });
 
-  it('renders the dedicated editor contract with back navigation, dirty state and sticky actions', () => {
+  it('renders the dedicated editor contract: one title, a way back, dirty state and the actions after the form', () => {
     const html = render(createElement(ui.PageEditorShell, {
       eyebrow: 'Support', title: 'Open a ticket', backTo: '/app/tickets', backLabel: 'Back to support', dirty: true,
       actions: createElement('button', null, 'Save'), children: createElement('p', null, 'Form'),
     }));
+    // Outside of the shell there is no top bar to carry the way back, so the page shows it itself.
     assert.match(html, /href="\/app\/tickets"/);
+    assert.equal((html.match(/<h1/g) ?? []).length, 1);
+    assert.equal((html.match(/<main/g) ?? []).length, 0);
+    assert.equal((html.match(/<footer/g) ?? []).length, 0);
     assert.match(html, /Unsaved changes/);
-    assert.match(html, /fixed inset-x-0 bottom-0/);
+    assert.doesNotMatch(html, /fixed inset-x-0/);
+    assert.doesNotMatch(html, /sticky bottom-3/);
     assert.match(html, />Save</);
+  });
+
+  it('sticks the actions of a long form to the content column and never to the viewport', () => {
+    const html = render(createElement(ui.PageEditorShell, {
+      eyebrow: 'Support', title: 'Open a ticket', backTo: '/app/tickets', backLabel: 'Back to support', stickyActions: true,
+      actions: createElement('button', null, 'Save'), children: createElement('p', null, 'Form'),
+    }));
+    assert.match(html, /sticky bottom-3/);
+    assert.doesNotMatch(html, /fixed inset-x-0/);
+    assert.doesNotMatch(html, /Unsaved changes/);
   });
 });
 

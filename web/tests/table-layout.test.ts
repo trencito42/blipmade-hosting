@@ -52,24 +52,16 @@ test('a long value is cut in the cell and not in the header', () => {
   assert.ok(cellClass(col, 0, 3).includes('max-w-0'));
 });
 
-test('the first and the last cell of a row carry the ends of the row', () => {
-  const col = column();
-  const first = cellClass(col, 0, 3);
-  const middle = cellClass(col, 1, 3);
-  const last = cellClass(col, 2, 3);
-
-  assert.ok(first.includes('rounded-l-2xl'));
-  assert.ok(!first.includes('rounded-r-2xl'));
-  assert.ok(!middle.includes('rounded-l-2xl'));
-  assert.ok(!middle.includes('rounded-r-2xl'));
-  assert.ok(last.includes('rounded-r-2xl'));
-  assert.ok(!last.includes('rounded-l-2xl'));
-});
-
-test('every cell of a row has the same surface', () => {
+test('the rows are divided by a line and are not cards', () => {
   const col = column();
   for (const index of [0, 1, 2]) {
-    assert.ok(cellClass(col, index, 3).includes('bg-card'));
+    const cell = cellClass(col, index, 3);
+    // A line above every cell of a row; the table takes it away from the first row, so none is under the last.
+    assert.ok(cell.includes('border-t'));
+    assert.ok(cell.includes('border-line'));
+    assert.ok(!cell.includes('rounded-l-2xl'));
+    assert.ok(!cell.includes('rounded-r-2xl'));
+    assert.ok(!cell.includes('bg-card'));
   }
 });
 
