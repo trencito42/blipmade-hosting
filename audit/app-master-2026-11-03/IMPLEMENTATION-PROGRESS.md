@@ -71,3 +71,20 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npx tsc --noEmit` and `npm run typecheck:e2e` in `web`: pass.
 - Focused component/route tests: 12/12 pass.
 - Focused Playwright ticket + domain editor suite: 5/5 pass, including both 390px checks.
+
+## 2026-11-03 — Dedicated email-domain workflow
+
+### Completed
+
+- [x] Migrated the email-domain dialog from `/app/mail` to `/app/mail/domains/new`, registered before the dynamic email-domain route.
+- [x] Preserved both backend paths: plan-associated `POST /mail/services/:serviceId/domains` and the existing standalone `POST /mail/domains` fallback.
+- [x] Added plan search and quota context, disabled full/cancelled subscriptions, duplicate-domain validation, server field errors, Save/Discard and dirty navigation protection.
+- [x] Kept the ownership proof in the successful editor state and linked directly to the existing domain workspace for MX, SPF and DKIM configuration.
+- [x] Preserved the current `/app/mail` service/domain split and all plan lifecycle controls.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static email-editor contract test: 1/1 pass.
+- Focused Playwright email-domain editor suite: 2/2 pass, including exact API payload, ownership proof and 390px overflow/action reachability.

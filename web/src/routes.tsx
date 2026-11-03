@@ -38,6 +38,7 @@ const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
 const AppNewDomain = lazy(() => import('./app/NewDomain'));
 const AppMail = lazy(() => import('./app/Mail'));
+const AppNewMailDomain = lazy(() => import('./app/mail/NewMailDomain'));
 const AppMailDomain = lazy(() => import('./app/mail/MailDomainPage'));
 const EmailStorefront = lazy(() => import('./app/EmailHosting'));
 const VpsStorefront = lazy(() => import('./app/Vps'));
@@ -136,6 +137,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/domains/new', component: AppNewDomain, title: 'Add domain', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
+  { pattern: '/app/mail/domains/new', component: AppNewMailDomain, title: 'Add email domain', area: 'customer' },
   { pattern: '/app/mail/domains/:id', component: AppMailDomain, title: 'Email', area: 'customer' },
   { pattern: '/app/servers', component: ServersRedirect, title: 'Servers', area: 'customer', exact: true },
   { pattern: '/app/servers/:id', component: ServersRedirect, title: 'Servers', area: 'customer' },
