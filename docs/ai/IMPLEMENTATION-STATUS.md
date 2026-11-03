@@ -20,6 +20,34 @@ IN_PROGRESS. Staff role/permission step-up is complete in code: session-scoped t
 
 Saved Views and Column Picker are complete in code and deployed at `34e850d` across Customers, Orders, Services and Tickets. Views are private `AdminSavedView` rows with strict scopes, bounded flat query state, duplicate-name handling and owner-scoped deletion; each list saves and reapplies its real filters and sort. Column choices use guarded `localStorage`, preserve required columns, work when storage is unavailable, and never affect the mobile cards. API typecheck, web typecheck/unit/build, targeted desktop/390px E2E and production smoke checks pass. Database API test execution remains unavailable, so Saved Views is not marked VERIFIED.
 
+## Issue #20 catalogue families / variants / presets / add-ons
+
+IN_PROGRESS. Owner asked for the additive structure only. The public catalogue, quote, checkout, order items, subscriptions and existing `Product` / `ProductOption` rows stay the live contract. Nothing in this issue may flip `visible`, `deployable`, prices, eggs or storefront grouping.
+
+### What exists today
+
+- A sellable SKU is `Product` (`slug`, category, fulfilment `SERVER` | `EMAIL` | `VPS`, egg fields, resource bounds, `visible`, `deployable`) plus `ProductPrice` and optional `ProductOption` (code, amount, recurring, optional `productId`).
+- `OrderItem.productId` and `config` freeze the sold SKU. Instances, mail services and VPS services point at `Product.id`. Historical orders must keep those ids.
+- Public `GET /catalog/products` and `POST /catalog/quote` read `Product`, active prices, active options and `deploymentAvailability`. Admin catalog is `/admin/products`; priced extras are `/admin/options` and `/admin/pricing/addons/*`.
+- There is no family, variant, preset or versioned add-on definition. The storefront lists products, not families.
+
+### Compatibility rules
+
+- New tables only. No column changes on `Product`, `ProductPrice`, `ProductOption`, `Order` or `OrderItem`.
+- A variant references one existing `Product` and that product can belong to only one variant. Creating a variant does not write the product.
+- A platform-feature add-on references an existing `ProductOption` and does not copy its price. A managed-service add-on references an existing `Product`. A software add-on references neither.
+- Preset versions are append-only after publish. Published text is immutable.
+- `prepared` on a family means “operator draft is ready for a later projection”. The public routes do not read these tables, so prepared families cannot appear in the live catalogue.
+- No delete endpoints. Unpublish by setting `prepared` or `active` to false. Products and options are never retired from here.
+- Storefront, checkout and #22 post-purchase behaviour wait for a separate owner approval after this contract exists.
+
+### First slice
+
+1. Prisma models `CatalogFamily`, `CatalogVariant`, `CatalogPreset`, `CatalogPresetVersion`, `CatalogAddonDefinition`, `CatalogAddonCompatibility`, plus a migration.
+2. Admin API under `/admin/catalog/families` and `/admin/catalog/addons`, permission `products.read` / `products.write`, audited, validated.
+3. Dedicated admin pages: family list and detail, and editor routes for family, variant, preset and catalogue add-on. `layout: 'editor'`, `PageEditorShell`, one `h1`, Back, Save/Discard, dirty guard.
+4. API tests and a stubbed admin E2E. Do not mark the issue IMPLEMENTED until the disposable API stack can run the new tests.
+
 ## App shell and design system
 | Feature | Status | Paths |
 |---|---|---|
