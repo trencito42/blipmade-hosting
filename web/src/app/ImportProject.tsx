@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { post } from '../lib/api';
 import { useAction } from '../lib/useAsync';
-import { Link, useRouter } from '../router';
+import { useRouter } from '../router';
 import { Panel, PrimaryButton, TextInput } from '../ui-app';
 
 interface Proposal {
@@ -12,7 +12,7 @@ interface Proposal {
   build?: string | null;
   files: string[];
   notes: string[];
-  services?: { slug: string; reason: string }[];
+  services?: { slug: string; reason: string; linkable?: boolean }[];
 }
 
 /** Looks at a public Git repository and points at a product. Nothing is installed. */
@@ -20,14 +20,16 @@ export function ImportProject() {
   const [url, setUrl] = useState('');
   const { navigate } = useRouter();
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [confirmed, setConfirmed] = useState<string[]>([]);
   const [zipBase64, setZipBase64] = useState<string | null>(null);
   const inspect = useAction(async () => {
     const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { url: url.trim() });
     setZipBase64(null);
+    setConfirmed([]);
     setProposal(answer.proposal);
   });
   const plan = useAction(async () => {
-    const answer = await post<{ plan: { continueTo: string; total: number; currency: string } }>('/catalog/import/plans', zipBase64 ? { zipBase64 } : { url: url.trim() });
+    const answer = await post<{ plan: { continueTo: string; total: number; currency: string } }>('/catalog/import/plans', { ...(zipBase64 ? { zipBase64 } : { url: url.trim() }), confirmServices: confirmed });
     navigate(answer.plan.continueTo);
   });
   const inspectZip = useAction(async (file: File) => {
@@ -41,6 +43,7 @@ export function ImportProject() {
     const encoded = btoa(binary);
     setZipBase64(encoded);
     const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { zipBase64: encoded });
+    setConfirmed([]);
     setProposal(answer.proposal);
   });
 
@@ -64,7 +67,19 @@ export function ImportProject() {
           {proposal.start && <p>Start: <code className="font-mono text-[13px]">{proposal.start}</code></p>}
           {proposal.files.length > 0 && <p>Read: {proposal.files.join(', ')}</p>}
           {proposal.notes.map((note) => <p key={note}>{note}</p>)}
-          {(proposal.services ?? []).map((service) => <p key={service.slug}>{service.reason} <Link to={`/app/deploy/${encodeURIComponent(service.slug)}`} className="font-semibold text-acc">Order {service.slug}</Link></p>)}
+          {(proposal.services ?? []).map((service) => (
+            <label key={service.slug} className="flex items-start gap-2">
+              {service.linkable ? (
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={confirmed.includes(service.slug)}
+                  onChange={(event) => setConfirmed((current) => event.target.checked ? [...current, service.slug] : current.filter((slug) => slug !== service.slug))}
+                />
+              ) : null}
+              <span>{service.reason}{service.linkable ? ' Tick it to add it to this order.' : ' It is not added automatically.'}</span>
+            </label>
+          ))}
           {proposal.productSlug && (
             <PrimaryButton type="button" onClick={() => void plan.run()} disabled={plan.pending}>Review the price and order {proposal.productSlug}</PrimaryButton>
           )}

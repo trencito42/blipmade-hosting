@@ -17,6 +17,7 @@ import { inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-
 import { IMPORT_ZIP_TTL_MS, zipQuotaProblem } from '../services/import-lifecycle.js';
 import { purgeExpiredImportArchives } from '../services/import-apply.js';
 import { cleanCommand, cleanRepoUrl } from '../services/git-deploy.js';
+import { confirmedServiceSelection, linkableService } from '../services/project-links.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -270,6 +271,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         zipBase64: z.string().max(12_000_000).optional(),
         buildCommand: z.string().max(500).optional(),
         startCommand: z.string().max(500).optional(),
+        confirmServices: z.array(z.string().max(40)).max(3).optional(),
       }).parse(request.body ?? {});
       const zip = body.zipBase64 ? Buffer.from(body.zipBase64, 'base64') : null;
       if (zip) {
@@ -287,10 +289,20 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       if (!proposal?.productSlug || !proposal.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
       const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, deployable: true, visible: true } });
       if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
+      const selection = confirmedServiceSelection(proposal.services.map((service) => service.slug), body.confirmServices ?? []);
+      if (!selection.ok) throw badRequest(selection.message);
+      const companions = await Promise.all(selection.chosen.map(async (slug) => {
+        const row = await prisma.product.findUnique({ where: { slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, deployable: true, visible: true } });
+        if (!row?.visible || !row.deployable) throw badRequest(`${slug} cannot be ordered with this project.`);
+        return row;
+      }));
       const buildCommand = cleanCommand(body.buildCommand ?? proposal.build, 'buildCommand', false);
       const startCommand = cleanCommand(body.startCommand ?? proposal.start, 'startCommand', true);
       const repoUrl = body.url ? cleanRepoUrl(body.url) : null;
-      const quote = await buildQuote([{ productSlug: product.slug, ram: product.defaultRam, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug }], null, user.id);
+      const quote = await buildQuote([
+        { productSlug: product.slug, ram: product.defaultRam, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug },
+        ...companions.map((row) => ({ productSlug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk, name: row.slug })),
+      ], null, user.id);
       const plan = await prisma.importSource.create({
         data: {
           userId: user.id,
@@ -303,6 +315,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           zipBytes: zip,
           zipBytesLength: zip?.length ?? 0,
           zipExpiresAt: zip ? new Date(Date.now() + IMPORT_ZIP_TTL_MS) : null,
+          confirmedServices: selection.chosen,
         },
       });
       return {
@@ -316,12 +329,26 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           disk: product.defaultDisk,
           total: quote.total,
           currency: quote.currency,
-          services: proposal.services,
+          services: proposal.services.map((service) => ({ ...service, linkable: linkableService(service.slug) })),
+          confirmed: selection.chosen,
+          companions: companions.map((row) => ({ slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk })),
           notes: proposal.notes,
           continueTo: `/app/deploy/${product.slug}?import=${plan.id}`,
         },
       };
     },
+  });
+
+  app.get('/catalog/import/plans/:id', async (request) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string().min(1).max(40) }).parse(request.params);
+    const plan = await prisma.importSource.findFirst({ where: { id, userId: user.id }, select: { id: true, productSlug: true, confirmedServices: true, buildCommand: true, startCommand: true } });
+    if (!plan) throw notFound('That import was not found.');
+    const companions = await Promise.all(plan.confirmedServices.map(async (slug) => {
+      const row = await prisma.product.findUnique({ where: { slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true } });
+      return row ? { slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk } : null;
+    }));
+    return { plan: { ...plan, companions: companions.filter((row) => row !== null) } };
   });
 
   app.get('/catalog/families', async () => ({ families: await publicFamilies() }));

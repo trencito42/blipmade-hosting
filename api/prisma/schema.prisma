@@ -1215,6 +1215,10 @@ model ImportSource {
   attempts      Int       @default(0)
   createdAt     DateTime  @default(now())
   appliedAt     DateTime?
+  /// Optional databases the customer confirmed. A suggestion is never added on its own.
+  confirmedServices String[] @default([])
+  /// Set after the connection variables were written into the application container.
+  servicesLinkedAt DateTime?
 
   @@index([userId, createdAt])
   @@index([phase, appliedAt])

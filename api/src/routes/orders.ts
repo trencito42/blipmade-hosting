@@ -20,6 +20,7 @@ import { enqueueProvisioning } from '../services/queue.js';
 import { notifyOrderCanceled, notifyOrderCreated, notifyPaymentRequired } from '../services/notifications.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { catalogSelectionSchema, resolveCatalogSelection } from '../services/catalog-projection.js';
+import { missingCompanions } from '../services/project-links.js';
 
 /**
  * The routes of an order that has no limit of their own.
@@ -132,6 +133,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         if (!item.importSourceId) continue;
         const source = await prisma.importSource.findFirst({ where: { id: item.importSourceId, userId: user.id, appliedAt: null } });
         if (!source || source.productSlug !== item.productSlug) throw badRequest('That import does not match this product.');
+        const missing = missingCompanions(source.confirmedServices, body.items.map((line) => line.productSlug));
+        if (missing.length) throw badRequest(`Confirm the order includes ${missing.join(', ')}. They were selected with this project.`);
       }
 
       const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);

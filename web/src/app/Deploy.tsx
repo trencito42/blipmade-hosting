@@ -459,6 +459,12 @@ export default function Deploy() {
     (signal) => get<{ plans: MailPlanView[] }>('/mail/plans', undefined, signal),
     [],
   );
+  const companionState = useAsync<{ plan: { companions: { slug: string; ram: number; cpu: number; disk: number }[] } } | null>(
+    async (signal) => (query.import ? get(`/catalog/import/plans/${query.import}`, undefined, signal) : null),
+    [query.import],
+  );
+  const companions = companionState.data?.plan.companions ?? [];
+  const companionKey = companions.map((row) => row.slug).join(',');
   const mailPlans = useMemo(() => onSaleMailPlans(mailPlansState.data?.plans ?? []), [mailPlansState.data]);
   const mailPlan = useMemo(
     () => mailPlans.find((plan) => plan.slug === mailPlanSlug) ?? null,
@@ -619,6 +625,7 @@ export default function Deploy() {
           // The hosted mail is a line of its own in the estimate too, so the
           // sum that is shown is the sum that is charged.
           ...(mailLine ? [mailLine] : []),
+          ...companions.map((row) => ({ productSlug: row.slug, ram: row.ram, cpu: row.cpu, disk: row.disk, name: row.slug })),
         ],
         ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
         period: quotePeriod,
@@ -626,7 +633,7 @@ export default function Deploy() {
       },
       signal,
     });
-  }, [product?.slug, ram, cpu, disk, optionKey, trimmedPromo, mailLineKey, quotePeriod]);
+  }, [product?.slug, ram, cpu, disk, optionKey, trimmedPromo, mailLineKey, quotePeriod, companionKey]);
 
   const quote = quoteState.data ?? null;
 
@@ -710,7 +717,8 @@ export default function Deploy() {
       // The server is one line and the hosted mail is another, when the
       // customer chose one. Nothing is priced here: the server prices the
       // order.
-      items: buildDeployOrderItems(
+      items: [
+        ...buildDeployOrderItems(
         {
           productSlug: product.slug,
           name: name.trim() || product.slug,
@@ -734,7 +742,9 @@ export default function Deploy() {
             : {}),
         },
         mailLine,
-      ),
+        ),
+        ...companions.map((row) => ({ productSlug: row.slug, ram: row.ram, cpu: row.cpu, disk: row.disk, name: row.slug })),
+      ],
       ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
       // The order is placed with the period of the quote, so the sum that was
       // shown to the customer is the sum that is charged.

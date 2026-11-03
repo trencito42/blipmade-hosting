@@ -32,6 +32,7 @@ import { pruneDeviceSignals } from './services/device-signal.js';
 import { sweepBackupRetention } from './services/backup-policy.js';
 import { recordDeployEvent, runDeploy } from './services/git-deploy.js';
 import { retryCatalogInstalls } from './services/catalog-install-apply.js';
+import { linkConfirmedServices } from './services/project-links-apply.js';
 import { purgeExpiredImportArchives, recoverStoredImports, settleImportedDeploy } from './services/import-apply.js';
 import { sweepResourceAlerts } from './services/resource-alerts.js';
 import { sweepAutomations } from './services/support-automation.js';
@@ -240,7 +241,8 @@ async function reconcile(): Promise<void> {
   const restored = await recoverInterruptedRepurposes();
   const credits = await retryPendingDowngradeCredits();
   const presets = await retryCatalogInstalls();
-  if (purged || recovered || restored || credits || presets) console.info(`[worker] import archives purged=${purged} recovered=${recovered} repurpose restored=${restored} downgrade credits=${credits} presets=${presets}`);
+  const linked = await linkConfirmedServices();
+  if (purged || recovered || restored || credits || presets || linked) console.info(`[worker] import archives purged=${purged} recovered=${recovered} repurpose restored=${restored} downgrade credits=${credits} presets=${presets} linked=${linked}`);
 }
 
 /**

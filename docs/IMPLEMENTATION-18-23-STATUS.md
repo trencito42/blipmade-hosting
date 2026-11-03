@@ -20,11 +20,13 @@ Next: import `php.json` on a disposable panel, then order one PHP server.
 
 Done: inspect, stored import, checkout handoff, container build, health before fulfillment, zip quota.
 
-This pass: Node, Next.js, Vite, FastAPI and Laravel get a build and a start command from the manifest. Confidence is `likely` when the entry file is assumed. Suggested databases stay suggestions. The stored zip is the one used at order time; the import page no longer asks for a second upload. `GIT_RUNTIMES` includes `python` and `php`. Unit test `import-runtime.test.ts` passed. The build still runs only inside the container.
+`296c0a3`: Node, Next.js, Vite, FastAPI and Laravel get a build and a start command. Confidence is `likely` when the entry file is assumed. The stored zip is the one used at order time. `GIT_RUNTIMES` includes `python` and `php`. Unit test `import-runtime.test.ts` passed.
 
-Remaining: MySQL, Postgres and Redis are not provisioned or injected. No project grouping. No disposable multi-service deploy. PHP cannot be ordered until its egg is on the panel and the product is deployable. Go and Rust are detected but have no start command.
+This pass: a customer can confirm detected PostgreSQL or Redis. The order must include those products, the quote includes them, and after both servers are online the worker writes `DATABASE_URL` or `REDIS_URL` into the application container and restarts it. MariaDB stays detected only: that egg has no password variable. New PostgreSQL and Redis servers get a generated password because the manifest startup override clears the shared egg default. Unit test `project-links.test.ts` passed. Not proven on a live panel.
 
-Next: provision a database instance for a confirmed suggestion and write its URL into the application env file inside the app container.
+Remaining: no disposable multi-service deploy. PHP cannot be ordered until its egg is on the panel and the product is deployable. Go and Rust have no start command. MariaDB is not provisioned.
+
+Next: one disposable Node project plus a confirmed Redis server on a panel, then check the env file inside the app container.
 
 ## #19 Game panel
 

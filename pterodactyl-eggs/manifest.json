@@ -292,7 +292,10 @@
         "POSTGRES_DEFAULT_AUTH_METHOD"
       ],
       "customerVariables": {},
-      "sortOrder": 260
+      "sortOrder": 260,
+      "startup": {
+        "PGPASSWORD": ""
+      }
     },
     {
       "slug": "uptime-kuma",
@@ -721,10 +724,13 @@
         "SERVER_PASSWORD": {
           "label": "Password of Redis",
           "type": "password",
-          "description": "The password that protects the server. Leave it empty and the server listens without a password."
+          "description": "The password that protects the server. Leave it empty and the platform makes one."
         }
       },
-      "sortOrder": 390
+      "sortOrder": 390,
+      "startup": {
+        "SERVER_PASSWORD": ""
+      }
     },
     {
       "slug": "reposilite",
