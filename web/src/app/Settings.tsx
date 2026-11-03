@@ -186,13 +186,9 @@ export default function Settings() {
           </>
         )}
         {tab.id === 'security' && (
-          <>
-            <PasswordPanel />
-            <SessionsPanel sessions={data.sessions} onChanged={state.reload} />
-            <SecurityPanels />
-          </>
+          <SecurityPanels left={<PasswordPanel />} right={<SessionsPanel sessions={data.sessions} onChanged={state.reload} />} />
         )}
-        {tab.id === 'notifications' && <NotificationsPanel />}
+        {tab.id === 'notifications' && <div className="lg:col-span-2"><NotificationsPanel /></div>}
         {tab.id === 'account' && (
           <>
             <Panel title="Download your data" description="A copy of what we hold about your account in one file: profile, services, orders, invoices, tickets and the log of your security. Secrets such as your password are not included.">
@@ -344,7 +340,7 @@ function ProfilePanel({
             autoComplete="family-name"
             enterKeyHint="next"
           />
-          <PrimaryButton onClick={onSave} disabled={save.pending}>
+          <PrimaryButton className="h-12" onClick={onSave} disabled={save.pending}>
             {save.pending ? 'Saving…' : 'Save'}
           </PrimaryButton>
         </div>
@@ -471,13 +467,13 @@ function SessionsPanel({
   return (
     <Panel title="Sessions" description="The sessions that are open for this account.">
       {sessions.length === 0 ? (
-        <p className="rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">
+        <p className="text-[13.5px] text-ink2">
           No session is open for this account right now.
         </p>
       ) : (
-        <ul className="grid gap-2">
+        <ul className="grid">
           {sessions.map((session) => (
-            <li key={session.id} className="grid gap-2 rounded-2xl bg-s2 p-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            <li key={session.id} className="grid gap-2 border-t border-line py-3 first:border-t-0 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2 text-[14.5px] font-medium text-ink">
                   {session.device}
@@ -488,7 +484,8 @@ function SessionsPanel({
               <SoftButton
                 onClick={() => onRevoke(session.id)}
                 disabled={revoke.pending}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-36"
+                title={session.current ? 'Sign out of this device' : 'End this session. The device is signed out at once.'}
               >
                 {session.current ? 'Sign out' : 'Close session'}
               </SoftButton>

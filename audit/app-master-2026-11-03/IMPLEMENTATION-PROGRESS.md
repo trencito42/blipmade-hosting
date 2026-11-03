@@ -612,3 +612,15 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Web TypeScript check and full web unit suite: 496 pass, 0 fail.
 - Playwright `app-list-pages` (3: one h1 and no second heading, field and button on the same centre line and the same height, divided rows, grouped ticket actions with tooltips, no overflow at 390px) and the ticket editor suite: 6/6 pass.
 - Seen, not changed: the error page shows a placeholder "TODO(operator): the support email address" where the support address belongs.
+
+## 2026-11-03 — Security tab layout
+
+### Completed
+
+- [x] The security tab is two columns that stack on their own (password, two-factor, passkeys, API keys on the left; sessions and activity on the right), so a short panel no longer leaves a hole beside a tall one.
+- [x] The session rows and the security activity rows are divided; the session buttons have one width and a tooltip; the notifications tab uses the full width; the profile Save button has the height of its fields.
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: pass.
+- Playwright `app-security-tab` (2): the password and sessions panels start at the same height in two columns, every panel in a column is 12–20px from the next (no hole), session rows divided with equal button widths, activity rows divided, no overflow at 390px; screenshot reviewed.

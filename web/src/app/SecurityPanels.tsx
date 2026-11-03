@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { del, get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useInfiniteList } from '../lib/useInfinite';
@@ -152,9 +152,9 @@ export function SecurityActivityPanel() {
       ) : list.items.length === 0 ? (
         <EmptyState title="Nothing yet." description="Sign-ins and security changes appear here." />
       ) : (
-        <ul className="grid gap-1.5">
+        <ul className="grid">
           {list.items.map((row) => (
-            <li key={row.id} className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+            <li key={row.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-0.5 border-t border-line py-3 first:border-t-0 first:pt-0">
               <div className="min-w-0">
                 <p className="text-[14px] font-medium text-ink">
                   {row.text}
@@ -162,10 +162,10 @@ export function SecurityActivityPanel() {
                 </p>
                 <p className="text-[12.5px] text-ink3">{[row.detail, row.ip].filter(Boolean).join(' · ')}</p>
               </div>
-              <span className="whitespace-nowrap font-mono text-[12px] text-ink3">{new Date(row.createdAt).toLocaleString()}</span>
+              <span className="whitespace-nowrap text-[12.5px] text-ink3">{new Date(row.createdAt).toLocaleString()}</span>
             </li>
           ))}
-          <li>
+          <li className="border-t border-line">
             {list.hasMore ? (
               // No automatic loading: ten rows are shown and the reader asks for the next ten.
               <div className="grid justify-items-center gap-2 pt-2">
@@ -237,17 +237,34 @@ export function ApiKeysPanel() {
   );
 }
 
-/** The panels, with the state they share. */
-export function SecurityPanels() {
+/**
+ * The panels of the security tab, in two columns that stack on their own, so a short panel never leaves a hole beside a
+ * tall one. `left` and `right` are the panels that come from the page (the password, the sessions).
+ */
+export function SecurityPanels({ left, right }: { left?: ReactNode; right?: ReactNode }) {
   const state = useAsync<SecurityState>((signal) => get<SecurityState>('/settings/security', undefined, signal), []);
-  if (state.loading && !state.data) return <LoadingBlock rows={2} label="Loading your security settings" />;
-  if (state.error || !state.data) return <ErrorState title="Your security settings could not be loaded" message={state.error?.message ?? 'Try again.'} onRetry={state.reload} />;
+  const loading = state.loading && !state.data;
+  const failed = !loading && (state.error || !state.data);
+  const waiting = loading ? <LoadingBlock rows={2} label="Loading your security settings" /> : null;
+  const broken = failed ? <ErrorState title="Your security settings could not be loaded" message={state.error?.message ?? 'Try again.'} onRetry={state.reload} /> : null;
   return (
-    <>
-      <TwoFactorPanel state={state.data.twoFactor} reload={state.reload} />
-      <PasskeysPanel passkeys={state.data.passkeys} reload={state.reload} />
-      <ApiKeysPanel />
-      <SecurityActivityPanel />
-    </>
+    <div className="grid gap-4 lg:col-span-2 lg:grid-cols-2 lg:items-start">
+      <div className="grid min-w-0 gap-4">
+        {left}
+        {waiting}
+        {broken}
+        {state.data && (
+          <>
+            <TwoFactorPanel state={state.data.twoFactor} reload={state.reload} />
+            <PasskeysPanel passkeys={state.data.passkeys} reload={state.reload} />
+          </>
+        )}
+        <ApiKeysPanel />
+      </div>
+      <div className="grid min-w-0 gap-4">
+        {right}
+        <SecurityActivityPanel />
+      </div>
+    </div>
   );
 }
