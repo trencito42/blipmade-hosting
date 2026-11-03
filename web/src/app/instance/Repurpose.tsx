@@ -2,7 +2,7 @@ import { get, post } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
 import { Panel, SoftButton, useToast } from '../../ui-app';
 
-interface FamilyCard { slug: string; name: string; variants: { label?: string; product: { slug: string; name?: string; orderable: boolean } }[] }
+interface FamilyCard { slug: string; name: string; variants: { label?: string; product: { slug: string; name?: string; orderable: boolean } }[]; addons?: { slug: string; name: string; summary: string; kind: string }[] }
 
 /** Moves this server to another variant of the same family. A backup runs first. The price card must match. */
 export function Repurpose({ instance }: { instance: { id: string; product: { slug: string; name?: string } } }) {
@@ -26,6 +26,12 @@ export function Repurpose({ instance }: { instance: { id: string; product: { slu
         ))}
       </ul>
       {run.error && <p role="alert" className="mt-2 text-[13.5px] text-bad">{run.error}</p>}
+      {(family?.addons?.length ?? 0) > 0 && (
+        <div className="mt-4 grid gap-1">
+          <p className="text-[13px] font-semibold text-ink">Add-ons in this family</p>
+          {family!.addons!.map((addon) => <p key={addon.slug} className="text-[13.5px] text-ink2">{addon.name}. {addon.summary} {addon.kind === 'SOFTWARE' ? 'Paper plugins and Forge modpacks install from the Minecraft tab.' : 'This add-on is ordered with the product.'}</p>)}
+        </div>
+      )}
     </Panel>
   );
 }

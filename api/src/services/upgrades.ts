@@ -218,7 +218,7 @@ async function appliedResizes(instanceId: string): Promise<number> {
     where: {
       instanceId,
       kind: 'UPGRADE',
-      status: { in: ['PAID', 'FULFILLED'] },
+      status: { in: ['PENDING', 'AWAITING_PAYMENT', 'PAID', 'FULFILLED'] },
       createdAt: { gt: new Date(Date.now() - RESIZE_WINDOW_MS) },
     },
   });
@@ -273,6 +273,8 @@ export async function createUpgradeOrder(
   quote: ResourceQuote,
   user: { id: string; email: string },
 ): Promise<Order> {
+  const reserved = await appliedResizes(instance.id);
+  if (reserved >= RESIZE_LIMIT) throw badRequest('This service already has two resource changes in the last 30 days.');
   const order = await prisma.order.create({
     data: {
       // The number comes from the counter of the platform, so an upgrade order

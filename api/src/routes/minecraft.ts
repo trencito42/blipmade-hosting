@@ -167,6 +167,18 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
     return { installed: file.filename, note: 'Restart the server to load it.' };
   });
 
+  app.get('/instances/:id/minecraft/worlds', async (request: FastifyRequest) => {
+    const { token, uuid } = await load(request);
+    const worlds: { name: string; entries: number }[] = [];
+    for (const name of ['world', 'world_nether', 'world_the_end']) {
+      try {
+        const files = await client.listFiles(token, uuid, `/${name}`);
+        worlds.push({ name, entries: files.length });
+      } catch { /* The world has not been created yet. */ }
+    }
+    return { worlds };
+  });
+
   app.get('/instances/:id/minecraft/modpacks/search', async (request: FastifyRequest) => {
     const { slug } = await load(request);
     if (slug !== 'minecraft-forge') throw badRequest('Modpacks install on Forge servers.');

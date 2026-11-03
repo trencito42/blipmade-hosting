@@ -5,6 +5,8 @@ import { inflateRawSync } from 'node:zlib';
  * A zip is read for those manifest names only. Nothing in it is written to disk or executed.
  */
 
+export interface SuggestedService { slug: string; reason: string }
+
 export interface ImportProposal {
   productSlug: string | null;
   runtime: string | null;
@@ -12,6 +14,30 @@ export interface ImportProposal {
   start: string | null;
   files: string[];
   notes: string[];
+  services: SuggestedService[];
+}
+
+function suggestServices(files: { path: string; text: string }[]): SuggestedService[] {
+  const keys = new Set<string>();
+  const pkg = files.find((file) => file.path === 'package.json');
+  if (pkg) {
+    try {
+      const parsed = JSON.parse(pkg.text) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+      for (const key of Object.keys({ ...parsed.dependencies, ...parsed.devDependencies })) keys.add(key.toLowerCase());
+    } catch { /* The runtime detector reports a broken package.json. */ }
+  }
+  const text = files.filter((file) => file.path !== 'package.json').map((file) => file.text.toLowerCase()).join('\n');
+  const services: SuggestedService[] = [];
+  const add = (slug: string, reason: string) => { if (!services.some((entry) => entry.slug === slug)) services.push({ slug, reason }); };
+  if (keys.has('pg') || keys.has('@prisma/client') || text.includes('psycopg') || text.includes('postgresql')) add('postgresql', 'The project declares PostgreSQL.');
+  if (keys.has('mysql2') || keys.has('mysql') || text.includes('pymysql') || text.includes('mariadb')) add('mariadb', 'The project declares MySQL or MariaDB.');
+  if (keys.has('redis') || keys.has('ioredis') || text.includes('redis')) add('redis', 'The project declares Redis.');
+  if (keys.has('mongodb') || keys.has('mongoose') || text.includes('pymongo')) add('mongodb', 'The project declares MongoDB.');
+  return services;
+}
+
+function proposal(partial: Omit<ImportProposal, 'services'>, files: { path: string; text: string }[]): ImportProposal {
+  return { ...partial, services: suggestServices(files) };
 }
 
 const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'composer.json', 'Dockerfile', 'Procfile'] as const;
@@ -27,18 +53,18 @@ export function inspectManifests(files: { path: string; text: string }[]): Impor
     const deps = { ...parsed?.dependencies, ...parsed?.devDependencies };
     const start = typeof parsed?.scripts?.start === 'string' ? parsed.scripts.start.slice(0, 200) : null;
     if (deps && ('discord.js' in deps || 'eris' in deps || '@discordjs/core' in deps)) {
-      return { productSlug: 'discord-bot', runtime: 'nodejs', confidence: 'confirmed', start, files: found, notes };
+      return proposal({ productSlug: 'discord-bot', runtime: 'nodejs', confidence: 'confirmed', start, files: found, notes }, files);
     }
-    if (parsed) return { productSlug: 'nodejs', runtime: 'nodejs', confidence: 'confirmed', start, files: found, notes };
+    if (parsed) return proposal({ productSlug: 'nodejs', runtime: 'nodejs', confidence: 'confirmed', start, files: found, notes }, files);
   }
   if (files.some((file) => file.path === 'requirements.txt' || file.path === 'pyproject.toml')) {
-    return { productSlug: 'python', runtime: 'python', confidence: 'confirmed', start: null, files: found, notes };
+    return proposal({ productSlug: 'python', runtime: 'python', confidence: 'confirmed', start: null, files: found, notes }, files);
   }
   if (files.some((file) => file.path === 'go.mod')) {
-    return { productSlug: 'golang', runtime: 'go', confidence: 'confirmed', start: null, files: found, notes };
+    return proposal({ productSlug: 'golang', runtime: 'go', confidence: 'confirmed', start: null, files: found, notes }, files);
   }
   if (files.some((file) => file.path === 'Cargo.toml')) {
-    return { productSlug: 'rust-runtime', runtime: 'rust', confidence: 'confirmed', start: null, files: found, notes };
+    return proposal({ productSlug: 'rust-runtime', runtime: 'rust', confidence: 'confirmed', start: null, files: found, notes }, files);
   }
   if (files.some((file) => file.path === 'composer.json')) {
     notes.push('PHP was detected. There is no PHP product to order.');
@@ -46,7 +72,7 @@ export function inspectManifests(files: { path: string; text: string }[]): Impor
   if (files.some((file) => file.path === 'Dockerfile')) {
     notes.push('A Dockerfile was found. Blipmade does not build an arbitrary image from it.');
   }
-  return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: found, notes };
+  return proposal({ productSlug: null, runtime: null, confidence: 'unknown', start: null, files: found, notes }, files);
 }
 
 /** Turns a public GitHub or GitLab project URL into the manifest URLs that may be fetched. */
@@ -153,11 +179,11 @@ export function readZipText(zip: Buffer, baseName: string): string | null {
 
 export function inspectZip(zip: Buffer): ImportProposal {
   if (zip.length > MAX_ZIP) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['The zip is larger than 8 MB.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], services: [], notes: ['The zip is larger than 8 MB.'] };
   }
   const files = readZipManifests(zip);
   if (!files.length) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['No supported manifest was inside the zip. The archive was not run.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], services: [], notes: ['No supported manifest was inside the zip. The archive was not run.'] };
   }
   return inspectManifests(files);
 }
@@ -165,7 +191,7 @@ export function inspectZip(zip: Buffer): ImportProposal {
 export async function inspectGitUrl(raw: string): Promise<ImportProposal> {
   const urls = manifestUrls(raw);
   if (!urls.length) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['Use a public https://github.com or https://gitlab.com project URL.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], services: [], notes: ['Use a public https://github.com or https://gitlab.com project URL.'] };
   }
   const files: { path: string; text: string }[] = [];
   for (const target of urls) {
@@ -180,7 +206,7 @@ export async function inspectGitUrl(raw: string): Promise<ImportProposal> {
     } catch { /* A missing manifest is a result, not a failure of the whole look. */ }
   }
   if (!files.length) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['No supported manifest was readable. Private repositories are not fetched.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], services: [], notes: ['No supported manifest was readable. Private repositories are not fetched.'] };
   }
   return inspectManifests(files);
 }

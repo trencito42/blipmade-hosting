@@ -11,6 +11,7 @@ interface Proposal {
   start: string | null;
   files: string[];
   notes: string[];
+  services?: { slug: string; reason: string }[];
 }
 
 /** Looks at a public Git repository and points at a product. Nothing is installed. */
@@ -23,7 +24,7 @@ export function ImportProject() {
   });
   const inspectZip = useAction(async (file: File) => {
     if (file.size > 8 * 1024 * 1024) {
-      setProposal({ productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['The zip is larger than 8 MB.'] });
+      setProposal({ productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], services: [], notes: ['The zip is larger than 8 MB.'] });
       return;
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -52,6 +53,7 @@ export function ImportProject() {
           {proposal.start && <p>Start script: <code className="font-mono text-[13px]">{proposal.start}</code></p>}
           {proposal.files.length > 0 && <p>Read: {proposal.files.join(', ')}</p>}
           {proposal.notes.map((note) => <p key={note}>{note}</p>)}
+          {(proposal.services ?? []).map((service) => <p key={service.slug}>{service.reason} <Link to={`/app/deploy/${encodeURIComponent(service.slug)}`} className="font-semibold text-acc">Order {service.slug}</Link></p>)}
           {proposal.productSlug && <Link to={`/app/deploy/${encodeURIComponent(proposal.productSlug)}`} className="font-semibold text-acc">Continue with {proposal.productSlug}</Link>}
         </div>
       )}

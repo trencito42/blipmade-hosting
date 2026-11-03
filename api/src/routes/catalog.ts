@@ -253,7 +253,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       }).parse(request.body ?? {});
       if (body.zipBase64) return { proposal: inspectZip(Buffer.from(body.zipBase64, 'base64')) };
       if (body.url) return { proposal: await inspectGitUrl(body.url) };
-      return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, files: [], notes: ['Paste a repository URL or choose a zip.'] } };
+      return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, files: [], services: [], notes: ['Paste a repository URL or choose a zip.'] } };
     },
   });
 

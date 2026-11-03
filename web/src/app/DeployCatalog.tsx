@@ -250,6 +250,14 @@ export default function DeployCatalog() {
         </p>
       </div>
       <ImportProject />
+      <Panel title="Discord bot templates" description="Three starting points for the Discord bot product. Ordering still uses that product. Nothing is installed until the server exists.">
+        <ul className="grid gap-2 text-[14px] text-ink2">
+          <li>Message bot. Commands in one server, discord.js.</li>
+          <li>Slash commands. Registers commands when the bot starts.</li>
+          <li>TypeScript bot. Compiled before the start script runs.</li>
+        </ul>
+        <Link to="/app/deploy/discord-bot" className="mt-3 inline-flex font-semibold text-acc">Order the Discord bot</Link>
+      </Panel>
       {shownFamilies.length > 0 && (
         <section className="grid gap-3" aria-label="Grouped products">
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

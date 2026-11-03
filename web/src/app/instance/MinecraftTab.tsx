@@ -22,6 +22,19 @@ const PROPERTY_LABELS: Record<string, string> = {
   'spawn-protection': 'Spawn protection', 'allow-flight': 'Allow flight', 'online-mode': 'Online mode (Mojang accounts)', hardcore: 'Hardcore', 'level-seed': 'World seed (new worlds only)',
 };
 const WORLD_KEYS = new Set(['level-name', 'level-seed', 'level-type', 'generator-settings', 'allow-nether', 'generate-structures', 'max-world-size']);
+
+function WorldList({ instanceId }: { instanceId: string }) {
+  const state = useAsync<{ worlds: { name: string; entries: number }[] }>((signal) => get(`/instances/${encodeURIComponent(instanceId)}/minecraft/worlds`, undefined, signal), [instanceId]);
+  return (
+    <Panel title="World folders" description="These are the folders the server has created. A new seed does not rewrite them. Restore a world from Backups.">
+      {(state.data?.worlds.length ?? 0) > 0 ? (
+        <ul className="grid gap-1 text-[14px] text-ink2">
+          {state.data!.worlds.map((world) => <li key={world.name}>{world.name} · {world.entries} entries</li>)}
+        </ul>
+      ) : <p className="text-[14px] text-ink3">{state.loading ? 'Looking for world folders.' : 'No world folder yet. Start the server once.'}</p>}
+    </Panel>
+  );
+}
 const CHOICES: Record<string, string[]> = {
   difficulty: ['peaceful', 'easy', 'normal', 'hard'], gamemode: ['survival', 'creative', 'adventure', 'spectator'],
   pvp: ['true', 'false'], 'white-list': ['true', 'false'], 'enforce-whitelist': ['true', 'false'], 'allow-flight': ['true', 'false'], 'online-mode': ['true', 'false'], hardcore: ['true', 'false'],
@@ -272,6 +285,7 @@ export default function MinecraftTab({ instance }: TabProps) {
           <p className="text-[14px] text-ink2">Put mod files in the mods folder from Files. No other installer runs from this page.</p>
         </Panel>
       )}
+      {section === 'worlds' && <WorldList instanceId={instance.id} />}
       {section === 'worlds' && (
         <Panel title="Worlds" description="A new seed applies to a new world. It does not rewrite the world that is already there. Copies of the world are the Backups tab.">
           <div className="grid gap-3 sm:grid-cols-2">
