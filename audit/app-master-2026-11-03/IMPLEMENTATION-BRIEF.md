@@ -42,6 +42,13 @@ A clean, elegant, responsive, feature-rich hosting account dashboard with:
 - Editors support browser Back/Forward and refresh, unsaved-draft guard, collision/409 recovery, permitted ranges from backend, no hardcoded price/steps, keyboard/mobile/accessibility.
 - Do not litter the sidebar with editor routes; page context links and breadcrumbs handle them.
 
+
+## IMPORTANT NEW PRODUCT-OWNER VISUAL QA REQUIREMENT (2026-11-03)
+
+**Read and implement `audit/app-master-2026-11-03/GLOBAL-SHELL-EDITOR-UX.md` before migrating more edit pages.** The owner supplied actual browser screenshots showing a cross-cutting flaw: AppShell's sticky top bar repeats the PageEditorShell h1; the Back link is awkwardly placed between titles; the legal footer sits immediately under short pages; and PageEditorShell unconditionally renders a detached viewport-`fixed` Save/Discard strip that can conflict with the floating phone navigation. The remedy belongs in **`web/src/ui-app.tsx`, `web/src/app/components/premium.tsx` and explicit route/editor layout metadata**, not scattered per-page overrides.
+
+**Acceptance:** one visible h1; parent Back in sticky header for editor routes; logical/accessible breadcrumbs; short forms have in-content actions; long forms may use a bounded sticky action region; short-page legal footer pushed toward viewport bottom without fixed positioning; no mobile keyboard/bottom-nav/chat overlap; preserve dirty guards and API behavior; screenshots and browser assertions for multiple old/new editors at mobile and desktop. Apply globally, including existing New Ticket, Domain, Mail, Instance, Billing and Settings editors. Resume the original roadmap after this foundation correction. **Do not implement only the email screenshot example.**
+
 ## Implementation work plan
 
 ### Phase 0: current baseline, data & feature parity
