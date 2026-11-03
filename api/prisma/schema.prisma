@@ -76,6 +76,7 @@ model User {
   emailChangeRequests EmailChangeRequest[]
   notificationPreference NotificationPreference?
   adminSavedViews AdminSavedView[]
+  staffInvitations StaffInvitation[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -325,6 +326,22 @@ model VerificationToken {
   createdAt DateTime  @default(now())
 
   @@index([userId, type])
+}
+
+/// A single-use invitation for a person who does not have an account yet.
+model StaffInvitation {
+  id          String    @id @default(cuid())
+  email       String
+  role        Role
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  invitedById String
+  invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([email, usedAt])
+  @@index([expiresAt])
 }
 
 model StaffMember {

@@ -60,6 +60,10 @@ const AdminSupportBotNew = lazy(() => import('./admin/SupportBotNew'));
 const AdminSupportBotEdit = lazy(() => import('./admin/SupportBotEdit'));
 const AdminSupportAutomationEdit = lazy(() => import('./admin/SupportAutomationEdit'));
 const AdminStaffEdit = lazy(() => import('./admin/StaffEdit'));
+const AdminStaffAdd = lazy(() => import('./admin/StaffAccess').then((module) => ({ default: module.StaffAdd })));
+const AdminStaffInvite = lazy(() => import('./admin/StaffAccess').then((module) => ({ default: module.StaffInvite })));
+const AdminStaffRemove = lazy(() => import('./admin/StaffAccess').then((module) => ({ default: module.StaffRemove })));
+const StaffInviteAccept = lazy(() => import('./admin/StaffInviteAccept'));
 const AdminIncidentNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.IncidentNew })));
 const AdminIncidentUpdateNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.IncidentUpdateNew })));
 const AdminAnnouncementNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.AnnouncementNew })));
@@ -394,8 +398,12 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/activity', component: AdminActivity, title: 'Activity', area: 'admin' },
   { pattern: '/admin/audit/:id', component: AdminAuditEntry, title: 'Audit entry', area: 'admin', layout: 'editor' },
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
+  { pattern: '/admin/staff/add', component: AdminStaffAdd, title: 'Add a staff member', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/staff/invite', component: AdminStaffInvite, title: 'Invite a staff member', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/staff/:id/remove', component: AdminStaffRemove, title: 'Remove staff access', area: 'admin', layout: 'editor' },
   { pattern: '/admin/staff/:id/permissions/edit', component: AdminStaffEdit, title: 'Staff rights', area: 'admin', layout: 'editor' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
+  { pattern: '/staff-invite', component: StaffInviteAccept, title: 'Accept a staff invitation' },
   { pattern: '/admin/settings/:section/edit', component: AdminSettingsEdit, title: 'Edit settings', area: 'admin', layout: 'editor' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },
   { pattern: '/admin/email-templates/:id/edit', component: AdminEmailTemplateEdit, title: 'Edit email wording', area: 'admin', layout: 'editor' },

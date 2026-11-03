@@ -22,6 +22,7 @@ import {
 import { audit } from '../lib/audit.js';
 import { fullName } from '../lib/people.js';
 import { emailIdentity, isDisposableEmail } from '../lib/email-identity.js';
+import { acceptStaffInvitation } from '../services/staff-lifecycle.js';
 import { verifyTurnstile } from '../services/promotion-policy.js';
 
 /** The token of the human check in a request body, if any. */
@@ -595,6 +596,43 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
       return { user: publicUser(user) };
     },
+  });
+
+  /**
+   * Accept a single-use staff invitation. The token is the credential, so
+   * this route does not require an existing session. An existing account is
+   * never overwritten.
+   */
+  app.post('/auth/staff-invite/accept', {
+    config: { rateLimit: { max: LIMITS.token.address, timeWindow: LIMITS.token.window, keyGenerator: addressKey } },
+  }, async (request: FastifyRequest, reply) => {
+    const body = z.object({
+      token: z.string().trim().min(20).max(200),
+      password: z.string(),
+      firstName: nameSchema,
+      lastName: nameSchema,
+    }).parse(request.body ?? {});
+    const user = await acceptStaffInvitation(body);
+    await createSession(request, reply, user.id, user.email);
+    await audit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: 'staff.invitation_accepted',
+      targetType: 'user',
+      targetId: user.id,
+      meta: { role: user.role },
+      ip: request.ip,
+    });
+    return {
+      user: publicUser({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: body.firstName,
+        lastName: body.lastName,
+        emailVerifiedAt: new Date(),
+      }),
+    };
   });
 
   /** Used by the worker to clear expired sessions. */

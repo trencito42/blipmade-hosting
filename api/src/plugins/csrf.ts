@@ -18,6 +18,7 @@ const EXEMPT_PATHS = new Set([
   '/api/auth/verify-email',
   '/api/auth/resend-verification',
   '/api/auth/enroll-admin',
+  '/api/auth/staff-invite/accept',
 ]);
 
 /**

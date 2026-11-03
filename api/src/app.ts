@@ -48,6 +48,7 @@ import { registerAdminOpsRoutes } from './routes/admin-ops.js';
 import { registerAdminProductRoutes } from './routes/admin-products.js';
 import { registerAdminAddonRoutes } from './routes/admin-addons.js';
 import { registerAdminCatalogStructureRoutes } from './routes/admin-catalog-structure.js';
+import { registerAdminStaffLifecycleRoutes } from './routes/admin-staff-lifecycle.js';
 import { registerAdminEmailRoutes } from './routes/admin-email.js';
 import { registerContentRoutes } from './routes/content.js';
 import { registerInternalBackupRoutes } from './routes/internal-backups.js';
@@ -272,6 +273,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerInstanceHelpRoutes(api);
       await registerInstanceExtraRoutes(api);
       await registerAbuseRoutes(api);
+      await registerAdminStaffLifecycleRoutes(api);
       await registerAdminRoutes(api);
       await registerAdminSavedViewRoutes(api);
       await registerAdminControlRoutes(api);

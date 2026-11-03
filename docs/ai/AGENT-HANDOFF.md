@@ -1,14 +1,19 @@
 # Agent handoff
 
-Updated: 2026-11-03 after the owner approved the production deploy of `580bbc0`.
+Updated: 2026-11-03 after the staff access lifecycle was added locally. It is not deployed.
 
 ## Source and production
 
-- Repository `/root/work`, branch `main`, GitHub `main` and production VM103 are on `580bbc0` (`Add an admin draft for catalogue families, variants, presets and add-ons`).
-- This deploy was explicitly requested. Pre-deploy backup: `/var/backups/blipmade/pre-deploy-580bbc04-202611031358.sql.gz`. Migration `20261103160000_catalog_structure` finished. `CatalogFamily`, `CatalogVariant`, `CatalogPreset` and `CatalogAddonDefinition` exist. API and web came up healthy, the worker was replaced, and public smoke checks returned 200 for `/api/health`, `/`, `/apps`, `/docs`, `/app` and the icon font.
-- The earlier backup `/var/backups/blipmade/pre-deploy-34e850d3-202611031338.sql.gz` remains from the previous deploy.
-- Nothing else was waiting outside `main`. The only commit on `audit/admin-master-spec-20261103` is a progress note already present on `main` as `cd5b838`. The old launch-hardening branch was not merged.
-- The public catalogue still does not read the new tables. Do not deploy again without a fresh explicit owner approval. Never print or store secrets.
+- Repository `/root/work`, branch `main`. Production VM103 is still `067f7fd` (`Let a prepared catalogue family continue through the existing checkout`). Do not deploy the staff work without a new explicit approval.
+- Earlier production backups remain: `/var/backups/blipmade/pre-deploy-067f7fde-202611031416.sql.gz`, `/var/backups/blipmade/pre-deploy-2dfffa39-202611031401.sql.gz`, `/var/backups/blipmade/pre-deploy-580bbc04-202611031358.sql.gz`.
+- The staff change adds migration `20261103170000_staff_invitations`. It is not applied on production.
+- Nothing else was waiting outside `main`. The old launch-hardening branch was not merged. Never print or store secrets.
+
+## Staff access lifecycle
+
+- An administrator can add an existing customer as staff or admin, email a 72-hour single-use invitation, change role, and remove staff access. The customer account, orders and notes stay. Removal and an administrator demotion delete that person's sessions and revoke API keys. Password, passkeys and two-factor stay so the customer can still sign in.
+- The last unsuspended administrator cannot be demoted or removed. Grants, invitations, cancellation, removal and role changes require an administrator, a fresh step-up, the existing CSRF cookie and the existing write or mail rate limits. Audit events do not store the invitation token or the step-up secret.
+- Pages: `/admin/staff/add`, `/admin/staff/invite`, `/admin/staff/:id/remove`, and public `/staff-invite`. The existing rights editor stays.
 
 ## Issue #20, first slice
 
@@ -27,14 +32,14 @@ Updated: 2026-11-03 after the owner approved the production deploy of `580bbc0`.
 ## Evidence and limits
 
 - API typecheck passes. New API tests are written but could not run locally because `TEST_DATABASE_URL`, `DATABASE_URL`, `REDIS_URL`, and `SESSION_SECRET` are unavailable. Do not label API work VERIFIED from the production deploy.
-- Web TypeScript passes; unit 499 total / 497 pass / 0 fail / 2 skip; production build and 172-page prerender pass.
-- `admin-staff-edit.spec.ts`: 2/2 pass. `admin-list-preferences.spec.ts`: 2/2 pass, including 390px and local column persistence.
+- Web TypeScript passes; unit 501 total / 499 pass / 0 fail / 2 skip; production build and 172-page prerender pass.
+- `admin-staff-lifecycle.spec.ts`: 5/5 pass, including 390px. `admin-staff-edit.spec.ts`: 2/2 pass. `admin-list-preferences.spec.ts`: 2/2 pass.
 - Known unrelated baseline: 13 public/auth/mobile E2E failures. Admin audit specs still need their seed.
 
 ## Next work
 
-1. Run `api/tests/catalog-structure.test.ts` on an approved disposable stack. The new public projection and order `config.catalog` cases are in that file and have not run.
-2. The family chooser is in code and not deployed. It appears only after an operator marks a family prepared. Do not seed or reflag live products without a separate yes. Deploy this commit only with a new explicit approval.
+1. Run `api/tests/catalog-structure.test.ts` and `api/tests/admin-staff-lifecycle.test.ts` on an approved disposable stack. Neither file has run.
+2. The family chooser is deployed at `067f7fd` and appears only after an operator marks a family prepared. Do not seed or reflag live products without a separate yes. The staff lifecycle is local only; deploy it only with a new explicit approval. The new migration has not been applied in production.
 3. #22 can read `config.catalog`. Still to build: post-purchase add-on install, repurpose, and saved profiles. Do not invent an installer that the panel cannot perform.
 4. #19 Minecraft tools already exist for Paper, Folia and Forge. Other game workspaces wait on real panel capabilities.
 5. #18 research is in `docs/ai/SMART-DEPLOY-RESEARCH.md`. No importer yet.

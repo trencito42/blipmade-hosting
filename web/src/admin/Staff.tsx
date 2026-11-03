@@ -4,7 +4,7 @@ import { useAsync } from '../lib/useAsync';
 import { Icon } from '../icons';
 import { Link } from '../router';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatusPill } from '../ui-app';
-import { DASH, LiveRegion, denseGhost, maskEmail, useAdminSession } from './Overview';
+import { DASH, LiveRegion, denseGhost, densePrimary, maskEmail, useAdminSession } from './Overview';
 
 /**
  * Staff and permissions — GET /api/admin/staff, PUT /api/admin/staff/:userId
@@ -22,13 +22,15 @@ interface StaffMember {
   role: string;
   title: string | null;
   permissions: string[];
+  removable?: boolean;
 }
 
-/** The roles the server accepts. */
-const ROLES = [
-  { value: 'STAFF', label: 'Staff' },
-  { value: 'ADMIN', label: 'Administrator' },
-];
+interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+}
 
 export default function Staff() {
   const session = useAdminSession();
@@ -38,10 +40,15 @@ export default function Staff() {
     (signal) => get<{ staff: StaffMember[]; available: string[] }>('/admin/staff', undefined, signal),
     [],
   );
+  const invites = useAsync(async (signal) => {
+    if (staff?.role !== 'ADMIN') return { invitations: [] as Invitation[] };
+    return get<{ invitations: Invitation[] }>('/admin/staff/invitations', undefined, signal);
+  }, [staff?.role]);
 
   const members = state.data?.staff ?? [];
   const available = state.data?.available ?? [];
   const mayEdit = staff?.role === 'ADMIN';
+  const pendingInvitations = invites.data?.invitations ?? [];
 
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
@@ -73,16 +80,20 @@ export default function Staff() {
         }
         actionBelow
         action={
-          <button
-            type="button"
-            aria-pressed={showEmails}
-            onClick={() => setShowEmails((value) => !value)}
-            title="Revealing addresses is a local view change. The API has no endpoint that records a reveal."
-            className={showEmails ? `${denseGhost} bg-ink text-bg hover:bg-ink` : denseGhost}
-          >
-            <Icon name={showEmails ? 'eyeOff' : 'eye'} size={16} />
-            {showEmails ? 'Mask e-mails' : 'Show e-mails'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {mayEdit && <Link to="/admin/staff/add" className={densePrimary}>Add member</Link>}
+            {mayEdit && <Link to="/admin/staff/invite" className={denseGhost}>Invite</Link>}
+            <button
+              type="button"
+              aria-pressed={showEmails}
+              onClick={() => setShowEmails((value) => !value)}
+              title="Revealing addresses is a local view change. The API has no endpoint that records a reveal."
+              className={showEmails ? `${denseGhost} bg-ink text-bg hover:bg-ink` : denseGhost}
+            >
+              <Icon name={showEmails ? 'eyeOff' : 'eye'} size={16} />
+              {showEmails ? 'Mask e-mails' : 'Show e-mails'}
+            </button>
+          </div>
         }
       >
         <div className="grid gap-3">
@@ -91,7 +102,7 @@ export default function Staff() {
           ) : state.error ? (
             <ErrorState title="The staff list could not be loaded" message={state.error.message} onRetry={state.reload} />
           ) : !members.length ? (
-            <EmptyState title="No staff members." description="Staff accounts appear here once they exist." />
+            <EmptyState title="No staff members." description={mayEdit ? 'Add an existing customer or invite someone by email.' : 'Staff accounts appear here once they exist.'} />
           ) : (
             <div className="grid gap-3">
               <DataTable<StaffMember>
@@ -141,7 +152,10 @@ export default function Staff() {
                     header: '',
                     nowrap: true,
                     render: (member: StaffMember) => (
-                      <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`} className={denseGhost}>{mayEdit ? 'Edit rights' : 'View rights'}</Link>
+                      <span className="flex flex-wrap justify-end gap-2">
+                        <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`} className={denseGhost}>{mayEdit ? 'Edit rights' : 'View rights'}</Link>
+                        {mayEdit && member.removable !== false && <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/remove`} className={denseGhost}>Remove access</Link>}
+                      </span>
                     ),
                   },
                 ]}
@@ -160,7 +174,10 @@ export default function Staff() {
                       </div>
                       <StatusPill status={member.role === 'admin' ? 'active' : 'pending'} label={member.role} />
                     </div>
-                    <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`} className={`${denseGhost} mt-2`}>{mayEdit ? 'Edit rights' : 'View rights'}</Link>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`} className={denseGhost}>{mayEdit ? 'Edit rights' : 'View rights'}</Link>
+                      {mayEdit && member.removable !== false && <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/remove`} className={denseGhost}>Remove access</Link>}
+                    </div>
                   </div>
                 )}
               </CardList>
@@ -169,7 +186,23 @@ export default function Staff() {
           )}
         </div>
       </Panel>
-
+      {mayEdit && (
+        <Panel title="Pending invitations" description="Each invitation expires in 72 hours and works once. The link is only in the email.">
+          {invites.loading ? <LoadingBlock rows={2} label="Loading invitations" />
+            : invites.error ? <ErrorState title="Invitations could not be loaded" message={invites.error.message} onRetry={invites.reload} />
+            : !pendingInvitations.length ? <EmptyState title="No pending invitations." description="Invite a person who does not have an account yet." />
+            : (
+              <ul className="grid gap-2">
+                {pendingInvitations.map((invitation) => (
+                  <li key={invitation.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-s3 px-3 py-2 text-[13.5px]">
+                    <span className="min-w-0 truncate font-mono text-ink">{showEmails ? invitation.email : maskEmail(invitation.email)}</span>
+                    <span className="text-ink3">{invitation.role} · expires {new Date(invitation.expiresAt).toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+        </Panel>
+      )}
     </div>
   );
 }

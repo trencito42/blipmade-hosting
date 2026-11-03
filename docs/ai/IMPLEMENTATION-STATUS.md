@@ -20,6 +20,14 @@ IN_PROGRESS. Staff role/permission step-up is complete in code: session-scoped t
 
 Saved Views and Column Picker are complete in code and deployed at `34e850d` across Customers, Orders, Services and Tickets. Views are private `AdminSavedView` rows with strict scopes, bounded flat query state, duplicate-name handling and owner-scoped deletion; each list saves and reapplies its real filters and sort. Column choices use guarded `localStorage`, preserve required columns, work when storage is unavailable, and never affect the mobile cards. API typecheck, web typecheck/unit/build, targeted desktop/390px E2E and production smoke checks pass. Database API test execution remains unavailable, so Saved Views is not marked VERIFIED.
 
+## Staff access lifecycle
+
+IN_PROGRESS. Administrators can search an existing customer and grant STAFF or ADMIN, email a hashed 72-hour single-use invitation, change role, and remove staff access without deleting the user or customer notes. Removal and demotion from ADMIN delete sessions and revoke API keys. The last unsuspended administrator is refused. Writes require administrator role, the existing ten-minute step-up, CSRF and rate limits. Audit rows store the action, not the token or password.
+
+Routes: `POST /admin/staff/members`, `GET /admin/staff/candidates`, `POST|GET /admin/staff/invitations`, `DELETE /admin/staff/invitations/:id`, `POST /admin/staff/:userId/remove`, `POST /auth/staff-invite/accept`. Pages keep the editor layout: `/admin/staff/add`, `/admin/staff/invite`, `/admin/staff/:id/remove`, plus public `/staff-invite`.
+
+`api/tests/admin-staff-lifecycle.test.ts` is written and not run: this machine has no `TEST_DATABASE_URL`. API typecheck passes. Web typecheck, unit 501/499/0/2, build, 172-page prerender and `admin-staff-lifecycle.spec.ts` 5/5 pass. Not deployed. Migration `20261103170000_staff_invitations` is not applied in production.
+
 ## Issue #20 catalogue families / variants / presets / add-ons
 
 IN_PROGRESS. The additive admin draft is deployed at `580bbc0`. The public catalogue, quote, checkout, order items, subscriptions and existing `Product` / `ProductOption` rows stay the live contract. Nothing in this issue flips `visible`, `deployable`, prices, eggs or storefront grouping.

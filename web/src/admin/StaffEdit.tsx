@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { useParams, useRouter } from '../router';
+import { Link, useParams, useRouter } from '../router';
 import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, PrimaryButton, Segmented, SoftButton, TextInput, useToast } from '../ui-app';
 import { PageEditorShell, useUnsavedChangesGuard } from '../app/components/premium';
 import { denseSelect, maskEmail, useAdminSession } from './Overview';
 
-interface StaffMember { userId: string; email: string; name: string | null; role: string; title: string | null; permissions: string[] }
+interface StaffMember { userId: string; email: string; name: string | null; role: string; title: string | null; permissions: string[]; removable?: boolean }
 
 const BACK_TO = '/admin/staff';
 const ROLES = [{ value: 'STAFF', label: 'Staff' }, { value: 'ADMIN', label: 'Administrator' }];
@@ -96,7 +96,7 @@ export default function StaffEdit() {
             <div className="max-w-[280px]">
               <Field label="Role" htmlFor="staff-role">
                 <select id="staff-role" value={role} disabled={!mayEdit} onChange={(event) => setRole(event.target.value)} className={denseSelect}>
-                  {ROLES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  {ROLES.map((option) => <option key={option.value} value={option.value} disabled={option.value === 'STAFF' && member.removable === false}>{option.label}</option>)}
                 </select>
               </Field>
             </div>
@@ -115,6 +115,10 @@ export default function StaffEdit() {
               ))}
             </div>
             {save.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{save.error}</p>}
+            {mayEdit && member.removable !== false && (
+              <div><Link to={`/admin/staff/${encodeURIComponent(id)}/remove`} className="text-[13.5px] font-semibold text-bad">Remove access</Link></div>
+            )}
+            {mayEdit && member.removable === false && <p className="text-[13px] text-ink3">This is the last active administrator, so this access cannot be removed or reduced to staff until another administrator exists.</p>}
             <ConfirmDialog
               open={confirming}
               title={`Save the rights of ${name}`}

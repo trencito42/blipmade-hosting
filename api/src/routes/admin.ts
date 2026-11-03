@@ -8,6 +8,7 @@ import { publishSupportEvent } from '../services/support-events.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireStaff, requirePermission, assertMayActOnAccount } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
+import { assertNotLastAdministrator } from '../services/staff-lifecycle.js';
 import * as ptero from '../services/pterodactyl/application.js';
 import { emailDeliveryReport, enqueueProvisioning } from '../services/queue.js';
 import {
@@ -56,7 +57,7 @@ import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
 import { OPERATOR_SETTINGS } from '../services/operator-settings.js';
 import { checkGeneralWrite, mayReadSetting, SettingRefusal, settingControlMap, settingPolicy } from '../services/setting-registry.js';
-import { verifyStaffStepUp } from '../services/staff-step-up.js';
+import { assertFreshStepUp, verifyStaffStepUp } from '../services/staff-step-up.js';
 
 /**
  * Every route of the back office carries a limit.
@@ -1784,15 +1785,17 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     const [users, members] = await Promise.all([
       prisma.user.findMany({
         where: { role: { in: ['STAFF', 'ADMIN'] } },
-        select: { id: true, email: true, firstName: true, lastName: true, role: true },
+        select: { id: true, email: true, firstName: true, lastName: true, role: true, suspendedAt: true },
         orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
       }),
       prisma.staffMember.findMany({ select: { userId: true, title: true, permissions: true } }),
     ]);
     const byUser = new Map(members.map((member) => [member.userId, member]));
+    const activeAdministrators = users.filter((user) => user.role === 'ADMIN' && !user.suspendedAt).length;
     return {
       staff: users.map((user) => {
         const member = byUser.get(user.id);
+        const lastActiveAdministrator = user.role === 'ADMIN' && !user.suspendedAt && activeAdministrators <= 1;
         return {
           userId: user.id,
           email: user.email,
@@ -1800,9 +1803,11 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           role: user.role.toLowerCase(),
           title: member?.title ?? null,
           permissions: user.role === 'ADMIN' ? [...PERMISSIONS] : (member?.permissions ?? []),
+          removable: !lastActiveAdministrator,
         };
       }),
       available: PERMISSIONS,
+      activeAdministrators,
     };
   });
 
@@ -1918,13 +1923,10 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     }
 
     if (body.permissions !== undefined || body.role !== undefined) {
-      const session = request.sessionId
-        ? await prisma.session.findUnique({ where: { id: request.sessionId }, select: { stepUpUntil: true } })
-        : null;
-      if (!session?.stepUpUntil || session.stepUpUntil.getTime() <= Date.now()) {
-        throw new AppError(403, 'step_up_required', 'Confirm your password or authenticator code before changing a staff role or permissions.');
-      }
+      await assertFreshStepUp(request.sessionId);
     }
+    if (roleChanges && body.role) await assertNotLastAdministrator(userId, body.role);
+    const demotion = roleChanges && member.user.role === 'ADMIN' && body.role === 'STAFF';
 
     await prisma.$transaction([
       prisma.staffMember.update({
@@ -1935,6 +1937,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         },
       }),
       ...(roleChanges ? [prisma.user.update({ where: { id: userId }, data: { role: body.role } })] : []),
+      ...(demotion
+        ? [
+            prisma.session.deleteMany({ where: { userId } }),
+            prisma.apiKey.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+          ]
+        : []),
     ]);
 
     if (body.permissions !== undefined) {

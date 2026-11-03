@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { AppError } from '../lib/errors.js';
 import { verifyPassword } from '../lib/password.js';
 import { decryptSecret } from '../lib/secrets.js';
 import { verifyTotp } from '../lib/two-factor.js';
@@ -30,4 +31,15 @@ export async function verifyStaffStepUp(userId: string, credential: StaffStepUpC
     data: { lastUsedStep: step },
   });
   return consumed.count === 1 ? 'totp' : null;
+}
+
+/** A staff role or access change needs a confirmation from this browser session. */
+export async function assertFreshStepUp(sessionId: string | undefined): Promise<void> {
+  if (!sessionId) {
+    throw new AppError(403, 'step_up_required', 'Confirm your password or authenticator code before changing a staff role or permissions.');
+  }
+  const session = await prisma.session.findUnique({ where: { id: sessionId }, select: { stepUpUntil: true } });
+  if (!session?.stepUpUntil || session.stepUpUntil.getTime() <= Date.now()) {
+    throw new AppError(403, 'step_up_required', 'Confirm your password or authenticator code before changing a staff role or permissions.');
+  }
 }
