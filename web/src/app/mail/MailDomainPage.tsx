@@ -29,7 +29,7 @@ import {
 import { useAction, useAsync } from '../../lib/useAsync';
 import { memLabel } from '../../lib/pricing';
 import { Link, useParams, useRouter } from '../../router';
-import { DangerButton, ErrorState, LoadingBlock, Panel, Segmented, StatusPill, useToast } from '../../ui-app';
+import { ButtonLink, ErrorState, LoadingBlock, Panel, Segmented, StatusPill, useToast } from '../../ui-app';
 import { Icon } from '../../icons';
 import { AliasTable } from './AliasTable';
 import { MailDeleteDialog } from './MailDeleteDialog';
@@ -462,9 +462,7 @@ export function MailDomainPage() {
               undone.
             </p>
             <div className="mt-3">
-              <DangerButton onClick={() => setPendingDelete({ kind: 'domain', domain })} disabled={remove.pending}>
-                Delete this domain
-              </DangerButton>
+              <ButtonLink to={`/app/mail/domains/${encodeURIComponent(domain.id)}/settings`} variant="danger">Review domain deletion</ButtonLink>
             </div>
           </Panel>
         </div>
