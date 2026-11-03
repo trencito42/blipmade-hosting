@@ -143,3 +143,11 @@ export async function createAdmin(
   return { client, userId: user.id };
 }
 
+/** Opens the ten-minute window required for staff role and permission writes. */
+export async function confirmStaffStepUp(client: TestClient, password = VALID_PASSWORD): Promise<void> {
+  const response = await client.request('POST', '/api/admin/staff/step-up', { password });
+  if (response.status !== 200) {
+    throw new Error(`Could not confirm the staff step-up: ${response.status} ${JSON.stringify(response.body)}`);
+  }
+}
+

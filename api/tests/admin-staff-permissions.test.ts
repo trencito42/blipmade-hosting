@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/lib/password.js';
-import { closeApp, createAdmin, getApp, makeClient, resetDatabase, VALID_PASSWORD } from './helpers.js';
+import { closeApp, confirmStaffStepUp, createAdmin, getApp, makeClient, resetDatabase, VALID_PASSWORD } from './helpers.js';
 import type { TestClient } from './helpers.js';
 
 /**
@@ -67,6 +67,7 @@ describe('the staff editor', () => {
     const { client: staff } = await createStaff('staff@blipmade.test', ['staff.write']);
     const { client: admin } = await createAdmin(app, 'admin@blipmade.test');
     const { userId: targetId } = await createStaff('target@blipmade.test', ['customers.read']);
+    await confirmStaffStepUp(admin);
     await admin.request('PUT', `/api/admin/staff/${targetId}`, { role: 'ADMIN' });
 
     const response = await staff.request('PUT', `/api/admin/staff/${targetId}`, { role: 'STAFF' });
@@ -81,6 +82,7 @@ describe('the staff editor', () => {
     const { client: admin } = await createAdmin(app, 'admin@blipmade.test');
     const { userId: targetId } = await createStaff('target@blipmade.test', ['customers.read']);
 
+    await confirmStaffStepUp(admin);
     const response = await admin.request('PUT', `/api/admin/staff/${targetId}`, { role: 'ADMIN' });
 
     expect(response.status).toBe(200);
@@ -95,6 +97,7 @@ describe('the staff editor', () => {
     const { client: staff } = await createStaff('staff@blipmade.test', ['staff.write']);
     const { client: admin } = await createAdmin(app, 'admin@blipmade.test');
     const { userId: targetId } = await createStaff('target@blipmade.test', ['customers.read']);
+    await confirmStaffStepUp(admin);
     await admin.request('PUT', `/api/admin/staff/${targetId}`, { role: 'ADMIN' });
 
     const response = await staff.request('PUT', `/api/admin/staff/${targetId}`, { permissions: ['customers.read'] });
@@ -128,6 +131,7 @@ describe('the staff editor', () => {
     const { client: staff } = await createStaff('staff@blipmade.test', ['staff.write', 'customers.read', 'tickets.read']);
     const { userId: targetId } = await createStaff('target@blipmade.test', ['customers.read']);
 
+    await confirmStaffStepUp(staff);
     const response = await staff.request('PUT', `/api/admin/staff/${targetId}`, { permissions: ['customers.read', 'tickets.read'] });
 
     expect(response.status).toBe(200);

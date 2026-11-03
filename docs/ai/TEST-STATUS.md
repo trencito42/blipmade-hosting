@@ -37,3 +37,9 @@ R0 207/207 pass. R1 40 run, 1 fail = real race in notifications `loadMore` (butt
 
 ## Not run
 Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin UI audit. No test is VERIFIED yet.
+
+## Task A / Task C checkpoint (2026-11-03)
+
+- `cd api && PATH=/opt/node22/bin:$PATH npm run typecheck`: pass after the staff step-up backend and API tests were added.
+- API runtime tests remain not run: `TEST_DATABASE_URL`, `DATABASE_URL`, `REDIS_URL`, and `SESSION_SECRET` are absent in this workspace. The new step-up state is therefore IN_PROGRESS, not IMPLEMENTED/VERIFIED.
+- Launch-hardening review started after `cd20e9f` made Task C the first priority; no old-branch patch has been classified or ported yet.

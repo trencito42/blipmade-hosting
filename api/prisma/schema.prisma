@@ -280,6 +280,9 @@ model Session {
   // five minutes, so the list of the sessions can tell two sessions of the
   // same device apart without a write on every request.
   lastSeenAt DateTime?
+  // A recent password or authenticator confirmation for sensitive staff changes.
+  // It belongs to this session only and expires after ten minutes.
+  stepUpUntil DateTime?
   // Set when a member of the staff opened this session to act as the customer.
   impersonatedById    String?
   impersonatedByEmail String?

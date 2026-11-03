@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
-import { badRequest, conflict, forbidden, notFound, unavailable, upstream } from '../lib/errors.js';
+import { AppError, badRequest, conflict, forbidden, notFound, unavailable, upstream } from '../lib/errors.js';
 import { publishSupportEvent } from '../services/support-events.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireStaff, requirePermission, assertMayActOnAccount } from '../plugins/auth.js';
@@ -56,6 +56,7 @@ import { env } from '../env.js';
 import { assertBoundedFields, boundedRecord, MAX_SETTINGS, MAX_STARTUP_VARIABLES } from '../lib/bounded.js';
 import { OPERATOR_SETTINGS } from '../services/operator-settings.js';
 import { checkGeneralWrite, mayReadSetting, SettingRefusal, settingControlMap, settingPolicy } from '../services/setting-registry.js';
+import { verifyStaffStepUp } from '../services/staff-step-up.js';
 
 /**
  * Every route of the back office carries a limit.
@@ -1805,6 +1806,51 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  app.post('/admin/staff/step-up', {
+    config: { rateLimit: { max: LIMITS.token.address, timeWindow: LIMITS.token.window, keyGenerator: addressRateLimitKey } },
+    preHandler: [requirePermission('staff.write'), customerLimit(app, LIMITS.token)],
+  }, async (request: FastifyRequest) => {
+    const actor = await requireStaff(request);
+    const body = z
+      .object({
+        password: z.string().min(1).max(1_000).optional(),
+        code: z.string().trim().min(6).max(32).optional(),
+      })
+      .strict()
+      .refine((value) => Number(value.password !== undefined) + Number(value.code !== undefined) === 1, {
+        message: 'Enter either your password or your authenticator code.',
+      })
+      .parse(request.body ?? {});
+
+    const method = await verifyStaffStepUp(actor.id, body.password !== undefined ? { password: body.password } : { code: body.code! });
+    if (!method) {
+      await audit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: 'staff.step_up_failed',
+        targetType: 'session',
+        targetId: request.sessionId ?? null,
+        meta: { method: body.password !== undefined ? 'password' : 'totp' },
+        ip: request.ip,
+      });
+      throw new AppError(401, 'step_up_failed', 'That confirmation was not accepted.');
+    }
+    if (!request.sessionId) throw new AppError(401, 'step_up_failed', 'A browser session is required.');
+
+    const stepUpUntil = new Date(Date.now() + 10 * 60 * 1_000);
+    await prisma.session.update({ where: { id: request.sessionId }, data: { stepUpUntil } });
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'staff.step_up_confirmed',
+      targetType: 'session',
+      targetId: request.sessionId,
+      meta: { method, validForSeconds: 600 },
+      ip: request.ip,
+    });
+    return { stepUpUntil: stepUpUntil.toISOString() };
+  });
+
   app.put('/admin/staff/:userId', {
     config: { rateLimit: { max: LIMITS.adminWrite.address, timeWindow: LIMITS.adminWrite.window, keyGenerator: addressRateLimitKey } },
     preHandler: [requirePermission('staff.write'), customerLimit(app, LIMITS.adminWrite)],
@@ -1868,6 +1914,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       // so a staff member may not hand it out.
       if (new Set(body.permissions).size >= PERMISSIONS.length) {
         throw forbidden('Only an administrator can grant the whole permission list.');
+      }
+    }
+
+    if (body.permissions !== undefined || body.role !== undefined) {
+      const session = request.sessionId
+        ? await prisma.session.findUnique({ where: { id: request.sessionId }, select: { stepUpUntil: true } })
+        : null;
+      if (!session?.stepUpUntil || session.stepUpUntil.getTime() <= Date.now()) {
+        throw new AppError(403, 'step_up_required', 'Confirm your password or authenticator code before changing a staff role or permissions.');
       }
     }
 

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/lib/password.js';
-import { closeApp, createAdmin, getApp, makeClient, resetDatabase, VALID_PASSWORD } from './helpers.js';
+import { closeApp, confirmStaffStepUp, createAdmin, getApp, makeClient, resetDatabase, VALID_PASSWORD } from './helpers.js';
 import type { TestClient } from './helpers.js';
 
 /**
@@ -127,6 +127,7 @@ describe('the permission list of a staff member', () => {
     const { client: staff } = await createStaff('staff@blipmade.test', ['staff.write', 'customers.read']);
     const { userId: targetId } = await createStaff('target@blipmade.test', ['customers.read']);
 
+    await confirmStaffStepUp(staff);
     const response = await staff.request('PUT', `/api/admin/staff/${targetId}`, { permissions: ['customers.read'] });
 
     expect(response.status).toBe(200);
@@ -137,6 +138,7 @@ describe('the permission list of a staff member', () => {
     const { client: admin } = await createAdmin(app, 'admin@blipmade.test');
     const { userId: targetId } = await createStaff('target@blipmade.test', ['customers.read']);
 
+    await confirmStaffStepUp(admin);
     const response = await admin.request('PUT', `/api/admin/staff/${targetId}`, {
       permissions: ['customers.read', 'settings.write'],
     });

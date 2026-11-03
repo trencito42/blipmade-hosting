@@ -182,6 +182,7 @@ async function openSession(
         ip: session.ip,
         userAgent: session.userAgent,
         lastSeenAt: new Date(),
+        stepUpUntil: null,
       },
     });
     return existing.id;
