@@ -40,6 +40,9 @@ export interface TicketRow {
   assignedTo: string | null;
   /** The id of the owner of the ticket. The list of the staff sends it. */
   assignedToId?: string | null;
+  /** The queue the conversation is sorted into, and the channel it came from. */
+  departmentId?: string | null;
+  channel?: string;
 }
 
 /** One thing that happened to a ticket. */

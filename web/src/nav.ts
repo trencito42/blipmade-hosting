@@ -76,11 +76,11 @@ function adminTab(to: string): NavEntry {
   return ADMIN_NAV.find((entry) => entry.to === to) ?? ADMIN_NAV[0]!;
 }
 
-/** Phone bottom bar: Dashboard, Customers, Support queue, Audit log. */
+/** Phone bottom bar: Dashboard, Customers, Support console, Audit log. */
 export const ADMIN_PHONE_TABS: NavEntry[] = [
   adminTab('/admin'),
   adminTab('/admin/customers'),
-  adminTab('/admin/tickets'),
+  adminTab('/admin/support'),
   adminTab('/admin/audit'),
 ];
 
@@ -90,13 +90,22 @@ const A = (to: string): NavEntry => {
   return entry;
 };
 
-/** The admin sidebar: the same pages as ADMIN_NAV, grouped by the kind of work, so a long list becomes a short one. */
+/** 
+ * Task-oriented admin navigation.
+ *
+ * Every route from ADMIN_NAV is preserved. Only the sidebar presentation changes:
+ * short, focused groups keep unrelated workflows out of one long scrolling menu.
+ * The active group opens automatically via GroupedNav.
+ */
 export const ADMIN_GROUPS: NavGroup[] = [
   { id: 'home', label: 'Dashboard', icon: 'chart', items: [A('/admin')] },
-  { id: 'sales', label: 'Customers & sales', icon: 'card', items: [A('/admin/customers'), A('/admin/orders'), A('/admin/promotions'), A('/admin/reports')] },
-  { id: 'services', label: 'Services & catalog', icon: 'rocket', items: [A('/admin/services'), A('/admin/vps'), A('/admin/mail'), A('/admin/products'), A('/admin/pricing')] },
-  { id: 'support', label: 'Support & trust', icon: 'doc', items: [A('/admin/support'), A('/admin/support/bots'), A('/admin/support/automations'), A('/admin/support/analytics'), A('/admin/tickets'), A('/admin/knowledge'), A('/admin/abuse'), A('/admin/incidents')] },
-  { id: 'ops', label: 'Operations', icon: 'heart', items: [A('/admin/ops'), A('/admin/infrastructure'), A('/admin/queues'), A('/admin/tools'), A('/admin/audit')] },
-  { id: 'comms', label: 'Messages', icon: 'mail', items: [A('/admin/notifications'), A('/admin/email-templates'), A('/admin/content')] },
-  { id: 'config', label: 'Configuration', icon: 'shield', items: [A('/admin/settings'), A('/admin/staff')] },
+  { id: 'customers-sales', label: 'Customers & sales', icon: 'card', items: [A('/admin/customers'), A('/admin/orders'), A('/admin/promotions'), A('/admin/reports')] },
+  { id: 'products-pricing', label: 'Products & pricing', icon: 'db', items: [A('/admin/products'), A('/admin/pricing')] },
+  { id: 'hosting-services', label: 'Hosting services', icon: 'rocket', items: [A('/admin/services'), A('/admin/vps'), A('/admin/mail'), A('/admin/infrastructure')] },
+  { id: 'support-desk', label: 'Support desk', icon: 'doc', items: [A('/admin/support'), A('/admin/tickets'), A('/admin/knowledge')] },
+  { id: 'support-workflows', label: 'Support workflows', icon: 'flow', items: [A('/admin/support/bots'), A('/admin/support/automations'), A('/admin/support/analytics')] },
+  { id: 'trust-status', label: 'Trust & status', icon: 'shield', items: [A('/admin/abuse'), A('/admin/incidents')] },
+  { id: 'platform-operations', label: 'Operations', icon: 'heart', items: [A('/admin/ops'), A('/admin/queues'), A('/admin/tools'), A('/admin/audit')] },
+  { id: 'communications', label: 'Communications', icon: 'mail', items: [A('/admin/notifications'), A('/admin/email-templates'), A('/admin/content')] },
+  { id: 'team-configuration', label: 'Team & settings', icon: 'shield', items: [A('/admin/staff'), A('/admin/settings')] },
 ];

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { get, post, relativeTime, type TicketMessage } from '../../lib/api';
+import { get, post, put, relativeTime, type TicketMessage } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
 import { TicketAttachments } from '../../app/TicketAttachments';
 import { Icon } from '../../icons';
@@ -266,6 +266,7 @@ export default function TicketDetail(props: TicketDetailProps = {}) {
   const [filter, setFilter] = useState<MessageFilter>('all');
   const [status, setStatus] = useState('');
   const [assignee, setAssignee] = useState('');
+  const [department, setDepartment] = useState('');
   // The text that the assistant wrote lands in the composer. The moment it
   // arrived is what tells a new text from the one that is already there.
   const [suggestion, setSuggestion] = useState<{ text: string; at: number; append?: boolean } | null>(null);
@@ -308,6 +309,12 @@ export default function TicketDetail(props: TicketDetailProps = {}) {
     },
     [mayReadStaff],
   );
+
+  // The queues the conversation can be sorted into; they are written by the operator in the support console.
+  const departments = useAsync<{ departments: { id: string; name: string }[] }>((signal) => get('/admin/support/departments', undefined, signal), []);
+  const departmentId = row.data?.ticket?.departmentId ?? '';
+  useEffect(() => setDepartment(departmentId), [departmentId]);
+  const moveDepartment = useAction(async (id: string | null) => put(`/admin/support/conversations/${encodeURIComponent(ticketId)}/department`, { departmentId: id }));
 
   const current = conversation.data?.ticket ?? null;
   const messages = current?.messages ?? [];
@@ -578,6 +585,42 @@ export default function TicketDetail(props: TicketDetailProps = {}) {
                   <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                     {changeStatus.error}
                   </p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Department</p>
+                <p className="text-[13.5px] text-ink2">
+                  {departments.data?.departments.find((entry) => entry.id === departmentId)?.name ?? 'No department yet.'}
+                </p>
+                {mayWrite ? (
+                  <>
+                    <Field label="Move the ticket to" htmlFor="ticket-department">
+                      <select id="ticket-department" value={department} onChange={(event) => setDepartment(event.target.value)} disabled={departments.loading} className={denseSelect}>
+                        <option value="">No department</option>
+                        {(departments.data?.departments ?? []).map((entry) => (
+                          <option key={entry.id} value={entry.id}>{entry.name}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <SoftButton
+                      onClick={async () => {
+                        const answer = await moveDepartment.run(department || null);
+                        if (!answer) return;
+                        toast.push(department ? 'Department saved.' : 'Department cleared.', 'ok');
+                        reloadAll();
+                      }}
+                      disabled={moveDepartment.pending || departments.loading || department === departmentId}
+                    >
+                      {moveDepartment.pending ? 'Saving…' : 'Save the department'}
+                    </SoftButton>
+                    {moveDepartment.error && <p role="alert" className="text-[13px] text-bad">{moveDepartment.error}</p>}
+                    {(departments.data?.departments.length ?? 0) === 0 && !departments.loading && (
+                      <p className="text-[13px] text-ink3">No department exists yet. Add one in the support console.</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[13px] text-ink3">Your role does not hold &quot;tickets.write&quot;, so the department cannot be changed.</p>
                 )}
               </div>
 
