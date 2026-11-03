@@ -1,4 +1,6 @@
+import { request } from 'node:https';
 import { connect } from 'node:net';
+import { env } from '../env.js';
 
 /** Hostname readiness. A certificate and a healthy application are different facts. */
 
@@ -65,8 +67,46 @@ export function probeTcpPort(host: string, port: number, timeoutMs = 4000): Prom
   });
 }
 
-/** Asks the public hostname. A certificate error is unavailable TLS, not an unhealthy application. */
+/** The host of the gateway, taken from the address of its admin API. Empty when none is configured. */
+export function gatewayHost(adminUrl: string): string {
+  try {
+    return adminUrl ? new URL(adminUrl).hostname : '';
+  } catch {
+    return '';
+  }
+}
+
+/** Asks the gateway itself, with the hostname as the name of the certificate. */
+function askGateway(gateway: string, hostname: string): Promise<{ handshake: boolean; status: number | null }> {
+  return new Promise((resolve) => {
+    const req = request(
+      { host: gateway, port: 443, servername: hostname, method: 'GET', path: '/', headers: { Host: hostname }, timeout: 8000 },
+      (response) => {
+        response.resume();
+        resolve({ handshake: true, status: response.statusCode ?? null });
+      },
+    );
+    req.on('timeout', () => req.destroy());
+    req.on('error', () => resolve({ handshake: false, status: null }));
+    req.end();
+  });
+}
+
+/**
+ * Asks for the hostname and reads the certificate that the gateway shows.
+ *
+ * The platform runs on the same network as the gateway, and the public address
+ * of the gateway is not reachable from there (the packets would come back from
+ * another address), so the question goes to the gateway directly and the
+ * certificate is still checked against the hostname. A certificate error is
+ * unavailable TLS, not an unhealthy application.
+ */
 export async function probeHostname(hostname: string): Promise<{ tls: TlsState; application: ApplicationHealth }> {
+  const gateway = gatewayHost(env.CADDY_ADMIN_URL);
+  if (gateway) {
+    const answer = await askGateway(gateway, hostname);
+    if (answer.handshake) return classifyHttpsResponse(answer);
+  }
   try {
     const response = await fetch(`https://${hostname}/`, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
     return classifyHttpsResponse({ handshake: true, status: response.status });
