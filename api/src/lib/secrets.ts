@@ -1,40 +1,42 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'node:crypto';
 import { env } from '../env.js';
 
-/**
- * Encryption for credentials that the platform has to keep but must never
- * store in the clear, such as the Pterodactyl panel password of a customer
- * account.
- *
- * The key is derived from the session secret, so rotating the secret makes
- * existing values unreadable and they have to be reset.
- */
+/** Versioned encryption for long-lived credentials. */
 
 const ALGORITHM = 'aes-256-gcm';
-const VERSION = 'v1';
+const LEGACY_VERSION = 'v1';
+const ACTIVE_VERSION = 'v2';
 
-function deriveKey(): Buffer {
+function legacyKey(): Buffer {
   return scryptSync(env.SESSION_SECRET, 'blipmade:secret-box', 32);
 }
 
-/** Encrypts a secret with AES-256-GCM. The output is safe to store as text. */
-export function encryptSecret(plaintext: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv(ALGORITHM, deriveKey(), iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return [VERSION, iv.toString('base64'), tag.toString('base64'), encrypted.toString('base64')].join('.');
+function separateKey(): Buffer | null {
+  if (!env.DATA_ENCRYPTION_SECRET) return null;
+  return scryptSync(env.DATA_ENCRYPTION_SECRET, 'blipmade:data-encryption:v2', 32);
 }
 
-/**
- * Decrypts a value produced by `encryptSecret`. Returns null when the value
- * was written with another key, which happens after the secret was rotated.
- */
+/** Encrypts with the independent data key when it has been configured. */
+export function encryptSecret(plaintext: string): string {
+  const modern = separateKey();
+  const version = modern ? ACTIVE_VERSION : LEGACY_VERSION;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv(ALGORITHM, modern ?? legacyKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return [version, iv.toString('base64'), tag.toString('base64'), encrypted.toString('base64')].join('.');
+}
+
+/** Reads v1 and v2 during migration and fails closed for unknown or unavailable keys. */
 export function decryptSecret(payload: string): string | null {
-  const [version, iv, tag, data] = payload.split('.');
-  if (version !== VERSION || !iv || !tag || !data) return null;
+  const parts = payload.split('.');
+  if (parts.length !== 4) return null;
+  const [version, iv, tag, data] = parts;
+  if (!iv || !tag || !data) return null;
+  const key = version === LEGACY_VERSION ? legacyKey() : version === ACTIVE_VERSION ? separateKey() : null;
+  if (!key) return null;
   try {
-    const decipher = createDecipheriv(ALGORITHM, deriveKey(), Buffer.from(iv, 'base64'));
+    const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'base64'));
     decipher.setAuthTag(Buffer.from(tag, 'base64'));
     return Buffer.concat([decipher.update(Buffer.from(data, 'base64')), decipher.final()]).toString('utf8');
   } catch {
@@ -42,7 +44,16 @@ export function decryptSecret(payload: string): string | null {
   }
 }
 
-/** Stable fingerprint of a secret, safe to show in the admin interface. */
+/** Re-encrypts a readable v1 payload with the configured independent key. */
+export function upgradeSecretEncryption(payload: string): string | null {
+  if (!separateKey()) throw new Error('DATA_ENCRYPTION_SECRET must be configured before re-encryption.');
+  const plaintext = decryptSecret(payload);
+  if (plaintext === null) return null;
+  if (payload.startsWith(`${ACTIVE_VERSION}.`)) return payload;
+  return encryptSecret(plaintext);
+}
+
+/** Stable fingerprint under the active encryption key. */
 export function secretFingerprint(secret: string): string {
-  return createHmac('sha256', deriveKey()).update(secret).digest('hex').slice(0, 12);
+  return createHmac('sha256', separateKey() ?? legacyKey()).update(secret).digest('hex').slice(0, 12);
 }

@@ -258,7 +258,7 @@ model PanelCredential {
   panelUserId Int
   // The external id of that account on the panel.
   externalId  String
-  // The client key, encrypted with the session secret of this deployment.
+  // The client key, encrypted with the independent data key after migration.
   tokenEnc    String
   // Where the key came from: "bridge" when the panel issued it on request,
   // "bootstrap" when an operator handed it over.
@@ -840,12 +840,12 @@ model Instance {
   // from reinstalling a server that is already running.
   provisionStep     String?
   // The variables the platform made for this instance, such as the password
-  // of a database. They are encrypted with the secret of the deployment, so
+  // of a database. They are encrypted with the versioned data-encryption key, so
   // they can be shown to the owner of the instance without being written in
   // the clear. The value is empty for an instance that needs no such variable.
   generatedVariables String?
   // The values the customer gave for the variables of the product, such as
-  // the licence of a game. They are encrypted with the same secret, because
+  // the licence of a game. They are encrypted with the same data key, because
   // they are secrets of the customer and not of the platform.
   customerVariables  String?
   // Set while a worker holds the instance, so two jobs cannot provision it.
