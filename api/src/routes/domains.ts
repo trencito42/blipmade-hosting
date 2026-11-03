@@ -229,6 +229,15 @@ function isClaimExpired(domain: {
  * The stored status is not changed, so the schema does not move; only the
  * answer of the API is more precise than the row.
  */
+async function httpsAnswers(hostname: string): Promise<boolean> {
+  try {
+    const response = await fetch(`https://${hostname}/`, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
+    return response.status > 0;
+  } catch {
+    return false;
+  }
+}
+
 function statusFor(domain: DomainRow): string {
   if (domain.status === 'PENDING_DNS' && domain.verifiedAt) return 'pending_gateway';
   return domain.status.toLowerCase();
@@ -635,8 +644,9 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         targetPort: target.port,
         verifiedAt,
       });
-      status = result.applied ? 'ACTIVE' : 'PENDING_DNS';
-      lastError = result.reason;
+      const httpsReady = result.applied ? await httpsAnswers(domain.hostname) : false;
+      status = result.applied && httpsReady ? 'ACTIVE' : 'PENDING_DNS';
+      lastError = result.applied && !httpsReady ? 'The route is added. HTTPS is not answering on this hostname yet. Try again in a few minutes.' : result.reason;
       caddyRouteId = result.routeId ?? caddyRouteId;
     } catch (error) {
       if (error instanceof gateway.GatewayNotConfiguredError) {

@@ -224,3 +224,45 @@ export async function pluginFileFor(slug: string, gameVersion: string): Promise<
   }
   return { url: file.url, filename: file.filename, size: file.size, version: first.version_number };
 }
+
+export async function searchModpacks(query: string, gameVersion: string): Promise<PluginHit[]> {
+  if (!/^[A-Za-z0-9 ._-]{1,60}$/.test(query)) throw badRequest('Search for a modpack name: letters and numbers.');
+  const facets = JSON.stringify([['project_type:modpack'], [`versions:${gameVersion}`], ['categories:forge']]);
+  const data = await cachedJson<{ hits: { slug: string; title: string; description: string; downloads: number; icon_url?: string }[] }>(
+    `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&limit=8&facets=${encodeURIComponent(facets)}`, 5,
+  );
+  return data.hits.map((hit) => ({ slug: hit.slug, title: hit.title, description: hit.description, downloads: hit.downloads, icon: hit.icon_url ?? null }));
+}
+
+export interface ModpackFile { directory: string; filename: string; url: string }
+
+/** The mod jars a Forge modpack wants, taken from its index. Only Modrinth CDN files are kept. */
+export async function modpackFilesFor(slug: string, gameVersion: string): Promise<{ title: string; files: ModpackFile[] }> {
+  if (!/^[A-Za-z0-9_-]{2,64}$/.test(slug)) throw badRequest('That is not a modpack.');
+  const versions = await cachedJson<{ name: string; files: { url: string; filename: string; primary: boolean; size: number }[] }[]>(
+    `https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version?game_versions=${encodeURIComponent(JSON.stringify([gameVersion]))}&loaders=${encodeURIComponent(JSON.stringify(['forge']))}`, 5,
+  );
+  const pack = versions.find((entry) => entry.files.some((file) => file.filename.endsWith('.mrpack')));
+  const file = pack?.files.find((entry) => entry.filename.endsWith('.mrpack') && entry.url.startsWith('https://cdn.modrinth.com/'));
+  if (!pack || !file || file.size > 30 * 1024 * 1024) throw badRequest(`No Forge modpack file is published for Minecraft ${gameVersion}.`);
+  const response = await fetch(file.url, { signal: AbortSignal.timeout(20_000), headers: { 'user-agent': 'blipmade-hosting/1.0 (support@blipmade.com)' } });
+  if (!response.ok) throw badRequest('The modpack could not be downloaded.');
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const { readZipText } = await import('./import-inspect.js');
+  const indexText = readZipText(bytes, 'modrinth.index.json');
+  if (!indexText) throw badRequest('That modpack has no index.');
+  let parsed: { files?: { path?: string; downloads?: string[]; fileSize?: number }[] };
+  try { parsed = JSON.parse(indexText) as typeof parsed; } catch { throw badRequest('That modpack index could not be read.'); }
+  const files: ModpackFile[] = [];
+  for (const entry of parsed.files ?? []) {
+    const path = (entry.path ?? '').replaceAll('\\', '/');
+    const url = entry.downloads?.find((value) => value.startsWith('https://cdn.modrinth.com/'));
+    if (!url || !/^(mods|config)\/[A-Za-z0-9._+-]{1,120}$/.test(path)) continue;
+    if ((entry.fileSize ?? 0) > 50 * 1024 * 1024) continue;
+    const slash = path.lastIndexOf('/');
+    files.push({ directory: `/${path.slice(0, slash)}`, filename: path.slice(slash + 1), url });
+    if (files.length >= 40) break;
+  }
+  if (!files.length) throw badRequest('None of the modpack files are hosted on the Modrinth CDN.');
+  return { title: pack.name, files };
+}

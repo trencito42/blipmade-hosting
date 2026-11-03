@@ -14,6 +14,7 @@ import { hasCustomerCredential, resolveCustomerCredential } from '../services/pa
 import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeUpgradeOrder } from '../services/upgrades.js';
+import { repurposeInstance } from '../services/provisioning.js';
 import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
 import { parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
 import { createCheckout } from '../services/stripe.js';
@@ -558,6 +559,27 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     const removed = await prisma.serverProfile.deleteMany({ where: { id: profileId, instanceId: instance.id } });
     if (!removed.count) throw notFound('Profile not found.');
     return { ok: true };
+  });
+
+  app.post('/instances/:id/repurpose', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ productSlug: z.string().trim().min(2).max(80) }).parse(request.body ?? {});
+    const instance = await loadInstance(user.id, id);
+    if (!instance.pterodactylUuid) throw badRequest('This server is not on the panel yet.');
+    const credential = await resolveCustomerCredential(user.id);
+    const result = await repurposeInstance({
+      instanceId: instance.id,
+      actorId: user.id,
+      actorEmail: user.email,
+      productSlug: body.productSlug,
+      token: client.clientToken(credential.token),
+      uuid: instance.pterodactylUuid,
+    });
+    return { started: true, name: result.name, note: `A backup was made and ${result.name} is installing. Start the server when the install ends.` };
   });
 }
 

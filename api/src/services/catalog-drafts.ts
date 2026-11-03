@@ -221,6 +221,33 @@ export async function regroupPlanFamilies(): Promise<{ moved: number; families: 
   return { moved, families };
 }
 
+/** Published presets customers can pick. Existing presets are left alone. */
+export async function ensureStarterPresets(): Promise<{ created: number }> {
+  const presets = [
+    { family: 'minecraft', variant: 'minecraft-paper', slug: 'paper-survival', name: 'Paper survival', summary: 'A survival world on Paper. Plugins can be added after the server exists.' },
+    { family: 'minecraft', variant: 'minecraft-forge', slug: 'forge-modded', name: 'Forge modded', summary: 'A Forge server. Modpacks install from the server page, after a backup.' },
+  ];
+  let created = 0;
+  for (const preset of presets) {
+    const family = await prisma.catalogFamily.findUnique({ where: { slug: preset.family }, select: { id: true } });
+    const variant = await prisma.catalogVariant.findFirst({ where: { slug: preset.variant, family: { slug: preset.family } }, select: { id: true } });
+    if (!family || !variant) continue;
+    const existing = await prisma.catalogPreset.findUnique({ where: { familyId_slug: { familyId: family.id, slug: preset.slug } }, select: { id: true } });
+    if (existing) continue;
+    await prisma.catalogPreset.create({
+      data: {
+        familyId: family.id,
+        variantId: variant.id,
+        slug: preset.slug,
+        name: preset.name,
+        versions: { create: { version: 1, summary: preset.summary, publishedAt: new Date() } },
+      },
+    });
+    created += 1;
+  }
+  return { created };
+}
+
 /**
  * Opens a draft to customers only when its product can already be ordered.
  * Products, prices and eggs stay as they are.

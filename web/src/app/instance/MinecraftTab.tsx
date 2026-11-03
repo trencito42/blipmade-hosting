@@ -41,6 +41,8 @@ export default function MinecraftTab({ instance }: TabProps) {
   const [changes, setChanges] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<PluginHit[]>([]);
+  const [packQuery, setPackQuery] = useState('');
+  const [packs, setPacks] = useState<PluginHit[]>([]);
   const [version, setVersion] = useState('');
   const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'settings'>('players');
   const versions = useAsync<{ supported: boolean; versions: string[]; current: string | null }>((signal) => get(`${base}/versions`, undefined, signal), [instance.id]);
@@ -67,6 +69,14 @@ export default function MinecraftTab({ instance }: TabProps) {
   const search = useAction(async () => {
     const answer = await get<{ results: PluginHit[] }>(`${base}/plugins/search`, { q: query, version: gameVersion });
     setHits(answer.results);
+  });
+  const searchPacks = useAction(async () => {
+    const answer = await get<{ results: PluginHit[] }>(`${base}/modpacks/search`, { q: packQuery, version: gameVersion });
+    setPacks(answer.results);
+  });
+  const installPack = useAction(async (slug: string) => {
+    const answer = await post<{ installed: number; note: string }>(`${base}/modpacks`, { slug, version: gameVersion });
+    push(`${answer.installed} mods downloaded. ${answer.note}`, 'ok');
   });
   const install = useAction(async (slug: string) => {
     const answer = await post<{ installed: string; note: string }>(`${base}/plugins`, { slug, version: gameVersion });
@@ -234,7 +244,30 @@ export default function MinecraftTab({ instance }: TabProps) {
           </div>
         </Panel>
       )}
-      {section === 'addons' && !versions.data?.supported && (
+      {section === 'addons' && instance.product.slug === 'minecraft-forge' && (
+        <Panel title="Modpacks" description="Forge modpacks from Modrinth. A backup is made first. Only files hosted on the Modrinth CDN are downloaded, at most 40.">
+          <div className="grid gap-3">
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[200px] flex-1">
+                <TextInput label="Search" value={packQuery} onChange={(event) => setPackQuery(event.target.value)} placeholder="All the Mods" autoComplete="off" />
+              </div>
+              <SoftButton onClick={() => void searchPacks.run()} disabled={searchPacks.pending || !packQuery.trim() || !gameVersion}>Search</SoftButton>
+            </div>
+            {searchPacks.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{searchPacks.error}</p>}
+            {packs.map((hit) => (
+              <div key={hit.slug} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 p-3.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-semibold text-ink">{hit.title}</p>
+                  <p className="text-[12.5px] text-ink3">{hit.description}</p>
+                </div>
+                <SoftButton onClick={() => void installPack.run(hit.slug)} disabled={installPack.pending}>Install</SoftButton>
+              </div>
+            ))}
+            {installPack.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{installPack.error}</p>}
+          </div>
+        </Panel>
+      )}
+      {section === 'addons' && !versions.data?.supported && instance.product.slug !== 'minecraft-forge' && (
         <Panel title="Add-ons" description="Paper can install plugins from here. Forge and Folia do not.">
           <p className="text-[14px] text-ink2">Put mod files in the mods folder from Files. No other installer runs from this page.</p>
         </Panel>

@@ -4,7 +4,7 @@ import { prisma } from '../db.js';
 import { canHoldProcessor, nodeCpuCapacity, processorRefusal } from './capacity.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
-import { unavailable } from '../lib/errors.js';
+import { badRequest, conflict, unavailable } from '../lib/errors.js';
 import { notifyInstanceProvisioned, notifyProvisioningFailed, notifyProvisioningStarted } from './notifications.js';
 import * as ptero from './pterodactyl/application.js';
 import * as pteroClient from './pterodactyl/client.js';
@@ -675,6 +675,62 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
     }
   }
   throw new ProvisioningError('server_created', 'The mapped egg is not available on the panel.');
+}
+
+/**
+ * Switches a running server to another variant in the same family.
+ * A locked backup is made first. The price card must be the same, so the renewal does not change.
+ * The install script of the new egg runs on the node and replaces the program. Worlds stay on the disk.
+ */
+export async function repurposeInstance(input: {
+  instanceId: string;
+  actorId: string;
+  actorEmail: string;
+  productSlug: string;
+  token: string;
+  uuid: string;
+}): Promise<{ name: string }> {
+  const instance = await prisma.instance.findUnique({
+    where: { id: input.instanceId },
+    include: { product: { include: { prices: { where: { active: true, period: 'MONTHLY' } } } } },
+  });
+  if (!instance?.pterodactylServerId) throw badRequest('This server is not on the panel yet.');
+  if (instance.product.slug === input.productSlug) throw badRequest('The server already runs this product.');
+  const target = await prisma.product.findUnique({
+    where: { slug: input.productSlug },
+    include: { prices: { where: { active: true, period: 'MONTHLY' } } },
+  });
+  if (!target?.visible || !target.deployable || target.fulfilment !== 'SERVER') throw badRequest('That product cannot replace this server.');
+  const [currentVariant, targetVariant] = await Promise.all([
+    prisma.catalogVariant.findUnique({ where: { productId: instance.productId }, select: { familyId: true } }),
+    prisma.catalogVariant.findUnique({ where: { productId: target.id }, select: { familyId: true } }),
+  ]);
+  if (!currentVariant || !targetVariant || currentVariant.familyId !== targetVariant.familyId) {
+    throw badRequest('A server can only move to another variant of the same family.');
+  }
+  const left = instance.product.prices[0];
+  const right = target.prices[0];
+  if (!left || !right || left.baseAmount !== right.baseAmount || left.ramPerGb !== right.ramPerGb || left.cpuPerUnit !== right.cpuPerUnit || left.diskPerGb !== right.diskPerGb || left.currency !== right.currency) {
+    throw badRequest('That variant has a different price. Order it as its own service.');
+  }
+  try {
+    await pteroClient.createBackup(input.token, input.uuid, { name: `Before ${target.name}`.slice(0, 100), locked: true });
+  } catch {
+    throw conflict('A backup could not be made first, so the server was not switched. Delete an old unlocked backup and try again.');
+  }
+  const egg = await resolveEgg(target);
+  await ptero.updateServerStartup(instance.pterodactylServerId, {
+    egg: egg.egg,
+    image: egg.image,
+    startup: egg.startup,
+    environment: egg.environment,
+    skip_scripts: false,
+  });
+  await ptero.reinstallServer(instance.pterodactylServerId);
+  await prisma.instance.update({ where: { id: instance.id }, data: { productId: target.id } });
+  await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'repurpose', message: `Switched to ${target.name} after a backup. The install is running.` } });
+  await audit({ actorId: input.actorId, actorEmail: input.actorEmail, action: 'instance.repurposed', targetType: 'instance', targetId: instance.id, meta: { from: instance.product.slug, to: target.slug } });
+  return { name: target.name };
 }
 
 /**

@@ -8,6 +8,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
 import OverviewTab from './instance/OverviewTab';
 import { ServerProfiles } from './instance/ServerProfiles';
+import { Repurpose } from './instance/Repurpose';
 import { ButtonGroup } from './components/premium';
 import {
   ButtonLink,
@@ -678,6 +679,7 @@ export default function InstanceDetail() {
             </div>
           )}
           {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><ServerProfiles instance={instance} /></div>}
+          {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><Repurpose instance={instance} /></div>}
           {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><HelpPanel instance={instance} onGoTo={setTab} productSlug={instance.product.slug} /></div>}
           {tab === 'console' && <ConsoleTab instance={instance} />}
           {tab === 'files' && <FilesTab instance={instance} />}

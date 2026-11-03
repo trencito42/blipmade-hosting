@@ -11,7 +11,7 @@ import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
 import {
   EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
-  pluginFileFor, searchPlugins, type PlayerAction,
+  pluginFileFor, searchPlugins, searchModpacks, modpackFilesFor, type PlayerAction,
 } from '../services/minecraft.js';
 
 /**
@@ -165,5 +165,31 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
     await client.pullFile(token, uuid, file.url, '/plugins', file.filename);
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_plugin', targetType: 'instance', targetId: instance.id, meta: { plugin: slug, file: file.filename, version: file.version } });
     return { installed: file.filename, note: 'Restart the server to load it.' };
+  });
+
+  app.get('/instances/:id/minecraft/modpacks/search', async (request: FastifyRequest) => {
+    const { slug } = await load(request);
+    if (slug !== 'minecraft-forge') throw badRequest('Modpacks install on Forge servers.');
+    const { q, version } = z.object({ q: z.string().min(1).max(60), version: z.string().regex(/^\d+\.\d+(\.\d+)?$/) }).parse(request.query);
+    return { results: await searchModpacks(q, version) };
+  });
+
+  app.post('/instances/:id/minecraft/modpacks', write, async (request: FastifyRequest) => {
+    const { user, instance, token, uuid, slug } = await load(request);
+    if (slug !== 'minecraft-forge') throw badRequest('Modpacks install on Forge servers.');
+    const body = z.object({ slug: z.string().max(64), version: z.string().regex(/^\d+\.\d+(\.\d+)?$/) }).parse(request.body ?? {});
+    const pack = await modpackFilesFor(body.slug, body.version);
+    try {
+      await client.createBackup(token, uuid, { name: `Before modpack ${pack.title}`.slice(0, 100), locked: true });
+    } catch {
+      throw conflict('A backup could not be made first, so the modpack was not installed. Delete an old unlocked backup and try again.');
+    }
+    for (const file of pack.files) {
+      const folder = file.directory;
+      try { await client.createFolder(token, uuid, folder); } catch { /* The folder is already there. */ }
+      await client.pullFile(token, uuid, file.url, folder, file.filename);
+    }
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_modpack', targetType: 'instance', targetId: instance.id, meta: { modpack: body.slug, files: pack.files.length } });
+    return { installed: pack.files.length, note: 'A backup was made and the mods were downloaded. Restart the server to load them.' };
   });
 }

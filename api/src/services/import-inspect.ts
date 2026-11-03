@@ -116,6 +116,41 @@ export function readZipManifests(zip: Buffer): { path: string; text: string }[] 
   return files;
 }
 
+/** Reads one named file from a zip. The file is not written anywhere. */
+export function readZipText(zip: Buffer, baseName: string): string | null {
+  if (zip.length < 22 || zip.length > 30 * 1024 * 1024) return null;
+  let eocd = -1;
+  for (let i = zip.length - 22; i >= Math.max(0, zip.length - 22 - 65_535); i -= 1) {
+    if (zip.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+  const count = zip.readUInt16LE(eocd + 10);
+  let cursor = zip.readUInt32LE(eocd + 16);
+  if (count > 8_000 || cursor >= zip.length) return null;
+  for (let index = 0; index < count && cursor + 46 <= zip.length; index += 1) {
+    if (zip.readUInt32LE(cursor) !== 0x02014b50) break;
+    const method = zip.readUInt16LE(cursor + 10);
+    const compressedSize = zip.readUInt32LE(cursor + 20);
+    const size = zip.readUInt32LE(cursor + 24);
+    const nameLength = zip.readUInt16LE(cursor + 28);
+    const extraLength = zip.readUInt16LE(cursor + 30);
+    const commentLength = zip.readUInt16LE(cursor + 32);
+    const localOffset = zip.readUInt32LE(cursor + 42);
+    const name = zip.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8').replaceAll('\\', '/');
+    cursor += 46 + nameLength + extraLength + commentLength;
+    if (name.split('/').pop() !== baseName || name.includes('..') || size > 2_000_000 || compressedSize > 2_000_000) continue;
+    if (localOffset + 30 > zip.length || zip.readUInt32LE(localOffset) !== 0x04034b50) continue;
+    const start = localOffset + 30 + zip.readUInt16LE(localOffset + 26) + zip.readUInt16LE(localOffset + 28);
+    const compressed = zip.subarray(start, start + compressedSize);
+    if (compressed.length !== compressedSize) continue;
+    try {
+      const raw = method === 0 ? Buffer.from(compressed) : method === 8 ? inflateRawSync(compressed) : null;
+      if (raw && raw.length <= 2_000_000) return raw.toString('utf8');
+    } catch { /* The next entry may still be the index. */ }
+  }
+  return null;
+}
+
 export function inspectZip(zip: Buffer): ImportProposal {
   if (zip.length > MAX_ZIP) {
     return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['The zip is larger than 8 MB.'] };
