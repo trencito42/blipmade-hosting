@@ -56,4 +56,27 @@ test.describe('customer credit and note on their own pages', () => {
     await page.goto('/admin/customers/u2/account-action');
     await expect(page.getByRole('heading', { level: 1, name: 'Reinstate the customer' })).toBeVisible();
   });
+
+  test('the name is saved and the dangerous security actions need the acknowledgement', async ({ page }) => {
+    const calls: string[] = [];
+    let name: unknown;
+    await stubAdmin(page, (path, method, body) => {
+      if (method === 'PATCH' && path === '/admin/customers/u1/name') { name = body; return {}; }
+      if (method === 'POST' && path.startsWith('/admin/customers/u1/')) { calls.push(path); return {}; }
+      if (path === '/admin/customers/u1') return { customer: { name: 'Cora Customer', email: 'c@example.test', emailVerified: true } };
+      return undefined;
+    });
+    await page.goto('/admin/customers/u1/profile/edit');
+    await page.getByLabel('Last name').fill('Client');
+    await page.getByRole('button', { name: 'Save the name' }).click();
+    await expect.poll(() => name).toEqual({ firstName: 'Cora', lastName: 'Client' });
+    await page.goto('/admin/customers/u1/security');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    const out = page.getByRole('button', { name: 'Sign out everywhere' });
+    await expect(out).toBeDisabled();
+    await page.getByRole('checkbox').last().check();
+    await out.click();
+    await expect.poll(() => calls).toEqual(['/admin/customers/u1/revoke-sessions']);
+    await expect(page.getByRole('button', { name: 'Mark as verified' })).toHaveCount(0);
+  });
 });

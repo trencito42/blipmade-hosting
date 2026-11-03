@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { get, post } from '../lib/api';
+import { get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useParams, useRouter } from '../router';
 import { ErrorState, LoadingBlock, PrimaryButton, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
-import { maskEmail } from './Overview';
+import { denseDanger, denseGhost, maskEmail } from './Overview';
 import { PageEditorShell, useUnsavedChangesGuard } from '../app/components/premium';
 import { can, useAdminSession } from './Overview';
 
@@ -123,6 +123,109 @@ export function CustomerAccountAction() {
             <TextArea label="Reason (required)" value={reason} onChange={(event) => setReason(event.target.value)} rows={3} disabled={!mayWrite} hint="Give a reason. It is written to the audit log." />
             {!mayWrite && <p className="text-[13px] text-ink3">Your role does not allow &quot;customers.write&quot;.</p>}
             {send.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{send.error}</p>}
+          </div>
+        )}
+    </PageEditorShell>
+  );
+}
+
+/** The name of a customer. The change is written to the audit log. */
+export function CustomerProfileEdit() {
+  const { id = '' } = useParams();
+  const { navigate } = useRouter();
+  const toast = useToast();
+  const mayWrite = can(useAdminSession().staff, 'customers.write');
+  const state = useAsync<{ customer: { name: string | null } }>((signal) => get(`/admin/customers/${encodeURIComponent(id)}`, undefined, signal), [id]);
+  const [first = '', ...rest] = (state.data?.customer.name ?? '').split(' ');
+  const [firstName, setFirstName] = useState<string | null>(null);
+  const [lastName, setLastName] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const values = { first: firstName ?? first, last: lastName ?? rest.join(' ') };
+  const changed = values.first !== first || values.last !== rest.join(' ');
+  const dirty = !done && changed;
+  useUnsavedChangesGuard(dirty, 'Discard the new name?');
+  const send = useAction(async () => patch(`/admin/customers/${encodeURIComponent(id)}/name`, { firstName: values.first.trim(), lastName: values.last.trim() }));
+  const submit = async () => {
+    if (!(await send.run())) return;
+    setDone(true);
+    toast.push('The name was changed.', 'ok');
+    navigate(backOf(id), { replace: true });
+  };
+  const discard = () => {
+    if (!dirty || window.confirm('Discard the new name?')) navigate(backOf(id));
+  };
+  return (
+    <PageEditorShell eyebrow="Customers" title="Edit the name" description="The change is written to the audit log." backTo={backOf(id)} backLabel="Back to the customer" dirty={dirty}
+      actions={<><SoftButton type="button" onClick={discard} disabled={send.pending}>Discard</SoftButton><PrimaryButton type="button" onClick={() => void submit()} disabled={!mayWrite || !changed || !values.first.trim() || !values.last.trim() || send.pending}>{send.pending ? 'Saving…' : 'Save the name'}</PrimaryButton></>}>
+      {state.loading && !state.data ? <LoadingBlock rows={2} label="Loading the customer" />
+        : state.error || !state.data ? <ErrorState title="The customer could not be loaded" message={state.error?.message ?? 'Not found.'} onRetry={state.reload} />
+        : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TextInput label="First name" value={values.first} onChange={(event) => setFirstName(event.target.value)} disabled={!mayWrite} />
+            <TextInput label="Last name" value={values.last} onChange={(event) => setLastName(event.target.value)} disabled={!mayWrite} />
+            {!mayWrite && <p className="text-[13px] text-ink3 sm:col-span-2">Your role does not allow &quot;customers.write&quot;.</p>}
+            {send.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad sm:col-span-2">{send.error}</p>}
+          </div>
+        )}
+    </PageEditorShell>
+  );
+}
+
+type SecurityAction = { key: string; title: string; text: string; button: string; path: string; done: string; danger?: boolean };
+const SECURITY_ACTIONS: SecurityAction[] = [
+  { key: 'reset', title: 'Send a password reset', text: 'A reset link is queued for the address of the customer.', button: 'Send the link', path: 'send-password-reset', done: 'The reset link was queued for the customer.' },
+  { key: 'verify', title: 'Mark the email as verified', text: 'Use it when the customer proved the address in another way.', button: 'Mark as verified', path: 'verify-email', done: 'The address is marked as verified.' },
+  { key: 'reset2fa', title: 'Reset two-factor', text: 'Two-factor is removed and every session is closed. The customer must set it up again.', button: 'Reset two-factor', path: 'reset-2fa', done: 'Two-factor was reset and the sessions were closed.', danger: true },
+  { key: 'sessions', title: 'Sign the customer out everywhere', text: 'Every session of the customer is closed now.', button: 'Sign out everywhere', path: 'revoke-sessions', done: 'Every session of the customer was closed.', danger: true },
+];
+
+/** The security actions on an account. The ones that remove access need an explicit acknowledgement first. */
+export function CustomerSecurityActions() {
+  const { id = '' } = useParams();
+  const toast = useToast();
+  const mayWrite = can(useAdminSession().staff, 'customers.write');
+  const state = useAsync<{ customer: { email: string; emailVerified: boolean } }>((signal) => get(`/admin/customers/${encodeURIComponent(id)}`, undefined, signal), [id]);
+  const [ack, setAck] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (action: SecurityAction) => {
+    setBusy(action.key);
+    setError(null);
+    try {
+      await post(`/admin/customers/${encodeURIComponent(id)}/${action.path}`);
+      toast.push(action.done, 'ok');
+      setAck((current) => ({ ...current, [action.key]: false }));
+      state.reload();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'That did not work.');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const customer = state.data?.customer;
+  return (
+    <PageEditorShell eyebrow="Customers" title="Security actions" description="Each action is written to the audit log." backTo={backOf(id)} backLabel="Back to the customer" actions={null}>
+      {state.loading && !state.data ? <LoadingBlock rows={3} label="Loading the customer" />
+        : state.error || !customer ? <ErrorState title="The customer could not be loaded" message={state.error?.message ?? 'Not found.'} onRetry={state.reload} />
+        : (
+          <div className="grid gap-3">
+            {!mayWrite && <p className="text-[13px] text-ink3">Your role does not allow &quot;customers.write&quot;.</p>}
+            {SECURITY_ACTIONS.filter((action) => action.key !== 'verify' || !customer.emailVerified).map((action) => (
+              <section key={action.key} className="grid gap-2 rounded-2xl border border-line p-4">
+                <h2 className="text-[15px] font-semibold text-ink">{action.title}</h2>
+                <p className="text-[13.5px] text-ink2">{action.text}</p>
+                {action.danger && (
+                  <label className="flex items-center gap-2 text-[13.5px] text-ink">
+                    <input type="checkbox" checked={Boolean(ack[action.key])} disabled={!mayWrite} onChange={(event) => setAck((current) => ({ ...current, [action.key]: event.target.checked }))} className="size-5" />
+                    I understand the customer loses access until they act.
+                  </label>
+                )}
+                <div>
+                  <button type="button" disabled={!mayWrite || busy !== null || (action.danger === true && !ack[action.key])} onClick={() => void run(action)} className={action.danger ? denseDanger : denseGhost}>{busy === action.key ? 'Working…' : action.button}</button>
+                </div>
+              </section>
+            ))}
+            {error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{error}</p>}
           </div>
         )}
     </PageEditorShell>

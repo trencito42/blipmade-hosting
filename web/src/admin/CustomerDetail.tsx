@@ -332,7 +332,7 @@ export default function CustomerDetail() {
         onChanged={state.reload}
       />
 
-      {mayWrite && <AccountTools customerId={customer.id} name={customer.name ?? ''} emailVerified={customer.emailVerified} onChanged={state.reload} />}
+      {mayWrite && <AccountTools customerId={customer.id} />}
         </>
       )}
       {section === 'billing' && <CreditSummary customerId={customer.id} />}
@@ -661,40 +661,13 @@ export default function CustomerDetail() {
 }
 
 /** What the staff does to the account itself: the name, the address, the password link, the sessions. */
-function AccountTools({ customerId, name, emailVerified, onChanged }: { customerId: string; name: string; emailVerified: boolean; onChanged: () => void }) {
-  const toast = useToast();
-  const [first = '', ...rest] = name.split(' ');
-  const [firstName, setFirstName] = useState(first);
-  const [lastName, setLastName] = useState(rest.join(' '));
-  const [busy, setBusy] = useState<string | null>(null);
-  const run = async (key: string, work: () => Promise<unknown>, message: string) => {
-    setBusy(key);
-    try {
-      await work();
-      toast.push(message, 'ok');
-      onChanged();
-    } catch (failure) {
-      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    } finally {
-      setBusy(null);
-    }
-  };
+function AccountTools({ customerId }: { customerId: string }) {
+  const base = `/admin/customers/${encodeURIComponent(customerId)}`;
   return (
     <Panel title="Account tools" description="Each action is written to the audit log.">
-      <div className="grid gap-4">
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-          <TextInput label="First name" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
-          <TextInput label="Last name" value={lastName} onChange={(event) => setLastName(event.target.value)} />
-          <button type="button" className={denseGhost} disabled={busy !== null || !firstName.trim() || !lastName.trim()} onClick={() => void run('name', () => patch(`/admin/customers/${customerId}/name`, { firstName, lastName }), 'The name was saved.')}>Save name</button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {!emailVerified && (
-            <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('verify', () => post(`/admin/customers/${customerId}/verify-email`), 'The address is marked as verified.')}>Mark email verified</button>
-          )}
-          <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('reset', () => post(`/admin/customers/${customerId}/send-password-reset`), 'The reset link was queued for the customer.')}>Send password reset link</button>
-          <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run('reset2fa', () => post(`/admin/customers/${customerId}/reset-2fa`), 'Two-factor was reset and the sessions were closed.')}>Reset two-factor</button>
-          <button type="button" className={denseDanger} disabled={busy !== null} onClick={() => void run('sessions', () => post(`/admin/customers/${customerId}/revoke-sessions`), 'Every session of the customer was closed.')}>Sign out everywhere</button>
-        </div>
+      <div className="flex flex-wrap gap-2">
+        <Link to={`${base}/profile/edit`} className={denseGhost}>Edit the name</Link>
+        <Link to={`${base}/security`} className={denseGhost}>Security actions</Link>
       </div>
     </Panel>
   );
