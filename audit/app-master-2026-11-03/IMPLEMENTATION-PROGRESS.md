@@ -344,3 +344,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Production build: pass; 172 pages prerendered.
 - Static canonical-route tests: 2/2 pass.
 - Focused Playwright Git/access suites: 4/4 pass.
+
+## 2026-11-03 — Dedicated network allocation editor
+
+### Completed
+
+- [x] Moved allocation rename, primary selection and release to `/app/instances/:id/network/:allocationId/edit`.
+- [x] Kept the network tab as a responsive address inventory with contextual edit links.
+- [x] Added duplicate/length validation, provider-owned IP/port disclosure, Save/Discard and dirty guard.
+- [x] Protected primary-address deletion and required the exact IP:port before releasing an extra allocation.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- Production build: pass; 172 pages prerendered.
+- Static network-edit contract test: 1/1 pass.
+- Focused Playwright network-edit suite: 2/2 pass, including exact PATCH/PUT payloads, dirty guard and 390px overflow/action reachability.
