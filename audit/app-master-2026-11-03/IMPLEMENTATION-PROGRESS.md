@@ -376,3 +376,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Production build: pass; 172 pages prerendered.
 - Static database-security contract test: 1/1 pass.
 - Focused Playwright database-security suite: 2/2 pass, including exact PATCH, post-rotation credential read, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated startup settings editor
+
+### Completed
+
+- [x] Moved container image and provider-supported startup variables to `/app/instances/:id/startup/edit`.
+- [x] Kept the Startup tab as a read-only summary while preserving environment-file functionality.
+- [x] Masked secret-like values, kept provider-managed fields read-only and sent only changed editable variables.
+- [x] Added Save/Discard, dirty guard, restart-impact disclosure and responsive field-level API errors.
+
+### Verification executed
+
+- Web and E2E TypeScript checks: pass.
+- Production build: pass; 172 pages prerendered.
+- Static startup-editor contract test: 1/1 pass.
+- Focused Playwright startup-editor suite: 2/2 pass, including exact PUT payload, secret masking, dirty guard and 390px overflow/action reachability.
