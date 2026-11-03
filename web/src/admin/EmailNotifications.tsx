@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError, get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import { Link, useRouter } from '../router';
 import {
   CardList,
   ConfirmDialog,
@@ -1600,6 +1601,7 @@ function useNotificationPage<T>(
 export default function EmailNotifications() {
   const session = useAdminSession();
   const toast = useToast();
+  const { navigate } = useRouter();
 
   const [tab, setTab] = useState<NotificationTab>('overview');
 
@@ -1622,15 +1624,8 @@ export default function EmailNotifications() {
   const [pendingEvent, setPendingEvent] = useState<NotificationEvent | null>(null);
 
   // The template that is looked at, and the values the operator gives it.
-  const [previewTemplate, setPreviewTemplate] = useState<NotificationTemplate | null>(null);
-  const [previewValues, setPreviewValues] = useState('');
-  const [previewResult, setPreviewResult] = useState<NotificationPreview | null>(null);
 
   // The test message: one address, one template.
-  const [sendTo, setSendTo] = useState('');
-  const [sendTemplateId, setSendTemplateId] = useState('');
-  const [sendValues, setSendValues] = useState('');
-  const [sent, setSent] = useState<NotificationTestSendResult | null>(null);
 
   // A word is not a request per letter, so the text filters wait a moment.
   useEffect(() => {
@@ -1725,33 +1720,6 @@ export default function EmailNotifications() {
     toast.push('The event was given to the dispatcher again.', 'ok');
     events.reload();
     return true;
-  });
-
-  const preview = useAction(async (template: NotificationTemplate, values: string) => {
-    const parsed = notificationPayload(values);
-    if (!parsed.ok) throw new ApiError(0, 'invalid_payload', parsed.error);
-    const rendered = await runNotificationTemplatePreview(template.id, parsed.payload);
-    // The answer of the server names the values that are missing. When it does
-    // not, the template is asked for them.
-    const missing = rendered.missing.length
-      ? rendered.missing
-      : await runNotificationTemplateValidate(template.id, parsed.payload);
-    const result = { ...rendered, missing };
-    setPreviewResult(result);
-    return result;
-  });
-
-  const send = useAction(async () => {
-    const parsed = notificationPayload(sendValues);
-    if (!parsed.ok) throw new ApiError(0, 'invalid_payload', parsed.error);
-    const result = await runNotificationTestSend({
-      to: sendTo,
-      templateId: sendTemplateId,
-      payload: parsed.payload,
-    });
-    setSent(result);
-    toast.push('The test message was given to the server.', 'ok');
-    return result;
   });
 
   const templates = templateList.data?.templates ?? [];
@@ -1983,49 +1951,12 @@ export default function EmailNotifications() {
               ) : (
                 <NotificationTemplateCatalogue
                   templates={templates}
-                  onPreview={(template) => {
-                    setPreviewTemplate(template);
-                    setPreviewResult(null);
-                    preview.clearError();
-                  }}
+                  onPreview={(template) => navigate(`/admin/notifications/templates/${encodeURIComponent(template.id)}/preview`)}
                 />
               )}
             </div>
 
-            <div className="rounded-2xl bg-s2 p-4">
-              <NotificationTemplatePreviewPanel
-                template={previewTemplate}
-                values={previewValues}
-                onValuesChange={setPreviewValues}
-                onPreview={() => {
-                  if (!previewTemplate) return;
-                  void preview.run(previewTemplate, previewValues);
-                }}
-                preview={previewResult}
-                busy={preview.pending}
-                error={preview.error}
-                mayPreview={mayWrite}
-              />
-            </div>
-
-            <div className="rounded-2xl bg-s2 p-4">
-              <NotificationTestSendPanel
-                templates={templates}
-                to={sendTo}
-                onToChange={setSendTo}
-                templateId={sendTemplateId}
-                onTemplateIdChange={setSendTemplateId}
-                values={sendValues}
-                onValuesChange={setSendValues}
-                onSend={() => {
-                  void send.run();
-                }}
-                busy={send.pending}
-                error={send.error}
-                sent={sent}
-                maySend={mayWrite}
-              />
-            </div>
+            {mayWrite && <div><Link to="/admin/notifications/test" className={denseGhost}>Send a test message</Link></div>}
 
             {!mayWrite && (
               <p className="px-1 text-[13px] text-ink3">

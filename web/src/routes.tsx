@@ -79,6 +79,8 @@ const AdminMailPlanEdit = lazy(() => import('./admin/MailPlanEdit'));
 const AdminSupportSettings = lazy(() => import('./admin/SupportSettings'));
 const AdminServiceLimits = lazy(() => import('./admin/ServiceLimitsEdit'));
 const AdminAuditEntry = lazy(() => import('./admin/AuditEntry'));
+const AdminNotificationPreview = lazy(() => import('./admin/NotificationEditors').then((m) => ({ default: m.NotificationTemplatePreview })));
+const AdminNotificationTest = lazy(() => import('./admin/NotificationEditors').then((m) => ({ default: m.NotificationTestSend })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -345,6 +347,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/content/:key/edit', component: AdminContentEdit, title: 'Edit content', area: 'admin', layout: 'editor' },
   { pattern: '/admin/content', component: AdminContent, title: 'Site content', area: 'admin' },
   { pattern: '/admin/tools', component: AdminTools, title: 'Operator tools', area: 'admin' },
+  { pattern: '/admin/notifications/templates/:id/preview', component: AdminNotificationPreview, title: 'Template preview', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/notifications/test', component: AdminNotificationTest, title: 'Test message', area: 'admin', layout: 'editor' },
   { pattern: '/admin/notifications', component: AdminEmailNotifications, title: 'Email & notifications', area: 'admin' },
 ];
 
