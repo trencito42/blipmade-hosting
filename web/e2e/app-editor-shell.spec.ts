@@ -13,6 +13,12 @@ const ROUTES = [
   '/app/instances/i1/startup/edit',
   '/app/billing/subscriptions/s1/cancel',
   '/app/mail/domains/new',
+  '/app/domains/d1/edit',
+  '/app/settings/api-keys/new',
+  '/app/settings/security/2fa',
+  '/app/settings/security/2fa/disable',
+  '/app/settings/security/2fa/backup-codes',
+  '/app/settings/security/passkeys/new',
 ];
 
 async function json(route: Route, body: unknown) {
@@ -29,6 +35,7 @@ async function stub(page: Page) {
     if (path === '/support/availability') return json(route, { available: false });
     if (path === '/support/chat/current' || path === '/support/bot/current') return json(route, { conversation: null });
     if (path === '/settings') return json(route, { profile: { firstName: 'Shell', lastName: 'Owner', email: 'owner@example.test', emailVerified: true, role: 'CUSTOMER', createdAt: '2026-01-01T00:00:00.000Z' }, billingAddress: null, pendingEmail: null, pendingEmailExpiresAt: null, sessions: [], account: { deletionRequestedAt: null, services: 0, subscriptions: 0 } });
+    if (path === '/settings/security') return json(route, { twoFactor: { enabled: true, enabledAt: '2026-10-01T00:00:00.000Z', backupCodesLeft: 5 }, passkeys: [] });
     if (path === '/tickets/categories') return json(route, { categories: [] });
     if (path === '/mail/services') return json(route, { services: [] });
     if (path === '/vps') return json(route, { vps: [] });

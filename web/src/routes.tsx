@@ -55,6 +55,11 @@ const AppDeleteDomain = lazy(() => import('./app/DomainChange').then((module) =>
 const AppChangePassword = lazy(() => import('./app/ChangePassword'));
 const AppChangeEmail = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.ChangeEmail })));
 const AppEditBillingAddress = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.EditBillingAddress })));
+const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
+const AppSetupTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.SetupTwoFactor })));
+const AppDisableTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.DisableTwoFactor })));
+const AppRenewBackupCodes = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.RenewBackupCodes })));
+const AppPasskeyNew = lazy(() => import('./app/PasskeyNew'));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -212,6 +217,11 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },
   { pattern: '/app/settings/email/change', component: AppChangeEmail, title: 'Change email address', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/billing-address', component: AppEditBillingAddress, title: 'Billing address', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/api-keys/new', component: AppApiKeyNew, title: 'New API key', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/security/2fa/backup-codes', component: AppRenewBackupCodes, title: 'New backup codes', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/security/2fa/disable', component: AppDisableTwoFactor, title: 'Turn off two-factor authentication', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/security/2fa', component: AppSetupTwoFactor, title: 'Set up two-factor authentication', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/security/passkeys/new', component: AppPasskeyNew, title: 'Add a passkey', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/password', component: AppChangePassword, title: 'Change password', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
   { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },

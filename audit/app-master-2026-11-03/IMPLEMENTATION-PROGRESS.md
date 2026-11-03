@@ -507,3 +507,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - New Playwright spec `app-editor-shell` at 1440px and 390px over 9 editors (email, password, billing address, new domain, new ticket, backup create, startup, cancel subscription, mail domain): 18/18 pass (one visible h1 that is not the error page, one `main`, one Back in the header, one footer, no horizontal overflow, no wide fixed layer at the bottom, legal links at the bottom of a short page, phone bar hidden). Screenshots reviewed for the email and startup editors.
 - All other Playwright suites except the admin audit ones that need a seed file: 116 pass; 13 fail on the public site and login (`auth`, `public`, `mobile` specs: two "Log in" buttons, price assertions on the home page). They are in code this checkpoint did not touch.
 - Not covered: 320/430/768/1024/1920px, 200% zoom, software keyboard and safe-area behavior, and the admin area with the shared table style; no real device or browser session.
+
+## 2026-11-03 — API keys, two-factor and passkey pages
+
+### Completed
+
+- [x] `/app/settings/api-keys/new`: name, access cards, expiry; the key is shown once on the same page and never reaches the address, the storage of the browser or a toast. The list is compact, with a confirmation before a key is revoked.
+- [x] `/app/settings/security/2fa` (setup: a visit makes no key; the key is made on the button, proved with a code, backup codes kept), `/security/2fa/disable` (password and code) and `/security/2fa/backup-codes` (new codes, shown once). Leaving with unsaved backup codes asks first.
+- [x] `/app/settings/security/passkeys/new`: the page claims a passkey only after the device and the server both answered; a closed prompt is said in words and adds nothing.
+- [x] The security panels keep summaries with links; the passkey list is divided and grouped with tooltips. All new routes are `layout: 'editor'` and are in the shell layout spec.
+- [ ] Not done: a sessions page (the list stays inline: one action per row, no form); rename of a passkey stays inline (one field).
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: 492 pass, 0 fail (2 skipped).
+- Playwright: API key (3), two-factor (5), passkey (3), settings and password (5), editor shell at 1440px and 390px over 15 editors (30): 46/46 pass. The passkey ceremony uses a replaced `navigator.credentials.create`; it does not run a real authenticator.
+- The two-factor API answers are stubbed; the real TOTP verification is covered by the API tests, which were not run here (no database).

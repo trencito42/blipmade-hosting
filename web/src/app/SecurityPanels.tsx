@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { del, get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useInfiniteList } from '../lib/useInfinite';
-import { passkeyFailure, passkeysSupported, registerPasskey } from '../lib/passkeys';
-import { OtpInput } from '../OtpInput';
-import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, TextInput, useToast } from '../ui-app';
+import { passkeysSupported } from '../lib/passkeys';
+import { ButtonGroup } from './components/premium';
+import { ButtonLink, ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, TextInput, useToast } from '../ui-app';
 
 interface SecurityState {
   twoFactor: { enabled: boolean; enabledAt: string | null; backupCodesLeft: number };
@@ -13,85 +13,8 @@ interface SecurityState {
 
 const day = (value: string | null) => (value ? new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'never');
 
-/** Groups of four, so a secret read from the screen is easy to type: ABCD EFGH IJKL. */
-const spaced = (secret: string) => secret.replace(/(.{4})/g, '$1 ').trim();
-
-function BackupCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
-  const { push } = useToast();
-  const text = codes.join('\n');
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      push('The backup codes were copied.', 'ok');
-    } catch {
-      push('Copy failed. Select the codes and copy them by hand.', 'error');
-    }
-  };
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([`Blipmade backup codes\n\nEach code works once.\n\n${text}\n`], { type: 'text/plain' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'blipmade-backup-codes.txt';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-  return (
-    <div className="grid gap-3 rounded-2xl bg-s2 p-4">
-      <p className="text-[14.5px] font-medium text-ink">Save your backup codes now</p>
-      <p className="text-[13.5px] text-ink2">
-        If you lose your phone, each of these codes lets you in once. They are shown only this one time, so keep them somewhere safe.
-      </p>
-      <ul className="grid grid-cols-2 gap-2 font-mono text-[15px] text-ink" aria-label="Backup codes">
-        {codes.map((code) => (
-          <li key={code} className="rounded-xl bg-card px-3 py-2 text-center">{code}</li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap gap-2">
-        <SoftButton onClick={() => void copy()}>Copy</SoftButton>
-        <SoftButton onClick={download}>Download</SoftButton>
-        <PrimaryButton onClick={onDone}>I saved them</PrimaryButton>
-      </div>
-    </div>
-  );
-}
-
-/** Two-factor authentication with an authenticator app. */
-export function TwoFactorPanel({ state, reload }: { state: SecurityState['twoFactor']; reload: () => void }) {
-  const { push } = useToast();
-  const [setup, setSetup] = useState<{ secret: string; qrSvg: string } | null>(null);
-  const [code, setCode] = useState('');
-  const [codes, setCodes] = useState<string[] | null>(null);
-  const [mode, setMode] = useState<'idle' | 'disable' | 'renew'>('idle');
-  const [password, setPassword] = useState('');
-  const [other, setOther] = useState('');
-
-  const start = useAction(async () => {
-    const result = await post<{ secret: string; qrSvg: string }>('/settings/2fa/setup');
-    setSetup({ secret: result.secret, qrSvg: result.qrSvg });
-    setCode('');
-  });
-  const enable = useAction(async (value: string) => {
-    const result = await post<{ backupCodes: string[] }>('/settings/2fa/enable', { code: value });
-    setCodes(result.backupCodes);
-    setSetup(null);
-    reload();
-  });
-  const disable = useAction(async () => {
-    await post('/settings/2fa/disable', { password, code: other });
-    push('Two-factor authentication is off.', 'ok');
-    setMode('idle');
-    setPassword('');
-    setOther('');
-    reload();
-  });
-  const renew = useAction(async (value: string) => {
-    const result = await post<{ backupCodes: string[] }>('/settings/2fa/backup-codes', { code: value });
-    setCodes(result.backupCodes);
-    setMode('idle');
-    setOther('');
-    reload();
-  });
-
+/** Two-factor authentication with an authenticator app. The setup, the new codes and turning it off are pages of their own. */
+export function TwoFactorPanel({ state }: { state: SecurityState['twoFactor']; reload?: () => void }) {
   return (
     <Panel
       title="Two-factor authentication"
@@ -102,75 +25,19 @@ export function TwoFactorPanel({ state, reload }: { state: SecurityState['twoFac
         </span>
       }
     >
-      <div className="grid gap-4">
-        {codes ? (
-          <BackupCodes codes={codes} onDone={() => setCodes(null)} />
-        ) : setup ? (
-          <div className="grid gap-4">
-            <ol className="grid list-decimal gap-1 pl-5 text-[14px] text-ink2">
-              <li>Open an authenticator app (Google Authenticator, Authy, 1Password, Microsoft Authenticator).</li>
-              <li>Scan the code below, or type the key by hand.</li>
-              <li>Enter the 6-digit code the app shows.</li>
-            </ol>
-            <div className="grid items-center gap-4 sm:grid-cols-[auto_minmax(0,1fr)]">
-              <img
-                alt="QR code for the authenticator app"
-                width={176}
-                height={176}
-                className="rounded-2xl bg-white p-2"
-                src={`data:image/svg+xml;utf8,${encodeURIComponent(setup.qrSvg)}`}
-              />
-              <div className="grid gap-1">
-                <p className="text-[12.5px] text-ink3">Key to type by hand</p>
-                <p className="break-all font-mono text-[15px] font-semibold text-ink">{spaced(setup.secret)}</p>
-              </div>
-            </div>
-            <div className="grid gap-3">
-              <OtpInput value={code} onChange={setCode} onComplete={(value) => void enable.run(value)} disabled={enable.pending} invalid={Boolean(enable.error)} autoFocus />
-              {enable.error && <p role="alert" className="text-center text-[13.5px] font-medium text-bad">{enable.error}</p>}
-              <div className="flex flex-wrap justify-center gap-2">
-                <PrimaryButton onClick={() => void enable.run(code)} disabled={enable.pending || code.length < 6}>{enable.pending ? 'Checking…' : 'Turn on'}</PrimaryButton>
-                <SoftButton onClick={() => setSetup(null)} disabled={enable.pending}>Cancel</SoftButton>
-              </div>
-            </div>
-          </div>
-        ) : state.enabled ? (
-          <div className="grid gap-3">
-            <p className="text-[14px] text-ink2">
-              On since {day(state.enabledAt)}. {state.backupCodesLeft} backup code{state.backupCodesLeft === 1 ? '' : 's'} left.
-            </p>
-            {mode === 'idle' && (
-              <div className="flex flex-wrap gap-2">
-                <SoftButton onClick={() => setMode('renew')}>New backup codes</SoftButton>
-                <SoftButton onClick={() => setMode('disable')}>Turn off</SoftButton>
-              </div>
-            )}
-            {mode === 'renew' && (
-              <div className="grid gap-3 rounded-2xl bg-s2 p-4">
-                <p className="text-[14px] text-ink2">Enter a code from your app. The old backup codes stop working.</p>
-                <OtpInput value={other} onChange={setOther} onComplete={(value) => void renew.run(value)} disabled={renew.pending} invalid={Boolean(renew.error)} autoFocus />
-                {renew.error && <p role="alert" className="text-center text-[13.5px] font-medium text-bad">{renew.error}</p>}
-                <div className="flex justify-center"><SoftButton onClick={() => { setMode('idle'); setOther(''); }}>Cancel</SoftButton></div>
-              </div>
-            )}
-            {mode === 'disable' && (
-              <div className="grid gap-3 rounded-2xl bg-s2 p-4">
-                <p className="text-[14px] text-ink2">Enter your password and a code from your app (or a backup code) to turn it off.</p>
-                <TextInput label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" error={disable.fieldErrors.password} />
-                <TextInput label="Code or backup code" value={other} onChange={(event) => setOther(event.target.value)} autoComplete="one-time-code" error={disable.fieldErrors.code} />
-                {disable.error && !disable.fieldErrors.password && !disable.fieldErrors.code && <p role="alert" className="text-[13.5px] font-medium text-bad">{disable.error}</p>}
-                <div className="flex flex-wrap gap-2">
-                  <PrimaryButton onClick={() => void disable.run()} disabled={disable.pending || !password || other.trim().length < 6}>{disable.pending ? 'Working…' : 'Turn off'}</PrimaryButton>
-                  <SoftButton onClick={() => { setMode('idle'); setPassword(''); setOther(''); }}>Cancel</SoftButton>
-                </div>
-              </div>
-            )}
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 text-[14px] text-ink2">
+          {state.enabled
+            ? `On since ${day(state.enabledAt)}. ${state.backupCodesLeft} backup code${state.backupCodesLeft === 1 ? '' : 's'} left.`
+            : 'Off. Add an authenticator app to protect your sign-in.'}
+        </p>
+        {state.enabled ? (
+          <ButtonGroup label="Two-factor actions">
+            <ButtonLink to="/app/settings/security/2fa/backup-codes" variant="soft" title="Make new backup codes. The old ones stop working.">New codes</ButtonLink>
+            <ButtonLink to="/app/settings/security/2fa/disable" variant="danger" title="Turn off two-factor authentication. Needs your password and a code.">Turn off</ButtonLink>
+          </ButtonGroup>
         ) : (
-          <div>
-            <PrimaryButton onClick={() => void start.run()} disabled={start.pending}>{start.pending ? 'Preparing…' : 'Set up two-factor'}</PrimaryButton>
-            {start.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{start.error}</p>}
-          </div>
+          <ButtonLink to="/app/settings/security/2fa" variant="primary">Set up</ButtonLink>
         )}
       </div>
     </Panel>
@@ -180,24 +47,9 @@ export function TwoFactorPanel({ state, reload }: { state: SecurityState['twoFac
 /** Passkeys: a fingerprint, a face or a PIN instead of a password, on devices you own. */
 export function PasskeysPanel({ passkeys, reload }: { passkeys: SecurityState['passkeys']; reload: () => void }) {
   const { push } = useToast();
-  const [name, setName] = useState('');
-  const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<SecurityState['passkeys'][number] | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
-  const add = async () => {
-    setAdding(true);
-    try {
-      await registerPasskey(name.trim() || undefined);
-      push('The passkey was added.', 'ok');
-      setName('');
-      reload();
-    } catch (failure) {
-      push(passkeyFailure(failure), 'error');
-    } finally {
-      setAdding(false);
-    }
-  };
   const remove = useAction(async (id: string) => {
     await del(`/settings/passkeys/${encodeURIComponent(id)}`);
     push('The passkey was removed.', 'ok');
@@ -212,14 +64,18 @@ export function PasskeysPanel({ passkeys, reload }: { passkeys: SecurityState['p
   });
 
   return (
-    <Panel title="Passkeys" description="Sign in with your fingerprint, face or device PIN, without typing a password. A passkey stays on your device.">
+    <Panel
+      title="Passkeys"
+      description="Sign in with your fingerprint, face or device PIN, without typing a password. A passkey stays on your device."
+      action={passkeysSupported() ? <ButtonLink to="/app/settings/security/passkeys/new" variant="soft">Add passkey</ButtonLink> : undefined}
+    >
       <div className="grid gap-4">
         {passkeys.length === 0 ? (
           <p className="text-[14px] text-ink2">No passkey yet.</p>
         ) : (
-          <ul className="grid gap-2">
+          <ul className="grid">
             {passkeys.map((key) => (
-              <li key={key.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+              <li key={key.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
                 {renaming?.id === key.id ? (
                   <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2">
                     <div className="min-w-[12rem] flex-1">
@@ -237,22 +93,17 @@ export function PasskeysPanel({ passkeys, reload }: { passkeys: SecurityState['p
                         {key.backedUp ? ' · synced to your account' : key.deviceType === 'singleDevice' ? ' · this device only' : ''}
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <SoftButton onClick={() => setRenaming({ id: key.id, name: key.name })}>Rename</SoftButton>
-                      <SoftButton onClick={() => setRemoving(key)}>Remove</SoftButton>
-                    </div>
+                    <ButtonGroup label={`Actions for ${key.name}`}>
+                      <SoftButton onClick={() => setRenaming({ id: key.id, name: key.name })} title="Change the name of this passkey">Rename</SoftButton>
+                      <SoftButton onClick={() => setRemoving(key)} title="Remove this passkey. You can no longer sign in with it.">Remove</SoftButton>
+                    </ButtonGroup>
                   </>
                 )}
               </li>
             ))}
           </ul>
         )}
-        {passkeysSupported() ? (
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <TextInput label="Name of the new passkey (optional)" value={name} onChange={(event) => setName(event.target.value)} placeholder="My laptop" autoComplete="off" />
-            <PrimaryButton onClick={() => void add()} disabled={adding}>{adding ? 'Waiting for the device…' : 'Add a passkey'}</PrimaryButton>
-          </div>
-        ) : (
+        {!passkeysSupported() && (
           <p className="text-[13.5px] text-ink3">This browser does not support passkeys. Try a recent version of Chrome, Edge, Safari or Firefox.</p>
         )}
       </div>
@@ -333,40 +184,25 @@ export function SecurityActivityPanel() {
 
 interface ApiKeyRow { id: string; name: string; prefix: string; scope: string; lastUsedAt: string | null; lastUsedIp: string | null; expiresAt: string | null; createdAt: string; expired: boolean }
 
-/** Keys for scripts: read-only or read and write, one per tool, shown once, revoked at any time. */
+/** Keys for scripts: read-only or read and write, one per tool, shown once, revoked at any time. A key is made on its own page. */
 export function ApiKeysPanel() {
   const { push } = useToast();
   const state = useAsync<{ keys: ApiKeyRow[] }>((signal) => get<{ keys: ApiKeyRow[] }>('/settings/api-keys', undefined, signal), []);
-  const [name, setName] = useState('');
-  const [scope, setScope] = useState('read');
-  const [days, setDays] = useState('90');
-  const [made, setMade] = useState<string | null>(null);
-  const create = useAction(async () => {
-    const result = await post<{ key: string }>('/settings/api-keys', { name, scope, expiresInDays: days === 'never' ? null : Number(days) });
-    setMade(result.key);
-    setName('');
-    state.reload();
-  });
+  const [pendingRevoke, setPendingRevoke] = useState<ApiKeyRow | null>(null);
   const revoke = useAction(async (id: string) => {
     await del(`/settings/api-keys/${encodeURIComponent(id)}`);
+    setPendingRevoke(null);
     push('The key was revoked.', 'ok');
     state.reload();
   });
   const keys = state.data?.keys ?? [];
   return (
-    <Panel title="API keys" description="Use the API from your own scripts and tools. A key reads (and optionally writes) the services of your account. It never reaches your settings, your payment method or your other keys.">
-      <div className="grid gap-4">
-        {made && (
-          <div className="grid gap-2 rounded-2xl bg-acc-bg p-4">
-            <p className="text-[14px] font-medium text-ink">Copy your key now. It is shown only this once.</p>
-            <p className="break-all rounded-xl bg-card px-3 py-2 font-mono text-[13px] text-ink">{made}</p>
-            <div className="flex flex-wrap gap-2">
-              <SoftButton onClick={() => void navigator.clipboard.writeText(made).then(() => push('The key was copied.', 'ok'), () => push('Copy failed. Select the key and copy it by hand.', 'error'))}>Copy</SoftButton>
-              <PrimaryButton onClick={() => setMade(null)}>I saved it</PrimaryButton>
-            </div>
-            <p className="font-mono text-[12px] text-ink3">curl -H "Authorization: Bearer {made.slice(0, 12)}…" https://blipmade.com/api/instances</p>
-          </div>
-        )}
+    <Panel
+      title="API keys"
+      description="Use the API from your own scripts and tools. A key reads (and optionally writes) the services of your account. It never reaches your settings, your payment method or your invoices."
+      action={<ButtonLink to="/app/settings/api-keys/new" variant="soft">New key</ButtonLink>}
+    >
+      <div className="grid gap-3">
         {state.loading && !state.data ? (
           <LoadingBlock rows={1} label="Loading the keys" />
         ) : state.error ? (
@@ -374,30 +210,29 @@ export function ApiKeysPanel() {
         ) : keys.length === 0 ? (
           <p className="text-[14px] text-ink2">No key yet.</p>
         ) : (
-          <ul className="grid gap-2">
+          <ul className="grid">
             {keys.map((key) => (
-              <li key={key.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+              <li key={key.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   <p className="text-[14.5px] font-semibold text-ink">{key.name} <span className="ml-1 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase text-ink2">{key.scope === 'write' ? 'read and write' : 'read only'}</span></p>
                   <p className="font-mono text-[12.5px] text-ink3">{key.prefix}… · made {day(key.createdAt)} · {key.lastUsedAt ? `used ${day(key.lastUsedAt)}${key.lastUsedIp ? ` from ${key.lastUsedIp}` : ''}` : 'never used'} · {key.expired ? 'expired' : key.expiresAt ? `expires ${day(key.expiresAt)}` : 'does not expire'}</p>
                 </div>
-                <SoftButton onClick={() => void revoke.run(key.id)} disabled={revoke.pending}>Revoke</SoftButton>
+                <SoftButton onClick={() => setPendingRevoke(key)} disabled={revoke.pending} title="Revoke this key. Anything that uses it stops working.">Revoke</SoftButton>
               </li>
             ))}
           </ul>
         )}
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_9rem_auto] sm:items-end">
-          <TextInput label="Name" value={name} onChange={(event) => setName(event.target.value)} placeholder="deploy script" autoComplete="off" error={create.fieldErrors.name} />
-          <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">Access
-            <select value={scope} onChange={(event) => setScope(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink"><option value="read">Read only</option><option value="write">Read and write</option></select>
-          </label>
-          <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">Expires
-            <select value={days} onChange={(event) => setDays(event.target.value)} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink"><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="never">Never</option></select>
-          </label>
-          <PrimaryButton onClick={() => void create.run()} disabled={create.pending || name.trim().length < 2}>{create.pending ? 'Making…' : 'Make a key'}</PrimaryButton>
-        </div>
-        {create.error && !create.fieldErrors.name && <p role="alert" className="text-[13.5px] font-medium text-bad">{create.error}</p>}
+        {revoke.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{revoke.error}</p>}
       </div>
+      <ConfirmDialog
+        open={Boolean(pendingRevoke)}
+        title="Revoke this key?"
+        description={pendingRevoke ? `${pendingRevoke.name} stops working at once, and every script that uses it fails. This cannot be undone.` : undefined}
+        confirmLabel="Revoke key"
+        busy={revoke.pending}
+        onCancel={() => setPendingRevoke(null)}
+        onConfirm={() => { if (pendingRevoke) void revoke.run(pendingRevoke.id); }}
+      />
     </Panel>
   );
 }
