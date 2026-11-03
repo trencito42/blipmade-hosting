@@ -1,6 +1,8 @@
 # Issues 18–23 status
 
-Updated: 2026-11-03. Production was deployed at `1cfbd58` before this file. Do not deploy again without an explicit request.
+Updated: 2026-11-04. Production VM `/opt/blipmade` is still **`1cfbd583`**. GitHub `main` is **`19f954f`**. Until production is redeployed, blipmade.com keeps the old Smart Deploy behaviour (PostgreSQL from `@prisma/client`, `GIT_ADDRESS` required on import plans, no Prisma schema fetch). Do not call P0 fixed on the live site until deploy matches `main` and daily81 is proven on a disposable node.
+
+Production was deployed at `1cfbd58` before this file. Do not deploy again without an explicit request.
 
 ## #20 Catalogue
 
