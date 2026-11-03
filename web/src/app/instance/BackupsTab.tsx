@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { deleteBackup, downloadBackup, listBackups, restoreBackup, setBackupSchedule, type BackupPreset } from '../../lib/instance-api';
+import { deleteBackup, downloadBackup, listBackups, restoreBackup } from '../../lib/instance-api';
 import {
   CardList,
   ButtonLink,
@@ -35,20 +35,6 @@ export default function BackupsTab({ instance }: TabProps) {
   const rows = backups.data?.backups ?? [];
   const limit = backups.data?.limit;
   const preset = backups.data?.preset ?? 'off';
-  const [presetBusy, setPresetBusy] = useState(false);
-
-  const changePreset = async (next: BackupPreset) => {
-    setPresetBusy(true);
-    try {
-      await setBackupSchedule(instance.id, next);
-      push(next === 'off' ? 'Automatic backups are off.' : `Automatic backups run ${next === 'daily' ? 'every day' : 'every Sunday'} at 03:30 UTC.`, 'ok');
-      backups.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The schedule could not be changed.', 'error');
-    } finally {
-      setPresetBusy(false);
-    }
-  };
 
 
   const download = async (id: string, label: string) => {
@@ -141,14 +127,9 @@ export default function BackupsTab({ instance }: TabProps) {
       <Panel
         title="Automatic backups"
         description="A backup of the files at 03:30 UTC, made for you. Backups that are not locked are rotated: the oldest goes when a new one needs room. Lock one to keep it."
+        action={<ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backup-schedule/edit`}>Edit schedule</ButtonLink>}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {(['off', 'daily', 'weekly'] as const).map((option) => (
-            <SoftButton key={option} onClick={() => void changePreset(option)} disabled={presetBusy || preset === option}>
-              {option === 'off' ? 'Off' : option === 'daily' ? 'Every day' : 'Every Sunday'}{preset === option ? ' ✓' : ''}
-            </SoftButton>
-          ))}
-        </div>
+        <StatusPill status={preset === 'off' ? 'stopped' : 'available'} label={preset === 'off' ? 'Off' : preset === 'daily' ? 'Every day · 03:30 UTC' : 'Every Sunday · 03:30 UTC'} />
         <p className="mt-3 text-[13px] text-ink3">
           {backups.data?.nextRun && preset !== 'off' ? `Next one: ${fmtDateTime(backups.data.nextRun)}. ` : ''}
           {backups.data?.lastRun ? `Last one: ${fmtDateTime(backups.data.lastRun)}. ` : ''}

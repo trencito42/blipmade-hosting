@@ -217,3 +217,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static backup-editor contract test: 1/1 pass.
 - Focused Playwright backup editor suite: 2/2 pass, including exact async POST payload, locked state, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated automatic backup schedule editor
+
+### Completed
+
+- [x] Migrated automatic backup scheduling from instant tab actions to `/app/instances/:id/backup-schedule/edit`.
+- [x] Limited scheduling to the provider-supported off, daily and weekly presets, with their fixed UTC execution time clearly described.
+- [x] Added API-backed initial state, Save/Discard, dirty guard, pending/error states and rotation/durability context.
+- [x] Kept the backups tab as a read-only schedule summary with an explicit edit action.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static backup-schedule contract test: 1/1 pass.
+- Focused Playwright backup-schedule suite: 2/2 pass, including exact PUT payload, dirty guard and 390px overflow/action reachability.
