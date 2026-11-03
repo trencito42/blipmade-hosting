@@ -28,7 +28,7 @@ Phone bar: Overview, Services (apps, servers, domains, email via switch on each 
 | /app/notifications (grouped Today/Yesterday/Earlier) | IMPLEMENTED | – |
 
 ## Admin 3.0
-IN_PROGRESS. 35 admin routes. Done: `/admin/products/:id/edit` (first dedicated admin editor, shell `layout: 'editor'`). Not done: Customer 360 tabs, Activity Explorer, other editors (orders, VPS, pricing, staff, notifications, content, settings, bots, automations, promotions still inline/overlay editors). Spec: `audit/admin-master-2026-11-03/*`. Shares tooltip/table/pager components; DataTable restyle already affects admin (unverified).
+IN_PROGRESS. 35 admin routes. Done (dedicated editor routes): `/admin/products/:id/edit`, `/admin/promotions/new`, `/admin/promotions/:id/edit`, `/admin/support/bots/new` + `/:id/edit`, `/admin/support/automations/new` + `/:id/edit` (stubbed e2e via `web/e2e/admin-stub.ts`). Not done: Customer 360 tabs, Activity Explorer, other editors (orders, VPS, pricing, staff, notifications, content, settings, mail plans, incidents, knowledge, email templates still inline/overlay editors). Spec: `audit/admin-master-2026-11-03/*`. Shares tooltip/table/pager components; DataTable restyle already affects admin (unverified).
 
 ## GitHub issues
 #18 NOT_STARTED · #19 NOT_STARTED · #20 NOT_STARTED · #21 NOT_STARTED (BLOCKED on finance/legal) · #22 NOT_STARTED · #23 NOT_STARTED (BLOCKED on Cloudflare credentials).
