@@ -612,14 +612,14 @@ export function VpsDetail() {
       </nav>
       <Panel>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[min(100%,14rem)] flex-1">
             <p className="truncate text-[18px] font-semibold tracking-[-0.03em] text-ink" title={server.name}>{server.name}</p>
             <p className="truncate font-mono text-[12.5px] text-ink3">{server.plan.name} · {server.image?.label ?? 'Debian 13'} · {server.cpu} vCPU · {memLabel(server.ram)} · {server.disk} GB</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <StatusPill status={status.tone} label={status.label} />
             {server.status === 'active' && (
-              <ButtonGroup label="Power">
+              <ButtonGroup label="Power" className="w-full sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
                 <SoftButton onClick={() => void control.run('start')} disabled={control.pending || server.power === 'running'} title={server.power === 'running' ? 'Already running' : 'Start the server'}>Start</SoftButton>
                 <SoftButton onClick={() => void control.run('reboot')} disabled={control.pending || server.power !== 'running'} title="Restart the server">Restart</SoftButton>
                 <SoftButton onClick={() => void control.run('shutdown')} disabled={control.pending || server.power !== 'running'} title="Shut the server down cleanly">Shut down</SoftButton>

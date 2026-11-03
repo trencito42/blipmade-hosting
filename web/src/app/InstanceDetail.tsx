@@ -586,14 +586,14 @@ export default function InstanceDetail() {
 
       <header className={`grid gap-2 border-b border-line py-3 lg:sticky lg:top-[69px] lg:z-10 lg:bg-bg/90 lg:backdrop-blur ${closed ? 'opacity-60 saturate-50' : ''}`}>
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex min-w-[min(100%,14rem)] flex-1 items-center gap-3">
             <ProductTile slug={instance.product.slug} icon={instance.product.icon} size={44} />
-            <div className="w-0 min-w-[8rem] flex-1">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-[18px] font-semibold tracking-[-0.03em] text-ink" title={instance.name}>{instance.name}</p>
               <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <StatusPill status={instance.status} />
             {!closed && instance.url && (
               <a
@@ -609,7 +609,7 @@ export default function InstanceDetail() {
               </a>
             )}
             {instance.access !== 'viewer' && !closed && (
-              <ButtonGroup label="Power">
+              <ButtonGroup label="Power" className="w-full sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
                 <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending || powerCooldown > 0} title={canStart ? 'Start the instance' : 'Already running'}>Start</SoftButton>
                 <SoftButton onClick={() => onPower('restart')} disabled={!canRestart || power.pending || powerCooldown > 0} title="Restart the instance">
                   {powerCooldown > 0 ? `Restart (${powerCooldown}s)` : 'Restart'}

@@ -141,3 +141,19 @@ test.describe('dedicated VPS pages', () => {
     }
   });
 });
+
+for (const width of [320, 357, 390, 768]) {
+  test(`the server header does not overlap at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await stub(page, fresh());
+    await page.goto('/app/vps/v1');
+    const name = page.locator('p[title="web-1"]');
+    const power = page.getByRole('group', { name: 'Power' });
+    await expect(name).toBeVisible();
+    await expect(power).toBeVisible();
+    const a = (await name.boundingBox())!; const b = (await power.boundingBox())!;
+    expect(a.width).toBeGreaterThan(60);
+    expect(a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1, 'name and power overlap').toBe(false);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  });
+}

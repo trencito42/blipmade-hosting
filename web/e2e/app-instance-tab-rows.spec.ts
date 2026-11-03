@@ -68,3 +68,28 @@ test('the instance sections: the everyday ones first, the others under More, and
   await expect(page.locator('[aria-label="More instance sections"]')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
+
+for (const width of [320, 357, 390, 768]) {
+  test(`the instance header does not overlap at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await stub(page);
+    await page.goto('/app/instances/i1/backups');
+    const parts = {
+      name: page.locator('header p[title="Shop"]'),
+      open: page.getByRole('link', { name: /^Open/ }).first(),
+      power: page.getByRole('group', { name: 'Power' }),
+    };
+    for (const locator of Object.values(parts)) await expect(locator).toBeVisible();
+    const rects = Object.fromEntries(await Promise.all(Object.entries(parts).map(async ([key, locator]) => [key, await locator.boundingBox()])));
+    expect(rects.name!.width).toBeGreaterThan(60);
+    const keys = Object.keys(rects);
+    for (let i = 0; i < keys.length; i += 1) {
+      for (let j = i + 1; j < keys.length; j += 1) {
+        const a = rects[keys[i]!]!; const b = rects[keys[j]!]!;
+        const overlap = a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1;
+        expect(overlap, `${keys[i]} and ${keys[j]} overlap at ${width}px`).toBe(false);
+      }
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+  });
+}
