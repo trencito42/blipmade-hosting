@@ -14,6 +14,8 @@ import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
 import { inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-inspect.js';
+import { IMPORT_ZIP_TTL_MS, zipQuotaProblem } from '../services/import-lifecycle.js';
+import { purgeExpiredImportArchives } from '../services/import-apply.js';
 import { cleanCommand, cleanRepoUrl } from '../services/git-deploy.js';
 
 const quoteItemSchema = z.object({
@@ -273,6 +275,13 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       if (zip) {
         const problem = zipLayoutProblem(zip);
         if (problem) throw badRequest(problem);
+        await purgeExpiredImportArchives();
+        const held = await prisma.importSource.findMany({
+          where: { userId: user.id, zipBytesLength: { gt: 0 }, appliedAt: null },
+          select: { zipBytesLength: true },
+        });
+        const quota = zipQuotaProblem(held.map((row) => ({ bytes: row.zipBytesLength })), zip.length);
+        if (quota) throw badRequest(quota);
       }
       const proposal = zip ? inspectZip(zip) : body.url ? await inspectGitUrl(body.url) : null;
       if (!proposal?.productSlug || !proposal.start) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
@@ -292,6 +301,8 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           buildCommand,
           startCommand,
           zipBytes: zip,
+          zipBytesLength: zip?.length ?? 0,
+          zipExpiresAt: zip ? new Date(Date.now() + IMPORT_ZIP_TTL_MS) : null,
         },
       });
       return {

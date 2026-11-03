@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { activationStatus, httpsAnswers } from './domain-activation.js';
+import { activationStatus, httpDomainUpdate, probeHostname } from './domain-activation.js';
 import * as gateway from './gateway.js';
 import * as ptero from './pterodactyl/application.js';
 
@@ -125,17 +125,30 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
       outcomes.push({ hostname: domain.hostname, applied: result.applied, reason: result.reason });
       if (result.applied) routed.push(domain.hostname);
 
-      // A route on the gateway is not a site that answers. Active waits for HTTPS.
-      const httpsReady = result.applied ? await httpsAnswers(domain.hostname) : false;
-      const status = activationStatus({ purpose: domain.purpose, routeApplied: result.applied, httpsReady });
+      const probe = result.applied ? await probeHostname(domain.hostname) : null;
+      const next = httpDomainUpdate({
+        routeApplied: result.applied,
+        routeId: result.routeId,
+        reason: result.reason,
+        probe,
+      });
+      const status = activationStatus({ purpose: domain.purpose, routeApplied: result.applied, tls: next.tlsStatus });
       if (
         domain.status !== status ||
-        domain.lastError !== result.reason ||
-        domain.caddyRouteId !== result.routeId
+        domain.lastError !== next.lastError ||
+        domain.caddyRouteId !== next.caddyRouteId ||
+        domain.tlsStatus !== next.tlsStatus ||
+        domain.applicationStatus !== next.applicationStatus
       ) {
         await prisma.instanceDomain.update({
           where: { id: domain.id },
-          data: { status, lastError: result.reason, caddyRouteId: result.routeId },
+          data: {
+            status,
+            lastError: next.lastError,
+            caddyRouteId: next.caddyRouteId,
+            tlsStatus: next.tlsStatus,
+            applicationStatus: next.applicationStatus,
+          },
         });
       }
     } catch (error) {

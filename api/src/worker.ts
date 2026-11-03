@@ -31,6 +31,7 @@ import { pruneUptimeChecks } from './services/uptime.js';
 import { pruneDeviceSignals } from './services/device-signal.js';
 import { sweepBackupRetention } from './services/backup-policy.js';
 import { recordDeployEvent, runDeploy } from './services/git-deploy.js';
+import { purgeExpiredImportArchives, recoverStoredImports, settleImportedDeploy } from './services/import-apply.js';
 import { sweepResourceAlerts } from './services/resource-alerts.js';
 import { sweepAutomations } from './services/support-automation.js';
 import { sweepGuests } from './services/support-guest.js';
@@ -196,6 +197,7 @@ const gitWorker = createGitDeployWorker(async (job) => {
   const result = await runDeploy(instance, deployId, action, release);
   await recordDeployEvent(instanceId, `deploy:${deployId}:${result.state}:${result.release}:${result.commit}:${result.message}`);
   await prisma.gitDeploy.updateMany({ where: { instanceId }, data: { lastDeployAt: new Date() } });
+  await settleImportedDeploy(instanceId, deployId, result);
 });
 gitWorker.on('failed', (job, error) => console.error(`[worker] git deploy job ${job?.id} failed: ${error.message}`));
 
@@ -230,6 +232,9 @@ async function reconcile(): Promise<void> {
     }
     await audit({ action: 'worker.reconciled', meta: { count } });
   }
+  const purged = await purgeExpiredImportArchives();
+  const recovered = await recoverStoredImports();
+  if (purged || recovered) console.info(`[worker] import archives purged=${purged} recovered=${recovered}`);
 }
 
 /**

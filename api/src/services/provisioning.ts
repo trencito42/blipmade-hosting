@@ -19,7 +19,7 @@ import { cancelSubscription, findPaymentIntentForSubscription, refundPayment } f
 import { formatMoney } from '../lib/money.js';
 import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
-import { applyStoredImport } from './import-apply.js';
+import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
 import {
   generateVariables,
   openVariables,
@@ -260,11 +260,32 @@ export async function failProvisioning(instanceId: string, step: ProvisionStep, 
   }
 }
 
-export async function completeProvisioning(instanceId: string): Promise<void> {
+/** True when this server still has an import that has not been applied. */
+async function importStillWaiting(instance: { userId: string; orderItemId: string | null }): Promise<boolean> {
+  if (!instance.orderItemId) return false;
+  const item = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });
+  const importSourceId = (item?.config as { importSourceId?: unknown } | null)?.importSourceId;
+  if (typeof importSourceId !== 'string' || !importSourceId) return false;
+  const source = await prisma.importSource.findFirst({
+    where: { id: importSourceId, userId: instance.userId, appliedAt: null },
+    select: { id: true },
+  });
+  return Boolean(source);
+}
+
+export async function completeProvisioning(instanceId: string, options?: { applicationReady?: boolean }): Promise<void> {
   await prisma.provisioningJob.updateMany({
     where: { instanceId, status: 'running' },
     data: { status: 'completed' },
   });
+  if (options?.applicationReady === false) {
+    await prisma.orderItem.updateMany({
+      where: { instances: { some: { id: instanceId } } },
+      data: { fulfillmentStatus: 'PROVISIONING', fulfillmentError: null },
+    });
+    await recordEvent(instanceId, 'provisioned', 'The server is online. The imported application is not ready yet.');
+    return;
+  }
   // The line of the order that owns the instance is delivered with it.
   await prisma.orderItem.updateMany({
     where: { instances: { some: { id: instanceId } } },
@@ -1895,56 +1916,40 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       });
     }
 
+    const importPending = await importStillWaiting(instance);
     await beginProvisioning(instance, 'activated');
     await prisma.instance.update({
       where: { id: instance.id },
-      data: { status: 'ONLINE', provisionError: null, suspendedAt: null },
+      data: {
+        status: 'ONLINE',
+        provisionError: null,
+        suspendedAt: null,
+        infrastructureReadyAt: new Date(),
+        applicationReadyAt: importPending ? null : new Date(),
+        applicationError: null,
+      },
     });
     await completeStep(instance.id, 'activated');
-    await completeProvisioning(instance.id);
-    try {
+    await completeProvisioning(instance.id, { applicationReady: !importPending });
+    if (importPending) {
       const fresh = await prisma.instance.findUnique({ where: { id: instance.id } });
       if (fresh) await applyStoredImport(fresh);
-    } catch (error) {
-      await prisma.instanceEvent.create({
-        data: {
-          instanceId: instance.id,
-          type: 'deploy',
-          message: `The imported project was not started: ${error instanceof Error ? error.message : 'unknown error'}`,
-        },
-      });
     }
 
-    // The order is fulfilled when its services are running.
-    if (instance.orderId) {
-      const pending = await prisma.instance.count({
-        where: { orderId: instance.orderId, status: { notIn: ['ONLINE', 'CANCELLED'] } },
-      });
-      if (pending === 0) {
-        await prisma.order.updateMany({
-          where: { id: instance.orderId, status: 'PAID' },
-          data: { status: 'FULFILLED', fulfillmentStatus: 'FULFILLED' },
-        });
-      } else {
-        await prisma.order.updateMany({
-          where: { id: instance.orderId },
-          data: { fulfillmentStatus: 'PROVISIONING' },
-        });
-      }
-    }
+    // The order is fulfilled when its servers are online and any imported application is healthy.
+    if (instance.orderId) await syncOrderFulfillment(instance.orderId);
 
     await audit({ action: 'instance.provisioned', targetType: 'instance', targetId: instance.id });
 
-    // The customer hears that the service is ready. The message follows the
-    // preferences of the account and its state is the one of the mailer: while
-    // no relay is configured, it is written to a file and nobody receives it.
-    await notifyInstanceProvisioned({
-      userId: instance.userId,
-      instanceName: instance.name,
-      // The moment the service became ready is what makes the occurrence
-      // unique: a service that is rebuilt has its own message.
-      occurrence: new Date(),
-    });
+    // The customer hears that the service is ready only when the application is ready.
+    // An imported project still has to build inside the container and pass its health check.
+    if (!importPending) {
+      await notifyInstanceProvisioned({
+        userId: instance.userId,
+        instanceName: instance.name,
+        occurrence: new Date(),
+      });
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 

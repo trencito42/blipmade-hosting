@@ -11,8 +11,8 @@ import * as gateway from '../services/gateway.js';
 import { platformSubdomainStatus } from '../services/provisioning.js';
 import * as dns from '../services/dns.js';
 import { deleteZoneRecord, upsertZoneRecord } from '../services/cloudflare-dns.js';
-import { httpsAnswers } from '../services/domain-activation.js';
-import { openZoneToken, previewCustomerRecords, publishCustomerRecords, sealZoneToken, zoneForToken, type CustomerRecord } from '../services/customer-cloudflare.js';
+import { httpDomainUpdate, probeHostname } from '../services/domain-activation.js';
+import { deleteOwnedRecords, openZoneToken, previewCustomerRecords, publishCustomerRecords, recordsFingerprint, sealZoneToken, zoneForToken, DNS_PREVIEW_TTL_MS, approvalDecision, type CustomerRecord, type RecordPreview } from '../services/customer-cloudflare.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
 import { resolveTarget } from '../services/domain-routing.js';
@@ -133,6 +133,8 @@ interface DomainRow {
   verifiedAt: Date | null;
   claimedByUserId: string | null;
   caddyRouteId: string | null;
+  tlsStatus: string;
+  applicationStatus: string;
   createdAt: Date;
   instance: { name: string };
 }
@@ -283,6 +285,8 @@ function serializeDomain(domain: DomainRow, changeAvailableAt: Date | null = nul
     targetPort: domain.targetPort,
     dnsRecords: records,
     lastError: domain.lastError,
+    tlsStatus: domain.tlsStatus,
+    applicationStatus: domain.applicationStatus,
     /** An address of the platform: it needs no DNS record and no proof, and its name may change. */
     platform: isPlatformAddress(domain.hostname),
     /** The moment the name of an address of the platform may change again, or null when it may change now. */
@@ -433,6 +437,8 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     let status: 'ACTIVE' | 'PENDING_DNS' | 'ERROR' = 'PENDING_DNS';
     let lastError: string | null = null;
     let caddyRouteId: string | null = null;
+    let tlsStatus = 'unknown';
+    let applicationStatus = 'unknown';
     try {
       const target = await resolveTarget(domain.instance);
       const result = await gateway.applyCaddyRoute({
@@ -441,10 +447,13 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         targetPort: target.port,
         verifiedAt: domain.verifiedAt ?? new Date(),
       });
-      const httpsReady = result.applied ? await httpsAnswers(hostname) : false;
-      status = result.applied && httpsReady ? 'ACTIVE' : 'PENDING_DNS';
-      lastError = result.applied && !httpsReady ? 'The route is added. HTTPS is not answering on this hostname yet.' : result.reason;
-      caddyRouteId = result.routeId ?? null;
+      const probe = result.applied ? await probeHostname(hostname) : null;
+      const next = httpDomainUpdate({ routeApplied: result.applied, routeId: result.routeId ?? null, reason: result.reason, probe });
+      status = next.status;
+      lastError = next.lastError;
+      caddyRouteId = next.caddyRouteId;
+      tlsStatus = next.tlsStatus;
+      applicationStatus = next.applicationStatus;
     } catch (error) {
       // The worker routes the new name on its next pass.
       lastError = error instanceof Error ? error.message : 'The gateway could not be reached.';
@@ -452,7 +461,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
 
     const updated = await prisma.instanceDomain.update({
       where: { id: domain.id },
-      data: { hostname, status, lastError, caddyRouteId },
+      data: { hostname, status, lastError, caddyRouteId, tlsStatus, applicationStatus },
       include: { instance: { select: { name: true } } },
     });
     const targetAddress = process.env.DOMAIN_TARGET ?? '193.34.214.143';
@@ -700,9 +709,11 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     }
     const target = await resolveTarget(domain.instance);
 
-    let status: 'ACTIVE' | 'PENDING_DNS' | 'ERROR' = 'ACTIVE';
+    let status: 'ACTIVE' | 'PENDING_DNS' | 'ERROR' = 'PENDING_DNS';
     let lastError: string | null = null;
     let caddyRouteId = domain.caddyRouteId;
+    let tlsStatus = 'unknown';
+    let applicationStatus = 'unknown';
     try {
       const result = await gateway.applyCaddyRoute({
         hostname: domain.hostname,
@@ -710,10 +721,13 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         targetPort: target.port,
         verifiedAt,
       });
-      const httpsReady = result.applied ? await httpsAnswers(domain.hostname) : false;
-      status = result.applied && httpsReady ? 'ACTIVE' : 'PENDING_DNS';
-      lastError = result.applied && !httpsReady ? 'The route is added. HTTPS is not answering on this hostname yet. Try again in a few minutes.' : result.reason;
-      caddyRouteId = result.routeId ?? caddyRouteId;
+      const probe = result.applied ? await probeHostname(domain.hostname) : null;
+      const next = httpDomainUpdate({ routeApplied: result.applied, routeId: result.routeId ?? null, reason: result.reason, probe });
+      status = next.status;
+      lastError = next.lastError;
+      caddyRouteId = next.caddyRouteId;
+      tlsStatus = next.tlsStatus;
+      applicationStatus = next.applicationStatus;
     } catch (error) {
       if (error instanceof gateway.GatewayNotConfiguredError) {
         // The hostname is proven, but there is no gateway to route it yet. The
@@ -731,7 +745,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
 
     const updated = await prisma.instanceDomain.update({
       where: { id: domain.id },
-      data: { status, lastError, verifiedAt, targetPort: target.port, caddyRouteId },
+      data: { status, lastError, verifiedAt, targetPort: target.port, caddyRouteId, tlsStatus, applicationStatus },
       include: { instance: { select: { name: true } } },
     });
 
@@ -801,6 +815,15 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       );
     }
 
+    const grants = await prisma.dnsRecordGrant.findMany({ where: { domainId: domain.id }, select: { cloudflareId: true, zoneId: true } });
+    if (grants.length) {
+      const link = await prisma.cloudflareZoneLink.findUnique({ where: { userId: domain.instance.userId } });
+      const token = link ? openZoneToken(link.tokenSealed) : null;
+      if (token && link) {
+        await deleteOwnedRecords(token, link.zoneId, grants.map((grant) => grant.cloudflareId)).catch(() => undefined);
+      }
+    }
+
     await prisma.instanceDomain.delete({ where: { id: domain.id } });
     await prisma.instanceEvent.create({
       data: { instanceId: domain.instanceId, type: 'domain', message: `Domain ${domain.hostname} released.` },
@@ -863,7 +886,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     if (host !== link.zoneName && !host.endsWith(`.${link.zoneName}`)) {
       throw badRequest(`This hostname is not inside ${link.zoneName}.`);
     }
-    const body = z.object({ approve: z.boolean().default(false) }).parse(request.body ?? {});
+    const body = z.object({ approve: z.boolean().default(false), previewId: z.string().min(1).max(40).optional() }).parse(request.body ?? {});
     const shown = serializeDomain(domain);
     const records: CustomerRecord[] = [];
     for (const record of shown.dnsRecords) {
@@ -872,10 +895,54 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     }
     const token = openZoneToken(link.tokenSealed);
     if (!token) throw badRequest('The saved Cloudflare token could not be read. Connect the zone again.');
-    const preview = await previewCustomerRecords(token, link.zoneId, link.zoneName, records);
-    if (!body.approve) return { preview, written: [], skipped: [] };
-    const result = await publishCustomerRecords(token, link.zoneId, link.zoneName, records);
-    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.cloudflare_publish', targetType: 'instance_domain', targetId: domain.id, meta: { written: result.written.length, skipped: result.skipped.length } });
-    return { preview, ...result };
+    const owned = await prisma.dnsRecordGrant.findMany({ where: { domainId: domain.id }, select: { type: true, name: true, cloudflareId: true } });
+    const preview = await previewCustomerRecords(token, link.zoneId, link.zoneName, records, owned);
+    const fingerprint = recordsFingerprint(records);
+    if (!body.approve) {
+      const stored = await prisma.dnsApproval.create({
+        data: {
+          userId: user.id,
+          domainId: domain.id,
+          fingerprint,
+          diff: preview as unknown as object,
+          expiresAt: new Date(Date.now() + DNS_PREVIEW_TTL_MS),
+        },
+      });
+      return { previewId: stored.id, expiresAt: stored.expiresAt, preview, written: [], skipped: [] };
+    }
+    if (!body.previewId) throw badRequest('Approve the preview that was just shown.');
+    const saved = await prisma.dnsApproval.findFirst({ where: { id: body.previewId, userId: user.id, domainId: domain.id } });
+    if (!saved) throw badRequest('That preview does not belong to this hostname.');
+    const decision = approvalDecision({
+      now: Date.now(),
+      expiresAt: saved.expiresAt.getTime(),
+      consumedAt: saved.consumedAt?.getTime() ?? null,
+      fingerprint: saved.fingerprint,
+      currentFingerprint: fingerprint,
+      stored: saved.diff as unknown as RecordPreview[],
+      live: preview,
+    });
+    if (!decision.ok) throw badRequest(decision.reason);
+    const claimed = await prisma.dnsApproval.updateMany({
+      where: { id: saved.id, consumedAt: null, expiresAt: { gt: new Date() } },
+      data: { consumedAt: new Date() },
+    });
+    if (claimed.count !== 1) throw badRequest('This preview was already used or has expired. Preview the changes again.');
+    const result = await publishCustomerRecords(token, link.zoneId, link.zoneName, records, owned);
+    if (result.created.length) {
+      await prisma.dnsRecordGrant.createMany({
+        data: result.created.map((row) => ({
+          domainId: domain.id,
+          zoneId: link.zoneId,
+          type: row.type,
+          name: row.name,
+          content: row.content,
+          cloudflareId: row.cloudflareId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.cloudflare_publish', targetType: 'instance_domain', targetId: domain.id, meta: { written: result.written.length, skipped: result.skipped.length, previewId: saved.id } });
+    return { previewId: saved.id, preview, ...result };
   });
 }

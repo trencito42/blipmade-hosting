@@ -57,6 +57,15 @@ vi.mock('../src/env.js', async (importOriginal) => {
   };
 });
 
+const { hostnameProbe } = vi.hoisted(() => ({
+  hostnameProbe: vi.fn(async () => ({ tls: 'ready' as const, application: 'ready' as const })),
+}));
+
+vi.mock('../src/services/domain-activation.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/services/domain-activation.js')>();
+  return { ...actual, probeHostname: hostnameProbe };
+});
+
 /**
  * The routes of the server of Caddy, with the rules of the real API.
  */
@@ -244,6 +253,8 @@ beforeEach(async () => {
   state.routes = [];
   state.calls = [];
   state.offline = false;
+  hostnameProbe.mockReset();
+  hostnameProbe.mockResolvedValue({ tls: 'ready', application: 'ready' });
 });
 
 const gateway = await import('../src/services/gateway.js');
@@ -503,7 +514,22 @@ describe('the repair of the routes', () => {
 
     const updated = await prisma.instanceDomain.findUnique({ where: { id: domain.id } });
     expect(updated?.status).toBe('ACTIVE');
+    expect(updated?.tlsStatus).toBe('ready');
+    expect(updated?.applicationStatus).toBe('ready');
     expect(updated?.lastError).toBeNull();
+  });
+
+  it('keeps a certificate separate from an unhealthy application', async () => {
+    const { reconcileDomainRoutes } = await import('../src/services/domain-routing.js');
+    const domain = await seedDomain('ill.example', true);
+    hostnameProbe.mockResolvedValue({ tls: 'ready', application: 'unhealthy' });
+
+    await reconcileDomainRoutes();
+
+    const updated = await prisma.instanceDomain.findUnique({ where: { id: domain.id } });
+    expect(updated?.status).toBe('ACTIVE');
+    expect(updated?.tlsStatus).toBe('ready');
+    expect(updated?.applicationStatus).toBe('unhealthy');
   });
 
   it('does not wait for the gateway when it is down', async () => {

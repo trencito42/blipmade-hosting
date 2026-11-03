@@ -80,6 +80,7 @@ model User {
   serverProfiles ServerProfile[]
   cloudflareZone CloudflareZoneLink?
   importSources ImportSource[]
+  dnsApprovals DnsApproval[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -1008,6 +1009,11 @@ model Instance {
   // Idempotency key used by the provisioning worker.
   provisioningKey   String?        @unique
   provisionError    String?
+  /// The container exists. This does not mean the imported application is built or healthy.
+  infrastructureReadyAt DateTime?
+  /// The customer application passed its health check. Empty until then when an import is attached.
+  applicationReadyAt DateTime?
+  applicationError  String?
   // The last provisioning step that completed successfully. A retry resumes
   // after this step instead of starting over, which is what keeps a retry
   // from reinstalling a server that is already running.
@@ -1133,7 +1139,13 @@ model InstanceDomain {
   // Who claimed the hostname. A hostname can only be claimed once.
   claimedByUserId   String?
   caddyRouteId String?
+  /// Certificate state. Independent of whether the customer application is healthy.
+  tlsStatus   String       @default("unknown")
+  /// Application health on this hostname. A certificate that answers is not this.
+  applicationStatus String  @default("unknown")
   lastError   String?
+  dnsApprovals DnsApproval[]
+  dnsGrants   DnsRecordGrant[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -1158,6 +1170,8 @@ model ImportSource {
   id            String    @id @default(cuid())
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Set once a server is installing this import, so a retry finds the same row.
+  instanceId    String?
   productSlug   String
   kind          String
   repoUrl       String?
@@ -1165,10 +1179,52 @@ model ImportSource {
   buildCommand  String    @default("")
   startCommand  String
   zipBytes      Bytes?
+  /// Length of zipBytes, so a quota check does not have to read the archive.
+  zipBytesLength Int      @default(0)
+  /// When the archive must be deleted whether or not the build finished.
+  zipExpiresAt  DateTime?
+  /// pending, queued, checking, failed, or applied. appliedAt is set only for applied.
+  phase         String    @default("pending")
+  deployId      String?
+  lastError     String?
+  attempts      Int       @default(0)
   createdAt     DateTime  @default(now())
   appliedAt     DateTime?
 
   @@index([userId, createdAt])
+  @@index([phase, appliedAt])
+}
+
+/// A server-generated DNS diff. Writing requires this exact preview, before it expires.
+model DnsApproval {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domainId    String
+  domain      InstanceDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  fingerprint String
+  diff        Json
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([domainId, createdAt])
+}
+
+/// A DNS record this platform created in the customer's zone. Records it did not create are not edited.
+model DnsRecordGrant {
+  id           String   @id @default(cuid())
+  domainId     String
+  domain       InstanceDomain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  zoneId       String
+  type         String
+  name         String
+  content      String
+  cloudflareId String
+  createdAt    DateTime @default(now())
+
+  @@unique([zoneId, cloudflareId])
+  @@index([domainId])
 }
 
 // ---------------------------------------------------------------------------

@@ -18,6 +18,14 @@ vi.mock('../src/services/dns.js', async (importOriginal) => {
   };
 });
 
+vi.mock('../src/services/domain-activation.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/services/domain-activation.js')>();
+  return {
+    ...actual,
+    probeHostname: vi.fn(async () => ({ tls: 'ready' as const, application: 'ready' as const })),
+  };
+});
+
 /**
  * The panel is replaced by the allocation the platform hands out, so the tests
  * do not need a Pterodactyl installation.
@@ -310,6 +318,8 @@ describe('proving the ownership of a hostname', () => {
     const response = await client.request('POST', `/api/domains/${domainId}/verify`);
     expect(response.status).toBe(200);
     expect(response.body.domain.status).toBe('active');
+    expect(response.body.domain.tlsStatus).toBe('ready');
+    expect(response.body.domain.applicationStatus).toBe('ready');
     expect(response.body.domain.verification.verified).toBe(true);
 
     const row = await prisma.instanceDomain.findUnique({ where: { id: domainId } });

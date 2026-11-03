@@ -306,6 +306,15 @@ export async function enqueueGitDeploy(data: GitDeployJobData): Promise<boolean>
   return true;
 }
 
+/** The deployment waiting or running for one server, if there is one. */
+export async function currentGitDeploy(instanceId: string): Promise<GitDeployJobData | null> {
+  const existing = await getGitDeployQueue().getJob(`git-deploy-${instanceId}`);
+  if (!existing) return null;
+  const state = await existing.getState();
+  if (state === 'waiting' || state === 'active' || state === 'delayed') return existing.data;
+  return null;
+}
+
 export function createGitDeployWorker(handler: (job: Job<GitDeployJobData>) => Promise<void>): Worker<GitDeployJobData> {
   return new Worker<GitDeployJobData>(GIT_DEPLOY_QUEUE, handler, { connection: redis, concurrency: 2, lockDuration: 600_000 });
 }
