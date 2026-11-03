@@ -61,12 +61,6 @@ export default function GitTab({ instance }: TabProps) {
     state.reload();
     history.reload();
   });
-  const rollback = useAction(async (release: string) => {
-    await post(`${base}/rollback`, { release });
-    push('The rollback was queued.', 'ok');
-    state.reload();
-    history.reload();
-  });
   const rotate = useAction(async () => {
     const answer = await post<{ webhookSecret: string }>(`${base}/webhook-secret`);
     setSecret(answer.webhookSecret);
@@ -132,7 +126,7 @@ export default function GitTab({ instance }: TabProps) {
                 <div className="flex flex-wrap gap-2">
                   <SoftButton onClick={() => void showLog.run(entry.id)}>Log</SoftButton>
                   {entry.state === 'succeeded' && entry.release && entry.release !== data?.current && (data?.releases ?? []).includes(entry.release) && (
-                    <SoftButton onClick={() => void rollback.run(entry.release)} disabled={rollback.pending || building}>Go back to this</SoftButton>
+                    <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/git/deployments/${encodeURIComponent(entry.id)}/rollback`} variant="soft">Go back to this</ButtonLink>
                   )}
                 </div>
               </li>

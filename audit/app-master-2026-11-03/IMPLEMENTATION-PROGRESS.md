@@ -424,3 +424,20 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Static subscription and billing contract tests: 15/15 pass.
 - Production build: pass; 172 pages prerendered.
 - Focused Playwright suites (subscription pages and env file editor): 5/5 pass, including exact POSTs, acknowledgement gate, refused resume and 390px overflow.
+
+## 2026-11-03 — Dedicated Git rollback review
+
+### Completed
+
+- [x] Moved "Go back to this" from an immediate button to `/app/instances/:id/git/deployments/:deployId/rollback`.
+- [x] The page loads the real deployment history and release list, applies the same eligibility rule as the list (finished, still stored, not the running release), blocks while a build runs and requires an acknowledgement.
+- [x] Sends the real `POST /instances/:id/git/rollback` with the exact release; discloses that env variables and data are not rolled back and that auto-deploy can deploy over a rollback.
+- [x] Aligned a stale admin phone-bar test with the unified support queue (`/admin/support`).
+- [ ] Not done: `/app/instances/:id/access/:shareId/edit`. The API has no endpoint to change the role of an existing member, so no control is shown; members can only be removed.
+
+### Verification executed
+
+- Web TypeScript check: pass.
+- Full web unit suite: 488 tests, 0 failures after the test alignment (1 stale failure existed before this checkpoint).
+- Production build: pass; 172 pages prerendered.
+- Focused Playwright suites (rollback and Git settings): 4/4 pass, including the exact release POST, refused running release and 390px overflow.

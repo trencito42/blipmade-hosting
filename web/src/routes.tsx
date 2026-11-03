@@ -49,6 +49,7 @@ const AppDatabaseSecurity = lazy(() => import('./app/instance/DatabaseSecurity')
 const AppEditStartup = lazy(() => import('./app/instance/EditStartup'));
 const AppCancelSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.CancelSubscription })));
 const AppResumeSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.ResumeSubscription })));
+const AppRollbackDeployment = lazy(() => import('./app/instance/RollbackDeployment'));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -159,6 +160,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/backups/:backupId/restore', component: AppRestoreBackup, title: 'Restore backup', area: 'customer' },
   { pattern: '/app/instances/:id/schedules/new', component: AppNewSchedule, title: 'New schedule', area: 'customer' },
   { pattern: '/app/instances/:id/schedules/:scheduleId/edit', component: AppEditSchedule, title: 'Edit schedule', area: 'customer' },
+  { pattern: '/app/instances/:id/git/deployments/:deployId/rollback', component: AppRollbackDeployment, title: 'Roll back deployment', area: 'customer' },
   { pattern: '/app/instances/:id/git/connect', component: AppEditGitSettings, title: 'Connect Git repository', area: 'customer' },
   { pattern: '/app/instances/:id/git/settings', component: AppEditGitSettings, title: 'Git deployment settings', area: 'customer' },
   { pattern: '/app/instances/:id/git/edit', component: AppEditGitSettings, title: 'Git deployment settings', area: 'customer' },
