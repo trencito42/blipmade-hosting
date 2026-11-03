@@ -56,108 +56,10 @@ function UsageLine({ id }: { id: string }) {
   );
 }
 
-interface PlanQuote {
-  currency: string;
-  from: { name: string; amount: number; ram: number; cpu: number; disk: number };
-  to: { name: string; amount: number; ram: number; cpu: number; disk: number };
-  delta: number;
-  billedNow: number | null;
-  blocked: string | null;
-  takesEffect: string;
-}
-
-const money = (cents: number, currency: string) => `${(cents / 100).toFixed(2)} ${currency}`;
-
 /**
  * The commercial change of plan. The price is asked from the server first and shown; the server
  * moves to the new plan and the subscription moves to its price in one operation.
  */
-function PlanChange({ server, onDone }: { server: AdminVps; onDone: () => void }) {
-  const toast = useToast();
-  const plans = useAsync<{ plans: { slug: string; name: string; cpu: number; ram: number; disk: number }[] }>((signal) => get('/vps/plans', undefined, signal), []);
-  const [slug, setSlug] = useState('');
-  const [quote, setQuote] = useState<PlanQuote | null>(null);
-  const [busy, setBusy] = useState(false);
-  const options = (plans.data?.plans ?? []).filter((plan) => plan.slug !== server.plan.slug && plan.disk >= server.disk);
-
-  const choose = (value: string) => {
-    setSlug(value);
-    setQuote(null);
-    if (!value) return;
-    get<{ quote: PlanQuote }>(`/admin/vps/${server.id}/plan-quote`, { slug: value })
-      .then((result) => setQuote(result.quote))
-      .catch((failure: Error) => toast.push(failure.message, 'error'));
-  };
-
-  return (
-    <span className="inline-flex flex-wrap items-center gap-1.5">
-      <select aria-label={`Plan for ${server.name}`} value={slug} onChange={(event) => choose(event.target.value)} className={`${denseGhost} w-auto`}>
-        <option value="">Change plan…</option>
-        {options.map((plan) => <option key={plan.slug} value={plan.slug}>{plan.name} · {plan.cpu} vCPU · {memLabel(plan.ram)} · {plan.disk} GB</option>)}
-      </select>
-      {quote && (
-        <span role="status" className="text-[12.5px] text-ink2">
-          {quote.blocked ?? `${money(quote.from.amount, quote.currency)} → ${money(quote.to.amount, quote.currency)} a month (${quote.delta >= 0 ? '+' : ''}${money(quote.delta, quote.currency)}), from the next renewal.`}
-        </span>
-      )}
-      {quote && !quote.blocked && (
-        <button type="button" className={denseDanger} disabled={busy} onClick={() => {
-          setBusy(true);
-          post(`/admin/vps/${server.id}/plan`, { slug, expectedAmount: quote.to.amount })
-            .then(() => { toast.push('The plan and the subscription were changed. Restart the server to use the new processor and memory.', 'ok'); setSlug(''); setQuote(null); onDone(); })
-            .catch((failure: Error) => toast.push(failure.message, 'error'))
-            .finally(() => setBusy(false));
-        }}>Change plan and price</button>
-      )}
-    </span>
-  );
-}
-
-/**
- * The administrative adjustment: resources without a change of the bill. It asks for a reason and for
- * the explicit statement that it is free, and the server keeps the record.
- */
-function FreeAdjustment({ server, onDone }: { server: AdminVps; onDone: () => void }) {
-  const toast = useToast();
-  const [open, setOpen] = useState(false);
-  const [ram, setRam] = useState(String(server.ram));
-  const [cpu, setCpu] = useState(String(server.cpu));
-  const [disk, setDisk] = useState(String(server.disk));
-  const [reason, setReason] = useState('');
-  const [free, setFree] = useState(false);
-  const [busy, setBusy] = useState(false);
-  if (!open) return <button type="button" className={denseGhost} onClick={() => setOpen(true)}>Adjust resources (free)</button>;
-  const field = 'w-20 rounded-lg bg-s2 px-2 py-1 text-[13px]';
-  return (
-    <form
-      className="grid w-full gap-2 rounded-2xl bg-s2 p-3 text-[13px]"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setBusy(true);
-        post(`/admin/vps/${server.id}/resources`, { ram: Number(ram), cpu: Number(cpu), disk: Number(disk), reason, freeOverride: true })
-          .then(() => { toast.push('The resources were adjusted. The bill was not changed. Restart the server to use the new processor and memory.', 'ok'); setOpen(false); onDone(); })
-          .catch((failure: Error) => toast.push(failure.message, 'error'))
-          .finally(() => setBusy(false));
-      }}
-    >
-      <p className="text-ink2">This changes the size of the server and not the bill. The customer is never charged for it, and the reason is kept on the server.</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <label>Memory MB <input aria-label="Memory in MB" className={field} type="number" min={256} value={ram} onChange={(event) => setRam(event.target.value)} /></label>
-        <label>vCPU <input aria-label="vCPU" className={field} type="number" min={1} value={cpu} onChange={(event) => setCpu(event.target.value)} /></label>
-        <label>Disk GB <input aria-label="Disk in GB" className={field} type="number" min={server.disk} value={disk} onChange={(event) => setDisk(event.target.value)} /></label>
-      </div>
-      <label className="grid gap-1">Reason (at least 10 characters)
-        <input aria-label="Reason" className="rounded-lg bg-s1 px-2 py-1" value={reason} onChange={(event) => setReason(event.target.value)} minLength={10} maxLength={500} required />
-      </label>
-      <label className="flex items-center gap-2"><input type="checkbox" checked={free} onChange={(event) => setFree(event.target.checked)} /> I understand this is free and the price does not change.</label>
-      <div className="flex gap-2">
-        <button type="submit" className={denseDanger} disabled={busy || !free || reason.trim().length < 10}>Apply the adjustment</button>
-        <button type="button" className={denseGhost} onClick={() => setOpen(false)}>Cancel</button>
-      </div>
-    </form>
-  );
-}
-
 export default function AdminVpsPage() {
   const session = useAdminSession();
   const mayWrite = can(session.staff, 'services.write');
@@ -221,8 +123,8 @@ export default function AdminVpsPage() {
                     {(server.status === 'failed' || server.status === 'pending') && (
                       <button type="button" className={denseGhost} disabled={busy !== null} onClick={() => void run(server.id, () => post(`/admin/vps/${server.id}/retry`), 'Build queued again.')}>Build again</button>
                     )}
-                    {server.status === 'active' && can(session.staff, 'pricing.write') && <PlanChange server={server} onDone={state.reload} />}
-                    {server.status === 'active' && can(session.staff, 'pricing.write') && <FreeAdjustment server={server} onDone={state.reload} />}
+                    {server.status === 'active' && can(session.staff, 'pricing.write') && <Link to={`/admin/vps/${encodeURIComponent(server.id)}/plan/change`} className={denseGhost}>Change plan</Link>}
+                    {server.status === 'active' && can(session.staff, 'pricing.write') && <Link to={`/admin/vps/${encodeURIComponent(server.id)}/resources/edit`} className={denseGhost}>Adjust resources (free)</Link>}
                     {server.status !== 'cancelled' && (
                       <button type="button" className={denseDanger} disabled={busy !== null} onClick={() => setConfirm({ kind: 'destroy', server })}>Delete the machine</button>
                     )}

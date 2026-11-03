@@ -71,6 +71,8 @@ const AdminRatesEdit = lazy(() => import('./admin/PricingEditors').then((m) => (
 const AdminPriceEdit = lazy(() => import('./admin/PricingEditors').then((m) => ({ default: m.PriceEdit })));
 const AdminOrderRefund = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderRefund })));
 const AdminOrderRetry = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderRetry })));
+const AdminVpsPlanChange = lazy(() => import('./admin/VpsAdminEditors').then((m) => ({ default: m.VpsPlanChange })));
+const AdminVpsResourcesEdit = lazy(() => import('./admin/VpsAdminEditors').then((m) => ({ default: m.VpsResourcesEdit })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -283,6 +285,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/orders/:id', component: AdminOrderDetail, title: 'Order control', area: 'admin' },
   { pattern: '/admin/services', component: AdminServices, title: 'Services', area: 'admin' },
   { pattern: '/admin/services/:id', component: AdminServiceDetail, title: 'Service control', area: 'admin' },
+  { pattern: '/admin/vps/:id/plan/change', component: AdminVpsPlanChange, title: 'Change plan', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/vps/:id/resources/edit', component: AdminVpsResourcesEdit, title: 'Adjust resources', area: 'admin', layout: 'editor' },
   { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
   { pattern: '/admin/products/:id/edit', component: AdminProductEdit, title: 'Edit product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
