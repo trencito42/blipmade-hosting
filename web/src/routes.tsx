@@ -55,6 +55,7 @@ const AppDeleteDomain = lazy(() => import('./app/DomainChange').then((module) =>
 const AppChangePassword = lazy(() => import('./app/ChangePassword'));
 const AppChangeEmail = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.ChangeEmail })));
 const AppEditBillingAddress = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.EditBillingAddress })));
+const AppNotificationPreferences = lazy(() => import('./app/NotificationPreferences'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
 const AppSetupTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.SetupTwoFactor })));
 const AppDisableTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.DisableTwoFactor })));
@@ -244,6 +245,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },
   { pattern: '/app/settings/email/change', component: AppChangeEmail, title: 'Change email address', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/billing-address', component: AppEditBillingAddress, title: 'Billing address', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/notifications', component: AppNotificationPreferences, title: 'Notification preferences', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/api-keys/new', component: AppApiKeyNew, title: 'New API key', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/security/2fa/backup-codes', component: AppRenewBackupCodes, title: 'New backup codes', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/security/2fa/disable', component: AppDisableTwoFactor, title: 'Turn off two-factor authentication', area: 'customer', layout: 'editor' },

@@ -190,7 +190,7 @@ export default function Settings() {
         )}
         {tab.id === 'sessions' && <SessionPanels sessions={<SessionsPanel sessions={data.sessions} onChanged={state.reload} />} />}
         {tab.id === 'keys' && <div className="lg:col-span-2"><ApiKeysPanel /></div>}
-        {tab.id === 'notifications' && <div className="lg:col-span-2"><NotificationsPanel /></div>}
+        {tab.id === 'notifications' && <div className="lg:col-span-2"><Panel title="Notifications" description="Choose which messages reach you, and where." action={<ButtonLink to="/app/settings/notifications">Edit preferences</ButtonLink>}><p className="text-[13.5px] text-ink3">Account and security messages are always sent.</p></Panel></div>}
         {tab.id === 'account' && (
           <>
             <Panel title="Download your data" description="A copy of what we hold about your account in one file: profile, services, orders, invoices, tickets and the log of your security. Secrets such as your password are not included.">
@@ -550,7 +550,7 @@ function SessionsPanel({
  * page shows afterwards: a refusal is written in words and the switches go
  * back to what the server holds.
  */
-function NotificationsPanel() {
+export function NotificationsPanel({ bare = false }: { bare?: boolean } = {}) {
   const toast = useToast();
   const state = useAsync(
     (signal) => get<NotificationPreferencesResponse>('/notifications/preferences', undefined, signal),
@@ -630,8 +630,11 @@ function NotificationsPanel() {
     toast.push('The billing switch of the old platform is on again', 'ok');
   };
 
+  const Wrap = bare
+    ? ({ children }: { children: React.ReactNode }) => <>{children}</>
+    : ({ children }: { children: React.ReactNode }) => <Panel title="Notifications" description="The groups of the messages, and where they reach you.">{children}</Panel>;
   return (
-    <Panel title="Notifications" description="The groups of the messages, and where they reach you.">
+    <Wrap>
       {state.loading ? (
         <LoadingBlock rows={3} label="Loading your preferences" />
       ) : state.error ? (
@@ -690,7 +693,7 @@ function NotificationsPanel() {
           </p>
         </div>
       )}
-    </Panel>
+    </Wrap>
   );
 }
 
