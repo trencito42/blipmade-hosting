@@ -24,6 +24,7 @@ import { catalogPath, formatPrice, memLabel, periodSuffix, productPath } from '.
 import {
   configurationFromQuery,
   cpuOptions,
+  deployContextFromQuery,
   deployPathFor,
   diskOptions,
   isOrderable,
@@ -435,7 +436,7 @@ export default function Deploy() {
   const [promotionCode, setPromotionCode] = useState('');
   // The term the customer pays for. The server prices it: a yearly term is twelve
   // months of the rate card, less the yearly discount the operator set.
-  const [period, setPeriod] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+  const [period, setPeriod] = useState<'MONTHLY' | 'YEARLY'>(query.period === 'YEARLY' ? 'YEARLY' : 'MONTHLY');
   const [billingAddress, setBillingAddress] = useState<BillingAddressValue>(emptyBillingAddress);
   const [billingTouched, setBillingTouched] = useState(false);
   const [checkoutIssue, setCheckoutIssue] = useState<string | null>(null);
@@ -565,14 +566,17 @@ export default function Deploy() {
     options?: string[];
     step?: DeployStep;
     order?: string | null;
+    period?: 'MONTHLY' | 'YEARLY';
   } = {}): string => {
     const target = overrides.config ?? config ?? { ram: 0, cpu: 0, disk: 0 };
     const options = overrides.options ?? optionCodes;
-    const extra: Record<string, string> = {};
+    const extra: Record<string, string> = { ...deployContextFromQuery(query) };
     const targetStep = overrides.step ?? step;
     if (targetStep > 1) extra.step = String(targetStep);
     const order = overrides.order === undefined ? orderId : overrides.order;
     if (order) extra.order = order;
+    const chosenPeriod = overrides.period ?? (query.period === 'YEARLY' ? 'YEARLY' : period);
+    if (chosenPeriod === 'YEARLY') extra.period = 'YEARLY';
     return deployPathFor(slug, target, options, extra);
   };
 
@@ -841,11 +845,16 @@ export default function Deploy() {
   // The variables the product asks the customer for. A product that asks for
   // nothing has none, and the order is free to go.
   const customerVariables = product.customerVariables ?? {};
-  const missingVariables = Object.entries(customerVariables)
+  const hiddenForImport = new Set(['GIT_ADDRESS', 'BRANCH', 'USERNAME', 'ACCESS_TOKEN', 'USER_UPLOAD']);
+  const shownVariables = Object.fromEntries(
+    Object.entries(customerVariables).filter(([name]) => !(query.import && hiddenForImport.has(name))),
+  );
+  const missingVariables = Object.entries(shownVariables)
     .filter(([name, spec]) => spec.required && !(variables[name] ?? '').trim())
     .map(([name]) => name);
 
   const primaryDisabled =
+    (step <= 2 && (quoteState.loading || Boolean(quoteState.error) || !quote)) ||
     (step === 3 && (!quote || placeOrder.pending)) ||
     (step === 3 && product.slug.startsWith('minecraft-') && !acceptEula) ||
     (step === 3 && quote?.total === 0 && turnstileKey !== null && !humanToken) ||
@@ -1030,7 +1039,7 @@ export default function Deploy() {
                 </div>
               )}
 
-              {Object.keys(customerVariables).length > 0 && (
+              {Object.keys(shownVariables).length > 0 && (
                 <div>
                   <p className="mb-2 px-1 text-[13.5px] font-medium text-ink">
                     What this service needs from you
@@ -1041,7 +1050,7 @@ export default function Deploy() {
                     nobody else reads them.
                   </p>
                   <div className="grid gap-3">
-                    {Object.entries(customerVariables).map(([name, spec]) => (
+                    {Object.entries(shownVariables).map(([name, spec]) => (
                       <TextInput
                         key={name}
                         id={`deploy-variable-${name}`}
@@ -1144,7 +1153,7 @@ export default function Deploy() {
                       role="radio"
                       aria-checked={chosen}
                       disabled={blocked}
-                      onClick={() => setPeriod(term)}
+                      onClick={() => { setPeriod(term); navigate(address({ period: term }), { replace: true, scroll: false }); }}
                       className={`rounded-2xl border px-3.5 py-3 text-[13.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                         chosen ? 'border-acc bg-acc-bg text-acc' : 'border-line bg-card text-ink hover:border-ink3'
                       }`}

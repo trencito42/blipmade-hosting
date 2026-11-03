@@ -2778,9 +2778,9 @@
       "customerVariables": {
         "GIT_ADDRESS": {
           "label": "Repository of the service",
-          "required": true,
+          "required": false,
           "type": "text",
-          "description": "The repository the container clones when it is built."
+          "description": "Leave this empty when the project was already imported, or when you will upload it. The egg allows an empty value. A managed import uses the repository you already gave."
         },
         "BRANCH": {
           "label": "Branch",

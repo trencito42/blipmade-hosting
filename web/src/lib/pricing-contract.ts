@@ -280,6 +280,26 @@ export function optionCodesFromQuery(
  * The configuration travels in the address, so a refresh, a link and the back
  * button all bring the customer back to the same deployment.
  */
+const DEPLOY_CONTEXT = ['import', 'family', 'variant', 'preset', 'presetVersion', 'addons'] as const;
+
+/** Query values that must survive a resource change, a step change and a refresh. Secrets are not among them. */
+export function deployContextFromQuery(query: Record<string, string | undefined>): Record<string, string> {
+  const rules: Record<(typeof DEPLOY_CONTEXT)[number], RegExp> = {
+    import: /^[a-z0-9]{8,40}$/i,
+    family: /^[a-z0-9-]{1,80}$/i,
+    variant: /^[a-z0-9-]{1,80}$/i,
+    preset: /^[a-z0-9-]{1,80}$/i,
+    presetVersion: /^\d{1,6}$/,
+    addons: /^[a-z0-9,-]{1,200}$/i,
+  };
+  const extra: Record<string, string> = {};
+  for (const key of DEPLOY_CONTEXT) {
+    const value = query[key];
+    if (value && rules[key].test(value)) extra[key] = value;
+  }
+  return extra;
+}
+
 export function deployPathFor(
   slug: string,
   config: ResourceConfiguration,

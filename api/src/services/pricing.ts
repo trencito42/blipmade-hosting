@@ -19,6 +19,7 @@ import {
 import { deploymentAvailability, unavailableMessage } from './availability.js';
 import { assertValidMailDomain } from './mail.js';
 import { checkCustomerVariables, parseCustomerVariableSpecs, sealVariables } from './instance-credentials.js';
+import { checkoutSpecs } from './install-variables.js';
 import { hasFreeEntitlement } from './promotion-policy.js';
 import type { BillingPeriod, Prisma, Product, ProductFulfilment, ProductOption, ProductPrice } from '@prisma/client';
 
@@ -606,7 +607,7 @@ export async function priceItems(
     // checked here, in the place that prices the line, and they are sealed
     // before they are written anywhere: they are the secrets of the customer.
     const specs = parseCustomerVariableSpecs(product.customerVariables);
-    const accepted = checkCustomerVariables(specs, item.variables);
+    const accepted = checkCustomerVariables(checkoutSpecs(specs), item.variables);
     const sealedVariables = Object.keys(accepted).length > 0 ? sealVariables(accepted) : undefined;
 
     const price = await loadResourcePrice(product.id, period, product.fulfilment);

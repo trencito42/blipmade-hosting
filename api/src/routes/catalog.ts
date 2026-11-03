@@ -8,6 +8,7 @@ import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { breakdownOfResources, buildQuote, priceBook, resourceRates } from '../services/pricing.js';
 import { companyDetails, taxOf } from '../services/billing.js';
 import { parseCustomerVariableSpecs } from '../services/instance-credentials.js';
+import { checkoutSpecs } from '../services/install-variables.js';
 import { deploymentAvailability } from '../services/availability.js';
 import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
@@ -134,7 +135,7 @@ async function serializeProduct(product: {
     fulfilment: product.fulfilment,
     // The variables the customer has to fill at the order, such as the
     // licence of a game. A product that asks for nothing has none.
-    customerVariables: parseCustomerVariableSpecs(product.customerVariables),
+    customerVariables: checkoutSpecs(parseCustomerVariableSpecs(product.customerVariables)),
     // The limits of a mail plan. They are empty for a product of servers.
     mail: {
       maxDomains: product.mailMaxDomains,
@@ -257,7 +258,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       }).parse(request.body ?? {});
       if (body.zipBase64) return { proposal: inspectZip(Buffer.from(body.zipBase64, 'base64')) };
       if (body.url) return { proposal: await inspectGitUrl(body.url) };
-      return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, build: null, files: [], services: [], notes: ['Paste a repository URL or choose a zip.'] } };
+      return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, build: null, files: [], services: [], notes: ['Paste a repository URL or choose a zip.'], envNames: [], recommendedRam: null } };
     },
   });
 
@@ -287,7 +288,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       }
       const proposal = zip ? inspectZip(zip) : body.url ? await inspectGitUrl(body.url) : null;
       if (!proposal?.productSlug || !proposal.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
-      const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, deployable: true, visible: true } });
+      const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, maxRam: true, deployable: true, visible: true } });
       if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
       const selection = confirmedServiceSelection(proposal.services.map((service) => service.slug), body.confirmServices ?? []);
       if (!selection.ok) throw badRequest(selection.message);
@@ -299,8 +300,9 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       const buildCommand = cleanCommand(body.buildCommand ?? proposal.build, 'buildCommand', false);
       const startCommand = cleanCommand(body.startCommand ?? proposal.start, 'startCommand', true);
       const repoUrl = body.url ? cleanRepoUrl(body.url) : null;
+      const ram = Math.min(product.maxRam ?? product.defaultRam, Math.max(product.defaultRam, proposal.recommendedRam ?? product.defaultRam));
       const quote = await buildQuote([
-        { productSlug: product.slug, ram: product.defaultRam, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug },
+        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug },
         ...companions.map((row) => ({ productSlug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk, name: row.slug })),
       ], null, user.id);
       const plan = await prisma.importSource.create({
@@ -324,7 +326,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           productSlug: product.slug,
           buildCommand,
           startCommand,
-          ram: product.defaultRam,
+          ram,
           cpu: product.defaultCpu,
           disk: product.defaultDisk,
           total: quote.total,
@@ -333,7 +335,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           confirmed: selection.chosen,
           companions: companions.map((row) => ({ slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk })),
           notes: proposal.notes,
-          continueTo: `/app/deploy/${product.slug}?import=${plan.id}`,
+          continueTo: `/app/deploy/${product.slug}?import=${plan.id}&ram=${ram}&cpu=${product.defaultCpu}&disk=${product.defaultDisk}`,
         },
       };
     },

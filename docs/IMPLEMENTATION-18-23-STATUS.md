@@ -22,11 +22,13 @@ Done: inspect, stored import, checkout handoff, container build, health before f
 
 `296c0a3`: Node, Next.js, Vite, FastAPI and Laravel get a build and a start command. Confidence is `likely` when the entry file is assumed. The stored zip is the one used at order time. `GIT_RUNTIMES` includes `python` and `php`. Unit test `import-runtime.test.ts` passed.
 
-This pass: a customer can confirm detected PostgreSQL or Redis. The order must include those products, the quote includes them, and after both servers are online the worker writes `DATABASE_URL` or `REDIS_URL` into the application container and restarts it. MariaDB stays detected only: that egg has no password variable. New PostgreSQL and Redis servers get a generated password because the manifest startup override clears the shared egg default. Unit test `project-links.test.ts` passed. Not proven on a live panel.
+`444b228`: a customer can confirm detected PostgreSQL or Redis. The order must include those products. After both are online the worker writes the URL into the app container. MariaDB was not provisioned.
 
-Remaining: no disposable multi-service deploy. PHP cannot be ordered until its egg is on the panel and the product is deployable. Go and Rust have no start command. MariaDB is not provisioned.
+This pass: a quote no longer requires `GIT_ADDRESS`. The egg allows it empty. A stored Git import writes that repository into the egg; a zip or an empty manual order sets `USER_UPLOAD=1` and does not invent a URL. The deploy address keeps `import`, `family`, `variant`, `preset`, `presetVersion` and `addons`. Prisma is not treated as PostgreSQL. A schema with `provider = "mysql"` selects MariaDB. Next.js builds include `npm run build` and `prisma generate` when Prisma is present, and the start command uses `$SERVER_PORT` instead of a port from the repository. Next.js is quoted at 2048 MB when the product allows it. A failed quote blocks the payment step. Unit tests `import-runtime`, `install-variables` and `web/tests/deploy-context.test.ts` passed. daily81 was not fetched live in this run; the fixture matches its package.json, start script and Prisma provider.
 
-Next: one disposable Node project plus a confirmed Redis server on a panel, then check the env file inside the app container.
+Remaining: MariaDB still cannot be auto-provisioned because that egg has no password variable. No disposable deploy of daily81. Go and Rust imports have no start command.
+
+Next: give MariaDB a password the platform can set, then order daily81 against a disposable MySQL server.
 
 ## #19 Game panel
 

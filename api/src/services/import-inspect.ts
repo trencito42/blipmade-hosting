@@ -5,7 +5,12 @@ import { inflateRawSync } from 'node:zlib';
  * A zip is read for those manifest names only. Nothing in it is written to disk or executed.
  */
 
-export interface SuggestedService { slug: string; reason: string }
+export interface SuggestedService {
+  slug: string;
+  reason: string;
+  /** confirmed is declared by the project. likely is a strong signal. possible is only a hint. */
+  certainty: 'confirmed' | 'likely' | 'possible';
+}
 
 export interface ImportProposal {
   productSlug: string | null;
@@ -16,6 +21,10 @@ export interface ImportProposal {
   files: string[];
   notes: string[];
   services: SuggestedService[];
+  /** Names from an example env file. Values are not read. */
+  envNames: string[];
+  /** Memory the build is likely to need. Null when the product default is enough to state. */
+  recommendedRam: number | null;
 }
 
 /** Serves a Vite `dist` folder with Node itself. No extra package is installed. */
@@ -23,27 +32,79 @@ export const VITE_START = 'node -e \'const h=require("http"),f=require("fs"),p=r
 
 const PHP_BUILD = 'php -r \'copy("https://getcomposer.org/installer","composer-setup.php");\' && php composer-setup.php --quiet && php composer.phar install --no-interaction --no-dev';
 
-function suggestServices(files: { path: string; text: string }[]): SuggestedService[] {
+function dependencyNames(files: { path: string; text: string }[]): Set<string> {
   const keys = new Set<string>();
   const pkg = files.find((file) => file.path === 'package.json');
-  if (pkg) {
-    try {
-      const parsed = JSON.parse(pkg.text) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
-      for (const key of Object.keys({ ...parsed.dependencies, ...parsed.devDependencies })) keys.add(key.toLowerCase());
-    } catch { /* The runtime detector reports a broken package.json. */ }
+  if (!pkg) return keys;
+  try {
+    const parsed = JSON.parse(pkg.text) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+    for (const key of Object.keys({ ...parsed.dependencies, ...parsed.devDependencies })) keys.add(key.toLowerCase());
+  } catch { /* A broken package.json is reported by the runtime detector. */ }
+  return keys;
+}
+
+/** The database Prisma is configured to use. An ORM by itself is not a database. */
+export function prismaProvider(text: string): 'mysql' | 'postgresql' | 'sqlite' | null {
+  const match = /provider\s*=\s*["']([a-z0-9]+)/i.exec(text);
+  if (!match) return null;
+  if (match[1] === 'mysql') return 'mysql';
+  if (match[1] === 'postgresql' || match[1] === 'postgres') return 'postgresql';
+  if (match[1] === 'sqlite') return 'sqlite';
+  return null;
+}
+
+export function envNamesFromExample(text: string): string[] {
+  const names: string[] = [];
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const match = /^([A-Z][A-Z0-9_]{0,63})\s*=/.exec(trimmed);
+    if (match && !names.includes(match[1]!)) names.push(match[1]!);
   }
-  const text = files.filter((file) => file.path !== 'package.json').map((file) => file.text.toLowerCase()).join('\n');
+  return names.slice(0, 40);
+}
+
+function suggestServices(files: { path: string; text: string }[]): SuggestedService[] {
+  const keys = dependencyNames(files);
+  const schema = files.find((file) => file.path === 'prisma/schema.prisma' || file.path === 'schema.prisma');
+  const provider = schema ? prismaProvider(schema.text) : null;
+  const python = files.filter((file) => file.path === 'requirements.txt' || file.path === 'pyproject.toml').map((file) => file.text.toLowerCase()).join('\n');
   const services: SuggestedService[] = [];
-  const add = (slug: string, reason: string) => { if (!services.some((entry) => entry.slug === slug)) services.push({ slug, reason }); };
-  if (keys.has('pg') || keys.has('@prisma/client') || text.includes('psycopg') || text.includes('postgresql')) add('postgresql', 'The project declares PostgreSQL.');
-  if (keys.has('mysql2') || keys.has('mysql') || text.includes('pymysql') || text.includes('mariadb')) add('mariadb', 'The project declares MySQL or MariaDB.');
-  if (keys.has('redis') || keys.has('ioredis') || text.includes('redis')) add('redis', 'The project declares Redis.');
-  if (keys.has('mongodb') || keys.has('mongoose') || text.includes('pymongo')) add('mongodb', 'The project declares MongoDB.');
+  const add = (slug: string, reason: string, certainty: SuggestedService['certainty']) => {
+    if (!services.some((entry) => entry.slug === slug)) services.push({ slug, reason, certainty });
+  };
+  if (provider === 'mysql' || keys.has('mysql2') || keys.has('mysql') || python.includes('pymysql') || python.includes('mariadb')) {
+    add('mariadb', provider === 'mysql' ? 'Prisma is configured for MySQL.' : 'The project declares MySQL or MariaDB.', 'confirmed');
+  }
+  if (provider === 'postgresql' || keys.has('pg') || python.includes('psycopg') || python.includes('postgresql')) {
+    add('postgresql', provider === 'postgresql' ? 'Prisma is configured for PostgreSQL.' : 'The project declares PostgreSQL.', 'confirmed');
+  }
+  if (keys.has('redis') || keys.has('ioredis') || python.includes('redis')) add('redis', 'The project declares Redis.', 'confirmed');
+  if (keys.has('mongodb') || keys.has('mongoose') || python.includes('pymongo')) add('mongodb', 'The project declares MongoDB.', 'confirmed');
   return services;
 }
 
-function proposal(partial: Omit<ImportProposal, 'services'>, files: { path: string; text: string }[]): ImportProposal {
-  return { ...partial, services: suggestServices(files) };
+/** Rewrites a declared start command so it listens on the allocation, not a port from the repository. */
+export function allocationStart(command: string): string {
+  let next = command
+    .replace(/--port(?:=|\s+)\d+/g, '--port $SERVER_PORT')
+    .replace(/(^|\s)-p\s+\d+/g, '$1-p $SERVER_PORT')
+    .replace(/-H\s+127\.0\.0\.1/g, '-H 0.0.0.0')
+    .replace(/--hostname(?:=|\s+)127\.0\.0\.1/g, '--hostname 0.0.0.0');
+  if (/\bnext\s+start\b/.test(next) && !next.includes('$SERVER_PORT') && !/(?:--port|-p)\b/.test(next)) {
+    next = `${next} -H 0.0.0.0 -p $SERVER_PORT`;
+  }
+  return next.slice(0, 500);
+}
+
+function proposal(partial: Omit<ImportProposal, 'services' | 'envNames' | 'recommendedRam'> & { recommendedRam?: number | null }, files: { path: string; text: string }[]): ImportProposal {
+  const examples = files.filter((file) => file.path === '.env.example' || file.path === '.env.sample');
+  return {
+    ...partial,
+    services: suggestServices(files),
+    envNames: examples.flatMap((file) => envNamesFromExample(file.text)).slice(0, 40),
+    recommendedRam: partial.recommendedRam ?? null,
+  };
 }
 
 const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'composer.json', 'Dockerfile', 'Procfile'] as const;
@@ -63,12 +124,17 @@ export function inspectManifests(files: { path: string; text: string }[]): Impor
       return proposal({ productSlug: 'discord-bot', runtime: 'nodejs', confidence: 'confirmed', start: declaredStart ?? 'node index.js', build: 'npm install', files: found, notes }, files);
     }
     if (parsed && deps && 'next' in deps) {
+      const prisma = 'prisma' in deps || '@prisma/client' in deps;
+      const build = ['npm install', prisma ? 'npx prisma generate' : '', hasBuild ? 'npm run build' : ''].filter(Boolean).join(' && ');
+      const start = allocationStart(declaredStart ?? 'npx next start -H 0.0.0.0 -p $SERVER_PORT');
+      notes.push('Next.js was detected. The production build is included. A Next.js build often needs more than 512 MB, so the quote can be raised before payment.');
+      if (prisma) notes.push('Prisma client generation is included. Database migrations are not run unless you confirm them.');
+      if (prisma && !files.some((file) => prismaProvider(file.text) && (file.path === 'prisma/schema.prisma' || file.path === 'schema.prisma'))) {
+        notes.push('Prisma is installed, but the schema did not name a database engine, so no database was added.');
+      }
       return proposal({
-        productSlug: 'nodejs', runtime: 'nodejs', confidence: declaredStart ? 'confirmed' : 'likely',
-        start: declaredStart ?? 'npx next start -H 0.0.0.0 -p $SERVER_PORT',
-        build: hasBuild ? 'npm install && npm run build' : 'npm install',
-        files: found,
-        notes: declaredStart ? notes : [...notes, 'Next.js was detected. The start command listens on SERVER_PORT. Replace it if the project has its own start script.'],
+        productSlug: 'nodejs', runtime: 'nodejs', confidence: 'confirmed',
+        start, build, files: found, notes, recommendedRam: 2048,
       }, files);
     }
     if (parsed && deps && 'vite' in deps) {
@@ -136,7 +202,7 @@ export function manifestUrls(raw: string): string[] {
   } else {
     return [];
   }
-  return MANIFESTS.map((name) => `${base}/${name}`);
+  return [...MANIFESTS.map((name) => `${base}/${name}`), `${base}/prisma/schema.prisma`, `${base}/.env.example`, `${base}/.env.sample`];
 }
 
 const MAX_ZIP = 8 * 1024 * 1024;
@@ -179,10 +245,10 @@ export function readZipManifests(zip: Buffer): { path: string; text: string }[] 
   const count = zip.readUInt16LE(eocd + 10);
   const cdOffset = zip.readUInt32LE(eocd + 16);
   if (count > 4_000 || cdOffset >= zip.length) return [];
-  const wanted = new Set<string>(MANIFESTS);
+  const wanted = new Set<string>([...MANIFESTS, 'prisma/schema.prisma', '.env.example', '.env.sample']);
   const files: { path: string; text: string }[] = [];
   let cursor = cdOffset;
-  for (let index = 0; index < count && cursor + 46 <= zip.length && files.length < MANIFESTS.length; index += 1) {
+  for (let index = 0; index < count && cursor + 46 <= zip.length && files.length < wanted.size; index += 1) {
     if (zip.readUInt32LE(cursor) !== 0x02014b50) break;
     const method = zip.readUInt16LE(cursor + 10);
     const compressedSize = zip.readUInt32LE(cursor + 20);
@@ -193,8 +259,10 @@ export function readZipManifests(zip: Buffer): { path: string; text: string }[] 
     const localOffset = zip.readUInt32LE(cursor + 42);
     const name = zip.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8').replaceAll('\\', '/');
     cursor += 46 + nameLength + extraLength + commentLength;
-    const base = name.split('/').pop() ?? '';
-    if (!wanted.has(base) || name.includes('..') || name.startsWith('/') || size > MAX_BYTES || compressedSize > MAX_BYTES) continue;
+    const relative = name.replace(/^\.\//, '');
+    const base = relative.split('/').pop() ?? '';
+    const kept = relative === 'prisma/schema.prisma' || relative === '.env.example' || relative === '.env.sample' ? relative : base;
+    if (!wanted.has(kept) || name.includes('..') || name.startsWith('/') || size > MAX_BYTES || compressedSize > MAX_BYTES) continue;
     if (size === 0xffffffff || localOffset + 30 > zip.length || zip.readUInt32LE(localOffset) !== 0x04034b50) continue;
     const localName = zip.readUInt16LE(localOffset + 26);
     const localExtra = zip.readUInt16LE(localOffset + 28);
@@ -207,7 +275,7 @@ export function readZipManifests(zip: Buffer): { path: string; text: string }[] 
       else if (method === 8) raw = inflateRawSync(compressed);
     } catch { continue; }
     if (raw.length > MAX_BYTES) continue;
-    files.push({ path: base, text: raw.toString('utf8') });
+    files.push({ path: kept, text: raw.toString('utf8') });
   }
   return files;
 }
@@ -249,11 +317,11 @@ export function readZipText(zip: Buffer, baseName: string): string | null {
 
 export function inspectZip(zip: Buffer): ImportProposal {
   if (zip.length > MAX_ZIP) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['The zip is larger than 8 MB.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['The zip is larger than 8 MB.'], envNames: [], recommendedRam: null };
   }
   const files = readZipManifests(zip);
   if (!files.length) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['No supported manifest was inside the zip. The archive was not run.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['No supported manifest was inside the zip. The archive was not run.'], envNames: [], recommendedRam: null };
   }
   return inspectManifests(files);
 }
@@ -261,11 +329,17 @@ export function inspectZip(zip: Buffer): ImportProposal {
 export async function inspectGitUrl(raw: string): Promise<ImportProposal> {
   const urls = manifestUrls(raw);
   if (!urls.length) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['Use a public https://github.com or https://gitlab.com project URL.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['Use a public https://github.com or https://gitlab.com project URL.'], envNames: [], recommendedRam: null };
   }
   const files: { path: string; text: string }[] = [];
   for (const target of urls) {
-    const name = target.slice(target.lastIndexOf('/') + 1);
+    const name = target.endsWith('/prisma/schema.prisma')
+      ? 'prisma/schema.prisma'
+      : target.endsWith('/.env.example')
+        ? '.env.example'
+        : target.endsWith('/.env.sample')
+          ? '.env.sample'
+          : target.slice(target.lastIndexOf('/') + 1);
     try {
       const response = await fetch(target, { redirect: 'manual', signal: AbortSignal.timeout(4000) });
       if (response.status !== 200) continue;
@@ -276,7 +350,7 @@ export async function inspectGitUrl(raw: string): Promise<ImportProposal> {
     } catch { /* A missing manifest is a result, not a failure of the whole look. */ }
   }
   if (!files.length) {
-    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['No supported manifest was readable. Private repositories are not fetched.'] };
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: [], services: [], notes: ['No supported manifest was readable. Private repositories are not fetched.'], envNames: [], recommendedRam: null };
   }
   return inspectManifests(files);
 }

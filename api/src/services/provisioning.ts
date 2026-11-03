@@ -21,6 +21,7 @@ import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import { ArchiveError, verifyBackupStream } from './backup-archive.js';
 import { applyCatalogInstall } from './catalog-install-apply.js';
+import { applyInstallVariables } from './install-variables.js';
 import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
 import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
 import {
@@ -264,6 +265,17 @@ export async function failProvisioning(instanceId: string, step: ProvisionStep, 
 }
 
 /** True when this server still has an import that has not been applied. */
+async function storedImportForInstance(instance: { userId: string; orderItemId: string | null }): Promise<{ kind: string; repoUrl: string | null; branch: string | null } | null> {
+  if (!instance.orderItemId) return null;
+  const item = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });
+  const importSourceId = (item?.config as { importSourceId?: unknown } | null)?.importSourceId;
+  if (typeof importSourceId !== 'string' || !importSourceId) return null;
+  return prisma.importSource.findFirst({
+    where: { id: importSourceId, userId: instance.userId },
+    select: { kind: true, repoUrl: true, branch: true },
+  });
+}
+
 async function importStillWaiting(instance: { userId: string; orderItemId: string | null }): Promise<boolean> {
   if (!instance.orderItemId) return false;
   const item = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });
@@ -1770,7 +1782,8 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       // what the customer asked for, and the defaults of the egg are only the
       // values of nobody.
       const customer = openVariables(instance.customerVariables) ?? {};
-      const environment: Record<string, string> = { ...egg.environment, ...made, ...customer };
+      const importSource = await storedImportForInstance(instance);
+      const environment: Record<string, string> = applyInstallVariables({ ...egg.environment, ...made, ...customer }, importSource);
 
       const created = await ptero.createServer({
         name: instance.name,
