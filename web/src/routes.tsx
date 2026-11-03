@@ -75,6 +75,7 @@ const AdminVpsPlanChange = lazy(() => import('./admin/VpsAdminEditors').then((m)
 const AdminVpsResourcesEdit = lazy(() => import('./admin/VpsAdminEditors').then((m) => ({ default: m.VpsResourcesEdit })));
 const AdminCustomerCredit = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerCreditAdjust })));
 const AdminCustomerNoteNew = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerNoteNew })));
+const AdminMailPlanEdit = lazy(() => import('./admin/MailPlanEdit'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -325,6 +326,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/abuse/:id', component: AdminAbuseDetail, title: 'Abuse report', area: 'admin' },
   { pattern: '/admin/ops', component: AdminOps, title: 'Operations', area: 'admin' },
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
+  { pattern: '/admin/mail/plans/new', component: AdminMailPlanEdit, title: 'New mail plan', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/mail/plans/:id/edit', component: AdminMailPlanEdit, title: 'Edit mail plan', area: 'admin', layout: 'editor' },
   { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
   { pattern: '/admin/staff/:id/permissions/edit', component: AdminStaffEdit, title: 'Staff rights', area: 'admin', layout: 'editor' },

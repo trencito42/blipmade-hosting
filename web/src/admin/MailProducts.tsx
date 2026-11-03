@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { del, get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import type { TableColumn } from '../lib/table';
+import { Link } from '../router';
 import {
   ButtonLink,
   CardList,
@@ -511,12 +512,15 @@ export function AdminMailPlansTable({
   plans,
   mayWrite,
   onEdit,
+  editTo,
   onDelete,
   onToggleSale,
 }: {
   plans: MailPlan[];
   mayWrite: boolean;
-  onEdit: (plan: MailPlan) => void;
+  onEdit?: (plan: MailPlan) => void;
+  /** Where the plan is edited. When given, Edit is a link to that page. */
+  editTo?: (plan: MailPlan) => string;
   onDelete: (plan: MailPlan) => void;
   onToggleSale: (plan: MailPlan) => void;
 }) {
@@ -590,9 +594,15 @@ export function AdminMailPlansTable({
             align: 'right',
             render: (plan: MailPlan) => (
               <span className="flex flex-wrap justify-end gap-2">
-                <button type="button" onClick={() => onEdit(plan)} className={denseSoft}>
-                  Edit
-                </button>
+                editTo ? (
+                  <Link to={editTo?.(plan) ?? ''} className={denseSoft}>
+                    Edit
+                  </Link>
+                ) : (
+                  <button type="button" onClick={() => onEdit?.(plan)} className={denseSoft}>
+                    Edit
+                  </button>
+                )
                 <button type="button" onClick={() => onDelete(plan)} className={denseDanger}>
                   Delete
                 </button>
@@ -649,9 +659,15 @@ export function AdminMailPlansTable({
                 <button type="button" onClick={() => onToggleSale(plan)} className={denseGhost}>
                   {plan.deployable ? 'Take off sale' : 'Put on sale'}
                 </button>
-                <button type="button" onClick={() => onEdit(plan)} className={denseSoft}>
-                  Edit
-                </button>
+                editTo ? (
+                  <Link to={editTo?.(plan) ?? ''} className={denseSoft}>
+                    Edit
+                  </Link>
+                ) : (
+                  <button type="button" onClick={() => onEdit?.(plan)} className={denseSoft}>
+                    Edit
+                  </button>
+                )
                 <button type="button" onClick={() => onDelete(plan)} className={denseDanger}>
                   Delete
                 </button>
@@ -957,18 +973,11 @@ export default function MailProducts() {
   // are hidden from a role that may not make them.
   const mayWrite = can(session.staff, 'mail.write');
 
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<MailPlan | null>(null);
   const [removing, setRemoving] = useState<MailPlan | null>(null);
 
   const state = useAsync((signal) => listMailPlans(signal), []);
   const plans = state.data?.plans ?? [];
   const catalog = mailPlanCatalog(plans);
-
-  const save = useAction(async (body: MailPlanPayload) => {
-    if (editing) return saveMailPlan(editing.id, body);
-    return createMailPlan(body);
-  });
 
   const sale = useAction(async (plan: MailPlan) => {
     return setMailPlanOnSale(plan.id, !plan.deployable);
@@ -992,8 +1001,6 @@ export default function MailProducts() {
     );
   }
 
-  const formOpen = creating || editing !== null;
-
   return (
     <div className="grid gap-4">
       <LiveRegion message={`${plans.length} plan${plans.length === 1 ? '' : 's'} of hosted mail`} />
@@ -1014,44 +1021,11 @@ export default function MailProducts() {
         actionBelow
         action={
           mayWrite ? (
-            <button
-              type="button"
-              onClick={() => {
-                setCreating((value) => !value);
-                setEditing(null);
-              }}
-              aria-expanded={creating}
-              className={densePrimary}
-            >
-              {creating ? 'Close the form' : 'New plan'}
-            </button>
+            <ButtonLink to="/admin/mail/plans/new">New plan</ButtonLink>
           ) : undefined
         }
       >
         <div className="grid gap-3">
-          {formOpen && mayWrite && (
-            <AdminMailPlanForm
-              key={editing?.id ?? 'new'}
-              plan={editing}
-              catalog={catalog}
-              busy={save.pending}
-              error={save.error}
-              onCancel={() => {
-                setCreating(false);
-                setEditing(null);
-              }}
-              onSubmit={(body) => {
-                void save.run(body).then((result) => {
-                  if (!result) return;
-                  toast.push(`${body.name} saved`, 'ok');
-                  setCreating(false);
-                  setEditing(null);
-                  state.reload();
-                });
-              }}
-            />
-          )}
-
           {state.loading ? (
             <LoadingBlock rows={3} label="Loading the plans" />
           ) : state.error ? (
@@ -1062,10 +1036,7 @@ export default function MailProducts() {
             <AdminMailPlansTable
               plans={plans}
               mayWrite={mayWrite}
-              onEdit={(plan) => {
-                setEditing(plan);
-                setCreating(false);
-              }}
+              editTo={(plan) => `/admin/mail/plans/${encodeURIComponent(plan.id)}/edit`}
               onDelete={(plan) => setRemoving(plan)}
               onToggleSale={(plan) => {
                 void sale.run(plan).then((result) => {
