@@ -50,6 +50,8 @@ const AppEditStartup = lazy(() => import('./app/instance/EditStartup'));
 const AppCancelSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.CancelSubscription })));
 const AppResumeSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.ResumeSubscription })));
 const AppRollbackDeployment = lazy(() => import('./app/instance/RollbackDeployment'));
+const AppEditDomainAddress = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.EditDomainAddress })));
+const AppDeleteDomain = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.DeleteDomain })));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -176,6 +178,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
+  { pattern: '/app/domains/:id/edit', component: AppEditDomainAddress, title: 'Change address', area: 'customer' },
+  { pattern: '/app/domains/:id/delete', component: AppDeleteDomain, title: 'Delete domain', area: 'customer' },
   { pattern: '/app/domains/new', component: AppNewDomain, title: 'Add domain', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
   { pattern: '/app/mail/services/:serviceId/plan/change', component: AppChangeMailPlan, title: 'Change email plan', area: 'customer' },

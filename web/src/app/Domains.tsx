@@ -1,17 +1,14 @@
 import { useMemo, useState } from 'react';
-import { del, get, post, put, type Domain } from '../lib/api';
+import { get, post, type Domain } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import {
   ButtonLink,
-  ConfirmDialog,
-  DangerButton,
   EmptyState,
   ErrorState,
   LoadingBlock,
   Panel,
   SoftButton,
   StatusPill,
-  InputWithButton,
   useToast,
 } from '../ui-app';
 
@@ -44,63 +41,6 @@ function isPlatformHostname(hostname: string): boolean {
   return hostname.toLowerCase().endsWith(`.${PLATFORM_BASE}`);
 }
 
-/**
- * The name of the address of an instance under the base of the platform.
- *
- * The name may change once in seven days. The server keeps that rule, and the
- * form only says when the next change is possible.
- */
-function PlatformAddress({ domain, onChanged }: { domain: Domain; onChanged: () => void }) {
-  const { push } = useToast();
-  const current = domain.hostname.slice(0, -(PLATFORM_BASE.length + 1));
-  const [name, setName] = useState(current);
-  const [error, setError] = useState<string | null>(null);
-  const wait = domain.addressChangeAvailableAt ? new Date(domain.addressChangeAvailableAt) : null;
-  const locked = wait !== null && wait.getTime() > Date.now();
-
-  const save = useAction(async () => {
-    setError(null);
-    try {
-      const answer = await put<{ domain: Domain }>(`/domains/${domain.id}/address`, { name: name.trim() });
-      push(`The address is now ${answer.domain.hostname}.`, 'ok');
-      onChanged();
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'The address could not be changed.');
-    }
-  });
-
-  return (
-    <div className="mt-4 grid gap-2 rounded-2xl bg-s2 p-4">
-      <p className="text-[13.5px] text-ink2">
-        This address belongs to Blipmade, so it needs no DNS record and no proof of ownership. You can change its name
-        once in 7 days.
-      </p>
-      <InputWithButton
-        label="Address name"
-        value={name}
-        onChange={(event) => setName(event.target.value.toLowerCase())}
-        disabled={locked}
-        autoComplete="off"
-        spellCheck={false}
-        hint={`${name || 'name'}.${PLATFORM_BASE}`}
-        button={
-          <SoftButton onClick={() => void save.run()} disabled={locked || save.pending || name.trim() === current || name.trim().length < 3}>
-            {save.pending ? 'Saving' : 'Change address'}
-          </SoftButton>
-        }
-      />
-      {locked && wait && (
-        <p className="text-[13px] text-ink3">You can change it again on {wait.toISOString().slice(0, 10)}.</p>
-      )}
-      {error && (
-        <p role="alert" className="text-[13.5px] text-bad">
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
 export default function Domains() {
   const { push } = useToast();
 
@@ -108,7 +48,6 @@ export default function Domains() {
     (signal) => get<{ domains: Domain[] }>('/domains', undefined, signal),
     [],
   );
-  const [pendingDelete, setPendingDelete] = useState<Domain | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
   const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
@@ -118,19 +57,6 @@ export default function Domains() {
     domainsState.reload();
     push(`Verification started for ${result.domain.hostname}.`);
     return result.domain;
-  });
-
-  const remove = useAction(async (id: string) => {
-    try {
-      await del(`/domains/${id}`);
-    } catch (err) {
-      // Close the dialog so the failure is readable instead of hidden behind it.
-      setPendingDelete(null);
-      throw err;
-    }
-    domainsState.reload();
-    setPendingDelete(null);
-    push('Domain deleted.');
   });
 
   const copy = async (value: string, label: string) => {
@@ -244,7 +170,12 @@ export default function Domains() {
                 )}
 
                 {domain.platform ?? isPlatformHostname(domain.hostname) ? (
-                  <PlatformAddress domain={domain} onChanged={domainsState.reload} />
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-s2 p-4">
+                    <p className="min-w-0 flex-1 text-[13.5px] text-ink2">
+                      This address belongs to Blipmade, so it needs no DNS record and no proof of ownership. Its name can change once in 7 days.
+                    </p>
+                    <ButtonLink to={`/app/domains/${encodeURIComponent(domain.id)}/edit`} variant="soft">Change address</ButtonLink>
+                  </div>
                 ) : (
                 <div className="mt-4">
                   <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
@@ -354,7 +285,7 @@ export default function Domains() {
                     {verifyingId === domain.id ? 'Working…' : 'Verify now'}
                   </SoftButton>
                   )}
-                  <DangerButton onClick={() => setPendingDelete(domain)}>Delete</DangerButton>
+                  <ButtonLink to={`/app/domains/${encodeURIComponent(domain.id)}/delete`} variant="danger">Delete</ButtonLink>
                 </div>
               </article>
             ))}
@@ -379,28 +310,6 @@ export default function Domains() {
       {verify.error && (
         <p role="alert" className="text-[13.5px] font-medium text-bad">
           {verify.error}
-        </p>
-      )}
-
-      <ConfirmDialog
-        open={Boolean(pendingDelete)}
-        title="Delete this domain?"
-        description={
-          pendingDelete
-            ? `${pendingDelete.hostname} stops resolving as soon as it is deleted. This cannot be undone.`
-            : undefined
-        }
-        confirmLabel="Delete domain"
-        requireText={pendingDelete?.hostname}
-        busy={remove.pending}
-        onCancel={() => setPendingDelete(null)}
-        onConfirm={() => {
-          if (pendingDelete) void remove.run(pendingDelete.id);
-        }}
-      />
-      {remove.error && (
-        <p role="alert" className="text-[13.5px] font-medium text-bad">
-          {remove.error}
         </p>
       )}
     </div>

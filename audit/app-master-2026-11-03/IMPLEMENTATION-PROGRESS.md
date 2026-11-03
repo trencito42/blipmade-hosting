@@ -441,3 +441,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Full web unit suite: 488 tests, 0 failures after the test alignment (1 stale failure existed before this checkpoint).
 - Production build: pass; 172 pages prerendered.
 - Focused Playwright suites (rollback and Git settings): 4/4 pass, including the exact release POST, refused running release and 390px overflow.
+
+## 2026-11-03 — Dedicated domain rename and delete pages
+
+### Completed
+
+- [x] Moved the rename of a platform address to `/app/domains/:id/edit` (real `PUT /domains/:id/address`), with the 3–40 character rule, the 7-day lock from the API, and a page that refuses custom hostnames.
+- [x] Moved domain deletion to `/app/domains/:id/delete` (real `DELETE /domains/:id`) with an exact-hostname confirmation and a dirty guard.
+- [x] The list keeps DNS records and Verify now; it links to the pages.
+- [ ] Not done: a separate `/app/domains/:id` detail page; DNS records and verification stay in the list.
+
+### Verification executed
+
+- Web TypeScript check: pass.
+- Static domain tests: 3/3 pass.
+- Production build: pass; 172 pages prerendered.
+- Focused Playwright suites (domain change and add-domain editor): 5/5 pass, including exact PUT/DELETE and 390px overflow.
