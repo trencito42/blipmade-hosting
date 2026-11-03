@@ -67,7 +67,27 @@ const BILLING_TABS = [
   { id: 'orders', label: 'Orders' },
   { id: 'invoices', label: 'Invoices' },
   { id: 'payment', label: 'Payment method' },
+  { id: 'credit', label: 'Credit' },
+  { id: 'history', label: 'History' },
 ] as const;
+
+/** The credit of the account, as the payment provider holds it. */
+function CreditBalance() {
+  const state = useAsync<{ credit: number; currency: string }>((signal) => get<{ credit: number; currency: string }>('/billing/credit', undefined, signal), []);
+  return (
+    <Panel title="Credit" description="Credit is taken off your next invoice automatically.">
+      {state.loading ? (
+        <LoadingBlock rows={1} label="Loading your credit" />
+      ) : state.error ? (
+        <ErrorState title="Could not load your credit" message={state.error.message} onRetry={state.reload} />
+      ) : (state.data?.credit ?? 0) > 0 ? (
+        <p className="font-mono text-[26px] font-semibold tracking-[-0.03em] text-ink"><Money amount={state.data!.credit} currency={state.data!.currency} /></p>
+      ) : (
+        <p className="text-[14px] text-ink3">No credit on this account.</p>
+      )}
+    </Panel>
+  );
+}
 
 const ORDER_TONES: Record<string, string> = { PENDING: 'pending', AWAITING_PAYMENT: 'pending', PAID: 'available', FULFILLED: 'available', CANCELLED: 'failed', REFUNDED: 'failed' };
 const ORDER_LABELS: Record<string, string> = { PENDING: 'Waiting for payment', AWAITING_PAYMENT: 'Waiting for payment', PAID: 'Paid', FULFILLED: 'Delivered', CANCELLED: 'Cancelled', REFUNDED: 'Refunded' };
@@ -383,6 +403,15 @@ export default function Billing() {
   const subscriptionsPaged = usePaged(subscriptions, 20);
   const ordersPaged = usePaged(ordersState.data?.orders ?? [], 20);
   const invoicesPaged = usePaged(invoices, 20);
+  const history = useMemo(
+    () =>
+      [
+        ...(ordersState.data?.orders ?? []).map((order) => ({ key: `o-${order.id}`, kind: 'Order', number: `#${order.number}`, at: order.createdAt, total: order.total, currency: order.currency, status: ORDER_LABELS[order.status] ?? order.status.toLowerCase().replace(/_/g, ' '), tone: ORDER_TONES[order.status] ?? 'pending', to: `/app/billing/orders/${encodeURIComponent(order.id)}` })),
+        ...invoices.map((invoice) => ({ key: `i-${invoice.id}`, kind: 'Invoice', number: invoice.number, at: invoice.createdAt, total: invoice.total, currency: invoice.currency, status: INVOICE_STATUS_LABELS[invoice.status.toUpperCase()] ?? invoice.status, tone: invoice.status, to: `/app/billing/invoices/${invoice.id}` })),
+      ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)),
+    [ordersState.data, invoices],
+  );
+  const historyPaged = usePaged(history, 20);
 
   // What the platform says about the payments. The page shows that answer
   // and never decides by itself that a payment is possible.
@@ -711,6 +740,36 @@ export default function Billing() {
         </Panel>
       )}
         </>
+      )}
+
+      {tab === 'credit' && <CreditBalance />}
+
+      {tab === 'history' && (
+        <Panel title="History" description="Your orders and invoices in the order they happened.">
+          {(ordersState.loading || invoicesState.loading) && history.length === 0 ? (
+            <LoadingBlock rows={3} label="Loading your history" />
+          ) : history.length === 0 ? (
+            <EmptyState title="Nothing yet" description="Orders and invoices appear here." />
+          ) : (
+            <>
+              <ul className="grid">
+                {historyPaged.rows.map((entry) => (
+                  <li key={entry.key} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <Link to={entry.to} className="text-[14.5px] font-semibold text-ink hover:text-acc">{entry.kind} {entry.number}</Link>
+                      <p className="text-[12.5px] text-ink3">{formatDate(entry.at)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-[14px] text-ink"><Money amount={entry.total} currency={entry.currency} /></span>
+                      <StatusPill status={entry.tone} label={entry.status} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <Pager paged={historyPaged} label="History pages" />
+            </>
+          )}
+        </Panel>
       )}
 
       {tab === 'orders' && (

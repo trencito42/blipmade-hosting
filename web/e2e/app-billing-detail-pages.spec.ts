@@ -28,6 +28,7 @@ async function stub(page: Page, opts: { orderStatus?: string; cancelAtPeriodEnd?
     if (path === '/billing/summary') return json(route, { currency: 'EUR', monthlyEstimate: 900, currentPeriodEnd: null, paymentMethod: null, hasStripeCustomer: false, subscriptions: [] });
     if (path === '/billing/payment-state') return json(route, { payments: { available: true, test: false, reason: null } });
     if (path === '/billing/invoices') return json(route, { invoices: [{ id: 'inv1', number: 'INV-2026-0001', status: 'paid', amount: 840, tax: 160, total: 1000, currency: 'EUR', hostedUrl: null, pdfUrl: null, billingAddress: null, lines: [], createdAt: '2026-10-01T10:00:00.000Z', periodStart: null, periodEnd: null }], company: {} });
+    if (path === '/billing/credit') return json(route, { credit: 2500, currency: 'EUR' });
     if (path === '/billing/closed-services') return json(route, { services: [{ id: 'c1', name: 'Old blog', cancelledAt: '2026-10-01T00:00:00.000Z', deletedOn: '2026-12-01T00:00:00.000Z' }] });
     if (path === '/billing/credit') return json(route, { credit: 0, currency: 'EUR' });
     return json(route, {});
@@ -126,5 +127,19 @@ test.describe('billing detail pages', () => {
     expect(Math.abs(status - button)).toBeLessThan(2);
     expect(Math.abs(price - button)).toBeLessThan(2);
     expect(Math.abs(name - button)).toBeLessThan(2);
+  });
+
+  test('credit shows the balance and history merges orders and invoices, newest first', async ({ page }) => {
+    await stub(page, {});
+    await page.goto('/app/billing?tab=credit');
+    await expect(page.getByText('€25.00')).toBeVisible();
+    await page.goto('/app/billing?tab=history');
+    const rows = page.locator('main li').filter({ has: page.getByRole('link', { name: /^(Order|Invoice) / }) });
+    await expect(rows).toHaveCount(2);
+    // The order of 2026-11-01 comes before the invoice of 2026-10-01.
+    await expect(rows.nth(0)).toContainText('Order #BM-100');
+    await expect(rows.nth(1)).toContainText('Invoice INV-2026-0001');
+    await rows.nth(0).getByRole('link').click();
+    await page.waitForURL('**/app/billing/orders/o1');
   });
 });
