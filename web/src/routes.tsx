@@ -60,6 +60,9 @@ const AdminSupportBotNew = lazy(() => import('./admin/SupportBotNew'));
 const AdminSupportBotEdit = lazy(() => import('./admin/SupportBotEdit'));
 const AdminSupportAutomationEdit = lazy(() => import('./admin/SupportAutomationEdit'));
 const AdminStaffEdit = lazy(() => import('./admin/StaffEdit'));
+const AdminIncidentNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.IncidentNew })));
+const AdminIncidentUpdateNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.IncidentUpdateNew })));
+const AdminAnnouncementNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.AnnouncementNew })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -290,6 +293,9 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/promotions/:id/edit', component: AdminPromotionEdit, title: 'Edit campaign', area: 'admin', layout: 'editor' },
   { pattern: '/admin/promotions/:id', component: AdminPromotionDetail, title: 'Campaign control', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
+  { pattern: '/admin/incidents/new', component: AdminIncidentNew, title: 'New incident', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/incidents/:id/updates/new', component: AdminIncidentUpdateNew, title: 'New update', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/announcements/new', component: AdminAnnouncementNew, title: 'New announcement', area: 'admin', layout: 'editor' },
   { pattern: '/admin/incidents', component: AdminIncidents, title: 'Incidents', area: 'admin' },
   { pattern: '/admin/reports', component: AdminReports, title: 'Reports', area: 'admin' },
   { pattern: '/admin/queues', component: AdminQueues, title: 'Job queues', area: 'admin' },

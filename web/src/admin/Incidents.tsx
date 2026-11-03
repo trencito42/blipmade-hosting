@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { del, get, patch, post } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
-import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, Select, TextArea, TextInput, useToast } from '../ui-app';
+import { ButtonLink, ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, Select, TextArea, TextInput, useToast } from '../ui-app';
 import { can, denseDanger, denseGhost, fmtDateTime, useAdminSession } from './Overview';
 
 /**
@@ -20,24 +20,8 @@ const IMPACTS = ['none', 'minor', 'major', 'critical', 'maintenance'];
 const cap = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 function IncidentRow({ incident, mayWrite, onChanged }: { incident: Incident; mayWrite: boolean; onChanged: () => void }) {
-  const toast = useToast();
-  const [status, setStatus] = useState(incident.resolvedAt ? 'resolved' : 'monitoring');
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const send = async () => {
-    setBusy(true);
-    try {
-      await post(`/admin/incidents/${incident.id}/updates`, { status, message });
-      setMessage('');
-      toast.push('The update was published.', 'ok');
-      onChanged();
-    } catch (failure) {
-      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
+  const toast = useToast();
   return (
     <li className="grid gap-3 rounded-2xl bg-s2 p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -53,15 +37,9 @@ function IncidentRow({ incident, mayWrite, onChanged }: { incident: Incident; ma
         ))}
       </ol>
       {mayWrite && (
-        <div className="grid gap-2 sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-end">
-          <Select label="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
-            {STATUSES.map((entry) => <option key={entry} value={entry}>{cap(entry)}</option>)}
-          </Select>
-          <TextInput label="Update" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What we know now" />
-          <div className="flex gap-2">
-            <PrimaryButton onClick={() => void send()} disabled={busy || message.trim().length < 3}>Publish</PrimaryButton>
-            <button type="button" className={denseDanger} onClick={() => setRemoving(true)}>Delete</button>
-          </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <ButtonLink to={`/admin/incidents/${encodeURIComponent(incident.id)}/updates/new`} variant="soft">Post an update</ButtonLink>
+          <button type="button" className={denseDanger} onClick={() => setRemoving(true)}>Delete</button>
         </div>
       )}
       <ConfirmDialog open={removing} title="Delete this incident?" description="It disappears from the status page and from the history." confirmLabel="Delete" onCancel={() => setRemoving(false)}
@@ -76,8 +54,6 @@ export default function Incidents() {
   const toast = useToast();
   const incidents = useAsync<{ incidents: Incident[] }>((signal) => get('/admin/incidents', undefined, signal), []);
   const announcements = useAsync<{ announcements: Announcement[] }>((signal) => get('/admin/announcements', undefined, signal), []);
-  const [form, setForm] = useState({ title: '', impact: 'minor', message: '' });
-  const [note, setNote] = useState({ title: '', body: '', severity: 'maintenance', startsAt: '', endsAt: '' });
   const [busy, setBusy] = useState(false);
 
   const run = async (work: () => Promise<unknown>, message: string, after: () => void) => {
@@ -96,21 +72,7 @@ export default function Incidents() {
   return (
     <div className="grid gap-4">
       <Panel title="Incidents" description="Told on the public status page. The checks open and close some by themselves.">
-        {mayWrite && (
-          <div className="mb-4 grid gap-2 rounded-2xl bg-s2 p-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-            <TextInput label="Title" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Slow deployments" />
-            <Select label="Impact" value={form.impact} onChange={(event) => setForm({ ...form, impact: event.target.value })}>
-              {IMPACTS.map((entry) => <option key={entry} value={entry}>{cap(entry)}</option>)}
-            </Select>
-            <div className="sm:col-span-2"><TextArea label="What we know" value={form.message} onChange={(event) => setForm({ ...form, message: event.target.value })} rows={2} /></div>
-            <div className="sm:col-span-2">
-              <PrimaryButton disabled={busy || form.title.trim().length < 3 || form.message.trim().length < 3}
-                onClick={() => void run(() => post('/admin/incidents', form), 'The incident was published.', () => { setForm({ title: '', impact: 'minor', message: '' }); incidents.reload(); })}>
-                Publish incident
-              </PrimaryButton>
-            </div>
-          </div>
-        )}
+        {mayWrite && <div className="mb-4 flex justify-end"><ButtonLink to="/admin/incidents/new">New incident</ButtonLink></div>}
         {incidents.loading && !incidents.data ? <LoadingBlock rows={2} label="Loading the incidents" />
           : incidents.error ? <ErrorState title="The incidents could not be loaded" message={incidents.error.message} onRetry={incidents.reload} />
           : (incidents.data?.incidents.length ?? 0) === 0 ? <EmptyState title="No incident yet" description="Nothing has been published and no check has opened one." />
@@ -118,25 +80,7 @@ export default function Incidents() {
       </Panel>
 
       <Panel title="Announcements" description="A banner for every signed-in customer, between two dates.">
-        {mayWrite && (
-          <div className="mb-4 grid gap-2 rounded-2xl bg-s2 p-4 sm:grid-cols-2">
-            <TextInput label="Title" value={note.title} onChange={(event) => setNote({ ...note, title: event.target.value })} placeholder="Planned maintenance" />
-            <Select label="Kind" value={note.severity} onChange={(event) => setNote({ ...note, severity: event.target.value })}>
-              <option value="maintenance">Maintenance</option>
-              <option value="info">News</option>
-              <option value="warning">Warning</option>
-            </Select>
-            <div className="sm:col-span-2"><TextArea label="Message" value={note.body} onChange={(event) => setNote({ ...note, body: event.target.value })} rows={2} /></div>
-            <TextInput label="Starts (optional)" type="datetime-local" value={note.startsAt} onChange={(event) => setNote({ ...note, startsAt: event.target.value })} />
-            <TextInput label="Ends (optional)" type="datetime-local" value={note.endsAt} onChange={(event) => setNote({ ...note, endsAt: event.target.value })} />
-            <div className="sm:col-span-2">
-              <PrimaryButton disabled={busy || note.title.trim().length < 3 || note.body.trim().length < 3}
-                onClick={() => void run(() => post('/admin/announcements', { title: note.title, body: note.body, severity: note.severity, ...(note.startsAt ? { startsAt: new Date(note.startsAt).toISOString() } : {}), ...(note.endsAt ? { endsAt: new Date(note.endsAt).toISOString() } : {}) }), 'The announcement was published.', () => { setNote({ title: '', body: '', severity: 'maintenance', startsAt: '', endsAt: '' }); announcements.reload(); })}>
-                Publish announcement
-              </PrimaryButton>
-            </div>
-          </div>
-        )}
+        {mayWrite && <div className="mb-4 flex justify-end"><ButtonLink to="/admin/announcements/new">New announcement</ButtonLink></div>}
         {announcements.loading && !announcements.data ? <LoadingBlock rows={2} label="Loading the announcements" />
           : announcements.error ? <ErrorState title="The announcements could not be loaded" message={announcements.error.message} onRetry={announcements.reload} />
           : (announcements.data?.announcements.length ?? 0) === 0 ? <EmptyState title="No announcement" description="Customers see none." />
