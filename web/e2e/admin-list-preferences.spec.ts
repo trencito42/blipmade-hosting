@@ -14,6 +14,7 @@ test('an operator saves, reapplies and keeps personal list preferences', async (
       saved = body as Record<string, unknown>;
       const view = { id: 'v1', name: String(saved.name), query: saved.query as Record<string, unknown>, createdAt: new Date().toISOString() };
       views.push(view);
+      views.push({ id: 'v-same', name: 'Same filters', query: view.query as Record<string, unknown>, createdAt: new Date().toISOString() });
       return { view };
     }
     return undefined;
@@ -38,6 +39,7 @@ test('an operator saves, reapplies and keeps personal list preferences', async (
   await expect(page.getByRole('searchbox', { name: 'Search' })).toHaveValue('Ada');
   await page.getByText('Views', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Staff named Ada', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Same filters', exact: true })).toHaveAttribute('aria-pressed', 'false');
 
   await page.getByText('Views', { exact: true }).click();
   await page.getByText('Columns', { exact: true }).click();

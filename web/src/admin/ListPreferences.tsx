@@ -66,6 +66,7 @@ export function ListPreferences({
   const toast = useToast();
   const viewsMenu = useRef<HTMLDetailsElement>(null);
   const [name, setName] = useState('');
+  const [activeId, setActiveId] = useState<string | null>(null);
   const views = useAsync((signal) => get<{ views: SavedView[] }>('/admin/saved-views', { scope }, signal), [scope]);
   const save = useAction(async () => post<{ view: SavedView }>('/admin/saved-views', { scope, name: name.trim(), query }));
   const remove = useAction(async (id: string) => api<{ ok: true }>('/admin/saved-views', { method: 'DELETE', query: { scope, id } }));
@@ -82,15 +83,23 @@ export function ListPreferences({
   const deleteView = async (view: SavedView) => {
     const result = await remove.run(view.id);
     if (!result) return;
+    if (activeId === view.id) setActiveId(null);
     views.reload();
     toast.push(`Deleted “${view.name}”`, 'ok');
   };
 
   const applyView = (view: SavedView) => {
+    setActiveId(view.id);
     onApply(view.query);
     if (viewsMenu.current) viewsMenu.current.open = false;
     toast.push(`Showing “${view.name}”`, 'ok');
   };
+
+  useEffect(() => {
+    if (!activeId || !views.data) return;
+    const selected = views.data.views.find((view) => view.id === activeId);
+    if (!selected || !sameQuery(query, selected.query)) setActiveId(null);
+  }, [activeId, query, views.data]);
 
   return (
     <div className="flex flex-wrap items-start gap-2" aria-label="List preferences">
@@ -107,7 +116,7 @@ export function ListPreferences({
           {views.loading ? <p className="mt-3 text-[12px] text-ink3">Loading views…</p> : views.error ? <button type="button" onClick={views.reload} className="mt-3 text-[12px] text-bad underline">Could not load views. Retry</button> : (
             <ul className="mt-3 grid max-h-56 gap-1 overflow-y-auto">
               {(views.data?.views ?? []).map((view) => {
-                const active = sameQuery(query, view.query);
+                const active = view.id === activeId;
                 return (
                   <li key={view.id} className={`flex items-center gap-1 rounded-xl ${active ? 'bg-s2' : 'hover:bg-s2'}`}>
                     <button type="button" aria-label={view.name} aria-pressed={active} className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-[13px] text-ink" onClick={() => applyView(view)}>
