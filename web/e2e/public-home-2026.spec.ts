@@ -58,3 +58,50 @@ test.describe('home page 2026', () => {
     expect(await focused.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
   });
 });
+
+test.describe('the bar of the site', () => {
+  test('opens three menus with real products and closes them with Escape', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    const nav = page.getByRole('navigation', { name: 'Main' });
+    for (const [label, id] of [['Games', 'menu-games'], ['Build', 'menu-build'], ['Servers & mail', 'menu-servers']] as const) {
+      await nav.getByRole('button', { name: label }).click();
+      await expect(page.locator(`#${id}`)).toBeVisible();
+      expect(await page.locator(`#${id} a`).count()).toBeGreaterThan(1);
+      await page.keyboard.press('Escape');
+      await expect(page.locator(`#${id}`)).toHaveCount(0);
+    }
+  });
+
+  test('a member of the staff chooses between the dashboard and the admin area', async ({ page }) => {
+    await page.route('**/api/auth/session', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { id: 'a', email: 'admin@example.test', firstName: 'Ada', lastName: 'Admin', name: 'Ada Admin', role: 'ADMIN', emailVerified: true, permissions: [] } }) }));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.getByRole('banner').getByRole('button', { name: 'Dashboard' }).click();
+    await expect(page.getByRole('menuitem', { name: /My dashboard/ })).toHaveAttribute('href', '/app');
+    await expect(page.getByRole('menuitem', { name: /Admin/ })).toHaveAttribute('href', '/admin');
+  });
+
+  test('a customer goes straight to the dashboard of the customers', async ({ page }) => {
+    await page.route('**/api/auth/session', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { id: 'c', email: 'c@example.test', firstName: 'Cora', lastName: 'Customer', name: 'Cora Customer', role: 'CUSTOMER', emailVerified: true, permissions: [] } }) }));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/app');
+  });
+
+  test('the screens of the panel switch and keep their text', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.getByRole('tab', { name: 'Servers' }).click();
+    await expect(page.getByRole('tabpanel')).toContainText('Servers of your own');
+    await expect(page.getByRole('img', { name: /list of servers/ })).toBeVisible();
+  });
+
+  test('the footer has no counters and keeps the legal pages', async ({ page }) => {
+    await page.goto('/');
+    const footer = page.getByRole('contentinfo');
+    await expect(footer.getByRole('link', { name: 'Terms of service' })).toBeVisible();
+    await expect(footer.getByRole('heading', { name: 'The fine print' })).toBeVisible();
+    expect(await footer.innerText()).not.toMatch(/\b\d{2} ·/);
+  });
+});

@@ -2,11 +2,12 @@ import { HamburgerIcon } from '../HamburgerIcon';
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Icon } from '../icons';
 import { Link, useRouter } from '../router';
-import { useProducts } from './catalog';
-import { CATEGORIES } from './categories';
+import { orderableOf, useProducts } from './catalog';
+import { CATEGORIES, toneOf } from './categories';
+import { DashboardButton, MainMenus } from './MegaMenus';
 import { LEGAL_PAGE_LIST } from '../legal/links';
 import { useSession } from '../session';
-import { homeOf } from '../auth-guard';
+import { isStaff } from '../auth-guard';
 import { useSiteContent } from './siteContent';
 
 /**
@@ -133,110 +134,23 @@ export function Crumbs({ items }: { items: [string, string][] }) {
   );
 }
 
-const NAV_LINK = 'inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[14.5px] font-medium transition-colors duration-150';
-
-/** The categories of the catalog with the number of products each holds, for the menu. */
-function useCategoryCounts() {
-  const products = useProducts();
-  return CATEGORIES.map((category) => ({ ...category, count: products.filter((product) => product.category === category.id).length })).filter((category) => category.count > 0);
-}
-
-/**
- * The menu of the catalog.
- *
- * A panel under the button names every category with its icon and the number
- * of products it holds, so a visitor goes straight to games or databases
- * instead of to one list of everything. The panel is in the page even when it
- * is closed, so a crawler reads the links.
- */
-function CatalogMenu({ active }: { active: boolean }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
-  const categories = useCategoryCounts();
-  const router = useRouter();
-
-  // A navigation closes the panel.
-  useEffect(() => setOpen(false), [router.path, router.search]);
-
-  useEffect(() => {
-    if (!open) return;
-    const outside = (event: MouseEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        button.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', outside);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('mousedown', outside);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [open]);
-
-  return (
-    <div ref={root} className="relative">
-      <button
-        ref={button}
-        type="button"
-        aria-expanded={open}
-        aria-controls="catalog-menu"
-        onClick={() => setOpen(!open)}
-        className={cx(NAV_LINK, active || open ? 'bg-night-3 text-ink' : 'text-ink-2 hover:text-ink')}
-      >
-        Catalog
-        <Icon name="chevronDown" size={11} className={cx('transition-transform duration-200', open && 'rotate-180')} />
-      </button>
-      <div
-        id="catalog-menu"
-        hidden={!open}
-        className="absolute top-full left-0 z-40 mt-3 w-[640px] rounded-[28px] border border-line bg-card p-3 shadow-[0_32px_64px_-20px_rgba(0,0,0,0.8)]"
-      >
-        <ul className="grid grid-cols-2 gap-1">
-          {categories.map((category) => (
-            <li key={category.id}>
-              <Link to={`/apps#${category.slug}`} className="group flex items-center gap-3.5 rounded-[20px] p-3 transition-colors hover:bg-night-2">
-                <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-2xl bg-night-3 text-mint">
-                  <Icon name={category.icon} size={18} />
-                </span>
-                <span className="grid min-w-0">
-                  <span className="flex items-baseline gap-2 text-[15.5px] font-semibold text-ink">
-                    {category.label}
-                    <span className="num text-[12.5px] font-medium text-ink-3">{category.count}</span>
-                  </span>
-                  <span className="truncate text-[13.5px] text-ink-3">{category.blurb}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        <Link to="/apps" className="mt-2 flex items-center justify-between gap-3 rounded-[20px] bg-night-2 px-5 py-3.5 text-[15px] font-semibold text-ink transition-colors hover:bg-night-3">
-          Browse the whole catalog
-          <Icon name="arrow" size={14} className="text-mint" />
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 /** The bar of the site. It is sticky and it holds the name, the pages and the two actions. */
 export function Nav() {
   const [open, setOpen] = useState(false);
   const { path } = useRouter();
-  const categories = useCategoryCounts();
-  // A customer who is already signed in is sent to the dashboard, not to a
-  // form they do not need.
+  const products = orderableOf(useProducts());
+  // A customer who is already signed in goes to the dashboard of the customers. A member of the staff has two places and chooses.
   const { user } = useSession();
-  const dashboard = user ? homeOf(user.role) : null;
+  const staff = user ? isStaff(user.role) : false;
   const here = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
-  const plain = (active: boolean) => cx(NAV_LINK, active ? 'bg-night-3 text-ink' : 'text-ink-2 hover:text-ink');
   const notice = useSiteContent()['site.announcement'] as { message: string; linkLabel?: string; linkTo?: string } | undefined;
+  const mobileGroups: [string, [string, string][]][] = [
+    ['Games', [['Every game', '/apps#games'], ...(['minecraft-paper', 'rust', 'palworld', 'fivem'] as const).flatMap((slug) => { const p = products.find((x) => x.slug === slug); return p ? [[p.name, `/apps/${p.slug}`] as [string, string]] : []; })]],
+    ['Build', CATEGORIES.filter((c) => ['BOTS', 'DATABASES', 'DEVELOPER_TOOLS', 'AUTOMATION', 'MONITORING', 'WEB_CMS'].includes(c.id) && products.some((p) => p.category === c.id)).map((c) => [c.label, `/apps#${c.slug}`] as [string, string])],
+    ['Servers & mail', [['Servers (VPS)', '/vps'], ['Hosted email', '/email'], ['Domains', '/docs/domains']]],
+  ];
   return (
-    <header className="sticky top-0 z-30 border-b border-line/70 bg-paper/85 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-line/70 bg-paper/90 backdrop-blur-md">
       {notice?.message && (
         <div role="status" className="border-b border-line/70 bg-night-3 px-4 py-2 text-center text-[13.5px] text-ink">
           {notice.message}
@@ -245,17 +159,14 @@ export function Nav() {
           )}
         </div>
       )}
-      <Wrap className="flex h-[68px] items-center gap-6">
+      <Wrap className="flex h-[68px] items-center gap-4 lg:gap-6">
         <Logo />
-        <nav aria-label="Main" className="ml-4 hidden items-center gap-1 rounded-full border border-line bg-card/70 p-1 md:flex">
-          <CatalogMenu active={here('/apps')} />
-          <Link to="/#pricing" className={plain(false)}>Pricing</Link>
-          <Link to="/vps" className={plain(here('/vps'))}>Servers</Link>
-          <Link to="/docs" className={plain(here('/docs'))}>Docs</Link>
-        </nav>
-        <div className="ml-auto hidden items-center gap-2 md:flex">
-          {dashboard ? (
-            <Btn to={dashboard}>Dashboard</Btn>
+        <div className="ml-2 hidden lg:block">
+          <MainMenus docsActive={here('/docs')} serversActive={here('/vps')} />
+        </div>
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
+          {user ? (
+            <DashboardButton staff={staff} />
           ) : (
             <>
               <Btn to="/login" variant="quiet">
@@ -267,7 +178,7 @@ export function Nav() {
         </div>
         <button
           type="button"
-          className="ml-auto grid size-11 place-items-center rounded-full hover:bg-ink/5 md:hidden"
+          className="ml-auto grid size-11 place-items-center rounded-full hover:bg-ink/5 lg:hidden"
           aria-expanded={open}
           aria-controls="mobile-nav"
           aria-label={open ? 'Close menu' : 'Open menu'}
@@ -277,30 +188,36 @@ export function Nav() {
         </button>
       </Wrap>
       {open ? (
-        <nav id="mobile-nav" aria-label="Mobile" className="max-h-[calc(100dvh-68px)] overflow-y-auto border-t border-line/70 bg-paper md:hidden">
-          <Wrap className="grid gap-1 py-4">
-            <p className="px-4 pt-2 pb-1 text-[13px] font-semibold text-ink-3">Catalog</p>
-            <ul className="grid grid-cols-2 gap-2 pb-2">
-              {categories.map((category) => (
-                <li key={category.id}>
-                  <Link to={`/apps#${category.slug}`} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-2xl border border-line bg-card px-3.5 py-3 text-[15px] font-semibold">
-                    <Icon name={category.icon} size={16} className="shrink-0 text-mint" />
-                    <span className="truncate">{category.label}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            {([['Pricing', '/#pricing'], ['Servers', '/vps'], ['Docs', '/docs'], ['Everything in the catalog', '/apps']] as const).map(([label, to]) => (
-              <Link key={label} to={to} onClick={() => setOpen(false)} className="flex items-center justify-between rounded-2xl px-4 py-3 font-display text-[22px] font-semibold tracking-tight hover:bg-ink/5">
-                {label}
-                <Icon name="arrow" size={16} className="text-ink-3" />
-              </Link>
+        <nav id="mobile-nav" aria-label="Mobile" className="max-h-[calc(100dvh-68px)] overflow-y-auto border-t border-line/70 bg-paper lg:hidden">
+          <Wrap className="grid gap-5 py-5">
+            {mobileGroups.map(([title, links]) => (
+              <section key={title} aria-label={title}>
+                <p className="px-1 pb-2 font-display text-[22px] font-semibold tracking-[-0.03em]">{title}</p>
+                <ul className="flex flex-wrap gap-2">
+                  {links.map(([label, to]) => (
+                    <li key={to}>
+                      <Link to={to} onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center rounded-full border border-line bg-card px-4 text-[15px] font-semibold">
+                        {label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              {dashboard ? (
-                <Btn to={dashboard} className="col-span-2">
-                  Dashboard
-                </Btn>
+            <div className="grid gap-1">
+              {([['Pricing', '/#pricing'], ['Docs', '/docs'], ['Everything in the catalog', '/apps']] as const).map(([label, to]) => (
+                <Link key={label} to={to} onClick={() => setOpen(false)} className="flex min-h-12 items-center justify-between rounded-2xl px-1 font-display text-[22px] font-semibold tracking-tight">
+                  {label}
+                  <Icon name="arrow" size={16} className="text-ink-3" />
+                </Link>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {user ? (
+                <>
+                  <Btn to="/app" className={staff ? '' : 'col-span-2'}>My dashboard</Btn>
+                  {staff ? <Btn to="/admin" variant="outline">Admin</Btn> : null}
+                </>
               ) : (
                 <>
                   <Btn to="/login" variant="outline">
@@ -317,51 +234,72 @@ export function Nav() {
   );
 }
 
-/** The end of the page: the night panel with the four columns. */
+/** The end of the page: a sign-off, the places to go, and the fine print. */
 export function Footer() {
   const { status } = useSession();
   // On a phone a link is at least 44px tall, so it can be hit with a thumb; on a wide screen the list is tight again.
-  const col = 'grid content-start gap-0.5 sm:gap-2.5';
+  const col = 'grid content-start gap-0.5 sm:gap-2';
   const a = 'inline-flex min-h-11 items-center text-[15px] text-snow-2 transition-colors duration-150 hover:text-snow sm:min-h-0';
+  const head = 'pb-1 font-display text-[18px] font-semibold tracking-[-0.02em]';
+  const tags = CATEGORIES.filter((category) => ['GAMES', 'BOTS', 'DATABASES', 'DEVELOPER_TOOLS', 'VPS', 'EMAIL_HOSTING'].includes(category.id));
   return (
-    <footer className="on-night m-2 mt-0 rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[36px]">
-      <Wrap className="grid gap-12 py-14 sm:py-20 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-        <div className="grid content-start gap-4">
+    <footer className="on-night m-2 mt-0 overflow-hidden rounded-[28px] bg-night text-snow sm:m-3 sm:rounded-[36px]">
+      <Wrap className="grid gap-12 pt-14 pb-10 sm:pt-20 lg:grid-cols-[1.3fr_2fr] lg:gap-16">
+        <div className="grid content-start gap-6">
           <Logo onNight />
-          <p className="max-w-xs text-[15px] text-snow-2">Hosting for everything you run. Pick the resources, see the price, go live.</p>
+          <p className="max-w-[11em] font-display text-[clamp(34px,4.2vw,52px)] leading-[0.98] font-semibold tracking-[-0.045em]">Go put something online.</p>
+          <p className="max-w-[24em] text-[16px] text-snow-2">Independent hosting for bots, games, databases and the tools you are tired of running on a laptop.</p>
+          <ul className="flex flex-wrap gap-2" aria-label="Start with">
+            {tags.map((category) => (
+              <li key={category.id}>
+                <Link
+                  to={category.id === 'VPS' ? '/vps' : category.id === 'EMAIL_HOSTING' ? '/email' : `/apps#${category.slug}`}
+                  className="inline-flex min-h-10 items-center rounded-full px-4 text-[14px] font-bold text-paper transition-transform duration-150 hover:-translate-y-0.5 hover:-rotate-2"
+                  style={{ background: toneOf(category.id) }}
+                >
+                  {category.label.replace(' (VPS)', '')}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
-        <nav aria-label="Product" className={col}>
-          <h2 className="font-display text-[17px] font-semibold">Product</h2>
-          <Link to="/apps" className={a}>Catalog</Link>
-          <Link to="/#pricing" className={a}>Pricing</Link>
-          <Link to="/vps" className={a}>Servers (VPS)</Link>
-          <Link to="/docs" className={a}>Documentation</Link>
-          <Link to="/docs/status" className={a}>Status and incidents</Link>
-        </nav>
-        <nav aria-label="Account" className={col}>
-          <h2 className="font-display text-[17px] font-semibold">Account</h2>
-          {status === 'authenticated' ? (
-            <>
-              <Link to="/app" className={a}>Dashboard</Link>
-              <Link to="/app/settings" className={a}>Account settings</Link>
-            </>
-          ) : status === 'anonymous' ? (
-            <>
-              <Link to="/register" className={a}>Create account</Link>
-              <Link to="/login" className={a}>Log in</Link>
-            </>
-          ) : null}
-          <Link to="/docs/support" className={a}>Support</Link>
-        </nav>
-        <nav aria-label="Legal" className={col}>
-          <h2 className="font-display text-[17px] font-semibold">Legal</h2>
-          {LEGAL_PAGE_LIST.map((page) => (
-            <Link key={page.to} to={page.to} className={a}>{page.label}</Link>
-          ))}
-          <Link to="/abuse" className={a}>Report abuse</Link>
-        </nav>
+        <div className="grid gap-10 sm:grid-cols-3">
+          <nav aria-label="Learn" className={col}>
+            <h2 className={head}>Learn</h2>
+            <Link to="/docs/first-app" className={a}>Your first deploy</Link>
+            <Link to="/docs" className={a}>Documentation</Link>
+            <Link to="/docs/domains" className={a}>Connect a domain</Link>
+            <Link to="/docs/status" className={a}>Status and incidents</Link>
+            <Link to="/#pricing" className={a}>How pricing works</Link>
+          </nav>
+          <nav aria-label="Account" className={col}>
+            <h2 className={head}>Need a hand?</h2>
+            <Link to="/docs/support" className={a}>Talk to support</Link>
+            {status === 'authenticated' ? (
+              <>
+                <Link to="/app" className={a}>My dashboard</Link>
+                <Link to="/app/settings" className={a}>Account settings</Link>
+              </>
+            ) : status === 'anonymous' ? (
+              <>
+                <Link to="/register" className={a}>Create account</Link>
+                <Link to="/login" className={a}>Log in</Link>
+              </>
+            ) : null}
+            <Link to="/abuse" className={a}>Report abuse</Link>
+          </nav>
+          <nav aria-label="Legal" className={col}>
+            <h2 className={head}>The fine print</h2>
+            {LEGAL_PAGE_LIST.map((page) => (
+              <Link key={page.to} to={page.to} className={a}>{page.label}</Link>
+            ))}
+          </nav>
+        </div>
       </Wrap>
-      <Wrap className="border-t border-night-line py-6 text-[14px] text-snow-2">© 2026 Blipmade. Prices are in euros per month.</Wrap>
+      <Wrap className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-night-line py-6 text-[14px] text-snow-2">
+        <span>© 2026 Blipmade. Prices are in euros per month.</span>
+        <span>Made independently. Please be nice to the servers.</span>
+      </Wrap>
     </footer>
   );
 }

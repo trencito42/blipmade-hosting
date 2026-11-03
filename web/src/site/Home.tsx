@@ -8,7 +8,7 @@ import { priceOfResources, eur, fmtRam } from './pricing';
 import { Icon, ProductMark } from '../icons';
 import { get } from '../lib/api';
 import { Link } from '../router';
-import { CATEGORIES, categoryOf } from './categories';
+import { CATEGORIES, categoryOf, toneOf } from './categories';
 import { Wrap, cx } from './ui';
 import { useSession } from '../session';
 import { homeOf } from '../auth-guard';
@@ -37,13 +37,13 @@ function Blip({ size = 16, live = false, className }: { size?: number; live?: bo
 }
 
 /** The head of every section: the index, a label, the statement and, at the right, one line of context. */
-function SectionHead({ index, label, id, children, aside }: { index: string; label: string; id: string; children: ReactNode; aside?: ReactNode }) {
+function SectionHead({ label, id, children, aside }: { label: string; id: string; children: ReactNode; aside?: ReactNode }) {
   return (
     <header className="grid gap-6 lg:grid-cols-12 lg:items-end">
       <div className="lg:col-span-8">
         <p className="num flex items-center gap-3 text-[12px] tracking-[0.08em] text-ink-3 uppercase">
           <Blip size={11} className="text-green" />
-          {index} · {label}
+          {label}
         </p>
         <h2 id={id} className="mt-5 max-w-[15em] text-[clamp(32px,4.6vw,64px)] leading-[0.98] font-semibold tracking-[-0.045em]">
           {children}
@@ -60,7 +60,7 @@ function Cta({ to, children, tone = 'ink' }: { to: string; children: ReactNode; 
     <Link
       to={to}
       className={cx(
-        'group inline-flex h-12 items-center gap-3 rounded-[10px] px-5 text-[15.5px] font-semibold whitespace-nowrap transition-[background-color,color,border-color] duration-150',
+        'group inline-flex h-12 items-center gap-3 rounded-full px-6 text-[15.5px] font-semibold whitespace-nowrap transition-[background-color,color,border-color] duration-150',
         tone === 'ink' && 'bg-ink text-paper hover:bg-green',
         tone === 'mint' && 'bg-green text-paper hover:bg-ink',
         tone === 'line' && 'border border-ink/30 text-ink hover:border-green hover:text-green',
@@ -97,8 +97,8 @@ function PlanSheet({ products }: { products: Product[] }) {
   const current = ranked[Math.min(active, ranked.length - 1)];
   if (!current) return null;
   return (
-    <figure className="grid gap-3">
-      <ol aria-label="Workloads you can run, drawn by the memory they ask for" className="grid grid-cols-1 gap-px overflow-hidden rounded-[18px] border border-line bg-line md:h-[520px] md:grid-cols-12 md:grid-rows-6">
+    <figure className="grid gap-4">
+      <ol aria-label="Workloads you can run, drawn by the memory they ask for" className="grid grid-cols-1 gap-3 md:h-[540px] md:grid-cols-12 md:grid-rows-6">
         {ranked.map((product, index) => {
           const on = index === active;
           return (
@@ -108,23 +108,22 @@ function PlanSheet({ products }: { products: Product[] }) {
                 onMouseEnter={() => setActive(index)}
                 onFocus={() => setActive(index)}
                 data-small={index >= 3}
-                style={{ '--area': areas[index] } as CSSProperties}
+                style={{ '--area': areas[index], background: toneOf(product.category) } as CSSProperties}
                 className={cx(
-                  'relative grid min-h-[104px] content-between gap-3 overflow-hidden p-4 transition-colors duration-200 sm:p-5 md:[grid-area:var(--area)] md:data-[small=true]:p-3.5',
-                  on ? 'bg-ink text-paper' : 'bg-paper text-ink hover:bg-paper-2',
+                  'tile relative grid min-h-[116px] content-between gap-3 overflow-hidden rounded-[24px] p-5 text-paper transition-[transform,box-shadow] duration-200 md:[grid-area:var(--area)] md:data-[small=true]:p-4',
+                  on ? '-translate-y-1 -rotate-[0.6deg] shadow-[0_18px_0_-8px_rgba(255,255,255,0.14)]' : 'hover:-translate-y-0.5',
                 )}
               >
                 <span className="flex items-start justify-between gap-3">
-                  <span className={cx('num text-[12px] tracking-[0.08em]', on ? 'text-paper/70' : 'text-ink-3')}>{String(index + 1).padStart(2, '0')}</span>
-                  <ProductMark slug={product.slug} fallback={categoryOf(product.category).icon} size={index === 0 ? 30 : 20} className={on ? 'text-paper' : 'text-ink-2'} />
+                  <span className={cx('num rounded-full bg-paper px-2.5 py-1 text-[11.5px] font-bold tracking-[0.02em] text-ink', index > 2 && 'hidden sm:inline')}>from {eur(product.minPrice)}</span>
+                  <ProductMark slug={product.slug} fallback={categoryOf(product.category).icon} size={index === 0 ? 44 : index < 3 ? 30 : 24} className="opacity-90" />
                 </span>
                 <span className="grid gap-1.5">
-                  <span className={cx('font-display font-semibold tracking-[-0.03em] text-balance', index === 0 ? 'text-[clamp(28px,3.4vw,46px)] leading-none' : index < 3 ? 'text-[clamp(20px,1.9vw,26px)] leading-tight' : 'text-[clamp(17px,1.5vw,19px)] leading-tight')}>{product.name}</span>
-                  <span className={cx('num whitespace-nowrap', index < 3 ? 'text-[12.5px]' : 'text-[11px] tracking-[-0.03em]', on ? 'text-paper/80' : 'text-ink-3')}>
+                  <span className={cx('font-display font-semibold tracking-[-0.035em] text-balance', index === 0 ? 'text-[clamp(30px,3.6vw,52px)] leading-[0.95]' : index < 3 ? 'text-[clamp(22px,2.1vw,30px)] leading-tight' : 'text-[clamp(17px,1.5vw,20px)] leading-tight')}>{product.name}</span>
+                  <span className={cx('num whitespace-nowrap font-semibold opacity-75', index < 3 ? 'text-[12.5px]' : 'text-[11px] tracking-[-0.03em]')}>
                     {fmtRam(product.min.ram)} · {product.min.cpu} vCPU · {product.min.disk} GB
                   </span>
                 </span>
-                {on ? <Blip size={14} live className="absolute right-4 bottom-4 text-paper" /> : null}
               </Link>
             </li>
           );
@@ -212,31 +211,33 @@ function Index() {
   return (
     <section aria-labelledby="index-h" className="border-b border-line">
       <Wrap className="py-20 sm:py-28">
-        <SectionHead index="01" label="What runs here" id="index-h" aside={<p>Games, bots, databases, tools, servers and mail. Pick one and it is yours in a few clicks.</p>}>
+        <SectionHead label="What runs here" id="index-h" aside={<p>Games, bots, databases, tools, servers and mail. Pick one and it is yours in a few clicks.</p>}>
           So, what are we running today?
         </SectionHead>
-        <ol className="mt-14 border-t border-ink/70">
-          {rows.map((row, i) => (
-            <li key={row.id} className="border-b border-line">
+        <ul className="mt-12 grid gap-3 sm:grid-cols-2">
+          {rows.map((row) => (
+            <li key={row.id}>
               <Link
                 to={destinationOf(row.id, row.slug)}
-                className="group grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-x-4 gap-y-1 py-5 transition-colors duration-150 hover:bg-paper-2 sm:py-6 md:grid-cols-[3.5rem_minmax(0,1.1fr)_minmax(0,1.4fr)_7rem_6rem_1.5rem] md:gap-x-6"
+                style={{ '--tone': toneOf(row.id) } as CSSProperties}
+                className="group grid h-full grid-cols-[auto_1fr_auto] items-center gap-x-5 gap-y-1 rounded-[24px] border border-line bg-card p-5 transition-[transform,border-color] duration-200 hover:-translate-y-1 hover:border-[var(--tone)] sm:p-6"
               >
-                <span className="num text-[12.5px] text-ink-3">{String(i + 1).padStart(2, '0')}</span>
-                <span className="grid gap-1">
-                  <span className="flex items-center gap-3 font-display text-[clamp(22px,2.4vw,32px)] leading-tight font-semibold tracking-[-0.03em] transition-transform duration-200 group-hover:translate-x-1">
-                    {row.label}
-                  </span>
-                  <span className="text-[15px] text-ink-3 md:hidden">{row.names.join(' · ')}</span>
+                <span aria-hidden="true" className="grid size-14 place-items-center rounded-[18px] text-paper transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-105" style={{ background: toneOf(row.id) }}>
+                  <Icon name={row.icon} size={24} />
                 </span>
-                <span className="hidden text-[15.5px] text-ink-2 md:block">{row.blurb} <span className="text-ink-3">{row.names.join(', ')}.</span></span>
-                <span className="num hidden text-right text-[13px] text-ink-3 md:block">{row.count} to pick from</span>
-                <span className="num text-right text-[14px] text-ink">from {eur(row.from)}</span>
-                <Blip size={11} className="hidden text-green opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 md:block" />
+                <span className="grid gap-0.5">
+                  <span className="font-display text-[clamp(22px,2.2vw,28px)] leading-tight font-semibold tracking-[-0.03em]">{row.label}</span>
+                  <span className="text-[14.5px] text-ink-3">{row.blurb}</span>
+                  <span className="mt-1 text-[14px] text-ink-2">{row.names.join(' · ')}</span>
+                </span>
+                <span className="grid justify-items-end gap-2">
+                  <span className="num text-[13.5px] text-ink">from {eur(row.from)}</span>
+                  <span aria-hidden="true" className="grid size-9 place-items-center rounded-full bg-ink text-paper transition-transform duration-200 group-hover:translate-x-1"><Icon name="arrow" size={13} /></span>
+                </span>
               </Link>
             </li>
           ))}
-        </ol>
+        </ul>
         <p className="mt-6 text-[15.5px] text-ink-3">
           Not seeing yours? <Link to="/apps" className="text-ink underline decoration-ink/40 underline-offset-4 hover:decoration-green">The full catalogue</Link> has the rest.
         </p>
@@ -255,13 +256,15 @@ function Flow() {
   return (
     <section aria-labelledby="flow-h" className="border-b border-line">
       <Wrap className="py-20 sm:py-28">
-        <SectionHead index="02" label="How it works" id="flow-h" aside={<Link to="/docs/first-app" className="text-ink underline decoration-ink/40 underline-offset-4 hover:decoration-green">Read how a first deploy works</Link>}>
+        <SectionHead label="How it works" id="flow-h" aside={<Link to="/docs/first-app" className="text-ink underline decoration-ink/40 underline-offset-4 hover:decoration-green">Read how a first deploy works</Link>}>
           Three steps. No yak shaving.
         </SectionHead>
-        <ol className="mt-14 grid border-t border-ink/70 md:grid-cols-3">
+        <ol className="mt-12 grid gap-3 md:grid-cols-3">
           {steps.map(([title, text, note], i) => (
-            <li key={title} className="grid content-start gap-5 border-b border-line py-8 md:border-r md:border-b-0 md:px-8 md:first:pl-0 md:last:border-r-0 md:last:pr-0">
-              <span className="num text-[12.5px] text-ink-3">{String(i + 1).padStart(2, '0')}</span>
+            <li key={title} className="grid content-start gap-5 rounded-[28px] border border-line bg-card p-6 sm:p-8">
+              <span aria-hidden="true" className={cx('grid size-14 place-items-center rounded-[18px] text-paper', i === 0 ? '-rotate-3' : i === 1 ? 'rotate-2' : '-rotate-2')} style={{ background: ['#ffd166', '#7fd6ff', '#4ee595'][i] }}>
+                <Icon name={(['bolt', 'card', 'rocket'] as const)[i]!} size={24} />
+              </span>
               <h3 className="font-display text-[clamp(26px,2.6vw,36px)] leading-tight font-semibold tracking-[-0.035em]">{title}</h3>
               <p className="max-w-[26em] text-[17px] text-ink-2">{text}</p>
               <p className="num text-[12.5px] text-ink-3">{note}</p>
@@ -273,30 +276,58 @@ function Flow() {
   );
 }
 
-/** The interface, as it is: a capture of the customer area with example data, not an invention. */
+/** The screens of the customer area, as they are: captures at twice the pixels with example data, not drawings. */
+const SCREENS: [string, string, string, string][] = [
+  ['Services', 'panel-services', 'Apps and databases: every instance with its state, its resources and its price.', 'The list of services in the Blipmade dashboard, with five example instances, their state, their resources and their monthly price.'],
+  ['One instance', 'panel-instance', 'One instance: power controls, live use of memory, disk and processor, and the tabs for console, files, backups and databases.', 'The page of one instance in the dashboard, with the power controls, the memory, disk and processor in use, and the tabs of the instance.'],
+  ['Servers', 'panel-servers', 'Servers of your own: address, plan and the one-click SSH command.', 'The list of servers in the dashboard, with two example servers, their plan, their address and their SSH command.'],
+  ['Domains', 'panel-domains', 'Domains: connect a hostname to an instance and see that it is verified.', 'The list of domains in the dashboard, with two example hostnames connected to instances.'],
+];
+
 function Panel() {
+  const [tab, setTab] = useState(0);
+  const current = SCREENS[tab]!;
   return (
     <section aria-labelledby="panel-h" className="border-b border-line">
       <Wrap className="py-20 sm:py-28">
-        <SectionHead index="03" label="The panel" id="panel-h" aside={<p>One dashboard for every kind of workload: services, billing, domains, mail and servers. No juggling five tabs.</p>}>
+        <SectionHead label="The panel" id="panel-h" aside={<p>One dashboard for every kind of workload: services, billing, domains, mail and servers. No juggling five tabs.</p>}>
           Everything in one place. Yes, even the boring parts.
         </SectionHead>
-        <figure className="mt-14 grid gap-3">
-          <div className="overflow-hidden border border-line bg-paper-2">
-            <picture>
-              <source srcSet="/brand/panel-instance.webp" type="image/webp" />
+        <div role="tablist" aria-label="Screens of the dashboard" className="mt-12 flex flex-wrap gap-2">
+          {SCREENS.map(([label], index) => (
+            <button
+              key={label}
+              type="button"
+              role="tab"
+              id={`screen-tab-${index}`}
+              aria-selected={tab === index}
+              aria-controls="screen-view"
+              onClick={() => setTab(index)}
+              className={cx('inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold transition-colors duration-150', tab === index ? 'bg-green text-paper' : 'border border-line text-ink-2 hover:border-ink/50 hover:text-ink')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <figure id="screen-view" role="tabpanel" aria-labelledby={`screen-tab-${tab}`} className="mt-5 grid gap-3">
+          <div className="overflow-hidden rounded-[22px] border border-line bg-paper-2 shadow-[10px_10px_0_0_rgba(78,229,149,0.16)]">
+            {SCREENS.map(([label, file, , alt], index) => (
               <img
-                src="/brand/panel-instance.png"
-                alt="The page of one instance in the Blipmade dashboard: its state, the power controls, the resources it uses and the tabs for console, files, startup, backups and databases."
-                width={1440}
-                height={800}
+                key={file}
+                src={`/brand/${file}.webp`}
+                alt={alt}
+                width={2880}
+                height={1520}
                 loading="lazy"
                 decoding="async"
+                hidden={tab !== index}
                 className="block h-auto w-full"
               />
-            </picture>
+            ))}
           </div>
-          <figcaption className="num text-[12.5px] text-ink-3">The instance page of the customer area. Names and figures are example data.</figcaption>
+          <figcaption className="max-w-[48em] text-[15px] text-ink-2">
+            {current[2]} <span className="text-ink-3">Example data, real screens.</span>
+          </figcaption>
         </figure>
       </Wrap>
     </section>
@@ -320,17 +351,17 @@ function Rates() {
   return (
     <section id="pricing" aria-labelledby="pricing-h" className="scroll-mt-20 border-b border-line">
       <Wrap className="py-20 sm:py-28">
-        <SectionHead index="04" label="What it costs" id="pricing-h" aside={<p>The price follows the resources you choose and nothing else, so the same RAM, CPU and disk cost the same in every product. No tiers to decode, no plan to outgrow.</p>}>
+        <SectionHead label="What it costs" id="pricing-h" aside={<p>The price follows the resources you choose and nothing else, so the same RAM, CPU and disk cost the same in every product. No tiers to decode, no plan to outgrow.</p>}>
           One card of rates. Every product.
         </SectionHead>
-        <dl className="mt-14 grid border-t border-ink/70 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map(([n, l, d]) => (
-            <div key={l} className="grid content-between gap-8 border-b border-line py-7 sm:pr-8 lg:border-r lg:pl-8 lg:first:pl-0 lg:last:border-r-0">
+        <dl className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map(([n, l, d], i) => (
+            <div key={l} className="grid content-between gap-10 rounded-[26px] p-6 text-paper transition-transform duration-200 hover:-translate-y-1 hover:-rotate-[0.6deg]" style={{ background: ['#ff8a6b', '#7fd6ff', '#b6f26b', '#ffd166'][i] }}>
               <dt className="grid gap-2">
-                <span className="big text-[clamp(40px,4.4vw,60px)]">{n}</span>
-                <span className="num text-[13px] tracking-[0.04em] text-ink-2 uppercase">{l}</span>
+                <span className="big text-[clamp(44px,4.6vw,64px)]">{n}</span>
+                <span className="num text-[13px] font-bold tracking-[0.04em] uppercase">{l}</span>
               </dt>
-              <dd className="text-[15.5px] text-ink-3">{d}</dd>
+              <dd className="text-[15.5px] font-medium opacity-80">{d}</dd>
             </div>
           ))}
         </dl>
@@ -372,7 +403,7 @@ function Trust() {
   return (
     <section aria-labelledby="trust-h" className="border-b border-line">
       <Wrap className="py-20 sm:py-28">
-        <SectionHead index="05" label="What you can check" id="trust-h">
+        <SectionHead label="What you can check" id="trust-h">
           No fine print scavenger hunt.
         </SectionHead>
         <ul className="mt-14 border-t border-ink/70">
@@ -400,7 +431,7 @@ function Faq() {
         <div className="lg:col-span-4">
           <p className="num flex items-center gap-3 text-[12px] tracking-[0.08em] text-ink-3 uppercase">
             <Blip size={11} className="text-green" />
-            06 · Questions
+            Questions
           </p>
           <h2 id="faq-h" className="mt-5 text-[clamp(32px,4.2vw,56px)] leading-[0.98] font-semibold tracking-[-0.045em]">Questions people ask first.</h2>
         </div>
@@ -427,7 +458,7 @@ function Closing() {
   return (
     <section aria-labelledby="cta-h">
       <Wrap className="py-24 sm:py-36">
-        <Blip size={20} className="text-green" />
+        <Blip size={44} live className="-rotate-6 text-green" />
         <h2 id="cta-h" className="mt-8 max-w-[11em] text-[clamp(44px,8vw,120px)] leading-[0.92] font-semibold tracking-[-0.055em]">
           Put the next thing online.
         </h2>

@@ -101,3 +101,17 @@ Removed on purpose: the isometric slab, the fake console, the "Everything you ne
 * The header, the footer and the configurator keep their previous look (pills and rounded card); changing them touches every public page and was left out of this branch.
 * The red of the brief is not in the repository: the shipped identity is mint green, which is kept.
 * Not deployed. Not measured on a real phone.
+
+## 5. Second round (branch `design/homepage-playful`): the owner asked for more play
+
+Feedback: more like a community product (a little Discord), no counters everywhere, a real mega menu with many menus, a footer that does not look robotic, a header that lets a member of the staff choose between the dashboard and the admin area, and real panel screens at retina size with the icon font visible.
+
+Done:
+* **One colour per category** (`TONES` in `categories.ts`): coral games, sun bots, sky databases, lime tools, pink automation, seafoam monitoring, orange web, lilac mail, mint servers. Flat fills, dark text, rounded corners, tiles that tilt and lift on hover. The sheet of the hero is now a mosaic of these tiles; the price of each is a small badge on it.
+* **Numbers removed** from sections, steps, rows and the footer; the "N to pick from" counters are gone. A price stays where a price helps.
+* **Header**: three real menus (Games, Build, Servers and mail) that open wide panels with the products, their marks on their category colour and the price they start at; Pricing and Docs stay plain links. Menus open on click, on hover and on the keyboard, close on Escape, outside click and navigation. They show from 1024px; below that the phone menu lists the same groups as chips. The Dashboard button of a customer goes to `/app`; for a member of the staff it opens a small menu: My dashboard or Admin (before, staff always landed in the admin area).
+* **Footer**: a sign-off ("Go put something online."), coloured tags for the categories, three plain columns (Learn, Need a hand?, The fine print) and a light last line.
+* **Panel section**: a gallery of four real screens (services, one instance, servers, domains) captured at 2x (2880 px wide, 40 to 76 KB each as WebP) with example data and with Font Awesome loaded, switched by tabs; all four images are in the page, the inactive ones hidden.
+* Tests: `public-home-2026.spec.ts` now has 16 tests (menus, staff chooser, customer link, gallery, footer, widths including 768 and a zoom viewport).
+
+Known limitations (still): the configurator keeps its own look; the product marks exist only for some titles (others show the icon of the category); `mobile.spec.ts` "do not scroll sideways" tests time out on `networkidle` in this environment before and after this change.

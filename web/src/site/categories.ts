@@ -45,3 +45,22 @@ export function categoryOrder(id: string): number {
   const index = CATEGORIES.findIndex((category) => category.id === id);
   return index === -1 ? CATEGORIES.length : index;
 }
+
+/**
+ * The flat colour of a category, for the tiles of the home page and the menus. One colour per category so a visitor learns
+ * them: the text on top of each is the near-black of the page, which reads on every one of them.
+ */
+export const TONES: Record<string, string> = {
+  GAMES: '#ff8a6b',
+  BOTS: '#ffd166',
+  DATABASES: '#7fd6ff',
+  DEVELOPER_TOOLS: '#b6f26b',
+  AUTOMATION: '#ff9fc2',
+  MONITORING: '#9be7c4',
+  WEB_CMS: '#ffb86b',
+  EMAIL_HOSTING: '#c9b8ff',
+  VPS: '#4ee595',
+};
+
+/** The tone of a category, with the mint of the brand for one the table does not know. */
+export const toneOf = (id: string): string => TONES[id] ?? '#4ee595';
