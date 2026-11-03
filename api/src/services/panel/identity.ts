@@ -1,6 +1,7 @@
 import { prisma } from '../../db.js';
 import { env } from '../../env.js';
 import { conflict, upstream } from '../../lib/errors.js';
+import { randomToken } from '../../lib/tokens.js';
 import * as ptero from '../pterodactyl/application.js';
 
 /**
@@ -112,7 +113,7 @@ export async function reconcilePanelIdentity(user: {
   // The account does not exist yet. The panel wants a password, but the
   // customer never signs in to the panel, so a random one is used and it is
   // not kept: there is nothing to reset and nothing to hand over.
-  const password = `bm-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  const password = `bm-${randomToken(32)}`;
   const name = panelNameFor(user);
 
   let lastError: unknown;

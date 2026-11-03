@@ -4,7 +4,7 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 
 ## Launch-hardening branch review (Task C)
 
-IN_PROGRESS. The branch contains 56 patches absent from `main` by patch-id. First security group ported by hand: exact WebSocket console origin validation (`c68b2a1`, `8408bf5`, `a378c48`) and command-secret persistence regression coverage (`6a7cb6a`). Review the remaining commits against current `main`; classify every patch as already present, port, or obsolete. Never merge the old branch. Security and billing changes remain undeployed pending owner approval; any customer-credential re-encryption migration must be dry-run-first.
+IN_PROGRESS. The branch contains 56 patches absent from `main` by patch-id. Nine security patches are now ported by hand: exact WebSocket console origin validation (`c68b2a1`, `8408bf5`, `a378c48`), command-secret persistence coverage (`6a7cb6a`), trusted-proxy rate-limit keys (`685be5c`, `ff778d6`, `38cdbbc`), and cryptographic Pterodactyl bootstrap passwords (`702d967`, `7225311`). Review the remaining commits against current `main`; classify every patch as already present, port, or obsolete. Never merge the old branch. Security and billing changes remain undeployed pending owner approval; any customer-credential re-encryption migration must be dry-run-first.
 
 ## Approved Admin follow-up (Task A)
 

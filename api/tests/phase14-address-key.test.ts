@@ -3,14 +3,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { addressRateLimitKey, rateLimitKey } from '../src/plugins/auth.js';
 import { closeApp, getApp, resetDatabase } from './helpers.js';
 
-/**
- * The key of the counters of the addresses.
- *
- * A limit that is kept per address must never be kept per platform: when the
- * API cannot tell the address of the client apart from the address of the
- * proxy in front of it, the counter is taken per connection, so one visitor
- * can never lock every other visitor out of a page or of the sign-in.
- */
+/** Untrusted forwarding data and new TCP ports must never reset an IP limit. */
 
 let app: FastifyInstance;
 
@@ -57,27 +50,23 @@ describe('the key of the counters of the addresses', () => {
     expect(addressRateLimitKey(request).startsWith(CLIENT)).toBe(true);
   });
 
-  it('is not the address of the proxy when the proxy is not trusted', () => {
-    // The request came through a proxy that the API does not know, so the
-    // address of the client cannot be told apart from the address of the
-    // proxy. The counter is taken per connection and the counter of the whole
-    // platform is never used.
+  it('does not trust an unverified forwarded address', () => {
     const request = fakeRequest({ ip: UNTRUSTED_PROXY, peer: UNTRUSTED_PROXY, port: 40001, forwardedFor: CLIENT });
-    expect(rateLimitKey(request)).toBe(`${UNTRUSTED_PROXY}:40001`);
-    expect(addressRateLimitKey(request)).not.toBe(UNTRUSTED_PROXY);
-    expect(addressRateLimitKey(request).startsWith(`${UNTRUSTED_PROXY}:40001`)).toBe(true);
+    expect(rateLimitKey(request)).toBe(UNTRUSTED_PROXY);
+    expect(addressRateLimitKey(request).startsWith(UNTRUSTED_PROXY)).toBe(true);
   });
 
-  it('gives two connections of the same proxy two counters', () => {
+  it('uses the same counter across new connections from the same untrusted peer', () => {
     const first = fakeRequest({ ip: UNTRUSTED_PROXY, peer: UNTRUSTED_PROXY, port: 40001, forwardedFor: CLIENT });
-    const second = fakeRequest({ ip: UNTRUSTED_PROXY, peer: UNTRUSTED_PROXY, port: 40002, forwardedFor: CLIENT });
-    expect(addressRateLimitKey(first)).not.toBe(addressRateLimitKey(second));
+    const second = fakeRequest({ ip: UNTRUSTED_PROXY, peer: UNTRUSTED_PROXY, port: 40002, forwardedFor: '198.51.100.20' });
+    expect(rateLimitKey(first)).toBe(rateLimitKey(second));
+    expect(addressRateLimitKey(first)).toBe(addressRateLimitKey(second));
   });
 
-  it('keeps the counter of a client that speaks for itself', () => {
-    // No chain of proxies: the address of the socket is the address of the
-    // client and it keeps the counter of that address.
-    const request = fakeRequest({ ip: CLIENT, peer: CLIENT, port: 40003 });
-    expect(rateLimitKey(request)).toBe(CLIENT);
+  it('cannot bypass the limiter with a forged forwarding header sent directly', () => {
+    const direct = fakeRequest({ ip: CLIENT, peer: CLIENT, port: 40003 });
+    const forged = fakeRequest({ ip: CLIENT, peer: CLIENT, port: 40004, forwardedFor: '127.0.0.1' });
+    expect(rateLimitKey(direct)).toBe(CLIENT);
+    expect(rateLimitKey(forged)).toBe(CLIENT);
   });
 });
