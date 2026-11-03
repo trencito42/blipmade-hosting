@@ -29,7 +29,7 @@ export default function AccessTab({ instance }: TabProps) {
   });
 
   return (
-    <Panel title="Access" description="Let someone else open this server from their own Blipmade account. A viewer can look; a manager can also run the server. Billing, renaming and cancelling stay with you." action={<ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/access/new`}>Invite someone</ButtonLink>}>
+    <Panel title="Access" description="Let someone else open this server from their own Blipmade account. A viewer can look; a manager can also run the server. Billing, renaming and cancelling stay with you." action={<ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/access/invite`}>Invite someone</ButtonLink>}>
       <div className="grid gap-4">
         {state.loading && !state.data ? (
           <LoadingBlock rows={1} label="Loading who has access" />

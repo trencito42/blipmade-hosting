@@ -329,3 +329,18 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static reinstall contract test: 1/1 pass.
 - Focused Playwright reinstall suite: 2/2 pass, including gated real POST, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Canonical Git and access route alignment
+
+### Completed
+
+- [x] Added the exact blueprint routes `/app/instances/:id/git/connect`, `/app/instances/:id/git/settings` and `/app/instances/:id/access/invite`.
+- [x] Updated contextual entry points and focused tests to use the canonical URLs.
+- [x] Preserved the previously shipped `/git/edit` and `/access/new` URLs as compatibility aliases.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- Production build: pass; 172 pages prerendered.
+- Static canonical-route tests: 2/2 pass.
+- Focused Playwright Git/access suites: 4/4 pass.
