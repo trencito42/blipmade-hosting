@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { get, post, type Subscription } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { useParams, useRouter } from '../router';
-import { ErrorState, LoadingBlock, Money, PrimaryButton, SoftButton, StatusPill, useToast } from '../ui-app';
+import { Link, useParams, useRouter } from '../router';
+import { ButtonLink, ErrorState, LoadingBlock, Money, Panel, PrimaryButton, SoftButton, StatusPill, useToast } from '../ui-app';
 import { PageEditorShell, useUnsavedChangesGuard } from './components/premium';
-import { formatDate, subscriptionPeriod } from './Billing';
+import { formatDate, subscriptionAction, subscriptionPeriod } from './Billing';
 
 const BACK_TO = '/app/billing';
 
@@ -162,4 +162,44 @@ export function CancelSubscription() {
 
 export function ResumeSubscription() {
   return <SubscriptionChange mode="resume" />;
+}
+
+const SERVICE_LINK: Record<string, (id: string) => string> = {
+  server: (id) => `/app/instances/${encodeURIComponent(id)}`,
+  vps: (id) => `/app/vps/${encodeURIComponent(id)}`,
+  mail: () => '/app/mail',
+};
+
+/** One subscription: what it pays for, its price and period, and the two things that can be done to it. */
+export function SubscriptionView() {
+  const { id = '' } = useParams();
+  const { list, subscription } = useSubscription(id);
+  if (list.loading && !list.data) return <LoadingBlock rows={3} label="Loading the subscription" />;
+  if (list.error || !subscription) {
+    return <ErrorState title="Subscription not found" message={list.error?.message ?? 'It does not exist or it does not belong to this account.'} onRetry={list.reload} />;
+  }
+  const action = subscriptionAction(subscription);
+  const service = subscription.serviceKind && subscription.serviceId ? SERVICE_LINK[subscription.serviceKind]?.(subscription.serviceId) : null;
+  return (
+    <div className="mx-auto grid max-w-3xl gap-4">
+      <Link to="/app/billing" className="text-[13.5px] text-ink3 hover:text-ink">← Back to billing</Link>
+      <Panel
+        title={subscription.instanceName ?? 'Subscription'}
+        description={subscriptionPeriod(subscription)}
+        action={<StatusPill status={subscription.status} label={subscription.status.replace(/_/g, ' ')} />}
+      >
+        <dl className="grid gap-3 text-[13.5px] sm:grid-cols-3">
+          <div><dt className="text-ink3">Price this period</dt><dd className="mt-0.5 font-mono text-[18px] font-semibold text-ink"><Money amount={subscription.amount} currency={subscription.currency} /></dd></div>
+          <div><dt className="text-ink3">{subscription.cancelAtPeriodEnd ? 'Ends on' : 'Renews on'}</dt><dd className="mt-0.5 font-mono text-[16px] text-ink">{formatDate(subscription.currentPeriodEnd)}</dd></div>
+          <div><dt className="text-ink3">Payment</dt><dd className="mt-0.5 text-[14px] text-ink">{subscription.stripeManaged === false ? 'Paid by hand' : 'Automatic renewal'}</dd></div>
+        </dl>
+        <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+          {service && <ButtonLink to={service} variant="soft">Open the service</ButtonLink>}
+          <ButtonLink to={`/app/billing/subscriptions/${encodeURIComponent(subscription.id)}/${action === 'resume' ? 'resume' : 'cancel'}`} variant={action === 'resume' ? 'primary' : 'soft'}>
+            {action === 'resume' ? 'Resume' : 'Cancel at period end'}
+          </ButtonLink>
+        </div>
+      </Panel>
+    </div>
+  );
 }

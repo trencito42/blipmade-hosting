@@ -59,6 +59,16 @@ interface BillingSummary {
   subscriptions: Subscription[];
 }
 
+const BILLING_TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'subscriptions', label: 'Subscriptions' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'invoices', label: 'Invoices' },
+] as const;
+
+const ORDER_TONES: Record<string, string> = { PENDING: 'pending', AWAITING_PAYMENT: 'pending', PAID: 'available', FULFILLED: 'available', CANCELLED: 'failed', REFUNDED: 'failed' };
+const ORDER_LABELS: Record<string, string> = { PENDING: 'Waiting for payment', AWAITING_PAYMENT: 'Waiting for payment', PAID: 'Paid', FULFILLED: 'Delivered', CANCELLED: 'Cancelled', REFUNDED: 'Refunded' };
+
 /**
  * The state of the payment the customer comes back from.
  */
@@ -320,6 +330,7 @@ function invoiceLink(invoice: Invoice) {
 export default function Billing() {
   const { push } = useToast();
   const { query } = useRouter();
+  const tab = BILLING_TABS.find((entry) => entry.id === query.tab)?.id ?? 'overview';
 
   // The customer comes back here from the payment provider. The session of
   // the payment travels in the address, so the page has to read it: without
@@ -517,11 +528,33 @@ export default function Billing() {
         ) : null}
       </section>
 
+      {/* The sections have an address of their own, so a link or a reload opens the same one. */}
+      <nav aria-label="Billing sections" className="-mx-1 overflow-x-auto px-1 no-scrollbar">
+        <ul className="flex gap-1.5">
+          {BILLING_TABS.map((entry) => {
+            const active = entry.id === tab;
+            return (
+              <li key={entry.id} className="shrink-0">
+                <Link
+                  to={entry.id === 'overview' ? '/app/billing' : `/app/billing?tab=${entry.id}`}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex min-h-11 items-center rounded-full border px-4 text-[14.5px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${active ? 'border-acc/40 bg-acc-bg text-ink' : 'border-line text-ink2 hover:bg-s3 hover:text-ink'}`}
+                >
+                  {entry.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {tab === 'overview' && (
+        <>
       {(closedState.data?.services.length ?? 0) > 0 && (
         <Panel title="Closed services" description="These were cancelled. Their files are kept until the date below, then removed for good. You cannot open them any more; download what you need from a backup before then.">
-          <ul className="grid gap-2">
+          <ul className="grid">
             {closedState.data!.services.map((service) => (
-              <li key={service.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 p-3.5 text-[14px]">
+              <li key={service.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 text-[14px] first:border-t-0 first:pt-0 last:pb-0">
                 <span className="min-w-0 break-words font-semibold text-ink">{service.name}</span>
                 <span className="text-[13px] text-ink2">Files removed on {new Date(service.deletedOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
               </li>
@@ -576,7 +609,11 @@ export default function Billing() {
           )}
         </div>
       </Panel>
+        </>
+      )}
 
+      {tab === 'subscriptions' && (
+        <>
       {/* Subscriptions */}
       <Panel title="Subscriptions" description="One subscription for each app, server, VPS and mail plan.">
         {subscriptionsState.loading ? (
@@ -596,20 +633,21 @@ export default function Billing() {
             }
           />
         ) : (
-          <div className="grid gap-2">
+          <div className="grid">
             {subscriptions.map((subscription) => (
-              <div key={subscription.id} className="rounded-2xl bg-s2 p-3.5 sm:flex sm:items-center sm:gap-4">
+              <div key={subscription.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0 sm:flex sm:items-center sm:gap-4">
                 <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
                   {/* The name keeps its room. On a phone the status and the
                       amount move to the next line instead of cutting the name
                       to a few letters. */}
                   <div className="w-0 min-w-[10rem] flex-1">
-                    <p
-                      className="truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink"
+                    <Link
+                      to={`/app/billing/subscriptions/${encodeURIComponent(subscription.id)}`}
+                      className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink hover:underline"
                       title={subscription.instanceName ?? undefined}
                     >
                       {subscription.instanceName ?? 'Subscription'}
-                    </p>
+                    </Link>
                     <p className="mt-0.5 text-[13px] text-ink3">{subscriptionPeriod(subscription)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -638,14 +676,18 @@ export default function Billing() {
           </div>
         )}
       </Panel>
+        </>
+      )}
 
+      {tab === 'overview' && (
+        <>
       {unpaidOrders.length > 0 && (
         <Panel title="Orders awaiting payment" description="Complete checkout to activate these services. The final invoice appears after payment is confirmed.">
-          <div className="grid gap-2">
+          <div className="grid">
             {unpaidOrders.map((order) => (
-              <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line p-4">
+              <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
                 <div>
-                  <p className="font-semibold text-ink">Order #{order.number} · {order.items.map((item) => item.name).join(', ')}</p>
+                  <p className="font-semibold text-ink"><Link to={`/app/billing/orders/${encodeURIComponent(order.id)}`} className="hover:underline">Order #{order.number}</Link> · {order.items.map((item) => item.name).join(', ')}</p>
                   <p className="text-[13px] text-ink3">Created {formatDate(order.createdAt)} · <Money amount={order.total} currency={order.currency} /></p>
                 </div>
                 <PrimaryButton onClick={() => void payOrder(order.id)} disabled={payingOrderId === order.id || !paymentAvailable}>
@@ -656,7 +698,52 @@ export default function Billing() {
           </div>
         </Panel>
       )}
+        </>
+      )}
 
+      {tab === 'orders' && (
+        <Panel title="Orders" description="Everything you ordered, newest first. An order that waits for payment can be paid from its page.">
+          {ordersState.loading ? (
+            <LoadingBlock rows={3} label="Loading your orders" />
+          ) : ordersState.error ? (
+            <ErrorState title="Could not load your orders" message={ordersState.error.message} onRetry={ordersState.reload} />
+          ) : (ordersState.data?.orders.length ?? 0) === 0 ? (
+            <EmptyState title="No orders yet" description="An order appears here as soon as you start a checkout." />
+          ) : (
+            <>
+              <DataTable
+                columns={[
+                  { key: 'number', header: 'Order', nowrap: true, render: (order) => <Link to={`/app/billing/orders/${encodeURIComponent(order.id)}`} className="font-mono text-[13px] font-bold text-acc hover:underline">#{order.number}</Link> },
+                  { key: 'items', header: 'What', truncate: true, render: (order) => <span className="text-[13.5px] text-ink2">{order.items.map((item) => item.name).join(', ')}</span> },
+                  { key: 'date', header: 'Date', nowrap: true, render: (order) => <span className="text-[13.5px] text-ink2">{formatDate(order.createdAt)}</span> },
+                  { key: 'total', header: 'Total', align: 'right', nowrap: true, render: (order) => <Money amount={order.total} currency={order.currency} /> },
+                  { key: 'status', header: 'Status', nowrap: true, render: (order) => <StatusPill status={ORDER_TONES[order.status] ?? 'pending'} label={ORDER_LABELS[order.status] ?? order.status.toLowerCase().replace(/_/g, ' ')} /> },
+                ]}
+                rows={ordersState.data?.orders ?? []}
+                rowKey={(order) => order.id}
+              />
+              <CardList rows={ordersState.data?.orders ?? []} rowKey={(order) => order.id}>
+                {(order) => (
+                  <div className="grid gap-1.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <Link to={`/app/billing/orders/${encodeURIComponent(order.id)}`} className="font-mono text-[14px] font-bold text-acc">#{order.number}</Link>
+                      <span className="font-mono text-[14px] font-semibold text-ink"><Money amount={order.total} currency={order.currency} /></span>
+                    </div>
+                    <p className="break-words text-[13px] text-ink2">{order.items.map((item) => item.name).join(', ')}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[12.5px] text-ink3">{formatDate(order.createdAt)}</span>
+                      <StatusPill status={ORDER_TONES[order.status] ?? 'pending'} label={ORDER_LABELS[order.status] ?? order.status.toLowerCase().replace(/_/g, ' ')} />
+                    </div>
+                  </div>
+                )}
+              </CardList>
+            </>
+          )}
+        </Panel>
+      )}
+
+      {tab === 'invoices' && (
+        <>
       {/* Invoices */}
       <Panel title="Invoices">
         {invoicesState.loading ? (
@@ -790,6 +877,9 @@ export default function Billing() {
           </>
         )}
       </Panel>
+        </>
+      )}
+
     </div>
   );
 }

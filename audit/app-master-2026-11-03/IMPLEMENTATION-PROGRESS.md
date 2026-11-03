@@ -558,3 +558,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Playwright `app-editor-shell`: 23 editor routes at 320, 390, 430, 768, 1024, 1440 and 1920px: 161/161 pass (one visible h1 that is not the error page, one `main`, one Back control in the top bar, one footer, no horizontal overflow, no wide fixed layer at the bottom, legal links at the bottom of a short page, phone bar hidden below 1024px). Screenshots at 390, 768 and 1920px reviewed for the email, startup and VPS reinstall editors.
 - All other Playwright suites except the admin audit ones: 122 pass, 13 fail. The 13 are the same as before this work (public site, login and home page price assertions) and are in code this work did not touch.
 - Not covered: 200% zoom, software keyboard and safe-area on a real phone, the staging screenshots with seeded data, and the admin area with the shared table style.
+
+## 2026-11-03 — Billing split into sections, order and subscription pages
+
+### Completed
+
+- [x] `/app/billing` now has sections with an address each: Overview (totals, orders awaiting payment, payment method, closed services), `?tab=subscriptions`, `?tab=orders` (every order, newest first, a table on a desktop and rows on a phone) and `?tab=invoices`. A reload or a shared link opens the same section.
+- [x] `/app/billing/orders/:id`: the lines of an order with the delivery state of each, the error of a failed line, and Pay now only for an order that waits for payment (real `POST /orders/:id/checkout`).
+- [x] `/app/billing/subscriptions/:id`: price, period, payment mode, the link to the service and the right action (cancel or resume, on their own pages).
+- [x] The rows of the billing lists are divided with a line between them.
+- [ ] Not done: a separate page for the payment method (it opens the payment provider portal and stays a button), the credit and history views.
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: 496 pass, 0 fail.
+- Playwright billing suite: 5/5 pass (the lines and the failed delivery of an order, one checkout request, the subscription page and its links, each section showing only its own content and surviving a reload, and 390px overflow on all sections and pages). The subscription cancel/resume suite still passes. Screenshot of the subscriptions section reviewed.
+- Seen while testing, not changed: when the page crashes, the error page shows a placeholder "TODO(operator): the support email address" instead of an address.

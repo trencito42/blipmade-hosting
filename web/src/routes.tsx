@@ -68,6 +68,8 @@ const AppMountVpsIso = lazy(() => import('./app/VpsEditors').then((module) => ({
 const AppReinstallVps = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.ReinstallVps })));
 const AppNewVpsSnapshot = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.NewVpsSnapshot })));
 const AppRestoreVpsSnapshot = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.RestoreVpsSnapshot })));
+const AppOrderView = lazy(() => import('./app/OrderView'));
+const AppSubscriptionView = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.SubscriptionView })));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -222,9 +224,11 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/vps/:id/snapshots/:name/restore', component: AppRestoreVpsSnapshot, title: 'Restore snapshot', area: 'customer', layout: 'editor' },
   { pattern: '/app/vps/:id', component: VpsDetail, title: 'Server', area: 'customer' },
   { pattern: '/app/email/checkout', component: EmailCheckout, title: 'Hosted mail', area: 'customer' },
+  { pattern: '/app/billing/subscriptions/:id', component: AppSubscriptionView, title: 'Subscription', area: 'customer', exact: true },
   { pattern: '/app/billing/subscriptions/:id/cancel', component: AppCancelSubscription, title: 'Cancel subscription', area: 'customer', layout: 'editor' },
   { pattern: '/app/billing/subscriptions/:id/reactivate', component: AppResumeSubscription, title: 'Resume subscription', area: 'customer', layout: 'editor' },
   { pattern: '/app/billing/subscriptions/:id/resume', component: AppResumeSubscription, title: 'Resume subscription', area: 'customer', layout: 'editor' },
+  { pattern: '/app/billing/orders/:id', component: AppOrderView, title: 'Order', area: 'customer' },
   { pattern: '/app/billing/invoices/:id', component: InvoiceView, title: 'Invoice', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
