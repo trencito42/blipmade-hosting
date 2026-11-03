@@ -38,6 +38,7 @@ const AppNewDatabase = lazy(() => import('./app/instance/NewDatabase'));
 const AppNewAllocation = lazy(() => import('./app/instance/NewAllocation'));
 const AppNewBackup = lazy(() => import('./app/instance/NewBackup'));
 const AppEditBackupSchedule = lazy(() => import('./app/instance/EditBackupSchedule'));
+const AppRestoreBackup = lazy(() => import('./app/instance/RestoreBackup'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
@@ -144,6 +145,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/network/new', component: AppNewAllocation, title: 'Add network address', area: 'customer' },
   { pattern: '/app/instances/:id/backups/new', component: AppNewBackup, title: 'Create backup', area: 'customer' },
   { pattern: '/app/instances/:id/backup-schedule/edit', component: AppEditBackupSchedule, title: 'Backup schedule', area: 'customer' },
+  { pattern: '/app/instances/:id/backups/:backupId/restore', component: AppRestoreBackup, title: 'Restore backup', area: 'customer' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
