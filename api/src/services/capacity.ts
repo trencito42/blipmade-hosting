@@ -103,7 +103,8 @@ export async function nodeCpuCapacity(nodeId: number): Promise<NodeCpuCapacity> 
   const sellableVcpu = cores * oversubscription;
 
   const allocated = await prisma.instance.aggregate({
-    where: { pterodactylNodeId: nodeId, status: { not: 'CANCELLED' } },
+    // Capacity is released only when the allocation itself leaves the node.
+    where: { pterodactylNodeId: nodeId },
     _sum: { cpu: true },
   });
 

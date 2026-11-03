@@ -119,6 +119,23 @@ describe('the life of an order', () => {
     expect(await statusOf(orderId)).toBe('CANCELLED');
   });
 
+  it('cancels a pending order only once', async () => {
+    await seedProduct();
+    const { client, orderId } = await placeOrder('cancel-once@example.com');
+    expect((await client.request('POST', `/api/orders/${orderId}/cancel`)).status).toBe(204);
+    expect((await client.request('POST', `/api/orders/${orderId}/cancel`)).status).toBe(204);
+    expect(await statusOf(orderId)).toBe('CANCELLED');
+    expect(await prisma.auditLog.count({ where: { action: 'order.cancelled', targetId: orderId } })).toBe(1);
+  });
+
+  it('refuses cancellation of a failed order pending reconciliation', async () => {
+    await seedProduct();
+    const { client, orderId } = await placeOrder('failed-cancel@example.com');
+    await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
+    expect((await client.request('POST', `/api/orders/${orderId}/cancel`)).status).toBe(409);
+    expect(await statusOf(orderId)).toBe('FAILED');
+  });
+
   it('does not send a refunded order to a checkout again', async () => {
     await seedProduct();
     const { client, orderId } = await placeOrder('refunded@example.com');
@@ -160,6 +177,32 @@ describe('the life of an order', () => {
 
     await expect(markOrderPaid({ orderId, amount: MONTHLY })).resolves.toBeDefined();
     expect(await statusOf(orderId)).toBe('PAID');
+  });
+
+  it('never consumes one promotion twice when payment requests race', async () => {
+    await seedProduct();
+    const { orderId } = await placeOrder('promotion-race@example.com');
+    const promotion = await prisma.promotion.create({ data: { code: 'PROMO-RACE', type: 'FIXED', value: 1 } });
+    await prisma.order.update({ where: { id: orderId }, data: { promotionId: promotion.id } });
+    const outcomes = await Promise.allSettled([
+      markOrderPaid({ orderId, amount: MONTHLY }),
+      markOrderPaid({ orderId, amount: MONTHLY }),
+    ]);
+    expect(outcomes.some((outcome) => outcome.status === 'fulfilled')).toBe(true);
+    expect((await prisma.promotion.findUniqueOrThrow({ where: { id: promotion.id } })).usedCount).toBe(1);
+    expect(await prisma.subscription.count({ where: { orderItem: { orderId } } })).toBe(1);
+  });
+
+  it('recovers an invoice missing after an earlier paid-state commit', async () => {
+    await seedProduct();
+    const { orderId } = await placeOrder('invoice-recovery@example.com');
+    await markOrderPaid({ orderId, amount: MONTHLY });
+    await prisma.invoice.deleteMany({ where: { orderId } });
+    await markOrderPaid({ orderId, amount: MONTHLY });
+    const invoices = await prisma.invoice.findMany({ where: { orderId } });
+    expect(invoices).toHaveLength(1);
+    expect(invoices[0]?.status).toBe('PAID');
+    expect(invoices[0]?.amount).toBe(MONTHLY);
   });
 
   it('tells the customer that the subscription started', async () => {

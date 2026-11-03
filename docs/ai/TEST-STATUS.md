@@ -47,3 +47,4 @@ Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin 
 - Password-reset/email-verification concurrency patches: API typecheck passes; the new database race tests could not be run without the disposable test stack.
 - Versioned credential encryption: API typecheck (including the migration script) passes. Secret-rotation Vitest and migration preflight were not run: the suite lacks its disposable database stack and the migration must only run with operator-provided keys against an approved target.
 - Gitleaks workflow input was corrected to its v3 environment contract; the GitHub-hosted workflow has not yet reported a result for this commit.
+- Billing/capacity hardening: API typecheck passes with webhook, cancellation, promotion-race, refund-state, invoice-replay/numbering, free-upgrade and retained-capacity tests. Runtime tests remain not run without the disposable database/Redis stack; no external Stripe call was made.

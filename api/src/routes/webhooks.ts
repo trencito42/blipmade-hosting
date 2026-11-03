@@ -883,7 +883,10 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       const { amount, tax } = readSessionAmounts(object);
       const amountProblem = await verifyAmount(orderId, amount);
       if (amountProblem) {
-        await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
+        await prisma.order.updateMany({
+          where: { id: orderId, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+          data: { status: 'FAILED' },
+        });
         await audit({
           action: 'order.amount_mismatch',
           targetType: 'order',
@@ -920,8 +923,12 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       const orderId =
         (object.client_reference_id as string) ?? (object.metadata as { orderId?: string })?.orderId;
       if (!orderId) break;
-      await prisma.order.update({ where: { id: orderId }, data: { status: 'FAILED' } });
-      await prisma.payment.updateMany({ where: { orderId }, data: { status: 'FAILED' } });
+      const transitioned = await prisma.order.updateMany({
+        where: { id: orderId, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+        data: { status: 'FAILED' },
+      });
+      if (transitioned.count === 0) break;
+      await prisma.payment.updateMany({ where: { orderId, status: 'PENDING' }, data: { status: 'FAILED' } });
 
       // The payment was refused by the provider. The customer is told, with
       // the reason the provider gave.
@@ -949,7 +956,11 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       // order that was paid, refused or refunded is left exactly as it is:
       // the event is late, not the state of the order.
       if (order.status !== 'PENDING' && order.status !== 'AWAITING_PAYMENT') break;
-      await prisma.order.update({ where: { id: orderId }, data: { status: 'CANCELLED' } });
+      const expired = await prisma.order.updateMany({
+        where: { id: orderId, status: { in: ['PENDING', 'AWAITING_PAYMENT'] } },
+        data: { status: 'CANCELLED' },
+      });
+      if (expired.count !== 1) break;
       // The campaign slot of the abandoned checkout goes back into the pool,
       // so a checkout nobody finished cannot hold a promotion hostage.
       await releaseCancelledOrderPromotion(order);
@@ -973,13 +984,14 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
       const intentId = object.id as string | undefined;
       if (!intentId) break;
       const reason = (object.last_payment_error as { message?: string })?.message ?? null;
-      await prisma.payment.updateMany({
-        where: { stripePaymentIntentId: intentId },
+      const failed = await prisma.payment.updateMany({
+        where: { stripePaymentIntentId: intentId, status: 'PENDING' },
         data: {
           status: 'FAILED',
           failureMessage: reason,
         },
       });
+      if (failed.count === 0) break;
 
       // The payment was refused. The customer is told, with the reason the
       // provider gave and with the link of the billing page.

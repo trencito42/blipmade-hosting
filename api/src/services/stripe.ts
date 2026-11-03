@@ -510,23 +510,21 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
     }
   }
 
-  // The promotion is consumed here, when the money arrives. Until then it is
-  // only reserved, so an unpaid order cannot exhaust a campaign.
-  if (order.promotionId && !order.promotionRedeemedAt) {
-    await prisma.$transaction([
-      prisma.order.update({ where: { id: order.id }, data: { promotionRedeemedAt: new Date() } }),
-      prisma.promotion.update({ where: { id: order.promotionId }, data: { usedCount: { increment: 1 } } }),
-    ]);
-  }
-
   if (!alreadyPaid) {
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: 'PAID',
-        paidAt: new Date(),
-        stripePaymentIntentId: params.stripePaymentIntentId ?? undefined,
-      },
+    await prisma.$transaction(async (tx) => {
+      const moved = await tx.order.updateMany({
+        where: { id: order.id, status: { in: ['PENDING', 'AWAITING_PAYMENT', 'FAILED'] } },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          stripePaymentIntentId: params.stripePaymentIntentId ?? undefined,
+          ...(order.promotionId && !order.promotionRedeemedAt ? { promotionRedeemedAt: new Date() } : {}),
+        },
+      });
+      if (moved.count !== 1) throw conflict(`Order ${order.number} changed state before the payment could be applied.`);
+      if (order.promotionId && !order.promotionRedeemedAt) {
+        await tx.promotion.update({ where: { id: order.promotionId }, data: { usedCount: { increment: 1 } } });
+      }
     });
   }
 
@@ -626,8 +624,10 @@ export async function markOrderPaid(params: MarkOrderPaidParams): Promise<Subscr
     // with the sum that was really collected, so the sum that was quoted is
     // the sum that is invoiced. The invoice of the payment provider, when
     // there is one, is the reconciliation and not the only document.
-    await writeOrderInvoice(order, subscriptions, params);
   }
+
+  // A replay repairs an invoice lost after the paid-state commit.
+  await writeOrderInvoice(order, subscriptions, params);
 
   return subscriptions;
 }
@@ -927,7 +927,7 @@ export async function refundPayment(params: {
   if (alreadyRefunded) return true;
 
   try {
-    await getClient().refunds.create(
+    const refund = await getClient().refunds.create(
       {
         payment_intent: params.stripePaymentIntentId,
         ...(params.amount ? { amount: params.amount } : {}),
@@ -936,6 +936,15 @@ export async function refundPayment(params: {
       },
       { idempotencyKey: params.idempotencyKey ?? `blipmade-refund-${params.orderId}` },
     );
+    if (refund.status !== 'succeeded') {
+      await audit({
+        action: 'payment.refund_not_completed',
+        targetType: 'order',
+        targetId: params.orderId,
+        meta: { stripeRefundId: refund.id, status: refund.status ?? 'unknown' },
+      });
+      return false;
+    }
     // The payment of the order is marked as refunded, so a refund that comes
     // later finds the money back and does nothing.
     const marked = await prisma.payment.updateMany({
