@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { get, put } from '../lib/api';
-import { useAction, useAsync } from '../lib/useAsync';
+import { useState } from 'react';
+import { get } from '../lib/api';
+import { useAsync } from '../lib/useAsync';
 import { Icon } from '../icons';
-import { CardList, ConfirmDialog, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Panel, StatusPill, useToast } from '../ui-app';
-import { DASH, LiveRegion, denseGhost, densePrimary, denseSelect, maskEmail, useAdminSession } from './Overview';
+import { Link } from '../router';
+import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatusPill } from '../ui-app';
+import { DASH, LiveRegion, denseGhost, maskEmail, useAdminSession } from './Overview';
 
 /**
  * Staff and permissions — GET /api/admin/staff, PUT /api/admin/staff/:userId
@@ -32,78 +33,15 @@ const ROLES = [
 export default function Staff() {
   const session = useAdminSession();
   const staff = session.staff;
-  const toast = useToast();
   const [showEmails, setShowEmails] = useState(false);
-  const [drafts, setDrafts] = useState<Record<string, string[]>>({});
-  const [roles, setRoles] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState<StaffMember | null>(null);
-
   const state = useAsync(
     (signal) => get<{ staff: StaffMember[]; available: string[] }>('/admin/staff', undefined, signal),
     [],
   );
 
-  useEffect(() => {
-    if (!state.data?.staff) return;
-    const next: Record<string, string[]> = {};
-    const nextRoles: Record<string, string> = {};
-    for (const member of state.data.staff) {
-      next[member.userId] = member.permissions;
-      nextRoles[member.userId] = member.role.toUpperCase();
-    }
-    setDrafts(next);
-    setRoles(nextRoles);
-  }, [state.data]);
-
   const members = state.data?.staff ?? [];
   const available = state.data?.available ?? [];
   const mayEdit = staff?.role === 'ADMIN';
-
-  const save = useAction(async (userId: string, permissions: string[], role?: string) => {
-    return put<{ staff: { userId: string; permissions: string[] } }>(`/admin/staff/${userId}`, {
-      permissions,
-      ...(role ? { role } : {}),
-    });
-  });
-
-  const toggle = (userId: string, permission: string, checked: boolean) => {
-    setDrafts((current) => {
-      const existing = current[userId] ?? [];
-      const next = checked ? [...new Set([...existing, permission])] : existing.filter((value) => value !== permission);
-      return { ...current, [userId]: next };
-    });
-  };
-
-  /** The lines the confirmation shows: what the member gains and what it loses. */
-  const changesOf = (member: StaffMember): string[] => {
-    const lines: string[] = [];
-    const current = member.permissions;
-    const next = drafts[member.userId] ?? member.permissions;
-    const added = next.filter((permission) => !current.includes(permission));
-    const removed = current.filter((permission) => !next.includes(permission));
-    if (added.length) lines.push(`${member.name ?? member.email} gains ${added.join(', ')}.`);
-    if (removed.length) lines.push(`${member.name ?? member.email} loses ${removed.join(', ')}.`);
-    const role = roles[member.userId] ?? member.role.toUpperCase();
-    if (role !== member.role.toUpperCase()) {
-      lines.push(
-        role === 'ADMIN'
-          ? `${member.name ?? member.email} becomes an administrator and holds every permission.`
-          : `${member.name ?? member.email} is no longer an administrator.`,
-      );
-    }
-    return lines;
-  };
-
-  const confirmSave = async () => {
-    if (!saving) return;
-    const permissions = drafts[saving.userId] ?? saving.permissions;
-    const role = roles[saving.userId] ?? saving.role.toUpperCase();
-    const result = await save.run(saving.userId, permissions, role === saving.role.toUpperCase() ? undefined : role);
-    if (!result) return;
-    toast.push(`${saving.name ?? maskEmail(saving.email)} updated`, 'ok');
-    setSaving(null);
-    state.reload();
-  };
 
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
@@ -122,32 +60,6 @@ export default function Staff() {
       </div>
     );
   }
-
-  const permissionGrid = (member: StaffMember, editable: boolean) => (
-    <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-      {available.map((permission) => {
-        const checked = (drafts[member.userId] ?? member.permissions).includes(permission);
-        const id = `permission-${member.userId}-${permission.replace(/\./g, '-')}`;
-        return (
-          <label
-            key={permission}
-            htmlFor={id}
-            className="flex min-h-[38px] items-center gap-2 rounded-xl bg-s3 px-3 py-1.5 text-[13px] text-ink"
-          >
-            <input
-              id={id}
-              type="checkbox"
-              checked={checked}
-              disabled={!editable}
-              onChange={(event) => toggle(member.userId, permission, event.target.checked)}
-              className="size-4 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-            />
-            <span className="min-w-0 font-mono text-[12px] break-all text-ink2">{permission}</span>
-          </label>
-        );
-      })}
-    </div>
-  );
 
   return (
     <div className="grid gap-4">
@@ -185,6 +97,7 @@ export default function Staff() {
               <DataTable<StaffMember>
                 rows={members}
                 rowKey={(member) => member.userId}
+                rowTo={(member: StaffMember) => `/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`}
                 columns={[
                   {
                     key: 'member',
@@ -220,9 +133,15 @@ export default function Staff() {
                     header: 'Permissions',
                     truncate: true,
                     render: (member: StaffMember) => (
-                      <span className="font-mono text-[12.5px] text-ink2">
-                        {(drafts[member.userId] ?? member.permissions).length} / {available.length}
-                      </span>
+                      <span className="font-mono text-[12.5px] text-ink2">{member.permissions.length} / {available.length}</span>
+                    ),
+                  },
+                  {
+                    key: 'edit',
+                    header: '',
+                    nowrap: true,
+                    render: (member: StaffMember) => (
+                      <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`} className={denseGhost}>{mayEdit ? 'Edit rights' : 'View rights'}</Link>
                     ),
                   },
                 ]}
@@ -241,80 +160,16 @@ export default function Staff() {
                       </div>
                       <StatusPill status={member.role === 'admin' ? 'active' : 'pending'} label={member.role} />
                     </div>
+                    <Link to={`/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`} className={`${denseGhost} mt-2`}>{mayEdit ? 'Edit rights' : 'View rights'}</Link>
                   </div>
                 )}
               </CardList>
 
-              <div className="grid gap-3">
-                {members.map((member) => (
-                  <div key={member.userId} className="rounded-2xl bg-s2 p-4">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <div className="w-0 min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-semibold tracking-[-0.02em] text-ink" title={member.name ?? 'No name'}>
-                          {member.name ?? 'No name'}
-                        </p>
-                        <p
-                          className="truncate font-mono text-[12.5px] text-ink3"
-                          title={`${email(member.email)} · ${member.role}${member.title ? ` · ${member.title}` : ''}`}
-                        >
-                          {email(member.email)} · {member.role}
-                          {member.title ? ` · ${member.title}` : ''}
-                        </p>
-                      </div>
-                      {mayEdit && (
-                        <button type="button" onClick={() => setSaving(member)} disabled={save.pending} className={densePrimary}>
-                          {save.pending ? 'Saving…' : 'Save permissions'}
-                        </button>
-                      )}
-                    </div>
-                    {mayEdit && (
-                      <div className="mb-3 max-w-[280px]">
-                        <Field label="Role" htmlFor={`role-${member.userId}`}>
-                          <select
-                            id={`role-${member.userId}`}
-                            value={roles[member.userId] ?? member.role.toUpperCase()}
-                            onChange={(event) =>
-                              setRoles((current) => ({ ...current, [member.userId]: event.target.value }))
-                            }
-                            className={denseSelect}
-                          >
-                            {ROLES.map((role) => (
-                              <option key={role.value} value={role.value}>
-                                {role.label}
-                              </option>
-                            ))}
-                          </select>
-                        </Field>
-                      </div>
-                    )}
-                    {permissionGrid(member, mayEdit)}
-                  </div>
-                ))}
-              </div>
             </div>
-          )}
-
-          {save.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-              {save.error}
-            </p>
           )}
         </div>
       </Panel>
 
-      <ConfirmDialog
-        open={saving !== null}
-        title={`Save the rights of ${saving?.name ?? maskEmail(saving?.email ?? '')}`}
-        description={
-          saving
-            ? changesOf(saving).join(' ') || 'Nothing changes. The permission list and the role stay as they are.'
-            : undefined
-        }
-        confirmLabel="Save permissions"
-        onConfirm={confirmSave}
-        onCancel={() => setSaving(null)}
-        busy={save.pending}
-      />
     </div>
   );
 }

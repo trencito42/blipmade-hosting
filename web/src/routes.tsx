@@ -59,6 +59,7 @@ const AppNotificationPreferences = lazy(() => import('./app/NotificationPreferen
 const AdminSupportBotNew = lazy(() => import('./admin/SupportBotNew'));
 const AdminSupportBotEdit = lazy(() => import('./admin/SupportBotEdit'));
 const AdminSupportAutomationEdit = lazy(() => import('./admin/SupportAutomationEdit'));
+const AdminStaffEdit = lazy(() => import('./admin/StaffEdit'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -298,6 +299,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
   { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
+  { pattern: '/admin/staff/:id/permissions/edit', component: AdminStaffEdit, title: 'Staff rights', area: 'admin', layout: 'editor' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },
   { pattern: '/admin/email-templates', component: AdminEmailTemplates, title: 'Email wording', area: 'admin' },
