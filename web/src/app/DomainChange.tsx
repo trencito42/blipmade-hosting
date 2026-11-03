@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { del, get, put, type Domain } from '../lib/api';
+import { del, get, post, put, type Domain } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useParams, useRouter } from '../router';
-import { ErrorState, LoadingBlock, PrimaryButton, SoftButton, TextInput, useToast } from '../ui-app';
+import { ButtonLink, ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, StatusPill, TextInput, useToast } from '../ui-app';
+import { Link } from '../router';
 import { PageEditorShell, useUnsavedChangesGuard } from './components/premium';
-import { PLATFORM_BASE } from './Domains';
+import { DomainRecords, PLATFORM_BASE } from './Domains';
 
 const BACK_TO = '/app/domains';
 const LABEL = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
@@ -187,5 +188,49 @@ export function DeleteDomain() {
         </div>
       )}
     </PageEditorShell>
+  );
+}
+
+/** One domain: status, records, verify, rename, delete. */
+export function DomainDetail() {
+  const { id = '' } = useParams();
+  const toast = useToast();
+  const { list, domain } = useDomain(id);
+  const verify = useAction(async () => {
+    await post(`/domains/${encodeURIComponent(id)}/verify`);
+    list.reload();
+    toast.push('Verification started.', 'ok');
+    return true;
+  });
+  if (list.loading && !list.data) return <LoadingBlock rows={3} label="Loading the domain" />;
+  if (list.error || !domain) return <ErrorState title="Domain not found" message={list.error?.message ?? 'Not on this account.'} onRetry={list.reload} />;
+  const platform = domain.platform ?? domain.hostname.toLowerCase().endsWith(`.${PLATFORM_BASE}`);
+  const copy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.push(`${label} copied.`, 'ok');
+    } catch {
+      toast.push('Copy failed.', 'error');
+    }
+  };
+  return (
+    <div className="mx-auto grid max-w-3xl gap-4">
+      <Link to="/app/domains" className="text-[13.5px] text-ink3 hover:text-ink">← Back to domains</Link>
+      <Panel
+        title={domain.hostname}
+        action={<StatusPill status={domain.status === 'active' ? 'available' : domain.status === 'error' ? 'failed' : 'pending'} label={domain.status.replace(/_/g, ' ')} />}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[13.5px] text-ink3">{domain.instanceName} · port {domain.targetPort}</p>
+          <div className="flex flex-wrap gap-2">
+            {!platform && <SoftButton onClick={() => void verify.run()} disabled={verify.pending}>{verify.pending ? 'Working…' : 'Verify'}</SoftButton>}
+            {platform && <ButtonLink to={`/app/domains/${encodeURIComponent(domain.id)}/edit`} variant="soft">Change</ButtonLink>}
+            <ButtonLink to={`/app/domains/${encodeURIComponent(domain.id)}/delete`} variant="danger">Delete</ButtonLink>
+          </div>
+        </div>
+        {verify.error && <p role="alert" className="mt-3 text-[13.5px] text-bad">{verify.error}</p>}
+        {!platform && <div className="mt-4"><DomainRecords domain={domain} copy={copy} /></div>}
+      </Panel>
+    </div>
   );
 }

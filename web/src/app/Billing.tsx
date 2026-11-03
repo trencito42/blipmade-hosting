@@ -66,6 +66,7 @@ const BILLING_TABS = [
   { id: 'subscriptions', label: 'Subscriptions' },
   { id: 'orders', label: 'Orders' },
   { id: 'invoices', label: 'Invoices' },
+  { id: 'payment', label: 'Payment method' },
 ] as const;
 
 const ORDER_TONES: Record<string, string> = { PENDING: 'pending', AWAITING_PAYMENT: 'pending', PAID: 'available', FULFILLED: 'available', CANCELLED: 'failed', REFUNDED: 'failed' };
@@ -568,6 +569,11 @@ export default function Billing() {
         </Panel>
       )}
 
+        </>
+      )}
+
+      {tab === 'payment' && (
+        <>
       {/* Payment method action */}
       <Panel
         title="Payment method"

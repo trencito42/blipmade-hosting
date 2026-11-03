@@ -29,39 +29,6 @@ import { deployPathFor, isOrderable, startingConfiguration } from '../lib/pricin
  * exact same rows.
  */
 
-/** A code from the owner of a server opens that server for this account. */
-function RedeemCode({ onDone }: { onDone: () => void }) {
-  const { push } = useToast();
-  const [code, setCode] = useState('');
-  const redeem = useAction(async () => {
-    const result = await post<{ name: string; role: string }>('/access/redeem', { code });
-    push(`You now have access to ${result.name} as a ${result.role}.`, 'ok');
-    setCode('');
-    onDone();
-  });
-  return (
-    <form
-      className="flex flex-wrap items-center gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (code.trim().length >= 8) void redeem.run();
-      }}
-    >
-      <input
-        aria-label="Access code"
-        value={code}
-        onChange={(event) => setCode(event.target.value)}
-        placeholder="Access code"
-        autoComplete="off"
-        spellCheck={false}
-        className="h-11 w-44 rounded-xl border border-line bg-card px-3 font-mono text-[14px] text-ink placeholder:font-sans placeholder:text-ink3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-      />
-      <SoftButton type="submit" disabled={redeem.pending || code.trim().length < 8}>{redeem.pending ? 'Checking…' : 'Use code'}</SoftButton>
-      {redeem.error && <p role="alert" className="basis-full text-[13.5px] font-medium text-bad">{redeem.error}</p>}
-    </form>
-  );
-}
-
 /** Purchased memory, never live usage. */
 function fmtRam(mb: number): string {
   if (!Number.isFinite(mb)) return '—';
@@ -245,7 +212,7 @@ export default function Instances() {
             value={status}
             onChange={setStatus}
           />
-          <RedeemCode onDone={reload} />
+          <ButtonLink to="/app/instances/redeem" variant="soft">Access code</ButtonLink>
         </div>
       </div>
 

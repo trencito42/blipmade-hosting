@@ -208,7 +208,7 @@ const SETTINGS_TABS: { id: string; label: string; icon: IconName; danger?: boole
   { id: 'profile', label: 'Profile and billing', icon: 'user' },
   { id: 'security', label: 'Password and security', icon: 'lock' },
   { id: 'notifications', label: 'Notifications', icon: 'bell' },
-  { id: 'account', label: 'Close account', icon: 'warn', danger: true },
+  { id: 'account', label: 'Privacy & data', icon: 'warn' },
 ];
 
 /** Checks the VAT number against VIES (the European Commission), so a typo is found before it is printed on an invoice. */

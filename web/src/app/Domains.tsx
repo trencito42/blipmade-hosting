@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { get, post, type Domain } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import { Link } from '../router';
 import { ButtonGroup } from './components/premium';
 import {
   ButtonLink,
@@ -44,102 +45,11 @@ function isPlatformHostname(hostname: string): boolean {
   return hostname.toLowerCase().endsWith(`.${PLATFORM_BASE}`);
 }
 
-export default function Domains() {
-  const { push } = useToast();
 
-  const domainsState = useAsync<{ domains: Domain[] }>(
-    (signal) => get<{ domains: Domain[] }>('/domains', undefined, signal),
-    [],
-  );
-  const [verifyingId, setVerifyingId] = useState<string | null>(null);
-
-  const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
-  const paged = usePaged(domains, 20);
-
-  const verify = useAction(async (id: string) => {
-    const result = await post<{ domain: Domain }>(`/domains/${id}/verify`);
-    domainsState.reload();
-    push(`Verification started for ${result.domain.hostname}.`);
-    return result.domain;
-  });
-
-  const copy = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      push(`${label} copied.`);
-    } catch {
-      push('Copy failed. Select the value and copy it manually.', 'error');
-    }
-  };
-
+/** Ownership proof and DNS records of one domain. Own page, not the list. */
+export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: string, label: string) => void | Promise<void> }) {
   return (
-    <div className="grid gap-4">
-      <Panel>
-        {domainsState.loading ? (
-          <LoadingBlock rows={3} label="Loading your domains" />
-        ) : domainsState.error ? (
-          <ErrorState
-            title="Could not load your domains"
-            message={domainsState.error.message}
-            onRetry={domainsState.reload}
-          />
-        ) : !domains.length ? (
-          <EmptyState
-            title="No domains yet"
-            description="Claim a hostname and we will tell you exactly which ownership and address records to create."
-            action={<ButtonLink to="/app/domains/new">Add your first domain</ButtonLink>}
-          />
-        ) : (
-          <div className="grid">
-            {paged.rows.map((domain) => (
-              <article key={domain.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="w-0 min-w-0 flex-1">
-                    <p
-                      className="truncate text-[16px] font-semibold tracking-[-0.02em] text-ink"
-                      title={domain.hostname}
-                    >
-                      {domain.hostname}
-                    </p>
-                    <p className="mt-0.5 break-words text-[13px] text-ink3">
-                      {domain.instanceName} · port {domain.targetPort}
-                    </p>
-                  </div>
-                  {/* The status and the actions share one line; on a phone they wrap under the hostname. */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusPill status={DOMAIN_TONES[domain.status]} label={DOMAIN_STATUS_LABELS[domain.status]} />
-                    <ButtonGroup label={`Actions for ${domain.hostname}`}>
-                      {(domain.platform ?? isPlatformHostname(domain.hostname)) ? (
-                        <ButtonLink
-                          to={`/app/domains/${encodeURIComponent(domain.id)}/edit`}
-                          variant="soft"
-                          title="Change the name of this address. It belongs to Blipmade, so it needs no DNS record and no proof of ownership. The name can change once in 7 days."
-                        >
-                          Change
-                        </ButtonLink>
-                      ) : (
-                        <SoftButton
-                          onClick={() => {
-                            setVerifyingId(domain.id);
-                            void verify.run(domain.id).finally(() => setVerifyingId(null));
-                          }}
-                          disabled={verify.pending}
-                          title="Check the DNS records now. DNS can take a few minutes to update."
-                        >
-                          {verifyingId === domain.id ? 'Working…' : 'Verify'}
-                        </SoftButton>
-                      )}
-                      <ButtonLink
-                        to={`/app/domains/${encodeURIComponent(domain.id)}/delete`}
-                        variant="danger"
-                        title="Delete this domain. It stops resolving and cannot be restored."
-                      >
-                        Delete
-                      </ButtonLink>
-                    </ButtonGroup>
-                  </div>
-                </div>
-
+    <>
                 {domain.lastError && (
                   <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-3.5 py-2.5 text-[13.5px] text-ink2">
                     <span className="font-bold text-bad">Last error: </span>
@@ -291,6 +201,109 @@ export default function Domains() {
                     </p>
                   )}
                 </div>
+                )}
+    </>
+  );
+}
+
+export default function Domains() {
+  const { push } = useToast();
+
+  const domainsState = useAsync<{ domains: Domain[] }>(
+    (signal) => get<{ domains: Domain[] }>('/domains', undefined, signal),
+    [],
+  );
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
+  const paged = usePaged(domains, 20);
+
+  const verify = useAction(async (id: string) => {
+    const result = await post<{ domain: Domain }>(`/domains/${id}/verify`);
+    domainsState.reload();
+    push(`Verification started for ${result.domain.hostname}.`);
+    return result.domain;
+  });
+
+  const copy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      push(`${label} copied.`);
+    } catch {
+      push('Copy failed. Select the value and copy it manually.', 'error');
+    }
+  };
+
+  return (
+    <div className="grid gap-4">
+      <Panel>
+        {domainsState.loading ? (
+          <LoadingBlock rows={3} label="Loading your domains" />
+        ) : domainsState.error ? (
+          <ErrorState
+            title="Could not load your domains"
+            message={domainsState.error.message}
+            onRetry={domainsState.reload}
+          />
+        ) : !domains.length ? (
+          <EmptyState
+            title="No domains yet"
+            description="Claim a hostname and we will tell you exactly which ownership and address records to create."
+            action={<ButtonLink to="/app/domains/new">Add your first domain</ButtonLink>}
+          />
+        ) : (
+          <div className="grid">
+            {paged.rows.map((domain) => (
+              <article key={domain.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="w-0 min-w-0 flex-1">
+                    <p
+                      className="truncate text-[16px] font-semibold tracking-[-0.02em] text-ink"
+                      title={domain.hostname}
+                    >
+                      <Link to={`/app/domains/${encodeURIComponent(domain.id)}`} className="hover:text-acc">{domain.hostname}</Link>
+                    </p>
+                    <p className="mt-0.5 break-words text-[13px] text-ink3">
+                      {domain.instanceName} · port {domain.targetPort}
+                    </p>
+                  </div>
+                  {/* The status and the actions share one line; on a phone they wrap under the hostname. */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusPill status={DOMAIN_TONES[domain.status]} label={DOMAIN_STATUS_LABELS[domain.status]} />
+                    <ButtonGroup label={`Actions for ${domain.hostname}`}>
+                      {(domain.platform ?? isPlatformHostname(domain.hostname)) ? (
+                        <ButtonLink
+                          to={`/app/domains/${encodeURIComponent(domain.id)}/edit`}
+                          variant="soft"
+                          title="Change the name of this address. It belongs to Blipmade, so it needs no DNS record and no proof of ownership. The name can change once in 7 days."
+                        >
+                          Change
+                        </ButtonLink>
+                      ) : (
+                        <SoftButton
+                          onClick={() => {
+                            setVerifyingId(domain.id);
+                            void verify.run(domain.id).finally(() => setVerifyingId(null));
+                          }}
+                          disabled={verify.pending}
+                          title="Check the DNS records now. DNS can take a few minutes to update."
+                        >
+                          {verifyingId === domain.id ? 'Working…' : 'Verify'}
+                        </SoftButton>
+                      )}
+                      <ButtonLink
+                        to={`/app/domains/${encodeURIComponent(domain.id)}/delete`}
+                        variant="danger"
+                        title="Delete this domain. It stops resolving and cannot be restored."
+                      >
+                        Delete
+                      </ButtonLink>
+                    </ButtonGroup>
+                  </div>
+                </div>
+
+                {domain.lastError && (
+                  <p role="alert" className="mt-2 text-[13px] text-bad">{domain.lastError}</p>
                 )}
               </article>
             ))}

@@ -70,6 +70,8 @@ const AppNewVpsSnapshot = lazy(() => import('./app/VpsEditors').then((module) =>
 const AppRestoreVpsSnapshot = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.RestoreVpsSnapshot })));
 const AppOrderView = lazy(() => import('./app/OrderView'));
 const AppSubscriptionView = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.SubscriptionView })));
+const AppRedeemAccess = lazy(() => import('./app/RedeemAccess'));
+const AppDomainDetail = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.DomainDetail })));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -197,6 +199,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/resources/edit', component: AppEditResources, title: 'Change resources', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/startup/edit', component: AppEditStartup, title: 'Edit startup', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/env-files/:name/edit', component: AppEditEnvFile, title: 'Edit environment file', area: 'customer', layout: 'editor' },
+  { pattern: '/app/instances/redeem', component: AppRedeemAccess, title: 'Use an access code', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
@@ -205,6 +208,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/domains/:id/edit', component: AppEditDomainAddress, title: 'Change address', area: 'customer', layout: 'editor' },
   { pattern: '/app/domains/:id/delete', component: AppDeleteDomain, title: 'Delete domain', area: 'customer', layout: 'editor' },
   { pattern: '/app/domains/new', component: AppNewDomain, title: 'Add domain', area: 'customer', layout: 'editor' },
+  { pattern: '/app/domains/:id', component: AppDomainDetail, title: 'Domain', area: 'customer', exact: true },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
   { pattern: '/app/mail/services/:serviceId/plan/change', component: AppChangeMailPlan, title: 'Change email plan', area: 'customer', layout: 'editor' },
   { pattern: '/app/mail/domains/new', component: AppNewMailDomain, title: 'Add email domain', area: 'customer', layout: 'editor' },

@@ -300,7 +300,7 @@ export default function TicketDetail() {
         )}
       </Panel>
 
-      <Panel title="Reply" description="Your reply is added to the same thread.">
+      <Panel title="Reply" description="Your reply is added to the same thread." className="sticky bottom-3 z-10 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
         <div className="grid gap-3">
           <TextArea
             label="Your message"
