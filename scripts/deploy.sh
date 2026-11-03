@@ -27,6 +27,7 @@ docker exec blipmade-postgres-1 sh -c 'pg_dump -U $POSTGRES_USER $POSTGRES_DB' |
 gzip -t "$BACKUP" && echo "Backup: $BACKUP"
 
 for s in api web worker; do docker tag "blipmade-$s:latest" "blipmade-$s:before-$SHA" 2>/dev/null || true; done
+[ -f web/public/fontawesome/css/pro.min.css ] || { echo "REFUSED: web/public/fontawesome is missing. The licensed icon font is not in git; restore it with scripts/download-fontawesome-pro.py."; exit 1; }
 docker compose -p blipmade $F build api web worker > /tmp/deploy-build.log 2>&1 || { grep -E "error TS|ERROR" /tmp/deploy-build.log | head; echo "BUILD FAILED, nothing was changed."; exit 1; }
 env -u DATABASE_URL bash scripts/apply-migrations.sh | tail -2
 
@@ -39,6 +40,6 @@ done
 docker compose -p blipmade $F up -d --no-deps worker
 
 echo "--- smoke"
-for p in /api/health / /apps /docs /app; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}\n" "https://blipmade.com$p"; done
+for p in /api/health / /apps /docs /app /fontawesome/css/pro.min.css; do printf "%s " "$p"; curl -s -o /dev/null -w "%{http_code}\n" "https://blipmade.com$p"; done
 echo "Deployed $SHA."
 echo "To go back: for s in api web worker; do docker tag blipmade-\$s:before-$SHA blipmade-\$s:latest; done; docker compose -p blipmade $F up -d --no-deps api web worker"
