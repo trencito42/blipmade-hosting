@@ -81,7 +81,6 @@ export default function Products() {
   const toast = useToast();
   const [toggle, setToggle] = useState<ToggleTarget | null>(null);
   const [removing, setRemoving] = useState<AdminProduct | null>(null);
-  const [creating, setCreating] = useState(false);
   const state = useAsync((signal) => get<{ products: AdminProduct[] }>('/admin/products', undefined, signal), []);
   const products = state.data?.products ?? [];
   const mayWrite = can(staff, 'products.write');
@@ -149,14 +148,10 @@ export default function Products() {
         actionBelow
         action={
           mayWrite ? (
-            <button type="button" onClick={() => setCreating((value) => !value)} aria-expanded={creating} className={densePrimary}>
-              {creating ? 'Close the form' : 'New product'}
-            </button>
+            <Link to="/admin/products/new" className={densePrimary}>New product</Link>
           ) : undefined
         }
       >
-        {creating && mayWrite && <NewProductForm onDone={() => { setCreating(false); state.reload(); }} />}
-
         <div className="grid gap-3">
           {state.loading ? (
             <LoadingBlock rows={4} label="Loading the catalog" />
@@ -425,7 +420,7 @@ export default function Products() {
   );
 }
 
-function NewProductForm({ onDone }: { onDone: () => void }) {
+export function NewProductForm({ onDone }: { onDone: () => void }) {
   const toast = useToast();
   const [slug, setSlug] = useState('');
   const [name, setName] = useState('');

@@ -83,6 +83,7 @@ const AdminNotificationPreview = lazy(() => import('./admin/NotificationEditors'
 const AdminNotificationTest = lazy(() => import('./admin/NotificationEditors').then((m) => ({ default: m.NotificationTestSend })));
 const AdminCustomerAccountAction = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerAccountAction })));
 const AdminAbuseEnforcement = lazy(() => import('./admin/abuse/AbuseEnforcement'));
+const AdminProductNew = lazy(() => import('./admin/ProductNew'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -302,6 +303,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/vps/:id/plan/change', component: AdminVpsPlanChange, title: 'Change plan', area: 'admin', layout: 'editor' },
   { pattern: '/admin/vps/:id/resources/edit', component: AdminVpsResourcesEdit, title: 'Adjust resources', area: 'admin', layout: 'editor' },
   { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
+  { pattern: '/admin/products/new', component: AdminProductNew, title: 'New product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products/:id/edit', component: AdminProductEdit, title: 'Edit product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
   { pattern: '/admin/pricing/rates/edit', component: AdminRatesEdit, title: 'Rate card', area: 'admin', layout: 'editor' },
