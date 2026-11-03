@@ -67,6 +67,8 @@ const AdminKnowledgeEdit = lazy(() => import('./admin/KnowledgeEdit'));
 const AdminContentEdit = lazy(() => import('./admin/ContentEdit'));
 const AdminEmailTemplateEdit = lazy(() => import('./admin/EmailTemplateEdit'));
 const AdminSettingsEdit = lazy(() => import('./admin/SettingsEdit'));
+const AdminRatesEdit = lazy(() => import('./admin/PricingEditors').then((m) => ({ default: m.RatesEdit })));
+const AdminPriceEdit = lazy(() => import('./admin/PricingEditors').then((m) => ({ default: m.PriceEdit })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -280,6 +282,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
   { pattern: '/admin/products/:id/edit', component: AdminProductEdit, title: 'Edit product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
+  { pattern: '/admin/pricing/rates/edit', component: AdminRatesEdit, title: 'Rate card', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/pricing/products/:id/edit', component: AdminPriceEdit, title: 'Edit price', area: 'admin', layout: 'editor' },
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
   { pattern: '/admin/support/analytics', component: AdminSupportAnalytics, title: 'Support numbers', area: 'admin' },
   { pattern: '/admin/support/automations/new', component: AdminSupportAutomationEdit, title: 'New rule', area: 'admin', layout: 'editor' },

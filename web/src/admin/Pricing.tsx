@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
+import { ButtonLink, ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
 import { DASH, LiveRegion, denseGhost, denseInput, densePrimary, denseSoft, useAdminSession } from './Overview';
 import { pricingGate } from './permissions';
 import Capacity from './Capacity';
@@ -19,7 +19,7 @@ import { AddonsPanel, PriceHistoryPanel, YearlyDiscountPanel } from './Commerce'
  * "pricing.write", so the interface says the same before the operator tries.
  */
 
-interface AdminPrice {
+export interface AdminPrice {
   id: string;
   productId: string;
   product: {
@@ -48,7 +48,7 @@ interface AdminPrice {
  * instance itself. The same resources cost the same in every product, in
  * every category and for every egg.
  */
-interface ResourceRates {
+export interface ResourceRates {
   ramPerGb: number;
   cpuPerUnit: number;
   diskPerGb: number;
@@ -106,7 +106,16 @@ export default function Pricing() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`${prices.length} price${prices.length === 1 ? '' : 's'}`} />
-      {rates && <RateCard rates={rates} mayWrite={mayWrite} onSaved={state.reload} />}
+      {rates && (
+        <Panel title="Rate card of the platform" description="One card for every server. The price of a server is its resources plus the fee of the instance." action={<ButtonLink to="/admin/pricing/rates/edit" variant="soft">{mayWrite ? 'Edit' : 'View'}</ButtonLink>}>
+          <dl className="grid gap-3 text-[13.5px] sm:grid-cols-4">
+            <div><dt className="text-ink3">Per GB memory</dt><dd className="font-mono text-ink"><Money amount={rates.ramPerGb} /></dd></div>
+            <div><dt className="text-ink3">Per vCPU</dt><dd className="font-mono text-ink"><Money amount={rates.cpuPerUnit} /></dd></div>
+            <div><dt className="text-ink3">Per GB disk</dt><dd className="font-mono text-ink"><Money amount={rates.diskPerGb} /></dd></div>
+            <div><dt className="text-ink3">Fee of the instance</dt><dd className="font-mono text-ink"><Money amount={rates.baseFee} /></dd></div>
+          </dl>
+        </Panel>
+      )}
       {mayRead && <YearlyDiscountPanel mayWrite={mayWrite} />}
       {mayRead && <Capacity />}
       <AddonsPanel mayWrite={mayWrite} />
@@ -122,11 +131,19 @@ export default function Pricing() {
         ) : !prices.length ? (
           <EmptyState title="No prices yet." description="A price is created with every product." />
         ) : (
-          <div className="grid gap-3">
+          <ul className="divide-y divide-line">
             {prices.map((price) => (
-              <PriceEditor key={price.id} price={price} mayWrite={mayWrite} onSaved={state.reload} />
+              <li key={price.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[14.5px] font-semibold text-ink">{price.product.name} <span className="font-normal text-ink3">· {price.period.toLowerCase()}</span></p>
+                  <p className="text-[12.5px] text-ink3">
+                    {price.product.fulfilment === 'SERVER' ? 'priced by resources' : <>base <Money amount={price.baseAmount} currency={price.currency} /></>} · {price.active ? 'active' : 'inactive'}
+                  </p>
+                </div>
+                <ButtonLink to={`/admin/pricing/products/${encodeURIComponent(price.id)}/edit`} variant="soft">{mayWrite ? 'Edit' : 'View'}</ButtonLink>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
 
         {!mayWrite && (
@@ -155,7 +172,7 @@ export default function Pricing() {
  * keeps the price it was sold at, until an operator reconciles them on
  * purpose.
  */
-function RateCard({
+export function RateCard({
   rates,
   mayWrite,
   onSaved,
@@ -319,7 +336,7 @@ function RateCard({
   );
 }
 
-function PriceEditor({
+export function PriceEditor({
   price,
   mayWrite,
   onSaved,
