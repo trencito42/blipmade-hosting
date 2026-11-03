@@ -75,4 +75,16 @@ test.describe('dedicated domain pages', () => {
     await expect(page.getByRole('link', { name: 'Change' })).toHaveAttribute('title', /once in 7 days/);
     await page.screenshot({ path: '/tmp/claude-0/-root/aae46db4-fcaf-4b45-85b9-bd3609e50f02/scratchpad/domains-list.png' });
   });
+
+  test('on a domain row the status and the actions share one centre line with the name', async ({ page }) => {
+    await stub(page, []);
+    await page.goto('/app/domains');
+    const row = page.locator('article').first();
+    const centre = async (locator: ReturnType<typeof page.locator>) => locator.evaluate((node) => { const r = node.getBoundingClientRect(); return r.top + r.height / 2; });
+    const name = await centre(row.locator('p').first().locator('xpath=..'));
+    const status = await centre(row.getByText('Active', { exact: true }));
+    const actions = await centre(row.getByRole('group'));
+    expect(Math.abs(status - actions)).toBeLessThan(2);
+    expect(Math.abs(name - actions)).toBeLessThan(2);
+  });
 });

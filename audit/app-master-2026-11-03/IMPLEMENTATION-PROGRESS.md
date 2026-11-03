@@ -574,3 +574,16 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Web TypeScript check and full web unit suite: 496 pass, 0 fail.
 - Playwright billing suite: 5/5 pass (the lines and the failed delivery of an order, one checkout request, the subscription page and its links, each section showing only its own content and surviving a reload, and 390px overflow on all sections and pages). The subscription cancel/resume suite still passes. Screenshot of the subscriptions section reviewed.
 - Seen while testing, not changed: when the page crashes, the error page shows a placeholder "TODO(operator): the support email address" instead of an address.
+
+## 2026-11-03 — Divided rows on Overview and notifications, one centre line per row
+
+### Completed
+
+- [x] The services of `/app` and the quick deploy list are divided rows, not cards; the notification list is divided too, an unread message is tinted and its actions are grouped with tooltips.
+- [x] On the rows of subscriptions, domains and servers the name, the status, the price and the actions now share one centre line (the status and the price used to sit at the top of the row while the button was centred).
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: 496 pass, 0 fail (the unread-tint rule of the notification test was kept).
+- Playwright: overview rows (2), notification rows (2), billing (6, one measures that the name, status, price and button centres are within 2px), domains (5, one measures the same for a domain row): all pass. Screenshot of the subscription row reviewed.
+- Not applied yet: the same centre-line measurement on the rows of the mail pages and the instance tabs.

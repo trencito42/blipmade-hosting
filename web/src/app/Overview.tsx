@@ -127,10 +127,10 @@ function MonthlyCost({ summary }: { summary: AccountBillingSummary }) {
 
 function ServiceLine({ row }: { row: ServiceRow }) {
   return (
-    <li>
+    <li className="border-t border-line first:border-t-0">
       <Link
         to={row.to}
-        className="grid items-center gap-x-4 gap-y-2 rounded-2xl bg-s2 p-3.5 transition-colors duration-150 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:grid-cols-[minmax(0,1.6fr)_112px_minmax(0,1.3fr)_96px] md:p-3"
+        className="-mx-2 grid items-center gap-x-4 gap-y-2 rounded-xl px-2 py-3 transition-colors duration-150 hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc md:grid-cols-[minmax(0,1.6fr)_112px_minmax(0,1.3fr)_96px] md:p-3"
       >
         <span className="flex min-w-0 items-center gap-3">
           <ServiceTile row={row} />
@@ -224,12 +224,12 @@ export default function Overview() {
           ) : deployable.length > 0 ? (
             <>
               <p className="mt-5 text-[13px] font-medium text-ink3">Ready to deploy now</p>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2 grid sm:grid-cols-2 sm:gap-x-6">
                 {deployable.slice(0, 4).map((product) => (
                   <Link
                     key={product.id}
                     to={deployPathFor(product.slug, startingConfiguration(product))}
-                    className="flex items-center gap-3 rounded-2xl bg-s2 p-3 transition-colors duration-150 hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    className="-mx-2 flex items-center gap-3 rounded-xl border-t border-line px-2 py-3 transition-colors duration-150 first:border-t-0 hover:bg-s2 sm:[&:nth-child(2)]:border-t-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <ProductTile slug={product.slug} icon={product.icon} size={36} />
                     <span className="min-w-0 flex-1">
@@ -314,7 +314,7 @@ export default function Overview() {
 
       <Panel title="Your services" description={countLine(rows)}>
         <div className="relative">
-          <ul className="grid gap-2">
+          <ul className="grid">
             {visibleRows.map((row) => (
               <ServiceLine key={row.key} row={row} />
             ))}

@@ -113,4 +113,18 @@ test.describe('billing detail pages', () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), route).toBe(false);
     }
   });
+
+  test('on a subscription row the name, the status, the price and the button share one centre line', async ({ page }) => {
+    await stub(page, {});
+    await page.goto('/app/billing?tab=subscriptions');
+    const row = page.locator('main div').filter({ has: page.getByRole('link', { name: 'Shop', exact: true }) }).filter({ has: page.getByRole('link', { name: 'Cancel Shop' }) }).last();
+    const centre = async (locator: ReturnType<typeof page.locator>) => locator.evaluate((node) => { const r = node.getBoundingClientRect(); return r.top + r.height / 2; });
+    const name = await centre(row.getByRole('link', { name: 'Shop', exact: true }).locator('xpath=..'));
+    const status = await centre(row.getByText('Active', { exact: true }));
+    const price = await centre(row.getByText('€9.00').first());
+    const button = await centre(row.getByRole('link', { name: 'Cancel Shop' }));
+    expect(Math.abs(status - button)).toBeLessThan(2);
+    expect(Math.abs(price - button)).toBeLessThan(2);
+    expect(Math.abs(name - button)).toBeLessThan(2);
+  });
 });

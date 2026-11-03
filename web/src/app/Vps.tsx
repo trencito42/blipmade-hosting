@@ -441,7 +441,7 @@ export function VpsList() {
             const status = statusOf(server);
             return (
               <li key={server.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <Link to={`/app/vps/${server.id}`} className="text-[16px] font-semibold text-ink underline-offset-4 hover:underline">
                       {server.name}

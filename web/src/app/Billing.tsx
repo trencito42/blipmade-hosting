@@ -636,7 +636,7 @@ export default function Billing() {
           <div className="grid">
             {subscriptions.map((subscription) => (
               <div key={subscription.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0 sm:flex sm:items-center sm:gap-4">
-                <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3">
                   {/* The name keeps its room. On a phone the status and the
                       amount move to the next line instead of cutting the name
                       to a few letters. */}

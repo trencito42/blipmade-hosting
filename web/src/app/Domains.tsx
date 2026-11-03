@@ -95,7 +95,7 @@ export default function Domains() {
           <div className="grid">
             {domains.map((domain) => (
               <article key={domain.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="w-0 min-w-0 flex-1">
                     <p
                       className="truncate text-[16px] font-semibold tracking-[-0.02em] text-ink"

@@ -11,6 +11,7 @@ import {
 } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
+import { ButtonGroup } from './components/premium';
 import {
   ButtonLink,
   ConfirmDialog,
@@ -375,7 +376,7 @@ export function NotificationList({
   }
 
   return (
-    <ul className="grid gap-2">
+    <ul className="grid">
       {notifications.map((notification) => (
         <NotificationRow
           key={notification.id}
@@ -423,8 +424,9 @@ export function NotificationRow({
       data-unread={unread ? 'true' : 'false'}
       onClick={onRowClick}
       className={cn(
-        'grid gap-1.5 rounded-2xl p-4',
-        unread ? 'cursor-pointer bg-acc-bg' : 'bg-s2',
+        'grid gap-1.5 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0',
+        // A message that was not read is drawn apart by a tint; the line between the rows stays.
+        unread && 'cursor-pointer -mx-3 bg-acc-bg px-3 first:pt-3.5 last:pb-3.5',
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -452,18 +454,20 @@ export function NotificationRow({
           ) : null}
           <span className="text-[12.5px] text-ink3">{label}</span>
         </div>
-        <div className="flex gap-1.5">
-          {unread && onMarkRead ? (
-            <SoftButton onClick={() => onMarkRead(notification)} aria-label={`Mark as read: ${notification.title}`}>
-              Mark as read
-            </SoftButton>
-          ) : null}
-          {onDelete ? (
-            <SoftButton onClick={() => onDelete(notification)} aria-label={`Delete the notification: ${notification.title}`}>
-              Delete
-            </SoftButton>
-          ) : null}
-        </div>
+        {(unread && onMarkRead) || onDelete ? (
+          <ButtonGroup label="Actions for this message">
+            {unread && onMarkRead ? (
+              <SoftButton onClick={() => onMarkRead(notification)} aria-label={`Mark as read: ${notification.title}`} title="Mark this message as read">
+                Read
+              </SoftButton>
+            ) : null}
+            {onDelete ? (
+              <SoftButton onClick={() => onDelete(notification)} aria-label={`Delete the notification: ${notification.title}`} title="Delete this message">
+                Delete
+              </SoftButton>
+            ) : null}
+          </ButtonGroup>
+        ) : null}
       </div>
     </li>
   );
