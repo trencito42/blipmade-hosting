@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { appendOnce, catalogInstallPlan, mergeProperties, runCatalogInstall, safeInstallPath } from '../src/services/catalog-install.js';
+import { appendOnce, catalogInstallPlan, mergeProperties, presetOutcome, runCatalogInstall, safeInstallPath } from '../src/services/catalog-install.js';
 
 describe('catalogue preset install', () => {
+  it('does not call a preset installed until the server is running', () => {
+    expect(presetOutcome('starting', 1)).toBe('retry');
+    expect(presetOutcome('running', 2)).toBe('installed');
+    expect(presetOutcome('offline', 5)).toBe('gave_up');
+  });
+
   it('writes the Discord ticket bot and installs its dependency on startup', () => {
     const plan = catalogInstallPlan('discord-bot', 'tickets');
     expect(plan?.startup).toBe('npm install && node index.js');

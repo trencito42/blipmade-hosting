@@ -28,6 +28,8 @@ This pass: a quote no longer requires `GIT_ADDRESS`. The egg allows it empty. A 
 
 Remaining: MariaDB still cannot be auto-provisioned because that egg has no password variable. No disposable deploy of daily81. Go and Rust imports have no start command.
 
+Preset install no longer records `installed` when the files are written. The manifest goes to `verifying`, the server is restarted, and `installed` is recorded only when the process state is `running`. Five failed observations stop at `gave_up`. The retry query skips `installed`, `none` and `gave_up`. An order with a preset stays unfulfilled until that check passes. `catalog-install.test.ts` covers the outcome. Not proven on a live panel.
+
 Next: give MariaDB a password the platform can set, then order daily81 against a disposable MySQL server.
 
 ## #19 Game panel

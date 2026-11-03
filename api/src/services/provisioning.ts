@@ -21,6 +21,7 @@ import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import { ArchiveError, verifyBackupStream } from './backup-archive.js';
 import { applyCatalogInstall } from './catalog-install-apply.js';
+import { presetChosen } from './catalog-install.js';
 import { applyInstallVariables } from './install-variables.js';
 import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
 import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
@@ -2045,6 +2046,9 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     }
 
     const importPending = await importStillWaiting(instance);
+    const presetPending = instance.orderItemId
+      ? presetChosen((await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } }))?.config)
+      : false;
     await beginProvisioning(instance, 'activated');
     await prisma.instance.update({
       where: { id: instance.id },
@@ -2053,12 +2057,12 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
         provisionError: null,
         suspendedAt: null,
         infrastructureReadyAt: new Date(),
-        applicationReadyAt: importPending ? null : new Date(),
+        applicationReadyAt: importPending || presetPending ? null : new Date(),
         applicationError: null,
       },
     });
     await completeStep(instance.id, 'activated');
-    await completeProvisioning(instance.id, { applicationReady: !importPending });
+    await completeProvisioning(instance.id, { applicationReady: !importPending && !presetPending });
     if (importPending) {
       const fresh = await prisma.instance.findUnique({ where: { id: instance.id } });
       if (fresh) await applyStoredImport(fresh);

@@ -1,5 +1,5 @@
 import { prisma } from '../db.js';
-import { catalogInstallPlan, runCatalogInstall } from './catalog-install.js';
+import { catalogInstallPlan, presetOutcome, runCatalogInstall } from './catalog-install.js';
 import * as operations from './panel/operations.js';
 import * as panelClient from './pterodactyl/client.js';
 import * as ptero from './pterodactyl/application.js';
@@ -21,7 +21,52 @@ function alreadyInstalled(manifest: unknown, presetSlug: string, version: number
   return row?.status === 'installed' && row.presetSlug === presetSlug && row.version === version;
 }
 
-/** Writes the preset chosen at checkout into the customer container. A second pass does not write it again. */
+async function verifyPreset(
+  instance: { id: string; pterodactylUuid: string | null; userId: string; status: string; pterodactylServerId: number | null; generatedVariables: string | null; product: { generatedVariables: unknown }; orderId: string | null },
+  preset: { slug: string; version: number },
+  attempts: number,
+  files: string[] = [],
+): Promise<'installed' | 'failed'> {
+  const token = await operations.customerToken({
+    id: instance.id,
+    userId: instance.userId,
+    status: instance.status,
+    pterodactylUuid: instance.pterodactylUuid,
+    pterodactylServerId: instance.pterodactylServerId,
+    generatedVariables: instance.generatedVariables,
+    productVariables: instance.product.generatedVariables,
+  });
+  const resources = await panelClient.getResources(token, instance.pterodactylUuid as string);
+  if (resources.state === 'starting' || resources.state === 'stopping' || resources.state === '') return 'failed';
+  const outcome = presetOutcome(resources.state, attempts);
+  if (outcome === 'retry') return 'failed';
+  const installed = outcome === 'installed';
+  await prisma.instance.update({
+    where: { id: instance.id },
+    data: {
+      applicationReadyAt: installed ? new Date() : null,
+      applicationError: installed ? null : 'The preset was written, but the server did not stay running.',
+      installationManifest: {
+        presetSlug: preset.slug,
+        version: preset.version,
+        status: installed ? 'installed' : 'gave_up',
+        files,
+        attempts,
+        installedAt: installed ? new Date().toISOString() : null,
+      },
+    },
+  });
+  await prisma.instanceEvent.create({
+    data: {
+      instanceId: instance.id,
+      type: 'preset',
+      message: installed ? `The ${preset.slug} preset is running.` : `The ${preset.slug} preset did not stay running after ${attempts} tries.`,
+    },
+  });
+  return installed ? 'installed' : 'failed';
+}
+
+/** Writes the preset chosen at checkout into the customer container. Installed means the process was running afterwards. */
 export async function applyCatalogInstall(instanceId: string): Promise<'installed' | 'skipped' | 'failed' | 'none'> {
   const instance = await prisma.instance.findUnique({
     where: { id: instanceId },
@@ -36,6 +81,11 @@ export async function applyCatalogInstall(instanceId: string): Promise<'installe
     return 'none';
   }
   if (alreadyInstalled(instance.installationManifest, preset.slug, preset.version)) return 'skipped';
+  const previous = instance.installationManifest as { status?: string; attempts?: number; presetSlug?: string; version?: number } | null;
+  if (previous?.status === 'gave_up' && previous.presetSlug === preset.slug && previous.version === preset.version) return 'failed';
+  if (previous?.status === 'verifying' && previous.presetSlug === preset.slug && previous.version === preset.version) {
+    return verifyPreset(instance, preset, previous.attempts ?? 1, (previous as { files?: string[] }).files ?? []);
+  }
   const plan = catalogInstallPlan(instance.product.slug, preset.slug);
   if (!plan) {
     await prisma.instance.update({
@@ -72,22 +122,22 @@ export async function applyCatalogInstall(instanceId: string): Promise<'installe
         });
       },
     });
+    const attempts = (previous?.attempts ?? 0) + 1;
     await prisma.instance.update({
       where: { id: instance.id },
       data: {
+        applicationReadyAt: null,
         installationManifest: {
           presetSlug: preset.slug,
           version: preset.version,
-          status: 'installed',
+          status: 'verifying',
           files,
-          installedAt: new Date().toISOString(),
+          attempts,
         },
       },
     });
-    await prisma.instanceEvent.create({
-      data: { instanceId: instance.id, type: 'preset', message: `Installed the ${preset.slug} preset.` },
-    });
-    return 'installed';
+    await panelClient.sendPower(token, instance.pterodactylUuid, 'restart').catch(() => undefined);
+    return verifyPreset(instance, preset, attempts, files);
   } catch (error) {
     await prisma.instance.update({
       where: { id: instance.id },
@@ -107,7 +157,18 @@ export async function applyCatalogInstall(instanceId: string): Promise<'installe
 /** Retries presets that were chosen and have not been installed. */
 export async function retryCatalogInstalls(): Promise<number> {
   const rows = await prisma.instance.findMany({
-    where: { status: 'ONLINE', pterodactylUuid: { not: null }, orderItemId: { not: null } },
+    where: {
+      status: 'ONLINE',
+      pterodactylUuid: { not: null },
+      orderItemId: { not: null },
+      NOT: {
+        OR: [
+          { installationManifest: { path: ['status'], equals: 'installed' } },
+          { installationManifest: { path: ['status'], equals: 'none' } },
+          { installationManifest: { path: ['status'], equals: 'gave_up' } },
+        ],
+      },
+    },
     select: { id: true, installationManifest: true },
     take: 20,
     orderBy: { createdAt: 'asc' },

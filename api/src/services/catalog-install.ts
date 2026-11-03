@@ -14,6 +14,18 @@ export interface CatalogInstallPlan {
   environment: Record<string, string>;
 }
 
+export function presetChosen(config: unknown): boolean {
+  const slug = (config as { catalog?: { preset?: { slug?: unknown } } } | null)?.catalog?.preset?.slug;
+  return typeof slug === 'string' && slug.length > 0;
+}
+
+/** A preset is installed only after the server process is running. Five tries, then it stops. */
+export function presetOutcome(state: string, attempts: number): 'installed' | 'retry' | 'gave_up' {
+  if (state === 'running') return 'installed';
+  if (attempts >= 5) return 'gave_up';
+  return 'retry';
+}
+
 export function safeInstallPath(path: string): boolean {
   if (!path.startsWith('/')) return false;
   const parts = path.split('/').slice(1);
