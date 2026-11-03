@@ -6,6 +6,7 @@ import { Link } from '../router';
 import { Icon } from '../icons';
 import { ButtonLink, CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
 import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useAdminSession } from './Overview';
+import { ListPreferences, useColumnPicker, type SavedQuery } from './ListPreferences';
 
 /**
  * Staff service list — GET /api/admin/services?status=&search=
@@ -60,6 +61,12 @@ export default function Services() {
   const [target, setTarget] = useState<AdminService | null>(null);
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState<string | null>(null);
+  const columnChoices = [
+    { key: 'name', label: 'Instance', required: true }, { key: 'customer', label: 'Customer' }, { key: 'resources', label: 'Resources' },
+    { key: 'price', label: 'Price' }, { key: 'status', label: 'Status' }, { key: 'server', label: 'Pterodactyl id' },
+    { key: 'tools', label: 'Manage' }, { key: 'retry', label: 'Action' },
+  ];
+  const columnPicker = useColumnPicker('services', columnChoices);
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(search.trim()), 300);
@@ -112,6 +119,10 @@ export default function Services() {
       {fmtRam(service.ram)} · {service.cpu} vCPU · {service.disk} GB
     </span>
   );
+  const applyView = (saved: SavedQuery) => {
+    const nextSearch = typeof saved.search === 'string' ? saved.search : '';
+    setSearch(nextSearch); setQuery(nextSearch); setStatus(typeof saved.status === 'string' ? saved.status : '');
+  };
 
   if (session.loading) {
     return (
@@ -150,6 +161,7 @@ export default function Services() {
         }
       >
         <div className="grid gap-3">
+          <ListPreferences scope="services" query={{ search: query, status }} onApply={applyView} columns={columnChoices} visibleColumns={columnPicker.visible} onToggleColumn={columnPicker.toggle} onResetColumns={columnPicker.reset} />
           <Segmented ariaLabel="Filter services by status" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
 
           <Field label="Search" htmlFor="service-search" hint="Matches the instance name.">
@@ -179,7 +191,7 @@ export default function Services() {
               <DataTable<AdminService>
                 rows={services}
                 rowKey={(service) => service.id}
-                columns={[
+                columns={([
                   {
                     key: 'name',
                     header: 'Instance',
@@ -253,7 +265,7 @@ export default function Services() {
                         },
                       ] satisfies TableColumn<AdminService>[])
                     : []),
-                ]}
+                ] satisfies TableColumn<AdminService>[]).filter((column) => columnPicker.visible.includes(column.key))}
               />
               <CardList<AdminService> rows={services} rowKey={(service) => service.id}>
                 {(service) => (

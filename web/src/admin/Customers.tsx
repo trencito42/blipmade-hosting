@@ -6,6 +6,7 @@ import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
 import type { TableColumn } from '../lib/table';
 import { DASH, LiveRegion, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
+import { ListPreferences, useColumnPicker, type SavedQuery } from './ListPreferences';
 
 /**
  * Staff customer list — GET /api/admin/customers?search=
@@ -40,6 +41,12 @@ export default function Customers() {
   const [role, setRole] = useState<'all' | 'customer' | 'staff'>('all');
   const [tag, setTag] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
+  const columnChoices = [
+    { key: 'select', label: 'Selection' }, { key: 'customer', label: 'Customer', required: true },
+    { key: 'instances', label: 'Instances' }, { key: 'orders', label: 'Orders' }, { key: 'tickets', label: 'Tickets' },
+    { key: 'value', label: 'Monthly value' }, { key: 'verified', label: 'Verified' }, { key: 'created', label: 'Created' },
+  ];
+  const columnPicker = useColumnPicker('customers', columnChoices);
   const tagsState = useAsync((signal) => get<{ tags: { tag: string; count: number }[] }>('/admin/tags', undefined, signal), []);
 
   useEffect(() => {
@@ -69,7 +76,7 @@ export default function Customers() {
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
   const toggle = (id: string) => setSelected((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
-  const columns: TableColumn<AdminCustomer>[] = [
+  const columns = ([
     {
       key: 'select',
       header: '',
@@ -152,7 +159,13 @@ export default function Customers() {
       nowrap: true,
       render: (customer: AdminCustomer) => <span className="text-ink2">{fmtDate(customer.createdAt)}</span>,
     },
-  ];
+  ] satisfies TableColumn<AdminCustomer>[]).filter((column) => columnPicker.visible.includes(column.key));
+
+  const applyView = (saved: SavedQuery) => {
+    const nextSearch = typeof saved.search === 'string' ? saved.search : '';
+    const nextRole = saved.role === 'customer' || saved.role === 'staff' || saved.role === 'all' ? saved.role : 'all';
+    setSearch(nextSearch); setQuery(nextSearch); setRole(nextRole); setTag(typeof saved.tag === 'string' ? saved.tag : '');
+  };
 
   return (
     <div className="grid gap-4">
@@ -175,6 +188,7 @@ export default function Customers() {
         }
       >
         <div className="grid gap-3">
+          <ListPreferences scope="customers" query={{ search: query, role, tag }} onApply={applyView} columns={columnChoices} visibleColumns={columnPicker.visible} onToggleColumn={columnPicker.toggle} onResetColumns={columnPicker.reset} />
           <Field label="Accounts" htmlFor="customer-role">
             <select id="customer-role" value={role} onChange={(event) => setRole(event.target.value as typeof role)} className={denseInput}>
               <option value="all">Everyone</option>

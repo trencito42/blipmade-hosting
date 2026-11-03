@@ -6,6 +6,7 @@ import { Link, useRouter } from '../../router';
 import { EmptyState, ErrorState, Field, LoadingBlock, Panel, Segmented, SoftButton, StatusPill } from '../../ui-app';
 import { DASH, LiveRegion, denseInput, denseSelect, fmtDateTime, maskEmail } from '../Overview';
 import TicketDetail from './TicketDetail';
+import { ListPreferences, useColumnPicker, type SavedQuery } from '../ListPreferences';
 import {
   EMPTY_TICKET_FILTERS,
   TICKET_ASSIGNMENT_FILTERS,
@@ -124,17 +125,19 @@ export function TicketInboxTable({
   tickets,
   selectedId = '',
   showEmails = false,
+  visibleColumns,
 }: {
   tickets: TicketRow[];
   selectedId?: string;
   /** The addresses of the customers are shown as they are. */
   showEmails?: boolean;
+  visibleColumns?: string[];
 }) {
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const onRowKeys = useRowKeys(bodyRef);
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
-  const columns: InboxColumn[] = useMemo(
+  const columns = useMemo<InboxColumn[]>(
     () => [
       {
         key: 'ticket',
@@ -237,7 +240,7 @@ export function TicketInboxTable({
       },
     ],
     [showEmails],
-  );
+  ).filter((column) => !visibleColumns || visibleColumns.includes(column.key));
 
   return (
     // The table scrolls inside its own box, so the page never scrolls
@@ -398,6 +401,12 @@ export function TicketQueue({ selectedId = '', channel = 'tickets' }: TicketInbo
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [cursorStack, setCursorStack] = useState<string[]>([]);
   const [showEmails, setShowEmails] = useState(false);
+  const columnChoices = [
+    { key: 'ticket', label: 'Ticket', required: true }, { key: 'customer', label: 'Customer' }, { key: 'category', label: 'Category' },
+    { key: 'priority', label: 'Priority' }, { key: 'status', label: 'Status' }, { key: 'assigned', label: 'Assigned to' },
+    { key: 'activity', label: 'Last activity' }, { key: 'actions', label: 'Actions' },
+  ];
+  const columnPicker = useColumnPicker('tickets', columnChoices);
 
   // The search is read after a short pause, so a word that is being typed
   // does not ask the server for a page after every letter.
@@ -440,6 +449,18 @@ export function TicketQueue({ selectedId = '', channel = 'tickets' }: TicketInbo
     setDebouncedSearch('');
     setCursorStack([]);
   };
+  const applyView = (saved: SavedQuery) => {
+    const nextSearch = typeof saved.search === 'string' ? saved.search : '';
+    const nextLimit = saved.limit === 50 || saved.limit === 100 ? saved.limit : 25;
+    setSearch(nextSearch); setDebouncedSearch(nextSearch);
+    setFilters({
+      ...EMPTY_TICKET_FILTERS,
+      status: typeof saved.status === 'string' ? saved.status : '', category: typeof saved.category === 'string' ? saved.category : '',
+      priority: typeof saved.priority === 'string' ? saved.priority : '', assigned: typeof saved.assigned === 'string' ? saved.assigned : '',
+      sort: saved.sort === 'oldest' ? 'oldest' : 'recent', limit: nextLimit,
+    });
+    setCursorStack([]);
+  };
 
   const nextPage = () => {
     if (!nextCursor) return;
@@ -480,6 +501,7 @@ export function TicketQueue({ selectedId = '', channel = 'tickets' }: TicketInbo
         }
       >
         <div className="grid gap-4">
+          <ListPreferences scope="tickets" query={{ search: debouncedSearch, status: filters.status, category: filters.category, priority: filters.priority, assigned: filters.assigned, sort: filters.sort, limit: filters.limit }} onApply={applyView} columns={columnChoices} visibleColumns={columnPicker.visible} onToggleColumn={columnPicker.toggle} onResetColumns={columnPicker.reset} />
           {/* The search and the tabs of the states. */}
           <div className="grid gap-3">
             <div className="grid gap-1.5">
@@ -604,7 +626,7 @@ export function TicketQueue({ selectedId = '', channel = 'tickets' }: TicketInbo
             <TicketInboxEmpty filtered={filtersAreActive} onClear={clearFilters} />
           ) : (
             <div className="grid gap-3">
-              <TicketInboxTable tickets={tickets} selectedId={selectedId} showEmails={showEmails} />
+              <TicketInboxTable tickets={tickets} selectedId={selectedId} showEmails={showEmails} visibleColumns={columnPicker.visible} />
               <TicketInboxList tickets={tickets} selectedId={selectedId} showEmails={showEmails} />
             </div>
           )}

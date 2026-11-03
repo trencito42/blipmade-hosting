@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../ui-app';
 import { denseInput } from './Overview';
 import { ConfirmWithReason, DASH, LiveRegion, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
+import { ListPreferences, useColumnPicker, type SavedQuery } from './ListPreferences';
 
 /**
  * Staff order list — GET /api/admin/orders?status=
@@ -79,6 +80,11 @@ export default function Orders() {
   useEffect(() => { setPageCursors([]); }, [status, query]);
   const [showEmails, setShowEmails] = useState(false);
   const [partBusy, setPartBusy] = useState(false);
+  const columnChoices = [
+    { key: 'number', label: 'Number', required: true }, { key: 'customer', label: 'Customer' }, { key: 'items', label: 'Items' },
+    { key: 'total', label: 'Total' }, { key: 'status', label: 'Status' }, { key: 'created', label: 'Date' }, { key: 'action', label: 'Action' },
+  ];
+  const columnPicker = useColumnPicker('orders', columnChoices);
 
   const state = useAsync(
     (signal) => get<{ orders: AdminOrder[]; total?: number; pagination?: { hasMore: boolean; nextCursor: string | null } }>('/admin/orders', {
@@ -99,6 +105,10 @@ export default function Orders() {
     order.items.length
       ? order.items.map((item) => `${item.name} ×${item.quantity}`).join(', ')
       : DASH;
+  const applyView = (saved: SavedQuery) => {
+    const nextSearch = typeof saved.search === 'string' ? saved.search : '';
+    setSearch(nextSearch); setQuery(nextSearch); setStatus(typeof saved.status === 'string' ? saved.status : '');
+  };
 
   if (session.loading) {
     return (
@@ -145,6 +155,7 @@ export default function Orders() {
         }
       >
         <div className="grid gap-3">
+          <ListPreferences scope="orders" query={{ search: query, status }} onApply={applyView} columns={columnChoices} visibleColumns={columnPicker.visible} onToggleColumn={columnPicker.toggle} onResetColumns={columnPicker.reset} />
           <label className="grid gap-1 text-[13.5px] font-medium text-ink">
             Search orders
             <input type="search" inputMode="search" autoComplete="off" value={search}
@@ -173,7 +184,7 @@ export default function Orders() {
               <DataTable<AdminOrder>
                 rows={orders}
                 rowKey={(order) => order.id}
-                columns={[
+                columns={([
                   {
                     key: 'number',
                     header: 'Number',
@@ -245,7 +256,7 @@ export default function Orders() {
                         },
                       ] satisfies TableColumn<AdminOrder>[])
                     : []),
-                ]}
+                ] satisfies TableColumn<AdminOrder>[]).filter((column) => columnPicker.visible.includes(column.key))}
               />
               <CardList<AdminOrder> rows={orders} rowKey={(order) => order.id}>
                 {(order) => (
