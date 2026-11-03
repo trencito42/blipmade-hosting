@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { createBackup, deleteBackup, downloadBackup, listBackups, restoreBackup, setBackupSchedule, type BackupPreset } from '../../lib/instance-api';
+import { deleteBackup, downloadBackup, listBackups, restoreBackup, setBackupSchedule, type BackupPreset } from '../../lib/instance-api';
 import {
   CardList,
+  ButtonLink,
   ConfirmDialog,
   DataTable,
   DangerButton,
@@ -10,10 +11,8 @@ import {
   ListRow,
   LoadingBlock,
   Panel,
-  PrimaryButton,
   SoftButton,
   StatusPill,
-  TextInput,
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, fmtBytes, fmtDateTime, type TabProps } from './common';
@@ -30,9 +29,6 @@ import type { TableColumn } from '../../lib/table';
 export default function BackupsTab({ instance }: TabProps) {
   const { push } = useToast();
   const backups = useAsync((signal) => listBackups(instance.id, signal), [instance.id]);
-  const [name, setName] = useState('');
-  const [locked, setLocked] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [pendingRestore, setPendingRestore] = useState<{ id: string; name: string } | null>(null);
 
@@ -54,20 +50,6 @@ export default function BackupsTab({ instance }: TabProps) {
     }
   };
 
-  const create = async () => {
-    setBusy(true);
-    try {
-      await createBackup(instance.id, { name: name.trim(), locked });
-      push('The backup was asked for. The panel writes it in the background.', 'ok');
-      setName('');
-      setLocked(false);
-      backups.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The backup could not be created.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const download = async (id: string, label: string) => {
     try {
@@ -178,30 +160,9 @@ export default function BackupsTab({ instance }: TabProps) {
         title="Backups"
         description={`Archives of the files of the container, written by the panel on the node of the instance.${limit ? ` ${rows.length} of ${limit} kept.` : ''}`}
         action={
-          <PrimaryButton onClick={create} disabled={busy || name.trim().length === 0}>
-            {busy ? 'Asking…' : 'New backup'}
-          </PrimaryButton>
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/new`}>New backup</ButtonLink>
         }
       >
-        <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <TextInput
-            label="Name of the backup"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Nightly"
-            autoComplete="off"
-          />
-          <label className="flex h-14 items-center gap-2 rounded-full bg-s2 px-5 text-[14px] text-ink">
-            <input
-              type="checkbox"
-              checked={locked}
-              onChange={(event) => setLocked(event.target.checked)}
-              className="h-4 w-4 accent-[var(--color-acc)]"
-            />
-            Lock it
-          </label>
-        </div>
-
         {backups.loading ? (
           <LoadingBlock rows={2} label="Loading the backups" />
         ) : backups.error ? (
