@@ -3,6 +3,7 @@ import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useParams, useRouter } from '../router';
 import { ErrorState, LoadingBlock, PrimaryButton, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
+import { maskEmail } from './Overview';
 import { PageEditorShell, useUnsavedChangesGuard } from '../app/components/premium';
 import { can, useAdminSession } from './Overview';
 
@@ -82,6 +83,48 @@ export function CustomerNoteNew() {
         {!mayWrite && <p className="text-[13px] text-ink3">Your role may not write notes.</p>}
         {send.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{send.error}</p>}
       </div>
+    </PageEditorShell>
+  );
+}
+
+/** Suspend or reinstate an account. A reason is required and goes to the audit log; suspending ends every session now. */
+export function CustomerAccountAction() {
+  const { id = '' } = useParams();
+  const { navigate } = useRouter();
+  const toast = useToast();
+  const mayWrite = can(useAdminSession().staff, 'customers.write');
+  const state = useAsync<{ customer: { id: string; email: string; suspendedAt: string | null; instances: unknown[] } }>((signal) => get(`/admin/customers/${encodeURIComponent(id)}`, undefined, signal), [id]);
+  const customer = state.data?.customer;
+  const suspended = Boolean(customer?.suspendedAt);
+  const [reason, setReason] = useState('');
+  const [done, setDone] = useState(false);
+  const dirty = !done && reason !== '';
+  useUnsavedChangesGuard(dirty, 'Discard this change?');
+  const send = useAction(async () => post(`/admin/customers/${encodeURIComponent(id)}/suspend`, { suspended: !suspended, reason: reason.trim() }));
+  const submit = async () => {
+    if (!(await send.run())) return;
+    setDone(true);
+    toast.push(suspended ? 'Customer reinstated' : 'Customer suspended', 'ok');
+    navigate(backOf(id), { replace: true });
+  };
+  const discard = () => {
+    if (!dirty || window.confirm('Discard this change?')) navigate(backOf(id));
+  };
+  const masked = customer ? maskEmail(customer.email) : '';
+  return (
+    <PageEditorShell eyebrow="Customers" title={suspended ? 'Reinstate the customer' : 'Suspend the customer'}
+      description={customer ? (suspended ? `Reinstating lets ${masked} sign in again. The change is recorded in the audit log.` : `Suspending ${masked} ends every session of this account now and blocks new sign-ins. Their ${customer.instances.length} instance${customer.instances.length === 1 ? '' : 's'} keep running. The change is recorded in the audit log.`) : 'Every change is recorded in the audit log with your reason.'}
+      backTo={backOf(id)} backLabel="Back to the customer" dirty={dirty}
+      actions={<><SoftButton type="button" onClick={discard} disabled={send.pending}>Discard</SoftButton><PrimaryButton type="button" onClick={() => void submit()} disabled={!mayWrite || reason.trim().length < 1 || send.pending}>{send.pending ? 'Working…' : suspended ? 'Reinstate customer' : 'Suspend customer'}</PrimaryButton></>}>
+      {state.loading && !state.data ? <LoadingBlock rows={2} label="Loading the customer" />
+        : state.error || !customer ? <ErrorState title="The customer could not be loaded" message={state.error?.message ?? 'Not found.'} onRetry={state.reload} />
+        : (
+          <div className="grid gap-3">
+            <TextArea label="Reason (required)" value={reason} onChange={(event) => setReason(event.target.value)} rows={3} disabled={!mayWrite} hint="Give a reason. It is written to the audit log." />
+            {!mayWrite && <p className="text-[13px] text-ink3">Your role does not allow &quot;customers.write&quot;.</p>}
+            {send.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{send.error}</p>}
+          </div>
+        )}
     </PageEditorShell>
   );
 }

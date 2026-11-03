@@ -111,9 +111,6 @@ function AccountAccess({
   onChanged: () => void;
 }) {
   const toast = useToast();
-  const [reason, setReason] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [reasonError, setReasonError] = useState<string | null>(null);
   const { refresh } = useSession();
   const { navigate } = useRouter();
   const [acting, setActing] = useState(false);
@@ -131,33 +128,6 @@ function AccountAccess({
     }
   };
 
-  const suspend = useAction(async (next: boolean) => {
-    return post<{ customer: { id: string; suspended: boolean } }>(`/admin/customers/${customerId}/suspend`, {
-      suspended: next,
-      reason: reason.trim(),
-    });
-  });
-
-  const openDialog = () => {
-    setReason('');
-    setReasonError(null);
-    setDialogOpen(true);
-  };
-
-  const confirm = async () => {
-    if (!reason.trim()) {
-      setReasonError('Give a reason. It is written to the audit log.');
-      return;
-    }
-    const next = !suspended;
-    const result = await suspend.run(next);
-    if (!result) return;
-    setDialogOpen(false);
-    setReason('');
-    onChanged();
-    toast.push(next ? 'Customer suspended' : 'Customer reinstated', 'ok');
-  };
-
   return (
     <>
       <Panel
@@ -171,20 +141,11 @@ function AccountAccess({
         <div className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {mayWrite ? (
-              <button
-                type="button"
-                onClick={openDialog}
-                className={suspended ? denseGhost : denseDanger}
-              >
+              <Link to={`/admin/customers/${encodeURIComponent(customerId)}/account-action`} className={suspended ? denseGhost : denseDanger}>
                 {suspended ? 'Reinstate customer' : 'Suspend customer'}
-              </button>
+              </Link>
             ) : (
-              <button
-                type="button"
-                disabled
-                title={'Your role does not allow "customers.write".'}
-                className={denseDanger}
-              >
+              <button type="button" disabled title={'Your role does not allow "customers.write".'} className={denseDanger}>
                 {suspended ? 'Reinstate customer' : 'Suspend customer'}
               </button>
             )}
@@ -197,37 +158,9 @@ function AccountAccess({
               <p className="text-[13px] text-ink3">Your role does not allow &quot;customers.write&quot;.</p>
             )}
           </div>
-          {suspend.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-              {suspend.error}
-            </p>
-          )}
         </div>
       </Panel>
 
-      <ConfirmWithReason
-        open={dialogOpen}
-        title={suspended ? 'Reinstate this customer' : 'Suspend this customer'}
-        description={
-          suspended
-            ? `Reinstating lets ${masked} sign in again. The change is recorded in the audit log.`
-            : `Suspending ${masked} ends every session of this account now and blocks new sign-ins. Their ${instanceCount} instance${
-                instanceCount === 1 ? '' : 's'
-              } keep running. The change is recorded in the audit log.`
-        }
-        confirmLabel={suspended ? 'Reinstate customer' : 'Suspend customer'}
-        reasonLabel="Reason (required)"
-        reason={reason}
-        onReasonChange={(value) => {
-          setReason(value);
-          if (reasonError) setReasonError(null);
-        }}
-        onConfirm={confirm}
-        onCancel={() => setDialogOpen(false)}
-        busy={suspend.pending}
-        error={reasonError}
-        destructive={!suspended}
-      />
     </>
   );
 }

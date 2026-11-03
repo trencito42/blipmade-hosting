@@ -36,4 +36,24 @@ test.describe('customer credit and note on their own pages', () => {
     await page.getByRole('button', { name: 'Add the note' }).click();
     await expect.poll(() => sent).toEqual({ body: 'Called about the invoice' });
   });
+
+  test('suspend needs a reason and posts it; reinstate says so', async ({ page }) => {
+    let sent: unknown;
+    const customer = (suspendedAt: string | null) => ({ customer: { id: 'u1', email: 'cora@example.test', suspendedAt, instances: [{}, {}] } });
+    await stubAdmin(page, (path, method, body) => {
+      if (path === '/admin/customers/u1/suspend' && method === 'POST') { sent = body; return {}; }
+      if (path === '/admin/customers/u1') return customer(null);
+      if (path === '/admin/customers/u2') return customer('2026-11-01T00:00:00Z');
+      return undefined;
+    });
+    await page.goto('/admin/customers/u1/account-action');
+    await expect(page.getByRole('heading', { level: 1, name: 'Suspend the customer' })).toBeVisible();
+    const go = page.getByRole('button', { name: 'Suspend customer' });
+    await expect(go).toBeDisabled();
+    await page.getByLabel('Reason (required)').fill('Chargeback');
+    await go.click();
+    await expect.poll(() => sent).toEqual({ suspended: true, reason: 'Chargeback' });
+    await page.goto('/admin/customers/u2/account-action');
+    await expect(page.getByRole('heading', { level: 1, name: 'Reinstate the customer' })).toBeVisible();
+  });
 });
