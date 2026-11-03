@@ -56,6 +56,7 @@ const AppChangePassword = lazy(() => import('./app/ChangePassword'));
 const AppChangeEmail = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.ChangeEmail })));
 const AppEditBillingAddress = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.EditBillingAddress })));
 const AppNotificationPreferences = lazy(() => import('./app/NotificationPreferences'));
+const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
 const AppSetupTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.SetupTwoFactor })));
 const AppDisableTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.DisableTwoFactor })));
@@ -276,6 +277,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/knowledge', component: AdminKnowledge, title: 'Knowledge base', area: 'admin', exact: true },
   { pattern: '/admin/tickets/:id', component: AdminTicketDetail, title: 'Ticket', area: 'admin' },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
+  { pattern: '/admin/promotions/new', component: AdminPromotionNew, title: 'New promotion', area: 'admin', layout: 'editor' },
   { pattern: '/admin/promotions/:id', component: AdminPromotionDetail, title: 'Campaign control', area: 'admin' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
   { pattern: '/admin/incidents', component: AdminIncidents, title: 'Incidents', area: 'admin' },
