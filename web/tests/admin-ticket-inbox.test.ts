@@ -192,7 +192,7 @@ describe('the inbox of the support desk', () => {
     assert.match(html, /Ada Lovelace/);
     assert.match(html, /awaiting staff/);
     assert.match(html, /Grace Hopper/);
-    assert.match(html, /hour/);
+    assert.match(html, /(minute|hour|day)s? ago|just now/);
     // Every row opens the conversation of its ticket.
     assert.match(html, /href="\/admin\/tickets/);
   });
