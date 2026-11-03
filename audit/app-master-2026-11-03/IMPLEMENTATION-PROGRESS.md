@@ -281,3 +281,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static schedule-edit contract test: 1/1 pass.
 - Focused Playwright schedule-edit suite: 2/2 pass, including hydration, exact PATCH payload, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated Git deployment settings editor
+
+### Completed
+
+- [x] Moved repository, branch, lifecycle commands, environment variables and auto-deploy settings to `/app/instances/:id/git/edit`.
+- [x] Kept the Git tab focused on read-only configuration summary, deploy history, deploy/rollback/log actions and safe disable flow.
+- [x] Added HTTPS repository validation, required lifecycle fields, environment-key validation, Save/Discard and dirty guard.
+- [x] Preserved one-time webhook-secret reveal after the real PUT response without navigating away prematurely.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static Git-settings contract test: 1/1 pass.
+- Focused Playwright Git-settings suite: 2/2 pass, including invalid URL rejection, exact PUT payload, one-time secret reveal, dirty guard and 390px overflow/action reachability.
