@@ -334,7 +334,7 @@ export default function Overview() {
         )}
       </Panel>
 
-      <Panel title="Recent activity" description="The latest event of each of your most recent apps.">
+      <Panel title="Recent activity" description="The latest event of each of your most recent apps." action={<ButtonLink to="/app/activity" variant="soft">View all</ButtonLink>}>
         {activity.loading ? (
           <LoadingBlock rows={2} label="Loading recent activity" />
         ) : activity.error ? (

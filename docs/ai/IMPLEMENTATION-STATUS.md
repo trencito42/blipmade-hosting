@@ -14,7 +14,7 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 Phone bar: Overview, Services (apps, servers, domains, email via switch on each page), Deploy (round), Support, More (all pages). IMPLEMENTED (`web/src/nav.ts`, `ui-app.tsx` AppShell `servicePages`).
 | Route | Status | Remaining |
 |---|---|---|
-| /app Overview | IMPLEMENTED (basic) | richer cross-product alerts, activity beyond apps |
+| /app Overview + /app/activity (apps+servers merged, paged) | IMPLEMENTED | – |
 | /app/deploy, /:slug | IMPLEMENTED | `?step=` flow exists (Configure/Payment/Deploy); region/plan cards via #20 |
 | /app/instances (+redeem, type and node filters) | IMPLEMENTED | renewal filter, saved views (not needed) |
 | /app/instances/:id workspace (sticky header, power group, primary tabs + More) | IMPLEMENTED | game-aware grouping (issue #19) |

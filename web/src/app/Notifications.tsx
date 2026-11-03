@@ -156,8 +156,11 @@ export default function Notifications() {
     return () => window.clearInterval(timer);
   }, [refreshCount]);
 
+  // A ref, not the state: the button and the observer can call in the same moment, and both would read the old state.
+  const loadingRef = useRef(false);
   const loadMore = async () => {
-    if (!nextCursor || loadingMore) return;
+    if (!nextCursor || loadingRef.current) return;
+    loadingRef.current = true;
     setLoadingMore(true);
     setMoreError(null);
     try {
@@ -167,12 +170,17 @@ export default function Notifications() {
         cursor: nextCursor,
         limit: PAGE_SIZE,
       });
-      setItems((current) => [...current, ...result.notifications]);
+      // A message that is already on the screen is never added twice.
+      setItems((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        return [...current, ...result.notifications.filter((item) => !seen.has(item.id))];
+      });
       setNextCursor(result.nextCursor);
     } catch (err: unknown) {
       // The list that is on the screen stays: only the next page is lost.
       setMoreError(messageOf(err, 'The next page could not be loaded.'));
     } finally {
+      loadingRef.current = false;
       setLoadingMore(false);
     }
   };

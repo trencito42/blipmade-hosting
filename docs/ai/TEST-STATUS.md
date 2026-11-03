@@ -32,5 +32,8 @@ Later targeted runs: instance specs 38/38 (18 files), instance tabs grouping 7/7
 
 Note: `tests/admin-ticket-inbox.test.ts` asserted the literal word "hour" in a relative time computed from the real clock; it failed once the clock moved past the fixture window. Assertion widened to minute/hour/day. Test was time-dependent, not a regression.
 
+## App-complete regression (2026-11-03, /root/e2e-logs/R*.log)
+R0 207/207 pass. R1 40 run, 1 fail = real race in notifications `loadMore` (button + observer both loaded same cursor → duplicates): fixed with ref guard + dedupe by id, 3/3 stable reruns. R2 pending at time of writing.
+
 ## Not run
 Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin UI audit. No test is VERIFIED yet.

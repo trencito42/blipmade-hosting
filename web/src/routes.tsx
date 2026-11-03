@@ -73,6 +73,7 @@ const AppSubscriptionView = lazy(() => import('./app/SubscriptionChange').then((
 const AppRedeemAccess = lazy(() => import('./app/RedeemAccess'));
 const AppDomainDetail = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.DomainDetail })));
 const AdminProductEdit = lazy(() => import('./admin/ProductEdit'));
+const AppActivity = lazy(() => import('./app/Activity'));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -249,6 +250,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/settings/closure', component: AppCloseAccount, title: 'Close the account', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/password', component: AppChangePassword, title: 'Change password', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
+  { pattern: '/app/activity', component: AppActivity, title: 'Activity', area: 'customer' },
   { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },
 
   { pattern: '/admin', component: AdminOverview, title: 'Dashboard', area: 'admin', exact: true },
