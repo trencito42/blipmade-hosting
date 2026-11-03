@@ -27,6 +27,7 @@ import { redis } from '../redis.js';
 import * as pteroClient from '../services/pterodactyl/client.js';
 import { resolveCustomerCredential } from '../services/panel/credentials.js';
 import { AppError } from '../lib/errors.js';
+import { failPanelServerMissing, isPanelServerMissing } from '../services/panel-missing.js';
 
 /**
  * What the staff does on behalf of a customer.
@@ -335,7 +336,12 @@ export async function registerAdminActRoutes(app: FastifyInstance): Promise<void
   app.post('/admin/instances/:id/suspend', { preHandler: [requirePermission('services.write')] }, async (request) => {
     const { actor, instance, serverId } = await instanceOf(request);
     const { suspended, reason } = z.object({ suspended: z.boolean(), reason: z.string().trim().min(3).max(500) }).parse(request.body ?? {});
-    await ptero.applicationRequest('POST', `/api/application/servers/${serverId}/${suspended ? 'suspend' : 'unsuspend'}`, {});
+    try {
+      await ptero.applicationRequest('POST', `/api/application/servers/${serverId}/${suspended ? 'suspend' : 'unsuspend'}`, {});
+    } catch (error) {
+      if (isPanelServerMissing(error)) await failPanelServerMissing(instance.id);
+      throw error;
+    }
     await prisma.instance.update({ where: { id: instance.id }, data: { status: suspended ? 'SUSPENDED' : 'ONLINE', suspendedAt: suspended ? new Date() : null } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: suspended ? 'admin.instance.suspend' : 'admin.instance.unsuspend', targetType: 'instance', targetId: instance.id, meta: { reason }, ip: request.ip });
     return { status: suspended ? 'suspended' : 'online' };

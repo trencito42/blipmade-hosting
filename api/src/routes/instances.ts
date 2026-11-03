@@ -10,6 +10,7 @@ import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import * as client from '../services/pterodactyl/client.js';
+import { failPanelServerMissing, isPanelServerMissing } from '../services/panel-missing.js';
 import { hasCustomerCredential, resolveCustomerCredential } from '../services/panel/credentials.js';
 import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
@@ -237,6 +238,7 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
       await client.sendPower(token, instance.pterodactylUuid, action);
     } catch (error) {
       await redis.del(cooldownKey);
+      if (isPanelServerMissing(error)) await failPanelServerMissing(instance.id);
       throw error;
     }
 

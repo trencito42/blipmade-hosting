@@ -109,6 +109,13 @@ async function undoMailChange(undo: () => Promise<unknown>): Promise<void> {
 }
 
 /** The domain of the customer, or an error that says it is not theirs. */
+/** A domain that the mail system does not hold yet takes no mailbox and no alias. */
+function assertDomainActive(domain: { status: string }): void {
+  if (domain.status !== 'ACTIVE') {
+    throw conflict('This domain is not active yet. Publish the verification record in its DNS and wait for the check, then try again.');
+  }
+}
+
 async function domainOf(userId: string, domainId: string) {
   const domain = await prisma.mailDomain.findFirst({ where: { id: domainId, userId } });
   if (!domain) throw notFound('That domain of mail was not found.');
@@ -434,6 +441,7 @@ export async function createMailbox(
   password?: string,
 ): Promise<MailboxView> {
   const domain = await domainOf(user.id, domainId);
+  assertDomainActive(domain);
   const localPart = assertValidLocalPart(rawLocalPart);
 
   const count = await prisma.mailbox.count({ where: { domainId: domain.id } });
@@ -611,6 +619,7 @@ export async function createAlias(
   rawTarget: string,
 ): Promise<MailAliasView> {
   const domain = await domainOf(user.id, domainId);
+  assertDomainActive(domain);
 
   const localPart = assertValidLocalPart(rawAlias.includes('@') ? rawAlias.split('@')[0] : rawAlias);
   const alias = `${localPart}@${domain.name}`;

@@ -437,3 +437,24 @@ describe('the journal of the work of the mail', () => {
     expect(await prisma.mailbox.count()).toBe(0);
   });
 });
+
+describe('a domain that the mail system does not hold yet', () => {
+  it('takes no mailbox and no alias until it is active', async () => {
+    const { client, userId } = await registerAndLogin(app, 'owner@example.com');
+    const created = await client.request('POST', '/api/mail/domains', { name: 'acme.ro' });
+    const domainId = created.body.domain.id as string;
+    await prisma.mailDomain.update({ where: { id: domainId }, data: { status: 'PENDING' } });
+    mailcowMock.calls.length = 0;
+
+    const mailbox = await client.request('POST', `/api/mail/domains/${domainId}/mailboxes`, { localPart: 'contact' });
+    expect(mailbox.status).toBe(409);
+    const alias = await client.request('POST', `/api/mail/domains/${domainId}/aliases`, { alias: 'info', target: 'contact@acme.ro' });
+    expect(alias.status).toBe(409);
+    expect(mailcowMock.calls).toHaveLength(0);
+    expect(await prisma.mailbox.count({ where: { domain: { userId } } })).toBe(0);
+
+    await prisma.mailDomain.update({ where: { id: domainId }, data: { status: 'ACTIVE' } });
+    const after = await client.request('POST', `/api/mail/domains/${domainId}/mailboxes`, { localPart: 'contact' });
+    expect(after.status).toBe(201);
+  });
+});
