@@ -92,6 +92,7 @@ const AdminAddonEdit = lazy(() => import('./admin/CommerceEditors').then((m) => 
 const AdminYearlyDiscount = lazy(() => import('./admin/CommerceEditors').then((m) => ({ default: m.YearlyDiscountEdit })));
 const AdminServiceImport = lazy(() => import('./admin/ServiceImport'));
 const AdminOrderPartialRefund = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderPartialRefund })));
+const AdminCustomerBulk = lazy(() => import('./admin/CustomerBulkEdit'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -297,6 +298,7 @@ export const ROUTES: RouteDef[] = [
 
   { pattern: '/admin', component: AdminOverview, title: 'Dashboard', area: 'admin', exact: true },
   { pattern: '/admin/customers', component: AdminCustomers, title: 'Customers', area: 'admin' },
+  { pattern: '/admin/customers/bulk-edit', component: AdminCustomerBulk, title: 'Edit tags', area: 'admin', layout: 'editor' },
   { pattern: '/admin/customers/:id/credit/adjust', component: AdminCustomerCredit, title: 'Give credit', area: 'admin', layout: 'editor' },
   { pattern: '/admin/customers/:id/notes/new', component: AdminCustomerNoteNew, title: 'New note', area: 'admin', layout: 'editor' },
   { pattern: '/admin/customers/:id/account-action', component: AdminCustomerAccountAction, title: 'Account action', area: 'admin', layout: 'editor' },

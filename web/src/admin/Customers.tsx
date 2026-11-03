@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
-import { Link } from '../router';
+import { Link, useRouter } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
 import type { TableColumn } from '../lib/table';
@@ -31,6 +31,7 @@ interface AdminCustomer {
 }
 
 export default function Customers() {
+  const { navigate } = useRouter();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [pageCursors, setPageCursors] = useState<string[]>([]);
@@ -39,8 +40,6 @@ export default function Customers() {
   const [role, setRole] = useState<'all' | 'customer' | 'staff'>('all');
   const [tag, setTag] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
-  const [bulkTag, setBulkTag] = useState('');
-  const [bulkBusy, setBulkBusy] = useState(false);
   const tagsState = useAsync((signal) => get<{ tags: { tag: string; count: number }[] }>('/admin/tags', undefined, signal), []);
 
   useEffect(() => {
@@ -70,20 +69,6 @@ export default function Customers() {
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
   const toggle = (id: string) => setSelected((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
-  const bulk = async (kind: 'add' | 'remove') => {
-    if (!bulkTag.trim() || selected.length === 0) return;
-    setBulkBusy(true);
-    try {
-      await post('/admin/customers/bulk-tags', { ids: selected, [kind]: [bulkTag.trim()] });
-      setBulkTag('');
-      setSelected([]);
-      state.reload();
-      tagsState.reload();
-    } finally {
-      setBulkBusy(false);
-    }
-  };
-
   const columns: TableColumn<AdminCustomer>[] = [
     {
       key: 'select',
@@ -221,9 +206,7 @@ export default function Customers() {
           {selected.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-s2 px-4 py-3" role="region" aria-label="Actions on the selected accounts">
               <span className="text-[13.5px] font-medium text-ink">{selected.length} selected</span>
-              <input aria-label="Tag" value={bulkTag} onChange={(event) => setBulkTag(event.target.value)} placeholder="tag" className={`${denseInput} w-32`} />
-              <button type="button" className={denseGhost} disabled={bulkBusy || !bulkTag.trim()} onClick={() => void bulk('add')}>Add the tag</button>
-              <button type="button" className={denseGhost} disabled={bulkBusy || !bulkTag.trim()} onClick={() => void bulk('remove')}>Remove the tag</button>
+              <button type="button" className={denseGhost} onClick={() => { try { sessionStorage.setItem('bm.bulkCustomers', JSON.stringify(selected)); } catch { /* the page then asks to pick again */ } navigate('/admin/customers/bulk-edit'); }}>Edit tags</button>
               <button type="button" className={denseGhost} onClick={() => setSelected([])}>Clear</button>
             </div>
           )}
