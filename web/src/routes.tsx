@@ -74,6 +74,7 @@ const AppRedeemAccess = lazy(() => import('./app/RedeemAccess'));
 const AppDomainDetail = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.DomainDetail })));
 const AdminProductEdit = lazy(() => import('./admin/ProductEdit'));
 const AppActivity = lazy(() => import('./app/Activity'));
+const AppEditAccessRole = lazy(() => import('./app/instance/EditAccessRole'));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -193,6 +194,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/git/connect', component: AppEditGitSettings, title: 'Connect Git repository', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/git/settings', component: AppEditGitSettings, title: 'Git deployment settings', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/git/edit', component: AppEditGitSettings, title: 'Git deployment settings', area: 'customer', layout: 'editor' },
+  { pattern: '/app/instances/:id/access/:shareId/edit', component: AppEditAccessRole, title: 'Change role', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/access/invite', component: AppNewAccessInvite, title: 'Invite access', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/access/new', component: AppNewAccessInvite, title: 'Invite access', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/reinstall', component: AppReinstallInstance, title: 'Reinstall instance', area: 'customer', layout: 'editor' },

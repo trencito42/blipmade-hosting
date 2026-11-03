@@ -1,6 +1,7 @@
 import { del, get } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
 import { ButtonLink, ErrorState, LoadingBlock, Panel, SoftButton, useToast } from '../../ui-app';
+import { ButtonGroup } from '../components/premium';
 import type { TabProps } from './common';
 
 interface Access {
@@ -43,7 +44,10 @@ export default function AccessTab({ instance }: TabProps) {
                   <p className="text-[14.5px] font-semibold text-ink">{member.email ?? member.name} <span className="ml-1 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase text-ink2">{roleLabel(member.role)}</span></p>
                   <p className="text-[12.5px] text-ink3">Since {day(member.since)}</p>
                 </div>
-                <SoftButton onClick={() => void remove.run(member.id)} disabled={remove.pending}>Remove</SoftButton>
+                <ButtonGroup label={`Actions for ${member.email ?? member.name ?? 'member'}`}>
+                  <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/access/${encodeURIComponent(member.id)}/edit`} variant="soft" title="Change what this account may do">Role</ButtonLink>
+                  <SoftButton onClick={() => void remove.run(member.id)} disabled={remove.pending} title="Take the access back">Remove</SoftButton>
+                </ButtonGroup>
               </li>
             ))}
             {(state.data?.invites ?? []).map((invite) => (
@@ -52,7 +56,10 @@ export default function AccessTab({ instance }: TabProps) {
                   <p className="text-[14.5px] font-semibold text-ink">Waiting for a code to be used <span className="ml-1 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase text-ink2">{roleLabel(invite.role)}</span></p>
                   <p className="text-[12.5px] text-ink3">Expires {day(invite.expiresAt)}</p>
                 </div>
-                <SoftButton onClick={() => void remove.run(invite.id)} disabled={remove.pending}>Cancel</SoftButton>
+                <ButtonGroup label="Actions for this invitation">
+                  <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/access/${encodeURIComponent(invite.id)}/edit`} variant="soft" title="Change the role of this invitation">Role</ButtonLink>
+                  <SoftButton onClick={() => void remove.run(invite.id)} disabled={remove.pending} title="Cancel this invitation">Cancel</SoftButton>
+                </ButtonGroup>
               </li>
             ))}
             {(state.data?.members.length ?? 0) + (state.data?.invites.length ?? 0) === 0 && <li className="text-[14px] text-ink2">Nobody else has access yet.</li>}

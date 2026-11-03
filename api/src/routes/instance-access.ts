@@ -89,6 +89,18 @@ export async function registerInstanceAccessRoutes(app: FastifyInstance): Promis
     return { ok: true };
   });
 
+  // The owner changes what a member or an open invite may do. The code of an invite is not touched.
+  app.patch('/instances/:id/access/:shareId', write, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id, shareId } = z.object({ id: z.string(), shareId: z.string() }).parse(request.params);
+    const body = z.object({ role: z.enum(['viewer', 'manager']) }).parse(request.body ?? {});
+    await ownerInstance(user.id, id);
+    const result = await prisma.instanceShare.updateMany({ where: { id: shareId, instanceId: id, revokedAt: null }, data: { role: body.role } });
+    if (result.count === 0) throw notFound('Access not found.');
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.access_role_changed', targetType: 'instance', targetId: id, meta: { shareId, role: body.role }, ip: request.ip });
+    return { id: shareId, role: body.role };
+  });
+
   // A member leaves a service on their own.
   app.post('/instances/:id/access/leave', write, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
