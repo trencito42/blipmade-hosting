@@ -142,8 +142,9 @@ export class ErrorBoundary extends Component<BoundaryProps, BoundaryState> {
     // not a crash of the page: it is loaded again once, to pick up the new files. The guard keeps
     // a real outage from becoming a loop of reloads.
     // A page that was loaded lazily from a build that is gone can also fail as "reading 'default'" of an empty module.
+    // The names of the components are minified in production, so the stack cannot be asked for "Lazy".
     const stale = /dynamically imported module|Importing a module script failed|error loading dynamically imported module|ChunkLoadError/i.test(String(error?.message ?? error))
-      || (/reading 'default'/.test(String(error?.message ?? error)) && /Lazy/.test(String(info.componentStack ?? '')));
+      || /reading 'default'/.test(String(error?.message ?? error));
     if (stale) {
       try {
         const last = Number(sessionStorage.getItem('bm-reloaded-at') ?? 0);

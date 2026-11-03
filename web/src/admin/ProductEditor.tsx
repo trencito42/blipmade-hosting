@@ -178,7 +178,7 @@ export default function ProductEditor({ id, mayWrite, onClose, onSaved }: { id: 
           {input('slug', 'Slug', { hint: sold ? 'Fixed: the product was sold.' : 'Changes the address of its pages.', disabled: sold > 0 })}
           <Field label="Category" htmlFor="pe-category">
             <select id="pe-category" value={form.category} disabled={readOnly || sold > 0 || !server} onChange={(event) => set('category', event.target.value)} className={denseSelect}>
-              {[...new Set([form.category, ...CATEGORIES])].map((value) => <option key={value} value={value}>{value.replace(/_/g, ' ')}</option>)}
+              {[...new Set([form.category, ...CATEGORIES])].filter((value): value is string => Boolean(value)).map((value) => <option key={value} value={value}>{value.replace(/_/g, ' ')}</option>)}
             </select>
           </Field>
           {input('icon', 'Icon', { hint: 'The name of an icon, such as box or bot.' })}
