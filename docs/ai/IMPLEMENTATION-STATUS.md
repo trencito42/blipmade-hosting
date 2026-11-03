@@ -16,7 +16,7 @@ All 56 old-branch commits now have an explicit decision in `docs/ai/LAUNCH-HARDE
 
 ## Approved Admin follow-up (Task A)
 
-IN_PROGRESS. Staff role/permission step-up backend checkpoint added: session-scoped ten-minute confirmation by password or TOTP, server enforcement, audit events, migration and API coverage. API typecheck passes; database tests and `StaffEdit` confirmation UI remain, so this is not marked IMPLEMENTED. Task C now takes priority before completing Task A.
+IN_PROGRESS. Staff role/permission step-up is complete in code: session-scoped ten-minute confirmation by password or TOTP, server enforcement, audit events, migration, API coverage, and a responsive accessible Review → confirm → Save flow in `StaffEdit`. Web typecheck/unit/build and targeted E2E pass. Database API tests remain unavailable, so the feature is not marked IMPLEMENTED/VERIFIED yet.
 
 ## App shell and design system
 | Feature | Status | Paths |

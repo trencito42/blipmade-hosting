@@ -6,8 +6,10 @@ const STAFF = { staff: [{ userId: 's1', email: 'sam@example.test', name: 'Sam', 
 test.describe('staff rights on their own page', () => {
   test('the list links, the page saves after review', async ({ page }) => {
     let payload: Record<string, unknown> | undefined;
+    let confirmation: Record<string, unknown> | undefined;
     await stubAdmin(page, (path, method, body) => {
       if (path === '/admin/staff' && method === 'GET') return STAFF;
+      if (path === '/admin/staff/step-up' && method === 'POST') { confirmation = body as Record<string, unknown>; return { stepUpUntil: new Date(Date.now() + 600_000).toISOString() }; }
       if (path === '/admin/staff/s1' && method === 'PUT') { payload = body as Record<string, unknown>; return { staff: { userId: 's1', permissions: [] } }; }
       return undefined;
     });
@@ -20,8 +22,12 @@ test.describe('staff rights on their own page', () => {
     await page.getByRole('checkbox', { name: 'tickets.write' }).check();
     await page.getByRole('button', { name: 'Review changes' }).click();
     await expect(page.getByRole('dialog')).toContainText('gains tickets.write');
-    await page.getByRole('dialog').getByRole('button', { name: 'Save permissions' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm and save' }).click();
+    await expect(page.getByText('Enter your current password.')).toBeVisible();
+    await page.getByLabel('Current password').fill('CorrectHorseBattery9');
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm and save' }).click();
     await expect(page).toHaveURL(/\/admin\/staff$/);
+    expect(confirmation).toEqual({ password: 'CorrectHorseBattery9' });
     expect(payload).toEqual({ permissions: ['tickets.read', 'tickets.write'] });
   });
   test('fits at 390px', async ({ page }) => {

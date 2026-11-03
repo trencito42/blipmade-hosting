@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { get, put } from '../lib/api';
+import { get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useParams, useRouter } from '../router';
-import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, PrimaryButton, SoftButton, useToast } from '../ui-app';
+import { ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, PrimaryButton, Segmented, SoftButton, TextInput, useToast } from '../ui-app';
 import { PageEditorShell, useUnsavedChangesGuard } from '../app/components/premium';
 import { denseSelect, maskEmail, useAdminSession } from './Overview';
 
@@ -24,6 +24,9 @@ export default function StaffEdit() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [role, setRole] = useState('STAFF');
   const [confirming, setConfirming] = useState(false);
+  const [stepMethod, setStepMethod] = useState<'password' | 'code'>('password');
+  const [credential, setCredential] = useState('');
+  const [credentialError, setCredentialError] = useState('');
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     if (!member) return;
@@ -42,16 +45,32 @@ export default function StaffEdit() {
     roleChanged ? (role === 'ADMIN' ? `${name} becomes an administrator and holds every permission.` : `${name} is no longer an administrator.`) : '',
   ].filter(Boolean);
   const save = useAction(async () => put(`/admin/staff/${encodeURIComponent(id)}`, { permissions, ...(roleChanged ? { role } : {}) }));
+  const stepUp = useAction(async () => post<{ stepUpUntil: string }>('/admin/staff/step-up', { [stepMethod]: credential }));
   const submit = async () => {
+    if (!credential.trim()) {
+      setCredentialError(stepMethod === 'password' ? 'Enter your current password.' : 'Enter your authenticator code.');
+      return;
+    }
+    const confirmed = await stepUp.run();
+    if (!confirmed) return;
+    setCredential('');
     const result = await save.run();
-    setConfirming(false);
     if (!result) return;
+    setConfirming(false);
+    setCredential('');
     setSaved(true);
     toast.push(`${name} updated`, 'ok');
     navigate(BACK_TO, { replace: true });
   };
   const discard = () => {
     if (!dirty || window.confirm('Discard the changes to these rights?')) navigate(BACK_TO);
+  };
+  const closeConfirmation = () => {
+    if (stepUp.pending || save.pending) return;
+    setConfirming(false);
+    setCredential('');
+    setCredentialError('');
+    stepUp.clearError();
   };
   return (
     <PageEditorShell
@@ -96,7 +115,44 @@ export default function StaffEdit() {
               ))}
             </div>
             {save.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{save.error}</p>}
-            <ConfirmDialog open={confirming} title={`Save the rights of ${name}`} description={lines.join(' ') || 'Nothing changes.'} confirmLabel="Save permissions" onConfirm={submit} onCancel={() => setConfirming(false)} busy={save.pending} />
+            <ConfirmDialog
+              open={confirming}
+              title={`Save the rights of ${name}`}
+              description={lines.join(' ') || 'Nothing changes.'}
+              confirmLabel="Confirm and save"
+              onConfirm={submit}
+              onCancel={closeConfirmation}
+              busy={stepUp.pending || save.pending}
+            >
+              <div className="mt-5 grid gap-4 border-t border-line pt-5">
+                <Segmented
+                  role="group"
+                  ariaLabel="Confirmation method"
+                  options={[{ value: 'password', label: 'Password' }, { value: 'code', label: 'Authenticator code' }]}
+                  value={stepMethod}
+                  onChange={(value) => {
+                    setStepMethod(value);
+                    setCredential('');
+                    setCredentialError('');
+                    stepUp.clearError();
+                  }}
+                />
+                <TextInput
+                  label={stepMethod === 'password' ? 'Current password' : 'Authenticator code'}
+                  type={stepMethod === 'password' ? 'password' : 'text'}
+                  inputMode={stepMethod === 'code' ? 'numeric' : undefined}
+                  autoComplete={stepMethod === 'password' ? 'current-password' : 'one-time-code'}
+                  value={credential}
+                  onChange={(event) => {
+                    setCredential(event.target.value);
+                    setCredentialError('');
+                    stepUp.clearError();
+                  }}
+                  error={credentialError || stepUp.fieldErrors[stepMethod] || undefined}
+                />
+                {stepUp.error && <p role="alert" className="rounded-xl bg-bad/10 px-3 py-2.5 text-[13px] font-medium text-bad">{stepUp.error}</p>}
+              </div>
+            </ConfirmDialog>
           </div>
         )}
     </PageEditorShell>
