@@ -1,8 +1,6 @@
-import { useState } from 'react';
-import { api, get, post, put } from '../lib/api';
+import { get } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
-import { EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, useToast } from '../ui-app';
-import { denseGhost, denseInput, densePrimary } from './Overview';
+import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Money, Panel } from '../ui-app';
 
 /**
  * The add-ons of the catalogue and the history of the prices.
@@ -15,61 +13,23 @@ interface Option { id: string; code: string; name: string; description: string |
 interface Entry { id: string; action: string; actorEmail: string | null; targetType: string | null; meta: any; createdAt: string }
 
 export function AddonsPanel({ mayWrite }: { mayWrite: boolean }) {
-  const toast = useToast();
   const state = useAsync<{ options: Option[]; note: string }>((signal) => get('/admin/options', undefined, signal), []);
-  const [draft, setDraft] = useState({ code: '', name: '', amount: '' });
-  const [edits, setEdits] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-
-  const run = async (work: () => Promise<unknown>, message: string) => {
-    setBusy(true);
-    try {
-      await work();
-      toast.push(message, 'ok');
-      state.reload();
-    } catch (failure) {
-      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <Panel title="Add-ons" description={state.data?.note ?? 'Extras a customer picks at the order, such as a dedicated IPv4 address.'}>
-      <div className="grid gap-3">
-        {state.loading ? <LoadingBlock rows={2} label="Loading the add-ons" /> : state.error ? <ErrorState title="The add-ons could not be loaded" message={state.error.message} onRetry={state.reload} /> : !state.data?.options.length ? <EmptyState title="No add-ons yet." description="Create the first one below." /> : (
-          <ul className="grid gap-2">
-            {state.data.options.map((option) => {
-              const typed = edits[option.id];
-              const changed = typed !== undefined && Number(typed) !== option.amount;
-              return (
-                <li key={option.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-s2 p-3 text-[13px]">
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-ink">{option.name} {!option.active && <span className="font-normal text-ink3">(retired)</span>}</span>
-                    <span className="block font-mono text-[12px] text-ink3">{option.code}{option.product ? ` · ${option.product.slug}` : ' · all products'}{option.recurring ? ' · every month' : ' · once'}</span>
-                  </span>
-                  <Money amount={option.amount} currency={option.currency} />
-                  {mayWrite && (
-                    <>
-                      <input aria-label={`New amount of ${option.name} in cents`} type="number" min={0} value={typed ?? ''} placeholder="cents" onChange={(event) => setEdits((current) => ({ ...current, [option.id]: event.target.value }))} className={`${denseInput} w-24`} />
-                      <button type="button" className={denseGhost} disabled={busy || !changed} onClick={() => void run(() => api(`/admin/options/${option.id}`, { method: 'PATCH', body: { amount: Number(typed) } }), 'The amount was changed for new orders.')}>Change amount</button>
-                      <button type="button" className={denseGhost} disabled={busy} onClick={() => void run(() => api(`/admin/options/${option.id}`, { method: 'PATCH', body: { active: !option.active } }), option.active ? 'The add-on is retired.' : 'The add-on is on sale.')}>{option.active ? 'Retire' : 'Put on sale'}</button>
-                    </>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {mayWrite && (
-          <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => { event.preventDefault(); void run(async () => { await post('/admin/options', { code: draft.code, name: draft.name, amount: Number(draft.amount) }); setDraft({ code: '', name: '', amount: '' }); }, 'The add-on was created.'); }}>
-            <Field label="Code" htmlFor="addon-code" hint="Lowercase, dashes. It never changes."><input id="addon-code" className={denseInput} value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} required /></Field>
-            <Field label="Name" htmlFor="addon-name"><input id="addon-name" className={denseInput} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required /></Field>
-            <Field label="Amount (cents)" htmlFor="addon-amount"><input id="addon-amount" className={`${denseInput} w-28`} type="number" min={0} value={draft.amount} onChange={(event) => setDraft({ ...draft, amount: event.target.value })} required /></Field>
-            <button type="submit" className={densePrimary} disabled={busy}>Create the add-on</button>
-          </form>
-        )}
-      </div>
+    <Panel title="Add-ons" description={state.data?.note ?? 'Extras a customer picks at the order, such as a dedicated IPv4 address.'} action={mayWrite ? <ButtonLink to="/admin/pricing/addons/new" variant="soft">New add-on</ButtonLink> : undefined}>
+      {state.loading ? <LoadingBlock rows={2} label="Loading the add-ons" /> : state.error ? <ErrorState title="The add-ons could not be loaded" message={state.error.message} onRetry={state.reload} /> : !state.data || state.data.options.length === 0 ? <EmptyState title="No add-on yet." description="Create one to offer an extra at the order." /> : (
+        <ul className="divide-y divide-line">
+          {state.data.options.map((option) => (
+            <li key={option.id} className="flex flex-wrap items-center gap-3 py-3 text-[13px]">
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-ink">{option.name} {!option.active && <span className="font-normal text-ink3">(retired)</span>}</span>
+                <span className="block font-mono text-[12px] text-ink3">{option.code}{option.product ? ` · ${option.product.slug}` : ' · all products'}{option.recurring ? ' · every month' : ' · once'}</span>
+              </span>
+              <Money amount={option.amount} currency={option.currency} />
+              <ButtonLink to={`/admin/pricing/addons/${encodeURIComponent(option.id)}/edit`} variant="soft">{mayWrite ? 'Edit' : 'View'}</ButtonLink>
+            </li>
+          ))}
+        </ul>
+      )}
     </Panel>
   );
 }
@@ -101,41 +61,12 @@ export function PriceHistoryPanel() {
  * that exists keeps its price until the prices are reconciled on the tools page, which has a dry run.
  */
 export function YearlyDiscountPanel({ mayWrite }: { mayWrite: boolean }) {
-  const toast = useToast();
   const state = useAsync<{ settings: Record<string, { value?: number } | undefined> }>((signal) => get('/admin/settings', undefined, signal), []);
   const current = state.data?.settings['pricing.yearly_discount_percent']?.value ?? 0;
-  const [typed, setTyped] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const shown = typed ?? String(current);
-  const parsed = /^\d{1,2}$/.test(shown.trim()) ? Number(shown.trim()) : null;
-  const valid = parsed !== null && parsed >= 0 && parsed <= 50;
-  const changed = valid && parsed !== current;
-
-  const save = async () => {
-    if (!valid) return;
-    setBusy(true);
-    try {
-      await put('/admin/settings', { 'pricing.yearly_discount_percent': { value: parsed } });
-      toast.push(parsed === 0 ? 'The yearly discount is off.' : `Yearly terms now get ${parsed}% off the resources.`, 'ok');
-      setTyped(null);
-      state.reload();
-    } catch (failure) {
-      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <Panel title="Yearly discount" description="Percent off the resources of a game server when a customer pays for a year. 0 means no discount. New orders only.">
+    <Panel title="Yearly discount" description="Percent off the resources of a game server when a customer pays for a year. 0 means no discount. New orders only." action={<ButtonLink to="/admin/pricing/discounts/edit" variant="soft">{mayWrite ? 'Edit' : 'View'}</ButtonLink>}>
       {state.loading ? <LoadingBlock rows={1} label="Loading the discount" /> : state.error ? <ErrorState title="The discount could not be read" message={state.error.message} onRetry={state.reload} /> : (
-        <div className="flex flex-wrap items-end gap-3">
-          <Field label="Percent (0 to 50)" htmlFor="yearly-discount" error={valid ? undefined : 'Use a whole number from 0 to 50.'}>
-            <input id="yearly-discount" className={denseInput} inputMode="numeric" value={shown} disabled={!mayWrite || busy} onChange={(event) => setTyped(event.target.value)} />
-          </Field>
-          {mayWrite && <button type="button" className={densePrimary} disabled={!changed || busy} onClick={save}>Save</button>}
-          {!mayWrite && <span className="text-[13px] text-muted">Your role can read this but not change it.</span>}
-        </div>
+        <p className="text-[14px] text-ink">{current === 0 ? 'No discount.' : `${current}% off the resources of a yearly term.`}</p>
       )}
     </Panel>
   );

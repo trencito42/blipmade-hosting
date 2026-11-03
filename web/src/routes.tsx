@@ -87,6 +87,9 @@ const AdminProductNew = lazy(() => import('./admin/ProductNew'));
 const AdminOpsDeclare = lazy(() => import('./admin/OpsDeclare'));
 const AdminCustomerProfile = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerProfileEdit })));
 const AdminCustomerSecurity = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerSecurityActions })));
+const AdminAddonNew = lazy(() => import('./admin/CommerceEditors').then((m) => ({ default: m.AddonNew })));
+const AdminAddonEdit = lazy(() => import('./admin/CommerceEditors').then((m) => ({ default: m.AddonEdit })));
+const AdminYearlyDiscount = lazy(() => import('./admin/CommerceEditors').then((m) => ({ default: m.YearlyDiscountEdit })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -313,6 +316,9 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
   { pattern: '/admin/pricing/rates/edit', component: AdminRatesEdit, title: 'Rate card', area: 'admin', layout: 'editor' },
   { pattern: '/admin/pricing/products/:id/edit', component: AdminPriceEdit, title: 'Edit price', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/pricing/addons/new', component: AdminAddonNew, title: 'New add-on', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/pricing/addons/:id/edit', component: AdminAddonEdit, title: 'Edit add-on', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/pricing/discounts/edit', component: AdminYearlyDiscount, title: 'Yearly discount', area: 'admin', layout: 'editor' },
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
   { pattern: '/admin/support/analytics', component: AdminSupportAnalytics, title: 'Support numbers', area: 'admin' },
   { pattern: '/admin/support/automations/new', component: AdminSupportAutomationEdit, title: 'New rule', area: 'admin', layout: 'editor' },
