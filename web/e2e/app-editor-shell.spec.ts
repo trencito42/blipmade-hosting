@@ -19,6 +19,14 @@ const ROUTES = [
   '/app/settings/security/2fa/disable',
   '/app/settings/security/2fa/backup-codes',
   '/app/settings/security/passkeys/new',
+  '/app/settings/closure',
+  '/app/instances/i1/resources/edit',
+  '/app/vps/v1/settings/edit',
+  '/app/vps/v1/ssh-key',
+  '/app/vps/v1/iso',
+  '/app/vps/v1/reinstall',
+  '/app/vps/v1/snapshots/new',
+  '/app/vps/v1/snapshots/s1/restore',
 ];
 
 async function json(route: Route, body: unknown) {
@@ -36,6 +44,13 @@ async function stub(page: Page) {
     if (path === '/support/chat/current' || path === '/support/bot/current') return json(route, { conversation: null });
     if (path === '/settings') return json(route, { profile: { firstName: 'Shell', lastName: 'Owner', email: 'owner@example.test', emailVerified: true, role: 'CUSTOMER', createdAt: '2026-01-01T00:00:00.000Z' }, billingAddress: null, pendingEmail: null, pendingEmailExpiresAt: null, sessions: [], account: { deletionRequestedAt: null, services: 0, subscriptions: 0 } });
     if (path === '/settings/security') return json(route, { twoFactor: { enabled: true, enabledAt: '2026-10-01T00:00:00.000Z', backupCodesLeft: 5 }, passkeys: [] });
+    if (path === '/vps/v1') return json(route, { server: { id: 'v1', name: 'web-1', status: 'active', power: 'running', plan: { slug: 'vps-s', name: 'VPS S' }, ram: 2048, cpu: 2, disk: 40, publicIp: '203.0.113.9', sshPort: 22, dedicatedIp: false, image: { slug: 'debian-13', label: 'Debian 13' }, contract: null, sshCommand: null, lastError: null, createdAt: '2026-10-01T00:00:00.000Z' } });
+    if (path === '/vps/v1/iso') return json(route, { isos: [{ file: 'Alma-9.iso', size: 1048576 }], mounted: null });
+    if (path === '/vps/v1/snapshots') return json(route, { max: 3, snapshots: [{ name: 's1', description: '', createdAt: null }] });
+    if (path === '/vps/images') return json(route, { images: [{ slug: 'debian-13', label: 'Debian 13' }] });
+    if (path === '/instances/i1') return json(route, { instance: { id: 'i1', name: 'Shop', status: 'running', ram: 1024, cpu: 1, disk: 10, price: 900, currency: 'EUR', product: { slug: 'wordpress', name: 'WordPress', icon: 'box' } } });
+    if (path === '/catalog/products/wordpress') return json(route, { product: { slug: 'wordpress', name: 'WordPress', minRam: 512, maxRam: 4096, minCpu: 1, maxCpu: 4, minDisk: 10, maxDisk: 100, defaultRam: 1024, defaultCpu: 1, defaultDisk: 10 } });
+    if (path === '/instances/i1/resources/quote') return json(route, { quote: { priceDelta: 0, newPrice: 900, currency: 'EUR', requiresPayment: false } });
     if (path === '/tickets/categories') return json(route, { categories: [] });
     if (path === '/mail/services') return json(route, { services: [] });
     if (path === '/vps') return json(route, { vps: [] });
@@ -49,7 +64,7 @@ async function stub(page: Page) {
   });
 }
 
-for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+for (const viewport of [{ width: 320, height: 640 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 768, height: 1024 }, { width: 1024, height: 768 }, { width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
   test.describe(`editor shell at ${viewport.width}px`, () => {
     test.use({ viewport });
     for (const route of ROUTES) {
@@ -83,7 +98,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
           }).length,
         );
         expect(fixedBars).toBe(0);
-        if (route === '/app/settings/email/change' || route === '/app/instances/i1/startup/edit') {
+        if (['/app/settings/email/change', '/app/instances/i1/startup/edit', '/app/vps/v1/reinstall'].includes(route) && [390, 768, 1920].includes(viewport.width)) {
           await page.screenshot({ path: `${SHOTS}/editor-${route.split('/').slice(-2).join('-')}-${viewport.width}.png` });
         }
       });

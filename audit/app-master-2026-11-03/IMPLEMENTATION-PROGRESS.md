@@ -550,3 +550,11 @@ This checklist records executable implementation work on `audit/admin-master-spe
 
 - Web TypeScript check and full web unit suite: pass.
 - Playwright VPS suite: 7/7 pass (exact PATCH/PUT/POST payloads, refused states, the tab a page returns to, h1 and 390px overflow on all six pages). The hypervisor is not involved: every VPS answer is stubbed.
+
+## 2026-11-03 — Editor shell checked at every width
+
+### Verification executed
+
+- Playwright `app-editor-shell`: 23 editor routes at 320, 390, 430, 768, 1024, 1440 and 1920px: 161/161 pass (one visible h1 that is not the error page, one `main`, one Back control in the top bar, one footer, no horizontal overflow, no wide fixed layer at the bottom, legal links at the bottom of a short page, phone bar hidden below 1024px). Screenshots at 390, 768 and 1920px reviewed for the email, startup and VPS reinstall editors.
+- All other Playwright suites except the admin audit ones: 122 pass, 13 fail. The 13 are the same as before this work (public site, login and home page price assertions) and are in code this work did not touch.
+- Not covered: 200% zoom, software keyboard and safe-area on a real phone, the staging screenshots with seeded data, and the admin area with the shared table style.
