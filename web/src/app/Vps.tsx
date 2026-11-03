@@ -13,6 +13,7 @@ import { useInfiniteList } from '../lib/useInfinite';
 import { memLabel } from '../lib/pricing';
 import { Link, useParams } from '../router';
 import { ButtonGroup } from './components/premium';
+import { InfoTip } from '../tooltip';
 import { useSession } from '../session';
 import { Icon } from '../icons';
 import { Eyebrow, Footer, Nav, Wrap } from '../site/ui';
@@ -564,45 +565,47 @@ export function VpsDetail() {
         <span aria-hidden="true">/</span>
         <span className="font-semibold text-ink" aria-current="page">{server.name}</span>
       </nav>
-      <Panel title={server.name} description={`${server.plan.name} · ${server.image?.label ?? 'Debian 13'}`} action={<StatusPill status={status.tone} label={status.label} />}>
-        <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-3">
-          <Spec label="vCPU" value={server.cpu} />
-          <Spec label="Memory" value={memLabel(server.ram)} />
-          <Spec label="Disk" value={`${server.disk} GB`} />
-        </dl>
+      <Panel>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[18px] font-semibold tracking-[-0.03em] text-ink" title={server.name}>{server.name}</p>
+            <p className="truncate font-mono text-[12.5px] text-ink3">{server.plan.name} · {server.image?.label ?? 'Debian 13'} · {server.cpu} vCPU · {memLabel(server.ram)} · {server.disk} GB</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill status={status.tone} label={status.label} />
+            {server.status === 'active' && (
+              <ButtonGroup label="Power">
+                <SoftButton onClick={() => void control.run('start')} disabled={control.pending || server.power === 'running'} title={server.power === 'running' ? 'Already running' : 'Start the server'}>Start</SoftButton>
+                <SoftButton onClick={() => void control.run('reboot')} disabled={control.pending || server.power !== 'running'} title="Restart the server">Restart</SoftButton>
+                <SoftButton onClick={() => void control.run('shutdown')} disabled={control.pending || server.power !== 'running'} title="Shut the server down cleanly">Shut down</SoftButton>
+              </ButtonGroup>
+            )}
+          </div>
+        </div>
 
         {server.status === 'failed' && (
           <p role="alert" className="mt-4 rounded-2xl bg-bad/12 px-4 py-3 text-[14px] text-bad">
-            The server could not be built{server.lastError ? `: ${server.lastError}` : '.'} Write to support and we will fix it.
+            The server could not be built{server.lastError ? `: ${server.lastError}` : '.'}
           </p>
         )}
         {(server.status === 'pending' || server.status === 'provisioning') && (
-          <p className="mt-4 rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">Your server is being built. This takes a few minutes, and the page updates by itself.</p>
-        )}
-
-        {server.status === 'active' && (
-          <div className="mt-4">
-            <SoftButton onClick={() => setDiagnosing((open) => !open)} aria-expanded={diagnosing}>{diagnosing ? 'Hide the check' : 'Server not reachable?'}</SoftButton>
-            {diagnosing && <DiagnosePanel id={server.id} />}
-          </div>
+          <p role="status" className="mt-4 rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">Being built. The page updates by itself.</p>
         )}
 
         {server.sshCommand && server.status === 'active' && (
-          <div className="mt-4 grid gap-2">
-            <p className="text-[13.5px] font-medium text-ink">Log in</p>
-            <CopyLine value={server.sshCommand} />
-            <p className="text-[12.5px] text-ink3">
-              The user is <span className="font-mono">debian</span> and it can use sudo. Only the key you gave us opens the server.
-              {server.dedicatedIp ? ' The address is yours alone.' : ' The address is shared, so the port is the one of this server.'}
+          <div className="mt-4 grid gap-1.5">
+            <p className="flex items-center gap-1.5 text-[13.5px] font-medium text-ink">
+              Log in
+              <InfoTip text={`The user is debian and it can use sudo. Only the key you gave us opens the server. ${server.dedicatedIp ? 'The address is yours alone.' : 'The address is shared, so the port is the one of this server.'}`} label="About logging in" />
             </p>
+            <CopyLine value={server.sshCommand} />
           </div>
         )}
 
         {server.status === 'active' && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <SoftButton onClick={() => void control.run('start')} disabled={control.pending || server.power === 'running'}>Start</SoftButton>
-            <SoftButton onClick={() => void control.run('reboot')} disabled={control.pending || server.power !== 'running'}>Restart</SoftButton>
-            <SoftButton onClick={() => void control.run('shutdown')} disabled={control.pending || server.power !== 'running'}>Shut down</SoftButton>
+          <div className="mt-3">
+            <SoftButton onClick={() => setDiagnosing((open) => !open)} aria-expanded={diagnosing}>{diagnosing ? 'Hide the check' : 'Not reachable?'}</SoftButton>
+            {diagnosing && <DiagnosePanel id={server.id} />}
           </div>
         )}
       </Panel>

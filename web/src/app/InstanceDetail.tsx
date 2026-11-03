@@ -7,6 +7,7 @@ import { listEvents } from '../lib/instance-api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
 import OverviewTab from './instance/OverviewTab';
+import { ButtonGroup } from './components/premium';
 import {
   ButtonLink,
   ConfirmDialog,
@@ -579,55 +580,41 @@ export default function InstanceDetail() {
         </span>
       </nav>
 
-      <header className={closed ? 'grid gap-3 opacity-60 saturate-50' : 'grid gap-3'}>
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <ProductTile slug={instance.product.slug} icon={instance.product.icon} size={46} />
-            <div className="w-0 min-w-0 flex-1">
-              <h2 className="truncate text-[20px] font-semibold tracking-[-0.035em] text-ink" title={instance.name}>
-                {instance.name}
-              </h2>
-              <p className="truncate text-[13px] text-ink3" title={instance.product.name}>
-                {instance.product.name}
-              </p>
+      <header className={`grid gap-2 border-b border-line py-3 lg:sticky lg:top-[69px] lg:z-10 lg:bg-bg/90 lg:backdrop-blur ${closed ? 'opacity-60 saturate-50' : ''}`}>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <ProductTile slug={instance.product.slug} icon={instance.product.icon} size={44} />
+            <div className="w-0 min-w-[8rem] flex-1">
+              <p className="truncate text-[18px] font-semibold tracking-[-0.03em] text-ink" title={instance.name}>{instance.name}</p>
+              <p className="truncate text-[13px] text-ink3">{instance.product.name}</p>
             </div>
           </div>
-          <div className="w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
             <StatusPill status={instance.status} />
+            {!closed && instance.url && (
+              <a
+                href={instance.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                data-tip={instance.url}
+                aria-label={`Open ${instance.url}`}
+                className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-line bg-card px-3.5 text-[13.5px] font-medium text-ink transition-colors hover:border-acc/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              >
+                Open
+                <Icon name="arrowUR" size={14} className="shrink-0" />
+              </a>
+            )}
+            {instance.access !== 'viewer' && !closed && (
+              <ButtonGroup label="Power">
+                <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending || powerCooldown > 0} title={canStart ? 'Start the instance' : 'Already running'}>Start</SoftButton>
+                <SoftButton onClick={() => onPower('restart')} disabled={!canRestart || power.pending || powerCooldown > 0} title="Restart the instance">
+                  {powerCooldown > 0 ? `Restart (${powerCooldown}s)` : 'Restart'}
+                </SoftButton>
+                <SoftButton onClick={() => onPower('stop')} disabled={!canStop || power.pending || powerCooldown > 0} title={canStop ? 'Stop the instance' : 'Not running'}>Stop</SoftButton>
+              </ButtonGroup>
+            )}
           </div>
         </div>
-
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {closed ? null : instance.url ? (
-            <a
-              href={instance.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              title={instance.url}
-              className="inline-flex max-w-full min-h-11 items-center gap-1.5 rounded-xl border border-line bg-card px-4 text-[13.5px] font-medium text-ink transition-colors duration-[180ms] hover:bg-line focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-            >
-              <span className="min-w-0 break-all">{instance.url}</span>
-              <Icon name="arrowUR" size={15} className="shrink-0" />
-            </a>
-          ) : (
-            <span className="text-[13.5px] text-ink3">No public URL yet</span>
-          )}
-
-          {instance.access !== 'viewer' && !closed && (
-            <>
-          <SoftButton onClick={() => onPower('start')} disabled={!canStart || power.pending || powerCooldown > 0}>
-            Start
-          </SoftButton>
-          <SoftButton onClick={() => onPower('restart')} disabled={!canRestart || power.pending || powerCooldown > 0}>
-            {powerCooldown > 0 ? `Restart (${powerCooldown}s)` : 'Restart'}
-          </SoftButton>
-          <SoftButton onClick={() => onPower('stop')} disabled={!canStop || power.pending || powerCooldown > 0}>
-            Stop
-          </SoftButton>
-            </>
-          )}
-        </div>
-
         {power.error && (
           <p role="alert" className="rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
             {power.error}
