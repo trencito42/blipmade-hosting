@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import https from 'node:https';
-import { MailcowError, mailcowConfigured, mailcowRequest, waitForPeerCertificate } from '../src/services/mailcow.js';
+import { MailcowError, mailcowConfigured, mailcowCreateDomain, mailcowRequest, waitForPeerCertificate } from '../src/services/mailcow.js';
 import { env } from '../src/env.js';
 
 /**
@@ -297,6 +297,21 @@ describe('the client of the mail system', () => {
       configure({ url: server.url, key: 'a-key', fingerprint: server.fingerprint });
       await mailcowRequest('/add/domain', { method: 'POST', body: { domain: 'acme.ro' } });
       expect(JSON.parse(seen)).toEqual({ domain: 'acme.ro' });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('asks the mail system to restart SOGo when it creates a domain', async () => {
+    let seen = '';
+    const server = await startServer((body) => {
+      seen = body;
+      return { status: 200, body: '[{"type":"success","msg":["domain_added","acme.ro"]}]' };
+    });
+    try {
+      configure({ url: server.url, key: 'a-key', fingerprint: server.fingerprint });
+      await mailcowCreateDomain({ domain: 'acme.ro', quotaMb: 1024, maxQuotaMb: 512, defQuotaMb: 100, mailboxes: 3, aliases: 5 });
+      expect(JSON.parse(seen).restart_sogo).toBe('1');
     } finally {
       await server.close();
     }

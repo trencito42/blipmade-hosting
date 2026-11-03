@@ -185,10 +185,15 @@ export function matchesReservedEntry(hostname: string, entry: string): boolean {
  * every name under it would match: here the base is left out, and only the
  * names the platform really uses are refused.
  */
+export function isReservedUnderBase(hostname: string, entries: string[], base: string): boolean {
+  // An entry that is the base, or a domain above it (blipmade.com is above
+  // apps.blipmade.com), would match every name under the base.
+  return entries.some((entry) => entry !== base && !base.endsWith(`.${entry}`) && matchesReservedEntry(hostname, entry));
+}
+
 async function isReservedPlatformName(hostname: string): Promise<boolean> {
   const base = env.DOMAIN_BASE.trim().toLowerCase();
-  const entries = await reservedDomains();
-  return entries.some((entry) => entry !== base && matchesReservedEntry(hostname, entry));
+  return isReservedUnderBase(hostname, await reservedDomains(), base);
 }
 
 async function isReservedHostname(hostname: string): Promise<boolean> {

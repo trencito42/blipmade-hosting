@@ -470,6 +470,10 @@ export async function mailcowCreateDomain(input: {
       defquota: String(input.defQuotaMb),
       mailboxes: String(input.mailboxes),
       aliases: String(input.aliases),
+      // SOGo reads its list of domains when it starts. A domain that SOGo
+      // does not know answers 403 to every customer of it until SOGo is
+      // restarted, so the mail system restarts it as part of the creation.
+      restart_sogo: '1',
     },
   });
 }
