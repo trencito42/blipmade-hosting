@@ -5,6 +5,16 @@
 **Scope:** 35 registered admin routes, 28 sidebar entries, 48 API route files, 46 admin React view/shared components, 8 owner screenshots (not uploaded, for privacy).  
 **Audit result:** source inventory and prioritized design/security/functional analysis completed. **No authenticated live 35-route browser audit, penetration test, CI build or staging E2E was executed. Do not claim only implementation remains until execution gates are passed.**
 
+## Final product/UI requirements (read FIRST for implementation)
+
+These are the newest and most specific instructions. They supersede older suggestions to place create/edit forms in modals or oversized inline cards.
+
+1. **[PREMIUM-COMPONENTS.md](./PREMIUM-COMPONENTS.md)**: premium 2026 dark UI, NumberStepper, UnitStepper, ResourceSlider, cohesive ButtonGroup/SplitButton, advanced filters, async combobox, money fields, DNS editors, permissions and many more purpose-specific components.
+2. **[EDITOR-ROUTE-BLUEPRINT.md](./EDITOR-ROUTE-BLUEPRINT.md)**: every one of the 35 existing admin views mapped to dedicated new detail/create/edit/action routes. Full-page editing is mandatory for meaningful persistent changes; dialogs are only for confirmations/tiny transient decisions.
+3. **[IMPLEMENTATION-BRIEF.md](./IMPLEMENTATION-BRIEF.md)**: canonical instructions for ChatGPT Work/Codex to build UI and APIs, maintain branch and preserve 100% feature parity, then test and report honestly.
+
+**Scope:** /admin ONLY, no /app changes yet. **Working branch:** audit/admin-master-spec-20261103; PR #17. No separate new branch per feature. **Status:** design/architecture/planning complete; production implementation and staging E2E incomplete.
+
 ## Completed additional source audit
 - [FUNCTIONAL-AUDIT.md](./FUNCTIONAL-AUDIT.md): view-by-view action inventory, 486 literal API route registrations, 121 admin mutation registrations, functional issues and executable staging test contract.
 - [SECURITY-AUDIT.md](./SECURITY-AUDIT.md): verified defenses, priority weaknesses, false-positive corrections and required role/cross-tenant/financial tests.
