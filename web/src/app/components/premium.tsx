@@ -361,6 +361,69 @@ export function AsyncCombobox({
   );
 }
 
+/** A hostname field with IDN/punycode preview and explicit protocol/path rejection. */
+export function DomainInput({
+  value,
+  onChange,
+  label = 'Hostname',
+  hint = 'Enter a full hostname without a protocol or path.',
+  error,
+  placeholder = 'app.example.com',
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label?: string;
+  hint?: string;
+  error?: string;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const raw = value.trim();
+  let normalized = '';
+  if (raw && !raw.includes('://') && !/[/?#]/.test(raw)) {
+    try {
+      normalized = new URL(`https://${raw}`).hostname.toLowerCase();
+    } catch {
+      normalized = '';
+    }
+  }
+  return (
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className="px-1 text-[14px] font-medium text-ink">{label}</label>
+      <div className="relative">
+        <Icon name="globe" size={15} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink3" />
+        <input
+          id={id}
+          type="text"
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          value={value}
+          disabled={disabled}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error)}
+          aria-describedby={[hintId, error ? errorId : null].filter(Boolean).join(' ')}
+          onChange={(event) => onChange(event.target.value)}
+          className={cn(
+            'h-12 w-full rounded-xl border border-line bg-card pl-11 pr-4 font-mono text-[14px] text-ink outline-none transition-[border-color,box-shadow] duration-[180ms] placeholder:font-sans placeholder:text-ink3 focus:border-acc focus:ring-2 focus:ring-acc/40 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none',
+            error && 'border-bad focus:ring-bad/40',
+          )}
+        />
+      </div>
+      <p id={hintId} className="px-1 text-[12.5px] text-ink3">
+        {normalized && normalized !== raw.toLowerCase() ? <>DNS form: <span className="font-mono text-ink2">{normalized}</span>. </> : null}{hint}
+      </p>
+      {error && <p id={errorId} role="alert" className="px-1 text-[12.5px] font-medium text-bad">{error}</p>}
+    </div>
+  );
+}
+
 /** A slider and exact stepper that represent the same server-bounded value. */
 export function ResourceSliderStepper({
   marks = [],

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { del, get, post, put, type Domain, type Instance } from '../lib/api';
+import { useMemo, useState } from 'react';
+import { del, get, post, put, type Domain } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import {
   ButtonLink,
@@ -9,11 +9,8 @@ import {
   ErrorState,
   LoadingBlock,
   Panel,
-  PrimaryButton,
   SoftButton,
   StatusPill,
-  TextInput,
-  Select,
   InputWithButton,
   useToast,
 } from '../ui-app';
@@ -111,34 +108,10 @@ export default function Domains() {
     (signal) => get<{ domains: Domain[] }>('/domains', undefined, signal),
     [],
   );
-  const instancesState = useAsync<{ instances: Instance[] }>(
-    (signal) => get<{ instances: Instance[] }>('/instances', undefined, signal),
-    [],
-  );
-
-  const [instanceId, setInstanceId] = useState('');
-  const [hostname, setHostname] = useState('');
-  const [hostnameError, setHostnameError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Domain | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
-  const instances = useMemo(() => instancesState.data?.instances ?? [], [instancesState.data]);
   const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
-
-  useEffect(() => {
-    const first = instances[0];
-    if (!instanceId && first) setInstanceId(first.id);
-  }, [instances, instanceId]);
-
-  const create = useAction(async (targetInstanceId: string, host: string) => {
-    const result = await post<{ domain: Domain }>(`/instances/${targetInstanceId}/domains`, { hostname: host });
-    const created = result.domain;
-    domainsState.reload();
-    push(
-      `${created.hostname} claimed. Publish the TXT record below at your registrar, then verify.`,
-    );
-    return created;
-  });
 
   const verify = useAction(async (id: string) => {
     const result = await post<{ domain: Domain }>(`/domains/${id}/verify`);
@@ -160,23 +133,6 @@ export default function Domains() {
     push('Domain deleted.');
   });
 
-  const submit = async () => {
-    const host = hostname.trim().toLowerCase();
-    if (!host) {
-      setHostnameError('Enter the hostname you want to use.');
-      return;
-    }
-    if (!instanceId) {
-      setHostnameError('Choose the instance this domain points to.');
-      return;
-    }
-    setHostnameError(null);
-    const created = await create.run(instanceId, host);
-    if (created) {
-      setHostname('');
-    }
-  };
-
   const copy = async (value: string, label: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -186,71 +142,14 @@ export default function Domains() {
     }
   };
 
-  const addDisabled = create.pending || !instanceId || hostname.trim().length === 0;
-
   return (
     <div className="grid gap-4">
       <Panel
-        title="Add a domain"
-        description="Claim a hostname for one of your instances. You prove that it is yours with a TXT record before it is routed."
+        title="Your domains"
+        description="Website hostnames routed to your apps and databases. Ownership and routing remain separate from hosted email."
+        action={<ButtonLink to="/app/domains/new">Add domain</ButtonLink>}
+        actionBelow
       >
-        {instancesState.loading ? (
-          <LoadingBlock rows={1} label="Loading your instances" />
-        ) : instancesState.error ? (
-          <ErrorState
-            title="Could not load your instances"
-            message={instancesState.error.message}
-            onRetry={instancesState.reload}
-          />
-        ) : !instances.length ? (
-          <EmptyState
-            title="No instances yet"
-            description="A domain is attached to an instance, so deploy an app or a database first."
-            action={
-              <ButtonLink to="/app/deploy">See what you can deploy</ButtonLink>
-            }
-          />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
-            <Select
-              label="Instance"
-              value={instanceId}
-              onChange={(e) => setInstanceId(e.target.value)}
-              hint="The domain is attached to this instance."
-              className="scroll-mt-16"
-            >
-              {instances.map((instance) => (
-                <option key={instance.id} value={instance.id}>
-                  {instance.name} · {instance.product.name}
-                </option>
-              ))}
-            </Select>
-            <TextInput
-              label="Hostname"
-              value={hostname}
-              onChange={(e) => setHostname(e.target.value)}
-              placeholder="app.example.com"
-              error={hostnameError ?? create.fieldErrors.hostname ?? undefined}
-              hint="The full hostname, without a protocol."
-              autoComplete="off"
-              spellCheck={false}
-              className="scroll-mt-16"
-            />
-            <div className="sm:col-span-2">
-              <PrimaryButton onClick={() => void submit()} disabled={addDisabled} className="w-full sm:w-auto">
-                {create.pending ? 'Adding…' : 'Add domain'}
-              </PrimaryButton>
-              {create.error && (
-                <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">
-                  {create.error}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </Panel>
-
-      <Panel title="Your domains">
         {domainsState.loading ? (
           <LoadingBlock rows={3} label="Loading your domains" />
         ) : domainsState.error ? (
@@ -262,7 +161,8 @@ export default function Domains() {
         ) : !domains.length ? (
           <EmptyState
             title="No domains yet"
-            description="Add a hostname above. We will tell you exactly which DNS records to create."
+            description="Claim a hostname and we will tell you exactly which ownership and address records to create."
+            action={<ButtonLink to="/app/domains/new">Add your first domain</ButtonLink>}
           />
         ) : (
           <div className="grid gap-3">
