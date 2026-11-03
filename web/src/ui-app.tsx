@@ -1339,11 +1339,9 @@ export function DataTable<T>({
     // stays out of the way.
     <div className="hidden w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain bm-hide-scroll md:block">
       <table
-        className="w-full border-separate text-left"
-        // The rows are separated by a gap, like the cards of the design. The
-        // horizontal spacing stays at zero, so the columns of the header and
-        // the columns of the rows are the same columns.
-        style={{ borderSpacing: '0 6px', minWidth }}
+        className="w-full border-collapse text-left"
+        // The rows are divided by a line, with none above the first row and none under the last.
+        style={{ minWidth }}
       >
         {/* The widths of the columns are decided once, here, and the header
             and the rows use the same ones. */}
@@ -1361,7 +1359,7 @@ export function DataTable<T>({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="[&>tr:first-child>td]:border-t-0">
           {rows.map((row) => (
             <tr key={rowKey(row)}>
               {columns.map((column, index) => (
@@ -1383,9 +1381,9 @@ export function CardList<T>({ rows, rowKey, children }: { rows: T[]; rowKey: (ro
   return (
     // The column of the cards may be smaller than a long text inside a card,
     // so the cards never make the page wider than the screen.
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 md:hidden">
+    <div className="grid grid-cols-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-line bg-card md:hidden">
       {rows.map((row) => (
-        <div key={rowKey(row)} className="rounded-2xl border border-line bg-card p-3.5">
+        <div key={rowKey(row)} className="border-t border-line p-3.5 first:border-t-0">
           {children(row)}
         </div>
       ))}

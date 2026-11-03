@@ -36,9 +36,9 @@ export default function AccessTab({ instance }: TabProps) {
         ) : state.error ? (
           <ErrorState title="The access list could not be loaded" message={state.error.message} onRetry={state.reload} />
         ) : (
-          <ul className="grid gap-2">
+          <ul className="grid">
             {(state.data?.members ?? []).map((member) => (
-              <li key={member.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+              <li key={member.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   <p className="text-[14.5px] font-semibold text-ink">{member.email ?? member.name} <span className="ml-1 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase text-ink2">{roleLabel(member.role)}</span></p>
                   <p className="text-[12.5px] text-ink3">Since {day(member.since)}</p>
@@ -47,7 +47,7 @@ export default function AccessTab({ instance }: TabProps) {
               </li>
             ))}
             {(state.data?.invites ?? []).map((invite) => (
-              <li key={invite.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
+              <li key={invite.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   <p className="text-[14.5px] font-semibold text-ink">Waiting for a code to be used <span className="ml-1 rounded-full bg-s3 px-2 py-0.5 text-[11px] font-bold uppercase text-ink2">{roleLabel(invite.role)}</span></p>
                   <p className="text-[12.5px] text-ink3">Expires {day(invite.expiresAt)}</p>

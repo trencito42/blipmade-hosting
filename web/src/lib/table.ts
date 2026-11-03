@@ -62,19 +62,14 @@ export function headerClass<T>(column: TableColumn<T>): string {
 /**
  * The classes of the cell of a column.
  *
- * The first and the last cell of a row carry the rounded ends of the row, so
- * the row is a card without the row itself being a box: the cells keep the
- * layout of a table.
+ * A row is a line of cells with a border above it. The table removes the border of the
+ * first row, so there is a line between the rows and none under the last.
  */
 export function cellClass<T>(column: TableColumn<T>, index: number, total: number): string {
   return [
     'px-3 py-3 align-middle text-[14px] text-ink',
-    'bg-card',
-    // The row is a card: the first and the last cell carry the ends and the
-    // line of the card, so the row reads as one box and not as loose cells.
-    'border-y border-line',
-    index === 0 ? 'rounded-l-2xl border-l' : '',
-    index === total - 1 ? 'rounded-r-2xl border-r' : '',
+    // The rows are divided by a line between them. The first row takes its top line away in the table.
+    'border-t border-line',
     alignClass(column.align),
     column.nowrap ? 'whitespace-nowrap' : '',
     column.truncate ? 'max-w-0 truncate' : '',

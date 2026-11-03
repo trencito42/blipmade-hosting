@@ -295,7 +295,7 @@ export function MailServiceCard({
       </div>
 
       {showDns && (
-        <div className="mt-3 grid gap-2">
+        <div className="mt-3 grid">
           {!dns ? (
             <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] text-ink2">The records are on their way.</p>
           ) : !dns.length ? (
@@ -304,7 +304,7 @@ export function MailServiceCard({
             </p>
           ) : (
             dns.map((entry) => (
-              <div key={entry.id} className="rounded-2xl bg-s3 p-3.5">
+              <div key={entry.id} className="border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
                 <p className="break-all text-[14px] font-medium text-ink">{entry.name}</p>
                 <p className="mt-0.5 text-[12.5px] text-ink3">
                   {entry.verified
@@ -362,14 +362,14 @@ export function MailServiceCard({
         </p>
       )}
 
-      <div className="mt-4 grid gap-3">
+      <div className="mt-4 grid">
         {service.domains.length === 0 ? (
           <p className="rounded-2xl bg-s3 px-3.5 py-3 text-[13.5px] leading-relaxed text-ink2">
             This service has no domain yet. Add the hostname that will carry the mail.
           </p>
         ) : (
           service.domains.map((domain) => (
-            <div key={domain.id} className="rounded-2xl bg-s3 p-3.5">
+            <div key={domain.id} className="border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <p className="break-all text-[14.5px] font-medium text-ink">{domain.name}</p>
                 <StatusPill status={domain.status.toLowerCase()} label={mailDomainStatusLabel(domain.status)} />

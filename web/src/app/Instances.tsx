@@ -127,11 +127,11 @@ function NoInstances() {
           }
         />
       ) : (
-        <ul className="grid gap-2.5">
+        <ul className="grid">
           {deployable.map((product) => (
             <li
               key={product.slug}
-              className="grid gap-3 rounded-2xl bg-s2 p-4 sm:flex sm:items-center sm:gap-4"
+              className="grid gap-3 border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0 sm:flex sm:items-center sm:gap-4"
             >
               <div className="flex min-w-0 flex-1 items-start gap-3">
                 <span className="grid size-11 shrink-0 place-items-center rounded-[28%] bg-s3 text-acc">
