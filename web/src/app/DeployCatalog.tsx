@@ -26,6 +26,7 @@ import { mailCheckoutPath } from './EmailHosting';
 import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, SoftButton, StatusPill, TextInput } from '../ui-app';
 import { get } from '../lib/api';
 import { ImportProject } from './ImportProject';
+import { selectPreparedFamilies } from './catalog-family-grouping';
 import { useAsync } from '../lib/useAsync';
 
 /**
@@ -194,16 +195,9 @@ export default function DeployCatalog() {
 
   // Only the categories that really exist in the catalog are offered, in the
   // order of the public catalog.
-  // Every prepared family is a real destination, including families that
-  // currently have only one visible variant. A family with no orderable
-  // variant appears only in "All products", never as ready to buy.
-  const grouped = useMemo(
-    () => families.filter((family) =>
-      family.variants.length > 0 &&
-      (availability === 'all' || family.variants.some((variant) => variant.product.orderable))
-    ),
-    [families, availability],
-  );
+  // A prepared family with just one variant should still be navigable.
+  // Unsupported variants remain discoverable only in "All products".
+  const grouped = useMemo(() => selectPreparedFamilies(families, availability), [families, availability]);
   const covered = useMemo(() => new Set(grouped.flatMap((family) => family.variants.map((variant) => variant.product.slug))), [grouped]);
   const listed = useMemo(() => products.filter((product) => !covered.has(product.slug)), [products, covered]);
   const categories = useMemo(() => {
