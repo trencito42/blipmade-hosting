@@ -1,34 +1,40 @@
 # Agent handoff
 
-Updated: 2026-11-03 (handoff to the next agent, MiniMax, requested by the user).
+Updated: 2026-11-03 after Task C and Task A deployment.
 
-## State
-- Branch `audit/admin-master-spec-20261103`, working copy `/root/work`, clean tree at last update. GitHub audit branch = latest commit (`git log -1`). `main` published with user approval; production deploy NOT requested.
-- Production (VM103 `/opt/blipmade`) = `main` @ 3158b3c. Newer commits are NOT deployed. Deploy only on explicit user approval: `ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd /opt/blipmade && bash scripts/deploy.sh'` (from hypervisor).
-- App 3.0: implemented (see IMPLEMENTATION-STATUS.md). Admin 3.0: only `/admin/products/:id/edit` done; 34 admin routes remain.
+## Source and production
 
-## Rules from the user (keep)
-- Terse replies (Caveman). Minimal code (YAGNI).
-- Finish App before Admin (done). Then Admin. Full E2E only at the end, in sequential bounded batches.
-- No merge/deploy without explicit user approval. Commit + push often; update these docs at each checkpoint.
-- Never print/store secrets. Kill processes by PID, never `pkill -f` with a pattern matching your own command line.
+- Repository `/root/work`, branch `main`, clean at this checkpoint.
+- GitHub `main` and production VM103 are on `34e850d` (`Add saved views and column controls to admin lists`).
+- Production deploy completed successfully. Pre-deploy database backup: `/var/backups/blipmade/pre-deploy-34e850d3-202611031338.sql.gz`. API, web, worker and public smoke endpoints passed.
+- Never merge or deploy again without a fresh explicit owner approval. Commit/push small checkpoints. Never print or store secrets.
 
-## How to work
-- Edit in `/root/work/web`. `export PATH=/opt/node22/bin:$PATH`. Check: `npx tsc --noEmit`, `npm test` (497 pass), `npm run build` (needed before Playwright; server serves `dist`).
-- E2E: `PLAYWRIGHT_JSON_OUTPUT_NAME=/root/e2e-logs/X.json npx playwright test <specs> --workers=4 --reporter=list,json > /root/e2e-logs/X.log 2>&1; echo EXIT=$?`. Spec stubs must include `/announcements` → `{announcements: []}` or pages crash.
-- Push: `git push -f relay HEAD:refs/heads/incoming` then `ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd ~/relay && git push origin incoming:audit/admin-master-spec-20261103'`. `bash scripts/publish.sh` publishes `main` (needs clean tree, only with user approval).
-- Patterns: see DECISIONS.md. Editor route example: `web/src/app/DomainChange.tsx`; admin: `web/src/admin/ProductEdit.tsx`. Route order matters (`web/src/routes.tsx`): specific before `:id`.
+## Completed this continuation
 
-## Next concrete actions
-1. Admin 3.0 (spec `audit/admin-master-2026-11-03/EDITOR-ROUTE-BLUEPRINT.md`, `PREMIUM-COMPONENTS.md`): move overlay/inline editors to routes — Promotions, SupportBots, SupportAutomations first, then orders, VPS resources, pricing, staff, notifications, content, settings. Then Customer 360 tabs, Activity Explorer. Admin is not in quiet mode.
-2. UI audit of admin routes; app routes with large data.
-3. Final: build, full Playwright batches incl. audit specs (need `admin-audit-seed.json`), fix regressions, update TEST-STATUS.md.
-4. Issues #18–#23: proposals only; see MASTER-ROADMAP.md / OPERATOR-ACTIONS.md. Do not start without product-owner go.
+- Task C: all 56 commits of `audit/launch-hardening-2026-10-30` classified in `LAUNCH-HARDENING-REVIEW.md`; missing security/billing/streaming changes were ported by hand. The old branch was never merged.
+- Task A staff step-up: password/TOTP confirmation, session-bound 10-minute expiry, backend enforcement, audits, migration, API tests and `StaffEdit` confirmation UI.
+- Task A Saved Views: per-operator `AdminSavedView`, strict four-list scopes, bounded query JSON, owner-scoped delete, API tests, and premium controls on Customers/Orders/Services/Tickets.
+- Task A Column Picker: same four tables, guarded browser storage, required-column recovery, desktop table only, responsive controls.
+- Rich-text email editor remains intentionally out of scope; only subject/heading/preheader/note stay editable.
 
-## Known failures
-13 pre-existing e2e failures (auth/public/mobile specs), proven on 3158b3c. Not caused by this work.
+## Evidence and limits
 
-## Blockers
-OPERATOR-ACTIONS.md (rotate MiniMax key, support email placeholder, deploy approval, issues #21/#23 prerequisites).
+- API typecheck passes. New API tests are written but could not run locally because `TEST_DATABASE_URL`, `DATABASE_URL`, `REDIS_URL`, and `SESSION_SECRET` are unavailable. Do not label API work VERIFIED from the production deploy.
+- Web TypeScript passes; unit 499 total / 497 pass / 0 fail / 2 skip; production build and 172-page prerender pass.
+- `admin-staff-edit.spec.ts`: 2/2 pass. `admin-list-preferences.spec.ts`: 2/2 pass, including 390px and local column persistence.
+- Known unrelated baseline: 13 public/auth/mobile E2E failures. Admin audit specs still need their seed.
 
-Continuation prompt for another agent (Admin functions with recommended defaults, then issues #18-#23): `docs/ai/CONTINUE-PROMPT.md`.
+## Next work
+
+1. Obtain/provision an approved disposable API test stack; run staff step-up, saved views, security, billing and download tests. Update `TEST-STATUS.md` honestly.
+2. Task B starts with issue #20 catalogue families/variants/presets/add-ons, but the brief requires an explicit product-owner “go” before implementation and forbids changing the live catalogue without approval. First add the short plan to `IMPLEMENTATION-STATUS.md`, then build dedicated pages + API + tests in small commits.
+3. Continue in order only: #20 → #22 → #19 → research-first #18. #21 needs finance/legal and Stripe reconciliation; #23 needs Cloudflare credentials/zone decisions and separate nameserver approval.
+4. Before context/usage ends: refresh this file and `IMPLEMENTATION-STATUS.md`/`TEST-STATUS.md`, commit, publish, and deploy only if explicitly approved for that new checkpoint.
+
+## Commands
+
+- Web: `cd web && PATH=/opt/node22/bin:$PATH npx tsc --noEmit && npm test && npm run build`
+- Targeted E2E: `cd web && PATH=/opt/node22/bin:$PATH npx playwright test <spec> --workers=4 --reporter=list`
+- API: `cd api && PATH=/opt/node22/bin:$PATH npm run typecheck`
+- Publish approved main checkpoint: `bash scripts/publish.sh`
+- Approved deploy only: `ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd /opt/blipmade && bash scripts/deploy.sh'`
