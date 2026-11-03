@@ -47,6 +47,7 @@ const AppReinstallInstance = lazy(() => import('./app/instance/ReinstallInstance
 const AppEditAllocation = lazy(() => import('./app/instance/EditAllocation'));
 const AppDatabaseSecurity = lazy(() => import('./app/instance/DatabaseSecurity'));
 const AppEditStartup = lazy(() => import('./app/instance/EditStartup'));
+const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
@@ -165,6 +166,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/network/:allocationId/edit', component: AppEditAllocation, title: 'Edit network address', area: 'customer' },
   { pattern: '/app/instances/:id/databases/:databaseId/security', component: AppDatabaseSecurity, title: 'Database security', area: 'customer' },
   { pattern: '/app/instances/:id/startup/edit', component: AppEditStartup, title: 'Edit startup', area: 'customer' },
+  { pattern: '/app/instances/:id/env-files/:name/edit', component: AppEditEnvFile, title: 'Edit environment file', area: 'customer' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },

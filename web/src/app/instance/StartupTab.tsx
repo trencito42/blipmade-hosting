@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { getEnvFiles, getStartup, saveEnvFile, type EnvFile } from '../../lib/instance-api';
-import { ButtonLink, EmptyState, LoadingBlock, Panel, PrimaryButton, SoftButton, TextInput, useToast } from '../../ui-app';
+import { getEnvFiles, getStartup } from '../../lib/instance-api';
+import { ButtonLink, EmptyState, LoadingBlock, Panel, TextInput } from '../../ui-app';
 import { ApiErrorState, type TabProps } from './common';
 
 /**
@@ -65,16 +64,7 @@ const SENSITIVE = /(SECRET|TOKEN|PASS|PWD|KEY|PRIVATE|CREDENTIAL|AUTH|DSN|SALT|S
  * Values that look like secrets are masked until the reader asks to see them. Comments and blank lines in a file are kept.
  */
 function EnvFiles({ instanceId }: { instanceId: string }) {
-  const { push } = useToast();
   const files = useAsync((signal) => getEnvFiles(instanceId, signal), [instanceId]);
-  const create = async () => {
-    try {
-      await saveEnvFile(instanceId, '.env', []);
-      files.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The file was not made.', 'error');
-    }
-  };
   return (
     <Panel title="Environment files" description="The .env files this server has, read from its files. A change is written to the file and the app reads it the next time it starts.">
       {files.loading && !files.data ? (
@@ -84,79 +74,13 @@ function EnvFiles({ instanceId }: { instanceId: string }) {
       ) : files.data.files.length === 0 ? (
         <div className="grid justify-items-start gap-3">
           <p className="text-[14px] text-ink2">This server has no .env file in its main folder.</p>
-          <SoftButton onClick={() => void create()}>Make a .env file</SoftButton>
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instanceId)}/env-files/${encodeURIComponent('.env')}/edit`} variant="soft">Create .env file</ButtonLink>
         </div>
       ) : (
         <div className="grid gap-5">
-          {files.data.files.map((file) => (
-            <EnvFileEditor key={file.name} instanceId={instanceId} file={file} onSaved={files.reload} />
-          ))}
+          {files.data.files.map((file) => <div key={file.name} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-s2 p-4"><div><p className="font-mono text-[14px] font-semibold text-ink">{file.name}</p><p className="mt-1 text-[12.5px] text-ink3">{file.entries.length} {file.entries.length === 1 ? 'variable' : 'variables'}</p></div><ButtonLink to={`/app/instances/${encodeURIComponent(instanceId)}/env-files/${encodeURIComponent(file.name)}/edit`} variant="soft">Edit file</ButtonLink></div>)}
         </div>
       )}
     </Panel>
-  );
-}
-
-function EnvFileEditor({ instanceId, file, onSaved }: { instanceId: string; file: EnvFile; onSaved: () => void }) {
-  const { push } = useToast();
-  const [rows, setRows] = useState(file.entries);
-  const [shown, setShown] = useState<Record<number, boolean>>({});
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    setRows(file.entries);
-    setShown({});
-  }, [file]);
-  const save = async () => {
-    setBusy(true);
-    try {
-      await saveEnvFile(instanceId, file.name, rows.filter((row) => row.key.trim() !== '').map((row) => ({ key: row.key.trim(), value: row.value })));
-      push(`${file.name} was saved.`, 'ok');
-      onSaved();
-    } catch (error) {
-      push(error instanceof Error ? error.message : `${file.name} was not saved.`, 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-  const update = (index: number, change: Partial<{ key: string; value: string }>) =>
-    setRows(rows.map((entry, position) => (position === index ? { ...entry, ...change } : entry)));
-  return (
-    <div className="grid gap-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-[14px] font-semibold text-ink">{file.name}</p>
-        <SoftButton onClick={() => setRows([...rows, { key: '', value: '' }])}>Add a variable</SoftButton>
-      </div>
-      {rows.length === 0 ? (
-        <p className="text-[13.5px] text-ink3">No variables.</p>
-      ) : (
-        rows.map((row, index) => {
-          const secret = SENSITIVE.test(row.key);
-          const masked = secret && !shown[index];
-          return (
-            <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto_auto]">
-              <TextInput label="Name" value={row.key} placeholder="API_KEY" className="font-mono" onChange={(event) => update(index, { key: event.target.value })} />
-              <TextInput
-                label="Value"
-                value={row.value}
-                type={masked ? 'password' : 'text'}
-                autoComplete="off"
-                className="font-mono"
-                onChange={(event) => update(index, { value: event.target.value })}
-              />
-              {secret ? (
-                <SoftButton className="self-end" onClick={() => setShown({ ...shown, [index]: !shown[index] })}>{shown[index] ? 'Hide' : 'Show'}</SoftButton>
-              ) : (
-                <span className="hidden sm:block" />
-              )}
-              <SoftButton className="self-end" onClick={() => setRows(rows.filter((_, position) => position !== index))}>Remove</SoftButton>
-            </div>
-          );
-        })
-      )}
-      <div className="flex gap-2">
-        <PrimaryButton onClick={save} disabled={busy}>{busy ? 'Saving…' : `Save ${file.name}`}</PrimaryButton>
-        <SoftButton onClick={() => { setRows(file.entries); setShown({}); }} disabled={busy}>Discard</SoftButton>
-      </div>
-    </div>
   );
 }

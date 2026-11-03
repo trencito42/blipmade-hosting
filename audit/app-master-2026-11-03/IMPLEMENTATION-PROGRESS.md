@@ -392,3 +392,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Production build: pass; 172 pages prerendered.
 - Static startup-editor contract test: 1/1 pass.
 - Focused Playwright startup-editor suite: 2/2 pass, including exact PUT payload, secret masking, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated environment file editor
+
+### Completed
+
+- [x] Moved `.env` editing from the inline Startup tab to `/app/instances/:id/env-files/:name/edit`.
+- [x] Kept the Startup tab as a summary with contextual Edit/Create links; the real `PUT /instances/:id/env-files/:name` API is unchanged.
+- [x] Masked secret-like values, validated names (format and duplicates), added Save/Discard and a dirty guard.
+- [x] Disclosed that saving does not restart the instance.
+
+### Verification executed
+
+- Web TypeScript check: pass.
+- Static env-file and startup contract tests: 2/2 pass.
+- Focused Playwright suite: 2/2 pass, including exact PUT payload, secret masking, dirty guard and 390px overflow.
+- Full build, full unit suite and API suite not re-run for this checkpoint.
