@@ -408,3 +408,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Static env-file and startup contract tests: 2/2 pass.
 - Focused Playwright suite: 2/2 pass, including exact PUT payload, secret masking, dirty guard and 390px overflow.
 - Full build, full unit suite and API suite not re-run for this checkpoint.
+
+## 2026-11-03 — Dedicated subscription cancel and resume pages
+
+### Completed
+
+- [x] Moved subscription cancellation from a dialog on `/app/billing` to `/app/billing/subscriptions/:id/cancel`, with the paid-through date, the end-of-service consequence and an explicit acknowledgement.
+- [x] Moved resume to `/app/billing/subscriptions/:id/resume` (alias `/reactivate` from the blueprint). The page refuses a resume for a subscription that already renews and a cancel for one that already ends.
+- [x] The billing list keeps the same real APIs (`POST /billing/subscriptions/:id/cancel|resume`) and now links to the pages.
+- [ ] Not done: `/app/billing/subscriptions/:id/renew`. The renew API answers 503 when the payment provider collects payments, so no enabled control is shown until it works on the live environment. `/app/instances/:id/cancel` is also not added: the instance cancel endpoint sets the instance to CANCELLED immediately, which does not match the "runs until the end of the period" promise, so billing cancel stays the single path.
+
+### Verification executed
+
+- Web TypeScript check: pass.
+- Static subscription and billing contract tests: 15/15 pass.
+- Production build: pass; 172 pages prerendered.
+- Focused Playwright suites (subscription pages and env file editor): 5/5 pass, including exact POSTs, acknowledgement gate, refused resume and 390px overflow.

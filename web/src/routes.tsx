@@ -47,6 +47,8 @@ const AppReinstallInstance = lazy(() => import('./app/instance/ReinstallInstance
 const AppEditAllocation = lazy(() => import('./app/instance/EditAllocation'));
 const AppDatabaseSecurity = lazy(() => import('./app/instance/DatabaseSecurity'));
 const AppEditStartup = lazy(() => import('./app/instance/EditStartup'));
+const AppCancelSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.CancelSubscription })));
+const AppResumeSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.ResumeSubscription })));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -186,6 +188,9 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/vps/new', component: VpsCheckout, title: 'New server', area: 'customer' },
   { pattern: '/app/vps/:id', component: VpsDetail, title: 'Server', area: 'customer' },
   { pattern: '/app/email/checkout', component: EmailCheckout, title: 'Hosted mail', area: 'customer' },
+  { pattern: '/app/billing/subscriptions/:id/cancel', component: AppCancelSubscription, title: 'Cancel subscription', area: 'customer' },
+  { pattern: '/app/billing/subscriptions/:id/reactivate', component: AppResumeSubscription, title: 'Resume subscription', area: 'customer' },
+  { pattern: '/app/billing/subscriptions/:id/resume', component: AppResumeSubscription, title: 'Resume subscription', area: 'customer' },
   { pattern: '/app/billing/invoices/:id', component: InvoiceView, title: 'Invoice', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
