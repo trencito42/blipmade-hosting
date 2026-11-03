@@ -65,7 +65,7 @@ export function ErrorPage({ code, title, message, detail, kind, onRetry }: Error
 
       <main className="flex flex-1 items-center px-5 pb-20 sm:px-8">
         <div className="mx-auto w-full max-w-[640px] text-center">
-          <p className="font-mono text-[12px] font-medium uppercase tracking-[0.12em] text-acc-h">{code}</p>
+          <p className="inline-block -rotate-2 rounded-full px-4 py-1.5 font-mono text-[12.5px] font-bold uppercase tracking-[0.1em] text-bg" style={{ background: '#ffd166' }}>{code}</p>
           <h1
             ref={heading}
             tabIndex={-1}

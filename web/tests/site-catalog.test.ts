@@ -192,18 +192,21 @@ describe('the catalogue of the platform', () => {
 describe('the page of the catalogue', () => {
   const html = (): string => renderToStaticMarkup(createElement(Apps as never));
 
-  it('shows every product of the catalogue', () => {
+  it('shows every product that can be ordered', () => {
     const page = words(html());
-    for (const product of snapshot.filter((entry) => !entry.slug.startsWith('minecraft-'))) {
+    for (const product of snapshot.filter((entry) => !entry.slug.startsWith('minecraft-') && entry.availability.orderable)) {
       assert.ok(page.includes(product.name), `the product ${product.slug} is not on the page`);
     }
     assert.ok(page.includes('Minecraft'), 'the Minecraft family is missing');
     assert.equal(page.includes('Minecraft Paper'), false, 'Minecraft editions should share one catalog card');
   });
 
-  it('marks a product that cannot be ordered as coming soon', () => {
+  it('does not offer a product that cannot be ordered yet, and does not say that anything is coming', () => {
     const page = words(html());
-    assert.ok(page.includes('Coming soon'), 'the page does not say that a product is coming');
+    assert.equal(page.includes(`Size ${closed.name}`), false);
+    assert.equal(html().includes(`href="/apps/${closed.slug}"`), false, 'a product that cannot be ordered is offered in the catalogue');
+    assert.equal(page.includes('Coming soon'), false);
+    assert.equal(page.includes('still coming'), false);
   });
 
   it('offers the order only for the products that can be ordered', () => {
@@ -212,17 +215,12 @@ describe('the page of the catalogue', () => {
     assert.equal(page.includes(`Size ${closed.name}`), false, 'a product that cannot be ordered has a button that orders it');
   });
 
-  it('says how many apps can be deployed today and how many are still coming', () => {
+  it('says how many things can be deployed right now', () => {
     const page = words(html());
-    const cards = snapshot.filter((product) => !product.slug.startsWith('minecraft-'));
-    const minecraft = snapshot.find((product) => product.slug === 'minecraft-paper');
-    if (minecraft) cards.push(minecraft);
-    const available = cards.filter((product) => product.availability.orderable).length;
-    const coming = cards.length - available;
-    assert.ok(
-      page.includes(`${available} services are ready to deploy today, and ${coming} are still coming`),
-      'the page does not count the apps that can be deployed and the ones that are coming',
-    );
+    const cards = snapshot.filter((product) => !product.slug.startsWith('minecraft-') && product.availability.orderable);
+    const minecraft = snapshot.find((product) => product.slug === 'minecraft-paper' && product.availability.orderable);
+    const available = cards.length + (minecraft ? 1 : 0);
+    assert.ok(page.includes(`Pick one of the ${available} things you can deploy right now`), 'the page does not count what can be deployed');
   });
 });
 

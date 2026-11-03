@@ -8,6 +8,7 @@ import { postLoginTarget } from '../auth-guard';
 import { useSession } from '../session';
 import { Link, useRouter } from '../router';
 import { orderableOf, useProducts } from './catalog';
+import { categoryOf, toneOf } from './categories';
 import { breakdownOfResources, eur, fmtRam } from './pricing';
 import { Icon } from '../icons';
 import { Btn, Logo, cx } from './ui';
@@ -69,7 +70,7 @@ function Field({
           disabled={disabled}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-e` : hint ? `${id}-h` : undefined}
-          className="h-14 w-full rounded-2xl border border-line bg-card px-4 pr-20 text-[17px] outline-none transition-colors focus:border-ink disabled:opacity-60 aria-[invalid=true]:border-bad"
+          className="h-14 w-full rounded-[14px] border border-transparent bg-night-2 px-4 pr-20 text-[17px] outline-none transition-colors focus:border-green focus:ring-2 focus:ring-green/30 disabled:opacity-60 aria-[invalid=true]:border-bad"
         />
         {pw ? (
           <button
@@ -149,27 +150,35 @@ function Frame({ children, search }: { children: ReactNode; search: string }) {
 
   return (
     <div className="grid min-h-svh gap-2 p-2 sm:p-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <aside className="on-night hidden flex-col justify-between gap-12 rounded-[32px] bg-night p-10 text-snow lg:flex">
+      <aside className="on-night hidden flex-col justify-between gap-12 overflow-hidden rounded-[28px] bg-night p-10 text-snow lg:flex">
         <Logo onNight />
         <div className="grid gap-8">
-          <p className="max-w-[10em] font-display text-[clamp(38px,3.6vw,56px)] leading-[0.98] font-semibold tracking-[-0.045em]">
-            Hosting for everything you run.
+          <p className="max-w-[9em] font-display text-[clamp(40px,3.8vw,60px)] leading-[0.96] font-semibold tracking-[-0.05em]">
+            Go put something online.
           </p>
           {product && summary ? (
-            <div className="rounded-[24px] border border-night-line bg-night-2 p-6">
-              <p className="text-[14px] text-snow-2">Your configuration</p>
-              <p className="mt-1 font-display text-[26px] font-semibold tracking-[-0.03em]">{product.name}</p>
-              <p className="num mt-2 text-[15px] text-snow-2">
+            <div className="-rotate-1 rounded-[24px] p-6 text-paper shadow-[8px_8px_0_0_rgba(255,255,255,0.1)]" style={{ background: toneOf(product.category) }}>
+              <p className="text-[14px] font-semibold opacity-75">Your configuration</p>
+              <p className="mt-1 font-display text-[28px] leading-tight font-semibold tracking-[-0.035em]">{product.name}</p>
+              <p className="num mt-2 text-[14px] font-semibold opacity-80">
                 {fmtRam(summary.ram)} RAM · {summary.cpu} vCPU · {summary.disk} GB disk
               </p>
               <p className="mt-4">
-                <span className="big text-[40px] text-mint">{eur(breakdownOfResources(summary, product.rates).total)}</span>
-                <span className="text-snow-2"> /month</span>
+                <span className="big text-[44px]">{eur(breakdownOfResources(summary, product.rates).total)}</span>
+                <span className="font-semibold opacity-75"> /month</span>
               </p>
             </div>
-          ) : null}
+          ) : (
+            <ul className="flex flex-wrap gap-2" aria-label="What runs here">
+              {['GAMES', 'BOTS', 'DATABASES', 'DEVELOPER_TOOLS', 'VPS', 'EMAIL_HOSTING'].map((id, i) => (
+                <li key={id} className={cx('rounded-full px-4 py-2 text-[14px] font-bold text-paper', i % 2 ? 'rotate-1' : '-rotate-1')} style={{ background: toneOf(id) }}>
+                  {categoryOf(id).label.replace(' (VPS)', '')}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <p className="text-[14.5px] text-snow-2">Payments are completed with the team during launch.</p>
+        <p className="text-[14.5px] text-snow-2">Prices are in euros per month. Pick the resources, see the price, go live.</p>
       </aside>
       <main id="main" className="grid content-between gap-10 rounded-[28px] px-5 py-8 sm:px-12 sm:py-12">
         <div className="lg:hidden">
@@ -307,7 +316,7 @@ export function AuthLogin() {
               </p>
             </div>
             {msg ? (
-              <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+              <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[15px] text-bad">
                 {msg}
               </p>
             ) : null}
@@ -363,7 +372,7 @@ export function AuthLogin() {
             <p className="text-[17px] text-ink-2">Welcome back. Your instances, invoices and tickets are one step away.</p>
           </div>
           {msg || suspensionNotice ? (
-            <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[15px] text-bad">
               {msg || suspensionNotice}
             </p>
           ) : null}
@@ -388,7 +397,7 @@ export function AuthLogin() {
                 type="button"
                 disabled={busy}
                 onClick={() => void withPasskey(passkeyLogin)}
-                className="min-h-12 w-full rounded-full border border-line px-5 text-[16px] font-semibold text-ink transition-colors hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:opacity-60"
+                className="min-h-12 w-full rounded-full bg-night-3 px-5 text-[16px] font-semibold text-ink transition-colors hover:bg-night-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:opacity-60"
               >
                 Log in with a passkey
               </button>
@@ -540,12 +549,12 @@ export function AuthRegister() {
               <Rules pw={pw} />
             </div>
             {msg ? (
-              <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+              <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[15px] text-bad">
                 {msg}
               </p>
             ) : null}
             {taken ? (
-              <p role="alert" className="rounded-2xl border border-line bg-paper-2/60 px-4 py-3 text-[15px] text-ink-2">
+              <p role="alert" className="rounded-2xl bg-night-2 px-4 py-3 text-[15px] text-ink-2">
                 You already have an account with this address.{' '}
                 <Link to="/login" className="font-semibold text-ink underline underline-offset-4">Log in</Link>
                 {' '}or{' '}
@@ -649,7 +658,7 @@ export function AuthForgot() {
               <p className="text-[17px] text-ink-2">Enter the email address of your account and we will send you a link.</p>
             </div>
             {msg ? (
-              <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+              <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[15px] text-bad">
                 {msg}
               </p>
             ) : null}
@@ -732,7 +741,7 @@ export function AuthReset() {
         ) : !token || linkInvalid ? (
           <div className="grid gap-5">
             <h1 className="text-[40px] leading-none font-semibold tracking-[-0.045em]">Link not valid.</h1>
-            <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[15px] text-bad">
               This reset link is invalid or has expired. Request a new one and try again.
             </p>
             <p className="text-[16px] text-ink-2">
@@ -749,7 +758,7 @@ export function AuthReset() {
               <p className="text-[17px] text-ink-2">Choosing a new password ends every session of your account.</p>
             </div>
             {msg ? (
-              <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+              <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[15px] text-bad">
                 {msg}
               </p>
             ) : null}
@@ -857,7 +866,7 @@ export function AuthVerify() {
         ) : (
           <div className="grid gap-5">
             <h1 className="text-[40px] leading-none font-semibold tracking-[-0.045em]">We could not confirm your email.</h1>
-            <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[15px] text-bad">
+            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[15px] text-bad">
               {failed}
             </p>
             <div className="grid gap-2">

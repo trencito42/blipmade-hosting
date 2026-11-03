@@ -16,6 +16,7 @@ import { ButtonGroup } from './components/premium';
 import { InfoTip } from '../tooltip';
 import { useSession } from '../session';
 import { Icon } from '../icons';
+import { toneOf } from '../site/categories';
 import { Eyebrow, Footer, Nav, Wrap } from '../site/ui';
 import {
   ButtonLink,
@@ -59,9 +60,9 @@ function PublicShell({ children }: { children: ReactNode }) {
 /** One line of a plan: what it is and how much. */
 function Spec({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-line/60 pb-1.5">
-      <dt className="text-[12.5px] text-ink3">{label}</dt>
-      <dd className="font-mono text-[13px] font-semibold tabular-nums text-ink">{value}</dd>
+    <div className="flex items-baseline justify-between gap-3 border-b border-paper/20 pb-1.5">
+      <dt className="text-[13px] font-semibold opacity-70">{label}</dt>
+      <dd className="font-mono text-[13.5px] font-bold tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -78,6 +79,9 @@ function PlanSpecs({ plan }: { plan: VpsPlanView }) {
   );
 }
 
+/** The colours of the four plans, the same flat colours as the rest of the site. */
+const PLAN_TONES = ['#7fd6ff', '#4ee595', '#ffd166', '#ff8a6b'];
+
 /** The storefront: the plans, and a short, honest note about the address. */
 export default function VpsStorefront() {
   const { user, loading: sessionLoading } = useSession();
@@ -87,12 +91,15 @@ export default function VpsStorefront() {
   return (
     <PublicShell>
       <Wrap>
-        <div className="py-8 sm:py-12">
-          <Eyebrow>Servers</Eyebrow>
-          <h1 className="mt-3 max-w-[14em] text-[clamp(38px,5.4vw,66px)] leading-[0.98] font-semibold tracking-[-0.045em]">
+        <div className="py-10 sm:py-16">
+          <p className="num flex items-center gap-3 text-[12px] tracking-[0.08em] text-ink3 uppercase">
+            <span aria-hidden="true" className="grid size-8 -rotate-3 place-items-center rounded-[10px] text-paper" style={{ background: toneOf('VPS') }}><Icon name="server" size={15} /></span>
+            Servers
+          </p>
+          <h1 className="mt-5 max-w-[12em] text-[clamp(40px,6vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]">
             A server of your own, with root.
           </h1>
-          <p className="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink2">
+          <p className="mt-5 max-w-[48ch] text-[18px] leading-relaxed text-ink2">
             A virtual machine with the resources of the plan, a Debian system and the key you give us. Use it for a backend,
             a website or a tool, and keep the rest of your project on the platform.
           </p>
@@ -103,50 +110,50 @@ export default function VpsStorefront() {
         ) : state.error ? (
           <ErrorState title="The plans could not be loaded" message={state.error.message} onRetry={state.reload} />
         ) : !plans.length ? (
-          <EmptyState title="Servers are not on sale yet." description="When they are, the plans appear here." />
+          <EmptyState title="Servers are on their way." description="The plans appear here as soon as they are open." />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {plans.map((plan) => {
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            {plans.map((plan, index) => {
               const target = `${VPS_NEW_PATH}?plan=${encodeURIComponent(plan.slug)}`;
               const href = user || sessionLoading ? target : `/login?next=${encodeURIComponent(target)}`;
               return (
-                <article key={plan.slug} className="flex h-full flex-col rounded-2xl bg-s1 p-4 sm:p-5">
-                  <h2 className="text-[17px] font-semibold tracking-[-0.02em] text-ink">{plan.name}</h2>
-                  <p className="mt-1 text-[13.5px] leading-relaxed text-ink2">{plan.description}</p>
-                  <div className="mt-4">
+                <article key={plan.slug} className="flex h-full flex-col rounded-[26px] p-5 text-paper transition-transform duration-200 hover:-translate-y-1 hover:-rotate-[0.5deg] sm:p-6" style={{ background: PLAN_TONES[index % PLAN_TONES.length] }}>
+                  <h2 className="font-display text-[28px] leading-none font-semibold tracking-[-0.04em]">{plan.name}</h2>
+                  <p className="mt-2 min-h-[3.2em] text-[14.5px] leading-snug font-medium opacity-80">{plan.description}</p>
+                  <div className="mt-5">
                     <PlanSpecs plan={plan} />
                   </div>
-                  <p className="mt-4 text-[26px] font-semibold tracking-[-0.03em] text-ink">
+                  <p className="mt-6 font-display text-[40px] leading-none font-semibold tracking-[-0.045em]">
                     {plan.price ? <Money amount={plan.price.amount} currency={plan.price.currency} /> : '—'}
-                    <span className="text-[13px] font-normal text-ink3"> / month</span>
+                    <span className="text-[14px] font-semibold opacity-70"> / month</span>
                   </p>
-                  <div className="mt-4 flex-1" />
-                  <ButtonLink to={href} className="w-full">
+                  <div className="mt-5 flex-1" />
+                  <Link to={href} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-paper px-5 text-[15.5px] font-semibold text-snow transition-colors hover:bg-ink hover:text-paper">
                     Choose {plan.name}
-                  </ButtonLink>
+                  </Link>
                 </article>
               );
             })}
           </div>
         )}
 
-        <div className="mt-8 mb-16 grid gap-3 rounded-2xl border border-line p-5 text-[14px] leading-relaxed text-ink2 sm:grid-cols-2">
-          <div>
-            <p className="font-semibold text-ink">The address</p>
-            <p className="mt-1">
+        <div className="mt-8 mb-16 grid gap-3 text-[14.5px] leading-relaxed text-ink2 sm:grid-cols-2">
+          <div className="rounded-[22px] bg-night-2 p-6">
+            <p className="font-display text-[19px] font-semibold tracking-[-0.02em] text-ink">The address</p>
+            <p className="mt-2">
               A server shares a public address with the other servers, and its SSH is published on a port of its own. Web
               sites reach it through the platform by hostname. If you need every port on an address that is only yours,
               add a dedicated IPv4 address when you order.
             </p>
           </div>
-          <div>
-            <p className="font-semibold text-ink">What is not included</p>
-            <p className="mt-1">
+          <div className="rounded-[22px] bg-night-2 p-6">
+            <p className="font-display text-[19px] font-semibold tracking-[-0.02em] text-ink">What is not included</p>
+            <p className="mt-2">
               Outgoing mail on port 25 is closed, so a server cannot send spam. For mailboxes use{' '}
               <Link to="/email" className="underline underline-offset-4">
                 hosted email
               </Link>
-              . Backups of the server are yours to make for now.
+              . Backups of the server are yours to make.
             </p>
           </div>
         </div>

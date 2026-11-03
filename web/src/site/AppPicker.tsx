@@ -98,7 +98,7 @@ export function AppPicker({ options, selected, onPick }: AppPickerProps) {
       </button>
       {/* The panel is in the page when it is closed, so the products are in the HTML that the server writes. */}
       {(
-        <div id={panelId} hidden={!open} className="absolute inset-x-0 top-full z-20 mt-3 overflow-hidden rounded-[24px] border border-night-line bg-night shadow-[0_28px_56px_-16px_rgba(0,0,0,0.75)]">
+        <div id={panelId} hidden={!open} className="absolute inset-x-0 top-full z-20 mt-3 overflow-hidden rounded-[24px] bg-night shadow-[0_28px_56px_-16px_rgba(0,0,0,0.75)]">
           <div className="relative border-b border-night-line p-2">
             <Icon name="search" size={14} className="pointer-events-none absolute top-1/2 left-5 -translate-y-1/2 text-snow-2" />
             <input

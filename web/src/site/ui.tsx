@@ -54,8 +54,8 @@ type Variant = 'primary' | 'mint' | 'outline' | 'outline-night' | 'quiet';
 const VARIANT: Record<Variant, string> = {
   primary: 'bg-ink text-paper hover:bg-white',
   mint: 'bg-mint text-night hover:bg-[#6cf0a8]',
-  outline: 'border border-ink/25 text-ink hover:bg-ink/5',
-  'outline-night': 'border border-snow/25 text-snow hover:bg-snow/10',
+  outline: 'bg-night-3 text-ink hover:bg-ink hover:text-paper',
+  'outline-night': 'bg-snow/10 text-snow hover:bg-snow/20',
   quiet: 'text-ink hover:bg-ink/5',
 };
 

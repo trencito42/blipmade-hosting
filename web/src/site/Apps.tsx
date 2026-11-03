@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ScrollRow } from '../ScrollRow';
 import { useRevealOnChange } from '../lib/useReveal';
 import { Icon, ProductMark } from '../icons';
@@ -8,7 +8,7 @@ import { copyFromContent, useSiteContent } from './siteContent';
 import { isOrderable, useProducts, type Product } from './catalog';
 import { eur, fmtRam } from './pricing';
 import { Link, useRouter } from '../router';
-import { CATEGORIES, categoryOf, categoryOrder } from './categories';
+import { CATEGORIES, categoryOf, categoryOrder, toneOf } from './categories';
 import { Btn, Crumbs, Eyebrow, Wrap, cx } from './ui';
 
 const MINECRAFT_EDITIONS = [
@@ -47,25 +47,23 @@ export function groupByCategory(products: Product[]): CatalogGroup[] {
     .map((id) => ({ id, label: categoryOf(id).label, products: byCategory.get(id)! }));
 }
 
-/** The card of a product of the catalog: small, so a category reads as a list. */
+/** The card of a product of the catalog: its mark on the colour of its category, its name, a line about it and where its price starts. */
 function Card({ product }: { product: Product }) {
   const copy = copyFromContent(useSiteContent(), product.slug, APP_COPY[product.slug], FALLBACK(product.description));
-  const open = isOrderable(product);
   const category = categoryOf(product.category);
+  const tone = toneOf(product.category);
 
   return (
     <li>
       <Link
         to={`/apps/${product.slug}`}
-        className="group grid h-full content-between gap-5 rounded-[24px] border border-line bg-card p-5 transition-colors hover:border-ink/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
+        style={{ '--tone': tone } as CSSProperties}
+        className="group grid h-full content-between gap-5 rounded-[24px] bg-night-2 p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_0_0_2px_var(--tone)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green"
       >
         <div className="grid gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <span aria-hidden="true" className="grid size-11 place-items-center rounded-xl bg-night-2 text-green">
-              <ProductMark slug={product.slug} fallback={category.icon} size={19} />
-            </span>
-            {open ? null : <span className="rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-ink-3">Coming soon</span>}
-          </div>
+          <span aria-hidden="true" className="grid size-12 place-items-center rounded-[15px] text-paper transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-105" style={{ background: tone }}>
+            <ProductMark slug={product.slug} fallback={category.icon} size={22} />
+          </span>
           <h3 className="font-display text-[22px] leading-tight font-semibold tracking-[-0.03em]">{product.name}</h3>
           <p className="line-clamp-2 text-[14.5px] text-ink-2">{copy.tagline}</p>
         </div>
@@ -75,7 +73,9 @@ function Card({ product }: { product: Product }) {
             <span className="big text-[26px]">{eur(product.minPrice)}</span>
             <span className="text-[13px] text-ink-3"> /month</span>
           </span>
-          <Icon name="arrow" size={14} className="mb-1.5 text-ink-3 transition-transform group-hover:translate-x-0.5 group-hover:text-ink" />
+          <span aria-hidden="true" className="mb-0.5 grid size-8 place-items-center rounded-full bg-ink text-paper transition-transform duration-200 group-hover:translate-x-1">
+            <Icon name="arrow" size={12} />
+          </span>
         </p>
       </Link>
     </li>
@@ -94,7 +94,8 @@ function Card({ product }: { product: Product }) {
 export function Apps() {
   const products = useProducts();
   const minecraft = products.find((product) => product.slug === 'minecraft-paper') ?? products.find((product) => product.slug.startsWith('minecraft-'));
-  const displayProducts = products.filter((product) => !product.slug.startsWith('minecraft-'));
+  // The catalogue lists what can be deployed. A product that is not open yet keeps its own page, but it is not offered here.
+  const displayProducts = products.filter((product) => !product.slug.startsWith('minecraft-') && isOrderable(product));
   if (minecraft) displayProducts.push({ ...minecraft, slug: 'minecraft', name: 'Minecraft', description: 'Choose Paper, Forge, Vanilla, Bedrock or Folia.' });
   const groups = groupByCategory(displayProducts);
   const [category, setCategory] = useState('all');
@@ -128,8 +129,7 @@ export function Apps() {
     .map((group) => ({ ...group, products: group.products.filter(matches).sort((left, right) => Number(isOrderable(right)) - Number(isOrderable(left))) }))
     .filter((group) => group.products.length > 0)
     .sort((left, right) => Number(ready(right.products) > 0) - Number(ready(left.products) > 0));
-  const available = displayProducts.filter((product) => isOrderable(product)).length;
-  const coming = displayProducts.length - available;
+  const available = displayProducts.length;
 
   return (
     <>
@@ -139,13 +139,7 @@ export function Apps() {
           <h1 id="apps-h" className="max-w-[14em] text-[clamp(40px,6vw,76px)] leading-[0.96] font-semibold tracking-[-0.05em]">Games, databases and tools, on one price card.</h1>
           <p className="max-w-[38em] text-[18px] text-ink-2">
             Everything starts as a container with the resources you choose, and everything is priced with the same card of rates.{' '}
-            <strong className="font-semibold text-ink">{available}</strong> {available === 1 ? 'service is' : 'services are'} ready to deploy today
-            {coming > 0 ? (
-              <>
-                , and <strong className="font-semibold text-ink">{coming}</strong> {coming === 1 ? 'is' : 'are'} still coming
-              </>
-            ) : null}
-            .
+            Pick one of the <strong className="font-semibold text-ink">{available}</strong> things you can deploy right now and have it running in minutes.
           </p>
         </Wrap>
       </section>
@@ -159,14 +153,15 @@ export function Apps() {
                   key={tab.id}
                   type="button"
                   aria-pressed={category === tab.id}
+                  style={category === tab.id ? { background: tab.id === 'all' ? '#4ee595' : toneOf(tab.id) } : undefined}
                   onClick={() => choose(tab.id)}
                   className={cx(
                     'inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-[14.5px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green',
-                    category === tab.id ? 'border-green bg-green text-paper' : 'border-line text-ink-2 hover:border-ink/40 hover:text-ink',
+                    category === tab.id ? 'border-transparent text-paper' : 'border-transparent bg-night-3 text-ink-2 hover:text-ink',
                   )}
                 >
                   <Icon name={tab.icon} size={13} />
-                  {tab.label} <span className="num text-[12.5px] opacity-70">{tab.count}</span>
+                  {tab.label}
                 </button>
               ))}
             </div>
@@ -179,7 +174,7 @@ export function Apps() {
               onChange={(event) => setQuery(event.target.value)}
               aria-label="Search the catalog"
               placeholder="Search the catalog"
-              className="h-10 w-full rounded-full border border-line bg-card pr-4 pl-10 text-[16px] text-ink placeholder:text-ink-3 sm:text-[14.5px] focus-visible:outline-2 focus-visible:outline-green"
+              className="h-10 w-full rounded-full bg-night-2 pr-4 pl-10 text-[16px] text-ink placeholder:text-ink-3 sm:text-[14.5px] focus-visible:outline-2 focus-visible:outline-green"
             />
           </div>
         </div>
@@ -190,8 +185,8 @@ export function Apps() {
             <section key={group.id} id={meta.slug} aria-labelledby={`cat-${group.id}`} className="mb-14 scroll-mt-36 last:mb-0">
               <div className="flex flex-wrap items-end justify-between gap-3 pb-5">
                 <div className="flex items-center gap-4">
-                  <span aria-hidden="true" className="grid size-12 place-items-center rounded-2xl bg-night-2 text-green">
-                    <Icon name={meta.icon} size={20} />
+                  <span aria-hidden="true" className="grid size-12 place-items-center rounded-[15px] text-paper" style={{ background: toneOf(group.id) }}>
+                    <Icon name={meta.icon} size={21} />
                   </span>
                   <div>
                     <h2 id={`cat-${group.id}`} className="font-display text-[28px] leading-none font-semibold tracking-[-0.03em]">
@@ -200,9 +195,6 @@ export function Apps() {
                     {meta.blurb ? <p className="mt-1.5 text-[15px] text-ink-3">{meta.blurb}</p> : null}
                   </div>
                 </div>
-                <p className="num text-[14px] text-ink-3">
-                  {group.products.length} {group.products.length === 1 ? 'service' : 'services'}
-                </p>
               </div>
               <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {group.products.map((product) => (
@@ -212,12 +204,12 @@ export function Apps() {
             </section>
           );
         })}
-        <div className="mt-6 grid gap-4 rounded-[28px] bg-paper-2/70 p-7 sm:flex sm:items-center sm:justify-between sm:p-9">
+        <div className="mt-6 grid gap-4 rounded-[28px] p-7 text-paper sm:flex sm:items-center sm:justify-between sm:p-9" style={{ background: toneOf('EMAIL_HOSTING') }}>
           <div>
-            <h2 className="font-display text-[26px] font-semibold tracking-[-0.03em]">Running something else?</h2>
-            <p className="mt-1 max-w-[34em] text-[17px] text-ink-2">The catalog grows one verified image at a time. Open a ticket and tell us what you want to run.</p>
+            <h2 className="font-display text-[clamp(26px,3vw,36px)] leading-tight font-semibold tracking-[-0.035em]">Running something else?</h2>
+            <p className="mt-1 max-w-[34em] text-[17px] font-medium opacity-80">The catalog grows one verified image at a time. Tell us what you want to run and we will look at it.</p>
           </div>
-          <Btn to="/docs/tickets" variant="primary">How to open a ticket</Btn>
+          <Link to="/docs/tickets" className="inline-flex h-12 items-center justify-center rounded-full bg-paper px-6 text-[15.5px] font-semibold text-snow transition-transform hover:-translate-y-0.5">How to tell us</Link>
         </div>
         </div>
       </Wrap>
@@ -279,7 +271,7 @@ export function AppDetail({ slug }: { slug: string }) {
           <h1 id="app-h" className="max-w-[16em] text-[clamp(42px,6.4vw,84px)] leading-[0.95] font-semibold tracking-[-0.05em]">{product.name} is coming soon.</h1>
           <p className="font-display text-[24px] leading-tight font-medium tracking-[-0.02em]">{copy?.tagline ?? product.description}</p>
           {copy?.lead ? <p className="max-w-[34em] text-[18px] text-ink-2">{copy.lead}</p> : null}
-          <div className="grid max-w-[34em] gap-4 rounded-2xl border border-line bg-paper-2/60 p-6">
+          <div className="grid max-w-[34em] gap-4 rounded-[20px] bg-night-2 p-6">
             <Eyebrow>Coming soon</Eyebrow>
             {reason ? <p className="text-[17px] text-ink-2">{reason}</p> : null}
             <p className="text-[17px] text-ink-2">
@@ -315,19 +307,27 @@ export function AppDetail({ slug }: { slug: string }) {
   }
 
   const words = copy ?? FALLBACK(product.description);
+  const tone = toneOf(product.category);
+  const meta = categoryOf(product.category);
 
   return (
     <section aria-labelledby="app-h">
       <Wrap className="grid items-start gap-12 pt-12 pb-20 sm:pt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
         <div className="grid content-start gap-7">
           <Crumbs items={[['Home', '/'], ['Catalog', '/apps'], [product.name, `/apps/${slug}`]]} />
+          <div className="flex items-center gap-4">
+            <span aria-hidden="true" className="grid size-16 -rotate-3 place-items-center rounded-[20px] text-paper" style={{ background: tone }}>
+              <ProductMark slug={product.slug} fallback={meta.icon} size={30} />
+            </span>
+            <span className="rounded-full px-4 py-1.5 text-[13.5px] font-bold text-paper" style={{ background: tone }}>{meta.label}</span>
+          </div>
           <h1 id="app-h" className="text-[clamp(42px,6.4vw,84px)] leading-[0.95] font-semibold tracking-[-0.05em]">
             {product.name} hosting from {eur(product.minPrice)} a month.
           </h1>
           <p className="font-display text-[24px] leading-tight font-medium tracking-[-0.02em]">{words.tagline}</p>
           <p className="max-w-[34em] text-[18px] text-ink-2">{words.lead}</p>
           {words.note ? (
-            <p className="max-w-[34em] rounded-2xl border border-line bg-paper-2/60 p-5 text-[16px] text-ink-2">
+            <p className="max-w-[34em] rounded-[20px] p-5 text-[16px] text-ink-2" style={{ background: `${tone}22` }}>
               <strong className="font-semibold text-ink">Good to know. </strong>
               {words.note}
             </p>
@@ -337,44 +337,28 @@ export function AppDetail({ slug }: { slug: string }) {
             <ul className="grid gap-2.5 text-[17px] text-ink-2">
               {words.fits.map((fit) => (
                 <li key={fit} className="flex gap-3">
-                  <span aria-hidden="true" className="mt-[11px] size-1.5 shrink-0 rounded-full bg-green" />
+                  <span aria-hidden="true" className="mt-[10px] size-2 shrink-0 rounded-[3px]" style={{ background: tone }} />
                   {fit}
                 </li>
               ))}
             </ul>
           </div>
-          <table className="num w-full max-w-[34em] text-left text-[14.5px]">
-            <caption className="mb-2 text-left font-display text-[22px] font-semibold tracking-[-0.02em]">Resource range</caption>
-            <thead className="text-ink-3">
-              <tr>
-                <th scope="col" className="py-2 font-medium">
-                  <span className="sr-only">Size</span>
-                </th>
-                <th scope="col" className="py-2 font-medium">RAM</th>
-                <th scope="col" className="py-2 font-medium">vCPU</th>
-                <th scope="col" className="py-2 font-medium">Disk</th>
-                <th scope="col" className="py-2 text-right font-medium">Price</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line border-y border-line">
-              {([['Smallest', product.min, product.minPrice], ['Suggested', product.def, product.recPrice]] as const).map(([label, r, price]) => (
-                <tr key={label}>
-                  <th scope="row" className="py-3 font-medium text-ink">{label}</th>
-                  <td>{fmtRam(r.ram)}</td>
-                  <td>{r.cpu}</td>
-                  <td>{r.disk} GB</td>
-                  <td className="text-right text-ink">{eur(price)}</td>
-                </tr>
+          <div>
+            <h2 className="mb-3 font-display text-[22px] font-semibold tracking-[-0.02em]">Resource range</h2>
+            <dl className="grid max-w-[40em] gap-3 sm:grid-cols-3">
+              {([['Smallest', product.min, product.minPrice, false], ['Suggested', product.def, product.recPrice, true], ['Largest', product.max, null, false]] as const).map(([label, r, price, pick]) => (
+                <div key={label} className={cx('grid gap-3 rounded-[20px] p-4', !pick && 'bg-night-2')} style={pick ? { background: tone, color: '#090b0a' } : undefined}>
+                  <dt className={cx('num text-[12px] font-bold tracking-[0.06em] uppercase', !pick && 'text-ink-3')}>{label}</dt>
+                  <dd className="num grid gap-0.5 text-[14px]">
+                    <span>{fmtRam(r.ram)} RAM</span>
+                    <span>{r.cpu} vCPU</span>
+                    <span>{r.disk} GB disk</span>
+                  </dd>
+                  <dd className={cx('big text-[24px]', !pick && 'text-ink')}>{price === null ? 'custom' : eur(price)}</dd>
+                </div>
               ))}
-              <tr>
-                <th scope="row" className="py-3 font-medium text-ink">Largest</th>
-                <td>{fmtRam(product.max.ram)}</td>
-                <td>{product.max.cpu}</td>
-                <td>{product.max.disk} GB</td>
-                <td className="text-right text-ink-3">custom</td>
-              </tr>
-            </tbody>
-          </table>
+            </dl>
+          </div>
           <p className="text-[16px] text-ink-2">
             Step by step:{' '}
             <Link to={`/docs/${product.slug}`} className="text-green underline underline-offset-4">

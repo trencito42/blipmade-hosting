@@ -115,3 +115,11 @@ Done:
 * Tests: `public-home-2026.spec.ts` now has 16 tests (menus, staff chooser, customer link, gallery, footer, widths including 768 and a zoom viewport).
 
 Known limitations (still): the configurator keeps its own look; the product marks exist only for some titles (others show the icon of the category); `mobile.spec.ts` "do not scroll sideways" tests time out on `networkidle` in this environment before and after this change.
+
+## 6. Third round (branch `design/public-pages`): the other public pages
+
+Same language on: the sign-in and sign-up (colourful side panel that carries the chosen configuration; fields on a fill, not an outline), `/apps` (cards with the colour of the category, tabs without counters, only what can be deployed is listed, a colourful "running something else" tile), `/apps/:slug` (category chip and mark, size range as three tiles, card configurator with the colour of the category), `/vps` (four coloured plan tiles), `/email` (three coloured plan tiles), `/docs` (coloured start tiles), `/status` (inside the site shell now, a big green banner when all is operational), `/abuse`, the 404 page ("404" sticker) and the crash page. Header, footer and the social image (`og.png`, made from the new hero) follow. The owner asked for no outlines: cards, inputs, tabs and buttons are fills now; only list dividers remain.
+
+Product decision recorded: the catalogue does not list titles that cannot be ordered yet; their pages stay reachable by address.
+
+The legal pages were left as they are (sober, already in the site shell).

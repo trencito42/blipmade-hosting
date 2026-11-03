@@ -15,7 +15,9 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { get, post, type MailPlanLimits, type MailPlanView, type Order } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel, periodLabel, periodSuffix } from '../lib/pricing';
-import { useRouter } from '../router';
+import { Link, useRouter } from '../router';
+import { Icon } from '../icons';
+import { toneOf } from '../site/categories';
 import { useSession } from '../session';
 import { Eyebrow, Footer, Nav, Wrap } from '../site/ui';
 import {
@@ -141,7 +143,7 @@ export function mailPlanBlockers(plan: MailPlanView): string[] {
  * limits and its price stay on the page. Its button is disabled and the reason
  * of the platform is written under it.
  */
-export function MailPlanCard({ plan, buyHref }: { plan: MailPlanView; buyHref?: string }) {
+export function MailPlanCard({ plan, buyHref, tone }: { plan: MailPlanView; buyHref?: string; tone?: string }) {
   const blockers = mailPlanBlockers(plan);
   const onSale = plan.onSale && plan.price !== null;
 
@@ -149,17 +151,20 @@ export function MailPlanCard({ plan, buyHref }: { plan: MailPlanView; buyHref?: 
     <article
       data-plan={plan.slug}
       data-on-sale={onSale ? 'yes' : 'no'}
-      className="flex h-full flex-col rounded-2xl bg-s1 p-4 sm:p-5"
+      style={tone ? { background: tone } : undefined}
+      className={tone ? 'on-tone flex h-full flex-col rounded-[26px] p-5 transition-transform duration-200 hover:-translate-y-1 hover:-rotate-[0.5deg] sm:p-6' : 'flex h-full flex-col rounded-2xl bg-s1 p-4 sm:p-5'}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="break-words text-[17px] font-semibold tracking-[-0.02em] text-ink">{plan.name}</h3>
+          <h3 className={tone ? 'break-words font-display text-[28px] leading-none font-semibold tracking-[-0.04em] text-ink' : 'break-words text-[17px] font-semibold tracking-[-0.02em] text-ink'}>{plan.name}</h3>
           <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">{plan.description}</p>
         </div>
-        <StatusPill
-          status={onSale ? 'active' : 'draft'}
-          label={onSale ? 'On sale' : 'Not on sale yet'}
-        />
+        {tone && onSale ? null : (
+          <StatusPill
+            status={onSale ? 'active' : 'draft'}
+            label={onSale ? 'On sale' : 'Not on sale yet'}
+          />
+        )}
       </div>
 
       <div className="mt-4">
@@ -173,7 +178,11 @@ export function MailPlanCard({ plan, buyHref }: { plan: MailPlanView; buyHref?: 
       <div className="mt-4 flex-1" />
 
       {onSale ? (
-        buyHref ? (
+        buyHref && tone ? (
+          <Link to={buyHref} className="inline-flex h-12 w-full items-center justify-center rounded-full bg-paper px-5 text-[15.5px] font-semibold text-snow transition-colors hover:bg-ink hover:text-paper">
+            Choose this plan
+          </Link>
+        ) : buyHref ? (
           <ButtonLink to={buyHref} className="w-full">
             Choose this plan
           </ButtonLink>
@@ -223,12 +232,15 @@ export default function EmailHosting() {
   return (
     <PublicShell>
       <Wrap>
-        <div className="py-8 sm:py-12">
-          <Eyebrow>Email hosting</Eyebrow>
-          <h1 className="mt-3 max-w-[14em] text-[clamp(38px,5.4vw,66px)] leading-[0.98] font-semibold tracking-[-0.045em]">
+        <div className="py-10 sm:py-16">
+          <p className="num flex items-center gap-3 text-[12px] tracking-[0.08em] text-ink3 uppercase">
+            <span aria-hidden="true" className="grid size-8 rotate-3 place-items-center rounded-[10px] text-paper" style={{ background: toneOf('EMAIL_HOSTING') }}><Icon name="mail" size={15} /></span>
+            Email hosting
+          </p>
+          <h1 className="mt-5 max-w-[12em] text-[clamp(40px,6vw,84px)] leading-[0.96] font-semibold tracking-[-0.05em]">
             Your own mail, on your own domain.
           </h1>
-          <p className="mt-3 max-w-[56ch] text-[15px] leading-relaxed text-ink2">
+          <p className="mt-5 max-w-[48ch] text-[18px] leading-relaxed text-ink2">
             Hosted mail gives every domain of yours a place where mail arrives and where mail leaves. The
             plans, their limits and their price are the ones of the platform.
           </p>
@@ -264,14 +276,14 @@ export default function EmailHosting() {
               </Panel>
             )}
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {plans.map((plan) => {
+            <div className="mt-4 mb-16 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {plans.map((plan, index) => {
                 const target = mailCheckoutPath(plan.slug);
                 // A visitor without a session is sent to the login with the plan
                 // in the ?next= parameter, so the checkout opens on it.
                 const buyHref =
                   user || sessionLoading ? target : `/login?next=${encodeURIComponent(target)}`;
-                return <MailPlanCard key={plan.id} plan={plan} buyHref={buyHref} />;
+                return <MailPlanCard key={plan.id} plan={plan} buyHref={buyHref} tone={['#c9b8ff', '#7fd6ff', '#ffd166'][index % 3]} />;
               })}
             </div>
           </>

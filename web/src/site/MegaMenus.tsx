@@ -239,7 +239,7 @@ export function DashboardButton({ staff }: { staff: boolean }) {
         <Icon name="chevronDown" size={11} className={cx('transition-transform duration-200', open && 'rotate-180')} />
       </button>
       {open ? (
-        <div role="menu" aria-label="Where to?" className="absolute top-full right-0 z-40 mt-3 w-64 rounded-[22px] border border-line bg-card p-2 shadow-[0_32px_64px_-20px_rgba(0,0,0,0.8)]">
+        <div role="menu" aria-label="Where to?" className="absolute top-full right-0 z-40 mt-3 w-64 rounded-[22px] bg-card p-2 shadow-[0_32px_64px_-20px_rgba(0,0,0,0.8)]">
           <p className="num truncate px-3 pt-2 pb-1 text-[12px] text-ink-3">{user?.email}</p>
           <Link role="menuitem" to="/app" className="flex items-center gap-3 rounded-2xl p-3 hover:bg-night-2">
             <span aria-hidden="true" className="grid size-10 place-items-center rounded-[12px] text-paper" style={{ background: toneOf('BOTS') }}><Icon name="rocket" size={17} /></span>

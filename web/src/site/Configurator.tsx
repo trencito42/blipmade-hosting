@@ -149,7 +149,7 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
 
   if (layout === 'bar') {
     return (
-      <section aria-label="Price configurator" style={{ boxShadow: `inset 0 5px 0 0 ${toneOf(current.category)}` }} className={cx('on-night rounded-[28px] border border-night-line bg-night p-5 pt-7 text-snow sm:p-6 sm:pt-8 lg:rounded-[32px] lg:p-7 lg:pt-8', className)}>
+      <section aria-label="Price configurator" style={{ boxShadow: `inset 0 5px 0 0 ${toneOf(current.category)}` }} className={cx('on-night rounded-[28px] bg-night p-5 pt-7 text-snow sm:p-6 sm:pt-8 lg:rounded-[32px] lg:p-7 lg:pt-8', className)}>
         <ShapeReporter
           onShape={onShape}
           shape={{ slug: current.slug, ram: resources.ram, cpu: resources.cpu, disk: resources.disk, minRam: current.min.ram, maxRam: current.max.ram, maxCpu: current.max.cpu, minDisk: current.min.disk, maxDisk: current.max.disk }}
@@ -216,7 +216,7 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
   }
 
   return (
-    <section aria-label="Price configurator" className={cx('on-night rounded-[28px] bg-night p-5 text-snow sm:rounded-[32px] sm:p-8', className)}>
+    <section aria-label="Price configurator" style={{ boxShadow: `inset 0 5px 0 0 ${toneOf(current.category)}` }} className={cx('on-night rounded-[28px] bg-night p-5 pt-8 text-snow sm:p-8 sm:pt-10', className)}>
       {lock ? (
         <h2 className="font-display text-[26px] leading-tight font-semibold tracking-[-0.03em]">Size your {current.name} instance</h2>
       ) : (
@@ -280,14 +280,14 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
         aria-label={`Where the price goes: RAM ${eur(b.ram)}, vCPU ${eur(b.cpu)}, disk ${eur(b.disk)}, base fee ${eur(b.base)}`}
       >
         {parts.map((value, index) => (
-          <span key={index} className="h-full transition-[width] duration-300 ease-out" style={{ width: `${(value / b.total) * 100}%`, background: SEG[index] }} />
+          <span key={index} className="h-full transition-[width] duration-300 ease-out" style={{ width: `${(value / b.total) * 100}%`, background: BAR_SEG[index] }} />
         ))}
       </div>
       <dl className="mt-5 grid gap-2.5">
         {rows.map(([k, d, v, c], index) => (
           <div key={k} className="rise grid grid-cols-[1fr_auto] items-baseline gap-4" style={{ '--i': index } as CSSProperties}>
             <dt className="flex items-baseline gap-2.5">
-              <span aria-hidden="true" className="size-2.5 translate-y-px rounded-full" style={{ background: c }} />
+              <span aria-hidden="true" className="size-2.5 translate-y-px rounded-full" style={{ background: BAR_SEG[index] }} />
               <span className="font-medium">{k}</span>
               <span className="num hidden text-[12.5px] text-snow-2 sm:inline">{d}</span>
             </dt>
@@ -295,13 +295,15 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
           </div>
         ))}
       </dl>
-      <div className="mt-6 flex items-end justify-between gap-4 border-t border-night-line pt-5">
-        <p className="font-display text-[17px] font-semibold">Total per month</p>
-        <p className="big text-[40px] sm:text-[46px]" role="status" aria-live="polite">{eur(b.total)}</p>
+      <div className="mt-6 grid gap-4 rounded-[22px] p-5 text-paper" style={{ background: toneOf(current.category) }}>
+        <div className="flex items-end justify-between gap-4">
+          <p className="font-display text-[17px] font-semibold">Total per month</p>
+          <p className="big text-[40px] sm:text-[46px]" role="status" aria-live="polite">{eur(b.total)}</p>
+        </div>
+        <Btn to={user ? `/app/deploy/${current.slug}?${query}` : `/register?${query}`} variant="primary" size="lg" className="w-full">
+          {user ? 'Deploy this configuration' : 'Create account and deploy'}
+        </Btn>
       </div>
-      <Btn to={user ? `/app/deploy/${current.slug}?${query}` : `/register?${query}`} variant="mint" size="lg" className="mt-6 w-full">
-        {user ? 'Deploy this configuration' : 'Create account and deploy'}
-      </Btn>
       <p className="mt-4 text-[13.5px] leading-relaxed text-snow-2">
         Euros per month. You pay by card when you place the order.
       </p>

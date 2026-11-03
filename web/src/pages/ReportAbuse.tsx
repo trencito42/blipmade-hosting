@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ApiError, post } from '../lib/api';
 import { Link } from '../router';
-import { Button, Logo } from '../ui';
+import { Button } from '../ui';
+import { Footer, Nav } from '../site/ui';
 import { Select, TextArea, TextInput } from '../ui-app';
-import { LegalFooter } from '../legal/LegalFooter';
 
 /** The public form to report abuse: spam, phishing, malware, an attack, a copyright claim. No account is needed. */
 export default function ReportAbuse() {
@@ -30,28 +30,20 @@ export default function ReportAbuse() {
 
   return (
     <div className="min-h-[100svh] bg-bg">
-      <header className="border-b border-line">
-        <div className="mx-auto flex min-h-[64px] w-full max-w-[1200px] items-center gap-3 px-5 sm:px-8">
-          <Logo className="shrink-0" />
-          <nav aria-label="Main" className="ml-auto flex items-center gap-1">
-            <Link to="/status" className="inline-flex h-10 items-center rounded-lg px-3 text-[14px] font-medium text-ink2 hover:text-ink">Status</Link>
-            <Link to="/" className="inline-flex h-10 items-center rounded-lg px-3 text-[14px] font-medium text-ink2 hover:text-ink">Home</Link>
-          </nav>
-        </div>
-      </header>
+      <Nav />
       <main className="mx-auto w-full max-w-[680px] px-5 py-10 sm:px-8 sm:py-14">
         <h1 className="text-[clamp(34px,5vw,56px)] leading-[1] font-semibold tracking-[-0.045em] text-ink">Report abuse</h1>
         <p className="mt-4 text-[16.5px] leading-relaxed text-ink2">
           Something hosted with Blipmade is sending spam, phishing, malware, attacking you, or breaking your rights? Tell us where it is and what happened. We read every report, and we act on what we can confirm.
         </p>
         {reference ? (
-          <div role="status" className="mt-8 rounded-2xl border border-line bg-card p-6">
-            <p className="text-[18px] font-semibold text-ink">Your report was received.</p>
-            <p className="mt-2 text-[14.5px] text-ink2">Reference <span className="font-mono font-semibold text-ink">{reference}</span>. We may write to the address you gave if we need more.</p>
+          <div role="status" className="mt-8 rounded-[26px] p-6 text-paper" style={{ background: '#4ee595' }}>
+            <p className="font-display text-[28px] leading-tight font-semibold tracking-[-0.035em]">Your report was received. Thank you.</p>
+            <p className="mt-2 text-[14.5px] font-medium opacity-80">Reference <span className="font-mono font-bold">{reference}</span>. We may write to the address you gave if we need more.</p>
           </div>
         ) : (
           <div className="mt-8 grid gap-4">
-            {message && <p role="alert" className="rounded-2xl border border-bad/40 bg-bad/[0.07] px-4 py-3 text-[14.5px] text-bad">{message}</p>}
+            {message && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[14.5px] text-bad">{message}</p>}
             <div className="grid gap-4 sm:grid-cols-2">
               <TextInput label="Your name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} error={errors.name} autoComplete="name" />
               <TextInput label="Your email address" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} error={errors.email} autoComplete="email" />
@@ -73,7 +65,7 @@ export default function ReportAbuse() {
           </div>
         )}
       </main>
-      <footer className="mx-auto w-full max-w-[1200px] px-5 pb-10 sm:px-8"><LegalFooter className="mt-6" /></footer>
+      <Footer />
     </div>
   );
 }

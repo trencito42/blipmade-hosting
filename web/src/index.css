@@ -364,3 +364,14 @@ select:not([multiple]):not([size]) {
 .blip-arc { animation: blip-pulse 2.4s ease-in-out infinite; }
 .blip-arc-2 { animation-delay: 0.3s; }
 @media (prefers-reduced-motion: reduce) { .blip-arc { animation: none; } }
+
+/* A tile of a flat colour (see TONES): the ink variables turn dark, so every component of the interface that reads them is legible on it. */
+.on-tone {
+  --color-ink: #090b0a;
+  --color-ink2: rgba(9, 11, 10, 0.78);
+  --color-ink3: rgba(9, 11, 10, 0.62);
+  --color-ink-2: rgba(9, 11, 10, 0.78);
+  --color-ink-3: rgba(9, 11, 10, 0.62);
+  --color-line: rgba(9, 11, 10, 0.2);
+  color: #090b0a;
+}

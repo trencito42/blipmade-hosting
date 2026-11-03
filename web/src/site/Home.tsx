@@ -63,7 +63,7 @@ function Cta({ to, children, tone = 'ink' }: { to: string; children: ReactNode; 
         'group inline-flex h-12 items-center gap-3 rounded-full px-6 text-[15.5px] font-semibold whitespace-nowrap transition-[background-color,color,border-color] duration-150',
         tone === 'ink' && 'bg-ink text-paper hover:bg-green',
         tone === 'mint' && 'bg-green text-paper hover:bg-ink',
-        tone === 'line' && 'border border-ink/30 text-ink hover:border-green hover:text-green',
+        tone === 'line' && 'bg-night-3 text-ink hover:bg-ink hover:text-paper',
       )}
     >
       {children}
@@ -146,7 +146,7 @@ function Hero() {
   const words = useSiteContent()['home.hero'] as { title: string; lead: string; primaryLabel?: string; secondaryLabel?: string } | undefined;
   const rates = useRates();
   return (
-    <section aria-labelledby="h1" className="border-b border-line">
+    <section aria-labelledby="h1" className="">
       <Wrap className="pt-10 pb-12 sm:pt-16 lg:pb-20">
         <p className="num rise flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] tracking-[0.08em] text-ink-3 uppercase">
           <Blip size={11} live className="text-green" />
@@ -209,7 +209,7 @@ function Index() {
     return { ...category, count: own.length, from: own.length ? Math.min(...own.map((product) => product.minPrice)) : 0, names: own.slice(0, 3).map((product) => product.name) };
   }).filter((row) => row.count > 0);
   return (
-    <section aria-labelledby="index-h" className="border-b border-line">
+    <section aria-labelledby="index-h" className="">
       <Wrap className="py-20 sm:py-28">
         <SectionHead label="What runs here" id="index-h" aside={<p>Games, bots, databases, tools, servers and mail. Pick one and it is yours in a few clicks.</p>}>
           So, what are we running today?
@@ -220,7 +220,7 @@ function Index() {
               <Link
                 to={destinationOf(row.id, row.slug)}
                 style={{ '--tone': toneOf(row.id) } as CSSProperties}
-                className="group grid h-full grid-cols-[auto_1fr_auto] items-center gap-x-5 gap-y-1 rounded-[24px] border border-line bg-card p-5 transition-[transform,border-color] duration-200 hover:-translate-y-1 hover:border-[var(--tone)] sm:p-6"
+                className="group grid h-full grid-cols-[auto_1fr_auto] items-center gap-x-5 gap-y-1 rounded-[24px] bg-night-2 p-5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_0_0_2px_var(--tone)] sm:p-6"
               >
                 <span aria-hidden="true" className="grid size-14 place-items-center rounded-[18px] text-paper transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-105" style={{ background: toneOf(row.id) }}>
                   <Icon name={row.icon} size={24} />
@@ -254,14 +254,14 @@ function Flow() {
     ['Open the panel', 'Console, files and startup settings of the instance, with the machines, the ports and the billing handled for you.', 'Every instance is a container on Pterodactyl.'],
   ];
   return (
-    <section aria-labelledby="flow-h" className="border-b border-line">
+    <section aria-labelledby="flow-h" className="">
       <Wrap className="py-20 sm:py-28">
         <SectionHead label="How it works" id="flow-h" aside={<Link to="/docs/first-app" className="text-ink underline decoration-ink/40 underline-offset-4 hover:decoration-green">Read how a first deploy works</Link>}>
           Three steps. No yak shaving.
         </SectionHead>
         <ol className="mt-12 grid gap-3 md:grid-cols-3">
           {steps.map(([title, text, note], i) => (
-            <li key={title} className="grid content-start gap-5 rounded-[28px] border border-line bg-card p-6 sm:p-8">
+            <li key={title} className="grid content-start gap-5 rounded-[28px] bg-night-2 p-6 sm:p-8">
               <span aria-hidden="true" className={cx('grid size-14 place-items-center rounded-[18px] text-paper', i === 0 ? '-rotate-3' : i === 1 ? 'rotate-2' : '-rotate-2')} style={{ background: ['#ffd166', '#7fd6ff', '#4ee595'][i] }}>
                 <Icon name={(['bolt', 'card', 'rocket'] as const)[i]!} size={24} />
               </span>
@@ -288,7 +288,7 @@ function Panel() {
   const [tab, setTab] = useState(0);
   const current = SCREENS[tab]!;
   return (
-    <section aria-labelledby="panel-h" className="border-b border-line">
+    <section aria-labelledby="panel-h" className="">
       <Wrap className="py-20 sm:py-28">
         <SectionHead label="The panel" id="panel-h" aside={<p>One dashboard for every kind of workload: services, billing, domains, mail and servers. No juggling five tabs.</p>}>
           Everything in one place. Yes, even the boring parts.
@@ -303,14 +303,14 @@ function Panel() {
               aria-selected={tab === index}
               aria-controls="screen-view"
               onClick={() => setTab(index)}
-              className={cx('inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold transition-colors duration-150', tab === index ? 'bg-green text-paper' : 'border border-line text-ink-2 hover:border-ink/50 hover:text-ink')}
+              className={cx('inline-flex h-11 items-center rounded-full px-5 text-[15px] font-semibold transition-colors duration-150', tab === index ? 'bg-green text-paper' : 'bg-night-3 text-ink-2 hover:text-ink')}
             >
               {label}
             </button>
           ))}
         </div>
         <figure id="screen-view" role="tabpanel" aria-labelledby={`screen-tab-${tab}`} className="mt-5 grid gap-3">
-          <div className="overflow-hidden rounded-[22px] border border-line bg-paper-2 shadow-[10px_10px_0_0_rgba(78,229,149,0.16)]">
+          <div className="overflow-hidden rounded-[22px] bg-paper-2 shadow-[10px_10px_0_0_rgba(78,229,149,0.16)]">
             {SCREENS.map(([label, file, , alt], index) => (
               <img
                 key={file}
@@ -349,7 +349,7 @@ function Rates() {
     ['A busy service', { ram: 4096, cpu: 2, disk: 20 }],
   ];
   return (
-    <section id="pricing" aria-labelledby="pricing-h" className="scroll-mt-20 border-b border-line">
+    <section id="pricing" aria-labelledby="pricing-h" className="scroll-mt-20">
       <Wrap className="py-20 sm:py-28">
         <SectionHead label="What it costs" id="pricing-h" aside={<p>The price follows the resources you choose and nothing else, so the same RAM, CPU and disk cost the same in every product. No tiers to decode, no plan to outgrow.</p>}>
           One card of rates. Every product.
@@ -401,7 +401,7 @@ function Trust() {
     ['Support', 'Stuck? Write to us from the dashboard and a human answers. Want something specific to run here? Tell us.', 'How support works', '/docs/support'],
   ];
   return (
-    <section aria-labelledby="trust-h" className="border-b border-line">
+    <section aria-labelledby="trust-h" className="">
       <Wrap className="py-20 sm:py-28">
         <SectionHead label="What you can check" id="trust-h">
           No fine print scavenger hunt.
@@ -426,7 +426,7 @@ function Faq() {
   const rates = useRates();
   const questions = faqFromContent(useSiteContent(), rates) ?? faqFor(rates);
   return (
-    <section aria-labelledby="faq-h" className="border-b border-line">
+    <section aria-labelledby="faq-h" className="">
       <Wrap className="grid gap-12 py-20 sm:py-28 lg:grid-cols-12">
         <div className="lg:col-span-4">
           <p className="num flex items-center gap-3 text-[12px] tracking-[0.08em] text-ink-3 uppercase">
@@ -440,7 +440,7 @@ function Faq() {
             <details key={f.q} className="group border-b border-line">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 font-display text-[clamp(18px,1.7vw,22px)] font-semibold tracking-[-0.02em] [&::-webkit-details-marker]:hidden">
                 {f.q}
-                <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center border border-line transition-transform group-open:rotate-45">
+                <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-night-3 transition-transform group-open:rotate-45">
                   <Icon name="plus" size={12} />
                 </span>
               </summary>

@@ -5,6 +5,7 @@ import { articleById, articles, docGroups, type Article } from './data';
 import { isOrderable, productBySlug } from './catalog';
 import { Blocks } from './Blocks';
 import { Btn, Crumbs, Lead, Wrap, cx } from './ui';
+import { toneOf } from './categories';
 
 /**
  * The documentation of the platform.
@@ -76,7 +77,7 @@ export function DocsIndex() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="upgrade, backups, dns, invoices…"
-            className="w-full rounded-[18px] border border-line bg-card px-5 py-3.5 text-[16px] text-ink placeholder:text-ink-3 focus:border-mint focus:outline-none"
+            className="w-full rounded-[18px] bg-night-2 px-5 py-3.5 text-[16px] text-ink placeholder:text-ink-3 focus:border-mint focus:outline-none"
           />
         </label>
       </Wrap>
@@ -91,7 +92,7 @@ export function DocsIndex() {
           ) : (
             <ul className="grid gap-3">
               {found.map((article) => (
-                <li key={article.id} className="rounded-[22px] border border-line bg-card p-5">
+                <li key={article.id} className="rounded-[22px] bg-night-2 p-5">
                   <Link to={`/docs/${article.id}`} className="font-display text-[19px] font-semibold tracking-[-0.02em] text-ink">
                     {article.title}
                   </Link>
@@ -110,16 +111,16 @@ export function DocsIndex() {
             </div>
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                ['first-app', 'Deploy', 'Launch the first service'],
-                ['dashboard', 'Manage', 'Find every control'],
-                ['domains', 'Domains', 'Connect DNS and HTTPS'],
-                ['billing', 'Billing', 'Orders and renewals'],
-              ].map(([id, eyebrow, title]) => (
+                ['first-app', 'Deploy', 'Launch the first service', 'VPS'],
+                ['dashboard', 'Manage', 'Find every control', 'BOTS'],
+                ['domains', 'Domains', 'Connect DNS and HTTPS', 'DATABASES'],
+                ['billing', 'Billing', 'Orders and renewals', 'GAMES'],
+              ].map(([id, eyebrow, title, tone]) => (
                 <li key={id}>
-                  <Link to={`/docs/${id}`} className="group grid h-full gap-5 rounded-[22px] border border-line bg-card p-5 transition-colors hover:border-mint/40 hover:bg-paper-2">
-                    <span className="font-mono text-[11px] tracking-[0.11em] text-ink-3 uppercase">{eyebrow}</span>
-                    <span className="flex items-end justify-between gap-3 font-display text-[19px] font-semibold tracking-[-0.02em] text-ink">
-                      {title}<Icon name="arrow" size={13} className="text-ink-3 transition-transform group-hover:translate-x-1" />
+                  <Link to={`/docs/${id}`} style={{ background: toneOf(tone!) }} className="group grid h-full gap-8 rounded-[24px] p-5 text-paper transition-transform duration-200 hover:-translate-y-1 hover:-rotate-[0.5deg]">
+                    <span className="font-mono text-[11.5px] font-bold tracking-[0.11em] uppercase opacity-70">{eyebrow}</span>
+                    <span className="flex items-end justify-between gap-3 font-display text-[24px] leading-tight font-semibold tracking-[-0.03em]">
+                      {title}<Icon name="arrow" size={14} className="mb-1 shrink-0 transition-transform group-hover:translate-x-1" />
                     </span>
                   </Link>
                 </li>
@@ -131,7 +132,6 @@ export function DocsIndex() {
               <p className="font-mono text-[12px] tracking-[0.12em] text-ink-3 uppercase">Browse</p>
               <h2 className="mt-1 font-display text-[28px] font-semibold tracking-[-0.03em]">All topics</h2>
             </div>
-            <p className="text-[14px] text-ink-3">{publishedArticles().length} maintained pages</p>
           </div>
           <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {groups.map((group) => {
@@ -140,11 +140,11 @@ export function DocsIndex() {
               const expanded = expandedGroups.has(group.id);
               const visible = expanded ? pages : pages.slice(0, 5);
               return (
-                <li key={group.id} className="grid content-start gap-4 rounded-[24px] border border-line bg-card p-5 sm:p-6">
+                <li key={group.id} className="grid content-start gap-4 rounded-[24px] bg-night-2 p-5 sm:p-6">
                   <div className="grid gap-2">
                     <div className="flex items-start justify-between gap-3">
                       <h2 className="font-display text-[21px] leading-tight font-semibold tracking-[-0.03em]">{group.label}</h2>
-                      <span className="rounded-full bg-paper-2 px-2.5 py-1 font-mono text-[11px] text-ink-3">{pages.length}</span>
+                      <span aria-hidden="true" className="mt-1.5 size-3 shrink-0 rounded-[4px]" style={{ background: toneOf(['GAMES', 'BOTS', 'DATABASES', 'DEVELOPER_TOOLS', 'AUTOMATION', 'MONITORING', 'WEB_CMS', 'EMAIL_HOSTING', 'VPS'][groups.indexOf(group) % 9]!) }} />
                     </div>
                     <p className="line-clamp-2 text-[14.5px] leading-relaxed text-ink-2">{group.description}</p>
                   </div>
@@ -169,7 +169,7 @@ export function DocsIndex() {
                         if (next.has(group.id)) next.delete(group.id); else next.add(group.id);
                         return next;
                       })}
-                      className="justify-self-start rounded-full border border-line px-3 py-1.5 text-[13px] font-medium text-ink-2 hover:bg-paper-2 hover:text-ink"
+                      className="justify-self-start rounded-full bg-night-3 px-3 py-1.5 text-[13px] font-medium text-ink-2 hover:bg-night-3 hover:text-ink"
                     >
                       {expanded ? 'Show less' : `Show ${pages.length - 5} more`}
                     </button>
