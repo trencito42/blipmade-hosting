@@ -3,7 +3,8 @@ import { BLIPMADE_DIR, parseEnvValues, renderEnv } from './git-deploy.js';
 import * as application from './pterodactyl/application.js';
 import * as client from './pterodactyl/client.js';
 import * as operations from './panel/operations.js';
-import { connectionVariable, type ServiceEndpoint } from './project-links.js';
+import { connectionVariable, dependencyReady, type ServiceEndpoint } from './project-links.js';
+import { probeTcpPort } from './domain-activation.js';
 
 /**
  * Writes confirmed database URLs into the application container after every
@@ -70,7 +71,8 @@ async function linkOne(sourceId: string): Promise<boolean> {
       database: environment.PGUSER || 'pterodactyl',
     };
     const variable = connectionVariable(endpoint);
-    if (!variable || !endpoint.password) return false;
+    const portOpen = variable ? await probeTcpPort(endpoint.host, endpoint.port) : false;
+    if (!variable || !endpoint.password || !dependencyReady({ online: true, portOpen })) return false;
     values[variable.key] = variable.value;
   }
 
@@ -87,7 +89,6 @@ async function linkOne(sourceId: string): Promise<boolean> {
   const merged = { ...parseEnvValues(current.content), ...values };
   await client.writeFile(appToken, app.pterodactylUuid, `${BLIPMADE_DIR}/app.env`, renderEnv(merged));
   await client.chmodFile(appToken, app.pterodactylUuid, `${BLIPMADE_DIR}/app.env`, 0o600).catch(() => undefined);
-  await client.sendPower(appToken, app.pterodactylUuid, 'restart');
   await prisma.importSource.update({ where: { id: source.id }, data: { servicesLinkedAt: new Date() } });
   await prisma.instanceEvent.create({
     data: { instanceId: app.id, type: 'deploy', message: `Connected ${source.confirmedServices.join(', ')}. The credentials stay in the server.` },

@@ -14,7 +14,7 @@ describe('import runtime plans', () => {
   it('reads a Next.js Prisma project as MySQL when the schema says mysql', () => {
     const plan = inspectManifests([
       { path: 'package.json', text: JSON.stringify({ dependencies: { next: '15.0.0', '@prisma/client': '6.0.0', prisma: '6.0.0' }, scripts: { build: 'next build', start: 'next start -p 3007 -H 0.0.0.0' } }) },
-      { path: 'prisma/schema.prisma', text: 'datasource db {\n  provider = "mysql"\n  url = env("DATABASE_URL")\n}\n' },
+      { path: 'prisma/schema.prisma', text: 'generator client {\n  provider = "prisma-client-js"\n}\n\ndatasource db {\n  provider = "mysql"\n  url = env("DATABASE_URL")\n}\n' },
       { path: '.env.example', text: 'DATABASE_URL=\nNEXTAUTH_SECRET=\n' },
     ]);
     expect(plan.services.map((service) => service.slug)).toEqual(['mariadb']);

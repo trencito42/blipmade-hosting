@@ -36,6 +36,11 @@ export function missingCompanions(confirmed: string[], orderedSlugs: string[]): 
   return confirmed.filter((slug) => !orderedSlugs.includes(slug));
 }
 
+/** A database is ready for the application only when it is online and its port accepts a connection. */
+export function dependencyReady(input: { online: boolean; portOpen: boolean }): boolean {
+  return input.online && input.portOpen;
+}
+
 /** The application build waits until every confirmed database has been connected. */
 export function importMayBuild(input: { confirmed: number; linked: boolean }): { build: boolean; reason: string | null } {
   if (input.confirmed > 0 && !input.linked) {

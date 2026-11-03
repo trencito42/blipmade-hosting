@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { confirmedServiceSelection, connectionVariable, importMayBuild, missingCompanions, quoteItemsForImport } from '../src/services/project-links.js';
+import { confirmedServiceSelection, connectionVariable, dependencyReady, importMayBuild, missingCompanions, quoteItemsForImport } from '../src/services/project-links.js';
 
 describe('confirmed project services', () => {
   it('links only a database the project declared and the customer confirmed', () => {
@@ -20,6 +20,11 @@ describe('confirmed project services', () => {
 
   it('requires every confirmed service on the order', () => {
     expect(missingCompanions(['postgresql', 'redis'], ['nodejs', 'redis'])).toEqual(['postgresql']);
+  });
+
+  it('does not inject credentials before the database port answers', () => {
+    expect(dependencyReady({ online: true, portOpen: false })).toBe(false);
+    expect(dependencyReady({ online: true, portOpen: true })).toBe(true);
   });
 
   it('does not build the application until the confirmed database is connected', () => {

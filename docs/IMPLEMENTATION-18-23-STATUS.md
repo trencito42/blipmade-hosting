@@ -34,9 +34,11 @@ Preset install no longer records `installed` when the files are written. The man
 
 This pass: `/catalog/quote` accepts `importSourceId` and adds the confirmed database lines. The application build does not start until `linkImportDependencies` has written the database URL. `appliedAt` is no longer required before that link, so a health check cannot run before the credentials exist. `manifestUrls` fetches `prisma/schema.prisma`. Unit tests: `import-runtime` (daily81 fixture and schema URL), `install-variables`, `project-links` (build waits, quote adds the database), `catalog-install`, `web/tests/deploy-context.test.ts`. API and web typechecks passed.
 
-Not done: no disposable Pterodactyl deployment of daily81. MariaDB is still not auto-provisioned. Do not treat the quote or the dependency order as proven on a live node.
+Live fetch of `https://github.com/trencito42/daily81` on this machine returned Node.js, MariaDB confirmed (`provider = "mysql"`, not the Prisma generator), build `npm install && npx prisma generate && npm run build`, start `next start -p $SERVER_PORT -H 0.0.0.0`, recommended RAM 2048. The first `provider` in that schema is `prisma-client-js`; the database provider is read only when it is mysql, postgresql, or sqlite. Credentials are written only after the database port accepts a TCP connection, and the application is not restarted before its build. Preset retries select only `verifying`, `failed`, and `installing`, oldest update first.
 
-Next: provision MariaDB with a unique password, then run daily81 on a disposable node with that database and record the health result.
+Not done: this host has no Docker and no disposable Pterodactyl node, so daily81 was not built or started. MariaDB still has no password variable, so it is detected and not auto-provisioned. Do not call the customer order proven.
+
+Next: a disposable MariaDB with a unique password, then a Node container that builds daily81 against it and answers on the allocated port.
 
 ## #19 Game panel
 

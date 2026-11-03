@@ -160,18 +160,15 @@ export async function retryCatalogInstalls(): Promise<number> {
     where: {
       status: 'ONLINE',
       pterodactylUuid: { not: null },
-      orderItemId: { not: null },
-      NOT: {
-        OR: [
-          { installationManifest: { path: ['status'], equals: 'installed' } },
-          { installationManifest: { path: ['status'], equals: 'none' } },
-          { installationManifest: { path: ['status'], equals: 'gave_up' } },
-        ],
-      },
+      OR: [
+        { installationManifest: { path: ['status'], equals: 'verifying' } },
+        { installationManifest: { path: ['status'], equals: 'failed' } },
+        { installationManifest: { path: ['status'], equals: 'installing' } },
+      ],
     },
     select: { id: true, installationManifest: true },
     take: 20,
-    orderBy: { createdAt: 'asc' },
+    orderBy: { updatedAt: 'asc' },
   });
   let count = 0;
   for (const row of rows) {

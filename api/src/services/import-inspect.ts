@@ -45,12 +45,11 @@ function dependencyNames(files: { path: string; text: string }[]): Set<string> {
 
 /** The database Prisma is configured to use. An ORM by itself is not a database. */
 export function prismaProvider(text: string): 'mysql' | 'postgresql' | 'sqlite' | null {
-  const match = /provider\s*=\s*["']([a-z0-9]+)/i.exec(text);
+  const match = /provider\s*=\s*["'](mysql|postgresql|postgres|sqlite)["']/i.exec(text);
   if (!match) return null;
-  if (match[1] === 'mysql') return 'mysql';
-  if (match[1] === 'postgresql' || match[1] === 'postgres') return 'postgresql';
-  if (match[1] === 'sqlite') return 'sqlite';
-  return null;
+  if (match[1]!.toLowerCase() === 'mysql') return 'mysql';
+  if (match[1]!.toLowerCase() === 'sqlite') return 'sqlite';
+  return 'postgresql';
 }
 
 export function envNamesFromExample(text: string): string[] {
@@ -107,8 +106,7 @@ function proposal(partial: Omit<ImportProposal, 'services' | 'envNames' | 'recom
   };
 }
 
-const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'composer.json', 'Dockerfile', 'Procfile'] as const;
-const NESTED_MANIFESTS = ['prisma/schema.prisma', '.env.example', '.env.sample'] as const;
+const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'composer.json', 'Dockerfile', 'Procfile', 'prisma/schema.prisma', '.env.example', '.env.sample'] as const;
 const MAX_BYTES = 65_536;
 
 export function inspectManifests(files: { path: string; text: string }[]): ImportProposal {
@@ -203,7 +201,7 @@ export function manifestUrls(raw: string): string[] {
   } else {
     return [];
   }
-  return [...MANIFESTS, ...NESTED_MANIFESTS].map((name) => `${base}/${name}`);
+  return MANIFESTS.map((name) => `${base}/${name}`);
 }
 
 const MAX_ZIP = 8 * 1024 * 1024;
@@ -246,7 +244,7 @@ export function readZipManifests(zip: Buffer): { path: string; text: string }[] 
   const count = zip.readUInt16LE(eocd + 10);
   const cdOffset = zip.readUInt32LE(eocd + 16);
   if (count > 4_000 || cdOffset >= zip.length) return [];
-  const wanted = new Set<string>([...MANIFESTS, ...NESTED_MANIFESTS]);
+  const wanted = new Set<string>(MANIFESTS);
   const files: { path: string; text: string }[] = [];
   let cursor = cdOffset;
   for (let index = 0; index < count && cursor + 46 <= zip.length && files.length < wanted.size; index += 1) {
