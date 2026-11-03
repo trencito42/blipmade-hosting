@@ -17,7 +17,7 @@ Phone bar: Overview, Services (apps, servers, domains, email via switch on each 
 | /app Overview | IMPLEMENTED (basic) | richer cross-product alerts, activity beyond apps |
 | /app/deploy, /:slug | IMPLEMENTED | `?step=` flow exists (Configure/Payment/Deploy); region/plan cards via #20 |
 | /app/instances (+redeem) | IMPLEMENTED | filters type/node, saved views |
-| /app/instances/:id workspace | IMPLEMENTED | tab grouping (issue #19) |
+| /app/instances/:id workspace (sticky header, power group, primary tabs + More) | IMPLEMENTED | game-aware grouping (issue #19) |
 | Instance editors (settings, startup, env, resources, git, backups, schedules, databases, network, access, reinstall) | IMPLEMENTED | access share edit blocked (no API) |
 | /app/domains (+new, :id, edit, delete) | IMPLEMENTED | TLS/readiness status (issue #23) |
 | /app/mail, domain workspace (tabs deep-linked `?tab=`), editors | IMPLEMENTED | – |

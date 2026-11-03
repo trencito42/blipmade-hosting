@@ -51,3 +51,20 @@ test('the backups fit at 390px', async ({ page }) => {
   expect(await cards.count()).toBeGreaterThanOrEqual(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
+
+test('the instance sections: the everyday ones first, the others under More, and a deep link opens its section', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await stub(page);
+  await page.goto('/app/instances/i1/backups');
+  const main = page.getByRole('group', { name: 'Instance sections' }).or(page.locator('[aria-label="Instance sections"]'));
+  await expect(main.getByRole('tab', { name: 'Backups' }).or(main.getByRole('button', { name: 'Backups' })).first()).toBeVisible();
+  await expect(page.locator('[aria-label="More instance sections"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'More' }).click();
+  const more = page.locator('[aria-label="More instance sections"]');
+  await expect(more).toBeVisible();
+  for (const name of ['Network', 'Startup', 'Schedules', 'Activity']) await expect(more.getByText(name, { exact: true })).toBeVisible();
+  // A section of the second row keeps that row open.
+  await page.goto('/app/instances/i1/network');
+  await expect(page.locator('[aria-label="More instance sections"]')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+});

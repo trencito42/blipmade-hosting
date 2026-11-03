@@ -121,6 +121,9 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'access', label: 'Access' },
 ];
 
+/** The sections shown first. The others open with More. */
+const PRIMARY_TABS: Tab[] = ['overview', 'console', 'files', 'databases', 'backups', 'settings', 'minecraft'];
+
 /** What a member of a shared server does not get: the parts that belong to the owner. */
 const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
 /** A viewer only looks. */
@@ -497,6 +500,7 @@ export default function InstanceDetail() {
   const tabsRef = useRef<HTMLDivElement>(null);
   useRevealOnChange(tabsRef, [tab], 120);
   const [powerCooldown, setPowerCooldown] = useState(0);
+  const [showMore, setShowMore] = useState(false);
   useEffect(() => {
     if (powerCooldown <= 0) return;
     const timer = window.setTimeout(() => setPowerCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
@@ -629,8 +633,21 @@ export default function InstanceDetail() {
         <ClosedService instance={instance} />
       ) : (
       <>
-      <div ref={tabsRef} className="scroll-mt-28">
-        <Segmented options={visibleTabs} value={tab} onChange={setTab} ariaLabel="Instance sections" />
+      <div ref={tabsRef} className="grid scroll-mt-28 gap-2">
+        {/* The everyday sections are always in view; the others are one tap away. */}
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <Segmented options={visibleTabs.filter((entry) => PRIMARY_TABS.includes(entry.value))} value={tab} onChange={setTab} ariaLabel="Instance sections" />
+          </div>
+          {visibleTabs.some((entry) => !PRIMARY_TABS.includes(entry.value)) && (
+            <SoftButton onClick={() => setShowMore((open) => !open)} aria-expanded={showMore || !PRIMARY_TABS.includes(tab)} className="shrink-0">
+              {showMore || !PRIMARY_TABS.includes(tab) ? 'Less' : 'More'}
+            </SoftButton>
+          )}
+        </div>
+        {(showMore || !PRIMARY_TABS.includes(tab)) && (
+          <Segmented options={visibleTabs.filter((entry) => !PRIMARY_TABS.includes(entry.value))} value={tab} onChange={setTab} ariaLabel="More instance sections" />
+        )}
       </div>
 
       <section role="tabpanel" aria-label={TABS.find((entry) => entry.value === tab)?.label ?? 'Instance section'}>

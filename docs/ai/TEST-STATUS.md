@@ -28,7 +28,7 @@ Commands (run in `/root/work/web`, `export PATH=/opt/node22/bin:$PATH`):
 
 Root causes fixed this round: route order (`/app/domains/:id` before `/new`), InfoTip aria-label "About X" ambiguity with `getByLabel('X')`, `withTip` aria-label bug.
 
-Later targeted runs: phone-nav 3/3, notification rows+grouping 3/3, large lists 7/7, unit 497/0.
+Later targeted runs: instance specs 38/38 (18 files), instance tabs grouping 7/7; phone-nav 3/3, notification rows+grouping 3/3, large lists 7/7, unit 497/0.
 
 ## Not run
 Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin UI audit. No test is VERIFIED yet.
