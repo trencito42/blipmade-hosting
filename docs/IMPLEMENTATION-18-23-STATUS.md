@@ -32,9 +32,11 @@ Next: one disposable Node project plus a confirmed Redis server on a panel, then
 
 Done: Paper plugins, partial Forge, Java player commands, game DNS.
 
-Remaining: Bedrock workspace, Rust, FiveM, CS 1.6, CS2 and Valheim customer workflows beyond the preset environment above. Forge boot proof.
+This pass: Bedrock, Rust, FiveM, CS 1.6, CS2 and Valheim have a Game tab. Bedrock and FiveM write their own config file. The others change the egg variables the panel already allows and apply on the next start. None of them shows a plugin installer. `web/tests/game-settings.test.ts` passed. Not proven by clicking through a live server.
 
-Next: capability-based instance tabs that call the existing panel files and console for each of those slugs, with no shared plugin button.
+Remaining: Forge boot proof, Minecraft world restore, and a disposable panel session for each game.
+
+Next: restore one Bedrock `server.properties` change on a disposable server and confirm the file contents.
 
 ## #21 Resize
 
