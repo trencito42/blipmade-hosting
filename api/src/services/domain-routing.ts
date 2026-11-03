@@ -107,16 +107,24 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
       outcomes.push({ hostname: domain.hostname, applied: result.applied, reason: result.reason });
       if (result.applied) routed.push(domain.hostname);
 
-      // The state that the customer sees follows the state of the gateway.
-      const status = result.applied ? 'ACTIVE' : 'PENDING_DNS';
+      // Writing a Caddy route does NOT prove that DNS and public HTTPS work.
+      // Only /domains/:id/verify can promote a pending hostname after those
+      // checks. Preserve an already-confirmed ACTIVE domain while repairing its
+      // route; do not incorrectly promote an unverified pending hostname.
+      const status = result.applied && domain.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_DNS';
+      const reason = !result.applied
+        ? result.reason
+        : status === 'PENDING_DNS'
+          ? 'The gateway route is installed. Verify DNS and public HTTPS before this domain becomes active.'
+          : null;
       if (
         domain.status !== status ||
-        domain.lastError !== result.reason ||
+        domain.lastError !== reason ||
         domain.caddyRouteId !== result.routeId
       ) {
         await prisma.instanceDomain.update({
           where: { id: domain.id },
-          data: { status, lastError: result.reason, caddyRouteId: result.routeId },
+          data: { status, lastError: reason, caddyRouteId: result.routeId },
         });
       }
     } catch (error) {
