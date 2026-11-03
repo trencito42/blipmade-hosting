@@ -60,7 +60,15 @@ Landed in code, still IN_PROGRESS until the disposable API tests run:
 
 Prepared families can now be read from `GET /catalog/families` and chosen at `/app/deploy/families/:slug`. The choice is stored on the order as `config.catalog` and does not change the price. The product list stays. An unprepared family is invisible. No live products were seeded or reflagged.
 
-Not in this slice: regrouping the 68 eggs, template installers, readiness repairs, and installing a software add-on into a running server. Issue #18 is research only in `docs/ai/SMART-DEPLOY-RESEARCH.md`. #21 and #23 stay blocked on the owner.
+Not in this slice: regrouping the 68 eggs, template installers, readiness repairs, and installing a software add-on into a running server. Issue #18 is research only in `docs/ai/SMART-DEPLOY-RESEARCH.md`.
+
+## Issue #21 resize billing
+
+IN_PROGRESS. A resource quote now charges or credits only the days left in the current paid period, and a third applied change inside 30 days is refused. Yearly services use the yearly price. A decrease writes a `MoneyAdjustment` and calls Stripe only when the customer already has a Stripe customer id. No live charge was made. API tests are written and not run.
+
+## Issue #23 domains
+
+IN_PROGRESS. Suggested DNS records are only the claimed hostname. A www name is no longer invented. Writing records through Cloudflare still waits for a zone-scoped token and zone id in the server environment. Nameserver migration is not started.
 
 ## App shell and design system
 | Feature | Status | Paths |

@@ -43,7 +43,7 @@ Updated: 2026-11-03 after the staff access lifecycle was added locally. It is no
 3. #22 can read `config.catalog`. Still to build: post-purchase add-on install, repurpose, and saved profiles. Do not invent an installer that the panel cannot perform.
 4. #19 Minecraft tools already exist for Paper, Folia and Forge. Other game workspaces wait on real panel capabilities.
 5. #18 research is in `docs/ai/SMART-DEPLOY-RESEARCH.md`. No importer yet.
-6. #21 needs finance/legal approval and a Stripe reconciliation test. #23 needs a Cloudflare token, the zones to manage, and a separate yes before any nameserver change.
+6. #21 now quotes the days left in the paid period and stops a third applied resize inside 30 days. A decrease records a credit and sends it to Stripe only when that customer already has a Stripe id. No live charge was run. #23 still cannot write DNS: the owner must put a zone-scoped token and zone id in the server environment. The www suggestion was removed because the certificate covers only the claimed hostname. Nameserver migration still needs a separate yes.
 
 ## Commands
 

@@ -7,9 +7,14 @@ import { PageEditorShell, QuoteSummary, UnitStepper, useUnsavedChangesGuard } fr
 
 interface Quote {
   priceDelta: number;
+  recurringDelta?: number;
   newPrice: number;
   currency: string;
   requiresPayment: boolean;
+  period?: 'MONTHLY' | 'YEARLY';
+  remainingDays?: number | null;
+  changesUsed?: number;
+  changesAllowed?: number;
 }
 
 interface SaveResult {
@@ -82,7 +87,12 @@ export default function EditResources() {
 
   const loading = instanceState.loading || (Boolean(slug) && productState.loading);
   const error = instanceState.error ?? productState.error;
-  const lines = instance && priced ? [{ label: 'Current price', amount: instance.price }, { label: 'Difference', amount: priced.priceDelta }] : [];
+  const lines = instance && priced
+    ? [
+        { label: 'Current price', amount: instance.price },
+        { label: priced.remainingDays ? `Due for ${priced.remainingDays} days left` : 'Difference', amount: priced.priceDelta },
+      ]
+    : [];
 
   return (
     <PageEditorShell
@@ -99,8 +109,8 @@ export default function EditResources() {
             lines={lines}
             total={priced.newPrice}
             currency={priced.currency}
-            period="month"
-            note={priced.requiresPayment ? 'This change is paid for before it is applied.' : priced.priceDelta < 0 ? 'The lower price applies from the next period.' : undefined}
+            period={priced.period === 'YEARLY' ? 'year' : 'month'}
+            note={priced.requiresPayment ? 'Only the days left in this period are charged now. The new price renews afterwards.' : priced.priceDelta < 0 ? 'The unused days are credited. The lower price renews afterwards.' : undefined}
           />
         ) : undefined
       }

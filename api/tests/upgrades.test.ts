@@ -37,6 +37,7 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
 }));
 
 const { prisma } = await import('../src/db.js');
+const { prorateRemaining } = await import('../src/services/upgrades.js');
 const { env } = await import('../src/env.js');
 const { closeApp, getApp, makeClient, registerAndLogin, resetDatabase } = await import('./helpers.js');
 
@@ -242,5 +243,15 @@ describe('resource changes', () => {
     expect(response.status).toBe(400);
     const unchanged = await prisma.instance.findUnique({ where: { id: instance.id } });
     expect(unchanged?.ram).toBe(1024);
+  });
+
+  it('charges only the days left in the paid period', () => {
+    const start = new Date('2026-11-01T00:00:00.000Z');
+    const end = new Date('2026-12-01T00:00:00.000Z');
+    const now = new Date('2026-11-16T00:00:00.000Z');
+    const half = prorateRemaining(200, start, end, now);
+    expect(half.dueNow).toBe(100);
+    expect(half.remainingDays).toBe(15);
+    expect(prorateRemaining(200, null, null, now)).toEqual({ dueNow: 200, remainingDays: null });
   });
 });

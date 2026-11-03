@@ -463,8 +463,7 @@ export async function removeCaddyRoute(hostname: string): Promise<GatewayResult>
  * under its own name, so it never overwrites the records of the customer.
  */
 export function dnsRecordsFor(hostname: string, target: string): DnsRecord[] {
-  return [
-    { name: hostname, type: 'A', value: target },
-    { name: `www.${hostname}`, type: 'CNAME', value: hostname },
-  ];
+  // The certificate and the route exist only for the hostname that was claimed.
+  // A www name is a different hostname and is not suggested here.
+  return [{ name: hostname, type: 'A', value: target }];
 }

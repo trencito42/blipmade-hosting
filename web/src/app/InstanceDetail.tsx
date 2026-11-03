@@ -123,6 +123,12 @@ const TABS: { value: Tab; label: string }[] = [
 
 /** The sections shown first. The others open with More. */
 const PRIMARY_TABS: Tab[] = ['overview', 'console', 'files', 'databases', 'backups', 'settings', 'minecraft'];
+const MINECRAFT_SLUGS = ['minecraft-paper', 'minecraft-folia', 'minecraft-forge'];
+
+function primaryTabsFor(slug: string | undefined): Tab[] {
+  if (slug && MINECRAFT_SLUGS.includes(slug)) return ['overview', 'console', 'minecraft', 'backups', 'settings'];
+  return PRIMARY_TABS;
+}
 
 /** What a member of a shared server does not get: the parts that belong to the owner. */
 const OWNER_ONLY: Tab[] = ['settings', 'resources', 'domains', 'access'];
@@ -514,7 +520,7 @@ export default function InstanceDetail() {
   const visibleTabs = TABS.filter((entry) => {
     const access = data?.instance.access ?? 'owner';
     // Deploy from Git is for the runtimes where the customer brings the code.
-    if (entry.value === 'minecraft' && !['minecraft-paper', 'minecraft-folia', 'minecraft-forge'].includes(data?.instance.product.slug ?? '')) return false;
+    if (entry.value === 'minecraft' && !MINECRAFT_SLUGS.includes(data?.instance.product.slug ?? '')) return false;
     if (entry.value === 'git' && !['nodejs', 'discord-bot'].includes(data?.instance.product.slug ?? '')) return false;
     if (access === 'owner') return true;
     if (OWNER_ONLY.includes(entry.value)) return false;
@@ -637,16 +643,16 @@ export default function InstanceDetail() {
         {/* The everyday sections are always in view; the others are one tap away. */}
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <Segmented options={visibleTabs.filter((entry) => PRIMARY_TABS.includes(entry.value))} value={tab} onChange={setTab} ariaLabel="Instance sections" />
+            <Segmented options={visibleTabs.filter((entry) => primaryTabsFor(instance.product.slug).includes(entry.value))} value={tab} onChange={setTab} ariaLabel="Instance sections" />
           </div>
-          {visibleTabs.some((entry) => !PRIMARY_TABS.includes(entry.value)) && (
-            <SoftButton onClick={() => setShowMore((open) => !open)} aria-expanded={showMore || !PRIMARY_TABS.includes(tab)} className="shrink-0">
-              {showMore || !PRIMARY_TABS.includes(tab) ? 'Less' : 'More'}
+          {visibleTabs.some((entry) => !primaryTabsFor(instance.product.slug).includes(entry.value)) && (
+            <SoftButton onClick={() => setShowMore((open) => !open)} aria-expanded={showMore || !primaryTabsFor(instance.product.slug).includes(tab)} className="shrink-0">
+              {showMore || !primaryTabsFor(instance.product.slug).includes(tab) ? 'Less' : 'More'}
             </SoftButton>
           )}
         </div>
-        {(showMore || !PRIMARY_TABS.includes(tab)) && (
-          <Segmented options={visibleTabs.filter((entry) => !PRIMARY_TABS.includes(entry.value))} value={tab} onChange={setTab} ariaLabel="More instance sections" />
+        {(showMore || !primaryTabsFor(instance.product.slug).includes(tab)) && (
+          <Segmented options={visibleTabs.filter((entry) => !primaryTabsFor(instance.product.slug).includes(entry.value))} value={tab} onChange={setTab} ariaLabel="More instance sections" />
         )}
       </div>
 

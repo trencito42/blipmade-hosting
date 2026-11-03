@@ -3,7 +3,7 @@ import { nextOrderNumber } from './order-numbers.js';
 import { badRequest } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
 import { instanceTerm, priceConfiguration, resourceRates, validateConfiguration } from './pricing.js';
-import { refundPayment, updateSubscriptionAmount } from './stripe.js';
+import { findStripeCustomerId, giveBalanceCredit, refundPayment, updateSubscriptionAmount } from './stripe.js';
 import { notifyUpgradeCompleted, notifyUpgradeFailed } from './notifications.js';
 import * as pteroApp from './pterodactyl/application.js';
 import type {
@@ -33,10 +33,37 @@ export interface ResourceRequest {
 export interface ResourceQuote {
   currentPrice: number;
   newPrice: number;
+  /** The amount due now. It is the recurring difference for the days left in the paid period. */
   priceDelta: number;
+  /** The full recurring difference, in the same unit as the current term. */
+  recurringDelta: number;
   currency: string;
+  period: 'MONTHLY' | 'YEARLY';
+  remainingDays: number | null;
+  changesUsed: number;
+  changesAllowed: number;
   /** True when the customer has to pay for the change. */
   requiresPayment: boolean;
+}
+
+export const RESIZE_LIMIT = 2;
+export const RESIZE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** The part of a recurring difference that belongs to the days still paid for. */
+export function prorateRemaining(
+  recurringDelta: number,
+  start: Date | null,
+  end: Date | null,
+  now = new Date(),
+): { dueNow: number; remainingDays: number | null } {
+  if (!start || !end || end.getTime() <= start.getTime() || end.getTime() <= now.getTime()) {
+    return { dueNow: recurringDelta, remainingDays: null };
+  }
+  const fraction = (end.getTime() - now.getTime()) / (end.getTime() - start.getTime());
+  return {
+    dueNow: Math.round(recurringDelta * fraction),
+    remainingDays: Math.max(1, Math.ceil((end.getTime() - now.getTime()) / 86_400_000)),
+  };
 }
 
 type InstanceWithProduct = Instance & { product: Product };
@@ -186,35 +213,53 @@ function refundStateOf(order: {
 /**
  * Prices a resource change without touching anything.
  */
+async function appliedResizes(instanceId: string): Promise<number> {
+  return prisma.order.count({
+    where: {
+      instanceId,
+      kind: 'UPGRADE',
+      status: { in: ['PAID', 'FULFILLED'] },
+      createdAt: { gt: new Date(Date.now() - RESIZE_WINDOW_MS) },
+    },
+  });
+}
+
 export async function quoteResourceChange(
   instance: InstanceWithProduct,
   request: ResourceRequest,
 ): Promise<ResourceQuote> {
+  const changesUsed = await appliedResizes(instance.id);
+  if (changesUsed >= RESIZE_LIMIT) {
+    throw badRequest('This service already has two resource changes in the last 30 days.');
+  }
+  const period = await instanceTerm(instance.orderItemId);
   const price = await prisma.productPrice.findFirst({
-    where: { productId: instance.productId, period: 'MONTHLY', active: true },
+    where: { productId: instance.productId, period, active: true },
     orderBy: { createdAt: 'desc' },
   });
-  if (!price) throw badRequest('This product has no active price.');
-
-  // A yearly term is paid up front for the whole year, and the change of a
-  // price in the middle of it is a credit that the platform does not compute.
-  // It is refused rather than charged wrongly.
-  if ((await instanceTerm(instance.orderItemId)) === 'YEARLY') {
-    throw badRequest('This service is billed yearly. Contact support to change its resources, so the rest of the year is settled correctly.');
-  }
+  if (!price) throw badRequest(period === 'YEARLY' ? 'This yearly service has no yearly price, so the change cannot be settled.' : 'This product has no active price.');
 
   validateConfiguration(instance.product, request);
 
   const newPrice = priceConfiguration(price, instance.product, request, [], await resourceRates());
-  const priceDelta = newPrice - instance.price;
+  const recurringDelta = newPrice - instance.price;
+  const subscription = await prisma.subscription.findFirst({
+    where: { instanceId: instance.id },
+    select: { currentPeriodStart: true, currentPeriodEnd: true },
+  });
+  const prorated = prorateRemaining(recurringDelta, subscription?.currentPeriodStart ?? null, subscription?.currentPeriodEnd ?? null);
 
   return {
     currentPrice: instance.price,
     newPrice,
-    priceDelta,
+    priceDelta: prorated.dueNow,
+    recurringDelta,
     currency: price.currency,
-    // A change that costs more has to be paid for before it is applied.
-    requiresPayment: priceDelta > 0,
+    period,
+    remainingDays: prorated.remainingDays,
+    changesUsed,
+    changesAllowed: RESIZE_LIMIT,
+    requiresPayment: prorated.dueNow > 0,
   };
 }
 
@@ -228,9 +273,6 @@ export async function createUpgradeOrder(
   quote: ResourceQuote,
   user: { id: string; email: string },
 ): Promise<Order> {
-  if ((await instanceTerm(instance.orderItemId)) === 'YEARLY') {
-    throw badRequest('This service is billed yearly. Contact support to change its resources.');
-  }
   const order = await prisma.order.create({
     data: {
       // The number comes from the counter of the platform, so an upgrade order
@@ -487,8 +529,9 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
   }
 
   // The panel accepted the change, so the local state follows.
+  const term = await instanceTerm(instance.orderItemId);
   const price = await prisma.productPrice.findFirst({
-    where: { productId: instance.productId, period: 'MONTHLY', active: true },
+    where: { productId: instance.productId, period: term, active: true },
     orderBy: { createdAt: 'desc' },
   });
   const newPrice = price
@@ -583,6 +626,39 @@ export async function settleFreeUpgradeOrder(
     data: { status: 'PAID', paidAt: new Date() },
   });
   if (transitioned.count !== 1) throw badRequest('This resource change cannot be settled in its current state.');
+  if (order.discount > 0) {
+    const already = await prisma.moneyAdjustment.findFirst({ where: { orderId, kind: 'credit' }, select: { id: true } });
+    if (!already) {
+      let providerRef: string | null = null;
+      const customerId = await findStripeCustomerId(order.userId);
+      if (customerId) {
+        try {
+          providerRef = await giveBalanceCredit({
+            customerId,
+            amount: order.discount,
+            currency: order.currency,
+            description: `Unused time after a resource decrease (${order.number})`,
+            idempotencyKey: `resize-credit:${order.id}`,
+          });
+        } catch {
+          providerRef = null;
+        }
+      }
+      await prisma.moneyAdjustment.create({
+        data: {
+          userId: order.userId,
+          orderId,
+          kind: 'credit',
+          amount: order.discount,
+          currency: order.currency,
+          reason: 'Unused time after a resource decrease',
+          actorId: actor.id,
+          actorEmail: actor.email,
+          providerRef,
+        },
+      });
+    }
+  }
   await audit({
     actorId: actor.id,
     actorEmail: actor.email,
