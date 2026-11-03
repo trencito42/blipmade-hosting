@@ -169,3 +169,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static instance-settings contract test: 1/1 pass.
 - Focused Playwright instance-settings suite: 2/2 pass, including exact PATCH payload, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated database creation and credential handoff
+
+### Completed
+
+- [x] Migrated database creation from the databases tab to `/app/instances/:id/databases/new`, ordered before the generic instance-tab route.
+- [x] Preserved the real create/list/credential API sequence, provider database limit and the existing `*`/empty-to-`%` remote normalization.
+- [x] Added duplicate/name validation, server field errors, Save/Discard, dirty guard and a protected generated-credential handoff without browser persistence.
+- [x] Kept credential refresh, password rotation, deletion and the database list workspace unchanged.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static database-editor contract test: 1/1 pass.
+- Focused Playwright database editor suite: 2/2 pass, including exact POST payload, provider refresh, credential reveal and 390px overflow/action reachability.
