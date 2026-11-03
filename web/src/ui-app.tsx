@@ -1079,10 +1079,11 @@ const buttonClass: Record<ButtonVariant, string> = {
 };
 
 /** A `title` on a button is shown by the tooltip of the design, not by the browser. It still names an icon-only button. */
-function withTip<T extends { title?: string; 'aria-label'?: string; children?: ReactNode }>(props: T): Omit<T, 'title'> & { 'data-tip'?: string } {
+function withTip<T extends { title?: string; 'aria-label'?: string; children?: ReactNode }>(props: T, children: ReactNode = props.children): Omit<T, 'title'> & { 'data-tip'?: string } {
   const { title, ...rest } = props;
   if (!title) return rest;
-  const named = Boolean(rest['aria-label']) || typeof rest.children === 'string';
+  // A button with a text name keeps it; only an icon-only button is named by its tip.
+  const named = Boolean(rest['aria-label']) || typeof children === 'string' || (Array.isArray(children) && children.some((child) => typeof child === 'string'));
   return { ...rest, 'data-tip': title, ...(named ? {} : { 'aria-label': title }) };
 }
 
@@ -1092,7 +1093,7 @@ export function PrimaryButton({
 }: React.ComponentProps<'button'> & { children: ReactNode }) {
   return (
     <button
-      {...withTip(props)}
+      {...withTip(props, children)}
       className={cn(primaryButtonClass, props.className)}
     >
       {children}
@@ -1107,7 +1108,7 @@ export function SoftButton({
 }: React.ComponentProps<'button'> & { children: ReactNode; surface?: 's3' | 's1' }) {
   return (
     <button
-      {...withTip(props)}
+      {...withTip(props, children)}
       className={cn(surface === 's1' ? sunkenSoftButtonClass : softButtonClass, props.className)}
     >
       {children}
@@ -1121,7 +1122,7 @@ export function DangerButton({
 }: React.ComponentProps<'button'> & { children: ReactNode }) {
   return (
     <button
-      {...withTip(props)}
+      {...withTip(props, children)}
       className={cn(dangerButtonClass, props.className)}
     >
       {children}
@@ -1157,7 +1158,7 @@ export function ButtonLink({
   className?: string;
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'children' | 'className'>) {
   const classes = cn(buttonClass[variant], className);
-  const linkProps = withTip({ ...rest, children });
+  const linkProps = withTip({ ...rest, children }, children);
   delete (linkProps as { children?: ReactNode }).children;
   if (href) {
     return (

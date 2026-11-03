@@ -71,8 +71,8 @@ test.describe('dedicated domain pages', () => {
     const borders = await rows.evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).borderTopWidth + '/' + getComputedStyle(node).borderBottomWidth));
     expect(borders[1]).toBe('1px/0px');
     expect(borders[0]).toBe('0px/0px');
-    await expect(page.getByRole('link', { name: 'Delete' }).first()).toHaveAttribute('title', /Delete this domain/);
-    await expect(page.getByRole('link', { name: 'Change' })).toHaveAttribute('title', /once in 7 days/);
+    await expect(page.getByRole('link', { name: 'Delete' }).first()).toHaveAttribute('data-tip', /Delete this domain/);
+    await expect(page.getByRole('link', { name: 'Change' })).toHaveAttribute('data-tip', /once in 7 days/);
     await page.screenshot({ path: '/tmp/claude-0/-root/aae46db4-fcaf-4b45-85b9-bd3609e50f02/scratchpad/domains-list.png' });
   });
 

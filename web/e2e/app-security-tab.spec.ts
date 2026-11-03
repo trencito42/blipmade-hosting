@@ -38,7 +38,7 @@ test('the security tab stacks its panels in two columns without holes and divide
   const titles = ['Password', 'Two-factor authentication', 'Passkeys', 'API keys', 'Sessions', 'Security activity'];
   const boxes: Record<string, { left: number; top: number; bottom: number }> = {};
   for (const title of titles) {
-    const box = await page.getByRole('heading', { name: title, exact: true }).first().evaluate((node) => {
+    const box = await page.locator('h2', { hasText: title }).first().evaluate((node) => {
       let el: HTMLElement | null = node as HTMLElement;
       while (el && !(getComputedStyle(el).borderTopWidth !== '0px' && el.tagName !== 'H2' && el.getBoundingClientRect().height > 80)) el = el.parentElement;
       const r = (el ?? (node as HTMLElement)).getBoundingClientRect();
@@ -63,7 +63,7 @@ test('the security tab stacks its panels in two columns without holes and divide
   expect(tops).toEqual(['0px', '1px', '1px']);
   const widths = await sessionRows.evaluateAll((nodes) => nodes.map((node) => Math.round(node.querySelector('button')!.getBoundingClientRect().width)));
   expect(new Set(widths).size).toBe(1);
-  await expect(page.getByRole('button', { name: 'Close session' }).first()).toHaveAttribute('title', /End this session/);
+  await expect(page.getByRole('button', { name: 'Close session' }).first()).toHaveAttribute('data-tip', /End this session/);
   await page.screenshot({ path: '/tmp/claude-0/-root/aae46db4-fcaf-4b45-85b9-bd3609e50f02/scratchpad/security-tab.png' });
   const activityTops = await page.locator('li').filter({ hasText: 'Two-factor authentication was turned on' }).evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).borderTopWidth));
   expect(activityTops).toEqual(['1px']);

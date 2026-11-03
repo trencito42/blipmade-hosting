@@ -33,7 +33,7 @@ test('the notifications are divided rows, the unread one is tinted and the actio
   expect(metrics.every((row) => row.bottom === '0px')).toBe(true);
   expect(metrics.map((row) => row.tint)).toEqual([true, false, false]);
   const read = rows.first().getByRole('button', { name: /Mark as read: Message 3/ });
-  await expect(read).toHaveAttribute('title', 'Mark this message as read');
+  await expect(read).toHaveAttribute('data-tip', 'Mark this message as read');
   await expect(rows.first().getByRole('group', { name: 'Actions for this message' })).toBeVisible();
   await expect(rows.nth(1).getByRole('button', { name: /Mark as read/ })).toHaveCount(0);
 });

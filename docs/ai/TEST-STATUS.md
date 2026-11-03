@@ -17,10 +17,16 @@ Commands (run in `/root/work/web`, `export PATH=/opt/node22/bin:$PATH`):
 | Rerun (domains/new shell ×7, domain-change 5, domain-editor 2) | 14 | 14 | 0 | 0 | 0 | |
 | Full suite earlier (before tooltip/pager work) | 134 | 122 | 13 | – | – | 13 known failures: `auth.spec` (2 "Log in" buttons), `public.spec` (home price assertions), `mobile.spec`; code not touched by this work; unconfirmed on pre-work baseline |
 
-## Not run since last implementation changes
-Rest of suite (about 43 spec files). Admin audit specs (need seed). API tests (need `TEST_DATABASE_URL`). No test is VERIFIED yet.
+## Batches after App completion (2026-11-03, logs /root/e2e-logs)
+| Batch | Tests | Pass | Fail | Notes |
+|---|---|---|---|---|
+| B2 targeted (vps, ticket, instance-tab-rows, list-pages, tooltips) | 21 | 21 | 0 | after fixes |
+| C00 (first third of rest) | 45 | 43 | 2 | real bug: `withTip` named buttons by tip text (children destructured) → fixed in ui-app.tsx; domain test attr → `data-tip`. Rerun C00b/C00c: 16/16 pass |
+| C01 (second third) | 28 | 28 | 0 | |
+| C02 (last third) | 80 | 67 | 13 | known auth/public/mobile failures; baseline run at 3158b3c in progress (/root/baseline, port 30002) to prove they pre-exist |
+| Unit | 498 | 497 | 0 | 1 skip |
 
-## Known gaps
-- Stubs only: no real API, no real payment, no WebAuthn authenticator.
-- Admin area not audited after shared DataTable/Panel changes.
-- 200% zoom, software keyboard, real device not tested.
+Root causes fixed this round: route order (`/app/domains/:id` before `/new`), InfoTip aria-label "About X" ambiguity with `getByLabel('X')`, `withTip` aria-label bug.
+
+## Not run
+Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin UI audit. No test is VERIFIED yet.
