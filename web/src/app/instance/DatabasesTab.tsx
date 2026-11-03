@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import {
-  createDatabase,
   deleteDatabase,
   getDatabaseCredentials,
   listDatabases,
@@ -9,6 +8,7 @@ import {
 } from '../../lib/instance-api';
 import {
   CardList,
+  ButtonLink,
   ConfirmDialog,
   DataTable,
   DangerButton,
@@ -18,7 +18,6 @@ import {
   Panel,
   PrimaryButton,
   SoftButton,
-  TextInput,
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, type TabProps } from './common';
@@ -35,10 +34,6 @@ import type { TableColumn } from '../../lib/table';
 export default function DatabasesTab({ instance }: TabProps) {
   const { push } = useToast();
   const databases = useAsync((signal) => listDatabases(instance.id, signal), [instance.id]);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ database: '', remote: '' });
-  const [busy, setBusy] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<{ id: string; label: string; text: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [editingPasswordId, setEditingPasswordId] = useState<string | null>(null);
@@ -50,29 +45,6 @@ export default function DatabasesTab({ instance }: TabProps) {
   const limit = databases.data?.limit;
   const full = limit !== undefined && limit > 0 && rows.length >= limit;
 
-  const create = async () => {
-    setBusy(true);
-    setFormError(null);
-    try {
-      const name = form.database.trim();
-      await createDatabase(instance.id, {
-        database: name,
-        remote: form.remote.trim() === '*' ? '%' : form.remote.trim(),
-      });
-      push('The database was created.', 'ok');
-      setForm({ database: '', remote: '' });
-      setCreating(false);
-      databases.reload();
-      // The panel makes the user and the password, so they are shown right away.
-      const fresh = await listDatabases(instance.id);
-      const made = fresh.databases.find((row) => row.database === name || row.database.endsWith(`_${name}`));
-      if (made) await showCredentials(String(made.id), made.database);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'The database could not be created.');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const showCredentials = async (id: string, name: string) => {
     try {
@@ -164,50 +136,12 @@ export default function DatabasesTab({ instance }: TabProps) {
         description={limit ? `The databases of this instance: ${rows.length} of ${limit} used. The panel keeps them on the node of the instance.` : 'The databases that belong to this instance. The panel keeps them on the node of the instance.'}
         action={
           noDatabases || full ? undefined : (
-            <PrimaryButton onClick={() => setCreating((value) => !value)} disabled={busy}>
-              {creating ? 'Close' : 'New database'}
-            </PrimaryButton>
+            <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/databases/new`}>
+              New database
+            </ButtonLink>
           )
         }
       >
-        {creating && (
-          <div className="mb-4 grid gap-3 rounded-2xl bg-s2 p-3.5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <TextInput
-                label="Name of the database"
-                value={form.database}
-                onChange={(event) => setForm({ ...form, database: event.target.value })}
-                placeholder="shop"
-                autoComplete="off"
-              />
-              <TextInput
-                label="Allowed address"
-                value={form.remote}
-                onChange={(event) => setForm({ ...form, remote: event.target.value })}
-                placeholder="%"
-                hint="Use % to allow every address. Or write one address (203.0.113.7), or a range with % (10.0.%). Empty means %."
-                autoComplete="off"
-              />
-            </div>
-            {formError && (
-              <p role="alert" className="px-1 text-[12.5px] font-medium text-bad">
-                {formError}
-              </p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <PrimaryButton
-                onClick={create}
-                disabled={busy || !form.database.trim()}
-              >
-                {busy ? 'Creating…' : 'Create the database'}
-              </PrimaryButton>
-              <SoftButton onClick={() => setCreating(false)} disabled={busy}>
-                Cancel
-              </SoftButton>
-            </div>
-          </div>
-        )}
-
         {databases.loading ? (
           <LoadingBlock rows={2} label="Loading the databases" />
         ) : databases.error ? (
