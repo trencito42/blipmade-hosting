@@ -532,6 +532,8 @@ export interface Instance {
     stale: boolean;
   };
   product: { slug: string; name: string; icon: string };
+  /** The catalogue choice stored on the order, when the customer used a prepared family. */
+  catalog?: { familySlug: string; variantSlug?: string; preset?: string | null; addons?: string[] } | null;
   ram: number;
   cpu: number;
   disk: number;

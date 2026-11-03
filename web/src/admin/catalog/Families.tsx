@@ -1,6 +1,6 @@
 import { Link } from '../../router';
-import { get } from '../../lib/api';
-import { useAsync } from '../../lib/useAsync';
+import { get, post } from '../../lib/api';
+import { useAction, useAsync } from '../../lib/useAsync';
 import type { TableColumn } from '../../lib/table';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, Pager, StatusPill, usePaged } from '../../ui-app';
 import { can, denseGhost, densePrimary, useAdminSession } from '../Overview';
@@ -10,6 +10,11 @@ import { groupLabel, type FamilySummary } from './model';
 export default function CatalogFamilies() {
   const mayWrite = can(useAdminSession().staff, 'products.write');
   const state = useAsync<{ families: FamilySummary[]; note: string }>((signal) => get('/admin/catalog/families', undefined, signal), []);
+  const sync = useAction(async () => {
+    const result = await post('/admin/catalog/families/sync-drafts', {});
+    state.reload();
+    return result;
+  });
   const families = state.data?.families ?? [];
   const paged = usePaged(families, 20, families.length);
   const columns: TableColumn<FamilySummary>[] = [
@@ -24,7 +29,12 @@ export default function CatalogFamilies() {
     <Panel
       title="Catalogue families"
       description={state.data?.note ?? 'Families group existing products. They do not change the public catalogue.'}
-      action={mayWrite ? <Link to="/admin/catalog/families/new" className={densePrimary}>New family</Link> : undefined}
+      action={mayWrite ? (
+        <span className="flex flex-wrap gap-2">
+          <button type="button" className={denseGhost} disabled={sync.pending} onClick={() => void sync.run()}>{sync.pending ? 'Syncing…' : 'Sync drafts'}</button>
+          <Link to="/admin/catalog/families/new" className={densePrimary}>New family</Link>
+        </span>
+      ) : undefined}
     >
       {state.loading && !state.data ? <LoadingBlock rows={4} label="Loading catalogue families" />
         : state.error ? <ErrorState title="The families could not be loaded" message={state.error.message} onRetry={state.reload} />

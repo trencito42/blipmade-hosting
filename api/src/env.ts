@@ -190,6 +190,10 @@ const schema = z.object({
   /** Where the files attached to support tickets are stored. */
   ATTACHMENT_DIR: z.string().default('/data/uploads'),
   DOMAIN_BASE: z.string().default(''),
+  /** Zone DNS token. Empty means the platform never writes DNS. */
+  CLOUDFLARE_API_TOKEN: z.string().default(''),
+  CLOUDFLARE_ZONE_ID: z.string().default(''),
+  CLOUDFLARE_ZONE_NAME: z.string().default('blipmade.com'),
   /**
    * The virtual private servers. The API makes them on Proxmox with a token that
    * may only touch the pool of the VPS, from a template that carries the system.
@@ -523,6 +527,7 @@ export const env = {
    */
   paymentsEnabled: raw.PAYMENTS_ENABLED && raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   mailEnabled: Boolean(raw.SMTP_URL),
+  cloudflareDnsEnabled: Boolean(raw.CLOUDFLARE_API_TOKEN && raw.CLOUDFLARE_ZONE_ID && raw.CLOUDFLARE_ZONE_NAME),
   pterodactylEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_APP_KEY),
   /**
    * True when the panel can issue a client key on request. Without it no

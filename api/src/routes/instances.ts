@@ -187,8 +187,16 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
       instance.userId === user.id
         ? null
         : await prisma.instanceShare.findFirst({ where: { instanceId: instance.id, userId: user.id, revokedAt: null }, select: { role: true } });
+    const choice = await prisma.instance.findUnique({
+      where: { id: instance.id },
+      select: { orderItem: { select: { config: true } } },
+    });
+    const stored = choice?.orderItem?.config;
+    const catalog = stored && typeof stored === 'object' && !Array.isArray(stored) && typeof (stored as { catalog?: { familySlug?: unknown } }).catalog?.familySlug === 'string'
+      ? (stored as { catalog: { familySlug: string; variantSlug?: string; preset?: string | null; addons?: string[] } }).catalog
+      : null;
     return {
-      instance: { ...serializeInstance(instance), access: share ? share.role : 'owner' },
+      instance: { ...serializeInstance(instance), access: share ? share.role : 'owner', catalog },
       events: events.map((event) => ({
         id: event.id,
         type: event.type,

@@ -664,6 +664,18 @@ export default function InstanceDetail() {
         ) : (
         <Suspense fallback={<LoadingBlock rows={4} label="Loading section" />}>
           {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} />}
+          {tab === 'overview' && instance.catalog && (
+            <div className="mt-4">
+              <Panel title="Installed catalogue choice" description="This is the family, variant and add-ons saved with the order. Installing more software still uses the tools of this server.">
+                <p className="text-[14px] text-ink2">
+                  {instance.catalog.familySlug}
+                  {instance.catalog.variantSlug ? ` · ${instance.catalog.variantSlug}` : ''}
+                  {instance.catalog.preset ? ` · ${instance.catalog.preset}` : ''}
+                  {instance.catalog.addons?.length ? ` · ${instance.catalog.addons.join(', ')}` : ''}
+                </p>
+              </Panel>
+            </div>
+          )}
           {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><HelpPanel instance={instance} onGoTo={setTab} productSlug={instance.product.slug} /></div>}
           {tab === 'console' && <ConsoleTab instance={instance} />}
           {tab === 'files' && <FilesTab instance={instance} />}

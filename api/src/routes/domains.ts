@@ -10,6 +10,7 @@ import { randomToken } from '../lib/tokens.js';
 import * as gateway from '../services/gateway.js';
 import { platformSubdomainStatus } from '../services/provisioning.js';
 import * as dns from '../services/dns.js';
+import { deleteZoneRecord, upsertZoneRecord } from '../services/cloudflare-dns.js';
 import { resolveTarget } from '../services/domain-routing.js';
 import {
   notifyDomainDnsIncomplete,
@@ -410,6 +411,9 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       data: { hostname, status, lastError, caddyRouteId },
       include: { instance: { select: { name: true } } },
     });
+    const targetAddress = process.env.DOMAIN_TARGET ?? '193.34.214.143';
+    await deleteZoneRecord('A', domain.hostname);
+    await upsertZoneRecord({ type: 'A', name: hostname, content: targetAddress });
     await prisma.instanceEvent.create({
       data: { instanceId: domain.instanceId, type: 'domain', message: `The address changed from ${domain.hostname} to ${hostname}.` },
     });
@@ -515,6 +519,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         include: { instance: { select: { name: true } } },
       });
     }
+
+    const targetAddress = process.env.DOMAIN_TARGET ?? '193.34.214.143';
+    await upsertZoneRecord({ type: 'A', name: hostname, content: targetAddress });
+    if (verificationHost) await upsertZoneRecord({ type: 'TXT', name: verificationHost, content: token });
 
     await prisma.instanceEvent.create({
       data: {
