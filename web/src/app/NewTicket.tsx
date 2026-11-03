@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ArticleSuggestions } from './ArticleSuggestions';
 import { get, post, uploadTicketAttachment, type Instance, type MailServiceView, type Ticket } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
@@ -14,7 +14,7 @@ import {
   TextInput,
   useToast,
 } from '../ui-app';
-import { FileDropzone, PageEditorShell, useUnsavedChangesGuard } from './components/premium';
+import { AsyncCombobox, FileDropzone, PageEditorShell, useUnsavedChangesGuard, type ComboboxOption } from './components/premium';
 
 interface TicketCategory {
   id: string;
@@ -53,6 +53,7 @@ export default function NewTicket() {
   const [category, setCategory] = useState('');
   const [priority, setPriority] = useState('normal');
   const [service, setService] = useState('');
+  const [serviceLabel, setServiceLabel] = useState('');
   const [body, setBody] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [created, setCreated] = useState<{ ticket: Ticket; initialMessageId: string } | null>(null);
@@ -60,8 +61,19 @@ export default function NewTicket() {
   const [touched, setTouched] = useState(false);
 
   const categories = useAsync((signal) => get<{ categories: TicketCategory[] }>('/tickets/categories', undefined, signal), []);
-  const instances = useAsync((signal) => get<{ instances: Instance[] }>('/instances', undefined, signal), []);
-  const mailServices = useAsync((signal) => get<{ services: MailServiceView[] }>('/mail/services', undefined, signal), []);
+
+  const loadServices = useCallback(async (query: string, signal: AbortSignal): Promise<ComboboxOption[]> => {
+    const [instanceResult, mailResult] = await Promise.all([
+      get<{ instances: Instance[] }>('/instances', undefined, signal),
+      get<{ services: MailServiceView[] }>('/mail/services', undefined, signal),
+    ]);
+    const normalized = query.toLocaleLowerCase();
+    const options: ComboboxOption[] = [
+      ...instanceResult.instances.map((item) => ({ value: `instance:${item.id}`, label: item.name, group: 'Apps and databases', description: item.product?.name })),
+      ...mailResult.services.map((item) => ({ value: `mail:${item.id}`, label: item.plan.name, group: 'Email hosting' })),
+    ];
+    return options.filter((item) => !normalized || `${item.label} ${item.group} ${item.description ?? ''}`.toLocaleLowerCase().includes(normalized));
+  }, []);
 
   const dirty = Boolean(subject || category || service || body || files.length || priority !== 'normal');
   useUnsavedChangesGuard(dirty, created ? 'The ticket exists, but some selected files are not uploaded yet. Leave this page?' : 'Discard this ticket draft?');
@@ -102,10 +114,6 @@ export default function NewTicket() {
   const categoryError = touched && !category ? 'Choose a category.' : undefined;
   const bodyError = touched && !body.trim() ? 'Describe what you need help with.' : undefined;
   const blocked = !subject.trim() || !category || !body.trim() || categories.loading || Boolean(categories.error);
-  const servicesLoading = instances.loading || mailServices.loading;
-  const serviceHint = instances.error || mailServices.error
-    ? 'Some services could not be loaded. You can still create this ticket without linking one.'
-    : 'Optional. Links the conversation to one of your apps, databases or email services.';
 
   const submit = async () => {
     setTouched(true);
@@ -194,25 +202,18 @@ export default function NewTicket() {
           <Segmented role="group" ariaLabel="Ticket priority" options={PRIORITIES} value={priority} onChange={setPriority} />
         </div>
 
-        <Select
+        <AsyncCombobox
           label="Related service"
-          hint={serviceHint}
+          hint="Optional. Search your apps, databases and email services; the API still verifies ownership when the ticket is created."
           value={service}
-          disabled={servicesLoading}
-          onChange={(event) => setService(event.target.value)}
-        >
-          <option value="">{servicesLoading ? 'Loading your services…' : 'No related service'}</option>
-          {instances.data?.instances.length ? (
-            <optgroup label="Apps and databases">
-              {instances.data.instances.map((item) => <option key={item.id} value={`instance:${item.id}`}>{item.name}</option>)}
-            </optgroup>
-          ) : null}
-          {mailServices.data?.services.length ? (
-            <optgroup label="Email hosting">
-              {mailServices.data.services.map((item) => <option key={item.id} value={`mail:${item.id}`}>{item.plan.name}</option>)}
-            </optgroup>
-          ) : null}
-        </Select>
+          selectedLabel={serviceLabel}
+          placeholder="Search your services…"
+          loadOptions={loadServices}
+          onChange={(next, option) => {
+            setService(next);
+            setServiceLabel(option?.label ?? '');
+          }}
+        />
 
         <TextArea
           id="ticket-message"

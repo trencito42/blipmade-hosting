@@ -12,6 +12,7 @@ const webRoot = join(here, '..');
 
 interface PremiumUi {
   ButtonGroup: (props: Record<string, unknown>) => unknown;
+  AsyncCombobox: (props: Record<string, unknown>) => unknown;
   NumberStepper: (props: Record<string, unknown>) => unknown;
   ResourceSliderStepper: (props: Record<string, unknown>) => unknown;
   QuoteSummary: (props: Record<string, unknown>) => unknown;
@@ -55,6 +56,18 @@ describe('premium customer controls', () => {
     assert.match(html, /max="8192"/);
     assert.match(html, /step="512"/);
     assert.match(html, /1024–8192 MiB, in steps of 512/);
+  });
+
+  it('renders a remote-capable accessible combobox without exposing a raw selected ID', () => {
+    const html = render(createElement(ui.AsyncCombobox, {
+      label: 'Related service', value: 'instance-secret-id', selectedLabel: 'Production API', onChange: () => {},
+      loadOptions: async () => [], hint: 'Search only your services.',
+    }));
+    assert.match(html, /role="combobox"/);
+    assert.match(html, /aria-expanded="false"/);
+    assert.match(html, /value="Production API"/);
+    assert.doesNotMatch(html, /value="instance-secret-id"/);
+    assert.match(html, /Clear Related service/);
   });
 
   it('keeps slider and exact entry in one resource control', () => {

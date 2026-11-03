@@ -70,7 +70,8 @@ test.describe('the dedicated new-ticket editor', () => {
     await page.getByLabel('Subject').fill('API unavailable');
     await page.getByLabel('Category').selectOption('TECHNICAL');
     await page.getByRole('button', { name: 'High' }).click();
-    await page.getByLabel('Related service').selectOption('instance:instance-1');
+    await page.getByRole('combobox', { name: 'Related service' }).click();
+    await page.getByRole('option', { name: /Production API/ }).click();
     await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Requests started failing at 12:00 UTC with a 503 response.');
     await page.getByRole('button', { name: 'Create ticket' }).click();
 
