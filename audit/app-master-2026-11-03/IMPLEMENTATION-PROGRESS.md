@@ -297,3 +297,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static Git-settings contract test: 1/1 pass.
 - Focused Playwright Git-settings suite: 2/2 pass, including invalid URL rejection, exact PUT payload, one-time secret reveal, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated access invitation editor
+
+### Completed
+
+- [x] Moved role selection and invite-code creation to `/app/instances/:id/access/new`.
+- [x] Kept the access tab focused on current members, pending invitations and removal/cancellation actions.
+- [x] Added explicit viewer/manager capability context, Save/Discard-equivalent actions and dirty guard.
+- [x] Preserved the real POST and one-time access-code reveal with expiry and accessible copy fallback.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static access-invite contract test: 1/1 pass.
+- Focused Playwright access-invite suite: 2/2 pass, including exact role POST, one-time code reveal, dirty guard and 390px overflow/action reachability.
