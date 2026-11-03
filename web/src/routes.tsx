@@ -69,6 +69,8 @@ const AdminEmailTemplateEdit = lazy(() => import('./admin/EmailTemplateEdit'));
 const AdminSettingsEdit = lazy(() => import('./admin/SettingsEdit'));
 const AdminRatesEdit = lazy(() => import('./admin/PricingEditors').then((m) => ({ default: m.RatesEdit })));
 const AdminPriceEdit = lazy(() => import('./admin/PricingEditors').then((m) => ({ default: m.PriceEdit })));
+const AdminOrderRefund = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderRefund })));
+const AdminOrderRetry = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderRetry })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -276,6 +278,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/customers', component: AdminCustomers, title: 'Customers', area: 'admin' },
   { pattern: '/admin/customers/:id', component: AdminCustomerDetail, title: 'Customer', area: 'admin' },
   { pattern: '/admin/orders', component: AdminOrders, title: 'Orders', area: 'admin' },
+  { pattern: '/admin/orders/:id/refund', component: AdminOrderRefund, title: 'Refund order', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/orders/:id/retry', component: AdminOrderRetry, title: 'Retry delivery', area: 'admin', layout: 'editor' },
   { pattern: '/admin/orders/:id', component: AdminOrderDetail, title: 'Order control', area: 'admin' },
   { pattern: '/admin/services', component: AdminServices, title: 'Services', area: 'admin' },
   { pattern: '/admin/services/:id', component: AdminServiceDetail, title: 'Service control', area: 'admin' },
