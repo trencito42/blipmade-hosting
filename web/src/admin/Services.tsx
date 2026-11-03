@@ -4,7 +4,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import type { TableColumn } from '../lib/table';
 import { Link } from '../router';
 import { Icon } from '../icons';
-import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
+import { ButtonLink, CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
 import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useAdminSession } from './Overview';
 
 /**
@@ -311,7 +311,11 @@ export default function Services() {
         </div>
       </Panel>
 
-      {staff?.role === 'ADMIN' && <ImportServer onDone={state.reload} />}
+      {staff?.role === 'ADMIN' && (
+        <Panel title="Import a server" description="For a server that already exists on the game panel and is not on the platform yet." action={<ButtonLink to="/admin/services/import" variant="soft">Import a server</ButtonLink>}>
+          <p className="text-[13.5px] text-ink2">Only an administrator can do it.</p>
+        </Panel>
+      )}
 
       <ConfirmWithReason
         open={target !== null}
@@ -334,58 +338,5 @@ export default function Services() {
         error={reasonError}
       />
     </div>
-  );
-}
-
-/**
- * Brings a server that already exists on the game panel under a customer.
- *
- * Only an administrator can do it. The server is read from the panel, matched to a product by its
- * egg and priced from the card; the customer is named by the id on their record.
- */
-function ImportServer({ onDone }: { onDone: () => void }) {
-  const toast = useToast();
-  const [serverId, setServerId] = useState('');
-  const [customerId, setCustomerId] = useState('');
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const valid = /^\d+$/.test(serverId.trim()) && Number(serverId.trim()) > 0 && customerId.trim().length > 0;
-
-  const submit = async () => {
-    if (!valid) return;
-    setBusy(true);
-    try {
-      await post('/admin/instances/import', {
-        pterodactylServerId: Number(serverId.trim()),
-        userId: customerId.trim(),
-        ...(name.trim() ? { name: name.trim() } : {}),
-      });
-      toast.push('The server is imported.', 'ok');
-      setServerId('');
-      setCustomerId('');
-      setName('');
-      onDone();
-    } catch (failure) {
-      toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Panel title="Import a server" description="For a server that already exists on the game panel and is not on the platform yet. It becomes an online service of the customer you name, priced from the rate card. Administrators only.">
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="Panel server number" htmlFor="import-server">
-          <input id="import-server" className={denseInput} inputMode="numeric" value={serverId} onChange={(event) => setServerId(event.target.value)} />
-        </Field>
-        <Field label="Customer id" htmlFor="import-customer" hint="The id in the address of the customer page.">
-          <input id="import-customer" className={denseInput} value={customerId} onChange={(event) => setCustomerId(event.target.value)} />
-        </Field>
-        <Field label="Name (optional)" htmlFor="import-name">
-          <input id="import-name" className={denseInput} value={name} maxLength={80} onChange={(event) => setName(event.target.value)} />
-        </Field>
-        <button type="button" className={denseGhost} disabled={!valid || busy} onClick={() => void submit()}>Import server</button>
-      </div>
-    </Panel>
   );
 }
