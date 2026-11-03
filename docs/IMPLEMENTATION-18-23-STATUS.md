@@ -30,7 +30,13 @@ Remaining: MariaDB still cannot be auto-provisioned because that egg has no pass
 
 Preset install no longer records `installed` when the files are written. The manifest goes to `verifying`, the server is restarted, and `installed` is recorded only when the process state is `running`. Five failed observations stop at `gave_up`. The retry query skips `installed`, `none` and `gave_up`. An order with a preset stays unfulfilled until that check passes. `catalog-install.test.ts` covers the outcome. Not proven on a live panel.
 
-Next: give MariaDB a password the platform can set, then order daily81 against a disposable MySQL server.
+`2ac7be9` made `GIT_ADDRESS` optional for Node.js, kept import query parameters, and stopped treating Prisma as PostgreSQL. `90a37ef` waits for a running process before a preset is installed and skips finished installs in the retry scan.
+
+This pass: `/catalog/quote` accepts `importSourceId` and adds the confirmed database lines. The application build does not start until `linkImportDependencies` has written the database URL. `appliedAt` is no longer required before that link, so a health check cannot run before the credentials exist. `manifestUrls` fetches `prisma/schema.prisma`. Unit tests: `import-runtime` (daily81 fixture and schema URL), `install-variables`, `project-links` (build waits, quote adds the database), `catalog-install`, `web/tests/deploy-context.test.ts`. API and web typechecks passed.
+
+Not done: no disposable Pterodactyl deployment of daily81. MariaDB is still not auto-provisioned. Do not treat the quote or the dependency order as proven on a live node.
+
+Next: provision MariaDB with a unique password, then run daily81 on a disposable node with that database and record the health result.
 
 ## #19 Game panel
 

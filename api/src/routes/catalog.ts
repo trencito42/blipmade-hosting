@@ -18,7 +18,7 @@ import { inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-
 import { IMPORT_ZIP_TTL_MS, zipQuotaProblem } from '../services/import-lifecycle.js';
 import { purgeExpiredImportArchives } from '../services/import-apply.js';
 import { cleanCommand, cleanRepoUrl } from '../services/git-deploy.js';
-import { confirmedServiceSelection, linkableService } from '../services/project-links.js';
+import { confirmedServiceSelection, linkableService, quoteItemsForImport } from '../services/project-links.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -395,13 +395,29 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           // takes the same period, so the sum that was shown is the sum that
           // is charged.
           period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
+          importSourceId: z.string().max(40).optional(),
         })
         .parse(request.body);
+
+      let items = body.items;
+      if (body.importSourceId) {
+        const user = await requireAuth(request);
+        const source = await prisma.importSource.findFirst({
+          where: { id: body.importSourceId, userId: user.id },
+          select: { confirmedServices: true },
+        });
+        if (!source) throw badRequest('That import was not found.');
+        const companions = (await Promise.all(source.confirmedServices.map(async (slug) => {
+          const row = await prisma.product.findUnique({ where: { slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, visible: true, deployable: true } });
+          return row?.visible && row.deployable ? { slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk } : null;
+        }))).filter((row) => row !== null);
+        items = quoteItemsForImport(items, companions);
+      }
 
       // The customer who is signed in is known here, so the limit of a
       // campaign per account is checked while the quote is made. A code that
       // the customer has already used is refused here, not later at the order.
-      const quote = await buildQuote(body.items, body.promotionCode, request.user?.id ?? null, body.period);
+      const quote = await buildQuote(items, body.promotionCode, request.user?.id ?? null, body.period);
       // The tax of the platform is the one the operator wrote in the settings:
       // a rate and a tax identifier, or nothing. The same rule the invoice
       // uses is used here, so the amount the configurator shows is the amount

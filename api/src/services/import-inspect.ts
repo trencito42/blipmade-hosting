@@ -108,6 +108,7 @@ function proposal(partial: Omit<ImportProposal, 'services' | 'envNames' | 'recom
 }
 
 const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'composer.json', 'Dockerfile', 'Procfile'] as const;
+const NESTED_MANIFESTS = ['prisma/schema.prisma', '.env.example', '.env.sample'] as const;
 const MAX_BYTES = 65_536;
 
 export function inspectManifests(files: { path: string; text: string }[]): ImportProposal {
@@ -202,7 +203,7 @@ export function manifestUrls(raw: string): string[] {
   } else {
     return [];
   }
-  return [...MANIFESTS.map((name) => `${base}/${name}`), `${base}/prisma/schema.prisma`, `${base}/.env.example`, `${base}/.env.sample`];
+  return [...MANIFESTS, ...NESTED_MANIFESTS].map((name) => `${base}/${name}`);
 }
 
 const MAX_ZIP = 8 * 1024 * 1024;
@@ -245,7 +246,7 @@ export function readZipManifests(zip: Buffer): { path: string; text: string }[] 
   const count = zip.readUInt16LE(eocd + 10);
   const cdOffset = zip.readUInt32LE(eocd + 16);
   if (count > 4_000 || cdOffset >= zip.length) return [];
-  const wanted = new Set<string>([...MANIFESTS, 'prisma/schema.prisma', '.env.example', '.env.sample']);
+  const wanted = new Set<string>([...MANIFESTS, ...NESTED_MANIFESTS]);
   const files: { path: string; text: string }[] = [];
   let cursor = cdOffset;
   for (let index = 0; index < count && cursor + 46 <= zip.length && files.length < wanted.size; index += 1) {

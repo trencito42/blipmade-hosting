@@ -9,11 +9,15 @@ import { connectionVariable, type ServiceEndpoint } from './project-links.js';
  * Writes confirmed database URLs into the application container after every
  * confirmed companion is online. Nothing is linked that the customer did not confirm.
  */
+/** Connects confirmed databases for one import. Safe before the application build. */
+export async function linkImportDependencies(sourceId: string): Promise<boolean> {
+  return linkOne(sourceId);
+}
+
 export async function linkConfirmedServices(): Promise<number> {
   const sources = await prisma.importSource.findMany({
     where: {
       servicesLinkedAt: null,
-      appliedAt: { not: null },
       instanceId: { not: null },
       NOT: { confirmedServices: { isEmpty: true } },
     },

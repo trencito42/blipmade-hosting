@@ -632,6 +632,7 @@ export default function Deploy() {
           ...companions.map((row) => ({ productSlug: row.slug, ram: row.ram, cpu: row.cpu, disk: row.disk, name: row.slug })),
         ],
         ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
+        ...(query.import ? { importSourceId: query.import } : {}),
         period: quotePeriod,
       ...(billingAddress.line1.trim() ? { billingAddress } : {}),
       },

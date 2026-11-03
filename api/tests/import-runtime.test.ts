@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { VITE_START, inspectManifests } from '../src/services/import-inspect.js';
+import { VITE_START, inspectManifests, manifestUrls } from '../src/services/import-inspect.js';
 
 describe('import runtime plans', () => {
   it('builds Next.js and starts it on the server port', () => {
@@ -22,6 +22,11 @@ describe('import runtime plans', () => {
     expect(plan.build).toBe('npm install && npx prisma generate && npm run build');
     expect(plan.start).toBe('next start -p $SERVER_PORT -H 0.0.0.0');
     expect(plan.envNames).toEqual(['DATABASE_URL', 'NEXTAUTH_SECRET']);
+  });
+
+  it('fetches the Prisma schema for daily81', () => {
+    const urls = manifestUrls('https://github.com/trencito42/daily81');
+    expect(urls).toContain('https://raw.githubusercontent.com/trencito42/daily81/HEAD/prisma/schema.prisma');
   });
 
   it('does not invent PostgreSQL from Prisma alone', () => {

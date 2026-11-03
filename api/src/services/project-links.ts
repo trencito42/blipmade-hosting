@@ -36,6 +36,26 @@ export function missingCompanions(confirmed: string[], orderedSlugs: string[]): 
   return confirmed.filter((slug) => !orderedSlugs.includes(slug));
 }
 
+/** The application build waits until every confirmed database has been connected. */
+export function importMayBuild(input: { confirmed: number; linked: boolean }): { build: boolean; reason: string | null } {
+  if (input.confirmed > 0 && !input.linked) {
+    return { build: false, reason: 'Waiting for the confirmed database before the application is built.' };
+  }
+  return { build: true, reason: null };
+}
+
+export function quoteItemsForImport<T extends { productSlug: string; ram?: number; cpu?: number; disk?: number }>(
+  items: T[],
+  confirmed: { slug: string; ram: number; cpu: number; disk: number }[],
+): T[] {
+  const next = [...items];
+  for (const service of confirmed) {
+    if (next.some((item) => item.productSlug === service.slug)) continue;
+    next.push({ productSlug: service.slug, ram: service.ram, cpu: service.cpu, disk: service.disk } as T);
+  }
+  return next;
+}
+
 export interface ServiceEndpoint {
   slug: string;
   user: string;

@@ -17,6 +17,8 @@ import {
   type ApplicationHealth,
 } from './import-lifecycle.js';
 import { notifyInstanceProvisioned } from './notifications.js';
+import { importMayBuild } from './project-links.js';
+import { linkImportDependencies } from './project-links-apply.js';
 import * as operations from './panel/operations.js';
 import * as panelClient from './pterodactyl/client.js';
 import { currentGitDeploy, enqueueGitDeploy } from './queue.js';
@@ -35,6 +37,8 @@ type OpenImport = {
   deployId: string | null;
   attempts: number;
   appliedAt: Date | null;
+  confirmedServices: string[];
+  servicesLinkedAt: Date | null;
   lastError: string | null;
   zipBytes: Uint8Array | null;
   productSlug: string;
@@ -156,6 +160,18 @@ async function rememberOutcome(instance: Instance, source: OpenImport, observed:
     return;
   }
   const decision = afterDeployObservation({ deployState: observed.state, health, attempts: source.attempts });
+  const ready = importMayBuild({ confirmed: source.confirmedServices.length, linked: Boolean(source.servicesLinkedAt) });
+  if (decision.fulfill && !ready.build) {
+    await prisma.importSource.update({
+      where: { id: source.id },
+      data: { phase: 'pending', appliedAt: null, lastError: ready.reason },
+    });
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: { applicationReadyAt: null, applicationError: ready.reason },
+    });
+    return;
+  }
   if (!decision.fulfill) {
     await prisma.importSource.update({
       where: { id: source.id },
@@ -219,6 +235,18 @@ export async function applyStoredImport(instance: Instance): Promise<void> {
   if (!source) return;
   if (source.phase === 'applied' || source.appliedAt) return;
   if (source.phase === 'queued' || source.phase === 'checking') return;
+  const dependencies = importMayBuild({ confirmed: source.confirmedServices.length, linked: Boolean(source.servicesLinkedAt) });
+  if (!dependencies.build) {
+    await prisma.importSource.update({
+      where: { id: source.id },
+      data: { instanceId: instance.id, phase: 'pending', deployId: null, lastError: dependencies.reason },
+    });
+    const linked = await linkImportDependencies(source.id);
+    if (!linked) {
+      await prisma.instance.update({ where: { id: instance.id }, data: { applicationError: dependencies.reason } });
+      return;
+    }
+  }
   if (source.phase === 'failed' && source.attempts >= IMPORT_MAX_ATTEMPTS) return;
 
   const deployId = randomUUID();
