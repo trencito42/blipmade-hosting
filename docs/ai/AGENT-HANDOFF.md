@@ -13,7 +13,7 @@ Editors, shell, tooltip layer, inventory pattern, paging, billing tabs/pages, do
 Commit after this file includes: Billing payment tab, DomainDetail + route order fix, Instances redeem route, Tickets sticky reply, Settings tab rename, docs/ai/*.
 
 ## Next
-1. Overview cross-product alerts. 2. Instance workspace sticky header + power group. 3. VPS workspace header. 4. Deploy wizard `?step=`. 5. Mail DNS tab. 6. Admin 3.0 (spec in `audit/admin-master-2026-11-03`). 7. UI audit of every route. 8. Full E2E batches (`--workers=4`, logs in `/root/work/e2e-logs`).
+1. Overview cross-product alerts. 2. Instance workspace sticky header + power group. 3. VPS workspace header. 4. Deploy wizard `?step=`. 5. Mail DNS tab. 6. Admin 3.0 (spec in `audit/admin-master-2026-11-03`). 7. UI audit of every route. 8. Full E2E batches (`--workers=4`, logs in `/root/e2e-logs`).
 
 ## Known
 - Route order in `web/src/routes.tsx` matters: specific patterns before `:id`.

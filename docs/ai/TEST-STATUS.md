@@ -4,7 +4,7 @@ Commands (run in `/root/work/web`, `export PATH=/opt/node22/bin:$PATH`):
 - Types: `npx tsc --noEmit`
 - Unit: `npm test` (node --test, 498 tests)
 - Build: `npm run build` (needed before Playwright; `node server.mjs` serves `dist`)
-- E2E batch: `PLAYWRIGHT_JSON_OUTPUT_NAME=/root/work/e2e-logs/X.json npx playwright test <specs> --workers=4 --reporter=list,json > /root/work/e2e-logs/X.log 2>&1; echo EXIT=$?`
+- E2E batch: `PLAYWRIGHT_JSON_OUTPUT_NAME=/root/e2e-logs/X.json npx playwright test <specs> --workers=4 --reporter=list,json > /root/e2e-logs/X.log 2>&1; echo EXIT=$?`
 - 327 tests in 46 files; with `workers: 1` a full run exceeds 10 min (cause of earlier 590s timeout, not a hang). Use `--workers=4`, sequential batches, never overlap. Audit specs (`admin-audit*`, `app-audit*`) need seed file `admin-audit-seed.json` (AUDIT_SEED); they abort the whole run when missing.
 - Lint: no lint script in `web/package.json`.
 
