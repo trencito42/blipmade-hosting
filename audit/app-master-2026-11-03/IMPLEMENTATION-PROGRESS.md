@@ -154,3 +154,18 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static plan-change contract test: 1/1 pass.
 - Focused Playwright plan-change suite: 2/2 pass, including order reuse, exact API payload and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated instance identity editor
+
+### Completed
+
+- [x] Migrated instance name and description editing from the settings tab to `/app/instances/:id/settings/edit`, ordered before the generic tab route.
+- [x] Preserved the real `GET/PATCH /instances/:id/settings` contract and made the original settings tab a read-only provider summary with one canonical edit entry point.
+- [x] Added bounded validation, server field errors, Save/Discard, dirty navigation protection and provider-state context without implying a restart or resize.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static instance-settings contract test: 1/1 pass.
+- Focused Playwright instance-settings suite: 2/2 pass, including exact PATCH payload, dirty guard and 390px overflow/action reachability.

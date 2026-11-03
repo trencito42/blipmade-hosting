@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { getSettings, reinstallInstance, updateSettings } from '../../lib/instance-api';
+import { getSettings, reinstallInstance } from '../../lib/instance-api';
 import {
   ConfirmDialog,
+  ButtonLink,
   DangerButton,
   EmptyState,
   LoadingBlock,
   Panel,
-  PrimaryButton,
   SoftButton,
   StatusPill,
-  TextInput,
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, Detail, fmtDateTime, type TabProps } from './common';
@@ -26,30 +25,8 @@ import { ApiErrorState, Detail, fmtDateTime, type TabProps } from './common';
 export default function SettingsTab({ instance, onGoTo }: TabProps) {
   const { push } = useToast();
   const settings = useAsync((signal) => getSettings(instance.id, signal), [instance.id]);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [busy, setBusy] = useState(false);
   const [confirmReinstall, setConfirmReinstall] = useState(false);
 
-  useEffect(() => {
-    const current = settings.data;
-    if (!current) return;
-    setName(current.name ?? '');
-    setDescription(current.description ?? '');
-  }, [settings.data]);
-
-  const save = async () => {
-    setBusy(true);
-    try {
-      await updateSettings(instance.id, { name: name.trim(), description });
-      push('The settings were saved.', 'ok');
-      settings.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The settings were not saved.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const reinstall = async () => {
     try {
@@ -76,26 +53,8 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
       ) : (
         <>
           <Panel title="Name and description" description="What the server is called on the panel.">
-            <div className="grid gap-3">
-              <TextInput
-                label="Name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                autoComplete="off"
-              />
-              <TextInput
-                label="Description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="What this instance is for"
-                autoComplete="off"
-              />
-              <div className="flex flex-wrap gap-2">
-                <PrimaryButton onClick={save} disabled={busy || name.trim().length === 0}>
-                  {busy ? 'Saving…' : 'Save the settings'}
-                </PrimaryButton>
-              </div>
-            </div>
+            <dl className="grid gap-2 text-[13.5px]"><Detail label="Name">{current?.name || instance.name}</Detail><Detail label="Description">{current?.description || 'No description'}</Detail></dl>
+            <div className="mt-3"><ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/settings/edit`}>Edit name and description</ButtonLink></div>
           </Panel>
 
           <Panel title="What the panel knows" description="Read back from the panel, so it is the truth and not a copy.">
