@@ -360,3 +360,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Production build: pass; 172 pages prerendered.
 - Static network-edit contract test: 1/1 pass.
 - Focused Playwright network-edit suite: 2/2 pass, including exact PATCH/PUT payloads, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated database security editor
+
+### Completed
+
+- [x] Moved credential reveal, password rotation and destructive deletion to `/app/instances/:id/databases/:databaseId/security`.
+- [x] Kept the databases tab as a quota-aware responsive inventory with contextual security links.
+- [x] Required exact database identity and client-update acknowledgement before password rotation, with dirty guard and Discard.
+- [x] Preserved audited credential reads and revealed replacement credentials only after the real PATCH succeeds.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- Production build: pass; 172 pages prerendered.
+- Static database-security contract test: 1/1 pass.
+- Focused Playwright database-security suite: 2/2 pass, including exact PATCH, post-rotation credential read, dirty guard and 390px overflow/action reachability.
