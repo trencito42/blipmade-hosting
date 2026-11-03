@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icon, ProductMark } from '../icons';
 import type { Product } from './catalog';
-import { categoryOf, categoryOrder } from './categories';
+import { categoryOf, categoryOrder, toneOf } from './categories';
 import { eur } from './pricing';
 import { cx } from './ui';
 
@@ -81,23 +81,24 @@ export function AppPicker({ options, selected, onPick }: AppPickerProps) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => (open ? close(false) : setOpen(true))}
-        className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-night-line bg-night-2 px-3 py-2.5 text-left transition-colors hover:border-snow/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mint"
+        style={{ background: toneOf(current.product.category) }}
+        className="flex min-h-[64px] w-full items-center gap-3 rounded-[20px] px-3 py-2.5 text-left text-paper transition-transform duration-150 hover:-translate-y-0.5 hover:-rotate-[0.4deg] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-snow"
       >
-        <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-xl bg-night-3 text-[17px] text-mint">
-          <ProductMark slug={current.slug} fallback={currentCategory.icon} size={18} />
+        <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-paper text-[17px] text-snow">
+          <ProductMark slug={current.slug} fallback={currentCategory.icon} size={20} />
         </span>
         <span className="grid min-w-0 flex-1">
           <span className="truncate text-[16px] font-semibold">{current.label}</span>
-          <span className="truncate text-[13px] text-snow-2">{currentCategory.label} · from {eur(current.product.minPrice)}/month</span>
+          <span className="truncate text-[13px] font-medium opacity-75">{currentCategory.label} · from {eur(current.product.minPrice)}/month</span>
         </span>
-        <span className="flex shrink-0 items-center gap-2 text-[13px] font-medium text-snow-2">
+        <span className="flex shrink-0 items-center gap-2 rounded-full bg-paper px-3 py-1.5 text-[13px] font-bold text-snow">
           <span className="hidden sm:inline">Change</span>
-          <Icon name="chevronDown" size={14} className={cx('transition-transform duration-200', open && 'rotate-180')} />
+          <Icon name="chevronDown" size={13} className={cx('transition-transform duration-200', open && 'rotate-180')} />
         </span>
       </button>
       {/* The panel is in the page when it is closed, so the products are in the HTML that the server writes. */}
       {(
-        <div id={panelId} hidden={!open} className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-night-line bg-night shadow-[0_28px_56px_-16px_rgba(0,0,0,0.75)]">
+        <div id={panelId} hidden={!open} className="absolute inset-x-0 top-full z-20 mt-3 overflow-hidden rounded-[24px] border border-night-line bg-night shadow-[0_28px_56px_-16px_rgba(0,0,0,0.75)]">
           <div className="relative border-b border-night-line p-2">
             <Icon name="search" size={14} className="pointer-events-none absolute top-1/2 left-5 -translate-y-1/2 text-snow-2" />
             <input
@@ -107,17 +108,16 @@ export function AppPicker({ options, selected, onPick }: AppPickerProps) {
               onChange={(event) => setQuery(event.target.value)}
               aria-label="Search the apps"
               placeholder="Search games, databases, tools"
-              className="h-11 w-full rounded-xl bg-night-2 pr-3 pl-10 text-[15px] text-snow placeholder:text-snow-2 focus-visible:outline-2 focus-visible:outline-mint"
+              className="h-11 w-full rounded-full bg-night-2 pr-4 pl-10 text-[15px] text-snow placeholder:text-snow-2 focus-visible:outline-2 focus-visible:outline-mint"
             />
           </div>
           <div className="max-h-[320px] overflow-y-auto overscroll-contain p-2" role="radiogroup" aria-label="Choose an app">
             {groups.length === 0 && <p className="px-3 py-6 text-center text-[14px] text-snow-2">Nothing matches “{query}”.</p>}
             {groups.map(({ meta, list }) => (
               <div key={meta.id} role="group" aria-label={meta.label} className="mb-1 last:mb-0">
-                <p aria-hidden="true" className="sticky top-0 z-10 flex items-center gap-2 bg-night px-3 py-2 text-[12.5px] font-semibold text-snow-2">
-                  <Icon name={meta.icon} size={12} />
+                <p aria-hidden="true" className="sticky top-0 z-10 flex items-center gap-2.5 bg-night px-3 py-2.5 text-[13px] font-bold text-snow">
+                  <span className="grid size-6 place-items-center rounded-lg text-paper" style={{ background: toneOf(meta.id) }}><Icon name={meta.icon} size={12} /></span>
                   {meta.label}
-                  <span className="num ml-auto font-medium">{list.length}</span>
                 </p>
                 {list.map((option) => {
                   const active = option.slug === current.slug;
@@ -125,12 +125,16 @@ export function AppPicker({ options, selected, onPick }: AppPickerProps) {
                     <label
                       key={option.slug}
                       className={cx(
-                        'flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-[14.5px] font-medium transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-mint',
-                        active ? 'bg-mint text-night' : 'text-snow hover:bg-night-3',
+                        'group flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl px-3 py-2 text-[14.5px] font-semibold transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-mint',
+                        active ? 'text-paper' : 'text-snow hover:bg-night-3',
                       )}
+                      style={active ? { background: toneOf(option.product.category) } : undefined}
                     >
+                      <span aria-hidden="true" className={cx('grid size-9 shrink-0 place-items-center rounded-[11px] text-paper transition-transform duration-150 group-hover:-rotate-6 group-hover:scale-105', active && 'bg-paper text-snow')} style={active ? undefined : { background: toneOf(option.product.category) }}>
+                        <ProductMark slug={option.slug} fallback={categoryOf(option.product.category).icon} size={16} />
+                      </span>
                       <span className="min-w-0 flex-1 truncate">{option.label}</span>
-                      <span className={cx('num shrink-0 text-[12.5px]', active ? 'text-night/70' : 'text-snow-2')}>{eur(option.product.minPrice)}</span>
+                      <span className={cx('num shrink-0 text-[12.5px]', active ? 'opacity-75' : 'text-snow-2')}>{eur(option.product.minPrice)}</span>
                       {active && <Icon name="check" size={13} />}
                       <input
                         type="radio"
