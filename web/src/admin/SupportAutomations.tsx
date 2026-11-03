@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
+import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
 import { can, useAdminSession } from './Overview';
 
 /**
@@ -36,14 +36,12 @@ const ACTIONS = [
 const STATUSES = ['OPEN', 'AWAITING_CUSTOMER', 'AWAITING_STAFF', 'ON_HOLD', 'CLOSED'];
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']] as const;
 
-const blank = (): Rule => ({ id: '', name: '', enabled: false, priority: 100, trigger: 'conversation_created', afterMinutes: null, conditions: {}, actions: [{ type: 'set_priority', priority: 'HIGH' }], actorId: null });
+export const blank = (): Rule => ({ id: '', name: '', enabled: false, priority: 100, trigger: 'conversation_created', afterMinutes: null, conditions: {}, actions: [{ type: 'set_priority', priority: 'HIGH' }], actorId: null });
 
 export default function SupportAutomations() {
   const session = useAdminSession();
   const toast = useToast();
   const list = useAsync((signal) => get<{ automations: Rule[] }>('/admin/support/automations', undefined, signal), []);
-  const departments = useAsync((signal) => get<{ departments: { id: string; name: string }[] }>('/admin/support/departments', undefined, signal), []);
-  const [editing, setEditing] = useState<Rule | null>(null);
   const [history, setHistory] = useState<string | null>(null);
 
   const toggle = useAction(async (rule: Rule) => {
@@ -60,8 +58,6 @@ export default function SupportAutomations() {
   if (session.loading) return <LoadingBlock rows={3} label="Loading your permissions" />;
   if (!can(session.staff, 'tickets.read')) return <EmptyState title="No access" description="Your role does not include the support area." />;
   const mayEdit = can(session.staff, 'settings.write');
-
-  if (editing) return <RuleEditor rule={editing} departments={departments.data?.departments ?? []} mayEdit={mayEdit} onClose={() => { setEditing(null); list.reload(); }} />;
 
   return (
     <div className="grid gap-4">
@@ -85,7 +81,7 @@ export default function SupportAutomations() {
                   </p>
                   <span className="flex flex-wrap gap-2">
                     <SoftButton onClick={() => setHistory(history === rule.id ? null : rule.id)}>History</SoftButton>
-                    <SoftButton onClick={() => setEditing(rule)}>{mayEdit ? 'Edit' : 'View'}</SoftButton>
+                    <ButtonLink to={`/admin/support/automations/${encodeURIComponent(rule.id)}/edit`} variant="soft">{mayEdit ? 'Edit' : 'View'}</ButtonLink>
                     {mayEdit && <SoftButton onClick={() => void toggle.run(rule)}>{rule.enabled ? 'Switch off' : 'Switch on'}</SoftButton>}
                     {mayEdit && <SoftButton onClick={() => void remove.run(rule)}>Delete</SoftButton>}
                   </span>
@@ -96,7 +92,7 @@ export default function SupportAutomations() {
           </ul>
         )}
         {(toggle.error || remove.error) && <p role="alert" className="mt-2 text-[13px] text-bad">{toggle.error || remove.error}</p>}
-        {mayEdit && <div className="mt-3"><SoftButton onClick={() => setEditing(blank())}>New rule</SoftButton></div>}
+        {mayEdit && <div className="mt-3"><ButtonLink to="/admin/support/automations/new" variant="soft">New rule</ButtonLink></div>}
       </Panel>
       <HoursPanel mayEdit={mayEdit} />
     </div>
@@ -125,7 +121,7 @@ function History({ id, mayEdit }: { id: string; mayEdit: boolean }) {
   );
 }
 
-function RuleEditor({ rule, departments, mayEdit, onClose }: { rule: Rule; departments: { id: string; name: string }[]; mayEdit: boolean; onClose: () => void }) {
+export function RuleEditor({ rule, departments, mayEdit, onClose }: { rule: Rule; departments: { id: string; name: string }[]; mayEdit: boolean; onClose: () => void }) {
   const toast = useToast();
   const [draft, setDraft] = useState<Rule>(rule);
   const [ticketNumber, setTicketNumber] = useState('');
@@ -155,7 +151,7 @@ function RuleEditor({ rule, departments, mayEdit, onClose }: { rule: Rule; depar
 
   return (
     <div className="grid gap-4">
-      <Panel title={draft.id ? 'Edit the rule' : 'New rule'} description="A new rule is saved switched off. Try it on a real conversation first: nothing is changed by trying.">
+      <Panel title="Rule" description="A new rule is saved switched off. Try it on a real conversation first: nothing is changed by trying.">
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <TextInput label="Name" value={draft.name} onChange={(event) => set({ name: event.target.value })} maxLength={80} disabled={!mayEdit} />
