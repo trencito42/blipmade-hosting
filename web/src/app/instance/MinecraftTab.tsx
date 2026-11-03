@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { get, post, put } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
-import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextInput, useToast } from '../../ui-app';
+import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Segmented, Select, SoftButton, TextInput, useToast } from '../../ui-app';
 import type { TabProps } from './common';
 
 interface Minecraft {
@@ -21,6 +21,7 @@ const PROPERTY_LABELS: Record<string, string> = {
   'white-list': 'Whitelist on', 'enforce-whitelist': 'Kick players not on the whitelist', 'view-distance': 'View distance', 'simulation-distance': 'Simulation distance',
   'spawn-protection': 'Spawn protection', 'allow-flight': 'Allow flight', 'online-mode': 'Online mode (Mojang accounts)', hardcore: 'Hardcore', 'level-seed': 'World seed (new worlds only)',
 };
+const WORLD_KEYS = new Set(['level-name', 'level-seed', 'level-type', 'generator-settings', 'allow-nether', 'generate-structures', 'max-world-size']);
 const CHOICES: Record<string, string[]> = {
   difficulty: ['peaceful', 'easy', 'normal', 'hard'], gamemode: ['survival', 'creative', 'adventure', 'spectator'],
   pvp: ['true', 'false'], 'white-list': ['true', 'false'], 'enforce-whitelist': ['true', 'false'], 'allow-flight': ['true', 'false'], 'online-mode': ['true', 'false'], hardcore: ['true', 'false'],
@@ -41,6 +42,7 @@ export default function MinecraftTab({ instance }: TabProps) {
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<PluginHit[]>([]);
   const [version, setVersion] = useState('');
+  const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'settings'>('players');
   const versions = useAsync<{ supported: boolean; versions: string[]; current: string | null }>((signal) => get(`${base}/versions`, undefined, signal), [instance.id]);
   const plugins = useAsync<{ installed: { name: string; size: number }[] }>((signal) => get(`${base}/plugins`, undefined, signal), [instance.id]);
   const data = state.data;
@@ -114,8 +116,19 @@ export default function MinecraftTab({ instance }: TabProps) {
           )}
         </div>
       </Panel>
+      <Segmented
+        ariaLabel="Minecraft sections"
+        value={section}
+        onChange={setSection}
+        options={[
+          { value: 'players', label: 'Players' },
+          { value: 'addons', label: 'Add-ons' },
+          { value: 'worlds', label: 'Worlds' },
+          { value: 'settings', label: 'Settings' },
+        ]}
+      />
 
-      <Panel title="Players" description="Needs the server to be running. Names are Minecraft account names.">
+      {section === 'players' && <Panel title="Players" description="Needs the server to be running. The sample of online players is who answered the ping, not a full history.">
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <TextInput label="Player" value={player} onChange={(event) => setPlayer(event.target.value)} placeholder="Steve" autoComplete="off" spellCheck={false} />
@@ -143,9 +156,9 @@ export default function MinecraftTab({ instance }: TabProps) {
             ))}
           </div>
         </div>
-      </Panel>
+      </Panel>}
 
-      <Panel title="Command" description="Any command, as if you typed it in the console. The answer shows in the Console tab.">
+      {section === 'players' && <Panel title="Command" description="Any command, as if you typed it in the console. The answer shows in the Console tab.">
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[240px] flex-1">
             <TextInput label="Command" value={command} onChange={(event) => setCommand(event.target.value)} placeholder="say Hello" autoComplete="off" spellCheck={false} />
@@ -153,11 +166,14 @@ export default function MinecraftTab({ instance }: TabProps) {
           <PrimaryButton onClick={() => void run.run()} disabled={run.pending || !command.trim()}>Send</PrimaryButton>
         </div>
         {run.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{run.error}</p>}
-      </Panel>
+      </Panel>}
 
-      <Panel title="Settings" description="The usual lines of server.properties. The server reads them when it starts, so restart it after saving.">
+      {section === 'settings' && <Panel title="Settings" description="The usual lines of server.properties. The server reads them when it starts, so restart it after saving. A profile saved here stays in this browser.">
+        <div className="mb-3">
+          <SoftButton onClick={() => { localStorage.setItem(`bm.mc.profile.${instance.id}`, JSON.stringify(data.properties)); push('Saved in this browser.', 'ok'); }}>Save profile</SoftButton>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {Object.entries(data.properties).map(([key, value]) => {
+          {Object.entries(data.properties).filter(([key]) => !WORLD_KEYS.has(key)).map(([key, value]) => {
             const current = changes[key] ?? value ?? '';
             return CHOICES[key] ? (
               <Select key={key} label={PROPERTY_LABELS[key] ?? key} value={current} onChange={(event) => setChanges({ ...changes, [key]: event.target.value })}>
@@ -173,9 +189,9 @@ export default function MinecraftTab({ instance }: TabProps) {
         <div className="mt-3">
           <PrimaryButton onClick={() => void saveProps.run()} disabled={saveProps.pending || Object.keys(changes).length === 0}>Save settings</PrimaryButton>
         </div>
-      </Panel>
+      </Panel>}
 
-      {versions.data?.supported && (
+      {section === 'settings' && versions.data?.supported && (
         <Panel title="Version" description="A backup is made first and kept (locked). Your world and settings stay; only the server program is replaced. Plugins may need an update after a big jump.">
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-[200px]">
@@ -190,7 +206,7 @@ export default function MinecraftTab({ instance }: TabProps) {
         </Panel>
       )}
 
-      {versions.data?.supported && (
+      {section === 'addons' && versions.data?.supported && (
         <Panel title="Plugins" description={gameVersion ? `From Modrinth, only files built for Minecraft ${gameVersion}. They are downloaded by the node to the plugins folder.` : 'Start the server once so the version is known.'}>
           <div className="grid gap-3">
             <div className="flex flex-wrap items-end gap-2">
@@ -215,6 +231,24 @@ export default function MinecraftTab({ instance }: TabProps) {
             ) : (
               <EmptyState title="No plugins installed." description="Search above, or upload a .jar in the Files tab, in the plugins folder." />
             )}
+          </div>
+        </Panel>
+      )}
+      {section === 'addons' && !versions.data?.supported && (
+        <Panel title="Add-ons" description="Paper can install plugins from here. Forge and Folia do not.">
+          <p className="text-[14px] text-ink2">Put mod files in the mods folder from Files. No other installer runs from this page.</p>
+        </Panel>
+      )}
+      {section === 'worlds' && (
+        <Panel title="Worlds" description="A new seed applies to a new world. It does not rewrite the world that is already there. Copies of the world are the Backups tab.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {Object.entries(data.properties).filter(([key]) => WORLD_KEYS.has(key)).map(([key, value]) => (
+              <TextInput key={key} label={PROPERTY_LABELS[key] ?? key} value={changes[key] ?? value ?? ''} onChange={(event) => setChanges({ ...changes, [key]: event.target.value })} autoComplete="off" />
+            ))}
+          </div>
+          {Object.entries(data.properties).every(([key]) => !WORLD_KEYS.has(key)) && <p className="text-[13.5px] text-ink3">This server has no world lines in server.properties yet.</p>}
+          <div className="mt-3">
+            <PrimaryButton onClick={() => void saveProps.run()} disabled={saveProps.pending || Object.keys(changes).length === 0}>Save world settings</PrimaryButton>
           </div>
         </Panel>
       )}

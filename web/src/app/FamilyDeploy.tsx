@@ -3,12 +3,13 @@ import { get } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link, useParams } from '../router';
 import { deployPathFor, type ResourceConfiguration } from '../lib/pricing-contract';
+import { mailCheckoutPath } from './EmailHosting';
 import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton } from '../ui-app';
 
 interface FamilyVariant {
   slug: string;
   label: string;
-  product: { slug: string; name: string; defaultRam: number; defaultCpu: number; defaultDisk: number; orderable: boolean; availability: string };
+  product: { slug: string; name: string; fulfilment?: string; defaultRam: number; defaultCpu: number; defaultDisk: number; orderable: boolean; availability: string };
 }
 interface FamilyPreset {
   slug: string;
@@ -65,14 +66,15 @@ export default function FamilyDeploy() {
     : null;
   const optionCodes = addons.filter((addon) => addonSlugs.includes(addon.slug) && addon.optionCode).map((addon) => addon.optionCode!);
   const chosenAddons = addons.filter((addon) => addonSlugs.includes(addon.slug)).map((addon) => addon.slug);
-  const href = variant && config
-    ? deployPathFor(variant.product.slug, config, optionCodes, {
-        family: family!.slug,
-        variant: variant.slug,
-        ...(preset ? { preset: preset.slug, presetVersion: String(preset.version) } : {}),
-        ...(chosenAddons.length ? { addons: chosenAddons.join(',') } : {}),
-      })
-    : null;
+  const href = !variant ? null
+    : variant.product.fulfilment === 'EMAIL' ? mailCheckoutPath(variant.product.slug)
+      : variant.product.fulfilment === 'VPS' ? `/app/vps/new?plan=${encodeURIComponent(variant.product.slug)}`
+        : config ? deployPathFor(variant.product.slug, config, optionCodes, {
+          family: family!.slug,
+          variant: variant.slug,
+          ...(preset ? { preset: preset.slug, presetVersion: String(preset.version) } : {}),
+          ...(chosenAddons.length ? { addons: chosenAddons.join(',') } : {}),
+        }) : null;
 
   return (
     <div className="grid gap-4">

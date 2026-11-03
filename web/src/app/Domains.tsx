@@ -48,8 +48,22 @@ function isPlatformHostname(hostname: string): boolean {
 
 /** Ownership proof and DNS records of one domain. Own page, not the list. */
 export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: string, label: string) => void | Promise<void> }) {
+  const steps = [
+    { label: 'Hostname claimed', done: true },
+    { label: 'Ownership TXT verified', done: domain.verification.verified },
+    { label: 'Gateway route added', done: domain.status === 'active' },
+  ];
   return (
     <>
+                <ol className="mt-3 grid gap-1">
+                  {steps.map((step) => (
+                    <li key={step.label} className="flex items-center gap-2 text-[13.5px] text-ink2">
+                      <span aria-hidden="true" className={step.done ? 'text-acc' : 'text-ink3'}>{step.done ? '●' : '○'}</span>
+                      {step.label}
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-1 text-[12.5px] text-ink3">Active means the route for this exact hostname was added. It does not by itself prove the public certificate is already being served. Nameservers are not changed.</p>
                 {domain.lastError && (
                   <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-3.5 py-2.5 text-[13.5px] text-ink2">
                     <span className="font-bold text-bad">Last error: </span>

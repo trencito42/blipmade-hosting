@@ -4,7 +4,7 @@ import type { BillingPeriod, Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { notFound } from '../lib/errors.js';
-import { addressRateLimitKey } from '../plugins/auth.js';
+import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { breakdownOfResources, buildQuote, priceBook, resourceRates } from '../services/pricing.js';
 import { companyDetails, taxOf } from '../services/billing.js';
 import { parseCustomerVariableSpecs } from '../services/instance-credentials.js';
@@ -13,6 +13,7 @@ import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
+import { inspectGitUrl } from '../services/import-inspect.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -239,6 +240,15 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     // needs the rate card of the platform, which is read from the settings.
     const serialized = await Promise.all(products.map((product) => serializeProduct(product)));
     return { products: serialized };
+  });
+
+  app.post('/catalog/import/inspect', {
+    config: { rateLimit: { max: 20, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
+    handler: async (request) => {
+      await requireAuth(request);
+      const body = z.object({ url: z.string().trim().max(300) }).parse(request.body ?? {});
+      return { proposal: await inspectGitUrl(body.url) };
+    },
   });
 
   app.get('/catalog/families', async () => ({ families: await publicFamilies() }));

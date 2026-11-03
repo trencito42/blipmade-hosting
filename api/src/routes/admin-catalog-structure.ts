@@ -7,7 +7,7 @@ import { badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requirePermission, requireStaff } from '../plugins/auth.js';
 import { CATALOG_GROUPS, STRUCTURE_NOTE, assertActiveHasVariants, assertAddonShape } from '../services/catalog-structure.js';
-import { publishReadyFamilies, syncCatalogDrafts } from '../services/catalog-drafts.js';
+import { publishReadyFamilies, regroupPlanFamilies, syncCatalogDrafts } from '../services/catalog-drafts.js';
 
 const slug = z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and dashes.');
 const label = z.string().trim().min(2).max(120);
@@ -173,6 +173,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
   app.post('/admin/catalog/families/sync-drafts', { ...limited, preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const drafts = await syncCatalogDrafts();
+    await regroupPlanFamilies();
     const published = await publishReadyFamilies();
     const result = { ...drafts, ...published };
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'catalog.drafts_synced', targetType: 'catalog_family', targetId: null, meta: result, ip: request.ip });

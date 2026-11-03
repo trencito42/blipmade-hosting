@@ -25,6 +25,7 @@ import { ProductTile } from '../ui';
 import { mailCheckoutPath } from './EmailHosting';
 import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, SoftButton, StatusPill, TextInput } from '../ui-app';
 import { get } from '../lib/api';
+import { ImportProject } from './ImportProject';
 import { useAsync } from '../lib/useAsync';
 
 /**
@@ -177,7 +178,7 @@ function ProductGrid({ products }: { products: CatalogProduct[] }) {
   );
 }
 
-interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { label?: string; product: { slug: string; name?: string; orderable: boolean } }[] }
+interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { label?: string; product: { slug: string; name?: string; category?: string; orderable: boolean } }[] }
 
 export default function DeployCatalog() {
   const { products, loading } = useCatalogProducts();
@@ -194,13 +195,15 @@ export default function DeployCatalog() {
   // Only the categories that really exist in the catalog are offered, in the
   // order of the public catalog.
   const grouped = useMemo(() => families.filter((family) => family.variants.filter((variant) => variant.product.orderable).length > 1), [families]);
+  const covered = useMemo(() => new Set(grouped.flatMap((family) => family.variants.map((variant) => variant.product.slug))), [grouped]);
+  const listed = useMemo(() => products.filter((product) => !covered.has(product.slug)), [products, covered]);
   const categories = useMemo(() => {
     const seen = new Set(products.map((product) => product.category));
     return [...seen].sort((left, right) => categoryOrder(left) - categoryOrder(right) || left.localeCompare(right));
   }, [products]);
   const matching = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const found = products.filter((product) => {
+    const found = listed.filter((product) => {
       const matchesCategory = category === 'All' || product.category === category;
       const label = categoryOf(product.category).label.toLowerCase();
       const matchesQuery =
@@ -221,8 +224,17 @@ export default function DeployCatalog() {
       });
     }
     return found;
-  }, [products, query, category, sort]);
+  }, [listed, query, category, sort]);
 
+  const shownFamilies = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return grouped.filter((family) => {
+      const familyCategory = family.variants.find((variant) => variant.product.category)?.product.category;
+      const matchesCategory = category === 'All' || familyCategory === category;
+      const matchesQuery = !needle || family.name.toLowerCase().includes(needle) || family.variants.some((variant) => (variant.label || variant.product.slug).toLowerCase().includes(needle));
+      return matchesCategory && matchesQuery;
+    });
+  }, [grouped, query, category]);
   const ready = matching.filter((product) => isOrderable(product));
   const soon = availability === 'all' ? matching.filter((product) => !isOrderable(product)) : [];
   const deployableCount = useMemo(() => products.filter((product) => isOrderable(product)).length, [products]);
@@ -237,10 +249,11 @@ export default function DeployCatalog() {
           {loading ? 'Loading the catalog.' : `${deployableCount} ${deployableCount === 1 ? 'product is' : 'products are'} ready to deploy.`}
         </p>
       </div>
-      {grouped.length > 0 && (
+      <ImportProject />
+      {shownFamilies.length > 0 && (
         <section className="grid gap-3" aria-label="Grouped products">
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {grouped.filter((family) => !query.trim() || family.name.toLowerCase().includes(query.trim().toLowerCase())).map((family) => (
+            {shownFamilies.map((family) => (
               <li key={family.slug}>
                 <Link to={`/app/deploy/families/${encodeURIComponent(family.slug)}`} className="grid h-full gap-2 rounded-[24px] border border-line bg-card p-5 transition-colors hover:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <p className="font-display text-[20px] font-semibold tracking-[-0.03em] text-ink">{family.name}</p>
@@ -315,7 +328,7 @@ export default function DeployCatalog() {
           </select>
         </label>
         <p aria-live="polite" className="ml-auto text-[13px] text-ink3">
-          {matching.length} {matching.length === 1 ? 'match' : 'matches'}
+          {matching.length + shownFamilies.length} {matching.length + shownFamilies.length === 1 ? 'match' : 'matches'}
         </p>
       </div>
 
@@ -326,7 +339,7 @@ export default function DeployCatalog() {
           <Panel>
             <EmptyState title="The catalog is empty." description="There is nothing to deploy at the moment. Please check back later." />
           </Panel>
-        ) : matching.length === 0 ? (
+        ) : matching.length === 0 && shownFamilies.length === 0 ? (
           <EmptyState
             title="No product matches your search."
             description="Clear the search or pick another category to see the catalog again."
@@ -338,7 +351,7 @@ export default function DeployCatalog() {
           <>
             {ready.length > 0 ? (
               <ProductGrid products={ready} />
-            ) : (
+            ) : shownFamilies.length > 0 ? null : (
               <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">Nothing in this view can be deployed yet.</p>
             )}
             {soon.length > 0 && (

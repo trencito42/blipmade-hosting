@@ -11,6 +11,87 @@ const MINECRAFT: DraftVariant[] = [
   { slug: 'minecraft-bedrock', label: 'Bedrock' },
 ];
 
+/** Products that are sizes or engines of one offer. Everything else stays its own card. */
+const PLAN_FAMILIES: DraftFamily[] = [
+  {
+    slug: 'email-hosting',
+    name: 'Email hosting',
+    group: 'websites-apps',
+    summary: 'Starter, Plus and Business. The mailbox limits change. The mail product does not.',
+    variants: [
+      { slug: 'email-hosting-starter', label: 'Starter' },
+      { slug: 'email-hosting-plus', label: 'Plus' },
+      { slug: 'email-hosting-business', label: 'Business' },
+    ],
+  },
+  {
+    slug: 'vps',
+    name: 'VPS',
+    group: 'tools-automation',
+    summary: 'Start, Plus, Pro and Max. Pick a size, then the same VPS checkout.',
+    variants: [
+      { slug: 'vps-start', label: 'Start' },
+      { slug: 'vps-plus', label: 'Plus' },
+      { slug: 'vps-pro', label: 'Pro' },
+      { slug: 'vps-max', label: 'Max' },
+    ],
+  },
+  {
+    slug: 'databases',
+    name: 'Databases',
+    group: 'databases-caches',
+    summary: 'MariaDB, PostgreSQL, MongoDB and Redis. Each one is still its own product.',
+    variants: [
+      { slug: 'mariadb', label: 'MariaDB' },
+      { slug: 'postgresql', label: 'PostgreSQL' },
+      { slug: 'mongodb', label: 'MongoDB' },
+      { slug: 'redis', label: 'Redis' },
+    ],
+  },
+  {
+    slug: 'monitoring',
+    name: 'Monitoring',
+    group: 'tools-automation',
+    summary: 'Grafana, Loki, Prometheus and Uptime Kuma.',
+    variants: [
+      { slug: 'grafana', label: 'Grafana' },
+      { slug: 'loki', label: 'Loki' },
+      { slug: 'prometheus', label: 'Prometheus' },
+      { slug: 'uptime-kuma', label: 'Uptime Kuma' },
+    ],
+  },
+  {
+    slug: 'git',
+    name: 'Git',
+    group: 'tools-automation',
+    summary: 'Forgejo and Gitea.',
+    variants: [
+      { slug: 'forgejo', label: 'Forgejo' },
+      { slug: 'gitea', label: 'Gitea' },
+    ],
+  },
+  {
+    slug: 'custom-runtime',
+    name: 'Custom runtime',
+    group: 'custom-runtime',
+    summary: 'Node.js, Python, Go and the other language runtimes.',
+    variants: [
+      { slug: 'nodejs', label: 'Node.js' },
+      { slug: 'python', label: 'Python' },
+      { slug: 'golang', label: 'Go' },
+      { slug: 'java', label: 'Java' },
+      { slug: 'rust-runtime', label: 'Rust' },
+      { slug: 'deno', label: 'Deno' },
+      { slug: 'dotnet', label: '.NET' },
+      { slug: 'dart', label: 'Dart' },
+      { slug: 'elixir', label: 'Elixir' },
+      { slug: 'lua', label: 'Lua' },
+    ],
+  },
+];
+
+const PLANNED_SLUGS = new Set(PLAN_FAMILIES.flatMap((family) => family.variants.map((variant) => variant.slug)));
+
 function groupFor(category: string, slug: string): CatalogGroup {
   if (category === 'GAMES') return 'games';
   if (slug === 'discord-bot') return 'discord-bots';
@@ -31,12 +112,16 @@ export function draftFamilies(products: { slug: string; name: string; category: 
       slug: 'minecraft',
       name: 'Minecraft',
       group: 'games',
-      summary: 'Paper, Folia, Forge and Bedrock share one Minecraft family. The live product is unchanged.',
+      summary: 'Paper, Folia, Forge and Bedrock. Pick one, then deploy the same product as before.',
       variants: minecraft,
     });
   }
+  for (const plan of PLAN_FAMILIES) {
+    const variants = plan.variants.filter((variant) => bySlug.has(variant.slug));
+    if (variants.length) families.push({ ...plan, variants });
+  }
   for (const product of products) {
-    if (MINECRAFT.some((variant) => variant.slug === product.slug)) continue;
+    if (MINECRAFT.some((variant) => variant.slug === product.slug) || PLANNED_SLUGS.has(product.slug)) continue;
     families.push({
       slug: product.slug,
       name: product.name,
@@ -82,6 +167,58 @@ export async function syncCatalogDrafts(): Promise<{ families: number; variants:
     }
   }
   return { families, variants, skipped };
+}
+
+/**
+ * Moves plan variants onto their shared family.
+ * A product that already has a variant is relinked. The product row is not written.
+ */
+export async function regroupPlanFamilies(): Promise<{ moved: number; families: number }> {
+  const products = await prisma.product.findMany({ select: { id: true, slug: true } });
+  const bySlug = new Map(products.map((product) => [product.slug, product]));
+  let moved = 0;
+  let families = 0;
+  for (const plan of PLAN_FAMILIES) {
+    const present = plan.variants.filter((variant) => bySlug.has(variant.slug));
+    if (present.length < 2) continue;
+    const existing = await prisma.catalogFamily.findUnique({ where: { slug: plan.slug }, select: { id: true } });
+    const family = existing ?? await prisma.catalogFamily.create({
+      data: { slug: plan.slug, name: plan.name, summary: plan.summary, group: plan.group, discovery: 'HIDDEN', prepared: false },
+      select: { id: true },
+    });
+    if (!existing) families += 1;
+    else await prisma.catalogFamily.update({ where: { id: family.id }, data: { name: plan.name, summary: plan.summary, group: plan.group } });
+    for (const [index, variant] of present.entries()) {
+      const product = bySlug.get(variant.slug);
+      if (!product) continue;
+      const linked = await prisma.catalogVariant.findUnique({ where: { productId: product.id }, select: { id: true, familyId: true } });
+      if (!linked) {
+        await prisma.catalogVariant.create({
+          data: { familyId: family.id, productId: product.id, slug: variant.slug, label: variant.label, sortOrder: index, active: false },
+        });
+        moved += 1;
+        continue;
+      }
+      if (linked.familyId !== family.id) {
+        await prisma.catalogVariant.update({
+          where: { id: linked.id },
+          data: { familyId: family.id, slug: variant.slug, label: variant.label, sortOrder: index },
+        });
+        moved += 1;
+      }
+    }
+  }
+  const emptied = await prisma.catalogFamily.findMany({
+    where: { variants: { none: {} }, slug: { in: [...PLANNED_SLUGS] } },
+    select: { id: true },
+  });
+  if (emptied.length) {
+    await prisma.catalogFamily.updateMany({
+      where: { id: { in: emptied.map((family) => family.id) } },
+      data: { prepared: false, discovery: 'HIDDEN' },
+    });
+  }
+  return { moved, families };
 }
 
 /**
