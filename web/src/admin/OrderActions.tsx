@@ -83,3 +83,50 @@ function OrderAction({ mode }: { mode: Mode }) {
 
 export const OrderRefund = () => <OrderAction mode="refund" />;
 export const OrderRetry = () => <OrderAction mode="retry" />;
+
+/** A partial refund: the amount to give back and why. It goes back to the card at the payment provider and cannot be undone. */
+export function OrderPartialRefund() {
+  const { id = '' } = useParams();
+  const { navigate } = useRouter();
+  const toast = useToast();
+  const mayWrite = can(useAdminSession().staff, 'orders.write');
+  const backTo = `/admin/orders/${encodeURIComponent(id)}`;
+  const state = useAsync<{ order: OrderLite }>((signal) => get(`/admin/orders/${encodeURIComponent(id)}`, undefined, signal), [id]);
+  const order = state.data?.order;
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [done, setDone] = useState(false);
+  const cents = Math.round(Number(amount.replace(',', '.')) * 100);
+  const validAmount = Number.isFinite(cents) && cents >= 1 && (!order || cents <= order.total);
+  const dirty = !done && (amount !== '' || reason !== '');
+  useUnsavedChangesGuard(dirty, 'Discard this refund?');
+  const allowed = Boolean(order) && ['paid', 'fulfilled'].includes(order!.status);
+  const send = useAction(async () => post(`/admin/orders/${encodeURIComponent(id)}/partial-refund`, { amount: cents, reason: reason.trim() }));
+  const ready = mayWrite && allowed && validAmount && reason.trim().length >= 5 && !send.pending;
+  const submit = async () => {
+    if (!(await send.run())) return;
+    setDone(true);
+    toast.push('The refund was made.', 'ok');
+    navigate(backTo, { replace: true });
+  };
+  const discard = () => {
+    if (!dirty || window.confirm('Discard this refund?')) navigate(backTo);
+  };
+  return (
+    <PageEditorShell eyebrow="Orders" title="Refund part of the order" description="It goes back to the card at the payment provider, and cannot be undone." backTo={backTo} backLabel="Back to the order" dirty={dirty}
+      actions={<><SoftButton type="button" onClick={discard} disabled={send.pending}>Discard</SoftButton><PrimaryButton type="button" onClick={() => void submit()} disabled={!ready}>{send.pending ? 'Refunding…' : 'Refund this amount'}</PrimaryButton></>}>
+      {state.loading && !state.data ? <LoadingBlock rows={2} label="Loading the order" />
+        : state.error || !order ? <ErrorState title="The order could not be loaded" message={state.error?.message ?? 'Not found.'} onRetry={state.reload} />
+        : (
+          <div className="grid gap-3">
+            <p className="rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2"><span className="font-mono text-ink">{order.number}</span> · the order was <Money amount={order.total} currency={order.currency} /></p>
+            {!allowed && <p role="alert" className="rounded-2xl bg-warn/10 px-4 py-3 text-[13.5px] text-ink">This order cannot be refunded: it is not paid.</p>}
+            <TextInput label={`Amount (${order.currency})`} value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="5.00" disabled={!mayWrite || !allowed} error={amount !== '' && !validAmount ? 'Write an amount between 0.01 and the total of the order.' : undefined} />
+            <TextInput label="Reason" value={reason} onChange={(event) => setReason(event.target.value)} hint="At least 5 characters. It goes to the audit log." disabled={!mayWrite || !allowed} />
+            {!mayWrite && <p className="text-[13px] text-ink3">Your role does not hold &quot;orders.write&quot;.</p>}
+            {send.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{send.error}</p>}
+          </div>
+        )}
+    </PageEditorShell>
+  );
+}

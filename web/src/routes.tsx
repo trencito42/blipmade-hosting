@@ -91,6 +91,7 @@ const AdminAddonNew = lazy(() => import('./admin/CommerceEditors').then((m) => (
 const AdminAddonEdit = lazy(() => import('./admin/CommerceEditors').then((m) => ({ default: m.AddonEdit })));
 const AdminYearlyDiscount = lazy(() => import('./admin/CommerceEditors').then((m) => ({ default: m.YearlyDiscountEdit })));
 const AdminServiceImport = lazy(() => import('./admin/ServiceImport'));
+const AdminOrderPartialRefund = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderPartialRefund })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -303,6 +304,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/customers/:id/security', component: AdminCustomerSecurity, title: 'Security actions', area: 'admin', layout: 'editor' },
   { pattern: '/admin/customers/:id', component: AdminCustomerDetail, title: 'Customer', area: 'admin' },
   { pattern: '/admin/orders', component: AdminOrders, title: 'Orders', area: 'admin' },
+  { pattern: '/admin/orders/:id/partial-refund', component: AdminOrderPartialRefund, title: 'Refund part', area: 'admin', layout: 'editor' },
   { pattern: '/admin/orders/:id/refund', component: AdminOrderRefund, title: 'Refund order', area: 'admin', layout: 'editor' },
   { pattern: '/admin/orders/:id/retry', component: AdminOrderRetry, title: 'Retry delivery', area: 'admin', layout: 'editor' },
   { pattern: '/admin/orders/:id', component: AdminOrderDetail, title: 'Order control', area: 'admin' },

@@ -46,4 +46,21 @@ test.describe('order actions on their own pages', () => {
     await expect(page).toHaveURL(/\/admin\/orders\/o1$/);
     expect(sent).toEqual({ reason: 'Customer asked' });
   });
+
+  test('a partial refund validates the amount against the order and posts cents', async ({ page }) => {
+    let sent: unknown;
+    await stubAdmin(page, (path, method, body) => {
+      if (path === '/admin/orders/o1/partial-refund' && method === 'POST') { sent = body; return {}; }
+      if (path === '/admin/orders/o1') return { order: ORDER };
+      return undefined;
+    });
+    await page.goto('/admin/orders/o1/partial-refund');
+    const go = page.getByRole('button', { name: 'Refund this amount' });
+    await page.getByLabel('Reason').fill('Partial downtime');
+    await page.getByLabel(/^Amount/).fill('99');
+    await expect(go).toBeDisabled();
+    await page.getByLabel(/^Amount/).fill('5.50');
+    await go.click();
+    await expect.poll(() => sent).toEqual({ amount: 550, reason: 'Partial downtime' });
+  });
 });

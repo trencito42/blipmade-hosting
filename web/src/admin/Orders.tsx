@@ -78,13 +78,7 @@ export default function Orders() {
   }, [search]);
   useEffect(() => { setPageCursors([]); }, [status, query]);
   const [showEmails, setShowEmails] = useState(false);
-  const [refunding, setRefunding] = useState<AdminOrder | null>(null);
-  const [partial, setPartial] = useState<AdminOrder | null>(null);
-  const [partAmount, setPartAmount] = useState('');
-  const [partReason, setPartReason] = useState('');
   const [partBusy, setPartBusy] = useState(false);
-  const [reason, setReason] = useState('');
-  const [reasonTouched, setReasonTouched] = useState(false);
 
   const state = useAsync(
     (signal) => get<{ orders: AdminOrder[]; total?: number; pagination?: { hasMore: boolean; nextCursor: string | null } }>('/admin/orders', {
@@ -95,13 +89,6 @@ export default function Orders() {
     }, signal),
     [status, query, cursor],
   );
-
-  const refund = useAction(async (order: AdminOrder) => {
-    return post<{ order: { id: string; status: string; amount: number; currency: string } }>(
-      `/admin/orders/${order.id}/refund`,
-      { reason: reason.trim() },
-    );
-  });
 
   const orders = state.data?.orders ?? [];
   const total = state.data?.total;
@@ -129,34 +116,11 @@ export default function Orders() {
     );
   }
 
-  const confirmRefund = async () => {
-    if (!refunding) return;
-    setReasonTouched(true);
-    if (reason.trim().length < 3) return;
-    const result = await refund.run(refunding);
-    if (!result) return;
-    toast.push(`${refunding.number} refunded`, 'ok');
-    setRefunding(null);
-    setReason('');
-    setReasonTouched(false);
-    state.reload();
-  };
-
   const refundButton = (order: AdminOrder) =>
     mayWrite && canBeRefunded(order) ? (
       <span className="inline-flex gap-1.5">
-      <button type="button" className={denseGhost} onClick={() => { setPartReason(''); setPartAmount(''); setPartial(order); }}>Refund part</button>
-      <button
-        type="button"
-        onClick={() => {
-          setReason('');
-          setReasonTouched(false);
-          setRefunding(order);
-        }}
-        className={denseDanger}
-      >
-        Refund
-      </button>
+      <Link to={`/admin/orders/${encodeURIComponent(order.id)}/partial-refund`} className={denseGhost}>Refund part</Link>
+      <Link to={`/admin/orders/${encodeURIComponent(order.id)}/refund`} className={denseDanger}>Refund</Link>
       </span>
     ) : null;
 
@@ -342,60 +306,6 @@ export default function Orders() {
         </p>
       )}
 
-      <ConfirmDialog
-        open={partial !== null}
-        title={partial ? `Refund part of ${partial.number}` : 'Refund part'}
-        description={partial ? `The order was ${(partial.total / 100).toFixed(2)} ${partial.currency}. Write the amount to give back and why. It goes back to the card at the payment provider, and cannot be undone.` : undefined}
-        confirmLabel={partBusy ? 'Refunding…' : 'Refund this amount'}
-        busy={partBusy}
-        onCancel={() => setPartial(null)}
-        onConfirm={() => {
-          const amount = Math.round(Number(partAmount.replace(',', '.')) * 100);
-          if (!partial || !Number.isFinite(amount) || amount < 1 || partReason.trim().length < 5) {
-            toast.push('Write an amount, and a reason of at least 5 characters.', 'error');
-            return;
-          }
-          setPartBusy(true);
-          post(`/admin/orders/${partial.id}/partial-refund`, { amount, reason: partReason.trim() })
-            .then(() => { toast.push('The refund was made.', 'ok'); setPartial(null); state.reload(); })
-            .catch((failure: Error) => toast.push(failure.message, 'error'))
-            .finally(() => setPartBusy(false));
-        }}
-      >
-        <div className="grid gap-3">
-          <label className="grid gap-1 text-[13.5px] font-medium text-ink">Amount ({partial?.currency})<input value={partAmount} onChange={(event) => setPartAmount(event.target.value)} inputMode="decimal" placeholder="5.00" className={denseInput} /></label>
-          <label className="grid gap-1 text-[13.5px] font-medium text-ink">Reason<input value={partReason} onChange={(event) => setPartReason(event.target.value)} className={denseInput} /></label>
-        </div>
-      </ConfirmDialog>
-
-      <ConfirmWithReason
-        open={refunding !== null}
-        title={`Refund ${refunding?.number ?? ''}`}
-        description={
-          refunding
-            ? `${refunding.number} gives ${(refunding.total / 100).toFixed(2)} ${refunding.currency} back to the customer. The money is returned by the payment provider and the order is marked as refunded. The reason is kept in the audit journal.`
-            : undefined
-        }
-        confirmLabel="Refund the order"
-        reasonLabel="Why is the order refunded?"
-        reason={reason}
-        onReasonChange={(value) => {
-          setReason(value);
-          setReasonTouched(true);
-        }}
-        onConfirm={confirmRefund}
-        onCancel={() => {
-          setRefunding(null);
-          setReason('');
-          setReasonTouched(false);
-        }}
-        busy={refund.pending}
-        error={
-          reasonTouched && reason.trim().length < 3
-            ? 'Write a reason of at least three characters. It is kept in the audit journal.'
-            : (refund.error ?? null)
-        }
-      />
     </div>
   );
 }
