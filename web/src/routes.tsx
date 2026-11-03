@@ -63,6 +63,7 @@ const AdminStaffEdit = lazy(() => import('./admin/StaffEdit'));
 const AdminIncidentNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.IncidentNew })));
 const AdminIncidentUpdateNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.IncidentUpdateNew })));
 const AdminAnnouncementNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.AnnouncementNew })));
+const AdminKnowledgeEdit = lazy(() => import('./admin/KnowledgeEdit'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -286,6 +287,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/support/bots', component: AdminSupportBots, title: 'Support bots', area: 'admin' },
   { pattern: '/admin/support', component: AdminSupport, title: 'Support console', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
+  { pattern: '/admin/knowledge/new', component: AdminKnowledgeEdit, title: 'New article', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/knowledge/:id/edit', component: AdminKnowledgeEdit, title: 'Edit article', area: 'admin', layout: 'editor' },
   { pattern: '/admin/knowledge', component: AdminKnowledge, title: 'Knowledge base', area: 'admin', exact: true },
   { pattern: '/admin/tickets/:id', component: AdminTicketDetail, title: 'Ticket', area: 'admin' },
   { pattern: '/admin/promotions', component: AdminPromotions, title: 'Promotions', area: 'admin' },
