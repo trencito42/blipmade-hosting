@@ -9,6 +9,7 @@
 - [FUNCTIONAL-AUDIT.md](./FUNCTIONAL-AUDIT.md): view-by-view action inventory, 486 literal API route registrations, 121 admin mutation registrations, functional issues and executable staging test contract.
 - [SECURITY-AUDIT.md](./SECURITY-AUDIT.md): verified defenses, priority weaknesses, false-positive corrections and required role/cross-tenant/financial tests.
 - [VISUAL-AUDIT.md](./VISUAL-AUDIT.md): 35-route static visual audit, screenshot-by-screenshot findings, older-vs-current revision differences, exact responsive and accessibility acceptance plan.
+- [Read-only browser evidence collector](../../web/e2e/admin-audit-readonly.spec.ts): opt-in Playwright test covering all 35 URLs at six widths (210 cases), requiring staging staff state and six seeded IDs. **Added, NOT executed**. Do not use production customer/staff data.
 - [UI-SCAN-1.md](./UI-SCAN-1.md), [UI-SCAN-2.md](./UI-SCAN-2.md), [UI-SCAN-3.md](./UI-SCAN-3.md), [UI-SCAN-4.md](./UI-SCAN-4.md): raw component, call and control signatures.
 - [API-SCAN-1.md](./API-SCAN-1.md), [API-SCAN-2.md](./API-SCAN-2.md), [API-SCAN-3.md](./API-SCAN-3.md), [API-SCAN-4.md](./API-SCAN-4.md): route method/path/permission hints; static false positives explicitly require review.
 
