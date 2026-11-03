@@ -534,8 +534,8 @@ export default function AbuseDetail() {
               void startInvestigation();
               return;
             }
-            if (action === 'suspend') {
-              navigate(`/admin/abuse/${encodeURIComponent(id)}/enforcement`);
+            if (action === 'suspend' || action === 'reopen') {
+              navigate(`/admin/abuse/${encodeURIComponent(id)}/${action === 'suspend' ? 'enforcement' : 'reopen'}`);
               return;
             }
             setDialog(action);

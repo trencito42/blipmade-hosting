@@ -93,6 +93,11 @@ const AdminYearlyDiscount = lazy(() => import('./admin/CommerceEditors').then((m
 const AdminServiceImport = lazy(() => import('./admin/ServiceImport'));
 const AdminOrderPartialRefund = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderPartialRefund })));
 const AdminCustomerBulk = lazy(() => import('./admin/CustomerBulkEdit'));
+const AdminReportExports = lazy(() => import('./admin/ReportExports'));
+const AdminActivity = lazy(() => import('./admin/Activity'));
+const AdminQueueJob = lazy(() => import('./admin/OpsDetailPages').then((m) => ({ default: m.QueueJob })));
+const AdminInfraNode = lazy(() => import('./admin/OpsDetailPages').then((m) => ({ default: m.InfrastructureNode })));
+const AdminAbuseReopen = lazy(() => import('./admin/abuse/AbuseReopen'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -344,15 +349,19 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/promotions/new', component: AdminPromotionNew, title: 'New promotion', area: 'admin', layout: 'editor' },
   { pattern: '/admin/promotions/:id/edit', component: AdminPromotionEdit, title: 'Edit campaign', area: 'admin', layout: 'editor' },
   { pattern: '/admin/promotions/:id', component: AdminPromotionDetail, title: 'Campaign control', area: 'admin' },
+  { pattern: '/admin/infrastructure/nodes/:id', component: AdminInfraNode, title: 'Node', area: 'admin', layout: 'editor' },
   { pattern: '/admin/infrastructure', component: AdminInfrastructure, title: 'Infrastructure', area: 'admin' },
   { pattern: '/admin/incidents/new', component: AdminIncidentNew, title: 'New incident', area: 'admin', layout: 'editor' },
   { pattern: '/admin/incidents/:id/updates/new', component: AdminIncidentUpdateNew, title: 'New update', area: 'admin', layout: 'editor' },
   { pattern: '/admin/announcements/new', component: AdminAnnouncementNew, title: 'New announcement', area: 'admin', layout: 'editor' },
   { pattern: '/admin/incidents', component: AdminIncidents, title: 'Incidents', area: 'admin' },
+  { pattern: '/admin/reports/exports', component: AdminReportExports, title: 'Export a report', area: 'admin', layout: 'editor' },
   { pattern: '/admin/reports', component: AdminReports, title: 'Reports', area: 'admin' },
+  { pattern: '/admin/queues/:name/jobs/:id', component: AdminQueueJob, title: 'Job', area: 'admin', layout: 'editor' },
   { pattern: '/admin/queues', component: AdminQueues, title: 'Job queues', area: 'admin' },
   { pattern: '/admin/abuse', component: AdminAbuse, title: 'Abuse reports', area: 'admin' },
   { pattern: '/admin/abuse/:id/enforcement', component: AdminAbuseEnforcement, title: 'Suspend service', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/abuse/:id/reopen', component: AdminAbuseReopen, title: 'Reopen the case', area: 'admin', layout: 'editor' },
   { pattern: '/admin/abuse/:id', component: AdminAbuseDetail, title: 'Abuse report', area: 'admin' },
   { pattern: '/admin/ops/incident/declare', component: AdminOpsDeclare, title: 'Declare an incident', area: 'admin', layout: 'editor' },
   { pattern: '/admin/ops', component: AdminOps, title: 'Operations', area: 'admin' },
@@ -360,6 +369,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/mail/plans/new', component: AdminMailPlanEdit, title: 'New mail plan', area: 'admin', layout: 'editor' },
   { pattern: '/admin/mail/plans/:id/edit', component: AdminMailPlanEdit, title: 'Edit mail plan', area: 'admin', layout: 'editor' },
   { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },
+  { pattern: '/admin/activity', component: AdminActivity, title: 'Activity', area: 'admin' },
   { pattern: '/admin/audit/:id', component: AdminAuditEntry, title: 'Audit entry', area: 'admin', layout: 'editor' },
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
   { pattern: '/admin/staff/:id/permissions/edit', component: AdminStaffEdit, title: 'Staff rights', area: 'admin', layout: 'editor' },

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { del, get, post } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
+import { Link } from '../router';
 import { EmptyState, ErrorState, LoadingBlock, Panel, SoftButton, useToast } from '../ui-app';
 import { can, denseDanger, fmtDateTime, useAdminSession } from './Overview';
 
@@ -48,7 +49,7 @@ export default function Queues() {
               {queue.failed.map((job) => (
                 <li key={job.id} className="grid gap-1.5 rounded-2xl bg-s2 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="text-[14px] font-semibold text-ink">{job.name} <span className="font-mono text-[12px] font-normal text-ink3">#{job.id}</span></p>
+                    <p className="text-[14px] font-semibold text-ink"><Link to={`/admin/queues/${encodeURIComponent(queue.name)}/jobs/${encodeURIComponent(job.id)}`} className="hover:text-acc hover:underline">{job.name}</Link> <span className="font-mono text-[12px] font-normal text-ink3">#{job.id}</span></p>
                     <span className="text-[12.5px] text-ink3">{job.failedAt ? fmtDateTime(job.failedAt) : ''} · {job.attempts} attempt{job.attempts === 1 ? '' : 's'}</span>
                   </div>
                   <p className="break-words font-mono text-[12.5px] text-bad">{job.reason || 'No reason was recorded.'}</p>

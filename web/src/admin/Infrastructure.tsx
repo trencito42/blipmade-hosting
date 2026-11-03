@@ -167,6 +167,7 @@ export default function Infrastructure() {
             <DataTable<AdminNode>
               rows={nodes}
               rowKey={(node) => node.id}
+              rowTo={(node: AdminNode) => `/admin/infrastructure/nodes/${encodeURIComponent(node.id)}`}
               columns={[
                 {
                   key: 'name',

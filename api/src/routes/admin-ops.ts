@@ -498,6 +498,33 @@ export async function registerAdminOpsRoutes(app: FastifyInstance): Promise<void
     return { queues: out };
   });
 
+  // One job of a queue: where it stands and why it failed. The data of the job is never shown, only the names of its fields.
+  app.get('/admin/queues/:name/jobs/:id', { preHandler: [requirePermission('infrastructure.read')] }, async (request) => {
+    const { name, id } = z.object({ name: z.string(), id: z.string() }).parse(request.params);
+    const entry = queues().find((item) => item.name === name);
+    const job = entry ? await entry.queue.getJob(id) : null;
+    if (!entry || !job) throw notFound('That job was not found.');
+    const iso = (value?: number | null) => (value ? new Date(value).toISOString() : null);
+    const data = job.data && typeof job.data === 'object' && !Array.isArray(job.data) ? Object.keys(job.data as unknown as Record<string, unknown>).slice(0, 30) : [];
+    return {
+      job: {
+        id: job.id,
+        queue: entry.name,
+        queueLabel: entry.label,
+        name: job.name,
+        state: await job.getState(),
+        attempts: job.attemptsMade,
+        maxAttempts: job.opts.attempts ?? 1,
+        createdAt: iso(job.timestamp),
+        startedAt: iso(job.processedOn),
+        finishedAt: iso(job.finishedOn),
+        reason: (job.failedReason ?? '').slice(0, 1000),
+        trace: (job.stacktrace ?? []).slice(0, 3).map((line) => line.split('\n').slice(0, 8).join('\n').slice(0, 1500)),
+        dataFields: data,
+      },
+    };
+  });
+
   // The events of the payment provider that failed, and the way to run them again.
   app.get('/admin/webhooks/failed', { preHandler: [requirePermission('infrastructure.read')] }, async () => {
     const failed = await prisma.webhookEvent.findMany({

@@ -1,7 +1,7 @@
 import { get } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { LineChart } from '../app/LineChart';
-import { EmptyState, ErrorState, LoadingBlock, Money, Panel, StatTile } from '../ui-app';
+import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Money, Panel, StatTile } from '../ui-app';
 
 interface Report {
   generatedAt: string;
@@ -27,6 +27,7 @@ export default function Reports() {
   const mrrEntries = Object.entries(r.mrr);
   return (
     <div className="grid gap-4">
+      <div className="flex justify-end"><ButtonLink to="/admin/reports/exports" variant="soft">Export a report</ButtonLink></div>
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile icon="card" label="Monthly recurring revenue" value={mrrEntries.length === 0 ? '—' : <span className="grid gap-1 text-[20px]">{mrrEntries.map(([currency, amount]) => <Money key={currency} amount={amount} currency={currency} />)}</span>} hint="Renewing subscriptions, per month" />
         <StatTile icon="box" label="Active subscriptions" value={r.activeSubscriptions} hint={r.pastDue ? `${r.pastDue} past due` : 'None past due'} />

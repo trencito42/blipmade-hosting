@@ -66,6 +66,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/content', label: 'Site content', shortLabel: 'Content', icon: 'doc' },
   { to: '/admin/tools', label: 'Operator tools', shortLabel: 'Tools', icon: 'restart' },
   { to: '/admin/audit', label: 'Audit log', shortLabel: 'Audit', icon: 'term' },
+  { to: '/admin/activity', label: 'Activity', shortLabel: 'Activity', icon: 'term' },
   { to: '/admin/staff', label: 'Staff', shortLabel: 'Staff', icon: 'bot' },
   { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },
 ];
@@ -110,7 +111,7 @@ export const ADMIN_GROUPS: NavGroup[] = [
   { id: 'support-desk', label: 'Support desk', icon: 'doc', items: [A('/admin/support'), A('/admin/tickets'), A('/admin/knowledge')] },
   { id: 'support-workflows', label: 'Support workflows', icon: 'flow', items: [A('/admin/support/bots'), A('/admin/support/automations'), A('/admin/support/analytics')] },
   { id: 'trust-status', label: 'Trust & status', icon: 'shield', items: [A('/admin/abuse'), A('/admin/incidents')] },
-  { id: 'platform-operations', label: 'Operations', icon: 'heart', items: [A('/admin/ops'), A('/admin/queues'), A('/admin/tools'), A('/admin/audit')] },
+  { id: 'platform-operations', label: 'Operations', icon: 'heart', items: [A('/admin/ops'), A('/admin/queues'), A('/admin/tools'), A('/admin/audit'), A('/admin/activity')] },
   { id: 'communications', label: 'Communications', icon: 'mail', items: [A('/admin/notifications'), A('/admin/email-templates'), A('/admin/content')] },
   { id: 'team-configuration', label: 'Team & settings', icon: 'shield', items: [A('/admin/staff'), A('/admin/settings')] },
 ];

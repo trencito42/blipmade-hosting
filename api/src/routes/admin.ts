@@ -1523,6 +1523,27 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  // One node: its capacity as the panel last reported it, and the services that run on it. The node itself is owned by the panel and
+  // changed there; the platform keeps a copy that the sync refreshes.
+  app.get('/admin/infrastructure/nodes/:id', { preHandler: requirePermission('infrastructure.read') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string().min(1).max(64) }).parse(request.params);
+    const node = await prisma.node.findUnique({ where: { id } });
+    if (!node) throw notFound('Node not found.');
+    const instances = await prisma.instance.findMany({
+      where: { pterodactylNodeId: node.pterodactylId, status: { notIn: ['CANCELLED'] } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: { id: true, name: true, status: true, ram: true, cpu: true, disk: true, user: { select: { id: true, email: true } } },
+    });
+    return {
+      node: {
+        id: node.id, pterodactylId: node.pterodactylId, name: node.name, fqdn: node.fqdn, memory: node.memory, disk: node.disk,
+        memoryAllocated: node.memoryAllocated, diskAllocated: node.diskAllocated, maintenance: node.maintenance, syncedAt: node.syncedAt,
+      },
+      instances: instances.map((row) => ({ id: row.id, name: row.name, status: row.status, ram: row.ram, cpu: row.cpu, disk: row.disk, owner: row.user })),
+    };
+  });
+
   app.post('/admin/infrastructure/sync', {
     config: { rateLimit: { max: LIMITS.adminService.address, timeWindow: LIMITS.adminService.window, keyGenerator: addressRateLimitKey } },
     preHandler: [requirePermission('infrastructure.write'), customerLimit(app, LIMITS.adminService)],
@@ -1582,12 +1603,14 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/admin/audit', { preHandler: requirePermission('audit.read') }, async (request: FastifyRequest) => {
     const query = z
-      .object({ actor: z.string().trim().optional(), action: z.string().trim().optional(), targetType: z.string().trim().optional() })
+      .object({ actor: z.string().trim().optional(), action: z.string().trim().optional(), targetType: z.string().trim().optional(), targetId: z.string().trim().max(64).optional(), from: z.coerce.date().optional(), to: z.coerce.date().optional() })
       .parse(request.query ?? {});
     const where: Prisma.AuditLogWhereInput = {
       ...(query.actor ? { actorEmail: { contains: query.actor, mode: 'insensitive' } } : {}),
       ...(query.action ? { action: { contains: query.action, mode: 'insensitive' } } : {}),
       ...(query.targetType ? { targetType: query.targetType } : {}),
+      ...(query.targetId ? { targetId: query.targetId } : {}),
+      ...(query.from || query.to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}),
     };
     const { limit, cursor } = parsePagination(request.query, { defaultSize: 300, maxSize: 300 });
     const rows = await prisma.auditLog.findMany({
