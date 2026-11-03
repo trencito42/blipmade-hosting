@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type CSSProperties } from 'react';
 import { AppPicker } from './AppPicker';
 import { useSession } from '../session';
+import { toneOf } from './categories';
 import { orderableOf, useProducts } from './catalog';
 import { breakdownOfResources, eur, fmtDisk, fmtRam, type Rates, type Resources } from './pricing';
 import { Btn, cx } from './ui';
@@ -25,6 +26,9 @@ import { nearestOption, ramGrid } from '../lib/pricing-contract';
  */
 
 /** The four colours of the bar of the cost. */
+/** The colours of the price bar of the home page: the same four as the tiles of the card of rates. */
+const BAR_SEG = ['#ff8a6b', '#7fd6ff', '#b6f26b', '#ffd166'];
+
 const SEG = ['#46e58f', '#2fb673', '#1d8556', '#4b5d51'];
 
 interface SliderProps {
@@ -145,7 +149,7 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
 
   if (layout === 'bar') {
     return (
-      <section aria-label="Price configurator" className={cx('on-night rounded-[28px] bg-night p-5 text-snow sm:p-6 lg:rounded-[32px] lg:p-7', className)}>
+      <section aria-label="Price configurator" style={{ boxShadow: `inset 0 5px 0 0 ${toneOf(current.category)}` }} className={cx('on-night rounded-[28px] border border-night-line bg-night p-5 pt-7 text-snow sm:p-6 sm:pt-8 lg:rounded-[32px] lg:p-7 lg:pt-8', className)}>
         <ShapeReporter
           onShape={onShape}
           shape={{ slug: current.slug, ram: resources.ram, cpu: resources.cpu, disk: resources.disk, minRam: current.min.ram, maxRam: current.max.ram, maxCpu: current.max.cpu, minDisk: current.min.disk, maxDisk: current.max.disk }}
@@ -178,30 +182,30 @@ export function Configurator({ slug = 'discord-bot', lock = false, layout = 'car
         />
           <Slider label="vCPU" value={resources.cpu} min={current.min.cpu} max={current.max.cpu} step={1} text={String(resources.cpu)} onChange={set('cpu')} hint={`${current.min.cpu}|${current.max.cpu}`} />
           <Slider label="Disk" value={resources.disk} min={current.min.disk} max={current.max.disk} step={diskStep} text={fmtDisk(resources.disk)} onChange={set('disk')} hint={`${current.min.disk} GB|${current.max.disk} GB`} />
-          <div className="flex items-end justify-between gap-4 lg:grid lg:justify-items-end lg:gap-3">
+          <div className="flex items-end justify-between gap-4 rounded-[22px] p-4 text-paper lg:grid lg:justify-items-end lg:gap-3" style={{ background: toneOf(current.category) }}>
             <div className="lg:text-right">
-              <p className="text-[13px] text-snow-2">Total per month</p>
+              <p className="text-[13px] font-semibold opacity-75">Total per month</p>
               <p className="big text-[38px] leading-none" role="status" aria-live="polite">{eur(b.total)}</p>
             </div>
-            <Btn to={user ? `/app/deploy/${current.slug}?${query}` : `/register?${query}`} variant="mint" size="lg">
+            <Btn to={user ? `/app/deploy/${current.slug}?${query}` : `/register?${query}`} variant="primary" size="lg">
               {user ? 'Deploy' : 'Get started'}
             </Btn>
           </div>
         </div>
         <div className="mt-5 grid items-center gap-3 border-t border-night-line pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
           <div
-            className="flex h-2 overflow-hidden rounded-full bg-night-3"
+            className="flex h-3 overflow-hidden rounded-full bg-night-3"
             role="img"
             aria-label={`Where the price goes: RAM ${eur(b.ram)}, vCPU ${eur(b.cpu)}, disk ${eur(b.disk)}, base fee ${eur(b.base)}`}
           >
             {parts.map((value, index) => (
-              <span key={index} className="h-full transition-[width] duration-300 ease-out" style={{ width: `${(value / b.total) * 100}%`, background: SEG[index] }} />
+              <span key={index} className="h-full transition-[width] duration-300 ease-out" style={{ width: `${(value / b.total) * 100}%`, background: BAR_SEG[index] }} />
             ))}
           </div>
           <ul className="num flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-snow-2">
-            {rows.map(([k, , v, c]) => (
+            {rows.map(([k, , v], index) => (
               <li key={k} className="flex items-center gap-1.5">
-                <span aria-hidden="true" className="size-2 rounded-full" style={{ background: c }} />
+                <span aria-hidden="true" className="size-2 rounded-full" style={{ background: BAR_SEG[index] }} />
                 {k} {eur(v)}
               </li>
             ))}

@@ -22,7 +22,9 @@ test.describe('the pages of the public site', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const path of PAGES) {
       await page.goto(path);
-      await page.waitForLoadState('networkidle');
+      // The page is read once its title is there. Waiting for the network to go quiet never ends where a page asks the API again and again.
+      await expect(page.locator('main h1').first()).toBeVisible();
+      await page.waitForTimeout(400);
       expect(await overflow(page), `${path} scrolls sideways on a phone`).toBeLessThanOrEqual(0);
     }
   });
@@ -31,7 +33,9 @@ test.describe('the pages of the public site', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     for (const path of PAGES) {
       await page.goto(path);
-      await page.waitForLoadState('networkidle');
+      // The page is read once its title is there. Waiting for the network to go quiet never ends where a page asks the API again and again.
+      await expect(page.locator('main h1').first()).toBeVisible();
+      await page.waitForTimeout(400);
       expect(await overflow(page), `${path} scrolls sideways on a desktop`).toBeLessThanOrEqual(0);
     }
   });

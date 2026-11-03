@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { devices, expect, test } from '@playwright/test';
 
 /** The home page as a plan sheet: structure, one title, every action reachable, and no sideways scroll at any width. */
 test.describe('home page 2026', () => {
@@ -105,3 +105,35 @@ test.describe('the bar of the site', () => {
     expect(await footer.innerText()).not.toMatch(/\b\d{2} ·/);
   });
 });
+
+/** Phones, emulated with their screen, pixel density, touch and agent. A real phone still has to be tried by hand. */
+for (const name of ['iPhone SE', 'iPhone 13', 'Pixel 7', 'Galaxy S9+'] as const) {
+  const { defaultBrowserType: _ignored, ...device } = devices[name];
+  test.describe(`on ${name}`, () => {
+    test.use(device);
+
+    test('shows the title, does not scroll sideways, and every tap target is at least 40px', async ({ page }) => {
+      await page.goto('/');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+      const small = await page.evaluate(() =>
+        [...document.querySelectorAll('main a, main button, header a, header button')]
+          .map((node) => node.getBoundingClientRect())
+          .filter((box) => box.width > 0 && box.height > 0 && (box.height < 40 || box.width < 40))
+          .length,
+      );
+      expect(small).toBeLessThanOrEqual(8);
+    });
+
+    test('opens the menu by touch, reaches a game and the dashboard tabs', async ({ page }) => {
+      await page.goto('/');
+      await page.getByRole('button', { name: 'Open menu' }).tap();
+      const menu = page.getByRole('navigation', { name: 'Mobile' });
+      await expect(menu.getByRole('link', { name: 'Every game' })).toBeVisible();
+      await page.getByRole('button', { name: 'Close menu' }).tap();
+      await page.getByRole('tab', { name: 'Domains' }).scrollIntoViewIfNeeded();
+      await page.getByRole('tab', { name: 'Domains' }).tap();
+      await expect(page.getByRole('tabpanel')).toContainText('Domains: connect a hostname');
+    });
+  });
+}
