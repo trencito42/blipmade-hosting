@@ -84,6 +84,7 @@ const AdminNotificationTest = lazy(() => import('./admin/NotificationEditors').t
 const AdminCustomerAccountAction = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerAccountAction })));
 const AdminAbuseEnforcement = lazy(() => import('./admin/abuse/AbuseEnforcement'));
 const AdminProductNew = lazy(() => import('./admin/ProductNew'));
+const AdminOpsDeclare = lazy(() => import('./admin/OpsDeclare'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -337,6 +338,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/abuse', component: AdminAbuse, title: 'Abuse reports', area: 'admin' },
   { pattern: '/admin/abuse/:id/enforcement', component: AdminAbuseEnforcement, title: 'Suspend service', area: 'admin', layout: 'editor' },
   { pattern: '/admin/abuse/:id', component: AdminAbuseDetail, title: 'Abuse report', area: 'admin' },
+  { pattern: '/admin/ops/incident/declare', component: AdminOpsDeclare, title: 'Declare an incident', area: 'admin', layout: 'editor' },
   { pattern: '/admin/ops', component: AdminOps, title: 'Operations', area: 'admin' },
   { pattern: '/admin/mail', component: AdminMail, title: 'Mail', area: 'admin' },
   { pattern: '/admin/mail/plans/new', component: AdminMailPlanEdit, title: 'New mail plan', area: 'admin', layout: 'editor' },

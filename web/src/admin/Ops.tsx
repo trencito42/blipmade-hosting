@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Link } from '../router';
 import { del, get, post, relativeTime } from '../lib/api';
 import { useAction, useAsync, type AsyncState } from '../lib/useAsync';
 import {
@@ -680,8 +681,6 @@ export default function Ops() {
 
   const [acking, setAcking] = useState<OpsCheck | null>(null);
   const [note, setNote] = useState('');
-  const [message, setMessage] = useState('');
-  const [until, setUntil] = useState('');
   const [clearing, setClearing] = useState(false);
 
   const refresh = useCallback(() => {
@@ -704,10 +703,6 @@ export default function Ops() {
     return ackOpsCheck(id, body.note);
   });
 
-  const declare = useAction(async (body: { message: string; until: string | null }) => {
-    return declareOpsIncident(body.message, body.until);
-  });
-
   const clear = useAction(async () => {
     return clearOpsIncident();
   });
@@ -723,15 +718,6 @@ export default function Ops() {
     toast.push(`${acking.title} acknowledged`, 'ok');
     setAcking(null);
     setNote('');
-    refresh();
-  };
-
-  const runDeclare = async () => {
-    const result = await declare.run({ message: message.trim(), until: toIso(until) });
-    if (!result) return;
-    toast.push('The incident is declared', 'ok');
-    setMessage('');
-    setUntil('');
     refresh();
   };
 
@@ -842,46 +828,13 @@ export default function Ops() {
 
           {mayWrite ? (
             <div className="grid gap-3">
-              <Field label="What is happening" htmlFor="ops-incident-message" hint="Written in the words of the operator.">
-                <textarea
-                  id="ops-incident-message"
-                  rows={3}
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  placeholder="The mail server does not answer and the customers of the hosted mail cannot receive."
-                  className={denseArea}
-                />
-              </Field>
-
-              <Field label="Until" htmlFor="ops-incident-until" hint="Optional. Local time, sent as UTC. Empty means it has no end yet.">
-                <input
-                  id="ops-incident-until"
-                  type="datetime-local"
-                  value={until}
-                  onChange={(event) => setUntil(event.target.value)}
-                  className={denseInput}
-                />
-              </Field>
-
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={runDeclare}
-                  disabled={declare.pending || message.trim() === ''}
-                  className={densePrimary}
-                >
-                  {declare.pending ? 'Declaring…' : 'Declare an incident'}
-                </button>
+                <Link to="/admin/ops/incident/declare" className={densePrimary}>Declare an incident</Link>
                 <button type="button" onClick={() => setClearing(true)} disabled={clear.pending} className={denseDanger}>
                   {clear.pending ? 'Clearing…' : 'Clear the incident'}
                 </button>
               </div>
 
-              {declare.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-                  {declare.error}
-                </p>
-              )}
               {clear.error && (
                 <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
                   {clear.error}
@@ -934,7 +887,7 @@ export default function Ops() {
 }
 
 /** A local moment of the browser, as the API takes it. */
-function toIso(value: string): string | null {
+export function toIso(value: string): string | null {
   if (!value.trim()) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
