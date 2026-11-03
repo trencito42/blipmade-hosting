@@ -23,7 +23,7 @@ Commands (run in `/root/work/web`, `export PATH=/opt/node22/bin:$PATH`):
 | B2 targeted (vps, ticket, instance-tab-rows, list-pages, tooltips) | 21 | 21 | 0 | after fixes |
 | C00 (first third of rest) | 45 | 43 | 2 | real bug: `withTip` named buttons by tip text (children destructured) → fixed in ui-app.tsx; domain test attr → `data-tip`. Rerun C00b/C00c: 16/16 pass |
 | C01 (second third) | 28 | 28 | 0 | |
-| C02 (last third) | 80 | 67 | 13 | known auth/public/mobile failures; baseline run at 3158b3c in progress (/root/baseline, port 30002) to prove they pre-exist |
+| C02 (last third) | 80 | 67 | 13 | 13 known auth/public/mobile failures. PROVEN pre-existing: same 13 fail on deployed commit 3158b3c (31 pass / 13 fail on auth+mobile+public specs). Causes: login screen has 2 'Log in' buttons (strict-mode selector), public home price assertions, mobile `waitForLoadState` timeout. Public-site tests, outside App/Admin 3.0 scope; not fixed. |
 | Unit | 498 | 497 | 0 | 1 skip |
 
 Root causes fixed this round: route order (`/app/domains/:id` before `/new`), InfoTip aria-label "About X" ambiguity with `getByLabel('X')`, `withTip` aria-label bug.
