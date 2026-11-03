@@ -171,7 +171,12 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       // A live chat is a conversation, not a ticket: it is not listed here, and it is read in the chat. It joins the list when the
       // customer turns it into a ticket; what was said stays in the conversation either way.
       where: withCursor({ userId: user.id, channel: { not: 'CHAT' as const } }, cursor, 'updatedAt'),
-      include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: {
+        instance: { select: { name: true } },
+        mailService: { select: { product: { select: { name: true } } } },
+        assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+        _count: { select: { messages: true } },
+      },
       orderBy: pageOrder('updatedAt'),
       take: limit + 1,
     });
@@ -225,7 +230,13 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         },
         events: { create: { type: 'created', message: 'Ticket opened.', actorId: user.id } },
       },
-      include: { instance: { select: { name: true } }, mailService: { select: { product: { select: { name: true } } } }, assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } }, _count: { select: { messages: true } } },
+      include: {
+        instance: { select: { name: true } },
+        mailService: { select: { product: { select: { name: true } } } },
+        assignedTo: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+        messages: { select: { id: true }, take: 1 },
+        _count: { select: { messages: true } },
+      },
     });
 
     await prisma.ticketEvent.create({ data: { ticketId: ticket.id, type: 'created', message: 'Ticket opened.', actorId: user.id } });
@@ -252,7 +263,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
 
     await publishSupportEvent({ type: 'created', ticketId: ticket.id, ownerId: ticket.userId, internal: false });
     await fireAutomations('conversation_created', ticket.id, ticket.id);
-    return reply.code(201).send({ ticket: serializeTicket(ticket) });
+    return reply.code(201).send({ ticket: serializeTicket(ticket), initialMessageId: ticket.messages[0]!.id });
   });
 
   app.get('/tickets/:id', async (request: FastifyRequest) => {

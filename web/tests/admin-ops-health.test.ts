@@ -332,7 +332,7 @@ describe('the page of the operations in the back office', () => {
   it('leaves the phone bar of the admin with the four pages it had', () => {
     assert.deepEqual(
       phoneTabs.map((entry) => entry.to),
-      ['/admin', '/admin/customers', '/admin/tickets', '/admin/audit'],
+      ['/admin', '/admin/customers', '/admin/support', '/admin/audit'],
     );
   });
 

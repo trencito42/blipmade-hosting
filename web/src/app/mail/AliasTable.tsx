@@ -9,12 +9,13 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../../icons';
 import type { MailAliasView, MailDomainView } from '../../lib/api';
-import { CardList, DataTable, DangerButton, EmptyState, PrimaryButton, TextInput } from '../../ui-app';
+import { ButtonLink, CardList, DataTable, DangerButton, EmptyState, PrimaryButton, TextInput } from '../../ui-app';
 
 export function AliasTable({
   domain,
   aliases,
   onCreate,
+  createTo,
   onDelete,
   busy,
   searchable = true,
@@ -23,6 +24,8 @@ export function AliasTable({
   aliases: MailAliasView[];
   /** Asks for the dialog of a new alias. Without it, no button is shown. */
   onCreate?: () => void;
+  /** Dedicated creation route. Preferred over a dialog callback. */
+  createTo?: string;
   /** The customer asked to delete an alias: the dialog confirms it. */
   onDelete?: (alias: MailAliasView) => void;
   /** True while an action of the table is running. */
@@ -46,12 +49,17 @@ export function AliasTable({
         <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
           Aliases · {domain.aliases} of {domain.maxAliases}
         </p>
-        {onCreate && (
+        {createTo ? (
+          <ButtonLink to={createTo} className="h-9 px-3.5">
+            <Icon name="plus" size={13} />
+            Create alias
+          </ButtonLink>
+        ) : onCreate ? (
           <PrimaryButton onClick={onCreate} disabled={busy} className="h-9 px-3.5">
             <Icon name="plus" size={13} />
             Create alias
           </PrimaryButton>
-        )}
+        ) : null}
       </div>
 
       {searchable && aliases.length > 3 && (

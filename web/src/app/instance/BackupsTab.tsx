@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { createBackup, deleteBackup, downloadBackup, listBackups, restoreBackup, setBackupSchedule, type BackupPreset } from '../../lib/instance-api';
+import { deleteBackup, downloadBackup, listBackups } from '../../lib/instance-api';
 import {
   CardList,
+  ButtonLink,
   ConfirmDialog,
   DataTable,
   DangerButton,
@@ -10,10 +11,8 @@ import {
   ListRow,
   LoadingBlock,
   Panel,
-  PrimaryButton,
   SoftButton,
   StatusPill,
-  TextInput,
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, fmtBytes, fmtDateTime, type TabProps } from './common';
@@ -30,44 +29,12 @@ import type { TableColumn } from '../../lib/table';
 export default function BackupsTab({ instance }: TabProps) {
   const { push } = useToast();
   const backups = useAsync((signal) => listBackups(instance.id, signal), [instance.id]);
-  const [name, setName] = useState('');
-  const [locked, setLocked] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
-  const [pendingRestore, setPendingRestore] = useState<{ id: string; name: string } | null>(null);
 
   const rows = backups.data?.backups ?? [];
   const limit = backups.data?.limit;
   const preset = backups.data?.preset ?? 'off';
-  const [presetBusy, setPresetBusy] = useState(false);
 
-  const changePreset = async (next: BackupPreset) => {
-    setPresetBusy(true);
-    try {
-      await setBackupSchedule(instance.id, next);
-      push(next === 'off' ? 'Automatic backups are off.' : `Automatic backups run ${next === 'daily' ? 'every day' : 'every Sunday'} at 03:30 UTC.`, 'ok');
-      backups.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The schedule could not be changed.', 'error');
-    } finally {
-      setPresetBusy(false);
-    }
-  };
-
-  const create = async () => {
-    setBusy(true);
-    try {
-      await createBackup(instance.id, { name: name.trim(), locked });
-      push('The backup was asked for. The panel writes it in the background.', 'ok');
-      setName('');
-      setLocked(false);
-      backups.reload();
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The backup could not be created.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const download = async (id: string, label: string) => {
     try {
@@ -82,16 +49,6 @@ export default function BackupsTab({ instance }: TabProps) {
       URL.revokeObjectURL(url);
     } catch (error) {
       push(error instanceof Error ? error.message : 'The backup could not be downloaded.', 'error');
-    }
-  };
-
-  const restore = async (id: string) => {
-    try {
-      await restoreBackup(instance.id, id);
-      push('The backup is being restored. The files of the container are replaced by the archive.', 'ok');
-      setPendingRestore(null);
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The backup was not restored.', 'error');
     }
   };
 
@@ -147,7 +104,7 @@ export default function BackupsTab({ instance }: TabProps) {
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
           <SoftButton onClick={() => download(row.id, row.name)}>Download</SoftButton>
-          <SoftButton onClick={() => setPendingRestore({ id: row.id, name: row.name })}>Restore</SoftButton>
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft">Restore</ButtonLink>
           <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
         </div>
       ),
@@ -159,14 +116,9 @@ export default function BackupsTab({ instance }: TabProps) {
       <Panel
         title="Automatic backups"
         description="A backup of the files at 03:30 UTC, made for you. Backups that are not locked are rotated: the oldest goes when a new one needs room. Lock one to keep it."
+        action={<ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backup-schedule/edit`}>Edit schedule</ButtonLink>}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {(['off', 'daily', 'weekly'] as const).map((option) => (
-            <SoftButton key={option} onClick={() => void changePreset(option)} disabled={presetBusy || preset === option}>
-              {option === 'off' ? 'Off' : option === 'daily' ? 'Every day' : 'Every Sunday'}{preset === option ? ' ✓' : ''}
-            </SoftButton>
-          ))}
-        </div>
+        <StatusPill status={preset === 'off' ? 'stopped' : 'available'} label={preset === 'off' ? 'Off' : preset === 'daily' ? 'Every day · 03:30 UTC' : 'Every Sunday · 03:30 UTC'} />
         <p className="mt-3 text-[13px] text-ink3">
           {backups.data?.nextRun && preset !== 'off' ? `Next one: ${fmtDateTime(backups.data.nextRun)}. ` : ''}
           {backups.data?.lastRun ? `Last one: ${fmtDateTime(backups.data.lastRun)}. ` : ''}
@@ -178,30 +130,9 @@ export default function BackupsTab({ instance }: TabProps) {
         title="Backups"
         description={`Archives of the files of the container, written by the panel on the node of the instance.${limit ? ` ${rows.length} of ${limit} kept.` : ''}`}
         action={
-          <PrimaryButton onClick={create} disabled={busy || name.trim().length === 0}>
-            {busy ? 'Asking…' : 'New backup'}
-          </PrimaryButton>
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/new`}>New backup</ButtonLink>
         }
       >
-        <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <TextInput
-            label="Name of the backup"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Nightly"
-            autoComplete="off"
-          />
-          <label className="flex h-14 items-center gap-2 rounded-full bg-s2 px-5 text-[14px] text-ink">
-            <input
-              type="checkbox"
-              checked={locked}
-              onChange={(event) => setLocked(event.target.checked)}
-              className="h-4 w-4 accent-[var(--color-acc)]"
-            />
-            Lock it
-          </label>
-        </div>
-
         {backups.loading ? (
           <LoadingBlock rows={2} label="Loading the backups" />
         ) : backups.error ? (
@@ -226,7 +157,7 @@ export default function BackupsTab({ instance }: TabProps) {
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
                       <SoftButton onClick={() => download(row.id, row.name)}>Download</SoftButton>
-                      <SoftButton onClick={() => setPendingRestore({ id: row.id, name: row.name })}>Restore</SoftButton>
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft">Restore</ButtonLink>
                       <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
                     </div>
                   }
@@ -236,19 +167,6 @@ export default function BackupsTab({ instance }: TabProps) {
           </>
         )}
       </Panel>
-
-      <ConfirmDialog
-        open={pendingRestore !== null}
-        title="Restore this backup?"
-        description={
-          pendingRestore
-            ? `The files of the container are replaced by the archive "${pendingRestore.name}". What is in the container now and is not in the backup is lost.`
-            : undefined
-        }
-        confirmLabel="Restore the backup"
-        onCancel={() => setPendingRestore(null)}
-        onConfirm={() => pendingRestore && restore(pendingRestore.id)}
-      />
 
       <ConfirmDialog
         open={pendingDelete !== null}

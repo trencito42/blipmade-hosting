@@ -1,0 +1,67 @@
+# Admin security and authorization audit — static, source evidence, risk priority
+**Snapshot:** `48df705f110b46f7d2a7d90ef33e0cd0a289f74c`. **Scope:** admin API surface, 48 route modules / 486 extracted literal HTTP route registrations, 121 admin mutation registrations; session/CSRF/permissions/audit, relevant UI and financial/abuse workflows. **Method:** code inspection and route scanner; NOT penetration testing, authenticated forbidden-role tests, provider testing or a certification.
+
+## Executive assessment
+- Source shows multiple security controls in place. Do **not** treat flagged missing inline `preHandler` as open access: helper configs `write(app)`, `writer`, `limit(app)`, handler-level requirePermission or contextual checks can apply. Manually inspected the first 20 scanner flags and confirmed examples are guarded. The recorder itself is not an AST/taint analyzer.
+- The most important risk is **evidence consistency**, not proof of a trivial admin auth bypass: critical mutations can succeed even if `AuditLog` cannot be written. A high-reliability activity ledger and correlated asynchronous outcomes are necessary.
+- Least privilege is coarse for particularly dangerous administrative operations; finer-grained privileges/step-up warrant design, while retaining backward compatibility.
+- Important positive controls exist: global double-submit CSRF (with narrowly scoped exemptions), session auth, password verification, staff access and optional IP/2FA restrictions, explicit permissions, CORS allowlist from config, configured redactions, rate limits in many routes, provider webhook signature handling, ownership checks, approval of abuse state transitions, and websocket-specific permission checks in VPS console.
+
+## Evidence and findings
+
+| ID | Severity | Evidence | Finding | What to change / what to test |
+|---|---|---|---|---|
+| SEC-01 | **HIGH (integrity)** | `api/src/lib/audit.ts` catches `prisma.auditLog.create` failures | Critical customer/admin actions can commit without a durable audit record; console error alone does not guarantee alert/recovery | Critical actions should atomically commit event intent with business change or durable outbox; separate requested/accepted/completed events for external providers; failure alert and replay; migration additive |
+| SEC-02 | **MEDIUM/HIGH (scope-dependent)** | `api/src/lib/permissions.ts`: `customers.write`, `orders.write`, `services.write` etc.; `api/src/routes/admin-act.ts` impersonation uses customers.write; VPS destroy uses services.write | Permissions cover broad resource writes, but do not distinguish normal edit from impersonate, 2FA reset, force refund, reinstall or destroy; a staff user intentionally granted broad write might perform unexpectedly sensitive action | Introduce action-level capability checks/step-up for sensitive operations, audited reason and role-specific UI; don't break existing staff without a migration plan |
+| SEC-03 | **MEDIUM (privacy)** | `api/src/routes/admin-ops.ts` exports invoices CSV under `settings.read`, including email/name/company/tax info | Permission for reading configuration can also unlock a sensitive bulk accounting export. This may exceed the legitimate task of staff allowed `settings.read` | Separate `billing.export` or equivalent scoped permission, time-range/export-volume limit, audit each export with actor/scope, verify staff role policies |
+| SEC-04 | **MEDIUM (observability)** | `api/prisma/schema.prisma` `AuditLog` fields actor/target/action/meta/ip/time; `api/src/routes/admin.ts` /admin/audit filtered actor/action/targetType | No normalized customerId/subject, outcome, request correlation or safe diffs for all business actions; log integrity/completeness hard to verify | Typed event taxonomy, correlationId/requestId, customer and resource links, allowed metadata schemas, daily coverage checks and redaction; staged indexed projection from existing sources |
+| SEC-05 | **MEDIUM (defense-in-depth; deployment-dependent)** | `api/src/app.ts` registers Helmet with `contentSecurityPolicy:false` | API's Helmet CSP is disabled; does NOT prove that the web frontend/edge lacks CSP. Need check `web/server.mjs` and Caddy origin before concluding | Check actual response headers for /admin, same-origin APIs, report-only transition if needed; avoid unsafe-inline, nonce/hashes for dynamic scripts; test support embedded widgets |
+| SEC-06 | **MEDIUM (data privacy design)** | `api/src/lib/audit.ts` accepts arbitrary `meta: Record<string,unknown>`; various handlers pass metadata; `web/src/admin/Audit.tsx` renders meta | No universal allowlisted schema/redaction enforced at central logger; accidental future PII/secret leakage is possible, though no direct exploit proven | Centralized redact/filter sensitive keys and types, per-event schema validation, export role separation, never log password/token/console output/email bodies |
+| SEC-07 | **MEDIUM (business integrity)** | `api/src/routes/admin.ts` refund handler obtains Stripe PI and conditionally claims order, partial money adjustment elsewhere | Mixed full/partial refund and provider failures/concurrency require stronger end-to-end tests; code has intentional duplicate/crash protection but not certification | Sandbox Stripe tests: concurrent refunds, zero-amount orders, partial to full, stuck claim, provider timeout/replay; verify provider and ledger agree; do not assume orderStatus alone allows refund |
+| SEC-08 | **MEDIUM (sensitive history)** | `api/src/routes/admin-control.ts` order detail mixes order/user AuditLog records | Unscoped mixed history is noisy; a bounded 100-row query can displace order-specific events with customer-wide events | Independent paged query scopes and permission checks; preserve all previous records |
+| SEC-09 | **MEDIUM (authorization hardening)** | `api/src/routes/admin.ts` /admin/audit uses audit.read; `api/src/routes/admin-ops.ts` abuse detail includes reporterIp under service permission | Sensitive audit and reporter information require finer-grained access/reveal and tracking | Test for separate Support/Billing/Tech roles; mask sensitive detail by default; log sensitive reveals where justified; restrict export |
+| SEC-10 | **LOW/MEDIUM (availability/config dependent)** | `api/src/app.ts` Fastify rateLimit global=false, most important mutation handlers have per-route limits; cookie Secure override supported | Some internal/admin paths use service-local throttles or none; risk depends on endpoint, deployment and IP proxy trust. Cannot assert universal missing rate limits from inline scan | Stress-test authorization and rate under trusted-proxy real config; request sizes/timeouts; enforce reasonable per-key/per-role limits on costly actions |
+| SEC-11 | **LOW/MEDIUM (audit accuracy)** | `api/src/plugins/auth.ts` / sessions support impersonation, /admin/impersonation/stop validates impersonation; audit records start/stop | A customer-acting session must retain staff actor identity for subsequent business events. Existing `request.impersonatedBy` label is a staff email; events may attribute action only to customer if not propagated | Audit on-behalf-of actorId in all impersonated mutations, visible banner, tests for blocked sensitive routes, session expiry and stop |
+| SEC-12 | **VERIFY** | `api/src/routes/mail.ts` has no direct `await audit` calls | Not evidence that mail operations are unaudited; delegated mail service may emit logs. Validate create/delete mailbox/alias/domain and DNS service event path | Trace `services/mail.ts` and mail-commerce actions, add missing safe event records; preserve customer ownership |
+| SEC-13 | **VERIFY** | `api/src/routes/admin-act.ts` service actions use generic write permission; provider responses asynchronous | Danger of UI toasting "done" when provider only accepted job, not actually completed | Test status event state machines, feedback after queue/provider confirmation, idempotency of retries and backend recovery |
+| SEC-14 | **VERIFY** | `api/src/app.ts` CORS from `APP_ORIGIN`; `csrfGuard` in global onRequest; websocket routes with own handlers | Surface is nontrivial; validate exact deployed origins and websocket handshake auth/origin/cookie, and API-key limits | Staging tests of cross-origin CSRF, unauthorized WS, cookie flags, signed API key scope, trusted reverse proxies and untrusted forwarded headers |
+
+### Confirmed good defenses, avoid false findings
+1. **CSRF:** `api/src/plugins/csrf.ts` requires double-submit CSRF cookie/header on unsafe operations; exemptions for auth credentials, signature-protected webhooks, token-protected internal routes and bearer API keys without session. Verify exemption predicates in E2E.
+2. **Session auth:** `api/src/plugins/auth.ts` resolves session from hashed token, enforces suspension and optional staff IP allowlist and 2FA; uses SameSite=Lax and resolved Secure cookie attribute. Check production config and proxy trust.
+3. **Rate/limits:** Fastify body limit, request/connection timeouts, multipart size limits, several route-local throttles and log header redaction are already present.
+4. **Abuse enforcement:** `api/src/services/abuse-lifecycle.ts` permits suspension only from OPEN/INVESTIGATING and explicitly disallows from resolved/dismissed. `api/src/routes/admin-ops.ts` validates `actionAllowed` and reason. Test at API/DB under races; do not claim the older screenshot UI is still deployed.
+5. **Content export:** accounting CSV explicitly mitigates leading `=,+,-,@` spreadsheet formulas. Do not mark CSV injection as an outstanding bug on that endpoint without a demonstrated bypass.
+6. **Impersonation stop:** route has no inline preHandler but explicitly requires `request.impersonatedBy` and return session token; not an anonymous bypass.
+7. **Bot/automation editor endpoints:** `write(app)` helper and handler `requirePermission('settings.write')` protect mutations; raw scanner can mark them incorrectly. Don't overstate risk.
+8. **Websocket VPS console:** route uses asynchronous `requirePermission('services.write')` before relay, closes unauthorized connection.
+9. **Mail domain ownership:** route calls service functions with authenticated userId; must test delegated queries, but no demonstrated cross-account exposure.
+
+## Required authorization tests (currently **NOT RUN**)
+
+| Actor | Read customers | Reset another user's 2FA | Refund order | Destroy VPS | View audit log | Export invoice PII | Manage support bots |
+|---|---|---|---|---|---|---|---|
+| Anonymous | 401/403 | forbidden | forbidden | forbidden | forbidden | forbidden | forbidden |
+| Customer | forbidden | forbidden | forbidden | forbidden | forbidden | forbidden | forbidden |
+| Support staff (tickets.read/write only) | per granted permission | forbidden | forbidden | forbidden | forbidden | forbidden | forbidden |
+| Billing staff (orders.read/write only) | per granted permission | forbidden | only with fine-grained refund scope proposed | forbidden | per granted permission | billing export scope proposed | forbidden |
+| Tech staff (services.read/write only) | per granted permission | forbidden | forbidden | only with destructive scope proposed | per granted permission | forbidden | forbidden |
+| Admin/Owner | allowed subject to staff security/step-up | allowed with reason+audit | allowed with verified eligibility | allowed with confirmation+audit | allowed | allowed with audit | allowed |
+
+**Interpretation:** desired acceptance behavior; current implementation has broad permissions rather than all proposed fine-grained scopes. Run actual 401/403/2xx tests on staging and document observed behavior separately. Include cross-customer object ID tampering, staff-to-staff actions and suspended-account constraints.
+
+## Threat test checklist to complete in executable staging
+- Cross-tenant IDOR across Customer, Order, VPS, Mail, Tickets, Abuse evidence, Mailbox and Payment IDs.
+- CSRF without cookie, without header, mismatched header, malicious Origin, API key no-cookie, websocket cross-origin.
+- Role privilege escalation via `/admin/staff/:id`, self-grant, admin-to-admin lockout and 'act as customer' session.
+- Refund races, webhook replay, double-click and Stripe sandbox partial/full outcome.
+- Audit database exception during high-impact action and recovery; encrypted offsite backup and restore readiness.
+- Abuse closed-case suspend/reopen race with exactly-once provider action.
+- Support internal notes/attachments/guest access and SSE leakage.
+- Object storage path traversal/download authorization/content-type, malware scanning and file upload quotas where relevant.
+- CSV exports and sensitive data reveal, privacy retention, log metadata redaction and audit access.
+- DoS/abuse of per-route throttling with real reverse-proxy configuration.
+- API keys and service-to-service webhook secret boundaries.
+
+## Limitations and final disposition
+**Static security audit complete for source inventory and prioritized code review. Runtime/penetration verification not complete.** Without staging credentials, mutable seeded DB, webhook sandbox, browser session and deployment headers, claims like "no privilege escalation", "all writes logged" or "secure for launch" would be unsupported. Treat SEC-01 as confirmed architectural audit integrity weakness; SEC-02/03/04/06 as design/least-privilege weaknesses; SEC-05/07/08/09/10/11/12/13/14 need deployment/functional verification for exploitability.

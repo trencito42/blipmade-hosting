@@ -7,7 +7,6 @@ import { Link, useRouter } from '../router';
 import {
   ButtonLink,
   CardList,
-  ConfirmDialog,
   DataTable,
   EmptyState,
   ErrorState,
@@ -15,7 +14,6 @@ import {
   Money,
   Panel,
   PrimaryButton,
-  SoftButton,
   StatTile,
   StatusPill,
   useToast,
@@ -116,7 +114,7 @@ const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
   INCOMPLETE_EXPIRED: 'Expired',
 };
 
-function formatDate(value: string | null | undefined): string {
+export function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
@@ -360,10 +358,8 @@ export default function Billing() {
     [],
   );
 
-  const [pendingCancel, setPendingCancel] = useState<Subscription | null>(null);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
-  const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
   const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
 
   const summary = summaryState.data;
@@ -450,19 +446,6 @@ export default function Billing() {
       push(error instanceof Error ? error.message : 'Checkout could not be opened.', 'error');
     } finally { setPayingOrderId(null); }
   };
-
-  const cancel = useAction(async (id: string) => {
-    await post(`/billing/subscriptions/${id}/cancel`);
-    refreshAll();
-    setPendingCancel(null);
-    push('The service keeps running until the end of the paid period.');
-  });
-
-  const resume = useAction(async (id: string) => {
-    await post(`/billing/subscriptions/${id}/resume`);
-    refreshAll();
-    push('Subscription will renew at the close of the current period.');
-  });
 
   const paymentMethodAction = useAction(async () => {
     setPaymentNotice(null);
@@ -641,41 +624,17 @@ export default function Billing() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 sm:mt-0 sm:shrink-0 sm:justify-end">
-                  {subscriptionAction(subscription) === 'resume' ? (
-                    <SoftButton
-                      onClick={() => {
-                        setBusySubscriptionId(subscription.id);
-                        void resume.run(subscription.id).finally(() => setBusySubscriptionId(null));
-                      }}
-                      disabled={resume.pending}
-                      className="w-full sm:w-auto"
-                      aria-label={`Resume ${subscription.instanceName ?? 'this subscription'}`}
-                    >
-                      {busySubscriptionId === subscription.id ? 'Working…' : 'Resume'}
-                    </SoftButton>
-                  ) : (
-                    <SoftButton
-                      onClick={() => setPendingCancel(subscription)}
-                      disabled={cancel.pending}
-                      className="w-full sm:w-auto"
-                      aria-label={`Cancel ${subscription.instanceName ?? 'this subscription'} at period end`}
-                    >
-                      Cancel at period end
-                    </SoftButton>
-                  )}
+                  <ButtonLink
+                    to={`/app/billing/subscriptions/${encodeURIComponent(subscription.id)}/${subscriptionAction(subscription) === 'resume' ? 'resume' : 'cancel'}`}
+                    variant="soft"
+                    className="w-full sm:w-auto"
+                    aria-label={`${subscriptionAction(subscription) === 'resume' ? 'Resume' : 'Cancel'} ${subscription.instanceName ?? 'this subscription'}`}
+                  >
+                    {subscriptionAction(subscription) === 'resume' ? 'Resume' : 'Cancel at period end'}
+                  </ButtonLink>
                 </div>
               </div>
             ))}
-            {resume.error && (
-              <p role="alert" className="text-[13.5px] font-medium text-bad">
-                {resume.error}
-              </p>
-            )}
-            {cancel.error && (
-              <p role="alert" className="text-[13.5px] font-medium text-bad">
-                {cancel.error}
-              </p>
-            )}
           </div>
         )}
       </Panel>
@@ -831,24 +790,6 @@ export default function Billing() {
           </>
         )}
       </Panel>
-
-      <ConfirmDialog
-        open={Boolean(pendingCancel)}
-        title="Cancel this subscription?"
-        description={
-          pendingCancel
-            ? `${pendingCancel.instanceName ?? 'This instance'} keeps running until ${formatDate(
-                pendingCancel.currentPeriodEnd,
-              )}, then it is stopped and no longer billed.`
-            : undefined
-        }
-        confirmLabel="Cancel subscription"
-        busy={cancel.pending}
-        onCancel={() => setPendingCancel(null)}
-        onConfirm={() => {
-          if (pendingCancel) void cancel.run(pendingCancel.id);
-        }}
-      />
     </div>
   );
 }

@@ -9,21 +9,18 @@
  * subscription has its own table.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   get,
   listMailDomains,
   post,
   type MailDomainView,
-  type MailPlanView,
   type MailServiceView,
 } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
-import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, useToast } from '../../ui-app';
+import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, useToast } from '../../ui-app';
 import { Icon } from '../../icons';
-import { MailAddDomainDialog } from './MailAddDomainDialog';
 import { MailDomainList } from './MailDomainList';
-import { MailPlanChangeDialog } from './MailPlanChangeDialog';
 import { MailServiceCancelDialog } from './MailServiceCard';
 import { MailSubscriptionSummary } from './MailSubscriptionSummary';
 import { groupDomains } from './shared';
@@ -39,20 +36,13 @@ export default function MailOverview() {
     [],
   );
   const domainsState = useAsync<{ domains: MailDomainView[] }>((signal) => listMailDomains(signal), []);
-  const plansState = useAsync<{ plans: MailPlanView[] }>(
-    (signal) => get<{ plans: MailPlanView[] }>('/mail/plans', undefined, signal),
-    [],
-  );
 
   const services = useMemo(() => servicesState.data?.services ?? [], [servicesState.data]);
   const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
   // Every plan the platform publishes is read, so the price of the plan the
   // customer has is known even when that plan is not on sale any more. The
   // plans that can be bought are chosen by the dialog.
-  const plans = useMemo(() => plansState.data?.plans ?? [], [plansState.data]);
 
-  const [adding, setAdding] = useState(false);
-  const [changingPlan, setChangingPlan] = useState<MailServiceView | null>(null);
   const [pendingCancel, setPendingCancel] = useState<MailServiceView | null>(null);
 
   // The domains of every subscription, and the ones that belong to no plan.
@@ -92,15 +82,6 @@ export default function MailOverview() {
   // The service of the dialog of the plan is read again when the list
   // changes, so the dialog never shows a plan that is not the one of the
   // service any more.
-  useEffect(() => {
-    if (!changingPlan) return;
-    const fresh = services.find((service) => service.id === changingPlan.id);
-    if (!fresh) {
-      setChangingPlan(null);
-      return;
-    }
-    if (fresh.plan.slug !== changingPlan.plan.slug || fresh.status !== changingPlan.status) setChangingPlan(fresh);
-  }, [services, changingPlan]);
 
   const loading = servicesState.loading || domainsState.loading;
   const failure = servicesState.error ?? domainsState.error ?? null;
@@ -112,10 +93,10 @@ export default function MailOverview() {
           <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Email</h2>
           <p className="text-[13.5px] text-ink3">Manage your email hosting, domains, and mailboxes.</p>
         </div>
-        <PrimaryButton onClick={() => setAdding(true)} className="w-full sm:w-auto">
+        <ButtonLink to="/app/mail/domains/new" className="w-full sm:w-auto">
           <Icon name="plus" size={15} />
           Add domain
-        </PrimaryButton>
+        </ButtonLink>
       </header>
 
       {loading ? (
@@ -149,7 +130,7 @@ export default function MailOverview() {
                 service={service}
                 title={services.length > 1 ? `Email hosting · ${service.plan.name}` : 'Email hosting'}
                 busy={busy}
-                onChangePlan={() => setChangingPlan(service)}
+                managePlanTo={`/app/mail/services/${encodeURIComponent(service.id)}/plan/change`}
                 onCancel={() => setPendingCancel(service)}
                 onReactivate={() => void reactivate.run(service.id)}
                 onResume={() => void resume.run(service.id)}
@@ -176,27 +157,6 @@ export default function MailOverview() {
         <p role="alert" className="text-[13.5px] font-medium text-bad">
           {cancel.error}
         </p>
-      )}
-
-      <MailAddDomainDialog
-        open={adding}
-        services={services}
-        existingDomains={domains.map((domain) => domain.name.toLowerCase())}
-        onClose={() => setAdding(false)}
-        onAdded={() => {
-          domainsState.reload();
-          servicesState.reload();
-        }}
-      />
-
-      {changingPlan && (
-        <MailPlanChangeDialog
-          open
-          service={changingPlan}
-          plans={plans}
-          onClose={() => setChangingPlan(null)}
-          onChanged={() => servicesState.reload()}
-        />
       )}
 
       <MailServiceCancelDialog

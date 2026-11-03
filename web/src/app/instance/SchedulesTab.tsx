@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import {
-  createSchedule,
   deleteSchedule,
   listSchedules,
   runSchedule,
@@ -16,16 +15,13 @@ import {
   ListRow,
   LoadingBlock,
   Panel,
-  PrimaryButton,
-  Select,
+  ButtonLink,
   SoftButton,
   StatusPill,
-  TextInput,
   useToast,
 } from '../../ui-app';
 import { ApiErrorState, fmtDateTime, type TabProps } from './common';
 import type { TableColumn } from '../../lib/table';
-import type { ScheduleAction } from '../../lib/instance-api';
 
 /**
  * The scheduled tasks of the instance.
@@ -34,52 +30,12 @@ import type { ScheduleAction } from '../../lib/instance-api';
  * The cron field is the one of the panel, so it is written the same way.
  */
 
-const ACTIONS = [
-  { value: 'power', label: 'Power' },
-  { value: 'command', label: 'Command' },
-  { value: 'backup', label: 'Backup' },
-];
-
 export default function SchedulesTab({ instance }: TabProps) {
   const { push } = useToast();
   const schedules = useAsync((signal) => listSchedules(instance.id, signal), [instance.id]);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<{ name: string; cron: string; action: ScheduleAction; payload: string }>({
-    name: '',
-    cron: '0 0 * * *',
-    action: 'power',
-    payload: '',
-  });
-  const [busy, setBusy] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null);
 
   const rows = schedules.data?.schedules ?? [];
-
-  const create = async () => {
-    setBusy(true);
-    setFormError(null);
-    try {
-      const payload: Record<string, unknown> = {};
-      if (form.action === 'power') payload.signal = 'restart';
-      if (form.action === 'command') payload.command = form.payload.trim();
-      await createSchedule(instance.id, {
-        name: form.name.trim(),
-        cron: form.cron.trim(),
-        action: form.action,
-        active: true,
-        payload,
-      });
-      push('The schedule was created.', 'ok');
-      setForm({ name: '', cron: '0 0 * * *', action: 'power', payload: '' });
-      setCreating(false);
-      schedules.reload();
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'The schedule could not be created.');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const toggle = async (id: number, active: boolean) => {
     try {
@@ -154,6 +110,7 @@ export default function SchedulesTab({ instance }: TabProps) {
       align: 'right',
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft">Edit</ButtonLink>
           <SoftButton onClick={() => run(row.id)}>Run now</SoftButton>
           <SoftButton onClick={() => toggle(row.id, row.active)}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
           <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
@@ -167,67 +124,8 @@ export default function SchedulesTab({ instance }: TabProps) {
       <Panel
         title="Schedules"
         description="Tasks the panel runs on this instance at a time you pick."
-        action={
-          <PrimaryButton onClick={() => setCreating((value) => !value)} disabled={busy}>
-            {creating ? 'Close' : 'New schedule'}
-          </PrimaryButton>
-        }
+        action={<ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/new`}>New schedule</ButtonLink>}
       >
-        {creating && (
-          <div className="mb-4 grid gap-3 rounded-2xl bg-s2 p-3.5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <TextInput
-                label="Name"
-                value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
-                placeholder="Every night"
-                autoComplete="off"
-              />
-              <TextInput
-                label="When"
-                value={form.cron}
-                onChange={(event) => setForm({ ...form, cron: event.target.value })}
-                placeholder="0 0 * * *"
-                hint="Five fields: minute, hour, day, month, weekday."
-                autoComplete="off"
-              />
-              <Select
-                label="Action"
-                value={form.action}
-                onChange={(event) => setForm({ ...form, action: event.target.value as ScheduleAction })}
-              >
-                {ACTIONS.map((action) => (
-                  <option key={action.value} value={action.value}>
-                    {action.label}
-                  </option>
-                ))}
-              </Select>
-              {form.action === 'command' && (
-                <TextInput
-                  label="Command"
-                  value={form.payload}
-                  onChange={(event) => setForm({ ...form, payload: event.target.value })}
-                  placeholder="npm run start"
-                  autoComplete="off"
-                />
-              )}
-            </div>
-            {formError && (
-              <p role="alert" className="px-1 text-[12.5px] font-medium text-bad">
-                {formError}
-              </p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <PrimaryButton onClick={create} disabled={busy || !form.name.trim() || !form.cron.trim()}>
-                {busy ? 'Creating…' : 'Create the schedule'}
-              </PrimaryButton>
-              <SoftButton onClick={() => setCreating(false)} disabled={busy}>
-                Cancel
-              </SoftButton>
-            </div>
-          </div>
-        )}
-
         {schedules.loading ? (
           <LoadingBlock rows={2} label="Loading the schedules" />
         ) : schedules.error ? (
@@ -251,6 +149,7 @@ export default function SchedulesTab({ instance }: TabProps) {
                   }
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft">Edit</ButtonLink>
                       <SoftButton onClick={() => run(row.id)}>Run now</SoftButton>
                       <SoftButton onClick={() => toggle(row.id, row.active)}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
                       <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>

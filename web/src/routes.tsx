@@ -33,10 +33,34 @@ const ServerError = lazy(() => import('./pages/ServerError'));
 const AppOverview = lazy(() => import('./app/Overview'));
 const AppInstances = lazy(() => import('./app/Instances'));
 const AppInstanceDetail = lazy(() => import('./app/InstanceDetail'));
+const AppEditInstanceSettings = lazy(() => import('./app/instance/EditInstanceSettings'));
+const AppNewDatabase = lazy(() => import('./app/instance/NewDatabase'));
+const AppNewAllocation = lazy(() => import('./app/instance/NewAllocation'));
+const AppNewBackup = lazy(() => import('./app/instance/NewBackup'));
+const AppEditBackupSchedule = lazy(() => import('./app/instance/EditBackupSchedule'));
+const AppRestoreBackup = lazy(() => import('./app/instance/RestoreBackup'));
+const AppNewSchedule = lazy(() => import('./app/instance/NewSchedule'));
+const AppEditSchedule = lazy(() => import('./app/instance/EditSchedule'));
+const AppEditGitSettings = lazy(() => import('./app/instance/EditGitSettings'));
+const AppNewAccessInvite = lazy(() => import('./app/instance/NewAccessInvite'));
+const AppReinstallInstance = lazy(() => import('./app/instance/ReinstallInstance'));
+const AppEditAllocation = lazy(() => import('./app/instance/EditAllocation'));
+const AppDatabaseSecurity = lazy(() => import('./app/instance/DatabaseSecurity'));
+const AppEditStartup = lazy(() => import('./app/instance/EditStartup'));
+const AppCancelSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.CancelSubscription })));
+const AppResumeSubscription = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.ResumeSubscription })));
+const AppRollbackDeployment = lazy(() => import('./app/instance/RollbackDeployment'));
+const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
+const AppNewDomain = lazy(() => import('./app/NewDomain'));
 const AppMail = lazy(() => import('./app/Mail'));
+const AppNewMailDomain = lazy(() => import('./app/mail/NewMailDomain'));
+const AppNewMailbox = lazy(() => import('./app/mail/NewMailbox'));
+const AppNewAlias = lazy(() => import('./app/mail/NewAlias'));
+const AppMailDomainSettings = lazy(() => import('./app/mail/MailDomainSettings'));
+const AppChangeMailPlan = lazy(() => import('./app/mail/ChangeMailPlan'));
 const AppMailDomain = lazy(() => import('./app/mail/MailDomainPage'));
 const EmailStorefront = lazy(() => import('./app/EmailHosting'));
 const VpsStorefront = lazy(() => import('./app/Vps'));
@@ -46,6 +70,7 @@ const VpsDetail = lazy(() => import('./app/Vps').then((module) => ({ default: mo
 const EmailCheckout = lazy(() => import('./app/EmailHosting').then((module) => ({ default: module.EmailCheckout })));
 const AppBilling = lazy(() => import('./app/Billing'));
 const AppTickets = lazy(() => import('./app/Tickets'));
+const AppNewTicket = lazy(() => import('./app/NewTicket'));
 const AppTicketDetail = lazy(() => import('./app/TicketDetail'));
 const AppSettings = lazy(() => import('./app/Settings'));
 const AppNotifications = lazy(() => import('./app/Notifications'));
@@ -127,12 +152,37 @@ export const ROUTES: RouteDef[] = [
 
   { pattern: '/app', component: AppOverview, title: 'Overview', area: 'customer', exact: true },
   { pattern: '/app/instances', component: AppInstances, title: 'Apps & databases', area: 'customer' },
+  { pattern: '/app/instances/:id/settings/edit', component: AppEditInstanceSettings, title: 'Edit instance settings', area: 'customer' },
+  { pattern: '/app/instances/:id/databases/new', component: AppNewDatabase, title: 'Create database', area: 'customer' },
+  { pattern: '/app/instances/:id/network/new', component: AppNewAllocation, title: 'Add network address', area: 'customer' },
+  { pattern: '/app/instances/:id/backups/new', component: AppNewBackup, title: 'Create backup', area: 'customer' },
+  { pattern: '/app/instances/:id/backup-schedule/edit', component: AppEditBackupSchedule, title: 'Backup schedule', area: 'customer' },
+  { pattern: '/app/instances/:id/backups/:backupId/restore', component: AppRestoreBackup, title: 'Restore backup', area: 'customer' },
+  { pattern: '/app/instances/:id/schedules/new', component: AppNewSchedule, title: 'New schedule', area: 'customer' },
+  { pattern: '/app/instances/:id/schedules/:scheduleId/edit', component: AppEditSchedule, title: 'Edit schedule', area: 'customer' },
+  { pattern: '/app/instances/:id/git/deployments/:deployId/rollback', component: AppRollbackDeployment, title: 'Roll back deployment', area: 'customer' },
+  { pattern: '/app/instances/:id/git/connect', component: AppEditGitSettings, title: 'Connect Git repository', area: 'customer' },
+  { pattern: '/app/instances/:id/git/settings', component: AppEditGitSettings, title: 'Git deployment settings', area: 'customer' },
+  { pattern: '/app/instances/:id/git/edit', component: AppEditGitSettings, title: 'Git deployment settings', area: 'customer' },
+  { pattern: '/app/instances/:id/access/invite', component: AppNewAccessInvite, title: 'Invite access', area: 'customer' },
+  { pattern: '/app/instances/:id/access/new', component: AppNewAccessInvite, title: 'Invite access', area: 'customer' },
+  { pattern: '/app/instances/:id/reinstall', component: AppReinstallInstance, title: 'Reinstall instance', area: 'customer' },
+  { pattern: '/app/instances/:id/network/:allocationId/edit', component: AppEditAllocation, title: 'Edit network address', area: 'customer' },
+  { pattern: '/app/instances/:id/databases/:databaseId/security', component: AppDatabaseSecurity, title: 'Database security', area: 'customer' },
+  { pattern: '/app/instances/:id/startup/edit', component: AppEditStartup, title: 'Edit startup', area: 'customer' },
+  { pattern: '/app/instances/:id/env-files/:name/edit', component: AppEditEnvFile, title: 'Edit environment file', area: 'customer' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
+  { pattern: '/app/domains/new', component: AppNewDomain, title: 'Add domain', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
+  { pattern: '/app/mail/services/:serviceId/plan/change', component: AppChangeMailPlan, title: 'Change email plan', area: 'customer' },
+  { pattern: '/app/mail/domains/new', component: AppNewMailDomain, title: 'Add email domain', area: 'customer' },
+  { pattern: '/app/mail/domains/:id/mailboxes/new', component: AppNewMailbox, title: 'Create mailbox', area: 'customer' },
+  { pattern: '/app/mail/domains/:id/aliases/new', component: AppNewAlias, title: 'Create alias', area: 'customer' },
+  { pattern: '/app/mail/domains/:id/settings', component: AppMailDomainSettings, title: 'Email domain settings', area: 'customer' },
   { pattern: '/app/mail/domains/:id', component: AppMailDomain, title: 'Email', area: 'customer' },
   { pattern: '/app/servers', component: ServersRedirect, title: 'Servers', area: 'customer', exact: true },
   { pattern: '/app/servers/:id', component: ServersRedirect, title: 'Servers', area: 'customer' },
@@ -140,9 +190,13 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/vps/new', component: VpsCheckout, title: 'New server', area: 'customer' },
   { pattern: '/app/vps/:id', component: VpsDetail, title: 'Server', area: 'customer' },
   { pattern: '/app/email/checkout', component: EmailCheckout, title: 'Hosted mail', area: 'customer' },
+  { pattern: '/app/billing/subscriptions/:id/cancel', component: AppCancelSubscription, title: 'Cancel subscription', area: 'customer' },
+  { pattern: '/app/billing/subscriptions/:id/reactivate', component: AppResumeSubscription, title: 'Resume subscription', area: 'customer' },
+  { pattern: '/app/billing/subscriptions/:id/resume', component: AppResumeSubscription, title: 'Resume subscription', area: 'customer' },
   { pattern: '/app/billing/invoices/:id', component: InvoiceView, title: 'Invoice', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
+  { pattern: '/app/tickets/new', component: AppNewTicket, title: 'New support ticket', area: 'customer' },
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
   { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },
