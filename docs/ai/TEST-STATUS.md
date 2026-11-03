@@ -46,3 +46,4 @@ Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin 
 - Trusted-proxy limiter and panel-bootstrap randomness patches: API typecheck passes. Their Vitest files also require the unavailable disposable database, so runtime coverage remains not run.
 - Password-reset/email-verification concurrency patches: API typecheck passes; the new database race tests could not be run without the disposable test stack.
 - Versioned credential encryption: API typecheck (including the migration script) passes. Secret-rotation Vitest and migration preflight were not run: the suite lacks its disposable database stack and the migration must only run with operator-provided keys against an approved target.
+- Gitleaks workflow input was corrected to its v3 environment contract; the GitHub-hosted workflow has not yet reported a result for this commit.

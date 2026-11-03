@@ -6,6 +6,8 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 
 IN_PROGRESS. The branch contains 56 patches absent from `main` by patch-id. Nineteen security/operations patches are now ported by hand: exact WebSocket console origin validation (`c68b2a1`, `8408bf5`, `a378c48`), command-secret persistence coverage (`6a7cb6a`), atomic password-reset and email-verification token consumption with race tests (`b7d7918`, `945a7cc`, `dfa1a1c`, `bfaa1ce`), trusted-proxy rate-limit keys (`685be5c`, `ff778d6`, `38cdbbc`), cryptographic Pterodactyl bootstrap passwords (`702d967`, `7225311`), and independent versioned data encryption plus a typed dry-run-first migration and runbook (`0780e91`, `bbb0367`, `e212b05`, `bfa70ee`, `f45f568`, `3155ca4`). The migration was expanded for current `main` to cover TOTP and Git webhook secrets as well as the old branch's panel/instance fields. Review the remaining commits against current `main`; classify every patch as already present, port, or obsolete. Never merge the old branch. Security and billing changes remain undeployed pending owner approval; re-encryption remains explicitly unexecuted.
 
+CI patch `793261c` is also ported: Gitleaks v3 now receives the GitHub token through its supported environment contract while comments remain disabled.
+
 ## Approved Admin follow-up (Task A)
 
 IN_PROGRESS. Staff role/permission step-up backend checkpoint added: session-scoped ten-minute confirmation by password or TOTP, server enforcement, audit events, migration and API coverage. API typecheck passes; database tests and `StaffEdit` confirmation UI remain, so this is not marked IMPLEMENTED. Task C now takes priority before completing Task A.
