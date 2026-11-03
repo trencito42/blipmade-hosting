@@ -79,6 +79,20 @@ export function generateSecret(length: number): string {
  * something else, and the server of the customer is never made when the
  * panel refuses it.
  */
+/**
+ * Secrets the panel may receive. A product can remember a password the egg
+ * does not declare, such as the MariaDB user this platform creates. That
+ * value stays in the platform database and is not sent as an egg variable.
+ */
+export function secretsForEgg(made: Record<string, string>, eggNames: string[]): Record<string, string> {
+  const allowed = new Set(eggNames);
+  const next: Record<string, string> = {};
+  for (const [name, value] of Object.entries(made)) {
+    if (allowed.has(name)) next[name] = value;
+  }
+  return next;
+}
+
 export function generateVariables(
   specs: GeneratedVariableSpecs,
   rules: Record<string, string> = {},

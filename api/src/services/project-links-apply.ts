@@ -3,7 +3,8 @@ import { BLIPMADE_DIR, parseEnvValues, renderEnv } from './git-deploy.js';
 import * as application from './pterodactyl/application.js';
 import * as client from './pterodactyl/client.js';
 import * as operations from './panel/operations.js';
-import { connectionVariable, dependencyReady, type ServiceEndpoint } from './project-links.js';
+import { connectionVariable, dependencyReady, mariadbGrantCommand, mariadbGrantSql, mariadbPassword, type ServiceEndpoint } from './project-links.js';
+import { generateSecret, openVariables, sealVariables } from './instance-credentials.js';
 import { probeTcpPort } from './domain-activation.js';
 
 /**
@@ -62,17 +63,22 @@ async function linkOne(sourceId: string): Promise<boolean> {
     const allocations = await client.listAllocations(token, companion.pterodactylUuid);
     const primary = allocations.find((entry) => entry.is_default) ?? allocations[0];
     const environment = server.container.environment ?? {};
+    const password = await companionPassword(companion, environment);
     const endpoint: ServiceEndpoint = {
       slug: companion.product.slug,
-      user: environment.PGUSER || 'pterodactyl',
-      password: companion.product.slug === 'redis' ? environment.SERVER_PASSWORD || '' : environment.PGPASSWORD || '',
+      user: companion.product.slug === 'mariadb' ? 'blipmade' : environment.PGUSER || 'pterodactyl',
+      password,
       host: primary?.ip ?? '',
       port: primary?.port ?? 0,
-      database: environment.PGUSER || 'pterodactyl',
+      database: companion.product.slug === 'mariadb' ? 'blipmade' : environment.PGUSER || 'pterodactyl',
     };
     const variable = connectionVariable(endpoint);
     const portOpen = variable ? await probeTcpPort(endpoint.host, endpoint.port) : false;
     if (!variable || !endpoint.password || !dependencyReady({ online: true, portOpen })) return false;
+    if (companion.product.slug === 'mariadb') {
+      const granted = await grantMariaDb(token, companion.pterodactylUuid, password);
+      if (!granted) return false;
+    }
     values[variable.key] = variable.value;
   }
 
@@ -93,5 +99,32 @@ async function linkOne(sourceId: string): Promise<boolean> {
   await prisma.instanceEvent.create({
     data: { instanceId: app.id, type: 'deploy', message: `Connected ${source.confirmedServices.join(', ')}. The credentials stay in the server.` },
   });
+  return true;
+}
+
+async function companionPassword(
+  companion: { id: string; product: { slug: string }; generatedVariables: string | null },
+  environment: Record<string, string>,
+): Promise<string> {
+  if (companion.product.slug === 'redis') return environment.SERVER_PASSWORD || '';
+  if (companion.product.slug !== 'mariadb') return environment.PGPASSWORD || '';
+  const stored = openVariables(companion.generatedVariables);
+  const existing = mariadbPassword(stored?.DB_PASSWORD);
+  if (existing) return existing;
+  const password = generateSecret(20);
+  const next = { ...(stored ?? {}), DB_PASSWORD: password };
+  await prisma.instance.update({ where: { id: companion.id }, data: { generatedVariables: sealVariables(next) } });
+  return password;
+}
+
+/** Writes the grant, asks the MariaDB client to run it, then removes the file that holds the password. */
+async function grantMariaDb(token: string, uuid: string, password: string): Promise<boolean> {
+  const sql = mariadbGrantSql(password);
+  if (!sql) return false;
+  const path = `${BLIPMADE_DIR}/grant.sql`;
+  await client.writeFile(token, uuid, path, sql);
+  await client.chmodFile(token, uuid, path, 0o600).catch(() => undefined);
+  await client.sendCommand(token, uuid, mariadbGrantCommand());
+  await client.deleteFile(token, uuid, path);
   return true;
 }

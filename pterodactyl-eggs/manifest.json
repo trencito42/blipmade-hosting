@@ -445,6 +445,12 @@
       "upstreamPath": "application-eggs/database/sql/mariadb/egg-maria-d-b.json",
       "variables": [],
       "customerVariables": {},
+      "generatedVariables": {
+        "DB_PASSWORD": {
+          "length": 20,
+          "label": "Password of the MariaDB user blipmade"
+        }
+      },
       "sortOrder": 310
     },
     {

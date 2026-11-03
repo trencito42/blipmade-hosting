@@ -2,10 +2,11 @@
  * Optional databases for an imported project.
  *
  * A dependency is linked only when the manifest declared it and the customer confirmed it.
- * MariaDB is detected and left unlinked: that egg has no password variable the platform can set.
+ * MariaDB has no egg password variable. The platform generates one password per database
+ * and applies it with the MariaDB client after the port accepts a connection.
  */
 
-export const LINKABLE_SERVICES = ['postgresql', 'redis'] as const;
+export const LINKABLE_SERVICES = ['postgresql', 'redis', 'mariadb'] as const;
 export type LinkableService = (typeof LINKABLE_SERVICES)[number];
 
 const LINKABLE = new Set<string>(LINKABLE_SERVICES);
@@ -20,12 +21,7 @@ export function confirmedServiceSelection(detected: string[], requested: string[
   const chosen: LinkableService[] = [];
   for (const slug of requested) {
     if (!linkableService(slug) || !known.has(slug) || chosen.includes(slug)) {
-      return {
-        ok: false,
-        message: slug === 'mariadb'
-          ? 'MariaDB was detected. It is not provisioned automatically because that egg has no password variable the platform can set.'
-          : `${slug} was not detected in this project.`,
-      };
+      return { ok: false, message: `${slug} was not detected in this project.` };
     }
     chosen.push(slug);
   }
@@ -83,5 +79,36 @@ export function connectionVariable(endpoint: ServiceEndpoint): { key: string; va
   if (endpoint.slug === 'redis') {
     return { key: 'REDIS_URL', value: `redis://:${password}@${host}:${endpoint.port}` };
   }
+  if (endpoint.slug === 'mariadb') {
+    const database = encodeURIComponent(endpoint.database || 'blipmade');
+    return { key: 'DATABASE_URL', value: `mysql://${user}:${password}@${host}:${endpoint.port}/${database}` };
+  }
   return null;
+}
+
+/** A MariaDB password this platform made. The egg has no password variable, so the grant uses this value. */
+export function mariadbPassword(existing: string | null | undefined): string | null {
+  if (existing && /^[A-Za-z0-9]{12,32}$/.test(existing)) return existing;
+  return null;
+}
+
+/**
+ * SQL the MariaDB client runs once the server is accepting connections.
+ * The password is restricted to letters and digits so it cannot change the statement.
+ */
+export function mariadbGrantSql(password: string): string | null {
+  if (!mariadbPassword(password)) return null;
+  return [
+    "CREATE DATABASE IF NOT EXISTS blipmade;",
+    `CREATE USER IF NOT EXISTS 'blipmade'@'%' IDENTIFIED BY '${password}';`,
+    `ALTER USER 'blipmade'@'%' IDENTIFIED BY '${password}';`,
+    "GRANT ALL PRIVILEGES ON blipmade.* TO 'blipmade'@'%';",
+    'FLUSH PRIVILEGES;',
+    '',
+  ].join('\n');
+}
+
+/** The console command. It names the file and does not contain the password. */
+export function mariadbGrantCommand(): string {
+  return 'source /home/container/.blipmade/grant.sql';
 }

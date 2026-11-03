@@ -12,7 +12,9 @@ interface Proposal {
   build?: string | null;
   files: string[];
   notes: string[];
-  services?: { slug: string; reason: string; linkable?: boolean }[];
+  envNames?: string[];
+  recommendedRam?: number | null;
+  services?: { slug: string; reason: string; certainty?: string; linkable?: boolean }[];
 }
 
 /** Looks at a public Git repository and points at a product. Nothing is installed. */
@@ -65,6 +67,8 @@ export function ImportProject() {
           <p>{proposal.productSlug ? <>This looks like <span className="font-semibold text-ink">{proposal.runtime}</span>. Confidence: {proposal.confidence}.</> : 'No supported runtime was found.'}</p>
           {proposal.build && <p>Build: <code className="font-mono text-[13px]">{proposal.build}</code></p>}
           {proposal.start && <p>Start: <code className="font-mono text-[13px]">{proposal.start}</code></p>}
+          {proposal.recommendedRam ? <p>Recommended memory for the build: {proposal.recommendedRam} MB. You can change it on the next page. 512 MB is not enough for a Next.js production build.</p> : null}
+          {(proposal.envNames ?? []).length > 0 && <p>Environment names found in examples: {(proposal.envNames ?? []).join(', ')}. Values from a real .env file are not read.</p>}
           {proposal.files.length > 0 && <p>Read: {proposal.files.join(', ')}</p>}
           {proposal.notes.map((note) => <p key={note}>{note}</p>)}
           {(proposal.services ?? []).map((service) => (

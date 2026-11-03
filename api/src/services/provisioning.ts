@@ -30,6 +30,7 @@ import {
   openVariables,
   parseGeneratedVariableSpecs,
   sealVariables,
+  secretsForEgg,
 } from './instance-credentials.js';
 import type { Instance, Product } from '@prisma/client';
 import {
@@ -1776,7 +1777,10 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       // The variables the product asks for are made here, so the container
       // runs with them and the owner of the instance can read them in the
       // console of the service.
-      const made = await generatedVariablesFor(instance, egg.specs);
+      const made = secretsForEgg(
+        await generatedVariablesFor(instance, egg.specs),
+        [...egg.specs.map((spec) => spec.env_variable).filter((name): name is string => Boolean(name)), ...Object.keys(egg.environment)],
+      );
       // The values the customer gave for the variables of the product — the
       // licence of a game, the account of a vendor — are opened here and put
       // in the environment of the container. They are the last word: they are

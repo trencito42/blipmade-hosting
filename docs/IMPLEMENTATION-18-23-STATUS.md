@@ -36,9 +36,11 @@ This pass: `/catalog/quote` accepts `importSourceId` and adds the confirmed data
 
 Live fetch of `https://github.com/trencito42/daily81` on this machine returned Node.js, MariaDB confirmed (`provider = "mysql"`, not the Prisma generator), build `npm install && npx prisma generate && npm run build`, start `next start -p $SERVER_PORT -H 0.0.0.0`, recommended RAM 2048. The first `provider` in that schema is `prisma-client-js`; the database provider is read only when it is mysql, postgresql, or sqlite. Credentials are written only after the database port accepts a TCP connection, and the application is not restarted before its build. Preset retries select only `verifying`, `failed`, and `installing`, oldest update first.
 
-Not done: this host has no Docker and no disposable Pterodactyl node, so daily81 was not built or started. MariaDB still has no password variable, so it is detected and not auto-provisioned. Do not call the customer order proven.
+This pass: MariaDB is a confirmed dependency the customer can add to the order. The egg still has no password variable, so the platform stores one password per database and does not send that name to the panel. After the allocation accepts a TCP connection, the MariaDB client is asked to create database `blipmade` and user `blipmade` from a file, and the file is then deleted. The application receives `mysql://blipmade:<password>@<allocation>/blipmade`. The console command does not contain the password. The import review shows the build command, the start command, the recommended memory, and environment names from examples. `secretsForEgg` keeps a generated password out of an egg that does not declare it.
 
-Next: a disposable MariaDB with a unique password, then a Node container that builds daily81 against it and answers on the allocated port.
+Not done: this host has no Docker and no disposable Pterodactyl node, so the grant was not executed against MariaDB and daily81 was not built. The MariaDB client must be the foreground process (`${MARIADB_EXECUTABLE}`) for `source` to run. Redis still listens on its allocation and requires its password. Do not call the customer order proven.
+
+Next: on a disposable node, order daily81 with MariaDB, read back that `blipmade` can authenticate, then build and open the allocated port.
 
 ## #19 Game panel
 

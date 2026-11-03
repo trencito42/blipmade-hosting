@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { confirmedServiceSelection, connectionVariable, dependencyReady, importMayBuild, missingCompanions, quoteItemsForImport } from '../src/services/project-links.js';
+import { secretsForEgg } from '../src/services/instance-credentials.js';
+import { confirmedServiceSelection, connectionVariable, dependencyReady, importMayBuild, mariadbGrantCommand, mariadbGrantSql, mariadbPassword, missingCompanions, quoteItemsForImport } from '../src/services/project-links.js';
 
 describe('confirmed project services', () => {
   it('links only a database the project declared and the customer confirmed', () => {
@@ -12,10 +13,25 @@ describe('confirmed project services', () => {
     expect(chosen.ok).toBe(false);
   });
 
-  it('refuses to provision MariaDB from this egg', () => {
+  it('provisions MariaDB when the project declared it and the customer confirmed it', () => {
     const chosen = confirmedServiceSelection(['mariadb'], ['mariadb']);
-    expect(chosen.ok).toBe(false);
-    if (!chosen.ok) expect(chosen.message).toMatch(/no password variable/);
+    expect(chosen).toEqual({ ok: true, chosen: ['mariadb'] });
+  });
+
+  it('builds a MariaDB URL and a grant that the console command does not reveal', () => {
+    const password = 'Abcdefghijkmnop234';
+    expect(mariadbPassword(password)).toBe(password);
+    expect(mariadbPassword('short')).toBeNull();
+    expect(mariadbPassword("abc'defghijklmnop")).toBeNull();
+    const sql = mariadbGrantSql(password);
+    expect(sql).toContain("IDENTIFIED BY 'Abcdefghijkmnop234'");
+    expect(sql).toContain('CREATE DATABASE IF NOT EXISTS blipmade');
+    expect(mariadbGrantSql('bad password')).toBeNull();
+    expect(mariadbGrantCommand()).toBe('source /home/container/.blipmade/grant.sql');
+    expect(mariadbGrantCommand()).not.toContain(password);
+    expect(secretsForEgg({ DB_PASSWORD: password, PGPASSWORD: 'kept' }, ['PGPASSWORD'])).toEqual({ PGPASSWORD: 'kept' });
+    const ready = connectionVariable({ slug: 'mariadb', user: 'blipmade', password, host: '203.0.113.10', port: 3306, database: 'blipmade' });
+    expect(ready).toEqual({ key: 'DATABASE_URL', value: `mysql://blipmade:${password}@203.0.113.10:3306/blipmade` });
   });
 
   it('requires every confirmed service on the order', () => {
