@@ -22,7 +22,7 @@ Saved Views and Column Picker are complete in code and deployed at `34e850d` acr
 
 ## Issue #20 catalogue families / variants / presets / add-ons
 
-IN_PROGRESS. Owner asked for the additive structure only. The public catalogue, quote, checkout, order items, subscriptions and existing `Product` / `ProductOption` rows stay the live contract. Nothing in this issue may flip `visible`, `deployable`, prices, eggs or storefront grouping.
+IN_PROGRESS. The additive admin draft is deployed at `580bbc0`. The public catalogue, quote, checkout, order items, subscriptions and existing `Product` / `ProductOption` rows stay the live contract. Nothing in this issue flips `visible`, `deployable`, prices, eggs or storefront grouping.
 
 ### What exists today
 

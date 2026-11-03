@@ -1,12 +1,14 @@
 # Agent handoff
 
-Updated: 2026-11-03 after the first additive slice of issue #20.
+Updated: 2026-11-03 after the owner approved the production deploy of `580bbc0`.
 
 ## Source and production
 
-- Repository `/root/work`, branch `main`. GitHub `main` includes the docs checkpoint `21684c6` and the catalogue-structure commit that follows it. Production VM103 is still the deployed application at `34e850d`. Do not deploy this slice without a new explicit owner approval.
-- Production deploy of `34e850d` completed successfully. Pre-deploy database backup: `/var/backups/blipmade/pre-deploy-34e850d3-202611031338.sql.gz`. API, web, worker and public smoke endpoints passed for that deploy only.
-- Never merge the old audit branch. Never print or store secrets. The new catalogue tables are not applied to production until an approved deploy runs `scripts/deploy.sh`.
+- Repository `/root/work`, branch `main`, GitHub `main` and production VM103 are on `580bbc0` (`Add an admin draft for catalogue families, variants, presets and add-ons`).
+- This deploy was explicitly requested. Pre-deploy backup: `/var/backups/blipmade/pre-deploy-580bbc04-202611031358.sql.gz`. Migration `20261103160000_catalog_structure` finished. `CatalogFamily`, `CatalogVariant`, `CatalogPreset` and `CatalogAddonDefinition` exist. API and web came up healthy, the worker was replaced, and public smoke checks returned 200 for `/api/health`, `/`, `/apps`, `/docs`, `/app` and the icon font.
+- The earlier backup `/var/backups/blipmade/pre-deploy-34e850d3-202611031338.sql.gz` remains from the previous deploy.
+- Nothing else was waiting outside `main`. The only commit on `audit/admin-master-spec-20261103` is a progress note already present on `main` as `cd5b838`. The old launch-hardening branch was not merged.
+- The public catalogue still does not read the new tables. Do not deploy again without a fresh explicit owner approval. Never print or store secrets.
 
 ## Issue #20, first slice
 
