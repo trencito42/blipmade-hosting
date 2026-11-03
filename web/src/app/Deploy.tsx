@@ -77,6 +77,7 @@ export interface DeployServerOrderItem {
   variables?: Record<string, string>;
   /** The subdomain under the platform's base that the customer chose. */
   subdomain?: string;
+  catalog?: { familySlug: string; variantSlug: string; presetSlug?: string; presetVersion?: number; addonSlugs: string[] };
 }
 
 /**
@@ -100,6 +101,7 @@ export function buildDeployOrderItems(
       optionCodes: server.optionCodes,
       ...(server.variables && Object.keys(server.variables).length > 0 ? { variables: server.variables } : {}),
       ...(server.subdomain ? { subdomain: server.subdomain } : {}),
+      ...(server.catalog ? { catalog: server.catalog } : {}),
     },
   ];
   if (mail) {
@@ -716,6 +718,17 @@ export default function Deploy() {
           optionCodes,
           variables,
           ...(chosenSubdomain ? { subdomain: chosenSubdomain } : {}),
+          ...(query.family && query.variant
+            ? {
+                catalog: {
+                  familySlug: query.family,
+                  variantSlug: query.variant,
+                  ...(query.preset ? { presetSlug: query.preset } : {}),
+                  ...(query.presetVersion && Number.isInteger(Number(query.presetVersion)) ? { presetVersion: Number(query.presetVersion) } : {}),
+                  addonSlugs: query.addons ? query.addons.split(',').map((value) => value.trim()).filter(Boolean) : [],
+                },
+              }
+            : {}),
         },
         mailLine,
       ),

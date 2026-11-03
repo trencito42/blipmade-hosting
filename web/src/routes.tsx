@@ -132,6 +132,7 @@ const AppActivity = lazy(() => import('./app/Activity'));
 const AppEditAccessRole = lazy(() => import('./app/instance/EditAccessRole'));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
+const AppFamilyDeploy = lazy(() => import('./app/FamilyDeploy'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
 const AppNewDomain = lazy(() => import('./app/NewDomain'));
@@ -262,6 +263,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
+  { pattern: '/app/deploy/families/:slug', component: AppFamilyDeploy, title: 'Choose a variant', area: 'customer' },
   { pattern: '/app/deploy/:slug', component: AppDeploy, title: 'Deploy', area: 'customer' },
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/domains/:id/edit', component: AppEditDomainAddress, title: 'Change address', area: 'customer', layout: 'editor' },

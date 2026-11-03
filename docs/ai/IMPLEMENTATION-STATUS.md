@@ -50,7 +50,9 @@ Landed in code, still IN_PROGRESS until the disposable API tests run:
 3. Admin pages: `/admin/catalog/families` and `/:id`, plus editor routes for family, variant, preset and catalogue add-on. Editor routes use `layout: 'editor'` and `PageEditorShell`. The product catalogue links to Families. Public `catalog.ts` does not read the new tables.
 4. `api/tests/catalog-structure.test.ts` is written and not run. Web typecheck, unit 500/498/0/2 skip, production build, 172-page prerender and `admin-catalog-families.spec.ts` 2/2 pass.
 
-Not in this slice: storefront cards, quote/checkout fields, installation manifests, Discord/Minecraft/CS2 templates, readiness repairs for WordPress/CS2/FiveM/Hytale, and any live regrouping. Those stay blocked on owner approval and, for the API, on a disposable database.
+Prepared families can now be read from `GET /catalog/families` and chosen at `/app/deploy/families/:slug`. The choice is stored on the order as `config.catalog` and does not change the price. The product list stays. An unprepared family is invisible. No live products were seeded or reflagged.
+
+Not in this slice: regrouping the 68 eggs, template installers, readiness repairs, and installing a software add-on into a running server. Issue #18 is research only in `docs/ai/SMART-DEPLOY-RESEARCH.md`. #21 and #23 stay blocked on the owner.
 
 ## App shell and design system
 | Feature | Status | Paths |

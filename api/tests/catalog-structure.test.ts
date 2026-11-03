@@ -57,6 +57,29 @@ beforeEach(async () => {
 });
 
 describe('catalogue families', () => {
+  it('publishes a prepared family beside the existing product catalogue', async () => {
+    const paper = await product('minecraft-paper');
+    const client = await writer();
+    const created = await client.request('POST', '/api/admin/catalog/families', {
+      slug: 'minecraft',
+      name: 'Minecraft',
+      summary: 'One family for the Minecraft runtimes.',
+      group: 'games',
+    });
+    const familyId = created.body.family.id as string;
+    expect((await client.request('GET', '/api/catalog/families')).body.families).toEqual([]);
+    await client.request('POST', `/api/admin/catalog/families/${familyId}/variants`, { productId: paper.id, slug: 'paper', label: 'Paper', active: true });
+    await client.request('PATCH', `/api/admin/catalog/families/${familyId}`, { prepared: true });
+    const listed = await client.request('GET', '/api/catalog/families');
+    expect(listed.status).toBe(200);
+    expect(listed.body.families).toHaveLength(1);
+    expect(listed.body.families[0].variants[0].product.slug).toBe('minecraft-paper');
+    const products = await client.request('GET', '/api/catalog/products');
+    expect(products.body.families).toBeUndefined();
+    expect(products.body.products.map((row: { slug: string }) => row.slug)).toContain('minecraft-paper');
+    expect(await prisma.product.findUniqueOrThrow({ where: { id: paper.id } })).toMatchObject({ visible: true, deployable: true });
+  });
+
   it('refuses a writer without products.write and leaves the public catalogue unchanged', async () => {
     const paper = await product('minecraft-paper');
     const read = await reader();

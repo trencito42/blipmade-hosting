@@ -12,6 +12,7 @@ import { deploymentAvailability } from '../services/availability.js';
 import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
+import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -238,6 +239,13 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     // needs the rate card of the platform, which is read from the settings.
     const serialized = await Promise.all(products.map((product) => serializeProduct(product)));
     return { products: serialized };
+  });
+
+  app.get('/catalog/families', async () => ({ families: await publicFamilies() }));
+
+  app.get('/catalog/families/:slug', async (request) => {
+    const { slug } = z.object({ slug: z.string() }).parse(request.params);
+    return { family: await publicFamily(slug) };
   });
 
   app.get('/catalog/products/:slug', async (request) => {

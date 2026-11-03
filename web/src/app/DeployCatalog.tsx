@@ -24,6 +24,8 @@ import {
 import { ProductTile } from '../ui';
 import { mailCheckoutPath } from './EmailHosting';
 import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, SoftButton, StatusPill, TextInput } from '../ui-app';
+import { get } from '../lib/api';
+import { useAsync } from '../lib/useAsync';
 
 /**
  * The product selector of the customer area.
@@ -175,8 +177,12 @@ function ProductGrid({ products }: { products: CatalogProduct[] }) {
   );
 }
 
+interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { product: { orderable: boolean } }[] }
+
 export default function DeployCatalog() {
   const { products, loading } = useCatalogProducts();
+  const familiesState = useAsync<{ families: CatalogFamilyCard[] }>((signal) => get('/catalog/families', undefined, signal), []);
+  const families = familiesState.data?.families ?? [];
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState<'recommended' | 'name' | 'price-asc' | 'price-desc'>('recommended');
@@ -231,6 +237,22 @@ export default function DeployCatalog() {
           {loading ? 'Loading the catalog.' : `${deployableCount} ${deployableCount === 1 ? 'product is' : 'products are'} ready to deploy.`}
         </p>
       </div>
+      {families.length > 0 && (
+        <section className="grid gap-3" aria-label="Catalogue families">
+          <h3 className="text-[14px] font-semibold text-ink">Families</h3>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {families.filter((family) => !query.trim() || family.name.toLowerCase().includes(query.trim().toLowerCase()) || family.summary.toLowerCase().includes(query.trim().toLowerCase())).map((family) => (
+              <li key={family.slug}>
+                <Link to={`/app/deploy/families/${encodeURIComponent(family.slug)}`} className="grid h-full gap-2 rounded-[24px] border border-line bg-card p-5 transition-colors hover:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+                  <p className="font-display text-[20px] font-semibold tracking-[-0.03em] text-ink">{family.name}</p>
+                  <p className="line-clamp-2 text-[13.5px] text-ink2">{family.summary}</p>
+                  <p className="text-[12.5px] text-ink3">{family.variants.filter((variant) => variant.product.orderable).length} ready variants</p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="grid gap-3 sm:flex sm:items-center">
         <ScrollRow label="Filter the catalog by category" className="flex-1">

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { billingAddressSchema } from '../lib/billing-address.js';
@@ -18,6 +19,7 @@ import { audit } from '../lib/audit.js';
 import { enqueueProvisioning } from '../services/queue.js';
 import { notifyOrderCanceled, notifyOrderCreated, notifyPaymentRequired } from '../services/notifications.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
+import { catalogSelectionSchema, resolveCatalogSelection } from '../services/catalog-projection.js';
 
 /**
  * The routes of an order that has no limit of their own.
@@ -50,6 +52,7 @@ const orderItemSchema = z.object({
   // the licence of a game. They are checked and sealed before they are
   // written anywhere.
   variables: z.record(z.string(), z.string().max(400)).optional(),
+  catalog: catalogSelectionSchema.optional(),
 });
 
 function serializeOrder(order: {
@@ -173,6 +176,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const savedAddress = await prisma.user.findUnique({ where: { id: user.id }, select: { billingAddress: true } });
       const billingAddress = body.billingAddress ?? savedAddress?.billingAddress ?? null;
 
+      const catalogByLine = body.items.some((item) => item.catalog)
+        ? await Promise.all(body.items.map((item) => (item.catalog ? resolveCatalogSelection(item.productSlug, item.optionCodes ?? [], item.catalog) : Promise.resolve(null))))
+        : [];
+      if (catalogByLine.length > 0 && catalogByLine.length !== quote.items.length) {
+        throw badRequest('The catalogue choice could not be attached to this order.');
+      }
       const order = await prisma.order.create({
         data: {
           number: await nextOrderNumber(),
@@ -184,7 +193,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           currency: quote.currency,
           promotionId: quote.promotionRecord?.id ?? null,
           items: {
-            create: quote.items.map((item) => ({
+            create: quote.items.map((item, index) => ({
               productId: item.productId,
               name: item.name,
               quantity: item.quantity ?? 1,
@@ -212,7 +221,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 // product, sealed. They are the secrets of the customer, and
                 // they travel with the line until the instance is built.
                 sealedVariables: item.sealedVariables ?? null,
-              },
+                ...(catalogByLine[index] ? { catalog: catalogByLine[index] } : {}),
+              } as unknown as Prisma.InputJsonValue,
             })),
           },
         },
