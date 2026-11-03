@@ -64,6 +64,7 @@ const AdminIncidentNew = lazy(() => import('./admin/IncidentEditors').then((m) =
 const AdminIncidentUpdateNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.IncidentUpdateNew })));
 const AdminAnnouncementNew = lazy(() => import('./admin/IncidentEditors').then((m) => ({ default: m.AnnouncementNew })));
 const AdminKnowledgeEdit = lazy(() => import('./admin/KnowledgeEdit'));
+const AdminContentEdit = lazy(() => import('./admin/ContentEdit'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -312,6 +313,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },
   { pattern: '/admin/email-templates', component: AdminEmailTemplates, title: 'Email wording', area: 'admin' },
+  { pattern: '/admin/content/:key/edit', component: AdminContentEdit, title: 'Edit content', area: 'admin', layout: 'editor' },
   { pattern: '/admin/content', component: AdminContent, title: 'Site content', area: 'admin' },
   { pattern: '/admin/tools', component: AdminTools, title: 'Operator tools', area: 'admin' },
   { pattern: '/admin/notifications', component: AdminEmailNotifications, title: 'Email & notifications', area: 'admin' },
