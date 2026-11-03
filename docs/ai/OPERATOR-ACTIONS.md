@@ -1,5 +1,7 @@
 # Operator actions (human only)
 
+Before deploying Task C, set `PTERODACTYL_DOWNLOAD_HOSTS` to the exact approved HTTPS `host[:port]` values returned by Wings/object storage. Do not use wildcards. Validate file/backup streaming and interruption in staging; a missing allowlist makes downloads fail closed. No value was inferred or written by the implementation agent.
+
 1. Rotate the MiniMax API key pasted in chat earlier; enter new key as `SUPPORT_AI_API_KEY` in `/opt/blipmade/.env` on VM103.
 2. Fill platform legal/support settings: error page and legal pages show `TODO(operator): the support email address` (admin platform settings `billing.support_email`).
 3. Issue #21 resize billing: finance/legal sign-off + Stripe reconciliation test before enabling.

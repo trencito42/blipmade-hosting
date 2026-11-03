@@ -66,6 +66,8 @@ const schema = z.object({
    * certificate of the node stays the one that is checked.
    */
   PANEL_NODE_ADDRESSES: z.string().default(''),
+  /** Exact HTTPS host:port allowlist for signed Wings file and backup downloads. */
+  PTERODACTYL_DOWNLOAD_HOSTS: z.string().default(''),
 
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_PUBLISHABLE_KEY: z.string().default(''),

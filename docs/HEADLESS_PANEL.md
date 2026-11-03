@@ -155,3 +155,11 @@ The full shape of every answer is in `docs/API_CONTRACT.md`.
 
 Both are the same blocker: the panel cannot issue a client key by itself. See
 `docs/PANEL_BRIDGE.md` for the installation.
+
+## Secure file and backup downloads
+
+Pterodactyl returns a temporary signed URL for file and backup downloads. Blipmade resolves it on the API server, validates its exact HTTPS destination, and streams the bytes to the authenticated customer. Neither the panel bearer token nor the signed URL reaches the browser.
+
+Configure `PTERODACTYL_DOWNLOAD_HOSTS` with the exact host and port from signed URLs, separated by commas. Source hosts on the left side of `PANEL_NODE_ADDRESSES` are also allowed. Wildcards, HTTP, URL credentials, unlisted redirects, loopback, and metadata endpoints fail closed.
+
+Before deployment, validate a small file, a large file, a backup, an interrupted transfer, and rejection of an unlisted redirect through the complete proxy chain. Never disable TLS verification or copy signed URLs into logs or support tickets.

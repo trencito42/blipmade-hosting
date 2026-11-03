@@ -10,6 +10,8 @@ CI patch `793261c` is also ported: Gitleaks v3 now receives the GitHub token thr
 
 Billing/capacity review ported the missing compare-and-set guards and their regression coverage: stale Stripe failures and checkout expiry cannot demote terminal state; paid transition and promotion redemption are atomic; cancellation is idempotent; allocated CPU remains reserved until deprovisioning; free upgrades cannot revive/inject orders; refunds require provider status `succeeded`; payment replay repairs a missing invoice. The atomic invoice-number implementation from `c022b5e` was already present in `main`; its concurrent test from `4e55a90` is now restored. No payment, refund, or reconciliation was executed.
 
+Signed Pterodactyl downloads are ported from the final old-branch design: the panel's `signed_url` envelope is resolved server-side, every HTTPS destination/redirect is checked against an exact operator allowlist, large file/backup bodies are streamed without whole-response buffering, and browser disconnect closes the upstream stream. Deployment remains blocked on the operator setting and validating `PTERODACTYL_DOWNLOAD_HOSTS`.
+
 ## Approved Admin follow-up (Task A)
 
 IN_PROGRESS. Staff role/permission step-up backend checkpoint added: session-scoped ten-minute confirmation by password or TOTP, server enforcement, audit events, migration and API coverage. API typecheck passes; database tests and `StaffEdit` confirmation UI remain, so this is not marked IMPLEMENTED. Task C now takes priority before completing Task A.
