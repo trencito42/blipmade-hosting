@@ -20,7 +20,7 @@ Phone bar: Overview, Services (apps, servers, domains, email via switch on each 
 | /app/instances/:id workspace (sticky header, power group, primary tabs + More) | IMPLEMENTED | game-aware grouping (issue #19) |
 | Instance editors (settings, startup, env, resources, git, backups, schedules, databases, network, access, reinstall) | IMPLEMENTED | access share edit blocked (no API) |
 | /app/domains (+new, :id, edit, delete) | IMPLEMENTED | TLS/readiness status (issue #23) |
-| /app/mail, domain workspace (tabs deep-linked `?tab=`), editors | IMPLEMENTED | – |
+| /app/mail, domain workspace (tabs deep-linked `?tab=`), editors, email checkout (plan choice, term, review `?step=review`) | IMPLEMENTED | domain availability check (no API) |
 | /app/vps list + 6 editors + header + checkout review (`?step=review`, key never in URL) | IMPLEMENTED | – |
 | /app/billing tabs (overview, subscriptions, orders, invoices, payment method, credit, history), order, subscription pages | IMPLEMENTED | history is orders+invoices merged client-side |
 | /app/tickets list, new, :id (compact header, sticky reply) | IMPLEMENTED | – |

@@ -11,7 +11,7 @@
  * cannot be bought.
  */
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { get, post, type MailPlanLimits, type MailPlanView, type Order } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { memLabel, periodLabel, periodSuffix } from '../lib/pricing';
@@ -26,6 +26,8 @@ import {
   Money,
   Panel,
   PrimaryButton,
+  Segmented,
+  SoftButton,
   StatusPill,
   TextInput,
 } from '../ui-app';
@@ -301,12 +303,21 @@ export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
   const [domainError, setDomainError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [term, setTerm] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+  const [chosen, setChosen] = useState(slug);
+  // The review is a step of the address; the domain stays in the page.
+  const [reviewing, setReviewing] = useState(false);
+  useEffect(() => {
+    const back = () => setReviewing(false);
+    window.addEventListener('popstate', back);
+    return () => window.removeEventListener('popstate', back);
+  }, []);
 
   const state = useAsync<{ plans: MailPlanView[] }>(
     (signal) => get<{ plans: MailPlanView[] }>('/mail/plans', undefined, signal),
     [],
   );
-  const plan = planProp ?? state.data?.plans.find((entry) => entry.slug === slug) ?? null;
+  const plan = planProp ?? state.data?.plans.find((entry) => entry.slug === chosen) ?? null;
+  const plans = (state.data?.plans ?? []).filter((entry) => entry.onSale && entry.price !== null);
   // The platform lists the terms it sells the plan for; the order is priced by the server.
   const yearlyPrice = plan?.prices.find((entry) => entry.period === 'YEARLY') ?? null;
   const chosenPrice = term === 'YEARLY' && yearlyPrice ? yearlyPrice : plan?.price ?? null;
@@ -339,71 +350,101 @@ export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
 
   const onSale = plan ? plan.onSale && plan.price !== null : false;
   const blockers = plan ? mailPlanBlockers(plan) : [];
+  const goReview = () => {
+    const problem = validateMailDomainName(domain.trim().toLowerCase());
+    if (problem) {
+      setDomainError(problem);
+      return;
+    }
+    setDomainError(null);
+    window.history.pushState(null, '', `${location.pathname}?plan=${encodeURIComponent(plan?.slug ?? '')}&step=review`);
+    setReviewing(true);
+  };
+  const choose = (next: string) => {
+    setChosen(next);
+    window.history.replaceState(null, '', `${location.pathname}?plan=${encodeURIComponent(next)}`);
+  };
 
   return (
-    <Panel
-      title="Email hosting"
-      description="The plan you chose, the domain that will carry the mail and the price the platform asks for it."
-    >
+    <Panel>
       {state.loading && !plan ? (
         <LoadingBlock rows={2} label="Loading the plan" />
       ) : state.error && !plan ? (
-        <ErrorState
-          title="The plan could not be loaded"
-          message={state.error.message}
-          onRetry={state.reload}
-        />
+        <ErrorState title="The plan could not be loaded" message={state.error.message} onRetry={state.reload} />
       ) : !plan ? (
         <EmptyState
           title="This plan does not exist."
-          description="It is not in the catalog of hosted mail. The storefront shows every plan the platform offers."
+          description="It is not in the catalog of hosted mail."
           action={<ButtonLink to={EMAIL_STOREFRONT_PATH}>See the plans of hosted mail</ButtonLink>}
         />
-      ) : (
+      ) : reviewing && onSale ? (
         <div className="grid gap-4">
-          <div className="rounded-2xl bg-s2 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="break-words text-[16px] font-semibold tracking-[-0.02em] text-ink">{plan.name}</p>
-                <p className="mt-1 break-words text-[13.5px] leading-relaxed text-ink2">{plan.description}</p>
+          <dl className="grid gap-2.5 text-[14px]">
+            {([
+              ['Plan', plan.name],
+              ['Mail domain', domain.trim().toLowerCase()],
+              ['Billing', term === 'YEARLY' && yearlyPrice ? 'Yearly' : 'Monthly'],
+              ['Mailboxes per domain', String(plan.limits.maxMailboxes)],
+              ['Space', memLabel(plan.limits.totalStorageMb)],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="flex items-baseline justify-between gap-4 border-t border-line pt-2.5 first:border-t-0 first:pt-0">
+                <dt className="text-ink3">{label}</dt>
+                <dd className="min-w-0 break-all text-right font-mono text-ink">{value}</dd>
               </div>
-              <StatusPill
-                status={onSale ? 'active' : 'draft'}
-                label={onSale ? 'On sale' : 'Not on sale yet'}
-              />
+            ))}
+            <div className="flex items-baseline justify-between gap-4 border-t border-line pt-2.5">
+              <dt className="font-semibold text-ink">Total</dt>
+              <dd><MailPlanPriceLine plan={plan} price={chosenPrice} /></dd>
             </div>
-            <div className="mt-4">
-              <MailPlanLimitList limits={plan.limits} />
+          </dl>
+          {notice && <p className="rounded-2xl bg-s2 px-4 py-3 text-[13.5px] text-ink2">{notice}</p>}
+          {order.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] text-bad">{order.error}</p>}
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+            <SoftButton onClick={() => window.history.back()} disabled={order.pending}>Back</SoftButton>
+            <PrimaryButton disabled={order.pending} onClick={() => void order.run()}>{order.pending ? 'Opening the payment…' : 'Pay'}</PrimaryButton>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-5">
+          {!planProp && plans.length > 1 && (
+            <fieldset className="grid gap-2">
+              <legend className="mb-1 text-[13.5px] font-medium text-ink">Plan</legend>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {plans.map((entry) => (
+                  <label
+                    key={entry.slug}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3.5 transition-colors ${entry.slug === plan.slug ? 'border-acc bg-acc-bg' : 'border-line bg-card hover:bg-s2'}`}
+                  >
+                    <input type="radio" name="mail-plan" value={entry.slug} checked={entry.slug === plan.slug} onChange={() => choose(entry.slug)} className="sr-only" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-semibold text-ink">{entry.name}</span>
+                      <span className="block font-mono text-[12.5px] text-ink3">{entry.limits.maxMailboxes} mailboxes · {memLabel(entry.limits.totalStorageMb)}</span>
+                    </span>
+                    {entry.price && <span className="shrink-0 font-mono text-[13.5px] text-ink2"><Money amount={entry.price.amount} currency={entry.price.currency} /></span>}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+
+          <div className="grid gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="break-words text-[16px] font-semibold tracking-[-0.02em] text-ink">{plan.name}</p>
+              {!onSale && <StatusPill status="draft" label="Not on sale yet" />}
             </div>
-            <div className="mt-4">
-              <MailPlanPriceLine plan={plan} price={chosenPrice} />
-            </div>
+            <MailPlanLimitList limits={plan.limits} />
           </div>
 
           {onSale ? (
             <>
               {yearlyPrice && (
-                <div className="grid gap-2">
-                  <p id="mail-term-label" className="text-[13.5px] font-medium text-ink">Billing term</p>
-                  <div role="radiogroup" aria-labelledby="mail-term-label" className="grid max-w-sm grid-cols-2 gap-2">
-                    {(['MONTHLY', 'YEARLY'] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        role="radio"
-                        aria-checked={term === option}
-                        onClick={() => setTerm(option)}
-                        className={`rounded-2xl border px-3.5 py-3 text-[13.5px] font-medium transition-colors ${
-                          term === option ? 'border-acc bg-acc-bg text-acc' : 'border-line bg-card text-ink hover:border-ink3'
-                        }`}
-                      >
-                        {option === 'MONTHLY' ? 'Monthly' : 'Yearly'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <Segmented
+                  options={[{ value: 'MONTHLY', label: 'Monthly' }, { value: 'YEARLY', label: 'Yearly' }]}
+                  value={term}
+                  onChange={(value) => setTerm(value as 'MONTHLY' | 'YEARLY')}
+                  ariaLabel="Billing term"
+                />
               )}
-
               <TextInput
                 label="Mail domain"
                 value={domain}
@@ -412,52 +453,30 @@ export function EmailCheckout({ plan: planProp }: { plan?: MailPlanView }) {
                   if (domainError) setDomainError(null);
                 }}
                 error={domainError ?? undefined}
-                hint="The hostname that will carry the mail, for example acme.ro. The platform never writes the DNS of a customer: it shows the records to publish."
+                hint="The hostname that will carry the mail, for example acme.ro. The platform never writes your DNS: it shows the records to create."
                 placeholder="acme.ro"
                 autoComplete="off"
                 spellCheck={false}
               />
-
               {blockers.length > 0 && (
                 <ul className="grid gap-1">
                   {blockers.map((blocker) => (
-                    <li key={blocker} className="text-[13px] leading-relaxed text-ink2">
-                      {blocker}
-                    </li>
+                    <li key={blocker} className="text-[13px] leading-relaxed text-ink2">{blocker}</li>
                   ))}
                 </ul>
               )}
-
-              {notice && (
-                <p className="rounded-2xl bg-s2 px-4 py-3 text-[13.5px] leading-relaxed text-ink2">{notice}</p>
-              )}
-
-              {order.error && (
-                <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] leading-relaxed text-bad">
-                  {order.error}
-                </p>
-              )}
-
-              <PrimaryButton
-                className="w-full sm:w-auto"
-                disabled={order.pending || domain.trim() === ''}
-                onClick={() => void order.run()}
-              >
-                {order.pending ? 'Opening the payment…' : 'Continue to the payment'}
-              </PrimaryButton>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+                <MailPlanPriceLine plan={plan} price={chosenPrice} />
+                <PrimaryButton disabled={domain.trim() === ''} onClick={goReview}>Review</PrimaryButton>
+              </div>
             </>
           ) : (
             <>
-              <p className="rounded-2xl bg-s2 px-4 py-3 text-[13.5px] leading-relaxed text-ink2">
-                This plan is not on sale at the moment, so it cannot be bought. The storefront shows what the
-                platform offers.
-              </p>
+              <p className="text-[13.5px] text-ink2">This plan is not on sale at the moment.</p>
               {blockers.length > 0 && (
                 <ul className="grid gap-1">
                   {blockers.map((blocker) => (
-                    <li key={blocker} className="text-[13px] leading-relaxed text-ink2">
-                      {blocker}
-                    </li>
+                    <li key={blocker} className="text-[13px] leading-relaxed text-ink2">{blocker}</li>
                   ))}
                 </ul>
               )}
