@@ -75,6 +75,7 @@ model User {
   panelCredential PanelCredential?
   emailChangeRequests EmailChangeRequest[]
   notificationPreference NotificationPreference?
+  adminSavedViews AdminSavedView[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -86,6 +87,21 @@ model User {
   /// A visitor of the public chat who has not signed in. Never able to sign in, never sent an email, removed after the retention period.
   isGuest Boolean @default(false)
   supportGuestTokens SupportGuestToken[]
+}
+
+/// A private filter/sort preset for one operator and one admin list.
+/// The query is UI state only; every list endpoint still validates it independently.
+model AdminSavedView {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope     String
+  name      String
+  query     Json
+  createdAt DateTime @default(now())
+
+  @@unique([userId, scope, name])
+  @@index([userId, scope, createdAt])
 }
 
 /// What is known about one message of the platform.

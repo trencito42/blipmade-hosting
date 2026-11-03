@@ -18,6 +18,8 @@ All 56 old-branch commits now have an explicit decision in `docs/ai/LAUNCH-HARDE
 
 IN_PROGRESS. Staff role/permission step-up is complete in code: session-scoped ten-minute confirmation by password or TOTP, server enforcement, audit events, migration, API coverage, and a responsive accessible Review → confirm → Save flow in `StaffEdit`. Web typecheck/unit/build and targeted E2E pass. Database API tests remain unavailable, so the feature is not marked IMPLEMENTED/VERIFIED yet.
 
+Saved Views backend checkpoint is complete: private `AdminSavedView` rows, strict customers/orders/services/tickets scopes, bounded flat query state, duplicate-name handling and owner-scoped deletion. API tests cover isolation and validation; API typecheck passes. UI integration and database runtime execution remain.
+
 ## App shell and design system
 | Feature | Status | Paths |
 |---|---|---|

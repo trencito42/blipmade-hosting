@@ -38,6 +38,7 @@ import { registerAdminSupportAiRoutes } from './routes/admin-support-ai.js';
 import { registerSupportGuestRoutes } from './routes/support-guest.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerAdminSavedViewRoutes } from './routes/admin-saved-views.js';
 import { registerAdminActRoutes } from './routes/admin-act.js';
 import { registerTwoFactorRoutes } from './routes/two-factor.js';
 import { registerAdminStatusRoutes } from './routes/admin-status.js';
@@ -270,6 +271,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerInstanceExtraRoutes(api);
       await registerAbuseRoutes(api);
       await registerAdminRoutes(api);
+      await registerAdminSavedViewRoutes(api);
       await registerAdminControlRoutes(api);
       await registerAdminActRoutes(api);
       await registerAdminMailRoutes(api);
