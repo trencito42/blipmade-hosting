@@ -5,16 +5,26 @@ There are three places and no others.
 | Place | Where | Rule |
 |---|---|---|
 | **GitHub** | `trencito42/blipmade-hosting`, branch `main` | The truth. Production is always a commit of `main`. |
-| **The working copy** | `/root/work` on the hypervisor (one checkout) | The only place where code is written. One branch per task: `work/<what>`. |
+| **The working copy** | `/root/work` on the hypervisor (one clone) | The only place where code is written. One branch per task: `work/<what>`. |
 | **Production** | `/opt/blipmade` on the platform VM | A clean checkout of `main`. Nobody edits it, nobody commits in it, nobody merges in it. |
 
 ## A change, from start to production
 
 1. In the working copy: `git switch -c work/<what> origin/main`, write, run the tests (the test bench on the VM, see below).
-2. `git push origin work/<what>`, then merge into `main` fast-forward only (`git push origin work/<what>:main` after a rebase on `origin/main`). Delete the branch: `git push origin --delete work/<what>` and `git branch -d work/<what>`.
+2. `git rebase github/main` if main moved, then `bash scripts/publish.sh`. The hypervisor cannot reach GitHub, so the script pushes through the relay (`~/relay`, a clone on the platform VM that has the key) and the relay pushes `main`, fast-forward only. Then delete the branch: `git switch main && git branch -D work/<what>`.
 3. On the platform VM: `cd /opt/blipmade && bash scripts/deploy.sh`. It refuses to run if the folder is not clean, if main cannot be fast-forwarded, or if a service is being provisioned. It takes a backup, builds, migrates, replaces the containers, checks them and prints how to go back.
 
 That is all. Nothing is copied into production by hand: no `tar`, no `git archive`, no editing in `/opt`.
+
+## The folders, once and for all
+
+| Folder | What it is |
+|---|---|
+| `/root/work` (hypervisor) | the working copy; remotes: `relay` (the VM) and `github/*` (refs of GitHub, read through the relay) |
+| `~/relay` (platform VM) | the relay: a clone with the GitHub key. Nobody edits in it. |
+| `/opt/blipmade` (platform VM) | production. A clean checkout of `main`, updated only by `scripts/deploy.sh`. |
+| `~/testbed` (platform VM) | the test bench: a copy with `node_modules`, refreshed with `rsync`, never a repository |
+| `/home/debian/cleanup-archive`, `/root/cleanup-archive` | what the clean-up of 2026-11-03 kept before deleting |
 
 ## Rules that keep it clean
 
