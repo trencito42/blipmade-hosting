@@ -1,15 +1,20 @@
 # Agent handoff
 
-Updated: 2026-11-03 after Task C and Task A deployment.
+Updated: 2026-11-03 after the first additive slice of issue #20.
 
 ## Source and production
 
-- Repository `/root/work`, branch `main`, clean at this checkpoint.
-- GitHub `main` and production VM103 are on `34e850d` (`Add saved views and column controls to admin lists`).
-- Production deploy completed successfully. Pre-deploy database backup: `/var/backups/blipmade/pre-deploy-34e850d3-202611031338.sql.gz`. API, web, worker and public smoke endpoints passed.
-- Never merge or deploy again without a fresh explicit owner approval. Commit/push small checkpoints. Never print or store secrets.
+- Repository `/root/work`, branch `main`. GitHub `main` includes the docs checkpoint `21684c6` and the catalogue-structure commit that follows it. Production VM103 is still the deployed application at `34e850d`. Do not deploy this slice without a new explicit owner approval.
+- Production deploy of `34e850d` completed successfully. Pre-deploy database backup: `/var/backups/blipmade/pre-deploy-34e850d3-202611031338.sql.gz`. API, web, worker and public smoke endpoints passed for that deploy only.
+- Never merge the old audit branch. Never print or store secrets. The new catalogue tables are not applied to production until an approved deploy runs `scripts/deploy.sh`.
 
-## Completed this continuation
+## Issue #20, first slice
+
+- Additive tables and admin API for families, variants, immutable preset versions and three add-on kinds. Creating a mapping does not write `Product` or `ProductOption`.
+- Admin list, family detail and dedicated editors. Public catalogue, quote and checkout are unchanged.
+- API runtime tests are written and not run. Web typecheck, unit, build and the new stubbed E2E passed. See `TEST-STATUS.md`.
+
+## Completed earlier in this continuation
 
 - Task C: all 56 commits of `audit/launch-hardening-2026-10-30` classified in `LAUNCH-HARDENING-REVIEW.md`; missing security/billing/streaming changes were ported by hand. The old branch was never merged.
 - Task A staff step-up: password/TOTP confirmation, session-bound 10-minute expiry, backend enforcement, audits, migration, API tests and `StaffEdit` confirmation UI.
@@ -26,10 +31,11 @@ Updated: 2026-11-03 after Task C and Task A deployment.
 
 ## Next work
 
-1. Obtain/provision an approved disposable API test stack; run staff step-up, saved views, security, billing and download tests. Update `TEST-STATUS.md` honestly.
-2. Task B starts with issue #20 catalogue families/variants/presets/add-ons, but the brief requires an explicit product-owner “go” before implementation and forbids changing the live catalogue without approval. First add the short plan to `IMPLEMENTATION-STATUS.md`, then build dedicated pages + API + tests in small commits.
-3. Continue in order only: #20 → #22 → #19 → research-first #18. #21 needs finance/legal and Stripe reconciliation; #23 needs Cloudflare credentials/zone decisions and separate nameserver approval.
-4. Before context/usage ends: refresh this file and `IMPLEMENTATION-STATUS.md`/`TEST-STATUS.md`, commit, publish, and deploy only if explicitly approved for that new checkpoint.
+1. Run `api/tests/catalog-structure.test.ts` on an approved disposable stack, then record the result in `TEST-STATUS.md`. The migration is `20261103160000_catalog_structure`.
+2. Continue #20 only as additive drafts: seed no live products, do not flip `visible` or `deployable`, and do not teach `GET /catalog/products` or `POST /catalog/quote` to read families until the owner approves storefront projection.
+3. After that approval, the next #20 slice is a read-only family projection with the readiness gate. Then #22 may consume the same family, variant, preset version and add-on version contract. Do not start #22, #19 or #18 before that.
+4. #21 still needs finance/legal and Stripe reconciliation. #23 still needs Cloudflare credentials, zone decisions and a separate nameserver approval.
+5. Before context/usage ends: refresh this file and `IMPLEMENTATION-STATUS.md`/`TEST-STATUS.md`, commit, publish, and deploy only if explicitly approved for that new checkpoint.
 
 ## Commands
 

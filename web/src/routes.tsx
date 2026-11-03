@@ -84,6 +84,16 @@ const AdminNotificationTest = lazy(() => import('./admin/NotificationEditors').t
 const AdminCustomerAccountAction = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerAccountAction })));
 const AdminAbuseEnforcement = lazy(() => import('./admin/abuse/AbuseEnforcement'));
 const AdminProductNew = lazy(() => import('./admin/ProductNew'));
+const AdminCatalogFamilies = lazy(() => import('./admin/catalog/Families'));
+const AdminCatalogFamily = lazy(() => import('./admin/catalog/FamilyDetail'));
+const AdminCatalogFamilyNew = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.FamilyNew })));
+const AdminCatalogFamilyEdit = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.FamilyEdit })));
+const AdminCatalogVariantNew = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.VariantNew })));
+const AdminCatalogVariantEdit = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.VariantEdit })));
+const AdminCatalogPresetNew = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.PresetNew })));
+const AdminCatalogPresetEdit = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.PresetEdit })));
+const AdminCatalogAddonNew = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.AddonNew })));
+const AdminCatalogAddonEdit = lazy(() => import('./admin/catalog/Editors').then((module) => ({ default: module.AddonEdit })));
 const AdminOpsDeclare = lazy(() => import('./admin/OpsDeclare'));
 const AdminCustomerProfile = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerProfileEdit })));
 const AdminCustomerSecurity = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerSecurityActions })));
@@ -322,6 +332,16 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/vps/:id/plan/change', component: AdminVpsPlanChange, title: 'Change plan', area: 'admin', layout: 'editor' },
   { pattern: '/admin/vps/:id/resources/edit', component: AdminVpsResourcesEdit, title: 'Adjust resources', area: 'admin', layout: 'editor' },
   { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
+  { pattern: '/admin/catalog/families/new', component: AdminCatalogFamilyNew, title: 'New family', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id/edit', component: AdminCatalogFamilyEdit, title: 'Edit family', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id/variants/new', component: AdminCatalogVariantNew, title: 'New variant', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id/variants/:variantId/edit', component: AdminCatalogVariantEdit, title: 'Edit variant', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id/presets/new', component: AdminCatalogPresetNew, title: 'New preset', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id/presets/:presetId/edit', component: AdminCatalogPresetEdit, title: 'Edit preset', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id/addons/new', component: AdminCatalogAddonNew, title: 'New catalogue add-on', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id/addons/:addonId/edit', component: AdminCatalogAddonEdit, title: 'Edit catalogue add-on', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/catalog/families/:id', component: AdminCatalogFamily, title: 'Catalogue family', area: 'admin' },
+  { pattern: '/admin/catalog/families', component: AdminCatalogFamilies, title: 'Catalogue families', area: 'admin' },
   { pattern: '/admin/products/new', component: AdminProductNew, title: 'New product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products/:id/edit', component: AdminProductEdit, title: 'Edit product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },

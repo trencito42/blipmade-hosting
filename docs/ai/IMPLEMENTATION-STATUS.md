@@ -43,10 +43,14 @@ IN_PROGRESS. Owner asked for the additive structure only. The public catalogue, 
 
 ### First slice
 
-1. Prisma models `CatalogFamily`, `CatalogVariant`, `CatalogPreset`, `CatalogPresetVersion`, `CatalogAddonDefinition`, `CatalogAddonCompatibility`, plus a migration.
-2. Admin API under `/admin/catalog/families` and `/admin/catalog/addons`, permission `products.read` / `products.write`, audited, validated.
-3. Dedicated admin pages: family list and detail, and editor routes for family, variant, preset and catalogue add-on. `layout: 'editor'`, `PageEditorShell`, one `h1`, Back, Save/Discard, dirty guard.
-4. API tests and a stubbed admin E2E. Do not mark the issue IMPLEMENTED until the disposable API stack can run the new tests.
+Landed in code, still IN_PROGRESS until the disposable API tests run:
+
+1. Prisma models `CatalogFamily`, `CatalogVariant`, `CatalogPreset`, `CatalogPresetVersion`, `CatalogAddonDefinition`, `CatalogAddonCompatibility`, migration `20261103160000_catalog_structure`. No columns were added to `Product`, `ProductPrice`, `ProductOption`, `Order` or `OrderItem`.
+2. Admin API: list/create/read/update families; create/update variants; create presets, edit an unpublished version, publish it, and append the next version; create/update add-ons with kind checks. Permission `products.read` / `products.write`. Audited. No delete route.
+3. Admin pages: `/admin/catalog/families` and `/:id`, plus editor routes for family, variant, preset and catalogue add-on. Editor routes use `layout: 'editor'` and `PageEditorShell`. The product catalogue links to Families. Public `catalog.ts` does not read the new tables.
+4. `api/tests/catalog-structure.test.ts` is written and not run. Web typecheck, unit 500/498/0/2 skip, production build, 172-page prerender and `admin-catalog-families.spec.ts` 2/2 pass.
+
+Not in this slice: storefront cards, quote/checkout fields, installation manifests, Discord/Minecraft/CS2 templates, readiness repairs for WordPress/CS2/FiveM/Hytale, and any live regrouping. Those stay blocked on owner approval and, for the API, on a disposable database.
 
 ## App shell and design system
 | Feature | Status | Paths |

@@ -14,7 +14,7 @@ Spec documents: `audit/app-master-2026-11-03/*` (PRODUCT-DESIGN, VIEW-MATRIX, ED
 | 4 | App views per VIEW-MATRIX (inventory, workspace, settings, billing, tickets) | 2,3 | VIEW-MATRIX "Target UX" per route |
 | 5 | Admin 3.0 (audit/admin-master-2026-11-03) | 2 | not started; shares components |
 | 6 | Issue #21 resource resize proration + 2 changes/30 days | 4 | needs finance/legal sign-off (OPERATOR-ACTIONS) |
-| 7 | Issue #20 catalogue families/variants/presets/add-ons | 4 | product proposal; no live catalogue change |
+| 7 | Issue #20 catalogue families/variants/presets/add-ons | 4 | additive admin draft in progress; no live catalogue change |
 | 8 | Issue #22 post-purchase Add-ons / Repurpose / profiles | 7 | consumes #20 contract |
 | 9 | Issue #19 game-aware instance workspace, Minecraft manager | 7,8 | additive; after #20/#22 |
 | 10 | Issue #23 Domains 2.0 Cloudflare DNS | 4 | needs Cloudflare credentials (operator) |
@@ -22,4 +22,4 @@ Spec documents: `audit/app-master-2026-11-03/*` (PRODUCT-DESIGN, VIEW-MATRIX, ED
 
 ## GitHub issues (open, 2026-11-03)
 #18 Smart Deploy import · #19 game-aware dashboards · #20 catalogue regroup · #21 resource resizing · #22 post-purchase control · #23 Domains 2.0.
-All six state "proposal, not implementation approval": no merge/deploy, no live catalogue/DNS/price change. They are tracked, not started.
+All six still forbid a live catalogue, DNS or price change without a separate owner approval. #20 now has an additive admin draft on `main`. The others are not started. #21 and #23 stay blocked on the operator actions.

@@ -52,3 +52,11 @@ Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin 
 - Task C classification: 56/56 commits have recorded decisions in `docs/ai/LAUNCH-HARDENING-REVIEW.md`. Final API typecheck passes after the remaining stale limiter assertion was repaired. Full runtime verification is still pending the disposable stack.
 - Staff step-up UI: web TypeScript clean; unit 499 total / 497 pass / 0 fail / 2 skip; production build and prerender pass; `admin-staff-edit.spec.ts` 2/2 pass (desktop flow plus 390px). API runtime coverage remains not run without the disposable stack.
 - Saved Views/Column Picker: API and web TypeScript clean; web unit 499 total / 497 pass / 0 fail / 2 skip; production build and 172-page prerender pass; `admin-list-preferences.spec.ts` 2/2 pass (save/reapply/browser persistence plus all four lists at 390px). API tests are written for scope, validation and cross-operator isolation but not run without the disposable database stack.
+
+## Issue #20 first slice (2026-11-03)
+
+- API `npm run typecheck`: pass after `CatalogFamily` / variant / preset / add-on models and admin routes.
+- `api/tests/catalog-structure.test.ts` is written (permission, product immutability, public catalogue shape, preset immutability, three add-on kinds). It was not executed: `TEST_DATABASE_URL`, `DATABASE_URL`, `REDIS_URL` and `SESSION_SECRET` are still absent. Do not mark the API IMPLEMENTED or VERIFIED.
+- Web `tsc --noEmit`: pass. Unit: 500 total / 498 pass / 0 fail / 2 skip. Production build and 172-page prerender: pass.
+- `e2e/admin-catalog-families.spec.ts`: 2/2 pass (create a draft family from the list, and the new-family page at 390px with no horizontal overflow).
+- No public catalogue, quote, checkout, Stripe, mail or deploy path was exercised as a behaviour change. No deploy.

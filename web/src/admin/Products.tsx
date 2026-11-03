@@ -147,9 +147,10 @@ export default function Products() {
         description="Apps and databases that customers can buy. Visibility controls the catalog, deployable controls ordering."
         actionBelow
         action={
-          mayWrite ? (
-            <Link to="/admin/products/new" className={densePrimary}>New product</Link>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            <Link to="/admin/catalog/families" className={denseGhost}>Families</Link>
+            {mayWrite ? <Link to="/admin/products/new" className={densePrimary}>New product</Link> : null}
+          </div>
         }
       >
         <div className="grid gap-3">

@@ -46,6 +46,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/services', label: 'Services', shortLabel: 'Services', icon: 'rocket' },
   { to: '/admin/vps', label: 'Servers', shortLabel: 'VPS', icon: 'server' },
   { to: '/admin/products', label: 'Catalog', shortLabel: 'Catalog', icon: 'db' },
+  { to: '/admin/catalog/families', label: 'Catalogue families', shortLabel: 'Families', icon: 'db' },
   { to: '/admin/pricing', label: 'Pricing', shortLabel: 'Pricing', icon: 'bolt' },
   { to: '/admin/support/analytics', label: 'Support numbers', shortLabel: 'Numbers', icon: 'chart' },
   { to: '/admin/support/automations', label: 'Support automations', shortLabel: 'Rules', icon: 'flow' },
@@ -106,7 +107,7 @@ const A = (to: string): NavEntry => {
 export const ADMIN_GROUPS: NavGroup[] = [
   { id: 'home', label: 'Dashboard', icon: 'chart', items: [A('/admin')] },
   { id: 'customers-sales', label: 'Customers & sales', icon: 'card', items: [A('/admin/customers'), A('/admin/orders'), A('/admin/promotions'), A('/admin/reports')] },
-  { id: 'products-pricing', label: 'Products & pricing', icon: 'db', items: [A('/admin/products'), A('/admin/pricing')] },
+  { id: 'products-pricing', label: 'Products & pricing', icon: 'db', items: [A('/admin/products'), A('/admin/catalog/families'), A('/admin/pricing')] },
   { id: 'hosting-services', label: 'Hosting services', icon: 'rocket', items: [A('/admin/services'), A('/admin/vps'), A('/admin/mail'), A('/admin/infrastructure')] },
   { id: 'support-desk', label: 'Support desk', icon: 'doc', items: [A('/admin/support'), A('/admin/tickets'), A('/admin/knowledge')] },
   { id: 'support-workflows', label: 'Support workflows', icon: 'flow', items: [A('/admin/support/bots'), A('/admin/support/automations'), A('/admin/support/analytics')] },

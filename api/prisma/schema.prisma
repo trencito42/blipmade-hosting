@@ -465,6 +465,9 @@ model Product {
   instances   Instance[]
   mailServices MailService[]
   vpsServices VpsService[]
+  /// Optional grouping for a later storefront. Absent for every product until an operator maps it.
+  catalogVariant CatalogVariant?
+  catalogAddons CatalogAddonDefinition[]
 
   @@index([visible, deployable])
   @@index([category])
@@ -501,8 +504,142 @@ model ProductOption {
   currency  String   @default("EUR")
   recurring Boolean  @default(true)
   active    Boolean  @default(true)
+  /// Optional catalogue add-on that bills through this priced option. The amount stays on this row.
+  catalogAddon CatalogAddonDefinition?
 
   @@index([productId])
+}
+
+/// Customer-facing group used by the catalogue draft. Not a Product.category.
+enum CatalogDiscovery {
+  HIDDEN
+  ADVANCED
+  GROUPED
+  FEATURED
+}
+
+/// Three add-on meanings that must not share one billing or install path.
+enum CatalogAddonKind {
+  /// A plugin, mod, template or other software extra. It is not its own SKU.
+  SOFTWARE
+  /// A dependent managed service, such as a dedicated database, backed by its own Product.
+  MANAGED_SERVICE
+  /// An optional paid platform feature whose price already lives on ProductOption.
+  PLATFORM_FEATURE
+}
+
+/// A customer-facing product family. Prepared families are not on the public catalogue.
+model CatalogFamily {
+  id         String           @id @default(cuid())
+  slug       String           @unique
+  name       String
+  summary    String
+  /// One of the storefront groups: games, discord-bots, websites-apps, databases-caches, tools-automation, voice, custom-runtime.
+  group      String
+  discovery  CatalogDiscovery @default(HIDDEN)
+  /// Ready for a future projection. Public catalogue routes do not read this flag.
+  prepared   Boolean          @default(false)
+  sortOrder  Int              @default(0)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  variants CatalogVariant[]
+  presets  CatalogPreset[]
+  addons   CatalogAddonDefinition[]
+
+  @@index([prepared, discovery, sortOrder])
+}
+
+/// One supported runtime inside a family. It points at the existing sellable Product and never rewrites it.
+model CatalogVariant {
+  id        String        @id @default(cuid())
+  familyId  String
+  family    CatalogFamily @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  productId String        @unique
+  product   Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  slug      String
+  label     String
+  sortOrder Int           @default(0)
+  active    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  presets         CatalogPreset[]
+  compatibilities CatalogAddonCompatibility[]
+
+  @@unique([familyId, slug])
+  @@index([familyId, sortOrder])
+}
+
+/// A named installation choice. Its identity stays stable while versions change.
+model CatalogPreset {
+  id        String          @id @default(cuid())
+  familyId  String
+  family    CatalogFamily   @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  variantId String?
+  variant   CatalogVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  slug      String
+  name      String
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  versions CatalogPresetVersion[]
+
+  @@unique([familyId, slug])
+  @@index([familyId, sortOrder])
+}
+
+/// Immutable once published. A later change is a new version.
+model CatalogPresetVersion {
+  id                String        @id @default(cuid())
+  presetId          String
+  preset            CatalogPreset @relation(fields: [presetId], references: [id], onDelete: Restrict)
+  version           Int
+  summary           String
+  notes             String        @default("")
+  recommendedRamMb  Int?
+  recommendedCpu    Float?
+  recommendedDiskGb Int?
+  publishedAt       DateTime?
+  createdAt         DateTime      @default(now())
+
+  @@unique([presetId, version])
+  @@index([presetId, publishedAt])
+}
+
+/// Versioned add-on definition. Price is never stored here.
+model CatalogAddonDefinition {
+  id              String           @id @default(cuid())
+  familyId        String
+  family          CatalogFamily    @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  slug            String
+  name            String
+  summary         String
+  kind            CatalogAddonKind
+  version         Int              @default(1)
+  productOptionId String?          @unique
+  productOption   ProductOption?   @relation(fields: [productOptionId], references: [id], onDelete: Restrict)
+  productId       String?
+  product         Product?         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  active          Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  compatibilities CatalogAddonCompatibility[]
+
+  @@unique([familyId, slug])
+  @@index([familyId, kind, active])
+}
+
+model CatalogAddonCompatibility {
+  addonId   String
+  addon     CatalogAddonDefinition @relation(fields: [addonId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   CatalogVariant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@id([addonId, variantId])
+  @@index([variantId])
 }
 
 /// Cached copy of a Pterodactyl node.
