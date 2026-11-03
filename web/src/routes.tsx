@@ -56,6 +56,8 @@ const AppChangePassword = lazy(() => import('./app/ChangePassword'));
 const AppChangeEmail = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.ChangeEmail })));
 const AppEditBillingAddress = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.EditBillingAddress })));
 const AppNotificationPreferences = lazy(() => import('./app/NotificationPreferences'));
+const AdminSupportBotNew = lazy(() => import('./admin/SupportBotNew'));
+const AdminSupportBotEdit = lazy(() => import('./admin/SupportBotEdit'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -272,6 +274,8 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
   { pattern: '/admin/support/analytics', component: AdminSupportAnalytics, title: 'Support numbers', area: 'admin' },
   { pattern: '/admin/support/automations', component: AdminSupportAutomations, title: 'Support automations', area: 'admin' },
+  { pattern: '/admin/support/bots/new', component: AdminSupportBotNew, title: 'New bot', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/support/bots/:id/edit', component: AdminSupportBotEdit, title: 'Edit bot', area: 'admin', layout: 'editor' },
   { pattern: '/admin/support/bots', component: AdminSupportBots, title: 'Support bots', area: 'admin' },
   { pattern: '/admin/support', component: AdminSupport, title: 'Support console', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },

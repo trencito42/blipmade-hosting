@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
+import { ButtonLink, ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Select, SoftButton, TextArea, TextInput, useToast } from '../ui-app';
 import { pictureFromFile } from '../lib/avatar';
 import { FlowCanvas } from './FlowCanvas';
 import { can, useAdminSession } from './Overview';
@@ -58,16 +58,8 @@ const NEW_NODE: Record<string, Node> = {
 
 export default function SupportBots() {
   const session = useAdminSession();
-  const [openId, setOpenId] = useState<string | null>(null);
   const list = useAsync((signal) => get<{ bots: { id: string; name: string; enabled: boolean; publishedVersion: number | null; conversations: number }[] }>('/admin/support/bots', undefined, signal), []);
   const toast = useToast();
-  const [name, setName] = useState('');
-  const create = useAction(async (template: boolean) => {
-    const res = await post<{ bot: { id: string } }>('/admin/support/bots', { name, template });
-    setName('');
-    list.reload();
-    setOpenId(res.bot.id);
-  });
   const toggle = useAction(async (id: string, enabled: boolean) => {
     await put(`/admin/support/bots/${id}`, { enabled });
     list.reload();
@@ -84,11 +76,9 @@ export default function SupportBots() {
   if (!can(session.staff, 'tickets.read')) return <EmptyState title="No access" description="Your role does not include the support area." />;
   const mayEdit = can(session.staff, 'settings.write');
 
-  if (openId) return <Editor id={openId} mayEdit={mayEdit} onClose={() => { setOpenId(null); list.reload(); }} />;
-
   return (
     <div className="grid gap-4">
-      <Panel title="Support bots" description="A bot answers first in the chat and hands over to a person when it cannot help. Everything it says is written here.">
+      <Panel title="Support bots" description="A bot answers first in the chat and hands over to a person when it cannot help. Everything it says is written here." action={mayEdit ? <ButtonLink to="/admin/support/bots/new">New bot</ButtonLink> : undefined}>
         {list.loading && !list.data ? (
           <LoadingBlock rows={2} label="Loading the bots" />
         ) : list.error ? (
@@ -106,7 +96,7 @@ export default function SupportBots() {
                   </span>
                 </p>
                 <span className="flex flex-wrap gap-2">
-                  <SoftButton onClick={() => setOpenId(bot.id)}>{mayEdit ? 'Edit' : 'View'}</SoftButton>
+                  <ButtonLink to={`/admin/support/bots/${encodeURIComponent(bot.id)}/edit`} variant="soft">{mayEdit ? 'Edit' : 'View'}</ButtonLink>
                   {mayEdit && <SoftButton onClick={() => void toggle.run(bot.id, !bot.enabled)} disabled={!bot.publishedVersion && !bot.enabled}>{bot.enabled ? 'Switch off' : 'Switch on'}</SoftButton>}
                   {mayEdit && <SoftButton onClick={() => setDeleting({ id: bot.id, name: bot.name, conversations: bot.conversations })}>Delete</SoftButton>}
                 </span>
@@ -129,21 +119,11 @@ export default function SupportBots() {
           if (target) void remove.run(target.id);
         }}
       />
-      {mayEdit && (
-        <Panel title="New bot" description="Start from the template (a menu with technical, billing, account, plans and a person) or from an empty bot. Both are drafts that you edit.">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
-            <TextInput label="Name" value={name} onChange={(event) => setName(event.target.value)} maxLength={60} />
-            <SoftButton onClick={() => void create.run(true)} disabled={create.pending || name.trim().length < 2}>From the template</SoftButton>
-            <SoftButton onClick={() => void create.run(false)} disabled={create.pending || name.trim().length < 2}>Empty</SoftButton>
-          </div>
-          {create.error && <p role="alert" className="mt-2 text-[13px] text-bad">{create.error}</p>}
-        </Panel>
-      )}
     </div>
   );
 }
 
-function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClose: () => void }) {
+export function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClose: () => void }) {
   const toast = useToast();
   const loaded = useAsync((signal) => get<{ bot: { id: string; name: string; enabled: boolean }; draft: Flow; validation: Validation; versions: { id: string; version: number; createdAt: string }[] }>(`/admin/support/bots/${id}`, undefined, signal), [id]);
   const departments = useAsync((signal) => get<{ departments: { id: string; name: string }[] }>('/admin/support/departments', undefined, signal), []);
@@ -239,7 +219,7 @@ function Editor({ id, mayEdit, onClose }: { id: string; mayEdit: boolean; onClos
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-[18px] font-semibold text-ink">{loaded.data!.bot.name}</h2>
+          <h1 className="text-[clamp(1.5rem,2.6vw,2rem)] font-semibold tracking-[-0.04em] text-ink">{loaded.data!.bot.name}</h1>
           <p className="text-[12.5px] text-ink3">{dirty ? 'Unsaved changes.' : 'Saved.'} {loaded.data!.bot.enabled ? 'On for new conversations.' : 'Off.'}</p>
         </div>
         <div className="flex flex-wrap gap-2">
