@@ -2,6 +2,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type DragEvent,
   type InputHTMLAttributes,
@@ -160,6 +161,204 @@ export function NumberStepper({
 
 export function UnitStepper(props: NumberStepperProps & { unit: string }) {
   return <NumberStepper {...props} />;
+}
+
+export interface ComboboxOption {
+  value: string;
+  label: string;
+  description?: string;
+  group?: string;
+  disabled?: boolean;
+  disabledReason?: string;
+}
+
+/** Remote-capable combobox with request cancellation, keyboard traversal and no raw-ID display. */
+export function AsyncCombobox({
+  label,
+  value,
+  selectedLabel,
+  onChange,
+  loadOptions,
+  placeholder = 'Search…',
+  hint,
+  error,
+  disabled,
+  allowClear = true,
+}: {
+  label: string;
+  value: string;
+  selectedLabel?: string;
+  onChange: (value: string, option?: ComboboxOption) => void;
+  loadOptions: (query: string, signal: AbortSignal) => Promise<ComboboxOption[]>;
+  placeholder?: string;
+  hint?: string;
+  error?: string;
+  disabled?: boolean;
+  allowClear?: boolean;
+}) {
+  const generatedId = useId();
+  const listId = `${generatedId}-listbox`;
+  const hintId = `${generatedId}-hint`;
+  const errorId = `${generatedId}-error`;
+  const root = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(selectedLabel ?? '');
+  const [options, setOptions] = useState<ComboboxOption[]>([]);
+  const [active, setActive] = useState(-1);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string>();
+
+  useEffect(() => {
+    if (!open) setQuery(selectedLabel ?? '');
+  }, [open, selectedLabel, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setLoadError(undefined);
+      loadOptions(query.trim(), controller.signal)
+        .then((next) => {
+          if (controller.signal.aborted) return;
+          setOptions(next);
+          const firstEnabled = next.findIndex((option) => !option.disabled);
+          setActive(firstEnabled);
+        })
+        .catch((failure: unknown) => {
+          if (controller.signal.aborted) return;
+          setOptions([]);
+          setActive(-1);
+          setLoadError(failure instanceof Error ? failure.message : 'Options could not be loaded.');
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [loadOptions, open, query]);
+
+  const move = (direction: -1 | 1) => {
+    if (!options.length) return;
+    let next = active;
+    for (let count = 0; count < options.length; count += 1) {
+      next = (next + direction + options.length) % options.length;
+      if (!options[next]?.disabled) {
+        setActive(next);
+        return;
+      }
+    }
+  };
+
+  const choose = (option: ComboboxOption) => {
+    if (option.disabled) return;
+    onChange(option.value, option);
+    setQuery(option.label);
+    setOpen(false);
+  };
+
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
+  return (
+    <div ref={root} className="relative grid gap-1.5" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+    }}>
+      <label htmlFor={generatedId} className="px-1 text-[14px] font-medium text-ink">{label}</label>
+      <div className="relative">
+        <input
+          id={generatedId}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
+          aria-describedby={describedBy}
+          aria-invalid={Boolean(error)}
+          autoComplete="off"
+          disabled={disabled}
+          placeholder={placeholder}
+          value={open ? query : selectedLabel ?? ''}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); move(1); }
+            else if (event.key === 'ArrowUp') { event.preventDefault(); setOpen(true); move(-1); }
+            else if (event.key === 'Enter' && open && active >= 0) { event.preventDefault(); const option = options[active]; if (option) choose(option); }
+            else if (event.key === 'Escape') { event.preventDefault(); setOpen(false); setQuery(selectedLabel ?? ''); }
+          }}
+          className={cn(
+            'h-12 w-full rounded-xl border border-line bg-card pl-4 pr-20 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-[180ms] placeholder:text-ink3 focus:border-acc focus:ring-2 focus:ring-acc/40 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none',
+            error && 'border-bad focus:ring-bad/40',
+          )}
+        />
+        {allowClear && value && !disabled && (
+          <button
+            type="button"
+            onClick={() => { onChange(''); setQuery(''); setOpen(false); }}
+            aria-label={`Clear ${label}`}
+            className="absolute right-10 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-ink3 transition-colors hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc motion-reduce:transition-none"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        )}
+        <button
+          type="button"
+          tabIndex={-1}
+          disabled={disabled}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setOpen((current) => !current)}
+          aria-label={`${open ? 'Close' : 'Open'} ${label} options`}
+          className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-lg text-ink3"
+        >
+          <Icon name="chevronDown" size={15} className={cn('transition-transform duration-[180ms] motion-reduce:transition-none', open && 'rotate-180')} />
+        </button>
+      </div>
+      {hint && <p id={hintId} className="px-1 text-[12.5px] text-ink3">{hint}</p>}
+      {error && <p id={errorId} role="alert" className="px-1 text-[12.5px] font-medium text-bad">{error}</p>}
+      {open && (
+        <div id={listId} role="listbox" aria-label={`${label} options`} className="absolute inset-x-0 top-full z-40 mt-2 max-h-72 overflow-y-auto overscroll-contain rounded-2xl border border-line bg-s1 p-1.5 shadow-2xl shadow-black/30">
+          {loading ? (
+            <p role="status" className="px-3 py-4 text-[13px] text-ink3">Loading options…</p>
+          ) : loadError ? (
+            <p role="alert" className="px-3 py-4 text-[13px] text-bad">{loadError}</p>
+          ) : options.length === 0 ? (
+            <p className="px-3 py-4 text-[13px] text-ink3">No matching options.</p>
+          ) : options.map((option, index) => (
+            <button
+              key={option.value}
+              id={`${listId}-${index}`}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              aria-disabled={option.disabled || undefined}
+              disabled={option.disabled}
+              title={option.disabledReason}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => !option.disabled && setActive(index)}
+              onClick={() => choose(option)}
+              className={cn(
+                'flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition-colors duration-[140ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc motion-reduce:transition-none',
+                active === index ? 'bg-s3 text-ink' : 'text-ink2 hover:bg-s2 hover:text-ink',
+                option.value === value && 'text-acc',
+                option.disabled && 'cursor-not-allowed opacity-50',
+              )}
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-[13.5px] font-semibold">{option.label}</span>
+                {(option.group || option.description) && <span className="mt-0.5 block truncate text-[11.5px] text-ink3">{[option.group, option.description].filter(Boolean).join(' · ')}</span>}
+              </span>
+              {option.value === value && <Icon name="check" size={14} className="shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** A slider and exact stepper that represent the same server-bounded value. */
