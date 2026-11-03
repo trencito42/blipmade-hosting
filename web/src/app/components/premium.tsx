@@ -717,7 +717,7 @@ export function PageEditorShell({
         <h1 className="flex items-center gap-2 text-[clamp(1.5rem,2.6vw,2rem)] font-semibold tracking-[-0.04em] text-ink">
           {title}
           {/* In the customer area the description of a page is a tooltip beside the title, not a paragraph under it. */}
-          {description && quiet && <InfoTip text={description} label={`About ${title}`} />}
+          {description && quiet && <InfoTip text={description} />}
         </h1>
         {description && !quiet && <p className="mt-1 max-w-2xl text-[14px] leading-relaxed text-ink2">{description}</p>}
       </header>

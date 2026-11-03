@@ -59,7 +59,11 @@ export function MailDomainPage() {
   const { id = '' } = useParams();
   const { navigate } = useRouter();
   const { push } = useToast();
-  const [tab, setTab] = useState<Tab>('overview');
+  // The section is part of the address, so a reload or a shared link opens the same one.
+  const [tab, setTab] = useState<Tab>(() => {
+    const wanted = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('tab');
+    return TABS.find((entry) => entry.value === wanted)?.value ?? 'overview';
+  });
   const [pendingDelete, setPendingDelete] = useState<MailDeleteRequest | null>(null);
   const [proofAnswer, setProofAnswer] = useState<{ verified: boolean; message: string } | null>(null);
 
@@ -253,7 +257,10 @@ export function MailDomainPage() {
       <Segmented
         options={TABS.map((entry) => ({ value: entry.value, label: entry.label }))}
         value={tab}
-        onChange={(value) => setTab(value as Tab)}
+        onChange={(value) => {
+          setTab(value as Tab);
+          window.history.replaceState(null, '', value === 'overview' ? location.pathname : `${location.pathname}?tab=${value}`);
+        }}
         ariaLabel="The sections of the domain"
       />
 

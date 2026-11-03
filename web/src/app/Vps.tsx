@@ -168,6 +168,22 @@ export function VpsCheckout() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrs, setFieldErrs] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  // The review is a step of the address. The key and the choices stay in the page, never in the address.
+  const [reviewing, setReviewing] = useState(false);
+  useEffect(() => {
+    const onBack = () => setReviewing(false);
+    window.addEventListener('popstate', onBack);
+    return () => window.removeEventListener('popstate', onBack);
+  }, []);
+  const goReview = () => {
+    if (!key.trim()) {
+      setFieldErrs({ sshPublicKey: 'Paste the public SSH key you will log in with.' });
+      return;
+    }
+    setFieldErrs({});
+    window.history.pushState(null, '', `${location.pathname}?step=review`);
+    setReviewing(true);
+  };
 
   useEffect(() => {
     if (!slug && plans[0]) setSlug(plans[0].slug);
@@ -248,6 +264,35 @@ export function VpsCheckout() {
           <ErrorState title="The plans could not be loaded" message={state.error.message} onRetry={state.reload} />
         ) : !plans.length ? (
           <EmptyState title="Servers are not on sale yet." description="When they are, you can order one here." />
+        ) : reviewing && plan ? (
+          <div className="grid gap-4">
+            <dl className="grid gap-2.5 text-[14px]">
+              {([
+                ['Plan', `${plan.name} · ${plan.cpu} vCPU · ${memLabel(plan.ram)} · ${plan.disk} GB`],
+                ['Name', name.trim() || 'Chosen by the platform'],
+                ['Billing', yearly ? 'Yearly' : 'Monthly'],
+                ['Dedicated address', dedicated ? 'Yes' : 'No'],
+                ['SSH key', `${key.trim().slice(0, 28)}…`],
+              ] as const).map(([label, value]) => (
+                <div key={label} className="flex items-baseline justify-between gap-4 border-t border-line pt-2.5 first:border-t-0 first:pt-0">
+                  <dt className="text-ink3">{label}</dt>
+                  <dd className="min-w-0 break-all text-right font-mono text-ink">{value}</dd>
+                </div>
+              ))}
+              <div className="flex items-baseline justify-between gap-4 border-t border-line pt-2.5">
+                <dt className="font-semibold text-ink">Total</dt>
+                <dd className="text-[20px] font-semibold text-ink">{total !== null ? <Money amount={total} currency="EUR" /> : '—'}</dd>
+              </div>
+            </dl>
+            {error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{error}</p>}
+            {notice && <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">{notice}</p>}
+            <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+              <SoftButton onClick={() => window.history.back()} disabled={order.pending}>Back</SoftButton>
+              <PrimaryButton onClick={() => void order.run()} disabled={order.pending}>
+                {order.pending ? (total === 0 ? 'Placing the order…' : 'Opening the payment…') : total === 0 ? 'Place the order' : 'Pay'}
+              </PrimaryButton>
+            </div>
+          </div>
         ) : (
           <div className="grid gap-5">
             <fieldset className="grid gap-2">
@@ -376,8 +421,8 @@ export function VpsCheckout() {
                 )}
                 <span className="text-[20px] font-semibold text-ink">{total !== null ? <Money amount={total} currency="EUR" /> : '—'}</span> {yearly ? 'a year' : 'a month'}
               </p>
-              <PrimaryButton onClick={() => void order.run()} disabled={order.pending || !plan || !key.trim()}>
-                {order.pending ? (total === 0 ? 'Placing the order…' : 'Opening the payment…') : total === 0 ? 'Place the order' : 'Continue to payment'}
+              <PrimaryButton onClick={goReview} disabled={!plan || !key.trim()}>
+                Review
               </PrimaryButton>
             </div>
           </div>
@@ -596,7 +641,7 @@ export function VpsDetail() {
           <div className="mt-4 grid gap-1.5">
             <p className="flex items-center gap-1.5 text-[13.5px] font-medium text-ink">
               Log in
-              <InfoTip text={`The user is debian and it can use sudo. Only the key you gave us opens the server. ${server.dedicatedIp ? 'The address is yours alone.' : 'The address is shared, so the port is the one of this server.'}`} label="About logging in" />
+              <InfoTip text={`The user is debian and it can use sudo. Only the key you gave us opens the server. ${server.dedicatedIp ? 'The address is yours alone.' : 'The address is shared, so the port is the one of this server.'}`} />
             </p>
             <CopyLine value={server.sshCommand} />
           </div>

@@ -76,7 +76,7 @@ test.describe('the tooltips of the design', () => {
     await expect(page.getByRole('heading', { name: 'Two-factor authentication' })).toBeVisible();
     const sentence = 'Asks for a code from an authenticator app after your password';
     await expect(page.getByText(sentence)).toHaveCount(0);
-    const mark = page.getByRole('button', { name: 'About Two-factor authentication' });
+    const mark = page.locator('h2', { hasText: 'Two-factor authentication' }).getByRole('button', { name: 'More information' });
     await mark.hover();
     await expect(page.getByRole('tooltip')).toContainText(sentence);
     await page.mouse.move(5, 500);
@@ -107,7 +107,7 @@ test.describe('the tooltips of the design', () => {
     await page.goto('/app/settings/api-keys/new');
     await expect(page.locator('h1:visible')).toHaveText('New API key');
     await expect(page.getByText(/A key reaches the services of your account/)).toHaveCount(0);
-    await page.getByRole('button', { name: 'About New API key' }).hover();
+    await page.locator('h1', { hasText: 'New API key' }).getByRole('button', { name: 'More information' }).hover();
     await expect(page.getByRole('tooltip')).toContainText('A key reaches the services of your account');
   });
 });

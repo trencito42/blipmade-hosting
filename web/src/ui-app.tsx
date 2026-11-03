@@ -643,7 +643,7 @@ export function Panel({
               <h2 className="flex items-center gap-1.5 text-[17px] font-semibold tracking-[-0.03em] text-ink">
                 {title}
                 {/* In the customer area the explanation of a panel is a tooltip, not a paragraph. */}
-                {description && quiet && <InfoTip text={description} label={`About ${title}`} />}
+                {description && quiet && <InfoTip text={description} />}
               </h2>
             )}
             {description && !quiet && <p className="mt-1 text-[13.5px] text-ink2">{description}</p>}
@@ -913,7 +913,7 @@ export function Field({
         <label htmlFor={htmlFor} className="px-1 text-[14px] font-medium text-ink">
           {label}
         </label>
-        {hint && quiet && <InfoTip text={hint} label={`About ${label}`} />}
+        {hint && quiet && <InfoTip text={hint} />}
       </span>
       {control}
       {error && (

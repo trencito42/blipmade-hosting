@@ -9,6 +9,7 @@ import {
   LoadingBlock,
   Panel,
   PrimaryButton,
+  SoftButton,
   Select,
   ButtonLink,
   StatusPill,
@@ -179,54 +180,36 @@ export default function TicketDetail() {
         {notice}
       </p>
 
-      <Panel
-        title={ticket.subject}
-        description={`Ticket #${ticket.number} · opened ${fmtDate(ticket.createdAt)}`}
-        action={<StatusPill status={ticket.status} label={STATUS_LABEL[ticket.status] ?? ticket.status.replace(/_/g, ' ')} />}
-      >
-        <dl className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Category</dt>
-            <dd className="mt-1 text-[14.5px] text-ink">{ticket.category}</dd>
+      <Panel>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-[18px] font-semibold tracking-[-0.03em] text-ink">{ticket.subject}</p>
+            <p className="font-mono text-[12.5px] text-ink3">
+              #{ticket.number} · {ticket.category} · <span className="capitalize">{ticket.priority}</span>
+              {(ticket.serviceName ?? ticket.instanceName) ? ` · ${ticket.serviceName ?? ticket.instanceName}` : ''} · {fmtDate(ticket.lastReplyAt ?? ticket.updatedAt)}
+            </p>
           </div>
-          <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Priority</dt>
-            <dd className="mt-1 text-[14.5px] capitalize text-ink">{ticket.priority}</dd>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill status={ticket.status} label={STATUS_LABEL[ticket.status] ?? ticket.status.replace(/_/g, ' ')} />
+            {!isStaff && ticket.status !== 'CLOSED' && (
+              <SoftButton
+                onClick={async () => {
+                  const closed = await closeTicket.run();
+                  if (closed) { state.reload(); toast.push('Ticket closed', 'ok'); }
+                }}
+                disabled={closeTicket.pending}
+                title="Close the ticket when the problem is solved. You can always open a new one."
+              >
+                {closeTicket.pending ? 'Closing…' : 'Close ticket'}
+              </SoftButton>
+            )}
+            {!isStaff && ticket.status === 'CLOSED' && <ButtonLink to="/app/tickets/new" variant="soft">New ticket</ButtonLink>}
           </div>
-          <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Related service</dt>
-            <dd className="mt-1 text-[14.5px] text-ink">{ticket.serviceName ?? ticket.instanceName ?? 'None'}</dd>
-          </div>
-          <div className="rounded-2xl bg-s2 p-3.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">Last activity</dt>
-            <dd className="mt-1 text-[14.5px] text-ink">{fmtDate(ticket.lastReplyAt ?? ticket.updatedAt)}</dd>
-          </div>
-        </dl>
+        </div>
       </Panel>
 
+      {isStaff && (
       <Panel title="Status">
-        {!isStaff && (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="grid gap-1">
-              <StatusPill status={ticket.status} label={STATUS_LABEL[ticket.status] ?? ticket.status.replace(/_/g, ' ')} />
-              <p className="text-[13.5px] text-ink2">
-                {ticket.status === 'CLOSED'
-                  ? `Closed on ${fmtDate(ticket.updatedAt)}. This conversation is finished; if the problem comes back, open a new ticket and mention #${ticket.number}.`
-                  : 'Close the ticket when the problem is solved. You can always open a new one.'}
-              </p>
-            </div>
-            {ticket.status !== 'CLOSED' ? (
-              <PrimaryButton onClick={async () => {
-                const closed = await closeTicket.run();
-                if (closed) { state.reload(); toast.push('Ticket closed', 'ok'); }
-              }} disabled={closeTicket.pending}>
-                {closeTicket.pending ? 'Closing…' : 'Close ticket'}
-              </PrimaryButton>
-            ) : (
-              <ButtonLink to="/app/tickets" variant="soft">Open a new ticket</ButtonLink>
-            )}
-          </div>
-        )}
         {isStaff && (
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,260px)_auto] sm:items-end">
@@ -266,6 +249,7 @@ export default function TicketDetail() {
         </div>
         )}
       </Panel>
+      )}
 
       <Panel title="Conversation" description={`${messages.length} message${messages.length === 1 ? '' : 's'}.`}>
         {messages.length === 0 ? (

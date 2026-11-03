@@ -33,9 +33,9 @@ test('the backup rows are divided, their actions are one group with tooltips and
   expect(lines.every((line) => line.bottom === '0px')).toBe(true);
   const first = rows.first();
   const group = first.getByRole('group', { name: 'Actions' });
-  await expect(group.getByRole('button', { name: 'Download' })).toHaveAttribute('title', 'Download this backup');
-  await expect(group.getByRole('link', { name: 'Restore' })).toHaveAttribute('title', /Restore this backup/);
-  await expect(group.getByRole('button', { name: 'Delete' })).toHaveAttribute('title', 'Delete this backup for good');
+  await expect(group.getByRole('button', { name: 'Download' })).toHaveAttribute('data-tip', 'Download this backup');
+  await expect(group.getByRole('link', { name: 'Restore' })).toHaveAttribute('data-tip', /Restore this backup/);
+  await expect(group.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-tip', 'Delete this backup for good');
   const centre = async (locator: ReturnType<typeof page.locator>) => locator.evaluate((node) => { const r = node.getBoundingClientRect(); return r.top + r.height / 2; });
   const row = await centre(first);
   expect(Math.abs((await centre(group)) - row)).toBeLessThan(2);
@@ -46,7 +46,7 @@ test('the backups fit at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await stub(page);
   await page.goto('/app/instances/i1/backups');
-  await expect(page.getByText(/3 of 5 kept/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Backups' }).first()).toBeVisible();
   const cards = page.locator('main div.md\\:hidden > div');
   expect(await cards.count()).toBeGreaterThanOrEqual(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);

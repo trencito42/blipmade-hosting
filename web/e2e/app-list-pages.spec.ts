@@ -27,36 +27,30 @@ async function stub(page: Page) {
 
 const centre = (locator: ReturnType<Page['locator']>) => locator.evaluate((node) => { const r = node.getBoundingClientRect(); return r.top + r.height / 2; });
 
-test('the instances page writes its title once and aligns the access code field with its button', async ({ page }) => {
+test('the instances page writes its title once and links the access code page', async ({ page }) => {
   await stub(page);
   await page.goto('/app/instances');
   await expect(page.locator('h1:visible')).toHaveCount(1);
   await expect(page.locator('h1:visible')).toHaveText('Apps & databases');
   await expect(page.getByRole('heading', { name: /Apps & Databases/i })).toHaveCount(1);
-  const input = page.getByLabel('Got an access code?');
-  const button = page.getByRole('button', { name: 'Use code' });
-  expect(Math.abs((await centre(input)) - (await centre(button)))).toBeLessThan(2);
-  const heights = await Promise.all([input, button].map((locator) => locator.evaluate((node) => Math.round(node.getBoundingClientRect().height))));
-  expect(heights[0]).toBe(heights[1]);
+  await expect(page.getByRole('link', { name: 'Access code' })).toHaveAttribute('href', '/app/instances/redeem');
   const rows = page.locator('table tbody tr');
   await expect(rows).toHaveCount(3);
   const lines = await rows.evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node.querySelector('td')!).borderTopWidth));
   expect(lines).toEqual(['0px', '1px', '1px']);
 });
 
-test('the tickets page aligns the docs search and groups the row actions', async ({ page }) => {
+test('the tickets page aligns the docs search and keeps Close for an open ticket only', async ({ page }) => {
   await stub(page);
   await page.goto('/app/tickets');
-  const search = page.getByLabel('Search the documentation first');
+  const search = page.getByLabel('Search the documentation');
   const go = page.getByRole('search').getByRole('button', { name: 'Search' });
   expect(Math.abs((await centre(search)) - (await centre(go)))).toBeLessThan(2);
-  const open = page.locator('table tbody tr').nth(0).getByRole('group', { name: 'Actions for ticket 101' });
-  await expect(open.getByRole('link', { name: 'Reply to ticket 101' })).toHaveAttribute('title', /reply/i);
-  await expect(open.getByRole('button', { name: 'Close ticket 101' })).toHaveAttribute('title', /Close this ticket/);
-  const closed = page.locator('table tbody tr').nth(2).getByRole('group', { name: 'Actions for ticket 103' });
-  await expect(closed.getByRole('button')).toHaveCount(0);
-  const row = await centre(page.locator('table tbody tr').nth(0));
-  expect(Math.abs((await centre(open)) - row)).toBeLessThan(2);
+  const rows = page.locator('table tbody tr');
+  await expect(rows.nth(0).getByRole('button', { name: 'Close ticket 101' })).toHaveAttribute('data-tip', /Close this ticket/);
+  await expect(rows.nth(2).getByRole('button')).toHaveCount(0);
+  await rows.nth(0).locator('td').nth(1).click();
+  await page.waitForURL(/\/app\/tickets\/t\d+$/);
 });
 
 test('both pages fit at 390px', async ({ page }) => {
