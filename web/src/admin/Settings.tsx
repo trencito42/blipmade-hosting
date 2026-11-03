@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { del, get, put } from '../lib/api';
+import { get, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { ButtonLink, ConfirmDialog, EmptyState, ErrorState, Field, LoadingBlock, Panel, useToast } from '../ui-app';
+import { ButtonLink, ErrorState, Field, LoadingBlock, Panel, useToast } from '../ui-app';
 import { StaffSecurity } from './StaffSecurity';
-import { LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, useAdminSession } from './Overview';
+import { can, denseGhost, denseInput, densePrimary, useAdminSession } from './Overview';
 
 /**
  * System settings — GET /api/admin/settings, PUT /api/admin/settings
@@ -13,23 +13,25 @@ import { LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, use
  * exactly that.
  */
 
-type ControlEntry = { key: string; domain: string; read: string; write: string | null; general: boolean; managedBy: string | null; effect: string };
+export type ControlEntry = { key: string; domain: string; read: string; write: string | null; general: boolean; managedBy: string | null; effect: string };
 
-interface SettingRow {
+export const groupSlug = (title: string) => title.toLowerCase().replaceAll(' ', '-');
+
+export interface SettingRow {
   id: number;
   key: string;
   valueText: string;
   original: unknown;
 }
 
-function toText(value: unknown): string {
+export function toText(value: unknown): string {
   if (typeof value === 'string') return value;
   if (value === undefined) return '';
   return JSON.stringify(value);
 }
 
 /** Keeps the stored value unless the text was actually edited. */
-function parseValue(row: SettingRow): unknown {
+export function parseValue(row: SettingRow): unknown {
   if (row.valueText === toText(row.original)) return row.original;
   try {
     return JSON.parse(row.valueText);
@@ -39,7 +41,7 @@ function parseValue(row: SettingRow): unknown {
 }
 
 
-const COMPANY_FIELDS = [
+export const COMPANY_FIELDS = [
   { key: 'billing.company_name', label: 'Company name', placeholder: 'Your company SRL', hint: 'Written on every invoice as the seller.' },
   { key: 'billing.company_registration', label: 'Registration number', placeholder: 'J40/1234/2026', hint: 'The number under which the company is registered.' },
   { key: 'billing.tax_id', label: 'Tax ID (CUI / VAT number)', placeholder: 'RO12345678', hint: 'Without it no tax is added to the invoices the platform writes.' },
@@ -48,9 +50,9 @@ const COMPANY_FIELDS = [
   { key: 'billing.support_email', label: 'Support email', placeholder: 'support@yourcompany.com', hint: 'Where customers send questions about invoices.' },
 ] as const;
 
-type OperatorField = { key: string; group: string; label: string; placeholder: string; hint: string; multiline?: boolean; public?: boolean; format?: string };
-type OperatorGroup = { title: string; description: string; fields: OperatorField[] };
-const GROUP_DESCRIPTIONS: Record<string, string> = {
+export type OperatorField = { key: string; group: string; label: string; placeholder: string; hint: string; multiline?: boolean; public?: boolean; format?: string };
+export type OperatorGroup = { title: string; description: string; fields: OperatorField[] };
+export const GROUP_DESCRIPTIONS: Record<string, string> = {
   'Public contacts': 'Addresses published to customers. They may be separate mailboxes or aliases that reach the same team.',
   'Legal decisions': 'Jurisdiction and risk terms used in the Terms of service. Have the final wording reviewed for your company.',
   'Privacy policy': 'Facts used by the public privacy policy. They should describe the infrastructure and retention you actually operate.',
@@ -74,7 +76,7 @@ const CONTROL_AREAS = [
  * The details of the company that sells the service. They are written on the invoices, and the tax is added only when
  * the tax ID and the rate are both here. The platform never writes any of them by itself: they come from the operator.
  */
-function AccountingExportPanel() {
+export function AccountingExportPanel() {
   const today = new Date().toISOString().slice(0, 10);
   const [from, setFrom] = useState(`${today.slice(0, 8)}01`);
   const [to, setTo] = useState(today);
@@ -100,7 +102,7 @@ function AccountingExportPanel() {
   );
 }
 
-function CompanyDetailsPanel({ settings, mayWrite, onSaved }: { settings: Record<string, unknown>; mayWrite: boolean; onSaved: () => void }) {
+export function CompanyDetailsPanel({ settings, mayWrite, onSaved }: { settings: Record<string, unknown>; mayWrite: boolean; onSaved: () => void }) {
   const toast = useToast();
   const [values, setValues] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -147,7 +149,7 @@ function CompanyDetailsPanel({ settings, mayWrite, onSaved }: { settings: Record
   );
 }
 
-function OperatorSettingsPanel({ group, settings, mayWrite, onSaved }: { group: OperatorGroup; settings: Record<string, unknown>; mayWrite: boolean; onSaved: () => void }) {
+export function OperatorSettingsPanel({ group, settings, mayWrite, onSaved }: { group: OperatorGroup; settings: Record<string, unknown>; mayWrite: boolean; onSaved: () => void }) {
   const toast = useToast();
   const [values, setValues] = useState<Record<string, string>>({});
   useEffect(() => setValues(Object.fromEntries(group.fields.map((field) => [field.key, toText(settings[field.key])]))), [group, settings]);
@@ -178,94 +180,41 @@ function OperatorSettingsPanel({ group, settings, mayWrite, onSaved }: { group: 
   );
 }
 
+/** What a group holds now, read-only. The edit page changes it. */
+function SettingsSummary({ title, description, fields, settings, editTo, mayWrite }: { title: string; description?: string; fields: { key: string; label: string }[]; settings: Record<string, unknown>; editTo: string; mayWrite: boolean }) {
+  return (
+    <Panel title={title} description={description} action={<ButtonLink to={editTo} variant="soft">{mayWrite ? 'Edit' : 'View'}</ButtonLink>}>
+      <dl className="grid gap-3 text-[13.5px] sm:grid-cols-2">
+        {fields.map((field) => {
+          const value = toText(settings[field.key]).trim();
+          return (
+            <div key={field.key} className="min-w-0">
+              <dt className="text-ink3">{field.label}</dt>
+              <dd className={`mt-0.5 break-words ${value ? 'text-ink' : 'text-ink3'}`}>{value || 'Not set'}</dd>
+            </div>
+          );
+        })}
+      </dl>
+    </Panel>
+  );
+}
+
 export default function Settings() {
   const session = useAdminSession();
   const staff = session.staff;
   const toast = useToast();
-  const [rows, setRows] = useState<SettingRow[]>([]);
-  const [removing, setRemoving] = useState<SettingRow | null>(null);
-  const [nextId, setNextId] = useState(1);
   const [section, setSection] = useState('control-map');
-
   const state = useAsync((signal) => get<{ settings: Record<string, unknown>; definitions: OperatorField[]; controlMap?: ControlEntry[] }>('/admin/settings', undefined, signal), []);
   const mayWrite = can(staff, 'settings.write');
   const definitions = state.data?.definitions ?? [];
   const controlMap = state.data?.controlMap ?? [];
   // Only the keys the general endpoint may write are edited here. A key that
   // has its own page is listed below with the place where it is managed.
-  const generalKeys = new Set(controlMap.filter((entry) => entry.general).map((entry) => entry.key));
-  const editableKeys = controlMap.filter((entry) => entry.general && !definitions.some((definition) => definition.key === entry.key));
-  const structuredSettingKeys = new Set(definitions.map((definition) => definition.key));
   const operatorGroups = [...new Set(definitions.filter((definition) => definition.group !== 'Company & tax').map((definition) => definition.group))].map((title) => ({
     title,
     description: GROUP_DESCRIPTIONS[title] ?? 'Operator-owned configuration used by the platform.',
     fields: definitions.filter((definition) => definition.group === title),
   }));
-
-  useEffect(() => {
-    if (!state.data?.settings) return;
-    // The keys that start with "internal." belong to the platform itself: the
-    // counter of the order numbers lives there. They are not a setting a
-    // person edits, so they are not shown.
-    const loaded = Object.entries(state.data.settings)
-      .filter(([key]) => !key.startsWith('internal.'))
-      .filter(([key]) => !structuredSettingKeys.has(key))
-      .filter(([key]) => generalKeys.size === 0 || generalKeys.has(key))
-      .map(([key, value], index) => ({
-        id: index + 1,
-        key,
-        valueText: toText(value),
-        original: value,
-      }));
-    setRows(loaded);
-    setNextId(loaded.length + 1);
-  }, [state.data]);
-
-  const save = useAction(async (payload: Record<string, unknown>) => {
-    return put<{ settings: Record<string, unknown> }>('/admin/settings', payload);
-  });
-
-  const addRow = () => {
-    setRows((current) => [...current, { id: nextId, key: '', valueText: '', original: undefined }]);
-    setNextId((current) => current + 1);
-  };
-
-  const removeRow = (row: SettingRow) => {
-    // A key the API already stores cannot be deleted through this API, so the
-    // operator confirms first.
-    if (row.original !== undefined) {
-      setRemoving(row);
-      return;
-    }
-    setRows((current) => current.filter((entry) => entry.id !== row.id));
-  };
-
-  const remove = useAction(async (key: string) => del(`/admin/settings/${encodeURIComponent(key)}`));
-
-  const confirmRemove = async () => {
-    if (!removing) return;
-    if (removing.original !== undefined) {
-      const result = await remove.run(removing.key);
-      if (!result) return;
-    }
-    setRows((current) => current.filter((entry) => entry.id !== removing.id));
-    setRemoving(null);
-    toast.push('Setting removed.', 'ok');
-    state.reload();
-  };
-
-  const submit = async () => {
-    const payload: Record<string, unknown> = {};
-    for (const row of rows) {
-      const key = row.key.trim();
-      if (!key) continue;
-      payload[key] = parseValue(row);
-    }
-    const result = await save.run(payload);
-    if (!result) return;
-    toast.push('Settings saved', 'ok');
-    state.reload();
-  };
 
   if (session.loading) {
     return (
@@ -291,7 +240,7 @@ export default function Settings() {
   const tabs = [
     ['control-map', 'Control map'],
     ['company', 'Company & tax'],
-    ...operatorGroups.map((group) => [group.title.toLowerCase().replaceAll(' ', '-'), group.title]),
+    ...operatorGroups.map((group) => [groupSlug(group.title), group.title]),
     ['staff-security', 'Staff security'],
     ['advanced', 'Advanced'],
   ] as const;
@@ -326,141 +275,13 @@ export default function Settings() {
         </Panel>
       )}
       {section === 'staff-security' && <StaffSecurity mayWrite={can(session.staff, 'settings.write')} />}
-      {section === 'company' && platformSettings && <CompanyDetailsPanel settings={platformSettings} mayWrite={mayWrite} onSaved={state.reload} />}
-      {section === 'company' && <AccountingExportPanel />}
-      {platformSettings && operatorGroups.map((group) => section === group.title.toLowerCase().replaceAll(' ', '-') ? <OperatorSettingsPanel key={group.title} group={group} settings={platformSettings} mayWrite={mayWrite} onSaved={state.reload} /> : null)}
-      {section === 'advanced' && <>
-      <LiveRegion message={`${rows.length} setting${rows.length === 1 ? '' : 's'}`} />
-      <Panel
-        title="Settings"
-        description="Advanced feature flags and provider switches that do not have a dedicated control above. Security rules and internal counters are deliberately unavailable here."
-        actionBelow
-        action={
-          mayWrite ? (
-            <button type="button" onClick={addRow} className={denseGhost}>
-              Add a setting
-            </button>
-          ) : undefined
-        }
-      >
-        <div className="grid gap-3">
-          {state.loading ? (
-            <LoadingBlock rows={3} label="Loading the settings" />
-          ) : state.error ? (
-            <ErrorState title="The settings could not be loaded" message={state.error.message} onRetry={state.reload} />
-          ) : !rows.length ? (
-            <EmptyState title="No settings stored." description="Add one to configure the platform." />
-          ) : (
-            <div className="grid gap-2.5">
-              {rows.map((row) => (
-                <div key={row.id} className="grid gap-2 rounded-2xl bg-s2 p-3 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)_auto] sm:items-end">
-                  <Field label="Key" htmlFor={`setting-key-${row.id}`}>
-                    <input
-                      id={`setting-key-${row.id}`}
-                      type="text"
-                      autoComplete="off"
-                      value={row.key}
-                      disabled={!mayWrite}
-                      onChange={(event) =>
-                        setRows((current) =>
-                          current.map((entry) => (entry.id === row.id ? { ...entry, key: event.target.value } : entry)),
-                        )
-                      }
-                      placeholder="capacity.node_cores"
-                      list="registered-setting-keys"
-                      className={denseInput}
-                    />
-                  </Field>
-                  <Field label="Value" htmlFor={`setting-value-${row.id}`} hint="JSON when it parses, plain text otherwise.">
-                    <input
-                      id={`setting-value-${row.id}`}
-                      type="text"
-                      autoComplete="off"
-                      value={row.valueText}
-                      disabled={!mayWrite}
-                      onChange={(event) =>
-                        setRows((current) =>
-                          current.map((entry) => (entry.id === row.id ? { ...entry, valueText: event.target.value } : entry)),
-                        )
-                      }
-                      placeholder="true"
-                      className={denseInput}
-                    />
-                  </Field>
-                  {mayWrite && (
-                    <button
-                      type="button"
-                      onClick={() => removeRow(row)}
-                      aria-label={`Remove ${row.key || 'this setting'}`}
-                      className={denseDanger}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {mayWrite && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={submit} disabled={save.pending} className={densePrimary}>
-                {save.pending ? 'Saving…' : 'Save settings'}
-              </button>
-              <button type="button" onClick={addRow} className={denseGhost}>
-                Add a setting
-              </button>
-            </div>
-          )}
-
-          {!mayWrite && (
-            <p className="px-1 text-[13px] text-ink3">
-              Your role does not hold &quot;settings.write&quot;, so the settings are read-only for you.
-            </p>
-          )}
-
-          {save.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-              {save.error}
-            </p>
-          )}
-        </div>
-      </Panel>
-      <datalist id="registered-setting-keys">
-        {editableKeys.map((entry) => <option key={entry.key} value={entry.key} />)}
-      </datalist>
-      <Panel title="Who owns each setting" description="Every stored key has one owner. A key with its own page is changed there; the general settings never write it.">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-[13px]">
-            <thead className="text-ink3"><tr><th className="py-2 pr-3 font-medium">Key</th><th className="py-2 pr-3 font-medium">Domain</th><th className="py-2 pr-3 font-medium">Changed with</th><th className="py-2 font-medium">Where</th></tr></thead>
-            <tbody>
-              {controlMap.filter((entry) => !definitions.some((definition) => definition.key === entry.key)).map((entry) => (
-                <tr key={entry.key} className="border-t border-line/60">
-                  <td className="py-2 pr-3 font-mono text-[12px] text-ink">{entry.key}</td>
-                  <td className="py-2 pr-3 text-ink2">{entry.domain}</td>
-                  <td className="py-2 pr-3 text-ink2">{entry.write ?? 'the platform'}</td>
-                  <td className="py-2 text-ink2">{entry.general ? 'This page' : (entry.managedBy ?? 'the platform')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-      </>}
-
-      <ConfirmDialog
-        open={removing !== null}
-        title={`Remove ${removing?.key ?? ''}`}
-        description={
-          removing
-            ? `Remove ${removing.key} from the platform settings? Code defaults will apply wherever this key is optional.`
-            : undefined
-        }
-        confirmLabel="Remove the row"
-        requireText={removing?.key}
-        onConfirm={() => void confirmRemove()}
-        onCancel={() => setRemoving(null)}
-      />
+      {section === 'company' && platformSettings && <SettingsSummary title="Company and tax" fields={COMPANY_FIELDS.map((field) => ({ key: field.key, label: field.label }))} settings={platformSettings} editTo="/admin/settings/company/edit" mayWrite={mayWrite} />}
+      {platformSettings && operatorGroups.map((group) => section === groupSlug(group.title) ? <SettingsSummary key={group.title} title={group.title} description={group.description} fields={group.fields.map((field) => ({ key: field.key, label: field.label }))} settings={platformSettings} editTo={`/admin/settings/${groupSlug(group.title)}/edit`} mayWrite={mayWrite} /> : null)}
+      {section === 'advanced' && (
+        <Panel title="Advanced settings" description="Feature flags and provider switches that do not have a dedicated control. Security rules and internal counters are deliberately unavailable." action={<ButtonLink to="/admin/settings/advanced/edit" variant="soft">{mayWrite ? 'Edit' : 'View'}</ButtonLink>}>
+          <p className="text-[13.5px] text-ink2">Who owns each key is listed on the edit page.</p>
+        </Panel>
+      )}
     </div>
   );
 }
