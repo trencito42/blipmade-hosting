@@ -39,7 +39,7 @@ function RedeemCode({ onDone }: { onDone: () => void }) {
   return (
     <div className="flex flex-wrap items-end gap-2">
       <TextInput label="Got an access code?" value={code} onChange={(event) => setCode(event.target.value)} placeholder="ABCD-EFGH-JKLM" autoComplete="off" />
-      <SoftButton onClick={() => void redeem.run()} disabled={redeem.pending || code.trim().length < 8}>{redeem.pending ? 'Checking…' : 'Use code'}</SoftButton>
+      <SoftButton className="h-12" onClick={() => void redeem.run()} disabled={redeem.pending || code.trim().length < 8}>{redeem.pending ? 'Checking…' : 'Use code'}</SoftButton>
       {redeem.error && <p role="alert" className="basis-full text-[13.5px] font-medium text-bad">{redeem.error}</p>}
     </div>
   );
@@ -195,10 +195,8 @@ export default function Instances() {
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Apps &amp; Databases</h2>
-          <p className="text-[13.5px] text-ink3">Manage your deployed applications and databases.</p>
-        </div>
+        {/* The title of the page is in the top bar; it is not written a second time here. */}
+        <p className="min-w-0 text-[13.5px] text-ink3">Manage your deployed applications and databases.</p>
         {/* The selector of the customer area, so the customer picks the
             product instead of being sent to one by surprise. */}
         <ButtonLink to="/app/deploy" className="w-full sm:w-auto lg:hidden">

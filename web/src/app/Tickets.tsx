@@ -1,3 +1,4 @@
+import { ButtonGroup } from './components/premium';
 import { useState } from 'react';
 import { get, post, type Ticket } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
@@ -72,10 +73,13 @@ function DocsSearch() {
         window.location.assign(`/docs${term.trim() ? `?q=${encodeURIComponent(term.trim())}` : ''}`);
       }}
     >
-      <div className="min-w-[14rem] flex-1">
-        <TextInput label="Search the documentation first" value={term} onChange={(event) => setTerm(event.target.value)} placeholder="backups, domains, invoices…" hint="Most questions already have an answer. If yours does not, open a ticket." autoComplete="off" />
+      <div className="flex w-full flex-wrap items-end gap-2">
+        <div className="min-w-[14rem] flex-1">
+          <TextInput label="Search the documentation first" value={term} onChange={(event) => setTerm(event.target.value)} placeholder="backups, domains, invoices…" />
+        </div>
+        <SoftButton type="submit" className="h-12">Search</SoftButton>
       </div>
-      <SoftButton type="submit">Search</SoftButton>
+      <p className="w-full text-[12.5px] text-ink3">Most questions already have an answer. If yours does not, open a ticket.</p>
     </form>
   );
 }
@@ -166,25 +170,16 @@ export default function Tickets() {
                   align: 'right',
                   nowrap: true,
                   render: (t) => (
-                    <span className="inline-flex items-center gap-2">
-                      <Link
-                        to={`/app/tickets/${t.id}`}
-                        aria-label={`Reply to ticket ${t.number}`}
-                        className="inline-flex h-9 items-center rounded-full bg-s3 px-3.5 text-[13px] font-semibold text-ink hover:bg-s4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                      >
+                    <ButtonGroup label={`Actions for ticket ${t.number}`}>
+                      <ButtonLink to={`/app/tickets/${t.id}`} variant="soft" aria-label={`Reply to ticket ${t.number}`} title="Open the conversation and reply">
                         Reply
-                      </Link>
+                      </ButtonLink>
                       {t.status !== 'closed' && (
-                        <button
-                          type="button"
-                          onClick={() => setClosing(t)}
-                          aria-label={`Close ticket ${t.number}`}
-                          className="inline-flex h-9 items-center rounded-full border border-line px-3.5 text-[13px] font-semibold text-ink2 hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                        >
+                        <SoftButton onClick={() => setClosing(t)} aria-label={`Close ticket ${t.number}`} title="Close this ticket. You can write again to reopen it.">
                           Close
-                        </button>
+                        </SoftButton>
                       )}
-                    </span>
+                    </ButtonGroup>
                   ),
                 },
               ]}

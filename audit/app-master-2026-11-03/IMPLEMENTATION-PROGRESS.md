@@ -598,3 +598,17 @@ This checklist records executable implementation work on `audit/admin-master-spe
 
 - Web TypeScript check and full web unit suite: 496 pass, 0 fail.
 - Playwright: the backup rows are divided (no line above the first, none under the last), the actions are one group with their tooltips and share a centre line with the cells (within 2px), and the tab fits at 390px; the existing backup, network, schedule and database editor suites still pass (20/20 with the new spec).
+
+## 2026-11-03 — Visual audit of the list pages
+
+### Completed
+
+- [x] `/app/instances`: the title was written twice (top bar and a heading in the page); now once. The access code field and its button have the same height and centre line.
+- [x] `/app/tickets`: the docs search field and its button are on one line (the hint moved under the row); the quick actions are one group with tooltips (Reply, Close), centred with the row.
+- [x] Reviewed screenshots of instances, tickets, servers, settings and security at 1440px with stubbed data; the servers and security pages needed no change.
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: 496 pass, 0 fail.
+- Playwright `app-list-pages` (3: one h1 and no second heading, field and button on the same centre line and the same height, divided rows, grouped ticket actions with tooltips, no overflow at 390px) and the ticket editor suite: 6/6 pass.
+- Seen, not changed: the error page shows a placeholder "TODO(operator): the support email address" where the support address belongs.
