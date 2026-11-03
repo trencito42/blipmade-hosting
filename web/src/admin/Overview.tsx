@@ -3,7 +3,7 @@ import { ApiError, get, type SessionUser } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { useSession } from '../session';
-import { ErrorState, Field, ListRow, LoadingBlock, Money, Panel, SoftButton, StatTile } from '../ui-app';
+import { ErrorState, Field, LoadingBlock, Money, Panel, SoftButton, StatTile } from '../ui-app';
 import { can } from './permissions';
 
 /**
@@ -336,10 +336,45 @@ function count(value: number | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+interface AttentionItem { key: string; tone: 'bad' | 'warn'; title: string; text: string; to: string }
+
+/** A tile that opens the list its number comes from. */
+function KpiLink({ to, ...props }: { to: string; label: string; value: React.ReactNode; hint?: string }) {
+  return (
+    <Link to={to} className="block rounded-2xl transition-colors duration-[180ms] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+      <StatTile {...props} />
+    </Link>
+  );
+}
+
+/** Reads one feed of the dashboard. A role without the permission, or a feed that fails, is left out instead of breaking the page. */
+function useFeed<T>(allowed: boolean, path: string, params?: Record<string, string | number>) {
+  return useAsync<T | null>(
+    async (signal) => {
+      if (!allowed) return null;
+      try {
+        return await get<T>(path, params, signal);
+      } catch {
+        return null;
+      }
+    },
+    [allowed, path],
+  );
+}
+
 export default function Overview() {
   const state = useAsync((signal) => get<{ overview: AdminOverview }>('/admin/overview', undefined, signal), []);
+  const session = useAdminSession();
+  const staff = session.staff;
   const overview = state.data?.overview;
   const currency = overview?.currency ?? 'EUR';
+
+  const incidents = useFeed<{ incidents: { id: string; title: string; impact: string; resolvedAt: string | null; startedAt: string }[] }>(can(staff, 'infrastructure.read'), '/admin/incidents');
+  const queues = useFeed<{ queues: { name: string; label: string; counts: Record<string, number> }[] }>(can(staff, 'infrastructure.read'), '/admin/queues');
+  const deadLetters = useFeed<{ total: number }>(can(staff, 'infrastructure.read'), '/admin/dead-letters', { state: 'pending', limit: 1 });
+  const webhooks = useFeed<{ failed: unknown[] }>(can(staff, 'infrastructure.read'), '/admin/webhooks/failed');
+  const supportCounts = useFeed<{ counts: Record<string, number> }>(can(staff, 'tickets.read'), '/admin/support/counts');
+  const recent = useFeed<{ logs: { id: string; action: string; actorEmail: string | null; targetType: string | null; targetId: string | null; createdAt: string }[] }>(can(staff, 'audit.read'), '/admin/audit', { limit: 8 });
 
   if (state.loading) {
     return (
@@ -371,68 +406,78 @@ export default function Overview() {
   const mrr = count(overview.mrr);
   const failures = count(overview.provisioningFailures);
 
+  // The alert feed: only what needs a person, each item opening the place where it is dealt with.
+  const attention: AttentionItem[] = [];
+  const openIncidents = (incidents.data?.incidents ?? []).filter((entry) => !entry.resolvedAt);
+  for (const incident of openIncidents.slice(0, 3)) {
+    attention.push({ key: `incident-${incident.id}`, tone: incident.impact === 'critical' || incident.impact === 'major' ? 'bad' : 'warn', title: incident.title, text: `Open incident · ${incident.impact} · since ${new Date(incident.startedAt).toLocaleString()}`, to: '/admin/incidents' });
+  }
+  if (failures !== null && failures > 0) attention.push({ key: 'provisioning', tone: 'bad', title: `${failures} service${failures === 1 ? '' : 's'} failed to provision`, text: 'Open the services and retry them.', to: '/admin/services' });
+  const failedJobs = (queues.data?.queues ?? []).reduce((sum, queue) => sum + (queue.counts.failed ?? 0), 0);
+  if (failedJobs > 0) attention.push({ key: 'jobs', tone: 'warn', title: `${failedJobs} failed job${failedJobs === 1 ? '' : 's'} in the queues`, text: 'Look at the reason and retry or remove them.', to: '/admin/queues' });
+  const dead = deadLetters.data?.total ?? 0;
+  if (dead > 0) attention.push({ key: 'dead', tone: 'warn', title: `${dead} job${dead === 1 ? '' : 's'} failed for good`, text: 'They used up their attempts.', to: '/admin/tools' });
+  const hooks = webhooks.data?.failed.length ?? 0;
+  if (hooks > 0) attention.push({ key: 'webhooks', tone: 'warn', title: `${hooks} payment event${hooks === 1 ? '' : 's'} not processed`, text: 'Replay them from the tools page.', to: '/admin/tools' });
+  const breached = supportCounts.data?.counts.sla_at_risk ?? 0;
+  if (breached > 0) attention.push({ key: 'sla', tone: 'bad', title: `${breached} conversation${breached === 1 ? ' is' : 's are'} at risk of missing the response target`, text: 'Open the support queue.', to: '/admin/support' });
+
+  const feedsLoading = [incidents, queues, deadLetters, webhooks, supportCounts].some((feed) => feed.loading);
   const nothingYet = customers === 0 && instances === 0;
 
   return (
     <div className="grid gap-4">
-      <section aria-label="Key numbers" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Customers" value={customers ?? DASH} hint="Accounts with the customer role." />
-        <StatTile label="Instances" value={instances ?? DASH} hint="Every instance on the platform." />
-        <StatTile label="Active instances" value={active ?? DASH} hint="Online, provisioning or restarting." />
-        <StatTile label="Open tickets" value={openTickets ?? DASH} hint="Not closed." />
-        <StatTile label="Orders today" value={ordersToday ?? DASH} hint="Placed since midnight." />
-        <StatTile
-          label="Revenue this month"
-          value={revenue === null ? DASH : <Money amount={revenue} currency={currency} period="month" />}
-          hint="Paid and fulfilled orders this month."
-        />
-        <StatTile
-          label="Monthly recurring revenue"
-          value={mrr === null ? DASH : <Money amount={mrr} currency={currency} period="month" />}
-          hint="Active subscriptions that are not cancelled."
-        />
-        {failures !== null && failures > 0 ? (
-          <Link
-            to="/admin/services"
-            className="rounded-2xl bg-warn/12 p-4 transition-colors duration-[180ms] hover:bg-warn/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-          >
-            <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-warn">Provisioning failures</p>
-            <p className="mt-1 font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-warn">{failures}</p>
-            <p className="mt-1 text-[12.5px] text-ink2">Instances stuck in failed. Open the services list to retry them.</p>
-          </Link>
+      <Panel title="Needs attention" description="Only what needs a person. Each item opens the place where it is dealt with.">
+        {feedsLoading && attention.length === 0 ? (
+          <LoadingBlock rows={1} label="Checking the platform" />
+        ) : attention.length === 0 ? (
+          <p className="text-[14px] text-ink2">Nothing needs attention now: no open incident, no failed provisioning and no failed job.</p>
         ) : (
-          <StatTile
-            label="Provisioning failures"
-            value={failures ?? DASH}
-            hint="Instances with status failed."
-          />
+          <ul className="grid gap-2">
+            {attention.map((item) => (
+              <li key={item.key}>
+                <Link to={item.to} className={`block rounded-2xl p-3.5 transition-colors duration-[180ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${item.tone === 'bad' ? 'bg-bad/10 hover:bg-bad/15' : 'bg-warn/12 hover:bg-warn/20'}`}>
+                  <span className={`block text-[14.5px] font-semibold ${item.tone === 'bad' ? 'text-bad' : 'text-warn'}`}>{item.title}</span>
+                  <span className="mt-0.5 block text-[12.5px] text-ink2">{item.text}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
+      </Panel>
+
+      <section aria-label="Key numbers" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiLink to="/admin/customers" label="Customers" value={customers ?? DASH} hint="Accounts with the customer role." />
+        <KpiLink to="/admin/services" label="Active instances" value={active ?? DASH} hint={instances === null ? 'Online, provisioning or restarting.' : `of ${instances} on the platform`} />
+        <KpiLink to="/admin/tickets" label="Open tickets" value={openTickets ?? DASH} hint="Not closed." />
+        <KpiLink to="/admin/orders" label="Orders today" value={ordersToday ?? DASH} hint="Placed since midnight." />
+        <KpiLink to="/admin/reports" label="Revenue this month" value={revenue === null ? DASH : <Money amount={revenue} currency={currency} period="month" />} hint="Paid and fulfilled orders this month." />
+        <KpiLink to="/admin/reports" label="Monthly recurring revenue" value={mrr === null ? DASH : <Money amount={mrr} currency={currency} period="month" />} hint="Active subscriptions that are not cancelled." />
       </section>
 
       {nothingYet && (
         <Panel title="No accounts yet">
-          <p className="text-[14px] text-ink2">
-            The platform has no customers and no instances. Numbers appear here as soon as the API reports them.
-          </p>
+          <p className="text-[14px] text-ink2">The platform has no customers and no instances. Numbers appear here as soon as the API reports them.</p>
         </Panel>
       )}
 
-      <Panel title="Go to" description="The panels above come from the overview endpoint. Everything else lives in its own list.">
-        <div className="grid gap-1.5">
-          <ListRow title="Customers" meta="Search accounts, invoices and tickets" to="/admin/customers" />
-          <ListRow title="Orders" meta="Every order with its status and total" to="/admin/orders" />
-          <ListRow title="Services" meta="Instances across nodes, with provisioning retries" to="/admin/services" />
-          <ListRow title="Support queue" meta="Tickets, assignments and internal notes" to="/admin/tickets" />
-          <ListRow title="Infrastructure" meta="Nodes, capacity headroom and eggs" to="/admin/infrastructure" />
-          <ListRow title="Audit log" meta="Every staff action the API recorded" to="/admin/audit" />
-        </div>
-      </Panel>
-
-      <p className="px-1 text-[12.5px] text-ink3">
-        Counts come from <span className="font-mono">GET /api/admin/overview</span>. Values the API does not return are shown as
-        {` ${DASH} `}
-        — they are not estimated.
-      </p>
+      {can(staff, 'audit.read') && (
+        <Panel title="Latest operator actions" description="The newest entries of the audit log." action={<Link to="/admin/activity" className="text-[13.5px] font-medium text-acc hover:underline">All activity</Link>}>
+          {recent.loading && !recent.data ? <LoadingBlock rows={2} label="Loading the actions" />
+            : !recent.data || recent.data.logs.length === 0 ? <p className="text-[14px] text-ink2">No action recorded yet.</p>
+            : (
+              <ol className="divide-y divide-line">
+                {recent.data.logs.map((row) => (
+                  <li key={row.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 text-[13.5px]">
+                    <Link to={`/admin/audit/${encodeURIComponent(row.id)}`} className="font-mono text-acc hover:underline">{row.action}</Link>
+                    <span className="min-w-0 truncate text-ink2">{row.actorEmail ? maskEmail(row.actorEmail) : 'the platform'}{row.targetType ? ` · ${row.targetType}` : ''}</span>
+                    <span className="font-mono text-[12px] text-ink3">{fmtDateTime(row.createdAt)}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+        </Panel>
+      )}
     </div>
   );
 }
