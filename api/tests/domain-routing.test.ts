@@ -495,9 +495,25 @@ describe('the repair of the routes', () => {
     expect(state.routes[0]?.match?.[0]?.host).toEqual(['witch.pw']);
   });
 
-  it('says in the panel that the domain is active again', async () => {
+  it('does not claim HTTPS is active merely because Caddy accepted the route', async () => {
     const { reconcileDomainRoutes } = await import('../src/services/domain-routing.js');
     const domain = await seedDomain('witch.pw', true);
+
+    await reconcileDomainRoutes();
+
+    const updated = await prisma.instanceDomain.findUnique({ where: { id: domain.id } });
+    expect(updated?.status).toBe('PENDING_DNS');
+    expect(updated?.lastError).toContain('public HTTPS');
+    expect(state.routes).toHaveLength(1);
+  });
+
+  it('preserves previously confirmed domains when repairing their Caddy route', async () => {
+    const { reconcileDomainRoutes } = await import('../src/services/domain-routing.js');
+    const domain = await seedDomain('witch.pw', true);
+    await prisma.instanceDomain.update({
+      where: { id: domain.id },
+      data: { status: 'ACTIVE' },
+    });
 
     await reconcileDomainRoutes();
 
