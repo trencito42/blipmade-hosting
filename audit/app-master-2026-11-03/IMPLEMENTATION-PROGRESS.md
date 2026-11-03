@@ -121,3 +121,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static alias-editor contract test: 1/1 pass.
 - Focused Playwright alias editor suite: 2/2 pass, including exact same-domain forwarding payload and 390px overflow/action reachability.
+
+## 2026-11-03 — Email-domain deletion safety route
+
+### Completed
+
+- [x] Moved permanent email-domain deletion out of the inline settings panel to `/app/mail/domains/:id/settings`.
+- [x] Preserved the real `DELETE /mail/domains/:id` operation and added an impact summary for mailbox, alias and stored-mail loss.
+- [x] Required the exact domain name plus an explicit acknowledgement before enabling deletion, with dirty navigation protection and server error recovery.
+- [x] Kept mailbox and alias deletion workflows unchanged.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static deletion-route contract test: 1/1 pass.
+- Focused Playwright deletion safety suite: 2/2 pass, including the real DELETE call gate and 390px overflow/action reachability.
