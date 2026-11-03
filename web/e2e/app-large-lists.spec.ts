@@ -161,6 +161,22 @@ test.describe('a customer with a lot of everything', () => {
     await page.waitForURL('**/app/vps/v1');
   });
 
+  test('the server list searches and sorts across all 30 servers and the pager follows', async ({ page }) => {
+    await stub(page);
+    await page.goto('/app/vps');
+    await expect(pagerText(page)).toHaveText('1–20 of 30');
+    await page.getByRole('searchbox', { name: 'Search' }).fill('web-2');
+    // web-2, web-20 .. web-29
+    await expect(page.locator('table tbody tr')).toHaveCount(11);
+    await expect(pagerText(page)).toHaveCount(0);
+    await page.getByRole('searchbox', { name: 'Search' }).fill('nothing-here');
+    await expect(page.getByText('No server matches.')).toBeVisible();
+    await page.getByRole('searchbox', { name: 'Search' }).fill('');
+    await page.getByLabel('Sort by').selectOption('name');
+    await expect(pagerText(page)).toHaveText('1–20 of 30');
+    await expect(page.locator('table tbody tr').first()).toContainText('web-1');
+  });
+
   test('100 notifications load 30 at a time and the list stays divided and short', async ({ page }) => {
     await stub(page);
     await page.goto('/app/notifications');

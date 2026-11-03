@@ -28,6 +28,7 @@ import {
   LoadingBlock,
   Money,
   Pager,
+  Segmented,
   Select,
   Panel,
   PrimaryButton,
@@ -470,7 +471,22 @@ function CopyLine({ value }: { value: string }) {
 export function VpsList() {
   const state = useAsync<{ servers: VpsServerView[] }>((signal) => get<{ servers: VpsServerView[] }>('/vps', undefined, signal), []);
   const servers = state.data?.servers ?? [];
-  const paged = usePaged(servers, 20);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState('all');
+  const [sort, setSort] = useState<'newest' | 'name' | 'size'>('newest');
+  // Only the states that exist in the list are offered as filters.
+  const statuses = useMemo(() => [...new Set(servers.map((server) => statusOf(server).label))], [servers]);
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const found = servers.filter((server) =>
+      (status === 'all' || statusOf(server).label === status) &&
+      (!needle || [server.name, server.plan.name, server.publicIp ?? ''].some((value) => value.toLowerCase().includes(needle))),
+    );
+    if (sort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'size') return [...found].sort((a, b) => b.ram - a.ram || b.cpu - a.cpu);
+    return [...found].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  }, [servers, query, status, sort]);
+  const paged = usePaged(filtered, 20, `${query}|${status}|${sort}`);
   const { push } = useToast();
   // A server that is being built is looked at again until it is done.
   useEffect(() => {
@@ -485,13 +501,50 @@ export function VpsList() {
     );
 
   return (
-    <Panel>
+    <Panel className="grid gap-4">
+      {servers.length > 0 && (
+        <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <TextInput
+              label="Search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by name, plan or address"
+              autoComplete="off"
+            />
+            <label className="grid gap-1.5 text-[14px] font-medium text-ink">
+              <span className="px-1">Sort by</span>
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as typeof sort)}
+                className="h-12 rounded-xl border border-line bg-card px-3 text-[15px] font-normal text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              >
+                <option value="newest">Newest first</option>
+                <option value="name">Name</option>
+                <option value="size">Size: large to small</option>
+              </select>
+            </label>
+          </div>
+          {statuses.length > 1 && (
+            <Segmented
+              role="group"
+              ariaLabel="Filter servers by status"
+              options={[{ value: 'all', label: 'All' }, ...statuses.map((value) => ({ value, label: value }))]}
+              value={status}
+              onChange={setStatus}
+            />
+          )}
+        </div>
+      )}
       {state.loading && !state.data ? (
         <LoadingBlock rows={2} label="Loading your servers" />
       ) : state.error ? (
         <ErrorState title="Your servers could not be loaded" message={state.error.message} onRetry={state.reload} />
       ) : servers.length === 0 ? (
         <EmptyState title="No server yet." description="A virtual server with root access, ready in a few minutes." action={<ButtonLink to={VPS_NEW_PATH}>Order a server</ButtonLink>} />
+      ) : filtered.length === 0 ? (
+        <EmptyState title="No server matches." description="Clear the search or pick another status to see your servers again." />
       ) : (
         <>
           <DataTable

@@ -18,13 +18,13 @@ Phone bar: Overview, Services (apps, servers, domains, email via switch on each 
 | /app/deploy, /:slug | IMPLEMENTED | `?step=` flow exists (Configure/Payment/Deploy); region/plan cards via #20 |
 | /app/instances (+redeem, type and node filters) | IMPLEMENTED | renewal filter, saved views (not needed) |
 | /app/instances/:id workspace (sticky header, power group, primary tabs + More) | IMPLEMENTED | game-aware grouping (issue #19) |
-| Instance editors (settings, startup, env, resources, git, backups, schedules, databases, network, access, reinstall) | IMPLEMENTED | access share edit blocked (no API) |
+| Instance editors (settings, startup, env, resources, git, backups, schedules, databases, network, access, reinstall) | IMPLEMENTED | access role edit via PATCH /instances/:id/access/:shareId (tested) |
 | /app/domains (+new, :id, edit, delete) | IMPLEMENTED | TLS/readiness status (issue #23) |
 | /app/mail, domain workspace (tabs deep-linked `?tab=`), editors, email checkout (plan choice, term, review `?step=review`) | IMPLEMENTED | domain availability check (no API) |
-| /app/vps list + 6 editors + header + checkout review (`?step=review`, key never in URL) | IMPLEMENTED | – |
+| /app/vps list + 6 editors + header + checkout review (`?step=review`, key never in URL) | IMPLEMENTED | list has search, sort, status chips (tested with 30) |
 | /app/billing tabs (overview, subscriptions, orders, invoices, payment method, credit, history), order, subscription pages | IMPLEMENTED | history is orders+invoices merged client-side |
 | /app/tickets list, new, :id (compact header, sticky reply) | IMPLEMENTED | – |
-| /app/settings tabs: Profile, Security, Sessions, API keys, Notifications, Privacy & data (+ editors) | IMPLEMENTED | notification prefs stay inline |
+| /app/settings tabs: Profile, Security, Sessions, API keys, Notifications, Privacy & data (+ editors) | IMPLEMENTED | notification prefs have own page `/app/settings/notifications` |
 | /app/notifications (grouped Today/Yesterday/Earlier) | IMPLEMENTED | – |
 
 ## Admin 3.0
