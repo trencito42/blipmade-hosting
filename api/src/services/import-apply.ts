@@ -7,6 +7,7 @@ import {
   afterDeployObservation,
   afterQueueAttempt,
   deployOutcomeFromMessage,
+  fulfillmentAllowed,
   healthKind,
   interpretHttpStatus,
   interpretProcessState,
@@ -69,7 +70,13 @@ export async function purgeExpiredImportArchives(now = new Date()): Promise<numb
   return ids.length;
 }
 
-/** The order stays unpaid-for-delivery until every remaining application is ready. Money status is not moved backwards. */
+async function importAttached(instance: { orderItemId: string | null }): Promise<boolean> {
+  if (!instance.orderItemId) return false;
+  const item = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });
+  return importIdFromConfig(item?.config) !== null;
+}
+
+/** The order stays unfulfilled until every remaining application is ready. appliedAt is not readiness. */
 export async function syncOrderFulfillment(orderId: string): Promise<void> {
   const instances = await prisma.instance.findMany({
     where: { orderId },
@@ -77,11 +84,15 @@ export async function syncOrderFulfillment(orderId: string): Promise<void> {
   });
   const flags = [];
   for (const instance of instances) {
-    const open = instance.applicationReadyAt ? null : await openImportForInstance(instance);
+    const attached = instance.applicationReadyAt ? false : await importAttached(instance);
     flags.push({
       cancelled: instance.status === 'CANCELLED',
       online: instance.status === 'ONLINE' || instance.status === 'RESTARTING' || instance.status === 'DEGRADED',
-      applicationReady: instance.status === 'CANCELLED' || Boolean(instance.applicationReadyAt) || !open,
+      applicationReady: fulfillmentAllowed({
+        cancelled: instance.status === 'CANCELLED',
+        applicationReady: Boolean(instance.applicationReadyAt),
+        importAttached: attached,
+      }),
     });
   }
   const decision = orderFulfillmentDecision({ instances: flags });
@@ -120,18 +131,36 @@ async function probeApplication(instance: Instance, productSlug: string): Promis
 }
 
 async function rememberOutcome(instance: Instance, source: OpenImport, observed: { state: 'succeeded' | 'failed' | 'building' | 'none'; message: string }, health: ApplicationHealth): Promise<void> {
-  if (source.appliedAt) return;
+  if (source.appliedAt && instance.applicationReadyAt) {
+    if (instance.orderId) await syncOrderFulfillment(instance.orderId);
+    return;
+  }
+  if (source.appliedAt && !instance.applicationReadyAt) {
+    if (health !== 'ready') {
+      await prisma.instance.update({
+        where: { id: instance.id },
+        data: { applicationError: 'The import was recorded before the application was marked ready, and the health check has not passed.' },
+      });
+      if (instance.orderId) await syncOrderFulfillment(instance.orderId);
+      return;
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.instance.update({ where: { id: instance.id }, data: { applicationReadyAt: new Date(), applicationError: null } });
+      await tx.orderItem.updateMany({
+        where: { instances: { some: { id: instance.id } } },
+        data: { fulfillmentStatus: 'FULFILLED', fulfillmentError: null },
+      });
+    });
+    if (instance.orderId) await syncOrderFulfillment(instance.orderId);
+    await notifyInstanceProvisioned({ userId: instance.userId, instanceName: instance.name, occurrence: new Date() });
+    return;
+  }
   const decision = afterDeployObservation({ deployState: observed.state, health, attempts: source.attempts });
-  await prisma.importSource.update({
-    where: { id: source.id },
-    data: {
-      phase: decision.phase,
-      appliedAt: decision.markApplied ? new Date() : null,
-      lastError: decision.error,
-      ...(decision.clearZip ? { zipBytes: null, zipBytesLength: 0 } : {}),
-    },
-  });
   if (!decision.fulfill) {
+    await prisma.importSource.update({
+      where: { id: source.id },
+      data: { phase: decision.phase, appliedAt: null, lastError: decision.error },
+    });
     await prisma.instance.update({
       where: { id: instance.id },
       data: { applicationError: decision.error ?? observed.message },
@@ -142,14 +171,23 @@ async function rememberOutcome(instance: Instance, source: OpenImport, observed:
     if (instance.orderId) await syncOrderFulfillment(instance.orderId);
     return;
   }
-  await prisma.instance.update({
-    where: { id: instance.id },
-    data: { applicationReadyAt: new Date(), applicationError: null },
+  const committed = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.importSource.updateMany({
+      where: { id: source.id, appliedAt: null },
+      data: { phase: 'applied', appliedAt: new Date(), lastError: null, zipBytes: null, zipBytesLength: 0 },
+    });
+    if (claimed.count !== 1) return false;
+    await tx.instance.update({ where: { id: instance.id }, data: { applicationReadyAt: new Date(), applicationError: null } });
+    await tx.orderItem.updateMany({
+      where: { instances: { some: { id: instance.id } } },
+      data: { fulfillmentStatus: 'FULFILLED', fulfillmentError: null },
+    });
+    return true;
   });
-  await prisma.orderItem.updateMany({
-    where: { instances: { some: { id: instance.id } } },
-    data: { fulfillmentStatus: 'FULFILLED', fulfillmentError: null },
-  });
+  if (!committed) {
+    if (instance.orderId) await syncOrderFulfillment(instance.orderId);
+    return;
+  }
   if (instance.orderId) await syncOrderFulfillment(instance.orderId);
   await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'deploy', message: 'The imported application is built and answered its health check.' } });
   await notifyInstanceProvisioned({ userId: instance.userId, instanceName: instance.name, occurrence: new Date() });
@@ -160,8 +198,12 @@ export async function settleImportedDeploy(instanceId: string, deployId: string,
   const instance = await prisma.instance.findUnique({ where: { id: instanceId }, include: { product: { select: { slug: true } } } });
   if (!instance) return;
   const source = await prisma.importSource.findFirst({ where: { instanceId, deployId, userId: instance.userId } });
-  if (!source || source.appliedAt) return;
-  const state = result.state === 'succeeded' || result.state === 'failed' ? result.state : 'none';
+  if (!source) return;
+  if (source.appliedAt && instance.applicationReadyAt) {
+    if (instance.orderId) await syncOrderFulfillment(instance.orderId);
+    return;
+  }
+  const state = source.appliedAt ? 'succeeded' : result.state === 'succeeded' || result.state === 'failed' ? result.state : 'none';
   const health = state === 'succeeded' ? await probeApplication(instance, source.productSlug || instance.product.slug) : 'unknown';
   await rememberOutcome(instance, source, { state, message: result.message }, health);
 }
@@ -247,8 +289,18 @@ export async function applyStoredImport(instance: Instance): Promise<void> {
 
 /** Continues imports that were left queued, checking, or failed before the attempt limit. */
 export async function recoverStoredImports(): Promise<number> {
+  const waiting = await prisma.instance.findMany({
+    where: { status: 'ONLINE', applicationReadyAt: null, orderItemId: { not: null } },
+    select: { id: true },
+    take: 20,
+  });
   const sources = await prisma.importSource.findMany({
-    where: { appliedAt: null, instanceId: { not: null }, phase: { in: ['pending', 'queued', 'checking', 'failed'] } },
+    where: {
+      OR: [
+        { appliedAt: null, instanceId: { not: null }, phase: { in: ['pending', 'queued', 'checking', 'failed'] } },
+        { instanceId: { in: waiting.map((row) => row.id) }, appliedAt: { not: null } },
+      ],
+    },
     orderBy: { createdAt: 'asc' },
     take: 20,
   });
@@ -257,6 +309,16 @@ export async function recoverStoredImports(): Promise<number> {
     if (!source.instanceId) continue;
     const instance = await prisma.instance.findUnique({ where: { id: source.instanceId }, include: { product: { select: { slug: true } } } });
     if (!instance || instance.status !== 'ONLINE') continue;
+    if (source.appliedAt) {
+      if (instance.applicationReadyAt) {
+        if (instance.orderId) await syncOrderFulfillment(instance.orderId);
+        continue;
+      }
+      const health = await probeApplication(instance, source.productSlug || instance.product.slug);
+      await rememberOutcome(instance, source, { state: 'succeeded', message: source.lastError ?? '' }, health);
+      recovered += 1;
+      continue;
+    }
     if (source.phase === 'checking') {
       const health = await probeApplication(instance, source.productSlug || instance.product.slug);
       await rememberOutcome(instance, source, { state: 'succeeded', message: source.lastError ?? '' }, health);

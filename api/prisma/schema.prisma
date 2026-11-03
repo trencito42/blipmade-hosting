@@ -1109,8 +1109,13 @@ model RepurposeJob {
   fromProductId String
   toProductId   String
   backupUuid    String?
-  /// pending, archive_checked, refused, or switched.
-  state         String   @default("pending")
+  sha256          String?
+  archiveBytes    Int?
+  archiveEntries  Int?
+  /// Egg, image, startup and environment from before the switch, so a failed switch can be put back.
+  rollback        Json?
+  /// pending, archive_verified, switching, switched, restored, restore_failed, or refused.
+  state           String   @default("pending")
   error         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

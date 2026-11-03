@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['tests/lifecycle-decisions.test.ts', 'tests/discord-starters.test.ts'],
+    include: ['tests/lifecycle-decisions.test.ts', 'tests/discord-starters.test.ts', 'tests/backup-archive.test.ts'],
     testTimeout: 180_000,
     hookTimeout: 180_000,
   },

@@ -41,7 +41,9 @@ import {
   PaymentRequiredError,
   provisionInstance,
   reconcileInterruptedInstances,
+  recoverInterruptedRepurposes,
 } from './services/provisioning.js';
+import { retryPendingDowngradeCredits } from './services/upgrades.js';
 import { reconcileInvoicesWithProvider } from './services/billing.js';
 import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscriptions } from './services/billing.js';
 import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
@@ -234,7 +236,9 @@ async function reconcile(): Promise<void> {
   }
   const purged = await purgeExpiredImportArchives();
   const recovered = await recoverStoredImports();
-  if (purged || recovered) console.info(`[worker] import archives purged=${purged} recovered=${recovered}`);
+  const restored = await recoverInterruptedRepurposes();
+  const credits = await retryPendingDowngradeCredits();
+  if (purged || recovered || restored || credits) console.info(`[worker] import archives purged=${purged} recovered=${recovered} repurpose restored=${restored} downgrade credits=${credits}`);
 }
 
 /**

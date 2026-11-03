@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 F="-f compose.yml -f compose.api.yml -f compose.web.yml"
 
-[ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "REFUSED: the production folder has changes that are not commits:"; git status --short | head; exit 1; }
+[ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "REFUSED: the production folder has changes that are not commits:"; git status --short | sed -n '1,10p'; exit 1; }
 git fetch -q origin main
 git checkout -q main 2>/dev/null || git checkout -q -B main origin/main
 git merge --ff-only -q origin/main || { echo "REFUSED: main cannot be fast-forwarded. Production is never merged by hand."; exit 1; }
@@ -28,7 +28,7 @@ gzip -t "$BACKUP" && echo "Backup: $BACKUP"
 
 for s in api web worker; do docker tag "blipmade-$s:latest" "blipmade-$s:before-$SHA" 2>/dev/null || true; done
 [ -f web/public/fontawesome/css/pro.min.css ] || { echo "REFUSED: web/public/fontawesome is missing. The licensed icon font is not in git; restore it with scripts/download-fontawesome-pro.py."; exit 1; }
-docker compose -p blipmade $F build api web worker > /tmp/deploy-build.log 2>&1 || { grep -E "error TS|ERROR" /tmp/deploy-build.log | head; echo "BUILD FAILED, nothing was changed."; exit 1; }
+docker compose -p blipmade $F build api web worker > /tmp/deploy-build.log 2>&1 || { grep -E "error TS|ERROR" /tmp/deploy-build.log | sed -n '1,20p'; echo "BUILD FAILED, nothing was changed."; exit 1; }
 env -u DATABASE_URL bash scripts/apply-migrations.sh | tail -2
 
 docker compose -p blipmade $F up -d --no-deps api web

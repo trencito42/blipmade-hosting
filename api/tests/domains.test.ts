@@ -8,13 +8,17 @@ import { closeApp, createAdmin, getApp, registerAndLogin, resetDatabase } from '
  * The DNS lookup is replaced, so the suite never touches the network. The
  * records that are published are collected in a map the tests fill in.
  */
-const { txtRecords } = vi.hoisted(() => ({ txtRecords: new Map<string, string[]>() }));
+const { txtRecords, addressRecords } = vi.hoisted(() => ({
+  txtRecords: new Map<string, string[]>(),
+  addressRecords: new Map<string, string[]>(),
+}));
 
 vi.mock('../src/services/dns.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/services/dns.js')>();
   return {
     ...actual,
     resolveTxt: vi.fn(async (host: string) => ({ values: txtRecords.get(host) ?? [], error: null })),
+    resolveAddresses: vi.fn(async (host: string) => ({ values: addressRecords.get(host) ?? [], error: null })),
   };
 });
 
@@ -79,6 +83,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetDatabase();
   txtRecords.clear();
+  addressRecords.clear();
   applyRoute.mockReset();
   applyRoute.mockResolvedValue({
     applied: false,
@@ -313,6 +318,7 @@ describe('proving the ownership of a hostname', () => {
     const token = claimed.body.domain.verification.token as string;
 
     txtRecords.set('_blipmade-verify.proven.example.com', [token]);
+    addressRecords.set('proven.example.com', ['193.34.214.143']);
     applyRoute.mockResolvedValue({ applied: true, reason: null, routeId: 'blipmade-route-test' });
 
     const response = await client.request('POST', `/api/domains/${domainId}/verify`);
@@ -343,6 +349,7 @@ describe('proving the ownership of a hostname', () => {
     const token = claimed.body.domain.verification.token as string;
 
     txtRecords.set('_blipmade-verify.waiting.example.com', [token]);
+    addressRecords.set('waiting.example.com', ['193.34.214.143']);
     applyRoute.mockResolvedValue({
       applied: false,
       reason: 'The gateway is not configured on this environment.',

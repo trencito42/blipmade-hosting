@@ -108,6 +108,16 @@ export function orderFulfillmentDecision(input: { instances: { cancelled: boolea
   return open.every((instance) => instance.online && instance.applicationReady) ? 'FULFILLED' : 'PROVISIONING';
 }
 
+/**
+ * appliedAt alone is not readiness. An import stays unfulfilled until applicationReadyAt is set,
+ * including when the process stopped between those two writes.
+ */
+export function fulfillmentAllowed(input: { cancelled: boolean; applicationReady: boolean; importAttached: boolean }): boolean {
+  if (input.cancelled) return true;
+  if (input.applicationReady) return true;
+  return !input.importAttached;
+}
+
 export function healthKind(productSlug: string): 'process' | 'http' {
   return productSlug === 'discord-bot' ? 'process' : 'http';
 }

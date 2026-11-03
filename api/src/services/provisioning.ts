@@ -19,8 +19,9 @@ import { cancelSubscription, findPaymentIntentForSubscription, refundPayment } f
 import { formatMoney } from '../lib/money.js';
 import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
+import { ArchiveError, verifyBackupStream } from './backup-archive.js';
 import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
-import { archiveHeaderProblem, backupCompleted, maySwitchProduct, readStreamPrefix } from './repurpose-gate.js';
+import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
 import {
   generateVariables,
   openVariables,
@@ -767,31 +768,121 @@ export async function repurposeInstance(input: {
     finished = backupCompleted({ completedAt: row?.completed_at ?? null, successful: row?.is_successful === true });
   }
   if (!finished) await refuse('The backup did not finish, so the server was not switched.');
-  await prisma.repurposeJob.update({ where: { id: job.id }, data: { backupUuid: latest.uuid } });
-  let header: Buffer;
+  let integrity: { sha256: string; bytes: number; entries: number };
   try {
-    header = await readStreamPrefix(await pteroClient.downloadBackup(input.token, input.uuid, latest.uuid));
+    integrity = await verifyBackupStream(await pteroClient.downloadBackup(input.token, input.uuid, latest.uuid));
   } catch (error) {
-    await refuse('The backup could not be opened, so the server was not switched.');
+    await refuse(error instanceof ArchiveError ? error.message : 'The backup could not be opened, so the server was not switched.');
     throw error;
   }
-  const decision = maySwitchProduct({ completed: true, archiveProblem: archiveHeaderProblem(header) });
+  const decision = maySwitchProduct({ completed: true, archiveProblem: null });
   if (!decision.ok) await refuse(decision.reason);
-  await prisma.repurposeJob.update({ where: { id: job.id }, data: { state: 'archive_checked', error: null } });
-  const egg = await resolveEgg(target);
-  await ptero.updateServerStartup(instance.pterodactylServerId, {
-    egg: egg.egg,
-    image: egg.image,
-    startup: egg.startup,
-    environment: egg.environment,
-    skip_scripts: false,
+  const current = await ptero.getServer(instance.pterodactylServerId as number);
+  const rollback: RepurposeRollback = {
+    egg: current.egg,
+    image: current.container.image,
+    startup: current.container.startup_command,
+    environment: current.container.environment,
+  };
+  await prisma.repurposeJob.update({
+    where: { id: job.id },
+    data: {
+      backupUuid: latest.uuid,
+      sha256: integrity.sha256,
+      archiveBytes: integrity.bytes,
+      archiveEntries: integrity.entries,
+      rollback: JSON.parse(JSON.stringify(rollback)),
+      state: 'switching',
+      error: null,
+    },
   });
-  await ptero.reinstallServer(instance.pterodactylServerId);
-  await prisma.instance.update({ where: { id: instance.id }, data: { productId: target.id } });
+  const outcome = await runRepurposeSwitch({
+    change: async () => {
+      const egg = await resolveEgg(target);
+      await ptero.updateServerStartup(instance.pterodactylServerId as number, {
+        egg: egg.egg,
+        image: egg.image,
+        startup: egg.startup,
+        environment: egg.environment,
+        skip_scripts: false,
+      });
+      await ptero.reinstallServer(instance.pterodactylServerId as number);
+      // The product and the switched mark move together. A crash after this
+      // is a finished switch. A crash before it is still switching, so recovery restores the backup.
+      await prisma.$transaction([
+        prisma.instance.update({ where: { id: instance.id }, data: { productId: target.id } }),
+        prisma.repurposeJob.update({ where: { id: job.id }, data: { state: 'switched', error: null } }),
+      ]);
+    },
+    restore: () => pteroClient.restoreBackup(input.token, input.uuid, latest.uuid),
+    revert: () => ptero.updateServerStartup(instance.pterodactylServerId as number, {
+      egg: rollback.egg,
+      image: rollback.image,
+      startup: rollback.startup,
+      environment: rollback.environment,
+      skip_scripts: true,
+    }).then(() => undefined),
+  });
+  if (outcome.state !== 'switched') {
+    if (outcome.state === 'restored') {
+      await prisma.instance.update({ where: { id: instance.id }, data: { productId: instance.productId } });
+    }
+    await prisma.repurposeJob.update({ where: { id: job.id }, data: { state: outcome.state, error: outcome.error } });
+    throw conflict(outcome.state === 'restored'
+      ? 'The switch failed. The backup was restored and the previous program was put back.'
+      : 'The switch failed and the backup could not be restored. The server was not left marked as switched.');
+  }
   await prisma.repurposeJob.update({ where: { id: job.id }, data: { state: 'switched', error: null } });
   await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'repurpose', message: `Switched to ${target.name} after a backup. The install is running.` } });
   await audit({ actorId: input.actorId, actorEmail: input.actorEmail, action: 'instance.repurposed', targetType: 'instance', targetId: instance.id, meta: { from: instance.product.slug, to: target.slug } });
   return { name: target.name };
+}
+
+/** Puts back a switch that stopped after the egg was being changed. */
+export async function recoverInterruptedRepurposes(): Promise<number> {
+  const jobs = await prisma.repurposeJob.findMany({
+    where: { state: 'switching' },
+    include: { instance: true },
+    take: 10,
+    orderBy: { createdAt: 'asc' },
+  });
+  let recovered = 0;
+  for (const job of jobs) {
+    if (!interruptedSwitchNeedsRestore(job.state)) continue;
+    const rollback = job.rollback as RepurposeRollback | null;
+    const instance = job.instance;
+    if (!job.backupUuid || !rollback || !instance.pterodactylUuid || !instance.pterodactylServerId) {
+      await prisma.repurposeJob.update({
+        where: { id: job.id },
+        data: { state: 'restore_failed', error: 'The interrupted switch has no backup to restore.' },
+      });
+      continue;
+    }
+    try {
+      const credential = await resolveCustomerCredential(instance.userId);
+      const token = pteroClient.clientToken(credential.token);
+      await pteroClient.restoreBackup(token, instance.pterodactylUuid, job.backupUuid);
+      await ptero.updateServerStartup(instance.pterodactylServerId, {
+        egg: rollback.egg,
+        image: rollback.image,
+        startup: rollback.startup,
+        environment: rollback.environment,
+        skip_scripts: true,
+      });
+      await prisma.instance.update({ where: { id: instance.id }, data: { productId: job.fromProductId } });
+      await prisma.repurposeJob.update({
+        where: { id: job.id },
+        data: { state: 'restored', error: 'The switch was interrupted and the backup was restored.' },
+      });
+    } catch (error) {
+      await prisma.repurposeJob.update({
+        where: { id: job.id },
+        data: { state: 'restore_failed', error: error instanceof Error ? error.message : 'The backup could not be restored.' },
+      });
+    }
+    recovered += 1;
+  }
+  return recovered;
 }
 
 /**

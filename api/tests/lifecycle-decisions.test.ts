@@ -1,7 +1,7 @@
+import { createServer } from 'node:net';
 import { describe, expect, it } from 'vitest';
-import { Readable } from 'node:stream';
-import { archiveHeaderProblem, backupCompleted, maySwitchProduct, readStreamPrefix } from '../src/services/repurpose-gate.js';
-import { activationStatus, classifyHttpsResponse, httpDomainUpdate } from '../src/services/domain-activation.js';
+import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, runRepurposeSwitch } from '../src/services/repurpose-gate.js';
+import { activationStatus, classifyHttpsResponse, httpDomainUpdate, probeTcpPort } from '../src/services/domain-activation.js';
 import { approvalDecision, recordsFingerprint, type CustomerRecord, type RecordPreview } from '../src/services/dns-approval.js';
 import {
   IMPORT_MAX_ATTEMPTS,
@@ -9,6 +9,7 @@ import {
   afterDeployObservation,
   afterQueueAttempt,
   deployOutcomeFromMessage,
+  fulfillmentAllowed,
   orderFulfillmentDecision,
   queuedImportIsStale,
   zipQuotaProblem,
@@ -61,9 +62,9 @@ describe('import application state', () => {
     expect(orderFulfillmentDecision({
       instances: [{ cancelled: false, online: true, applicationReady: true }],
     })).toBe('FULFILLED');
-    expect(orderFulfillmentDecision({
-      instances: [{ cancelled: true, online: false, applicationReady: false }, { cancelled: false, online: true, applicationReady: true }],
-    })).toBe('FULFILLED');
+    expect(fulfillmentAllowed({ cancelled: false, applicationReady: false, importAttached: true })).toBe(false);
+    expect(fulfillmentAllowed({ cancelled: false, applicationReady: true, importAttached: true })).toBe(true);
+    expect(fulfillmentAllowed({ cancelled: false, applicationReady: false, importAttached: false })).toBe(true);
   });
 });
 
@@ -91,6 +92,16 @@ describe('hostname readiness', () => {
     expect(classifyHttpsResponse({ handshake: true, status: 200 })).toEqual({ tls: 'ready', application: 'ready' });
     expect(classifyHttpsResponse({ handshake: true, status: 302 })).toEqual({ tls: 'ready', application: 'unknown' });
     expect(classifyHttpsResponse({ handshake: true, status: 502 })).toEqual({ tls: 'ready', application: 'unhealthy' });
+  });
+
+  it('accepts a game port only when something is listening', async () => {
+    expect(await probeTcpPort('127.0.0.1', 1, 300)).toBe(false);
+    const server = createServer();
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    const port = typeof address === 'object' && address ? address.port : 0;
+    expect(await probeTcpPort('127.0.0.1', port, 1000)).toBe(true);
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   });
 
   it('does not mark a game hostname active from an HTTP route, or a site active without a certificate', () => {
@@ -163,19 +174,26 @@ describe('DNS approval binding', () => {
 });
 
 describe('repurpose backup gate', () => {
-  it('refuses a completed flag when the archive cannot be opened', async () => {
+  it('restores the previous server when the switch fails', async () => {
     expect(backupCompleted({ completedAt: null, successful: true })).toBe(false);
-    expect(backupCompleted({ completedAt: '2026-11-03T00:00:00Z', successful: false })).toBe(false);
-    expect(backupCompleted({ completedAt: '2026-11-03T00:00:00Z', successful: true })).toBe(true);
-    expect(maySwitchProduct({ completed: true, archiveProblem: 'not an archive' }).ok).toBe(false);
-    expect(maySwitchProduct({ completed: false, archiveProblem: null }).ok).toBe(false);
+    expect(maySwitchProduct({ completed: true, archiveProblem: 'truncated' }).ok).toBe(false);
     expect(maySwitchProduct({ completed: true, archiveProblem: null }).ok).toBe(true);
-    const gzip = Buffer.from([0x1f, 0x8b, 0x08, 0x00]);
-    expect(archiveHeaderProblem(gzip)).toBeNull();
-    expect(archiveHeaderProblem(Buffer.from('{"error":true}'))).toMatch(/not a readable archive/);
-    const stream = Readable.from([Buffer.from([0x1f, 0x8b]), Buffer.from([0x08, 0x00, 0x01])]);
-    const prefix = await readStreamPrefix(stream, 4);
-    expect(prefix).toEqual(gzip);
+    expect(interruptedSwitchNeedsRestore('switching')).toBe(true);
+    expect(interruptedSwitchNeedsRestore('archive_verified')).toBe(false);
+    const calls: string[] = [];
+    const failed = await runRepurposeSwitch({
+      change: async () => { calls.push('change'); throw new Error('install failed'); },
+      restore: async () => { calls.push('restore'); },
+      revert: async () => { calls.push('revert'); },
+    });
+    expect(failed.state).toBe('restored');
+    expect(calls).toEqual(['change', 'restore', 'revert']);
+    const broken = await runRepurposeSwitch({
+      change: async () => { throw new Error('install failed'); },
+      restore: async () => { throw new Error('restore failed'); },
+      revert: async () => undefined,
+    });
+    expect(broken.state).toBe('restore_failed');
   });
 });
 

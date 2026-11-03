@@ -2,7 +2,7 @@ import { prisma } from '../db.js';
 import { nextOrderNumber } from './order-numbers.js';
 import { badRequest } from '../lib/errors.js';
 import { audit } from '../lib/audit.js';
-import { instanceTerm, priceConfiguration, resourceRates, validateConfiguration } from './pricing.js';
+import { instanceTerm, priceConfiguration, resourceRates, validateConfiguration, yearlyDiscountPercent } from './pricing.js';
 import { findStripeCustomerId, giveBalanceCredit, refundPayment, updateSubscriptionAmount } from './stripe.js';
 import { notifyUpgradeCompleted, notifyUpgradeFailed } from './notifications.js';
 import * as pteroApp from './pterodactyl/application.js';
@@ -248,16 +248,26 @@ export async function quoteResourceChange(
     throw badRequest(`This service already has two resource changes in the last 30 days. Next change available ${nextChangeAt?.slice(0, 10)}.`);
   }
   const period = await instanceTerm(instance.orderItemId);
-  const price = await prisma.productPrice.findFirst({
+  let price = await prisma.productPrice.findFirst({
     where: { productId: instance.productId, period, active: true },
     orderBy: { createdAt: 'desc' },
   });
+  if (!price && period === 'YEARLY' && instance.product.fulfilment === 'SERVER') {
+    price = await prisma.productPrice.findFirst({
+      where: { productId: instance.productId, period: 'MONTHLY', active: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
   if (!price) throw badRequest(period === 'YEARLY' ? 'This yearly service has no yearly price, so the change cannot be settled.' : 'This product has no active price.');
 
   validateConfiguration(instance.product, request);
 
-  const newPrice = priceConfiguration(price, instance.product, request, [], await resourceRates());
-  const recurringDelta = newPrice - instance.price;
+  const rates = await resourceRates();
+  const discount = await yearlyDiscountPercent();
+  const currentConfig = { ram: instance.ram, cpu: instance.cpu, disk: instance.disk };
+  const newPrice = priceConfiguration(price, instance.product, request, [], rates, period, discount);
+  const currentPrice = priceConfiguration(price, instance.product, currentConfig, [], rates, period, discount);
+  const recurringDelta = newPrice - currentPrice;
   const subscription = await prisma.subscription.findFirst({
     where: { instanceId: instance.id },
     select: { currentPeriodStart: true, currentPeriodEnd: true },
@@ -265,7 +275,7 @@ export async function quoteResourceChange(
   const prorated = prorateRemaining(recurringDelta, subscription?.currentPeriodStart ?? null, subscription?.currentPeriodEnd ?? null);
 
   return {
-    currentPrice: instance.price,
+    currentPrice,
     newPrice,
     priceDelta: prorated.dueNow,
     recurringDelta,
@@ -341,6 +351,75 @@ export async function createUpgradeOrder(
  * order that is still paid when the refund could not be executed, so an
  * operator has to return the money.
  */
+/**
+ * Writes the unused-time credit after the panel has already accepted the new limits.
+ * A missing provider customer, or a provider error, leaves no local credit, so a later call can try again.
+ * The lock and the existing credit row keep a repeated call from writing a second credit.
+ */
+export async function recordDowngradeCredit(order: {
+  id: string;
+  userId: string;
+  number: string;
+  discount: number;
+  total: number;
+  currency: string;
+}): Promise<boolean> {
+  if (order.total !== 0 || order.discount <= 0) return false;
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'resize-credit:' + order.id}))`;
+    const already = await tx.moneyAdjustment.findFirst({ where: { orderId: order.id, kind: 'credit' }, select: { id: true } });
+    if (already) return false;
+    const customerId = await findStripeCustomerId(order.userId);
+    if (!customerId) return false;
+    let providerRef: string;
+    try {
+      providerRef = await giveBalanceCredit({
+        customerId,
+        amount: order.discount,
+        currency: order.currency,
+        description: `Unused time after a resource decrease (${order.number})`,
+        idempotencyKey: `resize-credit:${order.id}`,
+      });
+    } catch {
+      return false;
+    }
+    await tx.moneyAdjustment.create({
+      data: {
+        userId: order.userId,
+        orderId: order.id,
+        kind: 'credit',
+        amount: order.discount,
+        currency: order.currency,
+        reason: 'Unused time after a resource decrease',
+        providerRef,
+      },
+    });
+    return true;
+  });
+}
+
+/** Credits downgrades whose resources were applied and whose balance credit is still missing. */
+export async function retryPendingDowngradeCredits(): Promise<number> {
+  const orders = await prisma.order.findMany({
+    where: { kind: 'UPGRADE', fulfillmentStatus: 'FULFILLED', total: 0, discount: { gt: 0 } },
+    orderBy: { updatedAt: 'asc' },
+    take: 20,
+    select: { id: true, userId: true, number: true, discount: true, total: true, currency: true },
+  });
+  if (!orders.length) return 0;
+  const credited = await prisma.moneyAdjustment.findMany({
+    where: { kind: 'credit', orderId: { in: orders.map((order) => order.id) } },
+    select: { orderId: true },
+  });
+  const done = new Set(credited.map((row) => row.orderId));
+  let count = 0;
+  for (const order of orders) {
+    if (done.has(order.id)) continue;
+    if (await recordDowngradeCredit(order)) count += 1;
+  }
+  return count;
+}
+
 export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boolean; reason: string | null }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -354,7 +433,10 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
   if (!order) return { applied: false, reason: 'Order not found.' };
   if (order.kind !== 'UPGRADE') return { applied: false, reason: 'This order is not a resource change.' };
   if (!order.instance) return { applied: false, reason: 'The instance of this order no longer exists.' };
-  if (order.fulfillmentStatus === 'FULFILLED') return { applied: true, reason: null };
+  if (order.fulfillmentStatus === 'FULFILLED') {
+    await recordDowngradeCredit(order);
+    return { applied: true, reason: null };
+  }
 
   const refundState = refundStateOf(order);
 
@@ -557,17 +639,28 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
 
   // The panel accepted the change, so the local state follows.
   const term = await instanceTerm(instance.orderItemId);
-  const price = await prisma.productPrice.findFirst({
+  let price = await prisma.productPrice.findFirst({
     where: { productId: instance.productId, period: term, active: true },
     orderBy: { createdAt: 'desc' },
   });
-  const newPrice = price
-    ? priceConfiguration(price, instance.product, request, [], await resourceRates())
+  if (!price && term === 'YEARLY' && instance.product.fulfilment === 'SERVER') {
+    price = await prisma.productPrice.findFirst({
+      where: { productId: instance.productId, period: 'MONTHLY', active: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+  const rates = await resourceRates();
+  const discount = await yearlyDiscountPercent();
+  const monthlyPrice = price
+    ? priceConfiguration(price, instance.product, request, [], rates, 'MONTHLY', 0)
+    : instance.price;
+  const billedPrice = price
+    ? priceConfiguration(price, instance.product, request, [], rates, term, discount)
     : instance.price;
 
   await prisma.instance.update({
     where: { id: instance.id },
-    data: { ram: request.ram, cpu: request.cpu, disk: request.disk, price: newPrice },
+    data: { ram: request.ram, cpu: request.cpu, disk: request.disk, price: monthlyPrice },
   });
 
   // The subscription now bills the new amount. A provider failure here does
@@ -575,10 +668,10 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
   const subscription = await prisma.subscription.findFirst({ where: { instanceId: instance.id } });
   if (subscription) {
     try {
-      await updateSubscriptionAmount(subscription, newPrice);
+      await updateSubscriptionAmount(subscription, billedPrice);
       await prisma.subscription.update({
         where: { id: subscription.id },
-        data: { amount: newPrice },
+        data: { amount: billedPrice },
       });
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'The billing provider rejected the new amount.';
@@ -593,7 +686,7 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
         action: 'instance.upgrade_billing_mismatch',
         targetType: 'order',
         targetId: order.id,
-        meta: { instanceId: instance.id, price: newPrice, reason },
+        meta: { instanceId: instance.id, price: billedPrice, reason },
       });
     }
   }
@@ -602,6 +695,7 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
     where: { id: order.id },
     data: { fulfillmentStatus: 'FULFILLED', status: 'FULFILLED' },
   });
+  await recordDowngradeCredit(order);
   await prisma.instanceEvent.create({
     data: {
       instanceId: instance.id,
@@ -613,7 +707,7 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
     action: 'instance.upgrade_applied',
     targetType: 'order',
     targetId: order.id,
-    meta: { instanceId: instance.id, ...request, price: newPrice },
+    meta: { instanceId: instance.id, ...request, price: monthlyPrice },
   });
 
   // The change of the resources went through, so the customer is told. The
@@ -632,10 +726,8 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
 /**
  * Settles a change that costs less than the service the customer already has.
  *
- * There is no money to collect: the difference is credited on the next
- * invoice, so the platform settles the order itself. The order is marked as
- * paid here, because `applyUpgradeOrder` only applies a change that was paid
- * for.
+ * There is no money to collect, so the order is marked paid here.
+ * The balance credit is written only after `applyUpgradeOrder` changes the server.
  */
 export async function settleFreeUpgradeOrder(
   orderId: string,
@@ -653,39 +745,6 @@ export async function settleFreeUpgradeOrder(
     data: { status: 'PAID', paidAt: new Date() },
   });
   if (transitioned.count !== 1) throw badRequest('This resource change cannot be settled in its current state.');
-  if (order.discount > 0) {
-    const already = await prisma.moneyAdjustment.findFirst({ where: { orderId, kind: 'credit' }, select: { id: true } });
-    if (!already) {
-      let providerRef: string | null = null;
-      const customerId = await findStripeCustomerId(order.userId);
-      if (customerId) {
-        try {
-          providerRef = await giveBalanceCredit({
-            customerId,
-            amount: order.discount,
-            currency: order.currency,
-            description: `Unused time after a resource decrease (${order.number})`,
-            idempotencyKey: `resize-credit:${order.id}`,
-          });
-        } catch {
-          providerRef = null;
-        }
-      }
-      await prisma.moneyAdjustment.create({
-        data: {
-          userId: order.userId,
-          orderId,
-          kind: 'credit',
-          amount: order.discount,
-          currency: order.currency,
-          reason: 'Unused time after a resource decrease',
-          actorId: actor.id,
-          actorEmail: actor.email,
-          providerRef,
-        },
-      });
-    }
-  }
   await audit({
     actorId: actor.id,
     actorEmail: actor.email,

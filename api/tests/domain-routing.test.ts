@@ -58,7 +58,7 @@ vi.mock('../src/env.js', async (importOriginal) => {
 });
 
 const { hostnameProbe } = vi.hoisted(() => ({
-  hostnameProbe: vi.fn(async () => ({ tls: 'ready' as const, application: 'ready' as const })),
+  hostnameProbe: vi.fn(async (): Promise<{ tls: 'ready' | 'unavailable' | 'unknown'; application: 'ready' | 'unhealthy' | 'unknown' }> => ({ tls: 'ready', application: 'ready' })),
 }));
 
 vi.mock('../src/services/domain-activation.js', async (importOriginal) => {

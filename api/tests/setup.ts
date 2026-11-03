@@ -10,58 +10,18 @@ import { assertDisposableDatabase } from '../src/lib/test-target.js';
 assertDisposableDatabase({ label: 'run the tests' });
 
 /**
- * Every test file starts from an empty database. The order matters because of
- * the foreign keys.
+ * Every test file starts from an empty database. The list is read from the
+ * database so a new table is emptied too. The migration history stays.
  */
-const TABLES = [
-  'VpsSlot',
-  'ContentRevision',
-  'MailJob',
-  'MailAlias',
-  'Mailbox',
-  'MailDomain',
-  'DeadLetterJob',
-  'AuditLog',
-  'WebhookEvent',
-  'ProvisioningJob',
-  'InstanceEvent',
-  'InstanceDomain',
-  'SupportAutomationRun',
-  'SupportAutomation',
-  'SupportBotSession',
-  'SupportBotVersion',
-  'SupportBot',
-  'SupportPresence',
-  'SupportDepartmentMember',
-  'TicketEvent',
-  'TicketMessage',
-  'Ticket',
-  'SupportDepartment',
-  'Payment',
-  'Invoice',
-  'Subscription',
-  'OrderItem',
-  'Order',
-  'Promotion',
-  'Instance',
-  'ProductOption',
-  'ProductPrice',
-  'Product',
-  'Node',
-  'Egg',
-  'StaffMember',
-  'VerificationToken',
-  'EmailChangeRequest',
-  'NotificationPreference',
-  'Notification',
-  'NotificationEvent',
-  'MailDelivery',
-  'Session',
-  'PanelCredential',
-  'User',
-  'Setting',
-];
-
 export async function resetDatabase(): Promise<void> {
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${TABLES.map((table) => `"${table}"`).join(', ')} CASCADE;`);
+  const rows = await prisma.$queryRaw<{ tablename: string }[]>`
+    SELECT tablename FROM pg_tables
+    WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
+  `;
+  const names = rows
+    .map((row) => row.tablename)
+    .filter((name) => /^[A-Za-z0-9_]+$/.test(name))
+    .map((name) => `"${name}"`);
+  if (!names.length) return;
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} CASCADE;`);
 }

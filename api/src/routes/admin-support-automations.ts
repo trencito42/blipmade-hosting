@@ -76,15 +76,18 @@ export async function registerAdminSupportAutomationRoutes(app: FastifyInstance)
     const { id } = z.object({ id: z.string() }).parse(request.params);
     const existing = await prisma.supportAutomation.findUnique({ where: { id } });
     if (!existing) throw notFound('Rule not found.');
+    const sent = request.body && typeof request.body === 'object' ? request.body as Record<string, unknown> : {};
     const body = ruleBody.partial().extend({ enabled: z.boolean().optional() }).parse(request.body);
+    // Defaults on the schema must not replace fields the request left out.
+    // Enabling a rule is one field; it keeps the conditions and the priority.
     const merged = ruleBody.parse({
       name: body.name ?? existing.name,
       trigger: body.trigger ?? existing.trigger,
-      priority: body.priority ?? existing.priority,
-      afterMinutes: body.afterMinutes === undefined ? existing.afterMinutes : body.afterMinutes,
-      conditions: body.conditions ?? existing.conditions,
-      actions: body.actions ?? existing.actions,
-      actorId: body.actorId === undefined ? existing.actorId : body.actorId,
+      priority: 'priority' in sent ? body.priority : existing.priority,
+      afterMinutes: 'afterMinutes' in sent ? body.afterMinutes : existing.afterMinutes,
+      conditions: 'conditions' in sent ? body.conditions : existing.conditions,
+      actions: 'actions' in sent ? body.actions : existing.actions,
+      actorId: 'actorId' in sent ? body.actorId : existing.actorId,
     });
     const problem = await checkReferences(merged, merged.actorId ?? null);
     if (problem) throw badRequest(problem);

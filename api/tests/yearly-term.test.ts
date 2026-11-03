@@ -152,10 +152,13 @@ describe('an instance bought for a year', () => {
     expect(updated?.price).toBe(month);
   });
 
-  it('refuses a change of resources and says why', async () => {
+  it('prices a yearly resource change from the monthly card', async () => {
     const { quoteResourceChange } = await import('../src/services/upgrades.js');
     const instance = await yearlyInstance(374);
-    await expect(quoteResourceChange(instance, { ram: 2048, cpu: 2, disk: 20 })).rejects.toThrow(/billed yearly/);
+    const result = await quoteResourceChange(instance, { ram: 2048, cpu: 2, disk: 20 });
+    expect(result.period).toBe('YEARLY');
+    expect(result.newPrice).toBeGreaterThan(result.currentPrice);
+    expect(result.priceDelta).toBe(result.newPrice - result.currentPrice);
   });
 
   it('still prices the change of a monthly instance', async () => {

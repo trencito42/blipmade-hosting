@@ -11,7 +11,7 @@ import * as gateway from '../services/gateway.js';
 import { platformSubdomainStatus } from '../services/provisioning.js';
 import * as dns from '../services/dns.js';
 import { deleteZoneRecord, upsertZoneRecord } from '../services/cloudflare-dns.js';
-import { httpDomainUpdate, probeHostname } from '../services/domain-activation.js';
+import { httpDomainUpdate, probeHostname, probeTcpPort } from '../services/domain-activation.js';
 import { deleteOwnedRecords, openZoneToken, previewCustomerRecords, publishCustomerRecords, recordsFingerprint, sealZoneToken, zoneForToken, DNS_PREVIEW_TTL_MS, approvalDecision, type CustomerRecord, type RecordPreview } from '../services/customer-cloudflare.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
@@ -675,7 +675,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       const placement = await gamePlacement(domain.instanceId);
       const expected = placement.address ?? domain.gameAddress;
       const published = await dns.resolveAddresses(domain.hostname);
-      const ready = Boolean(expected) && !published.error && published.values.includes(expected ?? '');
+      const addressReady = Boolean(expected) && !published.error && published.values.includes(expected ?? '');
+      const port = placement.port || domain.targetPort;
+      const portOpen = addressReady ? await probeTcpPort(expected ?? '', port) : false;
+      const ready = addressReady && portOpen;
       const updated = await prisma.instanceDomain.update({
         where: { id: domain.id },
         data: {
@@ -683,8 +686,12 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
           verifiedAt,
           gameAddress: expected,
           srvPort: placement.srvPort ?? domain.srvPort,
-          targetPort: placement.port || domain.targetPort,
-          lastError: ready ? null : (published.error ?? `Ownership is proven. Publish a DNS-only A record for ${domain.hostname} to ${expected ?? 'the server address'}. Do not proxy it. Found ${published.values.join(', ') || 'nothing'}.`),
+          targetPort: port,
+          lastError: ready
+            ? null
+            : addressReady
+              ? `The address record is published. Nothing is accepting connections on port ${port} yet.`
+              : (published.error ?? `Ownership is proven. Publish a DNS-only A record for ${domain.hostname} to ${expected ?? 'the server address'}. Do not proxy it. Found ${published.values.join(', ') || 'nothing'}.`),
         },
         include: { instance: { select: { name: true } } },
       });

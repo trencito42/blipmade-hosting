@@ -1,3 +1,5 @@
+import { connect } from 'node:net';
+
 /** Hostname readiness. A certificate and a healthy application are different facts. */
 
 export type TlsState = 'unknown' | 'ready' | 'unavailable';
@@ -44,6 +46,23 @@ export function httpDomainUpdate(input: {
     lastError = null;
   }
   return { status, lastError, tlsStatus: tls, applicationStatus: application, caddyRouteId: input.routeId };
+}
+
+/** Opens a TCP connection and closes it. A refused or timed-out port is not a reachable game server. */
+export function probeTcpPort(host: string, port: number, timeoutMs = 4000): Promise<boolean> {
+  if (!host || !Number.isInteger(port) || port < 1 || port > 65535) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const socket = connect({ host, port });
+    const finish = (open: boolean) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(open);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
 }
 
 /** Asks the public hostname. A certificate error is unavailable TLS, not an unhealthy application. */

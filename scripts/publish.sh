@@ -11,7 +11,7 @@ KEY=/root/.ssh/blipmade_vm103
 export GIT_SSH_COMMAND="ssh -i $KEY"
 cd "$(git rev-parse --show-toplevel)"
 
-[ -z "$(git status --porcelain)" ] || { echo "REFUSED: there are changes that are not committed."; git status --short | head; exit 1; }
+[ -z "$(git status --porcelain)" ] || { echo "REFUSED: there are changes that are not committed."; git status --short | sed -n '1,10p'; exit 1; }
 ssh -i "$KEY" "$VM" 'cd ~/relay && git fetch -q origin'
 git fetch -q relay
 git merge-base --is-ancestor github/main HEAD || { echo "REFUSED: your work is not on top of main. Run: git rebase github/main"; exit 1; }
