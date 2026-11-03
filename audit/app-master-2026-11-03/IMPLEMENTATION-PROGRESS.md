@@ -474,3 +474,18 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Full web unit suite: all pass after this checkpoint.
 - Production build: pass; 172 pages prerendered.
 - Focused Playwright suites (password, email, billing address): 5/5 pass, including exact POST/PUT payloads, validation, dirty guards and 390px overflow.
+
+## 2026-11-03 — Compact domain list
+
+### Completed
+
+- [x] Replaced the tall per-domain cards on `/app/domains` with one divided row each: hostname and instance on the left; status and a grouped action set (`ButtonGroup`) on the right, wrapping under the hostname on a phone.
+- [x] The paragraph about platform addresses moved into the tooltip of the Change button; Verify and Delete have tooltips too. The separator is drawn between rows and not under the last one.
+- [x] Custom domains keep their expanded DNS and verification instructions under the row.
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: pass.
+- Production build: pass; 172 pages prerendered.
+- Playwright domain suite: 4/4 pass, including row height under 90px for a platform address, the border between rows only, the tooltips, and a screenshot reviewed.
+- Not applied yet: the same compact pattern on the other list pages (instances, databases, backups, mail).

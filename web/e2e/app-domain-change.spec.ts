@@ -60,4 +60,19 @@ test.describe('dedicated domain pages', () => {
     await page.waitForURL('**/app/domains');
     expect(calls).toEqual(['delete']);
   });
+
+  test('the list is compact: one divided row per domain, grouped actions with tooltips', async ({ page }) => {
+    await stub(page, []);
+    await page.goto('/app/domains');
+    const rows = page.locator('article');
+    await expect(rows).toHaveCount(2);
+    const heights = await rows.evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().height)));
+    expect(heights[0]).toBeLessThan(90);
+    const borders = await rows.evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).borderTopWidth + '/' + getComputedStyle(node).borderBottomWidth));
+    expect(borders[1]).toBe('1px/0px');
+    expect(borders[0]).toBe('0px/0px');
+    await expect(page.getByRole('link', { name: 'Delete' }).first()).toHaveAttribute('title', /Delete this domain/);
+    await expect(page.getByRole('link', { name: 'Change' })).toHaveAttribute('title', /once in 7 days/);
+    await page.screenshot({ path: '/tmp/claude-0/-root/aae46db4-fcaf-4b45-85b9-bd3609e50f02/scratchpad/domains-list.png' });
+  });
 });

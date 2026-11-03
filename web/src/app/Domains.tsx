@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { get, post, type Domain } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
+import { ButtonGroup } from './components/premium';
 import {
   ButtonLink,
   EmptyState,
@@ -91,9 +92,9 @@ export default function Domains() {
             action={<ButtonLink to="/app/domains/new">Add your first domain</ButtonLink>}
           />
         ) : (
-          <div className="grid gap-3">
+          <div className="grid">
             {domains.map((domain) => (
-              <article key={domain.id} className="rounded-2xl bg-s2 p-4">
+              <article key={domain.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="w-0 min-w-0 flex-1">
                     <p
@@ -106,10 +107,38 @@ export default function Domains() {
                       {domain.instanceName} · port {domain.targetPort}
                     </p>
                   </div>
-                  {/* The status gets a line of its own on a phone, so the
-                      hostname is not cut to make room for the pill. */}
-                  <div className="w-full sm:w-auto">
+                  {/* The status and the actions share one line; on a phone they wrap under the hostname. */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <StatusPill status={DOMAIN_TONES[domain.status]} label={DOMAIN_STATUS_LABELS[domain.status]} />
+                    <ButtonGroup label={`Actions for ${domain.hostname}`}>
+                      {(domain.platform ?? isPlatformHostname(domain.hostname)) ? (
+                        <ButtonLink
+                          to={`/app/domains/${encodeURIComponent(domain.id)}/edit`}
+                          variant="soft"
+                          title="Change the name of this address. It belongs to Blipmade, so it needs no DNS record and no proof of ownership. The name can change once in 7 days."
+                        >
+                          Change
+                        </ButtonLink>
+                      ) : (
+                        <SoftButton
+                          onClick={() => {
+                            setVerifyingId(domain.id);
+                            void verify.run(domain.id).finally(() => setVerifyingId(null));
+                          }}
+                          disabled={verify.pending}
+                          title="Check the DNS records now. DNS can take a few minutes to update."
+                        >
+                          {verifyingId === domain.id ? 'Working…' : 'Verify'}
+                        </SoftButton>
+                      )}
+                      <ButtonLink
+                        to={`/app/domains/${encodeURIComponent(domain.id)}/delete`}
+                        variant="danger"
+                        title="Delete this domain. It stops resolving and cannot be restored."
+                      >
+                        Delete
+                      </ButtonLink>
+                    </ButtonGroup>
                   </div>
                 </div>
 
@@ -169,14 +198,7 @@ export default function Domains() {
                   </div>
                 )}
 
-                {domain.platform ?? isPlatformHostname(domain.hostname) ? (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-s2 p-4">
-                    <p className="min-w-0 flex-1 text-[13.5px] text-ink2">
-                      This address belongs to Blipmade, so it needs no DNS record and no proof of ownership. Its name can change once in 7 days.
-                    </p>
-                    <ButtonLink to={`/app/domains/${encodeURIComponent(domain.id)}/edit`} variant="soft">Change address</ButtonLink>
-                  </div>
-                ) : (
+                {!(domain.platform ?? isPlatformHostname(domain.hostname)) && (
                 <div className="mt-4">
                   <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
                     Address record to create
@@ -272,21 +294,6 @@ export default function Domains() {
                   )}
                 </div>
                 )}
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {!(domain.platform ?? isPlatformHostname(domain.hostname)) && (
-                  <SoftButton
-                    onClick={() => {
-                      setVerifyingId(domain.id);
-                      void verify.run(domain.id).finally(() => setVerifyingId(null));
-                    }}
-                    disabled={verify.pending}
-                  >
-                    {verifyingId === domain.id ? 'Working…' : 'Verify now'}
-                  </SoftButton>
-                  )}
-                  <ButtonLink to={`/app/domains/${encodeURIComponent(domain.id)}/delete`} variant="danger">Delete</ButtonLink>
-                </div>
               </article>
             ))}
           </div>
