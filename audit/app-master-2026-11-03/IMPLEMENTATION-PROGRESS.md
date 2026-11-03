@@ -185,3 +185,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static database-editor contract test: 1/1 pass.
 - Focused Playwright database editor suite: 2/2 pass, including exact POST payload, provider refresh, credential reveal and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated network allocation editor
+
+### Completed
+
+- [x] Migrated address allocation from the network tab to `/app/instances/:id/network/new`, ordered before the generic instance-tab route.
+- [x] Preserved the real allocation list/create APIs and provider-reported address limit.
+- [x] Added IPv4/IPv6, port, duplicate and label validation, server field errors, Save/Discard and dirty navigation protection without inventing free ports.
+- [x] Kept primary-address changes, renaming, removal and the network list workspace unchanged.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static network-editor contract test: 1/1 pass.
+- Focused Playwright network editor suite: 2/2 pass, including exact POST payload, boundary validation, dirty guard and 390px overflow/action reachability.
