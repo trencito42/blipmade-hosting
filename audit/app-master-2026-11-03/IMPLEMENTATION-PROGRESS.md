@@ -523,3 +523,16 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Web TypeScript check and full web unit suite: 492 pass, 0 fail (2 skipped).
 - Playwright: API key (3), two-factor (5), passkey (3), settings and password (5), editor shell at 1440px and 390px over 15 editors (30): 46/46 pass. The passkey ceremony uses a replaced `navigator.credentials.create`; it does not run a real authenticator.
 - The two-factor API answers are stubbed; the real TOTP verification is covered by the API tests, which were not run here (no database).
+
+## 2026-11-03 — Account closure and instance resources pages
+
+### Completed
+
+- [x] `/app/settings/closure`: password and the exact phrase before the request is recorded (real `POST /settings/account/closure`); a recorded request shows its date and can be taken back (`DELETE`). The Account tab keeps a summary with a link. Nothing is removed by the page: a person of the team reviews the request.
+- [x] `/app/instances/:id/resources/edit`: memory, vCPU and storage with the limits of the product, the price quoted by the server (`GET .../resources/quote`, after a short pause), and `PUT .../resources`. A change that costs more goes to a payment step with the order number and a link; the page never redirects by itself. The Resources tab is a summary with a link.
+- [ ] Notifications preferences stay inline (toggles that save one by one); data export stays a link. Not done: VPS pages (settings, SSH key, ISO, snapshots, reinstall), mail DNS page, billing orders page.
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: 494 pass, 0 fail.
+- Playwright (editor shell, closure, resources, API keys, two-factor, passkeys, settings, password, domains, subscriptions): 59/59 pass. The payment step uses a stubbed checkout address; no real payment was made.

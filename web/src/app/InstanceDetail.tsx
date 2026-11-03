@@ -8,6 +8,7 @@ import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
 import OverviewTab from './instance/OverviewTab';
 import {
+  ButtonLink,
   ConfirmDialog,
   DangerButton,
   EmptyState,
@@ -211,202 +212,41 @@ function isSecretKey(key: string): boolean {
 
 // --- tabs ------------------------------------------------------------------
 
-function Stepper({
-  label,
-  value,
-  min,
-  max,
-  step,
-  unit,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-  onChange: (next: number) => void;
-  disabled?: boolean;
-}) {
-  const clamp = (next: number) => Math.min(max, Math.max(min, next));
-  const buttonClass =
-    'grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink transition-colors duration-[180ms] hover:bg-s3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h disabled:cursor-not-allowed disabled:opacity-40';
-
-  return (
-    <div className="grid gap-2 rounded-2xl bg-s2 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[14px] font-medium text-ink">{label}</p>
-        <p className="font-mono text-[14px] tabular-nums text-ink">
-          {value} {unit}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <button type="button" aria-label={`Decrease ${label}`} disabled={disabled || value <= min} onClick={() => onChange(clamp(value - step))} className={buttonClass}>
-          −
-        </button>
-        <input
-          type="range"
-          aria-label={label}
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          disabled={disabled}
-          onChange={(event) => onChange(clamp(Number(event.target.value)))}
-          className="h-11 min-w-0 flex-1 accent-acc"
-        />
-        <button type="button" aria-label={`Increase ${label}`} disabled={disabled || value >= max} onClick={() => onChange(clamp(value + step))} className={buttonClass}>
-          +
-        </button>
-      </div>
-      <p className="font-mono text-[11.5px] text-ink3">
-        Between {min} and {max} {unit}
-      </p>
-    </div>
-  );
-}
-
 /**
- * The resources of an instance.
- *
- * A change that costs more is a paid product: the API creates an order and
- * a checkout session, and the limits are only changed once the payment is
- * confirmed. A change that costs less is applied right away.
+ * The resources of an instance: what was bought. Changing them is a page of its own, because a change can cost money
+ * and the server quotes the price before anything is applied.
  */
-function ResourcesTab({ instance, onUpdated }: { instance: Instance; onUpdated: (next: Instance) => void }) {
-  const { push } = useToast();
+function ResourcesTab({ instance }: { instance: Instance }) {
   const product = useAsync(
     (signal) => get<{ product: CatalogProduct }>(`/catalog/products/${instance.product.slug}`, undefined, signal),
     [instance.product.slug],
   );
-
-  const [ram, setRam] = useState(instance.ram);
-  const [cpu, setCpu] = useState(instance.cpu);
-  const [disk, setDisk] = useState(instance.disk);
-  const [delta, setDelta] = useState<number | null>(null);
-  const [checkout, setCheckout] = useState<{ url: string; orderNumber: string } | null>(null);
-
   const bounds = product.data?.product;
-  const ready = Boolean(bounds);
-  const minRam = bounds?.minRam ?? instance.ram;
-  const maxRam = bounds?.maxRam ?? instance.ram;
-  const minCpu = bounds?.minCpu ?? instance.cpu;
-  const maxCpu = bounds?.maxCpu ?? instance.cpu;
-  const minDisk = bounds?.minDisk ?? instance.disk;
-  const maxDisk = bounds?.maxDisk ?? instance.disk;
-
-  const quote = useAsync(
-    (signal) =>
-      get<{ quote: { priceDelta: number; newPrice: number; currency: string; requiresPayment: boolean } }>(
-        `/instances/${instance.id}/resources/quote`,
-        { ram, cpu, disk },
-        signal,
-      ),
-    [instance.id, ram, cpu, disk],
-  );
-
-  const save = useAction(async () => {
-    const res = await put<{
-      status: 'applied' | 'requires_payment' | 'failed';
-      instance?: Instance;
-      priceDelta: number;
-      price: number;
-      currency: string;
-      checkoutUrl?: string;
-      order?: { number: string };
-      reason?: string | null;
-    }>(`/instances/${instance.id}/resources`, { ram, cpu, disk });
-    if (res?.status === 'applied' && res.instance) onUpdated(res.instance);
-    return res;
-  });
-
-  const onSave = async () => {
-    const res = await save.run();
-    if (!res) return;
-    setDelta(res.priceDelta ?? 0);
-    if (res.status === 'requires_payment' && res.checkoutUrl) {
-      setCheckout({ url: res.checkoutUrl, orderNumber: res.order?.number ?? '' });
-      push('Pay for the change before it is applied.', 'ok');
-      return;
-    }
-    if (res.status === 'applied') {
-      setCheckout(null);
-      push('Resources updated.', 'ok');
-      return;
-    }
-    push(res.reason ?? 'The resources could not be changed.', 'error');
-  };
-
   return (
     <div className="grid gap-3">
-      <Panel title="Purchased limits" description="These are the limits you bought, not live usage.">
-        {product.loading ? (
-          <LoadingBlock rows={1} label="Loading product limits" />
-        ) : product.error ? (
-          <ErrorState
-            title="We could not load the product limits"
-            message={`${product.error.message} Resources cannot be changed without them.`}
-            onRetry={product.reload}
-          />
+      <Panel
+        title="Purchased limits"
+        description="These are the limits you bought, not live usage."
+        action={<ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/resources/edit`} variant="soft">Change resources</ButtonLink>}
+      >
+        <dl className="grid gap-3 sm:grid-cols-3">
+          <div><dt className="text-[12.5px] text-ink3">Memory</dt><dd className="mt-0.5 font-mono text-[18px] font-semibold text-ink">{fmtRam(instance.ram)}</dd></div>
+          <div><dt className="text-[12.5px] text-ink3">vCPU</dt><dd className="mt-0.5 font-mono text-[18px] font-semibold text-ink">{instance.cpu}</dd></div>
+          <div><dt className="text-[12.5px] text-ink3">Storage</dt><dd className="mt-0.5 font-mono text-[18px] font-semibold text-ink">{instance.disk} GB</dd></div>
+        </dl>
+        {product.error ? (
+          <p className="mt-3 text-[13px] text-ink3">The limits of the product could not be loaded, so resources cannot be changed right now.</p>
         ) : bounds ? (
-          <p className="font-mono text-[13.5px] text-ink">
+          <p className="mt-3 font-mono text-[12.5px] text-ink3">
             {fmtRam(bounds.defaultRam)} · {bounds.defaultCpu} vCPU · {bounds.defaultDisk} GB is the default for {bounds.name}.
           </p>
         ) : null}
       </Panel>
-
-      <div className="grid gap-2.5">
-        <Stepper label="Memory" value={ram} min={minRam} max={maxRam} step={256} unit="MB" onChange={setRam} disabled={!ready || save.pending} />
-        <Stepper label="vCPU" value={cpu} min={minCpu} max={maxCpu} step={1} unit="vCPU" onChange={setCpu} disabled={!ready || save.pending} />
-        <Stepper label="Storage" value={disk} min={minDisk} max={maxDisk} step={5} unit="GB" onChange={setDisk} disabled={!ready || save.pending} />
-      </div>
-
       <Panel title="Price">
         <p className="font-mono text-[22px] font-semibold tracking-[-0.03em] tabular-nums text-ink">
           <Money amount={instance.price ?? 0} currency={instance.currency} period="month" />
         </p>
-        {quote.data?.quote && quote.data.quote.priceDelta !== 0 && (
-          <p className="mt-1 text-[13.5px] text-ink2" aria-live="polite">
-            {quote.data.quote.priceDelta > 0 ? 'New price' : 'Price after the change'}:{' '}
-            <Money amount={quote.data.quote.newPrice} currency={quote.data.quote.currency} period="month" />
-            <span className="ml-2 text-ink3">
-              ({quote.data.quote.priceDelta > 0 ? '+' : '−'}
-              <Money amount={Math.abs(quote.data.quote.priceDelta)} currency={quote.data.quote.currency} period="month" />)
-            </span>
-          </p>
-        )}
-        {delta !== null && (
-          <p className="mt-1 text-[13.5px] text-ink2" aria-live="polite">
-            Price change: <Money amount={delta} currency={instance.currency} period="month" />
-          </p>
-        )}
-        {save.error && (
-          <p role="alert" className="mt-2 rounded-2xl bg-bad/12 px-4 py-3 text-[14px] font-medium text-bad">
-            {save.error}
-          </p>
-        )}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <PrimaryButton onClick={onSave} disabled={!ready || save.pending}>
-            {save.pending ? 'Saving…' : 'Save resources'}
-          </PrimaryButton>
-          {quote.data?.quote.requiresPayment && (
-            <span className="text-[13px] text-ink3">This change is paid for before it is applied.</span>
-          )}
-        </div>
       </Panel>
-
-      {checkout && (
-        <Panel title="Payment needed" description={`Order ${checkout.orderNumber} covers the price difference.`}>
-          <a
-            href={checkout.url}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-acc px-5 text-[14.5px] font-semibold text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc focus-visible:ring-offset-2 focus-visible:ring-offset-bg active:scale-[0.97]"
-          >
-            Pay and apply the change
-          </a>
-        </Panel>
-      )}
     </div>
   );
 }
@@ -825,7 +665,7 @@ export default function InstanceDetail() {
           {tab === 'settings' && <SettingsTab instance={instance} onGoTo={setTab} />}
           {tab === 'settings' && (instance.access ?? 'owner') === 'owner' && <div className="mt-4"><SftpPanel instance={instance} /></div>}
           {tab === 'activity' && <ActivityTab instance={instance} />}
-          {tab === 'resources' && <ResourcesTab instance={instance} onUpdated={(next) => setData({ instance: next })} />}
+          {tab === 'resources' && <ResourcesTab instance={instance} />}
           {tab === 'domains' && <DomainsTab instance={instance} />}
           {tab === 'uptime' && <UptimeTab instance={instance} />}
           {tab === 'uptime' && (instance.access ?? 'owner') === 'owner' && <div className="mt-4"><AlertsPanel instance={instance} /></div>}

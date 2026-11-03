@@ -833,117 +833,29 @@ function NotificationPreferenceGroup({
 
 /** The closing of the account. */
 function AccountPanel({ account }: { account: SettingsResponse['account'] }) {
-  const toast = useToast();
   const { logout } = useSession();
-  const [password, setPassword] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [touched, setTouched] = useState(false);
-
-  const request = useAction(async () => {
-    const result = await post<{ requestedAt: string; message: string }>('/settings/account/closure', {
-      password,
-      confirmation: 'CLOSE MY ACCOUNT',
-    });
-    return result;
-  });
-
-  const cancel = useAction(async () => {
-    await del('/settings/account/closure');
-    return true;
-  });
-
-  const passwordError = touched && !password ? 'Enter your password.' : undefined;
-  const confirmationError =
-    touched && confirmation !== 'CLOSE MY ACCOUNT' ? 'Type CLOSE MY ACCOUNT to confirm.' : undefined;
-
-  const onConfirm = async () => {
-    setTouched(true);
-    if (!password || confirmation !== 'CLOSE MY ACCOUNT') return;
-    const result = await request.run();
-    if (!result) return;
-    setPassword('');
-    setConfirmation('');
-    toast.push('The request is recorded', 'ok');
-  };
-
-  const onCancelRequest = async () => {
-    const done = await cancel.run();
-    if (!done) return;
-    toast.push('The request was taken back', 'ok');
-  };
-
-  if (account.deletionRequestedAt) {
-    return (
-      <Panel title="Account" description="The closing of this account.">
-        <p className="rounded-2xl bg-acc-bg px-4 py-3 text-[13.5px] text-acc" role="status">
-          The request to close this account was recorded on {fmtDate(account.deletionRequestedAt)}. Your services keep
-          running until the end of the period you paid for, and the team will write to you before anything is closed.
-        </p>
-        {(request.error || cancel.error) && (
-          <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-            {request.error ?? cancel.error}
-          </p>
-        )}
-        <div className="mt-3 flex flex-wrap justify-end gap-2">
-          <SoftButton onClick={onCancelRequest} disabled={cancel.pending}>
-            {cancel.pending ? 'Working…' : 'Take the request back'}
-          </SoftButton>
-          <SoftButton
-            onClick={async () => {
-              await logout();
-              toast.push('Signed out', 'ok');
-            }}
-          >
-            Sign out
-          </SoftButton>
-        </div>
-      </Panel>
-    );
-  }
-
+  const toast = useToast();
   return (
     <Panel title="Account" description="The closing of this account.">
-      <p className="text-[14px] leading-relaxed text-ink2">
-        You can ask for the account to be closed. The request is recorded and a person of the team looks at it before
-        anything is removed. Your apps and databases keep running until the end of the period you paid for.
-      </p>
-      {account.services > 0 && (
-        <p className="mt-2 text-[13px] text-ink3">
-          This account has {account.services} active service{account.services === 1 ? '' : 's'} and{' '}
-          {account.subscriptions} subscription{account.subscriptions === 1 ? '' : 's'}.
+      {account.deletionRequestedAt ? (
+        <p className="rounded-2xl bg-acc-bg px-4 py-3 text-[13.5px] text-acc" role="status">
+          The request to close this account was recorded on {fmtDate(account.deletionRequestedAt)}. Your services keep running until the end
+          of the period you paid for, and the team will write to you before anything is closed.
+        </p>
+      ) : (
+        <p className="text-[14px] leading-relaxed text-ink2">
+          You can ask for the account to be closed. The request is recorded and a person of the team looks at it before anything is
+          removed. Your apps and databases keep running until the end of the period you paid for.
+          {account.services > 0 ? ` This account has ${account.services} active service${account.services === 1 ? '' : 's'} and ${account.subscriptions} subscription${account.subscriptions === 1 ? '' : 's'}.` : ''}
         </p>
       )}
-
-      <div className="mt-3 grid gap-3">
-        <TextInput
-          label="Your password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          error={passwordError}
-        />
-        <TextInput
-          label="Type CLOSE MY ACCOUNT to confirm"
-          value={confirmation}
-          onChange={(event) => setConfirmation(event.target.value)}
-          error={confirmationError}
-          autoComplete="off"
-          spellCheck={false}
-          className="font-mono"
-        />
-      </div>
-
-      {request.error && (
-        <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-          {request.error}
-        </p>
-      )}
-
-      <div className="mt-3 flex justify-end">
-        <DangerButton onClick={onConfirm} disabled={request.pending}>
-          {request.pending ? 'Working…' : 'Ask for the account to be closed'}
-        </DangerButton>
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        {account.deletionRequestedAt && (
+          <SoftButton onClick={async () => { await logout(); toast.push('Signed out', 'ok'); }}>Sign out</SoftButton>
+        )}
+        <ButtonLink to="/app/settings/closure" variant={account.deletionRequestedAt ? 'soft' : 'danger'}>
+          {account.deletionRequestedAt ? 'View the request' : 'Close the account'}
+        </ButtonLink>
       </div>
     </Panel>
   );

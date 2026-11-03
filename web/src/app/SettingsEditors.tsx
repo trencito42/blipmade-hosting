@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { get, post, put } from '../lib/api';
+import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useRouter } from '../router';
 import { ErrorState, LoadingBlock, PrimaryButton, SoftButton, TextInput, useToast } from '../ui-app';
@@ -11,6 +11,7 @@ interface AccountSettings {
   profile: { email: string; emailVerified: boolean };
   billingAddress: BillingAddressValue | null;
   pendingEmail: string | null;
+  account?: { deletionRequestedAt: string | null; services: number; subscriptions: number };
 }
 
 const BACK_TO = '/app/settings';
@@ -164,6 +165,110 @@ export function EditBillingAddress() {
             </p>
           )}
         </div>
+      )}
+    </PageEditorShell>
+  );
+}
+
+const CLOSURE_BACK = '/app/settings?tab=account';
+const CLOSE_PHRASE = 'CLOSE MY ACCOUNT';
+
+const shortDate = (value: string) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** The request to close the account. It is recorded for a person of the team; nothing is removed by this page. */
+export function CloseAccount() {
+  const { navigate } = useRouter();
+  const toast = useToast();
+  const settings = useAccountSettings();
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [touched, setTouched] = useState(false);
+  const dirty = Boolean(password || confirmation);
+  useUnsavedChangesGuard(dirty, 'Discard this request?');
+  const account = settings.data?.account;
+  const requestedAt = account?.deletionRequestedAt ?? null;
+
+  const request = useAction(async () => post<{ requestedAt: string; message: string }>('/settings/account/closure', { password, confirmation: CLOSE_PHRASE }));
+  const takeBack = useAction(async () => {
+    await del('/settings/account/closure');
+    return true;
+  });
+  const ready = Boolean(password) && confirmation === CLOSE_PHRASE;
+
+  const submit = async () => {
+    setTouched(true);
+    if (!ready) return;
+    const result = await request.run();
+    if (!result) return;
+    toast.push('The request is recorded', 'ok');
+    navigate(CLOSURE_BACK, { replace: true });
+  };
+  const withdraw = async () => {
+    const done = await takeBack.run();
+    if (!done) return;
+    toast.push('The request was taken back', 'ok');
+    navigate(CLOSURE_BACK, { replace: true });
+  };
+  const discard = () => {
+    if (!dirty || window.confirm('Discard this request?')) navigate(CLOSURE_BACK);
+  };
+
+  return (
+    <PageEditorShell
+      eyebrow="Account"
+      title={requestedAt ? 'Request to close the account' : 'Close the account'}
+      description="The request is recorded and a person of the team looks at it before anything is removed."
+      backTo={CLOSURE_BACK}
+      backLabel="Back to settings"
+      dirty={dirty}
+      actions={
+        requestedAt ? (
+          <>
+            <SoftButton type="button" onClick={discard}>Back</SoftButton>
+            <PrimaryButton type="button" onClick={() => void withdraw()} disabled={takeBack.pending}>{takeBack.pending ? 'Working…' : 'Take the request back'}</PrimaryButton>
+          </>
+        ) : (
+          <>
+            <SoftButton type="button" onClick={discard} disabled={request.pending}>Discard</SoftButton>
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={request.pending || settings.loading || !ready}
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-bad px-5 text-[14.5px] font-semibold text-white transition-colors hover:bg-bad/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {request.pending ? 'Working…' : 'Ask for the account to be closed'}
+            </button>
+          </>
+        )
+      }
+    >
+      {settings.loading ? (
+        <LoadingBlock rows={3} label="Loading your account" />
+      ) : settings.error ? (
+        <ErrorState title="Your account could not be loaded" message={settings.error.message} onRetry={settings.reload} />
+      ) : requestedAt ? (
+        <div className="grid gap-4">
+          <p className="rounded-2xl bg-acc-bg px-4 py-3 text-[13.5px] text-acc" role="status">
+            The request to close this account was recorded on {shortDate(requestedAt)}. Your services keep running until the end of the period
+            you paid for, and the team will write to you before anything is closed.
+          </p>
+          {takeBack.error && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{takeBack.error}</p>}
+        </div>
+      ) : (
+        <form noValidate onSubmit={(event) => { event.preventDefault(); void submit(); }} className="grid gap-4">
+          <div role="alert" className="rounded-2xl border border-bad/25 bg-bad/10 p-4">
+            <h2 className="text-[14px] font-semibold text-bad">Closing the account ends your services</h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-ink2">
+              Your apps and databases keep running until the end of the period you paid for. After that they are stopped.
+              {account && account.services > 0
+                ? ` This account has ${account.services} active service${account.services === 1 ? '' : 's'} and ${account.subscriptions} subscription${account.subscriptions === 1 ? '' : 's'}.`
+                : ''}
+            </p>
+          </div>
+          <TextInput label="Your password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} error={request.fieldErrors.password ?? (touched && !password ? 'Enter your password.' : undefined)} />
+          <TextInput label={`Type ${CLOSE_PHRASE} to confirm`} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} error={touched && confirmation !== CLOSE_PHRASE ? `Type ${CLOSE_PHRASE} to confirm.` : undefined} autoComplete="off" spellCheck={false} className="font-mono" />
+          {request.error && !request.fieldErrors.password && <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">{request.error}</p>}
+        </form>
       )}
     </PageEditorShell>
   );

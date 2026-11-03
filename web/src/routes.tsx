@@ -60,6 +60,8 @@ const AppSetupTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((modu
 const AppDisableTwoFactor = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.DisableTwoFactor })));
 const AppRenewBackupCodes = lazy(() => import('./app/TwoFactorEditors').then((module) => ({ default: module.RenewBackupCodes })));
 const AppPasskeyNew = lazy(() => import('./app/PasskeyNew'));
+const AppCloseAccount = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.CloseAccount })));
+const AppEditResources = lazy(() => import('./app/instance/EditResources'));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -184,6 +186,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/reinstall', component: AppReinstallInstance, title: 'Reinstall instance', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/network/:allocationId/edit', component: AppEditAllocation, title: 'Edit network address', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/databases/:databaseId/security', component: AppDatabaseSecurity, title: 'Database security', area: 'customer', layout: 'editor' },
+  { pattern: '/app/instances/:id/resources/edit', component: AppEditResources, title: 'Change resources', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/startup/edit', component: AppEditStartup, title: 'Edit startup', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id/env-files/:name/edit', component: AppEditEnvFile, title: 'Edit environment file', area: 'customer', layout: 'editor' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
@@ -222,6 +225,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/settings/security/2fa/disable', component: AppDisableTwoFactor, title: 'Turn off two-factor authentication', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/security/2fa', component: AppSetupTwoFactor, title: 'Set up two-factor authentication', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/security/passkeys/new', component: AppPasskeyNew, title: 'Add a passkey', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/closure', component: AppCloseAccount, title: 'Close the account', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/password', component: AppChangePassword, title: 'Change password', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
   { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },
