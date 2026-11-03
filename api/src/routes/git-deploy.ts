@@ -7,7 +7,9 @@ import { badRequest, conflict, notFound, unauthorized } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import * as operations from '../services/panel/operations.js';
+import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
+import { DISCORD_TEMPLATES } from '../services/discord-templates.js';
 import { zipLayoutProblem } from '../services/import-inspect.js';
 import { enqueueGitDeploy } from '../services/queue.js';
 import {
@@ -198,6 +200,22 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
     } catch {
       throw notFound('There is no log for that deployment.');
     }
+  });
+
+  app.post('/instances/:id/discord-template', write, async (request: FastifyRequest) => {
+    const { user, instance } = await load(request);
+    const product = await prisma.instance.findUnique({ where: { id: instance.id }, select: { product: { select: { slug: true } } } });
+    if (product?.product.slug !== 'discord-bot') throw badRequest('Templates install on a Discord bot.');
+    const { template } = z.object({ template: z.enum(['moderation', 'welcome', 'tickets']) }).parse(request.body ?? {});
+    const files = DISCORD_TEMPLATES[template];
+    if (!files || !instance.pterodactylUuid || !instance.pterodactylServerId) throw badRequest('This bot is not on the panel yet.');
+    const token = await operations.customerToken(instance);
+    await client.writeFile(token, instance.pterodactylUuid, '/package.json', files.packageJson);
+    await client.writeFile(token, instance.pterodactylUuid, '/index.js', files.index);
+    const managed = await prisma.gitDeploy.findUnique({ where: { instanceId: instance.id }, select: { id: true } });
+    if (!managed) await application.updateServerStartup(instance.pterodactylServerId, { startup: 'npm install && node index.js', skip_scripts: true });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.discord_template', targetType: 'instance', targetId: instance.id, meta: { template } });
+    return { installed: template, note: `${files.note} Put DISCORD_TOKEN in the environment, then restart.` };
   });
 
   app.delete('/instances/:id/git', write, async (request: FastifyRequest) => {

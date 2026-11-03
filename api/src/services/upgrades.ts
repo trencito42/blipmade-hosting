@@ -289,22 +289,31 @@ export async function createUpgradeOrder(
   quote: ResourceQuote,
   user: { id: string; email: string },
 ): Promise<Order> {
-  const reserved = await appliedResizes(instance.id);
-  if (reserved >= RESIZE_LIMIT) throw badRequest('This service already has two resource changes in the last 30 days.');
-  const order = await prisma.order.create({
-    data: {
-      // The number comes from the counter of the platform, so an upgrade order
-      // and a normal order can never carry the same number.
-      number: await nextOrderNumber(),
-      userId: user.id,
-      status: 'PENDING',
-      kind: 'UPGRADE',
-      instanceId: instance.id,
-      requestedConfig: request as unknown as object,
-      total: Math.max(0, quote.priceDelta),
-      discount: quote.priceDelta < 0 ? Math.abs(quote.priceDelta) : 0,
-      currency: quote.currency,
-    },
+  const number = await nextOrderNumber();
+  const order = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'resize:' + instance.id}))`;
+    const reserved = await tx.order.count({
+      where: {
+        instanceId: instance.id,
+        kind: 'UPGRADE',
+        status: { in: ['PENDING', 'AWAITING_PAYMENT', 'PAID', 'FULFILLED'] },
+        createdAt: { gt: new Date(Date.now() - RESIZE_WINDOW_MS) },
+      },
+    });
+    if (reserved >= RESIZE_LIMIT) throw badRequest('This service already has two resource changes in the last 30 days.');
+    return tx.order.create({
+      data: {
+        number,
+        userId: user.id,
+        status: 'PENDING',
+        kind: 'UPGRADE',
+        instanceId: instance.id,
+        requestedConfig: request as unknown as object,
+        total: Math.max(0, quote.priceDelta),
+        discount: quote.priceDelta < 0 ? Math.abs(quote.priceDelta) : 0,
+        currency: quote.currency,
+      },
+    });
   });
 
   await audit({

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { post } from '../lib/api';
 import { useAction } from '../lib/useAsync';
-import { Link } from '../router';
+import { Link, useRouter } from '../router';
 import { Panel, PrimaryButton, TextInput } from '../ui-app';
 
 interface Proposal {
@@ -17,10 +17,17 @@ interface Proposal {
 /** Looks at a public Git repository and points at a product. Nothing is installed. */
 export function ImportProject() {
   const [url, setUrl] = useState('');
+  const { navigate } = useRouter();
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [zipBase64, setZipBase64] = useState<string | null>(null);
   const inspect = useAction(async () => {
     const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { url: url.trim() });
+    setZipBase64(null);
     setProposal(answer.proposal);
+  });
+  const plan = useAction(async () => {
+    const answer = await post<{ plan: { continueTo: string; total: number; currency: string } }>('/catalog/import/plans', zipBase64 ? { zipBase64 } : { url: url.trim() });
+    navigate(answer.plan.continueTo);
   });
   const inspectZip = useAction(async (file: File) => {
     if (file.size > 8 * 1024 * 1024) {
@@ -30,7 +37,9 @@ export function ImportProject() {
     const bytes = new Uint8Array(await file.arrayBuffer());
     let binary = '';
     for (const byte of bytes) binary += String.fromCharCode(byte);
-    const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { zipBase64: btoa(binary) });
+    const encoded = btoa(binary);
+    setZipBase64(encoded);
+    const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { zipBase64: encoded });
     setProposal(answer.proposal);
   });
 
@@ -54,7 +63,10 @@ export function ImportProject() {
           {proposal.files.length > 0 && <p>Read: {proposal.files.join(', ')}</p>}
           {proposal.notes.map((note) => <p key={note}>{note}</p>)}
           {(proposal.services ?? []).map((service) => <p key={service.slug}>{service.reason} <Link to={`/app/deploy/${encodeURIComponent(service.slug)}`} className="font-semibold text-acc">Order {service.slug}</Link></p>)}
-          {proposal.productSlug && <Link to={`/app/deploy/${encodeURIComponent(proposal.productSlug)}`} className="font-semibold text-acc">Continue with {proposal.productSlug}</Link>}
+          {proposal.productSlug && (
+            <PrimaryButton type="button" onClick={() => void plan.run()} disabled={plan.pending}>Review the price and order {proposal.productSlug}</PrimaryButton>
+          )}
+          {plan.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{plan.error}</p>}
         </div>
       )}
     </Panel>

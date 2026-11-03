@@ -154,7 +154,7 @@ export default function EditResources() {
             Default for {product.name}: {fmtRam(product.defaultRam)} · {product.defaultCpu} vCPU · {product.defaultDisk} GB
           </p>
           {priced && typeof priced.changesUsed === 'number' && typeof priced.changesAllowed === 'number' && (
-            <p className="text-[13.5px] text-ink2">{priced.changesUsed} of {priced.changesAllowed} applied changes used in the last 30 days. A quote does not use one.{priced.nextChangeAt ? ` Next change available ${priced.nextChangeAt.slice(0, 10)}.` : ''}</p>
+            <p className="text-[13.5px] text-ink2">{priced.changesUsed} of {priced.changesAllowed} applied changes used in the last 30 days. A quote does not use one.{priced.nextChangeAt ? ` Next change available ${priced.nextChangeAt.slice(0, 10)}.` : ''} A downgrade becomes account credit for a later invoice, not a card refund. This wording is a draft and is not an approved legal text.</p>
           )}
           <UnitStepper label="Memory" unit="MB" value={current.ram} min={product.minRam} max={product.maxRam} step={256} disabled={save.pending} onChange={(ram) => setDraft({ ...current, ram })} />
           <UnitStepper label="vCPU" unit="vCPU" value={current.cpu} min={product.minCpu} max={product.maxCpu} step={1} disabled={save.pending} onChange={(cpu) => setDraft({ ...current, cpu })} />

@@ -182,6 +182,8 @@ export interface PteroBackupAttributes {
   size?: number;
   bytes?: number;
   created_at: string;
+  completed_at?: string | null;
+  is_successful?: boolean;
   is_locked?: boolean;
 }
 

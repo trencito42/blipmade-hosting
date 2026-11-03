@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { activationStatus, httpsAnswers } from './domain-activation.js';
 import * as gateway from './gateway.js';
 import * as ptero from './pterodactyl/application.js';
 
@@ -79,8 +80,25 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
   // one call that waits for the timeout, for every hostname.
   if (!(await gateway.gatewayReachable())) return [];
 
+  const games = await prisma.instanceDomain.findMany({
+    where: { purpose: 'game', caddyRouteId: { not: null } },
+    select: { id: true, hostname: true },
+    take: 200,
+  });
+  for (const game of games) {
+    await gateway.removeCaddyRoute(game.hostname).catch(() => undefined);
+    await prisma.instanceDomain.update({
+      where: { id: game.id },
+      data: {
+        caddyRouteId: null,
+        status: 'PENDING_DNS',
+        lastError: 'A game hostname is not an HTTPS route. Verify the address record.',
+      },
+    });
+  }
+
   const domains = await prisma.instanceDomain.findMany({
-    where: { verifiedAt: { not: null } },
+    where: { verifiedAt: { not: null }, purpose: 'http' },
     include: { instance: { select: { pterodactylServerId: true, status: true } } },
     take: 500,
     orderBy: { updatedAt: 'asc' },
@@ -107,8 +125,9 @@ export async function reconcileDomainRoutes(): Promise<DomainRouteOutcome[]> {
       outcomes.push({ hostname: domain.hostname, applied: result.applied, reason: result.reason });
       if (result.applied) routed.push(domain.hostname);
 
-      // The state that the customer sees follows the state of the gateway.
-      const status = result.applied ? 'ACTIVE' : 'PENDING_DNS';
+      // A route on the gateway is not a site that answers. Active waits for HTTPS.
+      const httpsReady = result.applied ? await httpsAnswers(domain.hostname) : false;
+      const status = activationStatus({ purpose: domain.purpose, routeApplied: result.applied, httpsReady });
       if (
         domain.status !== status ||
         domain.lastError !== result.reason ||

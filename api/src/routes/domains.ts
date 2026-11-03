@@ -11,7 +11,8 @@ import * as gateway from '../services/gateway.js';
 import { platformSubdomainStatus } from '../services/provisioning.js';
 import * as dns from '../services/dns.js';
 import { deleteZoneRecord, upsertZoneRecord } from '../services/cloudflare-dns.js';
-import { openZoneToken, publishCustomerRecords, sealZoneToken, zoneForToken, type CustomerRecord } from '../services/customer-cloudflare.js';
+import { httpsAnswers } from '../services/domain-activation.js';
+import { openZoneToken, previewCustomerRecords, publishCustomerRecords, sealZoneToken, zoneForToken, type CustomerRecord } from '../services/customer-cloudflare.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
 import { resolveTarget } from '../services/domain-routing.js';
@@ -235,15 +236,6 @@ function isClaimExpired(domain: {
  * The stored status is not changed, so the schema does not move; only the
  * answer of the API is more precise than the row.
  */
-async function httpsAnswers(hostname: string): Promise<boolean> {
-  try {
-    const response = await fetch(`https://${hostname}/`, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
-    return response.status > 0;
-  } catch {
-    return false;
-  }
-}
-
 function statusFor(domain: DomainRow): string {
   if (domain.status === 'PENDING_DNS' && domain.verifiedAt) return 'pending_gateway';
   return domain.status.toLowerCase();
@@ -449,8 +441,9 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         targetPort: target.port,
         verifiedAt: domain.verifiedAt ?? new Date(),
       });
-      status = result.applied ? 'ACTIVE' : 'PENDING_DNS';
-      lastError = result.reason;
+      const httpsReady = result.applied ? await httpsAnswers(hostname) : false;
+      status = result.applied && httpsReady ? 'ACTIVE' : 'PENDING_DNS';
+      lastError = result.applied && !httpsReady ? 'The route is added. HTTPS is not answering on this hostname yet.' : result.reason;
       caddyRouteId = result.routeId ?? null;
     } catch (error) {
       // The worker routes the new name on its next pass.
@@ -870,6 +863,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     if (host !== link.zoneName && !host.endsWith(`.${link.zoneName}`)) {
       throw badRequest(`This hostname is not inside ${link.zoneName}.`);
     }
+    const body = z.object({ approve: z.boolean().default(false) }).parse(request.body ?? {});
     const shown = serializeDomain(domain);
     const records: CustomerRecord[] = [];
     for (const record of shown.dnsRecords) {
@@ -878,8 +872,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     }
     const token = openZoneToken(link.tokenSealed);
     if (!token) throw badRequest('The saved Cloudflare token could not be read. Connect the zone again.');
+    const preview = await previewCustomerRecords(token, link.zoneId, link.zoneName, records);
+    if (!body.approve) return { preview, written: [], skipped: [] };
     const result = await publishCustomerRecords(token, link.zoneId, link.zoneName, records);
-    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.cloudflare_publish', targetType: 'instance_domain', targetId: domain.id, meta: result });
-    return result;
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.cloudflare_publish', targetType: 'instance_domain', targetId: domain.id, meta: { written: result.written.length, skipped: result.skipped.length } });
+    return { preview, ...result };
   });
 }

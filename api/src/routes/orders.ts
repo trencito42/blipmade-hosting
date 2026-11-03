@@ -53,6 +53,7 @@ const orderItemSchema = z.object({
   // written anywhere.
   variables: z.record(z.string(), z.string().max(400)).optional(),
   catalog: catalogSelectionSchema.optional(),
+  importSourceId: z.string().max(40).optional(),
 });
 
 function serializeOrder(order: {
@@ -126,6 +127,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           acceptEula: z.boolean().optional(),
         })
         .parse(request.body);
+
+      for (const item of body.items) {
+        if (!item.importSourceId) continue;
+        const source = await prisma.importSource.findFirst({ where: { id: item.importSourceId, userId: user.id, appliedAt: null } });
+        if (!source || source.productSlug !== item.productSlug) throw badRequest('That import does not match this product.');
+      }
 
       const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
 
@@ -222,6 +229,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 // they travel with the line until the instance is built.
                 sealedVariables: item.sealedVariables ?? null,
                 ...(catalogByLine[index] ? { catalog: catalogByLine[index] } : {}),
+                ...(body.items[index]?.importSourceId ? { importSourceId: body.items[index].importSourceId } : {}),
               } as unknown as Prisma.InputJsonValue,
             })),
           },

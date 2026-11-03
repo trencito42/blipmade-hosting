@@ -72,6 +72,10 @@ export default function GitTab({ instance }: TabProps) {
     state.reload();
     history.reload();
   });
+  const installTemplate = useAction(async (template: 'moderation' | 'welcome' | 'tickets') => {
+    const answer = await post<{ note: string }>(`/instances/${encodeURIComponent(instance.id)}/discord-template`, { template });
+    push(answer.note, 'ok');
+  });
   const uploadZip = useAction(async (file: File) => {
     if (file.size > 8 * 1024 * 1024) throw new Error('The zip is larger than 8 MB.');
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -150,6 +154,16 @@ export default function GitTab({ instance }: TabProps) {
         </Panel>
       )}
 
+      {instance.product.slug === 'discord-bot' && (
+        <Panel title="Bot templates" description="Writes a starter into this bot and sets the start command, unless Git deployment already owns startup. Put DISCORD_TOKEN in the environment before restarting.">
+          <div className="flex flex-wrap gap-2">
+            {(['moderation', 'welcome', 'tickets'] as const).map((template) => (
+              <SoftButton key={template} onClick={() => void installTemplate.run(template)} disabled={installTemplate.pending}>{template}</SoftButton>
+            ))}
+          </div>
+          {installTemplate.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{installTemplate.error}</p>}
+        </Panel>
+      )}
       <Panel title="Project zip" description="Upload a zip of at most 8 MB. It is unpacked and built inside this server. Nothing from the zip runs on the platform.">
         <label className="inline-flex h-11 cursor-pointer items-center rounded-xl border border-line px-4 text-[14px] font-semibold text-ink">
           Upload zip

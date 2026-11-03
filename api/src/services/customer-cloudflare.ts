@@ -45,6 +45,37 @@ export interface CustomerRecord {
   data?: { priority: number; weight: number; port: number; target: string };
 }
 
+export interface RecordPreview {
+  type: string;
+  name: string;
+  wanted: string;
+  current: string | null;
+  action: 'create' | 'unchanged' | 'conflict' | 'skip';
+}
+
+/** Reads the zone and says what a write would do. It does not change the zone. */
+export async function previewCustomerRecords(
+  token: string,
+  zoneId: string,
+  zoneName: string,
+  records: CustomerRecord[],
+): Promise<RecordPreview[]> {
+  const preview: RecordPreview[] = [];
+  for (const record of records) {
+    const name = record.name.toLowerCase();
+    if (!WRITABLE.has(record.type) || (name !== zoneName && !name.endsWith(`.${zoneName}`))) {
+      preview.push({ type: record.type, name, wanted: record.content, current: null, action: 'skip' });
+      continue;
+    }
+    const listed = await cf(token, 'GET', `/zones/${zoneId}/dns_records?type=${record.type}&name=${encodeURIComponent(name)}`);
+    const existing = listed.ok && Array.isArray(listed.result) ? listed.result as { content?: string }[] : [];
+    const current = existing[0]?.content ?? null;
+    const action = !listed.ok ? 'skip' : current === null ? 'create' : current === record.content ? 'unchanged' : 'conflict';
+    preview.push({ type: record.type, name, wanted: record.content, current, action });
+  }
+  return preview;
+}
+
 /** Writes approved address records. Existing different records are reported and left in place. */
 export async function publishCustomerRecords(
   token: string,

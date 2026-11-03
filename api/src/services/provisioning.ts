@@ -19,6 +19,7 @@ import { cancelSubscription, findPaymentIntentForSubscription, refundPayment } f
 import { formatMoney } from '../lib/money.js';
 import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
+import { applyStoredImport } from './import-apply.js';
 import {
   generateVariables,
   openVariables,
@@ -705,19 +706,35 @@ export async function repurposeInstance(input: {
     prisma.catalogVariant.findUnique({ where: { productId: instance.productId }, select: { familyId: true } }),
     prisma.catalogVariant.findUnique({ where: { productId: target.id }, select: { familyId: true } }),
   ]);
-  if (!currentVariant || !targetVariant || currentVariant.familyId !== targetVariant.familyId) {
-    throw badRequest('A server can only move to another variant of the same family.');
+  if (!currentVariant || !targetVariant) {
+    throw badRequest('Both products have to be in the catalogue before a server can move.');
+  }
+  if (instance.ram < target.minRam || instance.cpu < target.minCpu || instance.disk < target.minDisk) {
+    throw badRequest('This server is below the minimum size of that product. Raise the resources first.');
   }
   const left = instance.product.prices[0];
   const right = target.prices[0];
   if (!left || !right || left.baseAmount !== right.baseAmount || left.ramPerGb !== right.ramPerGb || left.cpuPerUnit !== right.cpuPerUnit || left.diskPerGb !== right.diskPerGb || left.currency !== right.currency) {
     throw badRequest('That variant has a different price. Order it as its own service.');
   }
+  let backup;
   try {
-    await pteroClient.createBackup(input.token, input.uuid, { name: `Before ${target.name}`.slice(0, 100), locked: true });
+    backup = await pteroClient.createBackup(input.token, input.uuid, { name: `Before ${target.name}`.slice(0, 100), locked: true });
   } catch {
     throw conflict('A backup could not be made first, so the server was not switched. Delete an old unlocked backup and try again.');
   }
+  const deadline = Date.now() + 120_000;
+  let finished = backup.is_successful && Boolean(backup.completed_at);
+  while (!finished && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const rows = await pteroClient.listBackups(input.token, input.uuid);
+    const row = rows.find((entry) => entry.uuid === backup.uuid);
+    if (row?.completed_at && !row.is_successful) {
+      throw conflict('The backup failed, so the server was not switched.');
+    }
+    finished = Boolean(row?.completed_at && row.is_successful);
+  }
+  if (!finished) throw conflict('The backup did not finish, so the server was not switched.');
   const egg = await resolveEgg(target);
   await ptero.updateServerStartup(instance.pterodactylServerId, {
     egg: egg.egg,
@@ -1885,6 +1902,18 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     });
     await completeStep(instance.id, 'activated');
     await completeProvisioning(instance.id);
+    try {
+      const fresh = await prisma.instance.findUnique({ where: { id: instance.id } });
+      if (fresh) await applyStoredImport(fresh);
+    } catch (error) {
+      await prisma.instanceEvent.create({
+        data: {
+          instanceId: instance.id,
+          type: 'deploy',
+          message: `The imported project was not started: ${error instanceof Error ? error.message : 'unknown error'}`,
+        },
+      });
+    }
 
     // The order is fulfilled when its services are running.
     if (instance.orderId) {

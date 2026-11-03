@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { BillingPeriod, Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
-import { notFound } from '../lib/errors.js';
+import { badRequest, notFound } from '../lib/errors.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { breakdownOfResources, buildQuote, priceBook, resourceRates } from '../services/pricing.js';
 import { companyDetails, taxOf } from '../services/billing.js';
@@ -13,7 +13,8 @@ import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
-import { inspectGitUrl, inspectZip } from '../services/import-inspect.js';
+import { inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-inspect.js';
+import { cleanCommand, cleanRepoUrl } from '../services/git-deploy.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -254,6 +255,61 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       if (body.zipBase64) return { proposal: inspectZip(Buffer.from(body.zipBase64, 'base64')) };
       if (body.url) return { proposal: await inspectGitUrl(body.url) };
       return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, files: [], services: [], notes: ['Paste a repository URL or choose a zip.'] } };
+    },
+  });
+
+  app.post('/catalog/import/plans', {
+    bodyLimit: 12_000_000,
+    config: { rateLimit: { max: 10, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
+    handler: async (request) => {
+      const user = await requireAuth(request);
+      const body = z.object({
+        url: z.string().trim().max(300).optional(),
+        zipBase64: z.string().max(12_000_000).optional(),
+        buildCommand: z.string().max(500).optional(),
+        startCommand: z.string().max(500).optional(),
+      }).parse(request.body ?? {});
+      const zip = body.zipBase64 ? Buffer.from(body.zipBase64, 'base64') : null;
+      if (zip) {
+        const problem = zipLayoutProblem(zip);
+        if (problem) throw badRequest(problem);
+      }
+      const proposal = zip ? inspectZip(zip) : body.url ? await inspectGitUrl(body.url) : null;
+      if (!proposal?.productSlug || !proposal.start) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
+      const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, deployable: true, visible: true } });
+      if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
+      const buildCommand = cleanCommand(body.buildCommand ?? (proposal.runtime === 'python' ? 'pip install -r requirements.txt' : 'npm install'), 'buildCommand', false);
+      const startCommand = cleanCommand(body.startCommand ?? proposal.start, 'startCommand', true);
+      const repoUrl = body.url ? cleanRepoUrl(body.url) : null;
+      const quote = await buildQuote([{ productSlug: product.slug, ram: product.defaultRam, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug }], null, user.id);
+      const plan = await prisma.importSource.create({
+        data: {
+          userId: user.id,
+          productSlug: product.slug,
+          kind: zip ? 'zip' : 'git',
+          repoUrl,
+          branch: 'main',
+          buildCommand,
+          startCommand,
+          zipBytes: zip,
+        },
+      });
+      return {
+        plan: {
+          id: plan.id,
+          productSlug: product.slug,
+          buildCommand,
+          startCommand,
+          ram: product.defaultRam,
+          cpu: product.defaultCpu,
+          disk: product.defaultDisk,
+          total: quote.total,
+          currency: quote.currency,
+          services: proposal.services,
+          notes: proposal.notes,
+          continueTo: `/app/deploy/${product.slug}?import=${plan.id}`,
+        },
+      };
     },
   });
 

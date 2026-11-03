@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { get, post, put, type Domain } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
@@ -50,8 +50,14 @@ function isPlatformHostname(hostname: string): boolean {
 /** Ownership proof and DNS records of one domain. Own page, not the list. */
 export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: string, label: string) => void | Promise<void> }) {
   const { push } = useToast();
-  const publish = useAction(async () => {
-    const answer = await post<{ written: string[]; skipped: string[] }>(`/domains/${domain.id}/cloudflare`);
+  const [preview, setPreview] = useState<string | null>(null);
+  const publish = useAction(async (approve: boolean) => {
+    const answer = await post<{ preview: { type: string; name: string; action: string; wanted: string; current: string | null }[]; written: string[]; skipped: string[] }>(`/domains/${domain.id}/cloudflare`, { approve });
+    if (!approve) {
+      setPreview(answer.preview.map((row) => `${row.action} ${row.type} ${row.name}`).join('\n'));
+      return;
+    }
+    setPreview(null);
     push(answer.skipped.length ? answer.skipped.join(' ') : `Wrote ${answer.written.length} record(s).`, answer.skipped.length ? 'error' : 'ok');
   });
   const game = domain.purpose === 'game';
@@ -71,7 +77,11 @@ export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: 
                   ))}
                 </ol>
                 <p className="mt-1 text-[12.5px] text-ink3">{game ? 'Active means the address record points at this game server. Leave Cloudflare proxy off. Nameservers stay where they are.' : 'Active means the hostname answered over HTTPS. The route is added only after the TXT proof and the A record. Nameservers are not changed.'}</p>
-                <SoftButton className="mt-3" onClick={() => void publish.run()} disabled={publish.pending}>Write these records in my Cloudflare zone</SoftButton>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <SoftButton onClick={() => void publish.run(false)} disabled={publish.pending}>Preview Cloudflare changes</SoftButton>
+                  <SoftButton onClick={() => void publish.run(true)} disabled={publish.pending || !preview}>Approve and write</SoftButton>
+                </div>
+                {preview && <pre className="mt-2 whitespace-pre-wrap font-mono text-[12.5px] text-ink2">{preview}</pre>}
                 {publish.error && <p role="alert" className="mt-2 text-[13px] font-medium text-bad">{publish.error}</p>}
                 {domain.lastError && (
                   <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-3.5 py-2.5 text-[13.5px] text-ink2">

@@ -79,6 +79,7 @@ model User {
   staffInvitations StaffInvitation[]
   serverProfiles ServerProfile[]
   cloudflareZone CloudflareZoneLink?
+  importSources ImportSource[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -1150,6 +1151,24 @@ model CloudflareZoneLink {
   tokenSealed String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// A project the customer asked to deploy. The zip stays here until the server exists, and it is never executed on the platform.
+model ImportSource {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productSlug   String
+  kind          String
+  repoUrl       String?
+  branch        String?
+  buildCommand  String    @default("")
+  startCommand  String
+  zipBytes      Bytes?
+  createdAt     DateTime  @default(now())
+  appliedAt     DateTime?
+
+  @@index([userId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

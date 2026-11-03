@@ -194,7 +194,7 @@ export default function DeployCatalog() {
 
   // Only the categories that really exist in the catalog are offered, in the
   // order of the public catalog.
-  const grouped = useMemo(() => families.filter((family) => family.variants.filter((variant) => variant.product.orderable).length > 1), [families]);
+  const grouped = useMemo(() => families.filter((family) => family.variants.filter((variant) => variant.product.orderable).length >= 1), [families]);
   const covered = useMemo(() => new Set(grouped.flatMap((family) => family.variants.map((variant) => variant.product.slug))), [grouped]);
   const listed = useMemo(() => products.filter((product) => !covered.has(product.slug)), [products, covered]);
   const categories = useMemo(() => {
@@ -250,7 +250,7 @@ export default function DeployCatalog() {
         </p>
       </div>
       <ImportProject />
-      <Panel title="Discord bot templates" description="Three starting points for the Discord bot product. Ordering still uses that product. Nothing is installed until the server exists.">
+      <Panel title="Discord bot templates" description="Order the Discord bot, then install moderation, welcome or tickets from the server. The files are written into that bot.">
         <ul className="grid gap-2 text-[14px] text-ink2">
           <li>Message bot. Commands in one server, discord.js.</li>
           <li>Slash commands. Registers commands when the bot starts.</li>

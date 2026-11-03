@@ -239,6 +239,8 @@ export interface ClientBackup {
   name: string;
   size: number;
   created_at: string;
+  completed_at: string | null;
+  is_successful: boolean;
   is_locked: boolean;
 }
 
@@ -314,6 +316,8 @@ export function parseBackup(payload: unknown): ClientBackup {
     name: String(attributes.name ?? ''),
     size: Number(attributes.size ?? attributes.bytes ?? 0),
     created_at: String(attributes.created_at ?? ''),
+    completed_at: attributes.completed_at ? String(attributes.completed_at) : null,
+    is_successful: attributes.is_successful === true,
     is_locked: Boolean(attributes.is_locked),
   };
 }

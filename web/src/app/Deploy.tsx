@@ -78,6 +78,7 @@ export interface DeployServerOrderItem {
   /** The subdomain under the platform's base that the customer chose. */
   subdomain?: string;
   catalog?: { familySlug: string; variantSlug: string; presetSlug?: string; presetVersion?: number; addonSlugs: string[] };
+  importSourceId?: string;
 }
 
 /**
@@ -102,6 +103,7 @@ export function buildDeployOrderItems(
       ...(server.variables && Object.keys(server.variables).length > 0 ? { variables: server.variables } : {}),
       ...(server.subdomain ? { subdomain: server.subdomain } : {}),
       ...(server.catalog ? { catalog: server.catalog } : {}),
+      ...(server.importSourceId ? { importSourceId: server.importSourceId } : {}),
     },
   ];
   if (mail) {
@@ -718,6 +720,7 @@ export default function Deploy() {
           optionCodes,
           variables,
           ...(chosenSubdomain ? { subdomain: chosenSubdomain } : {}),
+          ...(query.import ? { importSourceId: query.import } : {}),
           ...(query.family && query.variant
             ? {
                 catalog: {

@@ -273,8 +273,8 @@ export async function publishReadyFamilies(): Promise<{ prepared: number; active
         active += 1;
       }
     }
-    // One product is already a card in the catalog. A family is shown only when it groups several.
-    const ready = readyCount > 1;
+    // A family with one orderable product is still a family. Hiding it made that product look missing.
+    const ready = readyCount >= 1;
     const discovery = ready ? 'GROUPED' as const : family.discovery;
     if (family.prepared !== ready || family.discovery !== discovery) {
       await prisma.catalogFamily.update({ where: { id: family.id }, data: { prepared: ready, discovery } });
