@@ -313,3 +313,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static access-invite contract test: 1/1 pass.
 - Focused Playwright access-invite suite: 2/2 pass, including exact role POST, one-time code reveal, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated instance reinstall confirmation
+
+### Completed
+
+- [x] Replaced the generic settings-tab reinstall dialog with `/app/instances/:id/reinstall`.
+- [x] Added live reinstall eligibility and latest-backup context before the destructive operation.
+- [x] Required the exact instance name plus explicit file-erasure acknowledgement, with Save/Discard-equivalent actions and dirty guard.
+- [x] Preserved the real reinstall API and its asynchronous provisioning semantics.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static reinstall contract test: 1/1 pass.
+- Focused Playwright reinstall suite: 2/2 pass, including gated real POST, dirty guard and 390px overflow/action reachability.

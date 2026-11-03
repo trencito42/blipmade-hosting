@@ -1,16 +1,12 @@
-import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { getSettings, reinstallInstance } from '../../lib/instance-api';
+import { getSettings } from '../../lib/instance-api';
 import {
-  ConfirmDialog,
   ButtonLink,
-  DangerButton,
   EmptyState,
   LoadingBlock,
   Panel,
   SoftButton,
   StatusPill,
-  useToast,
 } from '../../ui-app';
 import { ApiErrorState, Detail, fmtDateTime, type TabProps } from './common';
 
@@ -23,20 +19,7 @@ import { ApiErrorState, Detail, fmtDateTime, type TabProps } from './common';
  */
 
 export default function SettingsTab({ instance, onGoTo }: TabProps) {
-  const { push } = useToast();
   const settings = useAsync((signal) => getSettings(instance.id, signal), [instance.id]);
-  const [confirmReinstall, setConfirmReinstall] = useState(false);
-
-
-  const reinstall = async () => {
-    try {
-      await reinstallInstance(instance.id);
-      push('The server was reinstalled. The files of the container were erased.', 'ok');
-      setConfirmReinstall(false);
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The server was not reinstalled.', 'error');
-    }
-  };
 
   const current = settings.data;
 
@@ -91,7 +74,7 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
                   The panel wipes the files of the container and installs it again. Everything the instance stores is lost.
                 </p>
                 <div className="pt-1">
-                  <DangerButton onClick={() => setConfirmReinstall(true)}>Reinstall the server</DangerButton>
+                  <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/reinstall`} variant="danger">Reinstall the server</ButtonLink>
                 </div>
               </div>
             </div>
@@ -117,15 +100,6 @@ export default function SettingsTab({ instance, onGoTo }: TabProps) {
         </>
       )}
 
-      <ConfirmDialog
-        open={confirmReinstall}
-        title="Reinstall this server?"
-        description="The panel erases the files of the container and installs it again. Everything the instance stores is lost and cannot be recovered."
-        confirmLabel="Reinstall the server"
-        requireText={instance.name}
-        onCancel={() => setConfirmReinstall(false)}
-        onConfirm={reinstall}
-      />
     </div>
   );
 }
