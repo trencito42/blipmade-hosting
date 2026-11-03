@@ -151,6 +151,7 @@ export default function Instances() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [sort, setSort] = useState<'newest' | 'name' | 'price'>('newest');
+  const [type, setType] = useState('all');
 
   const instances = useMemo(() => data?.instances ?? [], [data]);
 
@@ -161,25 +162,28 @@ export default function Instances() {
     return seen;
   }, [instances]);
 
+  // Only offer the types the customer actually owns.
+  const types = useMemo(() => [...new Set(instances.map((instance) => instance.product.name))].sort((a, b) => a.localeCompare(b)), [instances]);
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const found = instances.filter((instance) => {
       const matchesQuery = !needle || instance.name.toLowerCase().includes(needle) || instance.product.name.toLowerCase().includes(needle);
       // A closed (cancelled) service is not part of the everyday list; it is under its own filter.
       const matchesStatus = status === 'all' ? instance.status !== 'cancelled' : instance.status === status;
-      return matchesQuery && matchesStatus;
+      return matchesQuery && matchesStatus && (type === 'all' || instance.product.name === type);
     });
     if (sort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name));
     if (sort === 'price') return [...found].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
     return [...found].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  }, [instances, query, status, sort]);
+  }, [instances, query, status, sort, type]);
 
-  const paged = usePaged(filtered, 20, `${query}|${status}|${sort}`);
+  const paged = usePaged(filtered, 20, `${query}|${status}|${sort}|${type}`);
 
   return (
     <Panel className="grid gap-4">
       <div className="grid gap-3">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
           <TextInput
             label="Search"
             type="search"
@@ -188,6 +192,21 @@ export default function Instances() {
             placeholder="Search by name or product"
             autoComplete="off"
           />
+          {types.length > 1 && (
+            <label className="grid gap-1.5 text-[14px] font-medium text-ink">
+              <span className="px-1">Type</span>
+              <select
+                value={type}
+                onChange={(event) => setType(event.target.value)}
+                className="h-12 rounded-xl border border-line bg-card px-3 text-[15px] font-normal text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+              >
+                <option value="all">All types</option>
+                {types.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="grid gap-1.5 text-[14px] font-medium text-ink">
             <span className="px-1">Sort by</span>
             <select

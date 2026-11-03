@@ -63,3 +63,16 @@ test('both pages fit at 390px', async ({ page }) => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth), route).toBe(false);
   }
 });
+
+test('the instances can be filtered by type, and the type filter only lists owned types', async ({ page }) => {
+  await stub(page);
+  await page.goto('/app/instances');
+  const type = page.locator('label', { hasText: 'Type' }).locator('select');
+  await expect(type.locator('option')).toHaveText(['All types', 'Minecraft', 'Node', 'WordPress']);
+  await expect(page.locator('table tbody tr')).toHaveCount(3);
+  await type.selectOption('Minecraft');
+  await expect(page.locator('table tbody tr')).toHaveCount(1);
+  await expect(page.locator('table tbody tr').first()).toContainText('Minecraft server');
+  await type.selectOption('all');
+  await expect(page.locator('table tbody tr')).toHaveCount(3);
+});
