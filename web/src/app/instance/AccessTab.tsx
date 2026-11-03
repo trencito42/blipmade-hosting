@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { del, get, post } from '../../lib/api';
+import { del, get } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
-import { ErrorState, LoadingBlock, Panel, PrimaryButton, SoftButton, useToast } from '../../ui-app';
+import { ButtonLink, ErrorState, LoadingBlock, Panel, SoftButton, useToast } from '../../ui-app';
 import type { TabProps } from './common';
 
 interface Access {
@@ -23,13 +22,6 @@ export default function AccessTab({ instance }: TabProps) {
   const { push } = useToast();
   const base = `/instances/${encodeURIComponent(instance.id)}/access`;
   const state = useAsync<Access>((signal) => get<Access>(base, undefined, signal), [instance.id]);
-  const [role, setRole] = useState<'viewer' | 'manager'>('viewer');
-  const [made, setMade] = useState<{ code: string; expiresAt: string } | null>(null);
-  const create = useAction(async () => {
-    const result = await post<{ code: string; expiresAt: string }>(base, { role });
-    setMade({ code: result.code, expiresAt: result.expiresAt });
-    state.reload();
-  });
   const remove = useAction(async (id: string) => {
     await del(`${base}/${encodeURIComponent(id)}`);
     push('The access was removed.', 'ok');
@@ -37,18 +29,8 @@ export default function AccessTab({ instance }: TabProps) {
   });
 
   return (
-    <Panel title="Access" description="Let someone else open this server from their own Blipmade account. A viewer can look; a manager can also run the server. Billing, renaming and cancelling stay with you.">
+    <Panel title="Access" description="Let someone else open this server from their own Blipmade account. A viewer can look; a manager can also run the server. Billing, renaming and cancelling stay with you." action={<ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/access/new`}>Invite someone</ButtonLink>}>
       <div className="grid gap-4">
-        {made && (
-          <div className="grid gap-2 rounded-2xl bg-acc-bg p-4">
-            <p className="text-[14px] font-medium text-ink">Give this code to the other person. It is shown only now and works once, until {day(made.expiresAt)}.</p>
-            <p className="rounded-xl bg-card px-3 py-2 text-center font-mono text-[18px] tracking-widest text-ink">{made.code}</p>
-            <div className="flex flex-wrap gap-2">
-              <SoftButton onClick={() => void navigator.clipboard.writeText(made.code).then(() => push('The code was copied.', 'ok'), () => push('Copy failed. Select the code and copy it by hand.', 'error'))}>Copy</SoftButton>
-              <PrimaryButton onClick={() => setMade(null)}>Done</PrimaryButton>
-            </div>
-          </div>
-        )}
         {state.loading && !state.data ? (
           <LoadingBlock rows={1} label="Loading who has access" />
         ) : state.error ? (
@@ -76,16 +58,6 @@ export default function AccessTab({ instance }: TabProps) {
             {(state.data?.members.length ?? 0) + (state.data?.invites.length ?? 0) === 0 && <li className="text-[14px] text-ink2">Nobody else has access yet.</li>}
           </ul>
         )}
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">Role
-            <select value={role} onChange={(event) => setRole(event.target.value as 'viewer' | 'manager')} className="min-h-11 rounded-xl border border-line bg-s2 px-3 text-[14px] text-ink">
-              <option value="viewer">Viewer (can look)</option>
-              <option value="manager">Manager (can run the server)</option>
-            </select>
-          </label>
-          <PrimaryButton onClick={() => void create.run()} disabled={create.pending}>{create.pending ? 'Making…' : 'Make a code'}</PrimaryButton>
-        </div>
-        {create.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{create.error}</p>}
       </div>
     </Panel>
   );
