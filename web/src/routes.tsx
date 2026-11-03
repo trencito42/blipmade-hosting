@@ -73,6 +73,8 @@ const AdminOrderRefund = lazy(() => import('./admin/OrderActions').then((m) => (
 const AdminOrderRetry = lazy(() => import('./admin/OrderActions').then((m) => ({ default: m.OrderRetry })));
 const AdminVpsPlanChange = lazy(() => import('./admin/VpsAdminEditors').then((m) => ({ default: m.VpsPlanChange })));
 const AdminVpsResourcesEdit = lazy(() => import('./admin/VpsAdminEditors').then((m) => ({ default: m.VpsResourcesEdit })));
+const AdminCustomerCredit = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerCreditAdjust })));
+const AdminCustomerNoteNew = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerNoteNew })));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -278,6 +280,8 @@ export const ROUTES: RouteDef[] = [
 
   { pattern: '/admin', component: AdminOverview, title: 'Dashboard', area: 'admin', exact: true },
   { pattern: '/admin/customers', component: AdminCustomers, title: 'Customers', area: 'admin' },
+  { pattern: '/admin/customers/:id/credit/adjust', component: AdminCustomerCredit, title: 'Give credit', area: 'admin', layout: 'editor' },
+  { pattern: '/admin/customers/:id/notes/new', component: AdminCustomerNoteNew, title: 'New note', area: 'admin', layout: 'editor' },
   { pattern: '/admin/customers/:id', component: AdminCustomerDetail, title: 'Customer', area: 'admin' },
   { pattern: '/admin/orders', component: AdminOrders, title: 'Orders', area: 'admin' },
   { pattern: '/admin/orders/:id/refund', component: AdminOrderRefund, title: 'Refund order', area: 'admin', layout: 'editor' },
