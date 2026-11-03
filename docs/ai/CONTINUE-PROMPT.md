@@ -28,6 +28,9 @@ You continue the Blipmade platform (repository `trencito42/blipmade-hosting`, br
 - #23 Domains 2.0 with Cloudflare DNS needs Cloudflare credentials and zone decisions from the owner; no nameserver migration without approval. It also unlocks the domain availability check and TLS state in `/app/domains`.
 - For each issue: write a short plan in `docs/ai/IMPLEMENTATION-STATUS.md`, build it as dedicated pages with API + tests, update the docs, commit often.
 
+## Task C (do this first): old branch `audit/launch-hardening-2026-10-30`
+It holds 56 commits (about 13 security, 9 billing, 24 test) from 30 Oct 2026 that are not in `main` by patch id. Some are already in `main` in another form (for example the atomic invoice sequence in `api/src/services/order-numbers.ts`). Others do not appear to be: the independent encryption key for customer credentials (and the re-encryption migration), the exact allowlist for signed Pterodactyl downloads with streaming of large files and backups, validation of the console WebSocket origin, single-use password-reset and email-verification tokens under concurrency, the trusted-proxy rate-limit fix, and the Stripe refund/payment-state guards. For each commit decide: already in `main`, to port, or obsolete. Port by hand onto current `main` (the branch differs from `main` by 757 files, so do not merge it), with its tests, and run the API suite on a disposable database. Billing and security changes need the owner's approval before deploy; the encryption migration must stay dry-run-first.
+
 ## Rules
 - Update `docs/ai/*` at every checkpoint; commit and push often.
 - Report honestly: say what is tested, what is not, and what you could not run. Never mark anything VERIFIED without a passing run.
