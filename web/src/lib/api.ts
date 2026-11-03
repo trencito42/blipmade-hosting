@@ -554,6 +554,7 @@ export interface Domain {
   instanceId: string;
   instanceName: string;
   hostname: string;
+  purpose?: 'http' | 'game';
   status: 'pending_dns' | 'pending_gateway' | 'verifying' | 'active' | 'error';
   targetPort: number;
   dnsRecords: { name: string; type: string; value: string }[];

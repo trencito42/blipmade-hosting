@@ -42,6 +42,8 @@ export interface ResourceQuote {
   remainingDays: number | null;
   changesUsed: number;
   changesAllowed: number;
+  /** When the oldest counted change leaves the 30-day window. Null when none is counted. */
+  nextChangeAt: string | null;
   /** True when the customer has to pay for the change. */
   requiresPayment: boolean;
 }
@@ -229,8 +231,21 @@ export async function quoteResourceChange(
   request: ResourceRequest,
 ): Promise<ResourceQuote> {
   const changesUsed = await appliedResizes(instance.id);
+  const oldest = changesUsed > 0
+    ? await prisma.order.findFirst({
+        where: {
+          instanceId: instance.id,
+          kind: 'UPGRADE',
+          status: { in: ['PENDING', 'AWAITING_PAYMENT', 'PAID', 'FULFILLED'] },
+          createdAt: { gt: new Date(Date.now() - RESIZE_WINDOW_MS) },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { createdAt: true },
+      })
+    : null;
+  const nextChangeAt = oldest ? new Date(oldest.createdAt.getTime() + RESIZE_WINDOW_MS).toISOString() : null;
   if (changesUsed >= RESIZE_LIMIT) {
-    throw badRequest('This service already has two resource changes in the last 30 days.');
+    throw badRequest(`This service already has two resource changes in the last 30 days. Next change available ${nextChangeAt?.slice(0, 10)}.`);
   }
   const period = await instanceTerm(instance.orderItemId);
   const price = await prisma.productPrice.findFirst({
@@ -259,6 +274,7 @@ export async function quoteResourceChange(
     remainingDays: prorated.remainingDays,
     changesUsed,
     changesAllowed: RESIZE_LIMIT,
+    nextChangeAt,
     requiresPayment: prorated.dueNow > 0,
   };
 }

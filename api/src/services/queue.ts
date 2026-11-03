@@ -272,7 +272,7 @@ export const GIT_DEPLOY_QUEUE = 'blipmade.git.deploy';
 export interface GitDeployJobData {
   instanceId: string;
   deployId: string;
-  action: 'build' | 'rollback';
+  action: 'build' | 'rollback' | 'archive';
   release?: string;
   /** Who asked: a user, or the webhook of the repository. */
   by: string;

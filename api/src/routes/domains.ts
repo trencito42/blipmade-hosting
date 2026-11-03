@@ -11,6 +11,9 @@ import * as gateway from '../services/gateway.js';
 import { platformSubdomainStatus } from '../services/provisioning.js';
 import * as dns from '../services/dns.js';
 import { deleteZoneRecord, upsertZoneRecord } from '../services/cloudflare-dns.js';
+import { openZoneToken, publishCustomerRecords, sealZoneToken, zoneForToken, type CustomerRecord } from '../services/customer-cloudflare.js';
+import * as operations from '../services/panel/operations.js';
+import * as panelClient from '../services/pterodactyl/client.js';
 import { resolveTarget } from '../services/domain-routing.js';
 import {
   notifyDomainDnsIncomplete,
@@ -120,6 +123,9 @@ interface DomainRow {
   hostname: string;
   status: string;
   targetPort: number;
+  purpose: string;
+  gameAddress: string | null;
+  srvPort: number | null;
   lastError: string | null;
   verificationToken: string | null;
   verificationHost: string | null;
@@ -266,7 +272,12 @@ async function addressChangeAvailableAt(domainId: string): Promise<Date | null> 
 
 function serializeDomain(domain: DomainRow, changeAvailableAt: Date | null = null) {
   const target = process.env.DOMAIN_TARGET ?? '193.34.214.143';
-  const records = gateway.dnsRecordsFor(domain.hostname, target);
+  const records = domain.purpose === 'game' && domain.gameAddress
+    ? [{ name: domain.hostname, type: 'A', value: domain.gameAddress }]
+    : gateway.dnsRecordsFor(domain.hostname, target);
+  if (domain.purpose === 'game' && domain.srvPort && domain.gameAddress) {
+    records.push({ name: `_minecraft._tcp.${domain.hostname}`, type: 'SRV', value: `0 5 ${domain.srvPort} ${domain.hostname}` });
+  }
   if (domain.verificationHost && domain.verificationToken) {
     records.push({ name: domain.verificationHost, type: 'TXT', value: domain.verificationToken });
   }
@@ -276,6 +287,7 @@ function serializeDomain(domain: DomainRow, changeAvailableAt: Date | null = nul
     instanceName: domain.instance.name,
     hostname: domain.hostname,
     status: statusFor(domain),
+    purpose: domain.purpose === 'game' ? 'game' : 'http',
     targetPort: domain.targetPort,
     dnsRecords: records,
     lastError: domain.lastError,
@@ -301,6 +313,36 @@ function serializeDomain(domain: DomainRow, changeAvailableAt: Date | null = nul
   };
 }
 
+const JAVA_GAMES = new Set(['minecraft-paper', 'minecraft-folia', 'minecraft-forge']);
+
+/** The public address and port of a game server, read from its allocation. */
+async function gamePlacement(instanceId: string): Promise<{ address: string | null; port: number; srvPort: number | null }> {
+  const instance = await prisma.instance.findUnique({
+    where: { id: instanceId },
+    select: {
+      id: true, userId: true, status: true, pterodactylUuid: true, pterodactylServerId: true, generatedVariables: true,
+      product: { select: { slug: true, generatedVariables: true } },
+    },
+  });
+  if (!instance?.pterodactylUuid || !instance.pterodactylServerId) return { address: null, port: 0, srvPort: null };
+  const token = await operations.customerToken({
+    id: instance.id,
+    userId: instance.userId,
+    status: instance.status,
+    pterodactylUuid: instance.pterodactylUuid,
+    pterodactylServerId: instance.pterodactylServerId,
+    generatedVariables: instance.generatedVariables,
+    productVariables: instance.product.generatedVariables,
+  });
+  const allocations = await panelClient.listAllocations(token, instance.pterodactylUuid);
+  const primary = allocations.find((item) => item.is_default) ?? allocations[0];
+  if (!primary) return { address: null, port: 0, srvPort: null };
+  const raw = primary.ip && primary.ip !== '0.0.0.0' && primary.ip !== '127.0.0.1'
+    ? primary.ip
+    : (primary.alias && /^\d{1,3}(\.\d{1,3}){3}$/.test(primary.alias) ? primary.alias : null);
+  return { address: raw, port: primary.port, srvPort: JAVA_GAMES.has(instance.product.slug) ? primary.port : null };
+}
+
 export async function registerDomainRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Caddy asks this endpoint before issuing an on-demand certificate. The
@@ -317,7 +359,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       return reply.code(403).send();
     }
     const domain = await prisma.instanceDomain.findFirst({
-      where: { hostname: parsed.data.domain, verifiedAt: { not: null } },
+      where: { hostname: parsed.data.domain, verifiedAt: { not: null }, purpose: 'http' },
       select: { id: true },
     });
     return domain ? reply.code(204).send() : reply.code(403).send();
@@ -448,7 +490,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
   }, async (request: FastifyRequest, reply) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const { hostname: raw } = z.object({ hostname: z.string() }).parse(request.body ?? {});
+    const { hostname: raw, purpose: purposeRaw } = z.object({ hostname: z.string(), purpose: z.enum(['http', 'game']).default('http') }).parse(request.body ?? {});
     const hostname = assertValidHostname(raw);
 
     const instance = await prisma.instance.findFirst({
@@ -469,6 +511,8 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     const token = randomToken(24);
     const verificationHost = dns.verificationHostFor(hostname);
     const target = await resolveTarget(instance);
+    const purpose = purposeRaw;
+    const placement = purpose === 'game' ? await gamePlacement(instance.id) : null;
 
     const existing = await prisma.instanceDomain.findUnique({
       where: { hostname },
@@ -484,7 +528,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         data: {
           instanceId: instance.id,
           hostname,
-          targetPort: target.port,
+          targetPort: placement?.port || target.port,
+          purpose,
+          gameAddress: placement?.address ?? null,
+          srvPort: placement?.srvPort ?? null,
           status: 'VERIFYING',
           verificationToken: token,
           verificationHost,
@@ -508,7 +555,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
           claimedByUserId: user.id,
           verificationToken: token,
           verificationHost,
-          targetPort: target.port,
+          targetPort: placement?.port || target.port,
+          purpose,
+          gameAddress: placement?.address ?? null,
+          srvPort: placement?.srvPort ?? null,
           status: 'VERIFYING',
           lastError: null,
         },
@@ -519,7 +569,10 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
         data: {
           instanceId: instance.id,
           hostname,
-          targetPort: target.port,
+          targetPort: placement?.port || target.port,
+          purpose,
+          gameAddress: placement?.address ?? null,
+          srvPort: placement?.srvPort ?? null,
           status: 'VERIFYING',
           verificationToken: token,
           verificationHost,
@@ -529,8 +582,8 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       });
     }
 
-    const targetAddress = process.env.DOMAIN_TARGET ?? '193.34.214.143';
-    await upsertZoneRecord({ type: 'A', name: hostname, content: targetAddress });
+    const targetAddress = placement?.address || process.env.DOMAIN_TARGET || '193.34.214.143';
+    if (purpose === 'http' || placement?.address) await upsertZoneRecord({ type: 'A', name: hostname, content: targetAddress });
     if (verificationHost) await upsertZoneRecord({ type: 'TXT', name: verificationHost, content: token });
 
     await prisma.instanceEvent.create({
@@ -615,9 +668,29 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       return { domain: serializeDomain(updated) };
     }
 
+    const verifiedAt = domain.verifiedAt ?? new Date();
+    if (domain.purpose === 'game') {
+      const placement = await gamePlacement(domain.instanceId);
+      const expected = placement.address ?? domain.gameAddress;
+      const published = await dns.resolveAddresses(domain.hostname);
+      const ready = Boolean(expected) && !published.error && published.values.includes(expected ?? '');
+      const updated = await prisma.instanceDomain.update({
+        where: { id: domain.id },
+        data: {
+          status: ready ? 'ACTIVE' : 'PENDING_DNS',
+          verifiedAt,
+          gameAddress: expected,
+          srvPort: placement.srvPort ?? domain.srvPort,
+          targetPort: placement.port || domain.targetPort,
+          lastError: ready ? null : (published.error ?? `Ownership is proven. Publish a DNS-only A record for ${domain.hostname} to ${expected ?? 'the server address'}. Do not proxy it. Found ${published.values.join(', ') || 'nothing'}.`),
+        },
+        include: { instance: { select: { name: true } } },
+      });
+      return { domain: serializeDomain(updated) };
+    }
+
     // The proof was accepted. The route is added only after the hostname's address
     // record points at the gateway. Ownership alone is not a working site.
-    const verifiedAt = domain.verifiedAt ?? new Date();
     const expectedAddress = process.env.DOMAIN_TARGET ?? '193.34.214.143';
     const published = await dns.resolveAddresses(domain.hostname);
     if (published.error || !published.values.includes(expectedAddress)) {
@@ -749,5 +822,64 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
     });
 
     return reply.code(204).send();
+  });
+
+  app.get('/domains/cloudflare', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const link = await prisma.cloudflareZoneLink.findUnique({ where: { userId: user.id }, select: { zoneName: true, zoneId: true } });
+    return { connected: Boolean(link), zoneName: link?.zoneName ?? null };
+  });
+
+  app.put('/domains/cloudflare', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { token } = z.object({ token: z.string().min(20).max(200) }).parse(request.body ?? {});
+    const zone = await zoneForToken(token.trim());
+    if (zone.zoneName === 'blipmade.com') throw badRequest('Connect a zone you own. The platform zone stays with Blipmade.');
+    await prisma.cloudflareZoneLink.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, zoneId: zone.zoneId, zoneName: zone.zoneName, tokenSealed: sealZoneToken(token.trim()) },
+      update: { zoneId: zone.zoneId, zoneName: zone.zoneName, tokenSealed: sealZoneToken(token.trim()) },
+    });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.cloudflare_connected', targetType: 'user', targetId: user.id, meta: { zone: zone.zoneName } });
+    return { connected: true, zoneName: zone.zoneName };
+  });
+
+  app.delete('/domains/cloudflare', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
+    const user = await requireAuth(request);
+    await prisma.cloudflareZoneLink.deleteMany({ where: { userId: user.id } });
+    return reply.code(204).send();
+  });
+
+  app.post('/domains/:id/cloudflare', {
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const domain = await prisma.instanceDomain.findUnique({ where: { id }, include: { instance: { select: { name: true, userId: true } } } });
+    if (!domain || domain.instance.userId !== user.id) throw notFound('Domain not found.');
+    const link = await prisma.cloudflareZoneLink.findUnique({ where: { userId: user.id } });
+    if (!link) throw badRequest('Connect a Cloudflare zone first.');
+    const host = domain.hostname.toLowerCase();
+    if (host !== link.zoneName && !host.endsWith(`.${link.zoneName}`)) {
+      throw badRequest(`This hostname is not inside ${link.zoneName}.`);
+    }
+    const shown = serializeDomain(domain);
+    const records: CustomerRecord[] = [];
+    for (const record of shown.dnsRecords) {
+      if (record.type === 'A' || record.type === 'TXT') records.push({ type: record.type, name: record.name, content: record.value });
+      else if (record.type === 'SRV' && domain.srvPort) records.push({ type: 'SRV', name: record.name, content: record.value, data: { priority: 0, weight: 5, port: domain.srvPort, target: domain.hostname } });
+    }
+    const token = openZoneToken(link.tokenSealed);
+    if (!token) throw badRequest('The saved Cloudflare token could not be read. Connect the zone again.');
+    const result = await publishCustomerRecords(token, link.zoneId, link.zoneName, records);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'domain.cloudflare_publish', targetType: 'instance_domain', targetId: domain.id, meta: result });
+    return result;
   });
 }

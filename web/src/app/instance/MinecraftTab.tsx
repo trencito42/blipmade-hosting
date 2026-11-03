@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { get, post, put } from '../../lib/api';
+import { del, get, post, put } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
 import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Segmented, Select, SoftButton, TextInput, useToast } from '../../ui-app';
 import type { TabProps } from './common';
@@ -94,6 +94,11 @@ export default function MinecraftTab({ instance }: TabProps) {
   const install = useAction(async (slug: string) => {
     const answer = await post<{ installed: string; note: string }>(`${base}/plugins`, { slug, version: gameVersion });
     push(`${answer.installed} installed. ${answer.note}`, 'ok');
+    plugins.reload();
+  });
+  const removePlugin = useAction(async (name: string) => {
+    const answer = await del<{ removed: string; note: string }>(`${base}/plugins`, { name });
+    push(`${answer.removed} removed. ${answer.note}`, 'ok');
     plugins.reload();
   });
   const changeVersion = useAction(async () => {
@@ -250,7 +255,14 @@ export default function MinecraftTab({ instance }: TabProps) {
             ))}
             {install.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{install.error}</p>}
             {(plugins.data?.installed.length ?? 0) > 0 ? (
-              <p className="text-[13px] text-ink2">Installed: {plugins.data!.installed.map((entry) => entry.name).join(', ')}</p>
+              <ul className="grid gap-1 text-[13px] text-ink2">
+                {plugins.data!.installed.map((entry) => (
+                  <li key={entry.name} className="flex items-center justify-between gap-2">
+                    <span className="font-mono">{entry.name}</span>
+                    <button type="button" className="text-[13px] font-semibold text-acc" onClick={() => void removePlugin.run(entry.name)}>Remove</button>
+                  </li>
+                ))}
+              </ul>
             ) : (
               <EmptyState title="No plugins installed." description="Search above, or upload a .jar in the Files tab, in the plugins folder." />
             )}

@@ -42,6 +42,7 @@ export default function NewDomain() {
   const [instanceId, setInstanceId] = useState('');
   const [instanceLabel, setInstanceLabel] = useState('');
   const [hostname, setHostname] = useState('');
+  const [purpose, setPurpose] = useState<'http' | 'game'>('http');
   const [touched, setTouched] = useState(false);
   const dirty = Boolean(instanceId || hostname);
   useUnsavedChangesGuard(dirty, 'Discard this domain claim?');
@@ -62,7 +63,7 @@ export default function NewDomain() {
   }, []);
 
   const create = useAction(async () => {
-    const result = await post<{ domain: Domain }>(`/instances/${instanceId}/domains`, { hostname: normalizeHostname(hostname) });
+    const result = await post<{ domain: Domain }>(`/instances/${instanceId}/domains`, { hostname: normalizeHostname(hostname), purpose });
     return result.domain;
   });
 
@@ -132,6 +133,14 @@ export default function NewDomain() {
           hint="The hostname will route to this instance. Viewer-only shared instances cannot be changed."
           error={instanceError ?? create.fieldErrors.instanceId}
         />
+        <div className="grid gap-2">
+          <p className="text-[13px] font-semibold text-ink">What this hostname is for</p>
+          <div className="flex flex-wrap gap-2">
+            <SoftButton type="button" onClick={() => setPurpose('http')} aria-pressed={purpose === 'http'}>Website</SoftButton>
+            <SoftButton type="button" onClick={() => setPurpose('game')} aria-pressed={purpose === 'game'}>Game server</SoftButton>
+          </div>
+          <p className="text-[12.5px] text-ink3">{purpose === 'game' ? 'A game hostname gets an address record and, for Java Minecraft, an SRV record. It is not proxied and it is not an HTTPS site.' : 'A website hostname is checked over HTTPS after the address record points at Blipmade.'}</p>
+        </div>
         <DomainInput
           value={hostname}
           onChange={setHostname}

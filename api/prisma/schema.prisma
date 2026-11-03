@@ -78,6 +78,7 @@ model User {
   adminSavedViews AdminSavedView[]
   staffInvitations StaffInvitation[]
   serverProfiles ServerProfile[]
+  cloudflareZone CloudflareZoneLink?
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -1116,6 +1117,12 @@ model InstanceDomain {
   instance    Instance     @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   hostname    String       @unique
   targetPort  Int          @default(30000)
+  /// http routes through the website gateway. game is an address record only, never an HTTPS route.
+  purpose     String       @default("http")
+  /// The game server address a game hostname has to publish. Empty for a website.
+  gameAddress String?
+  /// Set for a Java game hostname that should also publish an SRV record.
+  srvPort     Int?
   status      DomainStatus @default(PENDING_DNS)
   // Random per-domain proof of ownership. The customer has to publish it as a
   // TXT record before the domain can be routed.
@@ -1131,6 +1138,18 @@ model InstanceDomain {
 
   @@index([instanceId])
   @@index([status])
+}
+
+/// One Cloudflare zone a customer connected so Blipmade can write the records of their hostnames. The token is encrypted.
+model CloudflareZoneLink {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  zoneId      String
+  zoneName    String
+  tokenSealed String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------

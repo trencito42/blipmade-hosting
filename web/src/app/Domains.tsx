@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { get, post, type Domain } from '../lib/api';
+import { get, post, put, type Domain } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import { ButtonGroup } from './components/premium';
@@ -11,6 +11,7 @@ import {
   Pager,
   Panel,
   SoftButton,
+  TextInput,
   StatusPill,
   usePaged,
   useToast,
@@ -48,10 +49,16 @@ function isPlatformHostname(hostname: string): boolean {
 
 /** Ownership proof and DNS records of one domain. Own page, not the list. */
 export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: string, label: string) => void | Promise<void> }) {
+  const { push } = useToast();
+  const publish = useAction(async () => {
+    const answer = await post<{ written: string[]; skipped: string[] }>(`/domains/${domain.id}/cloudflare`);
+    push(answer.skipped.length ? answer.skipped.join(' ') : `Wrote ${answer.written.length} record(s).`, answer.skipped.length ? 'error' : 'ok');
+  });
+  const game = domain.purpose === 'game';
   const steps = [
     { label: 'Hostname claimed', done: true },
     { label: 'Ownership TXT verified', done: domain.verification.verified },
-    { label: 'Gateway route added', done: domain.status === 'active' },
+    { label: game ? 'Address record published' : 'Gateway route added', done: domain.status === 'active' },
   ];
   return (
     <>
@@ -63,7 +70,9 @@ export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: 
                     </li>
                   ))}
                 </ol>
-                <p className="mt-1 text-[12.5px] text-ink3">Active means the hostname answered over HTTPS. The route is added only after the TXT proof and the A record. Nameservers are not changed.</p>
+                <p className="mt-1 text-[12.5px] text-ink3">{game ? 'Active means the address record points at this game server. Leave Cloudflare proxy off. Nameservers stay where they are.' : 'Active means the hostname answered over HTTPS. The route is added only after the TXT proof and the A record. Nameservers are not changed.'}</p>
+                <SoftButton className="mt-3" onClick={() => void publish.run()} disabled={publish.pending}>Write these records in my Cloudflare zone</SoftButton>
+                {publish.error && <p role="alert" className="mt-2 text-[13px] font-medium text-bad">{publish.error}</p>}
                 {domain.lastError && (
                   <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-3.5 py-2.5 text-[13.5px] text-ink2">
                     <span className="font-bold text-bad">Last error: </span>
@@ -228,6 +237,14 @@ export default function Domains() {
     [],
   );
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [zoneToken, setZoneToken] = useState('');
+  const zone = useAsync<{ connected: boolean; zoneName: string | null }>((signal) => get('/domains/cloudflare', undefined, signal), []);
+  const connectZone = useAction(async () => {
+    const answer = await put<{ zoneName: string }>('/domains/cloudflare', { token: zoneToken.trim() });
+    setZoneToken('');
+    zone.reload();
+    push(`Connected ${answer.zoneName}. The token is stored encrypted and is not shown again.`);
+  });
 
   const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
   const paged = usePaged(domains, 20);
@@ -250,6 +267,16 @@ export default function Domains() {
 
   return (
     <div className="grid gap-4">
+      <Panel title="Cloudflare zone" description="Optional. A token that can edit DNS on exactly one zone you own. Blipmade writes only the records shown for a hostname, and only when you press the button. Nameservers are not changed.">
+        <p className="text-[13.5px] text-ink2">{zone.data?.connected ? `Connected zone: ${zone.data.zoneName}` : 'No zone connected. Manual records still work.'}</p>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="min-w-[240px] flex-1">
+            <TextInput label="Zone token" type="password" value={zoneToken} onChange={(event) => setZoneToken(event.target.value)} autoComplete="off" />
+          </div>
+          <SoftButton onClick={() => void connectZone.run()} disabled={connectZone.pending || zoneToken.trim().length < 20}>Connect</SoftButton>
+        </div>
+        {connectZone.error && <p role="alert" className="mt-2 text-[13px] font-medium text-bad">{connectZone.error}</p>}
+      </Panel>
       <Panel>
         {domainsState.loading ? (
           <LoadingBlock rows={3} label="Loading your domains" />

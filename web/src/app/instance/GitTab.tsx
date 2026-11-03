@@ -72,6 +72,15 @@ export default function GitTab({ instance }: TabProps) {
     state.reload();
     history.reload();
   });
+  const uploadZip = useAction(async (file: File) => {
+    if (file.size > 8 * 1024 * 1024) throw new Error('The zip is larger than 8 MB.');
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    const answer = await post<{ queued: boolean; note: string }>(`${base.replace(/\/git$/, '/archive')}`, { zipBase64: btoa(binary), buildCommand: 'npm install', startCommand: data?.startCommand || 'npm start' });
+    push(answer.note, 'ok');
+    state.reload();
+  });
   const showLog = useAction(async (id: string) => {
     const answer = await get<{ log: string }>(`${base}/log`, { deploy: id });
     setLog({ id, text: answer.log });
@@ -140,6 +149,14 @@ export default function GitTab({ instance }: TabProps) {
           <pre className="max-h-96 overflow-auto rounded-2xl bg-s2 p-3.5 font-mono text-[12.5px] text-ink">{log.text || '(empty)'}</pre>
         </Panel>
       )}
+
+      <Panel title="Project zip" description="Upload a zip of at most 8 MB. It is unpacked and built inside this server. Nothing from the zip runs on the platform.">
+        <label className="inline-flex h-11 cursor-pointer items-center rounded-xl border border-line px-4 text-[14px] font-semibold text-ink">
+          Upload zip
+          <input type="file" accept=".zip,application/zip" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadZip.run(file); }} />
+        </label>
+        {uploadZip.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{uploadZip.error}</p>}
+      </Panel>
 
       <ConfirmDialog
         open={confirmRemove}

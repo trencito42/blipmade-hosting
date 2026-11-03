@@ -93,7 +93,7 @@ export function shq(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-export function renderConf(config: GitConfigInput): string {
+export function renderConf(config: GitConfigInput, archive = false): string {
   return [
     `REPO=${shq(config.repoUrl)}`,
     `BRANCH=${shq(config.branch)}`,
@@ -101,6 +101,7 @@ export function renderConf(config: GitConfigInput): string {
     `START_CMD=${shq(config.startCommand)}`,
     `BUILD_TIMEOUT=${BUILD_TIMEOUT_SECONDS}`,
     `KEEP=${KEEP_RELEASES}`,
+    `ARCHIVE=${archive ? 1 : 0}`,
     '',
   ].join('\n');
 }
@@ -143,6 +144,28 @@ status() { # status <state> <id> <release> <commit> <message>
 }
 
 build() {
+  if [ "\${ARCHIVE:-0}" = "1" ]; then
+    local src="$B/inbox"
+    [ -d "$src" ] || { echo "[blipmade] the archive was not unpacked"; return 11; }
+    local one="" count=0
+    for item in "$src"/*; do
+      [ -e "$item" ] || continue
+      [ "$(basename "$item")" = "project.zip" ] && continue
+      count=$((count + 1)); one="$item"
+    done
+    [ "$count" -eq 1 ] && [ -d "$one" ] && src="$one"
+    COMMIT="a1c00000"
+    REL="$(date -u +%Y%m%d%H%M%S)-$COMMIT"
+    mkdir -p "$B/releases/$REL"
+    cp -a "$src"/. "$B/releases/$REL/" || return 12
+    cd "$B/releases/$REL" || return 12
+    set -a; [ -f "$B/app.env" ] && . "$B/app.env"; set +a
+    if [ -n "$BUILD_CMD" ]; then
+      echo "[blipmade] building: $BUILD_CMD"
+      timeout "$BUILD_TIMEOUT" bash -c "$BUILD_CMD" || { echo "[blipmade] the build failed or took longer than $BUILD_TIMEOUT seconds"; return 13; }
+    fi
+    return 0
+  fi
   local tmp="$B/tmp"
   echo "[blipmade] cloning $REPO ($BRANCH)"
   rm -rf "\${tmp:?}"
@@ -175,7 +198,7 @@ if [ -f "$B/request" ]; then
   rm -f "$B/request"
   LOG="$B/logs/$ID.log"
   case "$ACTION" in
-    build)
+    archive|build)
       status building "$ID" "" "" "building"
       COMMIT=""; REL=""
       build > "$LOG" 2>&1; rc=$?
@@ -246,12 +269,41 @@ export async function installGit(
     // It exists already.
   }
   await client.writeFile(token, uuid, `${BLIPMADE_DIR}/run.sh`, RUN_SCRIPT);
-  await client.writeFile(token, uuid, `${BLIPMADE_DIR}/deploy.conf`, renderConf(config));
+  await client.writeFile(token, uuid, `${BLIPMADE_DIR}/deploy.conf`, renderConf(config, false));
   if (env) {
     await client.writeFile(token, uuid, `${BLIPMADE_DIR}/app.env`, renderEnv(env));
     await client.chmodFile(token, uuid, `${BLIPMADE_DIR}/app.env`, 0o600).catch(() => undefined);
   }
   // The server starts the managed script. The command it had is kept, to be given back.
+  const server = await application.getServer(instance.pterodactylServerId as number);
+  const current = server.container.startup_command;
+  if (current !== GIT_STARTUP) {
+    await application.updateServerStartup(instance.pterodactylServerId as number, { startup: GIT_STARTUP, skip_scripts: true });
+    return { previousStartup: current };
+  }
+  return { previousStartup: null };
+}
+
+/** Puts a zip into the container and points the startup at it. The build runs there, not on the platform. */
+export async function installArchive(
+  instance: Instance,
+  config: { buildCommand: string; startCommand: string },
+  zip: Buffer,
+): Promise<{ previousStartup: string | null }> {
+  const token = await operations.customerToken(instance);
+  const uuid = instance.pterodactylUuid as string;
+  try { await client.createFolder(token, uuid, BLIPMADE_DIR); } catch { /* It exists already. */ }
+  try { await client.createFolder(token, uuid, `${BLIPMADE_DIR}/inbox`); } catch { /* It exists already. */ }
+  await client.writeFile(token, uuid, `${BLIPMADE_DIR}/run.sh`, RUN_SCRIPT);
+  await client.writeFile(token, uuid, `${BLIPMADE_DIR}/deploy.conf`, renderConf({
+    repoUrl: 'https://github.com/archive/archive',
+    branch: 'main',
+    buildCommand: config.buildCommand,
+    startCommand: config.startCommand,
+  }, true));
+  await client.uploadFile(token, uuid, `${BLIPMADE_DIR}/inbox`, 'project.zip', zip);
+  await client.decompressArchive(token, uuid, `${BLIPMADE_DIR}/inbox/project.zip`);
+  await client.deleteFile(token, uuid, `${BLIPMADE_DIR}/inbox/project.zip`).catch(() => undefined);
   const server = await application.getServer(instance.pterodactylServerId as number);
   const current = server.container.startup_command;
   if (current !== GIT_STARTUP) {
@@ -315,10 +367,11 @@ export async function currentRelease(instance: Instance): Promise<string | null>
  * Asks the container to build or roll back, restarts it, and waits for the answer of the script.
  * Returns the final status. Nothing here throws on a failed build: a failed build is an answer, not an error.
  */
-export async function runDeploy(instance: Instance, id: string, action: 'build' | 'rollback', release?: string): Promise<DeployStatus> {
+export async function runDeploy(instance: Instance, id: string, action: 'build' | 'rollback' | 'archive', release?: string): Promise<DeployStatus> {
   const token = await operations.customerToken(instance);
   const uuid = instance.pterodactylUuid as string;
-  await client.writeFile(token, uuid, `${BLIPMADE_DIR}/request`, action === 'build' ? `build ${id}\n` : `rollback ${id} ${release ?? ''}\n`);
+  const line = action === 'rollback' ? `rollback ${id} ${release ?? ''}\n` : `${action} ${id}\n`;
+  await client.writeFile(token, uuid, `${BLIPMADE_DIR}/request`, line);
   await client.sendPower(token, uuid, 'restart');
   const deadline = Date.now() + (BUILD_TIMEOUT_SECONDS + 420) * 1000;
   let last: DeployStatus = { state: 'none', id: '', release: '', commit: '', at: null, message: '' };

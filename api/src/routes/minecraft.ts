@@ -167,6 +167,15 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
     return { installed: file.filename, note: 'Restart the server to load it.' };
   });
 
+  app.delete('/instances/:id/minecraft/plugins', write, async (request: FastifyRequest) => {
+    const { user, instance, token, uuid, slug } = await load(request);
+    if (slug !== 'minecraft-paper') throw badRequest('Plugins are removed from Paper servers.');
+    const { name } = z.object({ name: z.string().regex(/^[A-Za-z0-9._+-]{1,120}\.jar$/) }).parse(request.body ?? {});
+    await client.deleteFile(token, uuid, `/plugins/${name}`);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_plugin_removed', targetType: 'instance', targetId: instance.id, meta: { file: name } });
+    return { removed: name, note: 'Restart the server to unload it.' };
+  });
+
   app.get('/instances/:id/minecraft/worlds', async (request: FastifyRequest) => {
     const { token, uuid } = await load(request);
     const worlds: { name: string; entries: number }[] = [];

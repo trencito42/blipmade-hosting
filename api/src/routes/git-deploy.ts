@@ -8,9 +8,10 @@ import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import * as operations from '../services/panel/operations.js';
 import * as client from '../services/pterodactyl/client.js';
+import { zipLayoutProblem } from '../services/import-inspect.js';
 import { enqueueGitDeploy } from '../services/queue.js';
 import {
-  GIT_RUNTIMES, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, currentRelease, installGit, listReleases, newWebhookSecret,
+  GIT_RUNTIMES, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, currentRelease, installArchive, installGit, listReleases, newWebhookSecret,
   openWebhookSecret, parseEnvKeys, parseEnvValues, readLog, readStatus, uninstallGit, verifyGithubSignature, BLIPMADE_DIR,
 } from '../services/git-deploy.js';
 
@@ -207,6 +208,49 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
     await prisma.gitDeploy.delete({ where: { instanceId: instance.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.git_removed', targetType: 'instance', targetId: instance.id });
     return { removed: true };
+  });
+
+  app.post('/instances/:id/archive', {
+    bodyLimit: 12_000_000,
+    config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.panel),
+  }, async (request: FastifyRequest, reply) => {
+    const { user, instance, supported } = await load(request);
+    if (!supported) throw badRequest('A project zip is built inside a Node.js app or a Discord bot.');
+    const body = z.object({
+      zipBase64: z.string().min(32).max(12_000_000),
+      buildCommand: z.string().max(500).default('npm install'),
+      startCommand: z.string().max(500).default('npm start'),
+    }).parse(request.body ?? {});
+    const zip = Buffer.from(body.zipBase64, 'base64');
+    const problem = zipLayoutProblem(zip);
+    if (problem) throw badRequest(problem);
+    const buildCommand = cleanCommand(body.buildCommand, 'buildCommand', false);
+    const startCommand = cleanCommand(body.startCommand, 'startCommand', true);
+    const existing = await prisma.gitDeploy.findUnique({ where: { instanceId: instance.id } });
+    const installed = await installArchive(instance, { buildCommand, startCommand }, zip);
+    await prisma.gitDeploy.upsert({
+      where: { instanceId: instance.id },
+      create: {
+        instanceId: instance.id,
+        repoUrl: 'archive://project',
+        branch: 'upload',
+        buildCommand,
+        startCommand,
+        previousStartup: installed.previousStartup,
+      },
+      update: {
+        repoUrl: 'archive://project',
+        branch: 'upload',
+        buildCommand,
+        startCommand,
+        previousStartup: installed.previousStartup ?? existing?.previousStartup ?? null,
+      },
+    });
+    const deployId = randomUUID();
+    const queued = await enqueueGitDeploy({ instanceId: instance.id, deployId, action: 'archive', by: user.id });
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.archive_deploy', targetType: 'instance', targetId: instance.id, meta: { queued, bytes: zip.length } });
+    return reply.code(queued ? 202 : 200).send({ queued, note: 'The zip is unpacked and built inside this server.' });
   });
 
   // The signed webhook of the repository. The body arrives as text, because the signature is over the exact bytes.

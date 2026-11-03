@@ -35,7 +35,7 @@ export function ImportProject() {
   });
 
   return (
-    <Panel title="Import a project" description="Paste a public GitHub or GitLab URL. Blipmade reads the manifest files only. It does not run the project and it does not create a server.">
+    <Panel title="Import a project" description="Paste a public GitHub or GitLab URL, or a zip of at most 8 MB. Blipmade reads the manifest files only. After you order the server, upload the same zip on its Deploy tab. The build runs inside that server.">
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-[240px] flex-1">
           <TextInput label="Repository URL" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/owner/project" autoComplete="off" spellCheck={false} />

@@ -98,6 +98,33 @@ export function manifestUrls(raw: string): string[] {
 
 const MAX_ZIP = 8 * 1024 * 1024;
 
+/** Names inside a zip the container is allowed to unpack. Returns the reason it is refused, or null. */
+export function zipLayoutProblem(zip: Buffer): string | null {
+  if (zip.length < 22 || zip.length > MAX_ZIP) return 'The zip must be a zip file of at most 8 MB.';
+  let eocd = -1;
+  for (let i = zip.length - 22; i >= Math.max(0, zip.length - 22 - 65_535); i -= 1) {
+    if (zip.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return 'That file is not a zip archive.';
+  const count = zip.readUInt16LE(eocd + 10);
+  let cursor = zip.readUInt32LE(eocd + 16);
+  if (count > 4_000 || cursor >= zip.length) return 'The archive has too many files.';
+  let declared = 0;
+  for (let index = 0; index < count && cursor + 46 <= zip.length; index += 1) {
+    if (zip.readUInt32LE(cursor) !== 0x02014b50) return 'The archive listing is not readable.';
+    const size = zip.readUInt32LE(cursor + 24);
+    const nameLength = zip.readUInt16LE(cursor + 28);
+    const extraLength = zip.readUInt16LE(cursor + 30);
+    const commentLength = zip.readUInt16LE(cursor + 32);
+    const name = zip.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8').replaceAll('\\', '/');
+    cursor += 46 + nameLength + extraLength + commentLength;
+    if (!name || name.startsWith('/') || name.includes('..') || name.includes('\0')) return 'The archive contains a path that leaves its folder.';
+    declared += size;
+    if (declared > 80 * 1024 * 1024) return 'The archive expands to more than 80 MB.';
+  }
+  return null;
+}
+
 /** Pulls known manifest files out of a zip buffer. Other entries are skipped. */
 export function readZipManifests(zip: Buffer): { path: string; text: string }[] {
   if (zip.length < 22 || zip.length > MAX_ZIP) return [];

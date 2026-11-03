@@ -129,7 +129,9 @@ const MINECRAFT_SLUGS = ['minecraft-paper', 'minecraft-folia', 'minecraft-forge'
 
 function primaryTabsFor(slug: string | undefined): Tab[] {
   if (slug && MINECRAFT_SLUGS.includes(slug)) return ['overview', 'console', 'minecraft', 'backups', 'settings'];
-  return PRIMARY_TABS;
+  if (slug === 'nodejs' || slug === 'discord-bot') return ['overview', 'console', 'git', 'domains', 'settings'];
+  if (slug && ['mariadb', 'postgresql', 'mongodb', 'redis'].includes(slug)) return ['overview', 'databases', 'backups', 'settings'];
+  return ['overview', 'console', 'files', 'backups', 'settings'];
 }
 
 /** What a member of a shared server does not get: the parts that belong to the owner. */
@@ -649,7 +651,7 @@ export default function InstanceDetail() {
           </div>
           {visibleTabs.some((entry) => !primaryTabsFor(instance.product.slug).includes(entry.value)) && (
             <SoftButton onClick={() => setShowMore((open) => !open)} aria-expanded={showMore || !primaryTabsFor(instance.product.slug).includes(tab)} className="shrink-0">
-              {showMore || !primaryTabsFor(instance.product.slug).includes(tab) ? 'Less' : 'More'}
+              {showMore || !primaryTabsFor(instance.product.slug).includes(tab) ? 'Less' : 'Advanced'}
             </SoftButton>
           )}
         </div>
