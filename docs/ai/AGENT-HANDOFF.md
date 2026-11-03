@@ -7,19 +7,24 @@ Updated: 2026-11-03.
 - Objective: finish App 3.0 (then Admin 3.0), incremental targeted checks, UI audit, then full E2E in controlled batches.
 
 ## Done
-Editors, shell, tooltip layer, inventory pattern, paging, billing tabs/pages, domain detail, access-code page. See IMPLEMENTATION-STATUS.md.
+Editors, shell, tooltip layer, inventory pattern, paging, billing tabs/pages, domain detail, access-code page, compact sticky headers (instance, VPS) with grouped power buttons, admin product editor route. See IMPLEMENTATION-STATUS.md.
 
-## Uncommitted at time of writing
-Commit after this file includes: Billing payment tab, DomainDetail + route order fix, Instances redeem route, Tickets sticky reply, Settings tab rename, docs/ai/*.
+## Uncommitted
+None at last update (branch HEAD = latest commit; `git log -1`). Branch pushed to GitHub audit branch; `main` last published at 872e1ba (user approved "pe main ma pune l"); later commits on audit branch only. Production deploy NOT requested.
 
-## Next
-1. Overview cross-product alerts. 2. Instance workspace sticky header + power group. 3. VPS workspace header. 4. Deploy wizard `?step=`. 5. Mail DNS tab. 6. Admin 3.0 (spec in `audit/admin-master-2026-11-03`). 7. UI audit of every route. 8. Full E2E batches (`--workers=4`, logs in `/root/e2e-logs`).
+## Next (in order)
+1. Admin 3.0 dedicated editors: Promotions, SupportBots, SupportAutomations (overlay editors), then orders/VPS/pricing/staff/notifications/content/settings per `audit/admin-master-2026-11-03/EDITOR-ROUTE-BLUEPRINT.md`. Pattern: new route with `layout: 'editor'`, wrapper calls `useEditorBack`, one h1, list links to route (see `web/src/admin/ProductEdit.tsx`).
+2. Customer 360 tabs + Activity Explorer (admin).
+3. App leftovers: mail DNS tab, VPS checkout review step, tickets conversation header.
+4. UI audit of every route (screenshots at 1440/390 with large data).
+5. FINAL: build, then full Playwright in sequential batches (`--workers=4`, logs /root/e2e-logs), including audit specs (need `admin-audit-seed.json`). Fix regressions. Update TEST-STATUS.md. No VERIFIED without passing results.
 
 ## Known
-- Route order in `web/src/routes.tsx` matters: specific patterns before `:id`.
-- 13 pre-existing E2E failures (auth/public/mobile specs) listed in TEST-STATUS.md.
-- Never `pkill -f` with a pattern that matches your own command line (kills the shell).
-- Hypervisor cannot reach GitHub; VM103 can (public API works without token).
+- Route order in `web/src/routes.tsx`: specific before `:id`.
+- Unit gate: `cd web && npm test` (496 pass). Last e2e batch A: 167/174 then fixed; rest of suite not rerun since headers/admin changes. Instance/VPS header e2e selectors (open-URL link text) may need updates.
+- 13 pre-existing e2e failures (auth/public/mobile specs).
+- Never `pkill -f` with pattern matching own command (kills shell). Kill by PID.
+- Hypervisor cannot reach GitHub; use relay on VM103.
 
 ## Blockers
 See OPERATOR-ACTIONS.md.
