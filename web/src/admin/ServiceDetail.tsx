@@ -3,7 +3,7 @@ import { get, post } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link, useParams } from '../router';
 import { EmptyState, ErrorState, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
-import { ConfirmWithReason, DASH, denseDanger, denseGhost, denseInput, fmtDateTime } from './Overview';
+import { ConfirmWithReason, DASH, can, denseDanger, denseGhost, fmtDateTime, useAdminSession } from './Overview';
 
 interface ServiceControl {
   id: string; name: string; status: string; ram: number; cpu: number; disk: number; price: number; currency: string;
@@ -31,14 +31,11 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 export default function ServiceDetail() {
   const { id } = useParams();
   const toast = useToast();
+  const mayWriteServices = can(useAdminSession().staff, 'services.write');
   const state = useAsync<{ service: ServiceControl }>((signal) => get(`/admin/services/${id}`, undefined, signal), [id]);
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<'retry' | 'suspend' | 'resume' | 'reinstall' | 'start' | 'stop' | 'restart' | 'kill' | null>(null);
   const [reason, setReason] = useState('');
-  const [databases, setDatabases] = useState('');
-  const [backups, setBackups] = useState('');
-  const [allocations, setAllocations] = useState('');
-  const [databaseReason, setDatabaseReason] = useState('');
   const run = async (work: () => Promise<unknown>, message: string) => {
     setBusy(true);
     try { await work(); toast.push(message, 'ok'); state.reload(); }
@@ -79,13 +76,9 @@ export default function ServiceDetail() {
           {service.pterodactylServerId && <button type="button" className={denseGhost} disabled={busy} onClick={() => { setReason(''); setAction(suspended ? 'resume' : 'suspend'); }}>{suspended ? 'Resume service' : 'Suspend service'}</button>}
           {service.pterodactylServerId && <button type="button" className={denseDanger} disabled={busy} onClick={() => { setReason(''); setAction('reinstall'); }}>Reinstall</button>}
         </div>
-        {service.panel && <div className="grid gap-3 rounded-2xl bg-s2 p-4 lg:grid-cols-3">
-          <p className="text-[13.5px] text-ink2 lg:col-span-3">Panel limits: {service.panel.databases} databases · {service.panel.backups} backups · {service.panel.allocations} allocations.</p>
-          <label className="grid gap-1 text-[12.5px] font-medium text-ink">Databases<input className={denseInput} inputMode="numeric" value={databases} onChange={(event) => setDatabases(event.target.value)} placeholder={String(service.panel.databases)} /></label>
-          <label className="grid gap-1 text-[12.5px] font-medium text-ink">Backups<input className={denseInput} inputMode="numeric" value={backups} onChange={(event) => setBackups(event.target.value)} placeholder={String(service.panel.backups)} /></label>
-          <label className="grid gap-1 text-[12.5px] font-medium text-ink">Allocations<input className={denseInput} inputMode="numeric" value={allocations} onChange={(event) => setAllocations(event.target.value)} placeholder={String(service.panel.allocations)} /></label>
-          <label className="grid gap-1 text-[12.5px] font-medium text-ink lg:col-span-2">Reason<input className={denseInput} value={databaseReason} onChange={(event) => setDatabaseReason(event.target.value)} placeholder="Customer plan change" /></label>
-          <button type="button" className={denseGhost} disabled={busy || databaseReason.trim().length < 3 || [databases, backups, allocations].some((value) => value !== '' && !/^\d+$/.test(value))} onClick={() => void run(() => post(`/admin/instances/${service.id}/feature-limits`, { databases: Number(databases || service.panel!.databases), backups: Number(backups || service.panel!.backups), allocations: Number(allocations || service.panel!.allocations), reason: databaseReason.trim() }), 'Feature limits updated.')}>Save limits</button>
+        {service.panel && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-s2 p-4">
+          <p className="text-[13.5px] text-ink2">Panel limits: {service.panel.databases} databases · {service.panel.backups} backups · {service.panel.allocations} allocations.</p>
+          {mayWriteServices && <Link to={`/admin/services/${encodeURIComponent(service.id)}/limits/edit`} className={denseGhost}>Edit limits</Link>}
         </div>}
         {service.panelError && <p className="rounded-2xl bg-warn/10 px-4 py-3 text-[13px] text-warn">Panel live data unavailable: {service.panelError}</p>}
       </div>
