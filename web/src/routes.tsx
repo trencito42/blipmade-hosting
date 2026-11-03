@@ -42,6 +42,7 @@ const AppNewMailDomain = lazy(() => import('./app/mail/NewMailDomain'));
 const AppNewMailbox = lazy(() => import('./app/mail/NewMailbox'));
 const AppNewAlias = lazy(() => import('./app/mail/NewAlias'));
 const AppMailDomainSettings = lazy(() => import('./app/mail/MailDomainSettings'));
+const AppChangeMailPlan = lazy(() => import('./app/mail/ChangeMailPlan'));
 const AppMailDomain = lazy(() => import('./app/mail/MailDomainPage'));
 const EmailStorefront = lazy(() => import('./app/EmailHosting'));
 const VpsStorefront = lazy(() => import('./app/Vps'));
@@ -140,6 +141,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/domains', component: AppDomains, title: 'Domains', area: 'customer' },
   { pattern: '/app/domains/new', component: AppNewDomain, title: 'Add domain', area: 'customer' },
   { pattern: '/app/mail', component: AppMail, title: 'Email', area: 'customer' },
+  { pattern: '/app/mail/services/:serviceId/plan/change', component: AppChangeMailPlan, title: 'Change email plan', area: 'customer' },
   { pattern: '/app/mail/domains/new', component: AppNewMailDomain, title: 'Add email domain', area: 'customer' },
   { pattern: '/app/mail/domains/:id/mailboxes/new', component: AppNewMailbox, title: 'Create mailbox', area: 'customer' },
   { pattern: '/app/mail/domains/:id/aliases/new', component: AppNewAlias, title: 'Create alias', area: 'customer' },
