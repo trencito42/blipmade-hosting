@@ -5,7 +5,7 @@ import { Link } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
 import type { TableColumn } from '../lib/table';
-import { DASH, LiveRegion, TruncationNote, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
+import { DASH, LiveRegion, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
 
 /**
  * Staff customer list — GET /api/admin/customers?search=
@@ -33,6 +33,8 @@ interface AdminCustomer {
 export default function Customers() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
+  const [pageCursors, setPageCursors] = useState<string[]>([]);
+  const cursor = pageCursors[pageCursors.length - 1];
   const [showEmails, setShowEmails] = useState(false);
   const [role, setRole] = useState<'all' | 'customer' | 'staff'>('all');
   const [tag, setTag] = useState('');
@@ -46,13 +48,25 @@ export default function Customers() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    setPageCursors([]);
+    setSelected([]);
+  }, [query, role, tag]);
+
   const state = useAsync(
-    (signal) => get<{ customers: AdminCustomer[]; total?: number }>('/admin/customers', { search: query || undefined, role, tag: tag || undefined }, signal),
-    [query, role, tag],
+    (signal) => get<{ customers: AdminCustomer[]; total?: number; pagination?: { hasMore: boolean; nextCursor: string | null } }>('/admin/customers', {
+      search: query || undefined,
+      role,
+      tag: tag || undefined,
+      cursor,
+      limit: 50,
+    }, signal),
+    [query, role, tag, cursor],
   );
 
   const customers = state.data?.customers ?? [];
   const total = state.data?.total;
+  const pagination = state.data?.pagination;
   const email = (value: string) => (showEmails ? value : maskEmail(value));
 
   const toggle = (id: string) => setSelected((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
@@ -287,7 +301,15 @@ export default function Customers() {
                   </Link>
                 )}
               </CardList>
-              <TruncationNote shown={customers.length} total={total} />
+              <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-ink2" role="navigation" aria-label="Customer pages">
+                 <span>Page {pageCursors.length + 1} · {customers.length} shown{typeof total === 'number' ? ` · ${total} matching accounts` : ''}</span>
+                 <div className="flex gap-2">
+                   <button type="button" className={denseGhost} disabled={pageCursors.length === 0 || state.loading} onClick={() => setPageCursors((current) => current.slice(0, -1))}>Previous</button>
+                   <button type="button" className={denseGhost} disabled={!pagination?.hasMore || !pagination.nextCursor || state.loading} onClick={() => {
+                     if (pagination?.nextCursor) setPageCursors((current) => [...current, pagination.nextCursor!]);
+                   }}>Next</button>
+                 </div>
+               </div>
             </div>
           )}
 

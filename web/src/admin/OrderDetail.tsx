@@ -3,7 +3,7 @@ import { get, post } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link, useParams } from '../router';
 import { EmptyState, ErrorState, LoadingBlock, Money, Panel, StatusPill, useToast } from '../ui-app';
-import { ConfirmWithReason, DASH, denseDanger, denseGhost, fmtDateTime } from './Overview';
+import { ConfirmWithReason, DASH, can, denseDanger, denseGhost, fmtDateTime, useAdminSession } from './Overview';
 
 interface OrderControl {
   id: string; number: string; status: string; fulfillmentStatus: string; kind: string; total: number; discount: number; currency: string; createdAt: string; paidAt: string | null;
@@ -16,7 +16,7 @@ interface OrderControl {
   invoices: { id: string; number: string; status: string; total: number; currency: string; stripeInvoiceId: string | null; hostedUrl: string | null; pdfUrl: string | null; createdAt: string }[];
   webhooks: { id: string; type: string; status: string; attempts: number; error: string | null; createdAt: string; processedAt: string | null }[];
   events: { id: string; type: string; state: string; channels: Record<string, string>; lastError: string | null; occurredAt: string }[];
-  audit: { id: string; action: string; actorEmail: string | null; createdAt: string }[];
+  audit: { id: string; action: string; actorEmail: string | null; createdAt: string; targetType: string | null; targetId: string | null }[];
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -26,6 +26,8 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 export default function OrderDetail() {
   const { id } = useParams();
   const toast = useToast();
+  const session = useAdminSession();
+  const mayWriteOrders = can(session.staff, 'orders.write');
   const state = useAsync<{ order: OrderControl }>((signal) => get(`/admin/orders/${id}`, undefined, signal), [id]);
   const [action, setAction] = useState<'retry' | 'refund' | null>(null);
   const [reason, setReason] = useState('');
@@ -33,6 +35,8 @@ export default function OrderDetail() {
   if (state.loading && !state.data) return <LoadingBlock rows={8} label="Loading the order" />;
   if (state.error || !state.data) return <ErrorState title="The order could not be loaded" message={state.error?.message ?? 'Not found.'} onRetry={state.reload} />;
   const order = state.data.order;
+  const orderActivity = order.audit.filter((entry) => entry.targetType === 'order' && entry.targetId === order.id);
+  const accountActivity = order.audit.filter((entry) => entry.targetType === 'user' && entry.targetId === order.user.id);
   const pipeline = [
     { label: 'Order', state: order.status },
     { label: 'Payment', state: order.payments[0]?.status ?? 'missing' },
@@ -45,8 +49,8 @@ export default function OrderDetail() {
     <Panel title={order.number} description="Order, money, fulfilment and delivery in one place." action={<Link to="/admin/orders" className={denseGhost}>Back to orders</Link>}>
       <div className="grid gap-4">
         <div className="flex flex-wrap gap-2">
-          {['paid', 'fulfilled'].includes(order.status) && order.fulfillmentStatus !== 'fulfilled' && <button type="button" className={denseGhost} disabled={busy} onClick={() => { setReason(''); setAction('retry'); }}>Retry delivery</button>}
-          {['paid', 'fulfilled'].includes(order.status) && !order.payments.some((payment) => payment.status === 'refunded') && <button type="button" className={denseDanger} disabled={busy} onClick={() => { setReason(''); setAction('refund'); }}>Full refund</button>}
+          {mayWriteOrders && ['paid', 'fulfilled'].includes(order.status) && order.fulfillmentStatus !== 'fulfilled' && <button type="button" className={denseGhost} disabled={busy} onClick={() => { setReason(''); setAction('retry'); }}>Retry delivery</button>}
+          {mayWriteOrders && ['paid', 'fulfilled'].includes(order.status) && !order.payments.some((payment) => payment.status === 'refunded') && <button type="button" className={denseDanger} disabled={busy} onClick={() => { setReason(''); setAction('refund'); }}>Full refund</button>}
         </div>
         <div className="flex flex-wrap gap-2">{pipeline.map((step) => <div key={step.label} className="flex items-center gap-2 rounded-2xl bg-s2 px-3 py-2"><span className="text-[12px] font-semibold text-ink3">{step.label}</span><StatusPill status={step.state} /></div>)}</div>
         <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -84,9 +88,29 @@ export default function OrderDetail() {
       </Panel>
     </div>
 
-    <Panel title="Audit trail" description="Operator actions connected to this order or customer.">
-      {order.audit.length === 0 ? <EmptyState title="No operator action." description="Changes will appear here." /> : <ul className="grid gap-2">{order.audit.map((entry) => <li key={entry.id} className="flex flex-wrap justify-between gap-2 rounded-2xl bg-s2 px-4 py-3"><span className="font-mono text-[12.5px] text-ink">{entry.action}</span><span className="text-[12px] text-ink3">{entry.actorEmail ?? 'system'} · {fmtDateTime(entry.createdAt)}</span></li>)}</ul>}
-    </Panel>
-    <ConfirmWithReason open={action !== null} title={action === 'refund' ? `Refund ${order.number}?` : `Retry delivery for ${order.number}?`} description={action === 'refund' ? 'Stripe returns the full payment. This cannot be undone from Blipmade.' : 'Only missing or failed work is queued again. Existing resources are reused.'} confirmLabel={action === 'refund' ? 'Refund payment' : 'Retry delivery'} reasonLabel="Reason for the audit log" reason={reason} onReasonChange={setReason} busy={busy} error={reason.trim().length < 3 ? 'Write a reason of at least three characters.' : null} onCancel={() => setAction(null)} onConfirm={() => { if (!action || reason.trim().length < 3) return; const chosen = action; setBusy(true); post(chosen === 'refund' ? `/admin/orders/${order.id}/refund` : `/admin/orders/${order.id}/retry-fulfilment`, { reason: reason.trim() }).then(() => { toast.push(chosen === 'refund' ? 'Payment refunded.' : 'Delivery queued.', 'ok'); setAction(null); state.reload(); }, (error) => toast.push(error instanceof Error ? error.message : 'That did not work.', 'error')).finally(() => setBusy(false)); }} />
+    <details className="rounded-2xl border border-line bg-card p-4">
+      <summary className="cursor-pointer select-none text-[14px] font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Recent order activity ({orderActivity.length})</summary>
+      <ul className="mt-3 grid gap-2">
+        {orderActivity.length === 0 ? <li className="text-[13px] text-ink3">No order-specific audit entries recorded.</li> : orderActivity.map((entry) => (
+          <li key={entry.id} className="flex flex-wrap justify-between gap-2 rounded-xl bg-s2 px-4 py-3">
+            <span className="font-mono text-[12.5px] text-ink">{entry.action}</span>
+            <span className="text-[12px] text-ink3">{entry.actorEmail ?? 'system'} · {fmtDateTime(entry.createdAt)}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
+    <details className="rounded-2xl border border-line bg-card p-4">
+      <summary className="cursor-pointer select-none text-[14px] font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Recent customer account activity ({accountActivity.length})</summary>
+      <p className="mt-2 text-[12px] text-ink3">Account-wide events are shown separately from this order. The API returns only its most recent audit records.</p>
+      <ul className="mt-3 grid gap-2">
+        {accountActivity.length === 0 ? <li className="text-[13px] text-ink3">No customer account events in the fetched audit history.</li> : accountActivity.map((entry) => (
+          <li key={entry.id} className="flex flex-wrap justify-between gap-2 rounded-xl bg-s2 px-4 py-3">
+            <span className="font-mono text-[12.5px] text-ink">{entry.action}</span>
+            <span className="text-[12px] text-ink3">{entry.actorEmail ?? 'system'} · {fmtDateTime(entry.createdAt)}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
+    <ConfirmWithReason open={mayWriteOrders && action !== null} title={action === 'refund' ? `Refund ${order.number}?` : `Retry delivery for ${order.number}?`} description={action === 'refund' ? 'Stripe returns the full payment. This cannot be undone from Blipmade.' : 'Only missing or failed work is queued again. Existing resources are reused.'} confirmLabel={action === 'refund' ? 'Refund payment' : 'Retry delivery'} reasonLabel="Reason for the audit log" reason={reason} onReasonChange={setReason} busy={busy} error={reason.trim().length < 3 ? 'Write a reason of at least three characters.' : null} onCancel={() => setAction(null)} onConfirm={() => { if (!action || reason.trim().length < 3) return; const chosen = action; setBusy(true); post(chosen === 'refund' ? `/admin/orders/${order.id}/refund` : `/admin/orders/${order.id}/retry-fulfilment`, { reason: reason.trim() }).then(() => { toast.push(chosen === 'refund' ? 'Payment refunded.' : 'Delivery queued.', 'ok'); setAction(null); state.reload(); }, (error) => toast.push(error instanceof Error ? error.message : 'That did not work.', 'error')).finally(() => setBusy(false)); }} />
   </div>;
 }
