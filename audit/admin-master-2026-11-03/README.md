@@ -1,7 +1,18 @@
-# Blipmade Admin 3.0 — audit & implementation specification
-**Snapshot:** main `a5adf356e194ef01b46836915f0aad976e6184e1`, 2026-11-03
-**Scope:** all 35 registered admin routes / 28 primary nav entries; focus on /admin, not /app.
-**Method:** GitHub source review, current route and component inventory, relevant API/schema checks, and screenshots supplied by the owner. Not a live authenticated browser/CI/security acceptance audit.
+# Blipmade Admin 3.0 — comprehensive source audit & implementation specification
+
+**Initial architecture snapshot:** main `a5adf356e194ef01b46836915f0aad976e6184e1`.  
+**Additional functional/security/visual audit snapshot:** main `48df705f110b46f7d2a7d90ef33e0cd0a289f74c` (2026-11-03).  
+**Scope:** 35 registered admin routes, 28 sidebar entries, 48 API route files, 46 admin React view/shared components, 8 owner screenshots (not uploaded, for privacy).  
+**Audit result:** source inventory and prioritized design/security/functional analysis completed. **No authenticated live 35-route browser audit, penetration test, CI build or staging E2E was executed. Do not claim only implementation remains until execution gates are passed.**
+
+## Completed additional source audit
+- [FUNCTIONAL-AUDIT.md](./FUNCTIONAL-AUDIT.md): view-by-view action inventory, 486 literal API route registrations, 121 admin mutation registrations, functional issues and executable staging test contract.
+- [SECURITY-AUDIT.md](./SECURITY-AUDIT.md): verified defenses, priority weaknesses, false-positive corrections and required role/cross-tenant/financial tests.
+- [VISUAL-AUDIT.md](./VISUAL-AUDIT.md): 35-route static visual audit, screenshot-by-screenshot findings, older-vs-current revision differences, exact responsive and accessibility acceptance plan.
+- [UI-SCAN-1.md](./UI-SCAN-1.md), [UI-SCAN-2.md](./UI-SCAN-2.md), [UI-SCAN-3.md](./UI-SCAN-3.md), [UI-SCAN-4.md](./UI-SCAN-4.md): raw component, call and control signatures.
+- [API-SCAN-1.md](./API-SCAN-1.md), [API-SCAN-2.md](./API-SCAN-2.md), [API-SCAN-3.md](./API-SCAN-3.md), [API-SCAN-4.md](./API-SCAN-4.md): route method/path/permission hints; static false positives explicitly require review.
+
+## Existing architecture / implementation planning
 
 ## Read in this order
 
