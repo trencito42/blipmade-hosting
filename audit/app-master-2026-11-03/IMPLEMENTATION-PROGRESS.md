@@ -88,3 +88,20 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static email-editor contract test: 1/1 pass.
 - Focused Playwright email-domain editor suite: 2/2 pass, including exact API payload, ownership proof and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated mailbox editor and one-time secret
+
+### Completed
+
+- [x] Migrated mailbox creation from its dialog to `/app/mail/domains/:id/mailboxes/new`, registered before the generic email-domain route.
+- [x] Preserved `POST /mail/domains/:id/mailboxes`, local-part validation, optional customer password and server-generated password behavior.
+- [x] Added live address preview, duplicate detection, real domain quota enforcement, server field errors, Save/Discard and dirty navigation protection.
+- [x] Kept generated passwords in memory only, displayed them once, and required explicit acknowledgement before returning to the domain workspace.
+- [x] Kept mailbox listing, webmail and deletion behavior unchanged.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static mailbox-editor contract test: 1/1 pass.
+- Focused Playwright mailbox editor suite: 2/2 pass, including exact API payload, one-time secret acknowledgement and 390px overflow/action reachability.
