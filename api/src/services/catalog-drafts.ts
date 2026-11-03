@@ -83,3 +83,37 @@ export async function syncCatalogDrafts(): Promise<{ families: number; variants:
   }
   return { families, variants, skipped };
 }
+
+/**
+ * Opens a draft to customers only when its product can already be ordered.
+ * Products, prices and eggs stay as they are.
+ */
+export async function publishReadyFamilies(): Promise<{ prepared: number; active: number }> {
+  const [products, prices, families] = await Promise.all([
+    prisma.product.findMany({ select: { id: true, visible: true, deployable: true } }),
+    prisma.productPrice.findMany({ where: { active: true }, select: { productId: true } }),
+    prisma.catalogFamily.findMany({ select: { id: true, prepared: true, discovery: true, variants: { select: { id: true, productId: true, active: true } } } }),
+  ]);
+  const productById = new Map(products.map((product) => [product.id, product]));
+  const priced = new Set(prices.map((price) => price.productId));
+  let prepared = 0;
+  let active = 0;
+  for (const family of families) {
+    let ready = false;
+    for (const variant of family.variants) {
+      const product = productById.get(variant.productId);
+      const on = Boolean(product?.visible && product.deployable && priced.has(product.id));
+      if (variant.active !== on) await prisma.catalogVariant.update({ where: { id: variant.id }, data: { active: on } });
+      if (on) {
+        ready = true;
+        active += 1;
+      }
+    }
+    const discovery = ready ? 'GROUPED' as const : family.discovery;
+    if (family.prepared !== ready || family.discovery !== discovery) {
+      await prisma.catalogFamily.update({ where: { id: family.id }, data: { prepared: ready, discovery } });
+    }
+    if (ready) prepared += 1;
+  }
+  return { prepared, active };
+}

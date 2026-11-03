@@ -177,7 +177,7 @@ function ProductGrid({ products }: { products: CatalogProduct[] }) {
   );
 }
 
-interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { product: { orderable: boolean } }[] }
+interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { product: { slug: string; orderable: boolean } }[] }
 
 export default function DeployCatalog() {
   const { products, loading } = useCatalogProducts();
@@ -193,14 +193,15 @@ export default function DeployCatalog() {
 
   // Only the categories that really exist in the catalog are offered, in the
   // order of the public catalog.
+  const covered = useMemo(() => new Set(families.flatMap((family) => family.variants.map((variant) => variant.product.slug))), [families]);
+  const listed = useMemo(() => products.filter((product) => !covered.has(product.slug)), [products, covered]);
   const categories = useMemo(() => {
-    const seen = new Set(products.map((product) => product.category));
+    const seen = new Set(listed.map((product) => product.category));
     return [...seen].sort((left, right) => categoryOrder(left) - categoryOrder(right) || left.localeCompare(right));
-  }, [products]);
-
+  }, [listed]);
   const matching = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const found = products.filter((product) => {
+    const found = listed.filter((product) => {
       const matchesCategory = category === 'All' || product.category === category;
       const label = categoryOf(product.category).label.toLowerCase();
       const matchesQuery =
@@ -221,13 +222,16 @@ export default function DeployCatalog() {
       });
     }
     return found;
-  }, [products, query, category, sort]);
+  }, [listed, query, category, sort]);
 
   const ready = matching.filter((product) => isOrderable(product));
   const soon = availability === 'all' ? matching.filter((product) => !isOrderable(product)) : [];
-  const deployableCount = useMemo(() => products.filter((product) => isOrderable(product)).length, [products]);
+  const deployableCount = useMemo(
+    () => listed.filter((product) => isOrderable(product)).length + families.reduce((count, family) => count + family.variants.filter((variant) => variant.product.orderable).length, 0),
+    [listed, families],
+  );
 
-  const countOf = (code: string) => products.filter((product) => (code === 'All' ? true : product.category === code) && isOrderable(product)).length;
+  const countOf = (code: string) => listed.filter((product) => (code === 'All' ? true : product.category === code) && isOrderable(product)).length;
 
   return (
     <div className="grid gap-5">
