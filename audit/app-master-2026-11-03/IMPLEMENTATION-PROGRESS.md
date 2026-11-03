@@ -265,3 +265,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static schedule-editor contract test: 1/1 pass.
 - Focused Playwright schedule-editor suite: 2/2 pass, including cron validation, exact command POST payload, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated schedule editing
+
+### Completed
+
+- [x] Added `/app/instances/:id/schedules/:scheduleId/edit` and linked it from desktop and mobile schedule lists.
+- [x] Hydrated existing name, cron, enabled state and action-specific payload from the real schedules API.
+- [x] Added duplicate-name, cron and command validation, missing-schedule handling, Save/Discard and dirty guard.
+- [x] Preserved immutable action type and sent the real PATCH payload for editable fields.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static schedule-edit contract test: 1/1 pass.
+- Focused Playwright schedule-edit suite: 2/2 pass, including hydration, exact PATCH payload, dirty guard and 390px overflow/action reachability.

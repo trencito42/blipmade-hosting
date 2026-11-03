@@ -110,6 +110,7 @@ export default function SchedulesTab({ instance }: TabProps) {
       align: 'right',
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft">Edit</ButtonLink>
           <SoftButton onClick={() => run(row.id)}>Run now</SoftButton>
           <SoftButton onClick={() => toggle(row.id, row.active)}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
           <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
@@ -148,6 +149,7 @@ export default function SchedulesTab({ instance }: TabProps) {
                   }
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft">Edit</ButtonLink>
                       <SoftButton onClick={() => run(row.id)}>Run now</SoftButton>
                       <SoftButton onClick={() => toggle(row.id, row.active)}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
                       <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
