@@ -99,16 +99,18 @@ export async function publishReadyFamilies(): Promise<{ prepared: number; active
   let prepared = 0;
   let active = 0;
   for (const family of families) {
-    let ready = false;
+    let readyCount = 0;
     for (const variant of family.variants) {
       const product = productById.get(variant.productId);
       const on = Boolean(product?.visible && product.deployable && priced.has(product.id));
       if (variant.active !== on) await prisma.catalogVariant.update({ where: { id: variant.id }, data: { active: on } });
       if (on) {
-        ready = true;
+        readyCount += 1;
         active += 1;
       }
     }
+    // One product is already a card in the catalog. A family is shown only when it groups several.
+    const ready = readyCount > 1;
     const discovery = ready ? 'GROUPED' as const : family.discovery;
     if (family.prepared !== ready || family.discovery !== discovery) {
       await prisma.catalogFamily.update({ where: { id: family.id }, data: { prepared: ready, discovery } });
