@@ -1616,6 +1616,26 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  // One entry of the audit log, with the other entries about the same target, so an operator can read what happened around it.
+  app.get('/admin/audit/:id', { preHandler: requirePermission('audit.read') }, async (request: FastifyRequest) => {
+    const { id } = z.object({ id: z.string().min(1).max(64) }).parse(request.params);
+    const log = await prisma.auditLog.findUnique({ where: { id } });
+    if (!log) throw notFound('Audit entry not found.');
+    const related =
+      log.targetType && log.targetId
+        ? await prisma.auditLog.findMany({
+            where: { targetType: log.targetType, targetId: log.targetId, NOT: { id: log.id } },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+          })
+        : [];
+    const view = (row: typeof log) => ({
+      id: row.id, actorId: row.actorId, actorEmail: row.actorEmail, action: row.action,
+      targetType: row.targetType, targetId: row.targetId, meta: row.meta, ip: row.ip, createdAt: row.createdAt,
+    });
+    return { log: view(log), related: related.map(view) };
+  });
+
   /**
    * The jobs of a queue that failed for good.
    *

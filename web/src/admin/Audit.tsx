@@ -36,7 +36,7 @@ const FILTERS = [
 type FilterKey = (typeof FILTERS)[number]['key'];
 
 /** The payload of an entry, as the pairs the API stored. */
-function metaEntries(meta: unknown): { key: string; value: string }[] {
+export function metaEntries(meta: unknown): { key: string; value: string }[] {
   if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return [];
   return Object.entries(meta as Record<string, unknown>).map(([key, value]) => ({
     key,
@@ -165,6 +165,7 @@ export default function Audit() {
           ) : (
             <div className="grid gap-3">
               <DataTable<AuditLog>
+                rowTo={(log: AuditLog) => `/admin/audit/${encodeURIComponent(log.id)}`}
                 rows={logs}
                 rowKey={(log) => log.id}
                 columns={[

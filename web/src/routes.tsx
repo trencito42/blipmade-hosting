@@ -78,6 +78,7 @@ const AdminCustomerNoteNew = lazy(() => import('./admin/CustomerEditors').then((
 const AdminMailPlanEdit = lazy(() => import('./admin/MailPlanEdit'));
 const AdminSupportSettings = lazy(() => import('./admin/SupportSettings'));
 const AdminServiceLimits = lazy(() => import('./admin/ServiceLimitsEdit'));
+const AdminAuditEntry = lazy(() => import('./admin/AuditEntry'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -333,6 +334,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/mail/plans/new', component: AdminMailPlanEdit, title: 'New mail plan', area: 'admin', layout: 'editor' },
   { pattern: '/admin/mail/plans/:id/edit', component: AdminMailPlanEdit, title: 'Edit mail plan', area: 'admin', layout: 'editor' },
   { pattern: '/admin/mail/plans', component: AdminMailPlans, title: 'Mail plans', area: 'admin' },
+  { pattern: '/admin/audit/:id', component: AdminAuditEntry, title: 'Audit entry', area: 'admin', layout: 'editor' },
   { pattern: '/admin/audit', component: AdminAudit, title: 'Audit log', area: 'admin' },
   { pattern: '/admin/staff/:id/permissions/edit', component: AdminStaffEdit, title: 'Staff rights', area: 'admin', layout: 'editor' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
