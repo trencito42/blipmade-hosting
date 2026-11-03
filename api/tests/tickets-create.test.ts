@@ -39,6 +39,10 @@ describe('opening a ticket', () => {
     expect(response.body.ticket.category).toBe('BILLING');
     expect(response.body.ticket.priority).toBe('NORMAL');
     expect(response.body.ticket.status).toBe('OPEN');
+    expect(response.body.initialMessageId).toEqual(expect.any(String));
+    const initialMessage = await prisma.ticketMessage.findUnique({ where: { id: response.body.initialMessageId } });
+    expect(initialMessage?.ticketId).toBe(response.body.ticket.id);
+    expect(initialMessage?.body).toBe('It stops after a few seconds.');
   });
 
   it('takes the enums in mixed case and with the spaces around them', async () => {

@@ -1,22 +1,18 @@
-import { ArticleSuggestions } from './ArticleSuggestions';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { get, post, type Instance, type MailServiceView, type Ticket } from '../lib/api';
-import { useAction, useAsync } from '../lib/useAsync';
+import { useState } from 'react';
+import { get, post, type Ticket } from '../lib/api';
+import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
   CardList,
+  ButtonLink,
   ConfirmDialog,
   DataTable,
   EmptyState,
   ErrorState,
   LoadingBlock,
   Panel,
-  PrimaryButton,
-  Segmented,
-  Select,
   SoftButton,
   StatusPill,
-  TextArea,
   TextInput,
   useToast,
 } from '../ui-app';
@@ -25,12 +21,6 @@ interface TicketCategory {
   id: string;
   label: string;
 }
-
-const PRIORITIES = [
-  { value: 'low', label: 'Low' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'high', label: 'High' },
-];
 
 const STATUS_LABEL: Record<string, string> = {
   open: 'Open',
@@ -92,10 +82,8 @@ function DocsSearch() {
 
 export default function Tickets() {
   const toast = useToast();
-  const [creating, setCreating] = useState(false);
   const [closing, setClosing] = useState<Ticket | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
-  const newTicketButton = useRef<HTMLButtonElement>(null);
 
   const tickets = useAsync((signal) => get<{ tickets: Ticket[] }>('/tickets', undefined, signal), []);
   const categories = useAsync((signal) => get<{ categories: TicketCategory[] }>('/tickets/categories', undefined, signal), []);
@@ -103,33 +91,9 @@ export default function Tickets() {
   const categoryLabel = (id: string) => categories.data?.categories.find((c) => c.id === id)?.label ?? id;
   const rows = tickets.data?.tickets ?? [];
 
-  // Closing the form gives the focus back to the button that opened it. The
-  // function keeps its identity, so the form is not focused again on every
-  // render of the page.
-  const closeForm = useCallback(() => {
-    setCreating(false);
-    newTicketButton.current?.focus();
-  }, []);
-
   return (
     <div className="grid gap-4">
-      {creating && (
-        <NewTicketForm
-          categories={categories.data?.categories ?? []}
-          categoriesLoading={categories.loading}
-          categoriesError={categories.error ? categories.error.message : null}
-          reloadCategories={categories.reload}
-          onClose={closeForm}
-          onCreated={(ticket) => {
-            setCreating(false);
-            tickets.reload();
-            toast.push(`Ticket #${ticket.number} created`, 'ok');
-            newTicketButton.current?.focus();
-          }}
-        />
-      )}
-
-      {!creating && <DocsSearch />}
+      <DocsSearch />
 
       <Panel
         title="Your tickets"
@@ -139,14 +103,7 @@ export default function Tickets() {
           // With no tickets the empty state carries the one action, so the
           // page never offers two buttons for the same thing.
           rows.length ? (
-            <PrimaryButton
-              ref={newTicketButton}
-              onClick={() => setCreating(true)}
-              aria-expanded={creating}
-              aria-controls="new-ticket-form"
-            >
-              New ticket
-            </PrimaryButton>
+            <ButtonLink to="/app/tickets/new">New ticket</ButtonLink>
           ) : undefined
         }
       >
@@ -162,16 +119,7 @@ export default function Tickets() {
           <EmptyState
             title="No tickets yet."
             description="Open a ticket and we will answer in the same thread."
-            action={
-              <PrimaryButton
-                ref={newTicketButton}
-                onClick={() => setCreating(true)}
-                aria-expanded={creating}
-                aria-controls="new-ticket-form"
-              >
-                Create a ticket
-              </PrimaryButton>
-            }
+            action={<ButtonLink to="/app/tickets/new">Create a ticket</ButtonLink>}
           />
         ) : (
           <div className="grid gap-3">
@@ -293,217 +241,6 @@ export default function Tickets() {
           </div>
         )}
       </Panel>
-    </div>
-  );
-}
-
-function NewTicketForm({
-  categories,
-  categoriesLoading,
-  categoriesError,
-  reloadCategories,
-  onClose,
-  onCreated,
-}: {
-  categories: TicketCategory[];
-  categoriesLoading: boolean;
-  categoriesError: string | null;
-  reloadCategories: () => void;
-  onClose: () => void;
-  onCreated: (ticket: Ticket) => void;
-}) {
-  const [subject, setSubject] = useState('');
-  const [category, setCategory] = useState('');
-  const [priority, setPriority] = useState('normal');
-  // The service the ticket is about: "instance:<id>" for a server, "mail:<id>" for a hosted mail service.
-  const [service, setService] = useState('');
-  const [body, setBody] = useState('');
-  const [touched, setTouched] = useState(false);
-  const formRef = useRef<HTMLDivElement>(null);
-
-  const instances = useAsync((signal) => get<{ instances: Instance[] }>('/instances', undefined, signal), []);
-  const mailServices = useAsync((signal) => get<{ services: MailServiceView[] }>('/mail/services', undefined, signal), []);
-
-  // The form is a region of the page: the focus goes into it when it opens
-  // and it closes with Escape.
-  useEffect(() => {
-    formRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      // Escape inside a dropdown belongs to the dropdown, not to the form.
-      if (event.key !== 'Escape') return;
-      if (event.target instanceof HTMLSelectElement) return;
-      onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
-  const create = useAction(async () => {
-    const payload: { subject: string; category: string; priority: string; body: string; instanceId?: string; mailServiceId?: string } = {
-      subject: subject.trim(),
-      category,
-      priority,
-      body: body.trim(),
-    };
-    if (service.startsWith('instance:')) payload.instanceId = service.slice('instance:'.length);
-    if (service.startsWith('mail:')) payload.mailServiceId = service.slice('mail:'.length);
-    const result = await post<{ ticket: Ticket }>('/tickets', payload);
-    return result.ticket;
-  });
-
-  const subjectError = touched && !subject.trim() ? 'Give the ticket a subject.' : undefined;
-  const categoryError = touched && !category ? 'Choose a category.' : undefined;
-  const bodyError = touched && !body.trim() ? 'Describe what you need help with.' : undefined;
-  const blocked = !subject.trim() || !category || !body.trim();
-
-  const submit = async () => {
-    setTouched(true);
-    if (blocked) {
-      // The first field that is missing takes the focus, so the user is taken
-      // to the problem instead of hunting for it.
-      const first = !subject.trim() ? 'ticket-subject' : !category ? 'ticket-category' : 'ticket-message';
-      document.getElementById(first)?.focus();
-      return;
-    }
-    const ticket = await create.run();
-    if (ticket) onCreated(ticket);
-  };
-
-  return (
-    // The form is part of the page and not a sheet pinned to the bottom of the
-    // screen: a pinned sheet is covered by the software keyboard and the
-    // field that is being typed into cannot be reached.
-    <div
-      id="new-ticket-form"
-      ref={formRef}
-      tabIndex={-1}
-      className="scroll-mt-24 rounded-2xl bg-s1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] focus:outline-none sm:p-5"
-    >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-ink">New ticket</h2>
-            <p className="mt-1 text-[13.5px] text-ink2">Tell us what happened and we will reply in this thread.</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close the new ticket form"
-            className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-card text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h"
-          >
-            <span aria-hidden="true">✕</span>
-          </button>
-        </div>
-
-        <div className="grid gap-3">
-          <ArticleSuggestions text={subject} />
-          <TextInput
-            id="ticket-subject"
-            label="Subject"
-            placeholder="Short summary of the problem"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            error={subjectError ?? create.fieldErrors.subject}
-            autoComplete="off"
-            className="scroll-mt-24"
-          />
-
-          {categoriesLoading ? (
-            <p className="px-1 text-[12.5px] text-ink3" role="status">
-              Loading categories…
-            </p>
-          ) : categoriesError ? (
-            <div className="rounded-2xl bg-s2 px-4 py-3 text-[13px] text-ink2" role="alert">
-              <p className="font-bold text-bad">Categories could not be loaded.</p>
-              <p className="mt-1">{categoriesError}</p>
-              <SoftButton className="mt-3" onClick={reloadCategories}>
-                Retry
-              </SoftButton>
-            </div>
-          ) : (
-            <Select
-              id="ticket-category"
-              label="Category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              error={categoryError ?? create.fieldErrors.category}
-              className="scroll-mt-24"
-            >
-              <option value="">Choose a category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </Select>
-          )}
-
-          {/* The priority is three choices: a strip of buttons is easier to
-              hit than a dropdown on a phone. */}
-          <div className="grid gap-2">
-            <p className="px-1 text-[13.5px] font-medium text-ink">Priority</p>
-            <Segmented
-              role="group"
-              ariaLabel="Priority"
-              options={PRIORITIES}
-              value={priority}
-              onChange={setPriority}
-            />
-          </div>
-
-          <Select
-            label="Related service"
-            hint="Optional. Links the ticket to one of your apps, databases or mail services."
-            value={service}
-            onChange={(e) => setService(e.target.value)}
-            className="scroll-mt-24"
-          >
-            <option value="">No related service</option>
-            {instances.data?.instances.length ? (
-              <optgroup label="Apps and databases">
-                {instances.data.instances.map((i) => (
-                  <option key={i.id} value={`instance:${i.id}`}>
-                    {i.name}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
-            {mailServices.data?.services.length ? (
-              <optgroup label="Email hosting">
-                {mailServices.data.services.map((m) => (
-                  <option key={m.id} value={`mail:${m.id}`}>
-                    {m.plan.name}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
-          </Select>
-
-          <TextArea
-            id="ticket-message"
-            label="Message"
-            placeholder="What did you expect, and what happened instead?"
-            rows={5}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            error={bodyError ?? create.fieldErrors.body}
-            className="scroll-mt-24"
-          />
-
-          {create.error && (
-            <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-              {create.error}
-            </p>
-          )}
-
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <SoftButton onClick={onClose} disabled={create.pending} className="w-full sm:w-auto">
-              Cancel
-            </SoftButton>
-            <PrimaryButton onClick={submit} disabled={create.pending} className="w-full sm:w-auto">
-              {create.pending ? 'Sending…' : 'Create ticket'}
-            </PrimaryButton>
-          </div>
-        </div>
     </div>
   );
 }

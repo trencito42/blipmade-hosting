@@ -46,6 +46,7 @@ const VpsDetail = lazy(() => import('./app/Vps').then((module) => ({ default: mo
 const EmailCheckout = lazy(() => import('./app/EmailHosting').then((module) => ({ default: module.EmailCheckout })));
 const AppBilling = lazy(() => import('./app/Billing'));
 const AppTickets = lazy(() => import('./app/Tickets'));
+const AppNewTicket = lazy(() => import('./app/NewTicket'));
 const AppTicketDetail = lazy(() => import('./app/TicketDetail'));
 const AppSettings = lazy(() => import('./app/Settings'));
 const AppNotifications = lazy(() => import('./app/Notifications'));
@@ -143,6 +144,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/billing/invoices/:id', component: InvoiceView, title: 'Invoice', area: 'customer' },
   { pattern: '/app/billing', component: AppBilling, title: 'Billing', area: 'customer' },
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
+  { pattern: '/app/tickets/new', component: AppNewTicket, title: 'New support ticket', area: 'customer' },
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
   { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },
