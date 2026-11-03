@@ -201,3 +201,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static network-editor contract test: 1/1 pass.
 - Focused Playwright network editor suite: 2/2 pass, including exact POST payload, boundary validation, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated manual backup editor
+
+### Completed
+
+- [x] Migrated manual backup creation from the backups tab to `/app/instances/:id/backups/new`, ordered before the generic instance-tab route.
+- [x] Preserved the real asynchronous backup API, provider retention count and locked/unlocked rotation behavior.
+- [x] Added name/duplicate validation, server field errors, Save/Discard, dirty guard and explicit same-node durability guidance.
+- [x] Kept automatic scheduling, listing, download, restore and deletion behavior unchanged.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static backup-editor contract test: 1/1 pass.
+- Focused Playwright backup editor suite: 2/2 pass, including exact async POST payload, locked state, dirty guard and 390px overflow/action reachability.
