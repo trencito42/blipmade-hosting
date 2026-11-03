@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * A resource change is a paid product. The tests cover the whole path: the
  * quote, the order, the payment and the moment the limits are applied.
  */
-const panelState = { buildError: null as string | null, builds: 0 };
+const panelState = { buildError: null as string | null, builds: 0, diskUsed: 1024 };
 
 vi.mock('../src/services/pterodactyl/application.js', () => ({
   updateServerBuild: vi.fn(async () => {
@@ -18,6 +18,15 @@ vi.mock('../src/services/pterodactyl/application.js', () => ({
   deleteServer: vi.fn(async () => undefined),
 }));
 
+vi.mock('../src/services/panel/credentials.js', () => ({
+  resolveCustomerCredential: vi.fn(async () => ({
+    token: 'ptlc_testtoken',
+    panelUserId: 1,
+    externalId: 'ext',
+    source: 'issued',
+  })),
+}));
+
 vi.mock('../src/services/pterodactyl/client.js', () => ({
   clientApiAvailable: vi.fn(() => false),
   clientToken: vi.fn(() => 'test-client-token'),
@@ -26,6 +35,15 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
   // The application of the product is written into the container before it
   // starts, so the files of the container are written here as well.
   writeFile: vi.fn(async () => undefined),
+  getResources: vi.fn(async () => ({
+    state: 'running',
+    is_suspended: false,
+    cpu_absolute: 0,
+    memory_bytes: 0,
+    network: { rx: 0, tx: 0 },
+    disk: { used: panelState.diskUsed },
+    uptime: 0,
+  })),
   // The error the panel raises when the key of the customer is refused.
   ClientApiError: class ClientApiError extends Error {
     status: number;
@@ -53,6 +71,7 @@ beforeEach(async () => {
   await resetDatabase();
   panelState.buildError = null;
   panelState.builds = 0;
+  panelState.diskUsed = 1024;
 });
 
 async function seedInstance() {
@@ -229,6 +248,21 @@ describe('resource changes', () => {
     // five gigabytes of disk.
     expect(updated?.price).toBe(249);
     expect(panelState.builds).toBe(1);
+  });
+
+  it('refuses a disk reduction that is smaller than the files already stored', async () => {
+    const { client, instance } = await seedInstance();
+    panelState.diskUsed = 6 * 1024 * 1024 * 1024;
+
+    const response = await client.request('PUT', `/api/instances/${instance.id}/resources`, {
+      ram: 512,
+      cpu: 1,
+      disk: 5,
+    });
+
+    expect(response.status).toBe(400);
+    const unchanged = await prisma.instance.findUnique({ where: { id: instance.id } });
+    expect(unchanged?.disk).toBe(10);
   });
 
   it('refuses a change outside the limits of the product', async () => {

@@ -56,7 +56,9 @@ Next: restore one Bedrock `server.properties` change on a disposable server and 
 
 Done: proration, 30-day lock, advisory lock, downgrade credit after the panel accepts the limits, yearly price from the monthly card. Wording on the resize page is marked as a draft.
 
-Remaining: Stripe test-mode charge and webhook, concurrent checkout evidence, disk shrink guard, credit shown on the billing page from the same ledger.
+This pass: a smaller disk is refused when usage is unknown or the stored files plus 64 MB do not fit. The check runs on the quote and again before the panel limits change. `disk-shrink.test.ts` passed. `upgrades.test.ts` passed on the disposable CI database, including a shrink that fits and a shrink that does not.
+
+Remaining: Stripe test-mode charge and webhook, concurrent checkout evidence, credit shown on the billing page from the same ledger.
 
 Next: a test that runs two resize checkouts and one Stripe test-mode balance transaction.
 

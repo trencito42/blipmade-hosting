@@ -6,6 +6,8 @@ import { instanceTerm, priceConfiguration, resourceRates, validateConfiguration,
 import { findStripeCustomerId, giveBalanceCredit, refundPayment, updateSubscriptionAmount } from './stripe.js';
 import { notifyUpgradeCompleted, notifyUpgradeFailed } from './notifications.js';
 import * as pteroApp from './pterodactyl/application.js';
+import * as client from './pterodactyl/client.js';
+import { customerToken } from './panel/operations.js';
 import type {
   FulfillmentStatus,
   Instance,
@@ -28,6 +30,47 @@ export interface ResourceRequest {
   ram: number;
   cpu: number;
   disk: number;
+}
+
+const DISK_SHRINK_MARGIN_BYTES = 64 * 1024 * 1024;
+
+/**
+ * A smaller disk is refused when the files already stored do not fit, with 64 MB spare.
+ * Unknown usage is also refused: the panel would reject the shrink after payment.
+ */
+export function diskShrinkDecision(input: { currentGb: number; nextGb: number; usedBytes: number | null }): { ok: true } | { ok: false; message: string } {
+  if (input.nextGb >= input.currentGb) return { ok: true };
+  if (input.usedBytes === null || !Number.isFinite(input.usedBytes) || input.usedBytes < 0) {
+    return { ok: false, message: 'Disk cannot be reduced until the current usage is known.' };
+  }
+  const nextBytes = input.nextGb * 1024 * 1024 * 1024;
+  if (input.usedBytes + DISK_SHRINK_MARGIN_BYTES > nextBytes) {
+    return { ok: false, message: 'Disk cannot be reduced below the space already used, plus 64 MB.' };
+  }
+  return { ok: true };
+}
+
+async function assertDiskFits(instance: { id: string; userId: string; disk: number; pterodactylUuid: string | null; pterodactylServerId: number | null; status: string; generatedVariables: string | null; product: { generatedVariables: unknown } }, nextGb: number): Promise<void> {
+  if (nextGb >= instance.disk) return;
+  let used: number | null = null;
+  if (instance.pterodactylUuid) {
+    try {
+      const token = await customerToken({
+        id: instance.id,
+        userId: instance.userId,
+        pterodactylUuid: instance.pterodactylUuid,
+        pterodactylServerId: instance.pterodactylServerId,
+        status: instance.status,
+        generatedVariables: instance.generatedVariables,
+        productVariables: instance.product.generatedVariables,
+      });
+      used = (await client.getResources(token, instance.pterodactylUuid)).disk.used;
+    } catch {
+      used = null;
+    }
+  }
+  const decision = diskShrinkDecision({ currentGb: instance.disk, nextGb, usedBytes: used });
+  if (!decision.ok) throw badRequest(decision.message);
 }
 
 export interface ResourceQuote {
@@ -261,6 +304,7 @@ export async function quoteResourceChange(
   if (!price) throw badRequest(period === 'YEARLY' ? 'This yearly service has no yearly price, so the change cannot be settled.' : 'This product has no active price.');
 
   validateConfiguration(instance.product, request);
+  await assertDiskFits(instance, request.disk);
 
   const rates = await resourceRates();
   const discount = await yearlyDiscountPercent();
@@ -492,6 +536,7 @@ export async function applyUpgradeOrder(orderId: string): Promise<{ applied: boo
 
   if (instance.pterodactylServerId) {
     try {
+      await assertDiskFits(instance, request.disk);
       await pteroApp.updateServerBuild(instance.pterodactylServerId, {
         limits: {
           memory: request.ram,
