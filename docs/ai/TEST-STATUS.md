@@ -44,3 +44,4 @@ Admin audit specs (need seed `admin-audit-seed.json`). API tests (no DB). Admin 
 - API runtime tests remain not run: `TEST_DATABASE_URL`, `DATABASE_URL`, `REDIS_URL`, and `SESSION_SECRET` are absent in this workspace. The new step-up state is therefore IN_PROGRESS, not IMPLEMENTED/VERIFIED.
 - Launch-hardening review started after `cd20e9f` made Task C the first priority. The console-origin/command-privacy group was manually ported; API typecheck passes. The focused Vitest command could not start because global setup requires a disposable database, so no runtime pass is claimed.
 - Trusted-proxy limiter and panel-bootstrap randomness patches: API typecheck passes. Their Vitest files also require the unavailable disposable database, so runtime coverage remains not run.
+- Password-reset/email-verification concurrency patches: API typecheck passes; the new database race tests could not be run without the disposable test stack.
