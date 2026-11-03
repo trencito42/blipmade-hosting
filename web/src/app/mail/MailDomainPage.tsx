@@ -31,7 +31,6 @@ import { memLabel } from '../../lib/pricing';
 import { Link, useParams, useRouter } from '../../router';
 import { DangerButton, ErrorState, LoadingBlock, Panel, Segmented, StatusPill, useToast } from '../../ui-app';
 import { Icon } from '../../icons';
-import { AliasCreateDialog } from './AliasCreateDialog';
 import { AliasTable } from './AliasTable';
 import { MailDeleteDialog } from './MailDeleteDialog';
 import { MailDnsPanel } from './MailDnsPanel';
@@ -61,7 +60,6 @@ export function MailDomainPage() {
   const { navigate } = useRouter();
   const { push } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
-  const [creatingAlias, setCreatingAlias] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MailDeleteRequest | null>(null);
   const [proofAnswer, setProofAnswer] = useState<{ verified: boolean; message: string } | null>(null);
 
@@ -113,7 +111,6 @@ export function MailDomainPage() {
   useEffect(() => {
     setTab('overview');
     setProofAnswer(null);
-    setCreatingAlias(false);
     setPendingDelete(null);
   }, [id]);
 
@@ -345,7 +342,7 @@ export function MailDomainPage() {
           <AliasTable
             domain={domain}
             aliases={aliases}
-            onCreate={() => setCreatingAlias(true)}
+            createTo={`/app/mail/domains/${encodeURIComponent(domain.id)}/aliases/new`}
             onDelete={(alias) => setPendingDelete({ kind: 'alias', domain, alias })}
             busy={remove.pending}
           />
@@ -472,17 +469,6 @@ export function MailDomainPage() {
           </Panel>
         </div>
       )}
-
-      <AliasCreateDialog
-        open={creatingAlias}
-        domain={domain}
-        mailboxes={mailboxes}
-        onClose={() => setCreatingAlias(false)}
-        onCreated={() => {
-          aliasesState.reload();
-          domainState.reload();
-        }}
-      />
 
       <MailDeleteDialog
         request={pendingDelete}

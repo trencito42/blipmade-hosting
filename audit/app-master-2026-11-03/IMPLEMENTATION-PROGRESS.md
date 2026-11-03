@@ -105,3 +105,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static mailbox-editor contract test: 1/1 pass.
 - Focused Playwright mailbox editor suite: 2/2 pass, including exact API payload, one-time secret acknowledgement and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated email alias editor
+
+### Completed
+
+- [x] Migrated alias creation from its dialog to `/app/mail/domains/:id/aliases/new`, registered before the generic email-domain route.
+- [x] Preserved `POST /mail/domains/:id/aliases` and constrained destinations to active mailboxes returned for the same owned domain.
+- [x] Added searchable mailbox selection, duplicate alias validation, real alias quota enforcement, routing preview, server field errors, Save/Discard and dirty guard.
+- [x] Kept alias listing and destructive deletion behavior unchanged and linked an empty mailbox state directly to the dedicated mailbox editor.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static alias-editor contract test: 1/1 pass.
+- Focused Playwright alias editor suite: 2/2 pass, including exact same-domain forwarding payload and 390px overflow/action reachability.
