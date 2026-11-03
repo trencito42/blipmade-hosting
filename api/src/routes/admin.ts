@@ -1275,6 +1275,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         // The owner of the ticket, so the page of a conversation can show the
         // owner it really has and not only the name of it.
         assignedToId: ticket.assignedToId,
+        departmentId: ticket.departmentId,
+        channel: ticket.channel.toLowerCase(),
       })),
       total,
       pagination: page.pagination,

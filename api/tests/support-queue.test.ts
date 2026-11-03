@@ -120,3 +120,19 @@ describe('the unified queue', () => {
     }
   });
 });
+
+describe('the department of a ticket in the admin list', () => {
+  it('is returned by the list the ticket page reads, and follows a move', async () => {
+    const { client: admin } = await createAdmin(app);
+    const department = (await admin.request('POST', '/api/admin/support/departments', { name: 'Billing' })).body.department;
+    const { client } = await registerAndLogin(app, 'dept-list@example.com');
+    const ticket = await open(client, 'Which department');
+    const before = (await admin.request('GET', `/api/admin/tickets?id=${ticket.id}`)).body.tickets[0];
+    expect(before.departmentId).toBeNull();
+    expect(before.channel).toBe('ticket');
+    await admin.request('PUT', `/api/admin/support/conversations/${ticket.id}/department`, { departmentId: department.id });
+    expect((await admin.request('GET', `/api/admin/tickets?id=${ticket.id}`)).body.tickets[0].departmentId).toBe(department.id);
+    await admin.request('PUT', `/api/admin/support/conversations/${ticket.id}/department`, { departmentId: null });
+    expect((await admin.request('GET', `/api/admin/tickets?id=${ticket.id}`)).body.tickets[0].departmentId).toBeNull();
+  });
+});
