@@ -1,3 +1,4 @@
+import { ButtonGroup } from '../components/premium';
 import { useAsync } from '../../lib/useAsync';
 import { listAllocations } from '../../lib/instance-api';
 import {
@@ -56,9 +57,9 @@ export default function NetworkTab({ instance }: TabProps) {
       header: '',
       align: 'right',
       render: (row: (typeof rows)[number]) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/network/${row.id}/edit`} variant="soft">Edit</ButtonLink>
-        </div>
+        <ButtonGroup label="Actions" className="justify-end">
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/network/${row.id}/edit`} variant="soft" title="Rename this address, make it the primary one or release it">Edit</ButtonLink>
+        </ButtonGroup>
       ),
     },
   ];
@@ -98,7 +99,7 @@ export default function NetworkTab({ instance }: TabProps) {
                   meta={row.alias ? <span className="font-mono">{row.alias}</span> : undefined}
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
-                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/network/${row.id}/edit`} variant="soft">Edit</ButtonLink>
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/network/${row.id}/edit`} variant="soft" title="Rename this address, make it the primary one or release it">Edit</ButtonLink>
                     </div>
                   }
                 />

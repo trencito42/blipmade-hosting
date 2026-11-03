@@ -1,3 +1,4 @@
+import { ButtonGroup } from '../components/premium';
 import { useAsync } from '../../lib/useAsync';
 import { listDatabases } from '../../lib/instance-api';
 import {
@@ -58,9 +59,9 @@ export default function DatabasesTab({ instance }: TabProps) {
       header: '',
       align: 'right',
       render: (row: (typeof rows)[number]) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/databases/${encodeURIComponent(row.id)}/security`} variant="soft">Security</ButtonLink>
-        </div>
+        <ButtonGroup label="Actions" className="justify-end">
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/databases/${encodeURIComponent(row.id)}/security`} variant="soft" title="Show the credentials, rotate the password or delete this database">Security</ButtonLink>
+        </ButtonGroup>
       ),
     },
   ];
@@ -106,7 +107,7 @@ export default function DatabasesTab({ instance }: TabProps) {
                   }
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
-                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/databases/${encodeURIComponent(row.id)}/security`} variant="soft">Security</ButtonLink>
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/databases/${encodeURIComponent(row.id)}/security`} variant="soft" title="Show the credentials, rotate the password or delete this database">Security</ButtonLink>
                     </div>
                   }
                 />

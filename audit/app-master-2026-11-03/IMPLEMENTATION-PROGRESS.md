@@ -587,3 +587,14 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Web TypeScript check and full web unit suite: 496 pass, 0 fail (the unread-tint rule of the notification test was kept).
 - Playwright: overview rows (2), notification rows (2), billing (6, one measures that the name, status, price and button centres are within 2px), domains (5, one measures the same for a domain row): all pass. Screenshot of the subscription row reviewed.
 - Not applied yet: the same centre-line measurement on the rows of the mail pages and the instance tabs.
+
+## 2026-11-03 — Grouped row actions on the instance tabs
+
+### Completed
+
+- [x] The tables of the backups, databases, network and schedules tabs show their row actions as one group with tooltips on a desktop (the phone cards keep their wrapping buttons, so four actions never overflow 390px).
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: 496 pass, 0 fail.
+- Playwright: the backup rows are divided (no line above the first, none under the last), the actions are one group with their tooltips and share a centre line with the cells (within 2px), and the tab fits at 390px; the existing backup, network, schedule and database editor suites still pass (20/20 with the new spec).

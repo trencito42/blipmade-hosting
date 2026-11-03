@@ -1,3 +1,4 @@
+import { ButtonGroup } from '../components/premium';
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import { deleteBackup, downloadBackup, listBackups } from '../../lib/instance-api';
@@ -102,11 +103,11 @@ export default function BackupsTab({ instance }: TabProps) {
       header: '',
       align: 'right',
       render: (row: (typeof rows)[number]) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <SoftButton onClick={() => download(row.id, row.name)}>Download</SoftButton>
-          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft">Restore</ButtonLink>
-          <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
-        </div>
+        <ButtonGroup label="Actions" className="justify-end">
+          <SoftButton onClick={() => download(row.id, row.name)} title="Download this backup">Download</SoftButton>
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft" title="Restore this backup. The current files are replaced.">Restore</ButtonLink>
+          <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })} title="Delete this backup for good">Delete</DangerButton>
+        </ButtonGroup>
       ),
     },
   ];
@@ -156,9 +157,9 @@ export default function BackupsTab({ instance }: TabProps) {
                   }
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
-                      <SoftButton onClick={() => download(row.id, row.name)}>Download</SoftButton>
-                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft">Restore</ButtonLink>
-                      <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
+                      <SoftButton onClick={() => download(row.id, row.name)} title="Download this backup">Download</SoftButton>
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft" title="Restore this backup. The current files are replaced.">Restore</ButtonLink>
+                      <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })} title="Delete this backup for good">Delete</DangerButton>
                     </div>
                   }
                 />

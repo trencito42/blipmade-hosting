@@ -1,3 +1,4 @@
+import { ButtonGroup } from '../components/premium';
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
 import {
@@ -109,12 +110,12 @@ export default function SchedulesTab({ instance }: TabProps) {
       header: '',
       align: 'right',
       render: (row: (typeof rows)[number]) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft">Edit</ButtonLink>
-          <SoftButton onClick={() => run(row.id)}>Run now</SoftButton>
-          <SoftButton onClick={() => toggle(row.id, row.active)}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
-          <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
-        </div>
+        <ButtonGroup label="Actions" className="justify-end">
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft" title="Change the schedule">Edit</ButtonLink>
+          <SoftButton onClick={() => run(row.id)} title="Run this schedule once, now">Run now</SoftButton>
+          <SoftButton onClick={() => toggle(row.id, row.active)} title={row.active ? 'Stop running this schedule until it is resumed' : 'Start running this schedule again'}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
+          <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })} title="Delete this schedule">Delete</DangerButton>
+        </ButtonGroup>
       ),
     },
   ];
@@ -149,10 +150,10 @@ export default function SchedulesTab({ instance }: TabProps) {
                   }
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
-                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft">Edit</ButtonLink>
-                      <SoftButton onClick={() => run(row.id)}>Run now</SoftButton>
-                      <SoftButton onClick={() => toggle(row.id, row.active)}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
-                      <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/schedules/${row.id}/edit`} variant="soft" title="Change the schedule">Edit</ButtonLink>
+                      <SoftButton onClick={() => run(row.id)} title="Run this schedule once, now">Run now</SoftButton>
+                      <SoftButton onClick={() => toggle(row.id, row.active)} title={row.active ? 'Stop running this schedule until it is resumed' : 'Start running this schedule again'}>{row.active ? 'Pause' : 'Resume'}</SoftButton>
+                      <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })} title="Delete this schedule">Delete</DangerButton>
                     </div>
                   }
                 />
