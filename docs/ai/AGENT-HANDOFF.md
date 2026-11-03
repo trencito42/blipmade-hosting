@@ -30,3 +30,5 @@ Updated: 2026-11-03 (handoff to the next agent, MiniMax, requested by the user).
 
 ## Blockers
 OPERATOR-ACTIONS.md (rotate MiniMax key, support email placeholder, deploy approval, issues #21/#23 prerequisites).
+
+Continuation prompt for another agent (Admin functions with recommended defaults, then issues #18-#23): `docs/ai/CONTINUE-PROMPT.md`.
