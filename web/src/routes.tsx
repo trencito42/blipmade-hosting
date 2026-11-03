@@ -62,6 +62,12 @@ const AppRenewBackupCodes = lazy(() => import('./app/TwoFactorEditors').then((mo
 const AppPasskeyNew = lazy(() => import('./app/PasskeyNew'));
 const AppCloseAccount = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.CloseAccount })));
 const AppEditResources = lazy(() => import('./app/instance/EditResources'));
+const AppRenameVps = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.RenameVps })));
+const AppChangeVpsKey = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.ChangeVpsKey })));
+const AppMountVpsIso = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.MountVpsIso })));
+const AppReinstallVps = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.ReinstallVps })));
+const AppNewVpsSnapshot = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.NewVpsSnapshot })));
+const AppRestoreVpsSnapshot = lazy(() => import('./app/VpsEditors').then((module) => ({ default: module.RestoreVpsSnapshot })));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -208,6 +214,12 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/servers/:id', component: ServersRedirect, title: 'Servers', area: 'customer' },
   { pattern: '/app/vps', component: VpsList, title: 'Servers', area: 'customer', exact: true },
   { pattern: '/app/vps/new', component: VpsCheckout, title: 'New server', area: 'customer' },
+  { pattern: '/app/vps/:id/settings/edit', component: AppRenameVps, title: 'Rename server', area: 'customer', layout: 'editor' },
+  { pattern: '/app/vps/:id/ssh-key', component: AppChangeVpsKey, title: 'Change SSH key', area: 'customer', layout: 'editor' },
+  { pattern: '/app/vps/:id/iso', component: AppMountVpsIso, title: 'Boot from an image', area: 'customer', layout: 'editor' },
+  { pattern: '/app/vps/:id/reinstall', component: AppReinstallVps, title: 'Reinstall server', area: 'customer', layout: 'editor' },
+  { pattern: '/app/vps/:id/snapshots/new', component: AppNewVpsSnapshot, title: 'Take a snapshot', area: 'customer', layout: 'editor' },
+  { pattern: '/app/vps/:id/snapshots/:name/restore', component: AppRestoreVpsSnapshot, title: 'Restore snapshot', area: 'customer', layout: 'editor' },
   { pattern: '/app/vps/:id', component: VpsDetail, title: 'Server', area: 'customer' },
   { pattern: '/app/email/checkout', component: EmailCheckout, title: 'Hosted mail', area: 'customer' },
   { pattern: '/app/billing/subscriptions/:id/cancel', component: AppCancelSubscription, title: 'Cancel subscription', area: 'customer', layout: 'editor' },

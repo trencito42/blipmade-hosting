@@ -7,18 +7,18 @@
 
 import { LineChart } from './LineChart';
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ApiError, api, del, get, patch, post, put, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
+import { ApiError, api, del, get, post, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { useInfiniteList } from '../lib/useInfinite';
 import { memLabel } from '../lib/pricing';
 import { Link, useParams } from '../router';
+import { ButtonGroup } from './components/premium';
 import { useSession } from '../session';
 import { Icon } from '../icons';
 import { Eyebrow, Footer, Nav, Wrap } from '../site/ui';
 import {
   ButtonLink,
   ConfirmDialog,
-  DangerButton,
   EmptyState,
   ErrorState,
   FadedLoadMore,
@@ -436,11 +436,11 @@ export function VpsList() {
       ) : servers.length === 0 ? (
         <EmptyState title="No server yet." description="A virtual server with root access, ready in a few minutes." action={<ButtonLink to={VPS_NEW_PATH}>Order a server</ButtonLink>} />
       ) : (
-        <ul className="grid gap-3">
+        <ul className="grid">
           {servers.map((server) => {
             const status = statusOf(server);
             return (
-              <li key={server.id} className="rounded-2xl bg-s2 p-4">
+              <li key={server.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link to={`/app/vps/${server.id}`} className="text-[16px] font-semibold text-ink underline-offset-4 hover:underline">
@@ -469,7 +469,9 @@ export function VpsDetail() {
   const { push } = useToast();
   const state = useAsync<{ server: VpsServerView }>((signal) => get<{ server: VpsServerView }>(`/vps/${encodeURIComponent(id)}`, undefined, signal), [id]);
   const server = state.data?.server ?? null;
-  const [tab, setTab] = useState<(typeof VPS_TABS)[number]['id']>('overview');
+  const { query: pageQuery } = useRouterQuery();
+  // An editor page returns here with the tab it was opened from.
+  const [tab, setTab] = useState<(typeof VPS_TABS)[number]['id']>(VPS_TABS.find((entry) => entry.id === pageQuery.tab)?.id ?? 'overview');
   const [diagnosing, setDiagnosing] = useState(false);
 
   useEffect(() => {
@@ -869,70 +871,60 @@ function UsagePanel({ id }: { id: string }) {
 
 interface SnapshotsAnswer { max: number; snapshots: { name: string; description: string; createdAt: string | null }[] }
 
-/** Snapshots of the disk: a point to go back to before a risky change. */
+/** Snapshots of the disk: a point to go back to before a risky change. Taking and restoring one are pages of their own. */
 function SnapshotsPanel({ id }: { id: string }) {
   const { push } = useToast();
   const base = `/vps/${encodeURIComponent(id)}/snapshots`;
   const state = useAsync<SnapshotsAnswer>((signal) => get<SnapshotsAnswer>(base, undefined, signal), [id]);
-  const [name, setName] = useState('');
-  const [restoring, setRestoring] = useState<string | null>(null);
-  const act = useAction(async (work: () => Promise<unknown>, message: string) => {
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const remove = useAction(async (name: string) => {
     try {
-      await work();
-      push(message, 'ok');
+      await del(`${base}/${encodeURIComponent(name)}`);
+      push('The snapshot was deleted.', 'ok');
       state.reload();
     } catch (failure) {
       push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+    } finally {
+      setDeleting(null);
     }
   });
   const data = state.data;
   return (
-    <Panel title="Snapshots" description={data ? `A server keeps ${data.max} snapshots. Restoring one replaces the disk as it is now.` : 'Points of the disk you can go back to.'}>
+    <Panel
+      title="Snapshots"
+      description={data ? `A server keeps ${data.max} snapshots. Restoring one replaces the disk as it is now.` : 'Points of the disk you can go back to.'}
+      action={data && data.snapshots.length < data.max ? <ButtonLink to={`/app/vps/${encodeURIComponent(id)}/snapshots/new`} variant="soft">Take a snapshot</ButtonLink> : undefined}
+    >
       {state.error ? (
         <ErrorState title="The snapshots could not be read" message={state.error.message} onRetry={state.reload} />
       ) : !data ? (
         <LoadingBlock rows={1} label="Reading the snapshots" />
+      ) : data.snapshots.length === 0 ? (
+        <p className="text-[14px] text-ink2">No snapshot yet.</p>
       ) : (
-        <div className="grid gap-4">
-          {data.snapshots.length === 0 ? (
-            <p className="text-[14px] text-ink2">No snapshot yet.</p>
-          ) : (
-            <ul className="grid gap-2">
-              {data.snapshots.map((snapshot) => (
-                <li key={snapshot.name} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-s2 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="font-mono text-[14px] font-semibold text-ink">{snapshot.name}</p>
-                    <p className="text-[12.5px] text-ink3">{snapshot.createdAt ? new Date(snapshot.createdAt).toLocaleString() : ''}{snapshot.description ? ` · ${snapshot.description}` : ''}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <SoftButton onClick={() => setRestoring(snapshot.name)} disabled={act.pending}>Restore</SoftButton>
-                    <SoftButton onClick={() => void act.run(() => del(`${base}/${encodeURIComponent(snapshot.name)}`), 'The snapshot was deleted.')} disabled={act.pending}>Delete</SoftButton>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {data.snapshots.length < data.max && (
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-              <TextInput label="New snapshot" value={name} onChange={(event) => setName(event.target.value.toLowerCase())} placeholder="before-upgrade" hint="Lowercase letters, numbers and dashes." autoComplete="off" />
-              <PrimaryButton onClick={() => void act.run(async () => { await post(base, { name }); setName(''); }, 'The snapshot was taken.')} disabled={act.pending || name.trim() === ''}>
-                {act.pending ? 'Working…' : 'Take a snapshot'}
-              </PrimaryButton>
-            </div>
-          )}
-        </div>
+        <ul className="grid">
+          {data.snapshots.map((snapshot) => (
+            <li key={snapshot.name} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <p className="font-mono text-[14px] font-semibold text-ink">{snapshot.name}</p>
+                <p className="text-[12.5px] text-ink3">{snapshot.createdAt ? new Date(snapshot.createdAt).toLocaleString() : ''}{snapshot.description ? ` · ${snapshot.description}` : ''}</p>
+              </div>
+              <ButtonGroup label={`Actions for ${snapshot.name}`}>
+                <ButtonLink to={`/app/vps/${encodeURIComponent(id)}/snapshots/${encodeURIComponent(snapshot.name)}/restore`} variant="soft" title="Restore this snapshot. The disk goes back to it.">Restore</ButtonLink>
+                <SoftButton onClick={() => setDeleting(snapshot.name)} disabled={remove.pending} title="Delete this snapshot. It cannot be restored afterwards.">Delete</SoftButton>
+              </ButtonGroup>
+            </li>
+          ))}
+        </ul>
       )}
       <ConfirmDialog
-        open={restoring !== null}
-        title="Restore this snapshot?"
-        description="The disk goes back to the moment of the snapshot. Everything written since is lost."
-        confirmLabel="Restore"
-        onCancel={() => setRestoring(null)}
-        onConfirm={() => {
-          const target = restoring;
-          setRestoring(null);
-          if (target) void act.run(() => post(`${base}/${encodeURIComponent(target)}/restore`), 'The snapshot was restored.');
-        }}
+        open={deleting !== null}
+        title="Delete this snapshot?"
+        description="The point of the disk is removed and you can no longer go back to it."
+        confirmLabel="Delete"
+        busy={remove.pending}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => { if (deleting) void remove.run(deleting); }}
       />
     </Panel>
   );
@@ -940,16 +932,15 @@ function SnapshotsPanel({ id }: { id: string }) {
 
 interface IsoAnswer { isos: { file: string; size: number }[]; mounted: string | null }
 
-/** Boot the server from an installation image. The list is the images the platform offers. */
+/** Boot the server from an installation image. Mounting one is a page of its own; ejecting it is one click. */
 function IsoPanel({ id, onChanged }: { id: string; onChanged: () => void }) {
   const { push } = useToast();
   const path = `/vps/${encodeURIComponent(id)}/iso`;
   const state = useAsync<IsoAnswer>((signal) => get<IsoAnswer>(path, undefined, signal), [id]);
-  const [file, setFile] = useState('');
-  const act = useAction(async (work: () => Promise<unknown>, message: string) => {
+  const eject = useAction(async () => {
     try {
-      await work();
-      push(message, 'ok');
+      await del(path);
+      push('The image was ejected. The next boot is from the disk.', 'ok');
       state.reload();
       onChanged();
     } catch (failure) {
@@ -958,155 +949,67 @@ function IsoPanel({ id, onChanged }: { id: string; onChanged: () => void }) {
   });
   const data = state.data;
   return (
-    <Panel title="Boot from an image" description="Mount an installation image, restart the server and install from it. The display is a graphical one while an image is mounted.">
+    <Panel
+      title="Boot from an image"
+      description="Mount an installation image, restart the server and install from it. The display is a graphical one while an image is mounted."
+      action={data && data.isos.length > 0 ? <ButtonLink to={`/app/vps/${encodeURIComponent(id)}/iso`} variant="soft">Mount an image</ButtonLink> : undefined}
+    >
       {state.error ? (
         <ErrorState title="The images could not be read" message={state.error.message} onRetry={state.reload} />
       ) : !data ? (
         <LoadingBlock rows={1} label="Reading the images" />
-      ) : data.isos.length === 0 && !data.mounted ? (
-        <p className="text-[14px] text-ink2">No installation image is offered at the moment.</p>
-      ) : (
-        <div className="grid gap-3">
-          {data.mounted && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-acc-bg px-4 py-3">
-              <p className="text-[14px] text-ink">Mounted: <span className="font-mono">{data.mounted}</span>. Restart the server to boot from it.</p>
-              <SoftButton onClick={() => void act.run(() => del(path), 'The image was ejected. The next boot is from the disk.')} disabled={act.pending}>Eject</SoftButton>
-            </div>
-          )}
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <Select label="Image" value={file} onChange={(event) => setFile(event.target.value)}>
-              <option value="">Choose an image</option>
-              {data.isos.map((iso) => (
-                <option key={iso.file} value={iso.file}>{isoName(iso.file)} · {memLabel(Math.round(iso.size / 1024 / 1024))}</option>
-              ))}
-            </Select>
-            <SoftButton onClick={() => void act.run(() => put(path, { file }), 'The image is mounted. Restart the server to boot from it.')} disabled={act.pending || !file}>Mount</SoftButton>
-          </div>
+      ) : data.mounted ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[14px] text-ink">Mounted: <span className="font-mono">{data.mounted}</span>. Restart the server to boot from it.</p>
+          <SoftButton onClick={() => void eject.run()} disabled={eject.pending} title="Eject the image. The next boot is from the disk.">Eject</SoftButton>
         </div>
+      ) : (
+        <p className="text-[14px] text-ink2">{data.isos.length === 0 ? 'No installation image is offered at the moment.' : 'No image is mounted. The server boots from its disk.'}</p>
       )}
     </Panel>
   );
 }
 
-/** Rename, change the key, reinstall and cancel: the things a customer does to a server that are not power. */
-function ManagePanel({ server, onChanged, section }: { server: VpsServerView; onChanged: () => void; section: 'settings' | 'danger' }) {
-  const { push } = useToast();
-  const [name, setName] = useState(server.name);
-  const [key, setKey] = useState('');
-  const [reinstallKey, setReinstallKey] = useState('');
-  const images = useAsync<{ images: { slug: string; label: string }[] }>((signal) => get<{ images: { slug: string; label: string }[] }>('/vps/images', undefined, signal), []);
-  const [image, setImage] = useState(server.image?.slug ?? 'debian-13');
-  const [confirming, setConfirming] = useState(false);
-  const [keyError, setKeyError] = useState<string | null>(null);
-
-  const rename = useAction(async () => {
-    try {
-      await patch(`/vps/${encodeURIComponent(server.id)}`, { name });
-      push('The name was saved.', 'ok');
-      onChanged();
-    } catch (failure) {
-      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    }
-  });
-  const changeKey = useAction(async () => {
-    setKeyError(null);
-    try {
-      await put(`/vps/${encodeURIComponent(server.id)}/ssh-key`, { sshPublicKey: key });
-      push('The key was changed. The server restarts to read it.', 'ok');
-      setKey('');
-      onChanged();
-    } catch (failure) {
-      setKeyError(failure instanceof Error ? failure.message : 'That did not work.');
-    }
-  });
-  const reinstall = useAction(async () => {
-    try {
-      await post(`/vps/${encodeURIComponent(server.id)}/reinstall`, { confirm: true, image, ...(reinstallKey.trim() ? { sshPublicKey: reinstallKey } : {}) });
-      push('The server is being built again.', 'ok');
-      setConfirming(false);
-      setReinstallKey('');
-      onChanged();
-    } catch (failure) {
-      setConfirming(false);
-      push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
-    }
-  });
-
-  return (
-    <>
-      {section === 'settings' && (
+/** The things a customer does to a server that are not power: each change is a page of its own. */
+function ManagePanel({ server, section }: { server: VpsServerView; onChanged?: () => void; section: 'settings' | 'danger' }) {
+  const base = `/app/vps/${encodeURIComponent(server.id)}`;
+  if (section === 'settings') {
+    return (
       <Panel title="Settings" description="The name is also the hostname of the server.">
-        <div className="grid gap-5">
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <TextInput label="Name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="off" spellCheck={false} />
-            <SoftButton onClick={() => void rename.run()} disabled={rename.pending || name.trim() === '' || name === server.name}>Save name</SoftButton>
-          </div>
-          <div className="grid gap-2">
-            <TextArea
-              label="SSH public key"
-              value={key}
-              onChange={(event) => setKey(event.target.value)}
-              error={keyError ?? undefined}
-              hint="Replaces the key that opens the server. The server restarts once to read it; its data is not touched."
-              rows={3}
-              placeholder="ssh-ed25519 AAAA…"
-              spellCheck={false}
-            />
-            <div>
-              <SoftButton onClick={() => void changeKey.run()} disabled={changeKey.pending || key.trim() === ''}>Change the key</SoftButton>
+        <ul className="grid">
+          <li className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 first:border-t-0 first:pt-0">
+            <div className="min-w-0">
+              <p className="text-[12.5px] text-ink3">Name</p>
+              <p className="break-all text-[14.5px] font-semibold text-ink">{server.name}</p>
             </div>
-          </div>
-        </div>
+            <ButtonLink to={`${base}/settings/edit`} variant="soft">Rename</ButtonLink>
+          </li>
+          <li className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 last:pb-0">
+            <div className="min-w-0">
+              <p className="text-[12.5px] text-ink3">SSH public key</p>
+              <p className="text-[13.5px] text-ink2">Replaces the key that opens the server. The server restarts once to read it.</p>
+            </div>
+            <ButtonLink to={`${base}/ssh-key`} variant="soft">Change the key</ButtonLink>
+          </li>
+        </ul>
       </Panel>
-      )}
-
-      {section === 'danger' && (
-      <Panel title="Reinstall and cancel" description="These two cannot be undone.">
-        <div className="grid gap-5">
-          <div className="grid gap-2">
-            <p className="text-[14px] text-ink2">
-              Reinstalling builds the server again from a clean image of the system you choose. <strong className="text-ink">Everything on its disk is deleted.</strong> The address, the plan and the subscription stay.
-            </p>
-            <Select label="Operating system" value={image} onChange={(event) => setImage(event.target.value)}>
-              {(images.data?.images ?? [{ slug: image, label: server.image?.label ?? 'Debian 13' }]).map((entry) => (
-                <option key={entry.slug} value={entry.slug}>{entry.label}</option>
-              ))}
-            </Select>
-            <TextArea
-              label="New SSH public key (optional)"
-              value={reinstallKey}
-              onChange={(event) => setReinstallKey(event.target.value)}
-              hint="Leave it empty to keep the current key."
-              rows={2}
-              spellCheck={false}
-            />
-            <div>
-              <DangerButton onClick={() => setConfirming(true)} disabled={reinstall.pending}>Reinstall the server</DangerButton>
-            </div>
-          </div>
-          <div className="grid gap-2 border-t border-line pt-4">
-            <p className="text-[14px] text-ink2">
-              To stop paying for this server, cancel its subscription. It keeps running until the end of the paid period.
-            </p>
-            <div>
-              <ButtonLink to="/app/billing" variant="soft">Go to Billing</ButtonLink>
-            </div>
-          </div>
-        </div>
-      </Panel>
-      )}
-
-      <ConfirmDialog
-        open={confirming}
-        title="Reinstall this server?"
-        description="Everything on its disk is deleted and the server is built again. This cannot be undone."
-        confirmLabel="Reinstall"
-        onConfirm={() => void reinstall.run()}
-        onCancel={() => setConfirming(false)}
-        busy={reinstall.pending}
-        requireText={server.name}
-      />
-    </>
+    );
+  }
+  return (
+    <Panel title="Reinstall and cancel" description="These two cannot be undone.">
+      <ul className="grid">
+        <li className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 first:border-t-0 first:pt-0">
+          <p className="min-w-0 flex-1 text-[14px] text-ink2">
+            Reinstalling builds the server again from a clean image of the system you choose. <strong className="text-ink">Everything on its disk is deleted.</strong>
+          </p>
+          <ButtonLink to={`${base}/reinstall`} variant="danger" title="Review and reinstall the server. The disk is erased.">Reinstall</ButtonLink>
+        </li>
+        <li className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 last:pb-0">
+          <p className="min-w-0 flex-1 text-[14px] text-ink2">To stop paying for this server, cancel its subscription. It keeps running until the end of the paid period.</p>
+          <ButtonLink to="/app/billing" variant="soft">Go to Billing</ButtonLink>
+        </li>
+      </ul>
+    </Panel>
   );
 }
 

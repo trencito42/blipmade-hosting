@@ -536,3 +536,17 @@ This checklist records executable implementation work on `audit/admin-master-spe
 
 - Web TypeScript check and full web unit suite: 494 pass, 0 fail.
 - Playwright (editor shell, closure, resources, API keys, two-factor, passkeys, settings, password, domains, subscriptions): 59/59 pass. The payment step uses a stubbed checkout address; no real payment was made.
+
+## 2026-11-03 — VPS dedicated pages
+
+### Completed
+
+- [x] `/app/vps/:id/settings/edit` (rename, `PATCH /vps/:id`), `/ssh-key` (`PUT .../ssh-key`, says the server restarts once), `/iso` (mount an image, `PUT .../iso`), `/reinstall` (exact server name, acknowledgement, system choice, optional key; `POST .../reinstall`), `/snapshots/new` (name rule and duplicate check, refused when the server is full) and `/snapshots/:name/restore` (exact snapshot name and acknowledgement).
+- [x] The server page keeps summaries and links; `?tab=` makes an editor return to the tab it came from. Eject and deleting a snapshot stay one click (the delete asks first). The server list and the snapshot list are divided rows with grouped actions and tooltips.
+- [x] All six routes are `layout: 'editor'`.
+- [ ] Not done: the VPS checkout (`/app/vps/new`) review step in the address, the mail DNS page, the billing orders page.
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: pass.
+- Playwright VPS suite: 7/7 pass (exact PATCH/PUT/POST payloads, refused states, the tab a page returns to, h1 and 390px overflow on all six pages). The hypervisor is not involved: every VPS answer is stubbed.
