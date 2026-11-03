@@ -13,6 +13,7 @@ const webRoot = join(here, '..');
 interface PremiumUi {
   ButtonGroup: (props: Record<string, unknown>) => unknown;
   AsyncCombobox: (props: Record<string, unknown>) => unknown;
+  DomainInput: (props: Record<string, unknown>) => unknown;
   NumberStepper: (props: Record<string, unknown>) => unknown;
   ResourceSliderStepper: (props: Record<string, unknown>) => unknown;
   QuoteSummary: (props: Record<string, unknown>) => unknown;
@@ -68,6 +69,16 @@ describe('premium customer controls', () => {
     assert.match(html, /value="Production API"/);
     assert.doesNotMatch(html, /value="instance-secret-id"/);
     assert.match(html, /Clear Related service/);
+  });
+
+  it('renders a specialized hostname field with an IDN DNS preview', () => {
+    const html = render(createElement(ui.DomainInput, {
+      value: 'münchen.example', onChange: () => {}, error: 'Check this hostname.',
+    }));
+    assert.match(html, /inputMode="url"/);
+    assert.match(html, /xn--mnchen-3ya\.example/);
+    assert.match(html, /aria-invalid="true"/);
+    assert.match(html, /role="alert"/);
   });
 
   it('keeps slider and exact entry in one resource control', () => {

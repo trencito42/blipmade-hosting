@@ -44,3 +44,30 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - [ ] Add VPS linkage to customer tickets only after a real schema/API relationship is implemented; do not fake it in the UI.
 - [ ] Run the full database-backed API suite and authorized staging tests when fixtures and `TEST_DATABASE_URL` are provided.
 - [ ] No merge or deploy before product-owner approval.
+
+## 2026-11-03 — Premium lookup and domain editor
+
+### Completed
+
+- [x] Added a reusable asynchronous combobox with debounced remote loading, request cancellation, grouped descriptions, keyboard traversal, disabled-option reasons, loading/empty/error states and 48px mobile input geometry.
+- [x] Added a dedicated `DomainInput` with protocol/path rejection and an IDN/punycode preview.
+- [x] Migrated domain creation from the inline `/app/domains` form to `/app/domains/new` while preserving list, verification, deletion and DNS guidance behavior.
+- [x] Connected the editor to the existing owned-instance inventory and `POST /instances/:id/domains` API, with real validation, disabled ineligible instances, Save/Discard, dirty navigation guard and server field errors.
+- [x] Added browser coverage for the exact create payload, validation and 390px horizontal-overflow boundary, plus static contract tests for the route and component states.
+
+### Control parity for `/app/domains`
+
+| Original control | New destination | Backend | Result |
+|---|---|---|---|
+| Add domain | `/app/domains/new` | `POST /instances/:id/domains` | Preserved on a dedicated page |
+| Instance selection | `/app/domains/new` | `GET /instances` + ownership validation | Searchable, customer-safe labels; raw IDs hidden |
+| Hostname | `/app/domains/new` | Existing API validation | Client validation plus IDN normalization/preview |
+| Domain list, verify and delete | `/app/domains` | Existing domain APIs | Unchanged |
+| Email domains | `/app/mail` | Existing mail APIs | Kept separate and explicitly linked |
+
+### Verification executed
+
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- `PATH=/opt/node22/bin:$PATH npx tsc --noEmit` and `npm run typecheck:e2e` in `web`: pass.
+- Focused component/route tests: 12/12 pass.
+- Focused Playwright ticket + domain editor suite: 5/5 pass, including both 390px checks.

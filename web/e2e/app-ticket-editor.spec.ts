@@ -27,6 +27,7 @@ async function stubCustomerApp(page: Page, onCreate?: (payload: Record<string, u
     if (path === '/support/availability') return json(route, { available: false });
     if (path === '/support/chat/current') return json(route, { conversation: null });
     if (path === '/support/bot/current') return json(route, { conversation: null });
+    if (path === '/support/suggest') return json(route, { articles: [] });
     if (path === '/tickets/categories') return json(route, { categories: [{ id: 'TECHNICAL', label: 'Technical' }, { id: 'BILLING', label: 'Billing' }] });
     if (path === '/instances') return json(route, { instances: [{ id: 'instance-1', name: 'Production API', status: 'ACTIVE' }] });
     if (path === '/mail/services') return json(route, { services: [] });
@@ -70,8 +71,11 @@ test.describe('the dedicated new-ticket editor', () => {
     await page.getByLabel('Subject').fill('API unavailable');
     await page.getByLabel('Category').selectOption('TECHNICAL');
     await page.getByRole('button', { name: 'High' }).click();
-    await page.getByRole('combobox', { name: 'Related service' }).click();
-    await page.getByRole('option', { name: /Production API/ }).click();
+    const service = page.getByRole('combobox', { name: 'Related service' });
+    await service.click();
+    await expect(page.getByRole('option', { name: /Production API/ })).toBeVisible();
+    await service.press('ArrowDown');
+    await service.press('Enter');
     await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Requests started failing at 12:00 UTC with a 503 response.');
     await page.getByRole('button', { name: 'Create ticket' }).click();
 
