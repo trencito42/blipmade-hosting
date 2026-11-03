@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { deleteBackup, downloadBackup, listBackups, restoreBackup } from '../../lib/instance-api';
+import { deleteBackup, downloadBackup, listBackups } from '../../lib/instance-api';
 import {
   CardList,
   ButtonLink,
@@ -30,7 +30,6 @@ export default function BackupsTab({ instance }: TabProps) {
   const { push } = useToast();
   const backups = useAsync((signal) => listBackups(instance.id, signal), [instance.id]);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
-  const [pendingRestore, setPendingRestore] = useState<{ id: string; name: string } | null>(null);
 
   const rows = backups.data?.backups ?? [];
   const limit = backups.data?.limit;
@@ -50,16 +49,6 @@ export default function BackupsTab({ instance }: TabProps) {
       URL.revokeObjectURL(url);
     } catch (error) {
       push(error instanceof Error ? error.message : 'The backup could not be downloaded.', 'error');
-    }
-  };
-
-  const restore = async (id: string) => {
-    try {
-      await restoreBackup(instance.id, id);
-      push('The backup is being restored. The files of the container are replaced by the archive.', 'ok');
-      setPendingRestore(null);
-    } catch (error) {
-      push(error instanceof Error ? error.message : 'The backup was not restored.', 'error');
     }
   };
 
@@ -115,7 +104,7 @@ export default function BackupsTab({ instance }: TabProps) {
       render: (row: (typeof rows)[number]) => (
         <div className="flex flex-wrap justify-end gap-2">
           <SoftButton onClick={() => download(row.id, row.name)}>Download</SoftButton>
-          <SoftButton onClick={() => setPendingRestore({ id: row.id, name: row.name })}>Restore</SoftButton>
+          <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft">Restore</ButtonLink>
           <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
         </div>
       ),
@@ -168,7 +157,7 @@ export default function BackupsTab({ instance }: TabProps) {
                   right={
                     <div className="flex flex-wrap justify-end gap-2">
                       <SoftButton onClick={() => download(row.id, row.name)}>Download</SoftButton>
-                      <SoftButton onClick={() => setPendingRestore({ id: row.id, name: row.name })}>Restore</SoftButton>
+                      <ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`} variant="soft">Restore</ButtonLink>
                       <DangerButton onClick={() => setPendingDelete({ id: row.id, name: row.name })}>Delete</DangerButton>
                     </div>
                   }
@@ -178,19 +167,6 @@ export default function BackupsTab({ instance }: TabProps) {
           </>
         )}
       </Panel>
-
-      <ConfirmDialog
-        open={pendingRestore !== null}
-        title="Restore this backup?"
-        description={
-          pendingRestore
-            ? `The files of the container are replaced by the archive "${pendingRestore.name}". What is in the container now and is not in the backup is lost.`
-            : undefined
-        }
-        confirmLabel="Restore the backup"
-        onCancel={() => setPendingRestore(null)}
-        onConfirm={() => pendingRestore && restore(pendingRestore.id)}
-      />
 
       <ConfirmDialog
         open={pendingDelete !== null}

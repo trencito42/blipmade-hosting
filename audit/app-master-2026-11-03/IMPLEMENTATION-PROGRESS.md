@@ -233,3 +233,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static backup-schedule contract test: 1/1 pass.
 - Focused Playwright backup-schedule suite: 2/2 pass, including exact PUT payload, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated backup restore confirmation
+
+### Completed
+
+- [x] Replaced the generic in-tab restore dialog with `/app/instances/:id/backups/:backupId/restore`.
+- [x] Added API-backed archive identity, timestamp, size and retention context before the destructive operation.
+- [x] Required the exact backup name plus an explicit replacement acknowledgement before enabling restore.
+- [x] Added Save/Discard-equivalent actions, dirty guard, missing-backup handling and real restore API integration.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static backup-restore contract test: 1/1 pass.
+- Focused Playwright backup-restore suite: 2/2 pass, including gated real POST, dirty guard and 390px overflow/action reachability.
