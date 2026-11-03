@@ -224,8 +224,17 @@ export async function regroupPlanFamilies(): Promise<{ moved: number; families: 
 /** Published presets customers can pick. Existing presets are left alone. */
 export async function ensureStarterPresets(): Promise<{ created: number }> {
   const presets = [
-    { family: 'minecraft', variant: 'minecraft-paper', slug: 'paper-survival', name: 'Paper survival', summary: 'A survival world on Paper. Plugins can be added after the server exists.' },
-    { family: 'minecraft', variant: 'minecraft-forge', slug: 'forge-modded', name: 'Forge modded', summary: 'A Forge server. Modpacks install from the server page, after a backup.' },
+    { family: 'minecraft', variant: 'minecraft-paper', slug: 'paper-survival', name: 'Paper survival', summary: 'Sets a survival world in server.properties after the server exists.' },
+    { family: 'minecraft', variant: 'minecraft-forge', slug: 'forge-modded', name: 'Forge modded', summary: 'Marks the mods folder. Modpacks still install from the server page after a backup.' },
+    { family: 'discord-bot', variant: 'discord-bot', slug: 'moderation', name: 'Moderation', summary: 'Writes the moderation bot and starts it with npm install.' },
+    { family: 'discord-bot', variant: 'discord-bot', slug: 'welcome', name: 'Welcome', summary: 'Writes the welcome bot and starts it with npm install.' },
+    { family: 'discord-bot', variant: 'discord-bot', slug: 'tickets', name: 'Tickets', summary: 'Writes the private ticket bot and starts it with npm install.' },
+    { family: 'counter-strike-2', variant: 'counter-strike-2', slug: 'casual', name: 'Casual', summary: 'Starts on Dust II in casual mode.' },
+    { family: 'counter-strike-2', variant: 'counter-strike-2', slug: 'competitive', name: 'Competitive', summary: 'Starts on Mirage in competitive mode.' },
+    { family: 'counter-strike-1-6', variant: 'counter-strike-1-6', slug: 'dust2', name: 'Dust II', summary: 'Starts on de_dust2.' },
+    { family: 'rust', variant: 'rust', slug: 'procedural', name: 'Procedural', summary: 'A procedural map with a 3000 world size.' },
+    { family: 'fivem', variant: 'fivem', slug: 'freeroam', name: 'Freeroam', summary: 'Adds the blipmade-freeroam resource and ensures it from server.cfg.' },
+    { family: 'valheim', variant: 'valheim', slug: 'dedicated', name: 'Dedicated world', summary: 'Uses the Dedicated world name.' },
   ];
   let created = 0;
   for (const preset of presets) {

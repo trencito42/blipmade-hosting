@@ -20,6 +20,7 @@ import { formatMoney } from '../lib/money.js';
 import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import { ArchiveError, verifyBackupStream } from './backup-archive.js';
+import { applyCatalogInstall } from './catalog-install-apply.js';
 import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
 import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
 import {
@@ -2049,6 +2050,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       const fresh = await prisma.instance.findUnique({ where: { id: instance.id } });
       if (fresh) await applyStoredImport(fresh);
     }
+    await applyCatalogInstall(instance.id);
 
     // The order is fulfilled when its servers are online and any imported application is healthy.
     if (instance.orderId) await syncOrderFulfillment(instance.orderId);

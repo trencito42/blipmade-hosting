@@ -1014,6 +1014,8 @@ model Instance {
   /// The customer application passed its health check. Empty until then when an import is attached.
   applicationReadyAt DateTime?
   applicationError  String?
+  /// Preset chosen at checkout and whether its files were written into the container.
+  installationManifest Json?
   // The last provisioning step that completed successfully. A retry resumes
   // after this step instead of starting over, which is what keeps a retry
   // from reinstalling a server that is already running.
