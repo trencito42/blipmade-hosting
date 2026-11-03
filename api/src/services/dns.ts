@@ -113,9 +113,11 @@ export async function resolveTxt(host: string): Promise<TxtLookup> {
  */
 export function matchesToken(values: string[], token: string): boolean {
   if (!token) return false;
-  const expected = Buffer.from(token);
+  // Some registrars and some people write a TXT value in lower case. The token
+  // is 24 random bytes, so ignoring the case costs it nothing that matters.
+  const expected = Buffer.from(token.toLowerCase());
   return values.some((value) => {
-    const candidate = Buffer.from(value.trim());
+    const candidate = Buffer.from(value.trim().replace(/^"|"$/g, '').toLowerCase());
     if (candidate.length !== expected.length) return false;
     return timingSafeEqual(candidate, expected);
   });
