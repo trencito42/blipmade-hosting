@@ -19,9 +19,8 @@ import {
   type MailServiceView,
 } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
-import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, useToast } from '../../ui-app';
+import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, useToast } from '../../ui-app';
 import { Icon } from '../../icons';
-import { MailAddDomainDialog } from './MailAddDomainDialog';
 import { MailDomainList } from './MailDomainList';
 import { MailPlanChangeDialog } from './MailPlanChangeDialog';
 import { MailServiceCancelDialog } from './MailServiceCard';
@@ -51,7 +50,6 @@ export default function MailOverview() {
   // plans that can be bought are chosen by the dialog.
   const plans = useMemo(() => plansState.data?.plans ?? [], [plansState.data]);
 
-  const [adding, setAdding] = useState(false);
   const [changingPlan, setChangingPlan] = useState<MailServiceView | null>(null);
   const [pendingCancel, setPendingCancel] = useState<MailServiceView | null>(null);
 
@@ -112,10 +110,10 @@ export default function MailOverview() {
           <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Email</h2>
           <p className="text-[13.5px] text-ink3">Manage your email hosting, domains, and mailboxes.</p>
         </div>
-        <PrimaryButton onClick={() => setAdding(true)} className="w-full sm:w-auto">
+        <ButtonLink to="/app/mail/domains/new" className="w-full sm:w-auto">
           <Icon name="plus" size={15} />
           Add domain
-        </PrimaryButton>
+        </ButtonLink>
       </header>
 
       {loading ? (
@@ -177,17 +175,6 @@ export default function MailOverview() {
           {cancel.error}
         </p>
       )}
-
-      <MailAddDomainDialog
-        open={adding}
-        services={services}
-        existingDomains={domains.map((domain) => domain.name.toLowerCase())}
-        onClose={() => setAdding(false)}
-        onAdded={() => {
-          domainsState.reload();
-          servicesState.reload();
-        }}
-      />
 
       {changingPlan && (
         <MailPlanChangeDialog
