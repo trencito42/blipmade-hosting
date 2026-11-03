@@ -76,6 +76,7 @@ const AdminVpsResourcesEdit = lazy(() => import('./admin/VpsAdminEditors').then(
 const AdminCustomerCredit = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerCreditAdjust })));
 const AdminCustomerNoteNew = lazy(() => import('./admin/CustomerEditors').then((m) => ({ default: m.CustomerNoteNew })));
 const AdminMailPlanEdit = lazy(() => import('./admin/MailPlanEdit'));
+const AdminSupportSettings = lazy(() => import('./admin/SupportSettings'));
 const AdminPromotionEdit = lazy(() => import('./admin/PromotionEdit'));
 const AdminPromotionNew = lazy(() => import('./admin/PromotionNew'));
 const AppApiKeyNew = lazy(() => import('./app/ApiKeyNew'));
@@ -305,6 +306,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/support/bots/new', component: AdminSupportBotNew, title: 'New bot', area: 'admin', layout: 'editor' },
   { pattern: '/admin/support/bots/:id/edit', component: AdminSupportBotEdit, title: 'Edit bot', area: 'admin', layout: 'editor' },
   { pattern: '/admin/support/bots', component: AdminSupportBots, title: 'Support bots', area: 'admin' },
+  { pattern: '/admin/support/settings', component: AdminSupportSettings, title: 'Support settings', area: 'admin', layout: 'editor' },
   { pattern: '/admin/support', component: AdminSupport, title: 'Support console', area: 'admin' },
   { pattern: '/admin/tickets', component: AdminTickets, title: 'Support queue', area: 'admin' },
   { pattern: '/admin/knowledge/new', component: AdminKnowledgeEdit, title: 'New article', area: 'admin', layout: 'editor' },

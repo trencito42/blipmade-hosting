@@ -94,7 +94,6 @@ function useLiveRefresh(onChange: () => void): boolean {
 
 export default function Support() {
   const session = useAdminSession();
-  const toast = useToast();
   const [view, setView] = useState('all');
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
@@ -155,6 +154,7 @@ export default function Support() {
           </Select>
           <p className="text-[12.5px] text-ink3">{here} of the staff available now. {live ? 'Live.' : 'Not live: the list refreshes when you do.'}</p>
         </div>
+        <Link to="/admin/support/settings" className="flex h-10 items-center rounded-xl px-3 text-[14px] font-medium text-ink2 hover:bg-s2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">Support settings</Link>
       </aside>
 
       <div className="grid min-w-0 content-start gap-4">
@@ -198,15 +198,12 @@ export default function Support() {
           </ul>
         )}
 
-        <PhotoPanel mayEdit={can(session.staff, 'tickets.write')} />
-        <GuestPanel mayEdit={can(session.staff, 'settings.write')} />
-        <DepartmentsPanel departments={departments.data?.departments ?? []} canEdit={can(session.staff, 'settings.write')} reload={departments.reload} toast={toast} />
       </div>
     </div>
   );
 }
 
-function DepartmentsPanel({ departments, canEdit, reload, toast }: { departments: Department[]; canEdit: boolean; reload: () => void; toast: ReturnType<typeof useToast> }) {
+export function DepartmentsPanel({ departments, canEdit, reload, toast }: { departments: Department[]; canEdit: boolean; reload: () => void; toast: ReturnType<typeof useToast> }) {
   const [name, setName] = useState('');
   const create = useAction(async () => {
     await post('/admin/support/departments', { name });
@@ -266,7 +263,7 @@ function DepartmentsPanel({ departments, canEdit, reload, toast }: { departments
   );
 }
 
-function GuestPanel({ mayEdit }: { mayEdit: boolean }) {
+export function GuestPanel({ mayEdit }: { mayEdit: boolean }) {
   const toast = useToast();
   const loaded = useAsync((signal) => get<{ config: { enabled: boolean; retentionDays: number; notice: string } }>('/admin/support/guest', undefined, signal), []);
   const [config, setConfig] = useState<{ enabled: boolean; retentionDays: number; notice: string } | null>(null);
@@ -294,7 +291,7 @@ function GuestPanel({ mayEdit }: { mayEdit: boolean }) {
 }
 
 /** The photo a customer sees at the top of the chat when they talk to you. It is yours: you change only your own. */
-function PhotoPanel({ mayEdit }: { mayEdit: boolean }) {
+export function PhotoPanel({ mayEdit }: { mayEdit: boolean }) {
   const toast = useToast();
   const me = useAsync((signal) => get<{ name: string; avatar: string | null }>('/admin/support/me', undefined, signal), []);
   const save = useAction(async (avatar: string | null) => {
