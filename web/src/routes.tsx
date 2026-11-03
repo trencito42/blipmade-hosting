@@ -44,6 +44,7 @@ const AppEditSchedule = lazy(() => import('./app/instance/EditSchedule'));
 const AppEditGitSettings = lazy(() => import('./app/instance/EditGitSettings'));
 const AppNewAccessInvite = lazy(() => import('./app/instance/NewAccessInvite'));
 const AppReinstallInstance = lazy(() => import('./app/instance/ReinstallInstance'));
+const AppEditAllocation = lazy(() => import('./app/instance/EditAllocation'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
@@ -159,6 +160,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/access/invite', component: AppNewAccessInvite, title: 'Invite access', area: 'customer' },
   { pattern: '/app/instances/:id/access/new', component: AppNewAccessInvite, title: 'Invite access', area: 'customer' },
   { pattern: '/app/instances/:id/reinstall', component: AppReinstallInstance, title: 'Reinstall instance', area: 'customer' },
+  { pattern: '/app/instances/:id/network/:allocationId/edit', component: AppEditAllocation, title: 'Edit network address', area: 'customer' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
