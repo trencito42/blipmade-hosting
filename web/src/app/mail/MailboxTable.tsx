@@ -16,6 +16,7 @@ export function MailboxTable({
   domain,
   mailboxes,
   onCreate,
+  createTo,
   onDelete,
   busy,
   searchable = true,
@@ -24,6 +25,8 @@ export function MailboxTable({
   mailboxes: MailboxView[];
   /** Asks for the dialog of a new mailbox. Without it, no button is shown. */
   onCreate?: () => void;
+  /** Dedicated creation route. Preferred over a dialog callback. */
+  createTo?: string;
   /** The customer asked to delete a mailbox: the dialog confirms it. */
   onDelete?: (mailbox: MailboxView) => void;
   /** True while an action of the table is running. */
@@ -47,12 +50,17 @@ export function MailboxTable({
         <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink3">
           Mailboxes · {domain.mailboxes} of {domain.maxMailboxes}
         </p>
-        {onCreate && (
+        {createTo ? (
+          <ButtonLink to={createTo} className="h-9 px-3.5">
+            <Icon name="plus" size={13} />
+            Create mailbox
+          </ButtonLink>
+        ) : onCreate ? (
           <PrimaryButton onClick={onCreate} disabled={busy} className="h-9 px-3.5">
             <Icon name="plus" size={13} />
             Create mailbox
           </PrimaryButton>
-        )}
+        ) : null}
       </div>
 
       {searchable && mailboxes.length > 3 && (
