@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const USER = { id: 'owner', email: 'owner@example.test', firstName: 'List', lastName: 'Owner', name: 'List Owner', role: 'CUSTOMER', emailVerified: true, permissions: [] };
-const inst = (n: number) => ({ id: `i${n}`, name: ['Shop', 'Minecraft server', 'Docs'][n - 1], status: ['running', 'running', 'stopped'][n - 1], runtime: { state: 'running', condition: 'serving', checkedAt: '2026-11-03T00:00:00.000Z', stale: false }, product: { slug: 'wordpress', name: ['WordPress', 'Minecraft', 'Node'][n - 1], icon: 'box' }, ram: 1024, cpu: 1, disk: 10, price: 900 * n, currency: 'EUR', url: `https://app${n}.apps.blipmade.com`, createdAt: '2026-10-01T00:00:00.000Z', node: { name: 'n1' }, hasPassword: false });
+const inst = (n: number) => ({ id: `i${n}`, name: ['Shop', 'Minecraft server', 'Docs'][n - 1], status: ['running', 'running', 'stopped'][n - 1], runtime: { state: 'running', condition: 'serving', checkedAt: '2026-11-03T00:00:00.000Z', stale: false }, product: { slug: 'wordpress', name: ['WordPress', 'Minecraft', 'Node'][n - 1], icon: 'box' }, ram: 1024, cpu: 1, disk: 10, price: 900 * n, currency: 'EUR', url: `https://app${n}.apps.blipmade.com`, createdAt: '2026-10-01T00:00:00.000Z', node: { name: n === 2 ? 'n2' : 'n1' }, hasPassword: false });
 const ticket = (n: number) => ({ id: `t${n}`, number: 100 + n, subject: ['Cannot log in to my panel', 'Invoice question', 'Server slow'][n - 1], status: ['open', 'answered', 'closed'][n - 1], priority: 'normal', category: 'general', createdAt: `2026-11-0${n}T10:00:00.000Z`, updatedAt: `2026-11-0${n}T12:00:00.000Z`, channel: 'ticket', departmentId: null });
 
 async function json(route: Route, body: unknown) {
@@ -75,4 +75,14 @@ test('the instances can be filtered by type, and the type filter only lists owne
   await expect(page.locator('table tbody tr').first()).toContainText('Minecraft server');
   await type.selectOption('all');
   await expect(page.locator('table tbody tr')).toHaveCount(3);
+});
+
+test('the instances can be filtered by node when there is more than one', async ({ page }) => {
+  await stub(page);
+  await page.goto('/app/instances');
+  const node = page.locator('label:has(> span:text-is("Node")) select');
+  await expect(node.locator('option')).toHaveText(['All nodes', 'n1', 'n2']);
+  await node.selectOption('n2');
+  await expect(page.locator('table tbody tr')).toHaveCount(1);
+  await expect(page.locator('table tbody tr').first()).toContainText('Minecraft server');
 });

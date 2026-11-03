@@ -16,15 +16,15 @@ Phone bar: Overview, Services (apps, servers, domains, email via switch on each 
 |---|---|---|
 | /app Overview | IMPLEMENTED (basic) | richer cross-product alerts, activity beyond apps |
 | /app/deploy, /:slug | IMPLEMENTED | `?step=` flow exists (Configure/Payment/Deploy); region/plan cards via #20 |
-| /app/instances (+redeem, type filter) | IMPLEMENTED | node/health/renewal filters, saved views |
+| /app/instances (+redeem, type and node filters) | IMPLEMENTED | renewal filter, saved views (not needed) |
 | /app/instances/:id workspace (sticky header, power group, primary tabs + More) | IMPLEMENTED | game-aware grouping (issue #19) |
 | Instance editors (settings, startup, env, resources, git, backups, schedules, databases, network, access, reinstall) | IMPLEMENTED | access share edit blocked (no API) |
 | /app/domains (+new, :id, edit, delete) | IMPLEMENTED | TLS/readiness status (issue #23) |
 | /app/mail, domain workspace (tabs deep-linked `?tab=`), editors | IMPLEMENTED | – |
 | /app/vps list + 6 editors + header + checkout review (`?step=review`, key never in URL) | IMPLEMENTED | – |
-| /app/billing tabs, order, subscription pages | IMPLEMENTED | credit/history tabs (no history API) |
+| /app/billing tabs (overview, subscriptions, orders, invoices, payment method, credit, history), order, subscription pages | IMPLEMENTED | history is orders+invoices merged client-side |
 | /app/tickets list, new, :id (compact header, sticky reply) | IMPLEMENTED | – |
-| /app/settings (profile, billing address, email, password, 2FA, passkeys, API keys, closure) | IMPLEMENTED | sessions page, notification prefs stay inline |
+| /app/settings tabs: Profile, Security, Sessions, API keys, Notifications, Privacy & data (+ editors) | IMPLEMENTED | notification prefs stay inline |
 | /app/notifications (grouped Today/Yesterday/Earlier) | IMPLEMENTED | – |
 
 ## Admin 3.0

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SecurityPanels } from './SecurityPanels';
+import { ApiKeysPanel, ProtectionPanels, SessionPanels } from './SecurityPanels';
 import { BillingAddressFields, emptyBillingAddress, validateBillingAddress, type BillingAddressValue } from './BillingAddressFields';
 import {
   ApiError,
@@ -186,8 +186,10 @@ export default function Settings() {
           </>
         )}
         {tab.id === 'security' && (
-          <SecurityPanels left={<PasswordPanel />} right={<SessionsPanel sessions={data.sessions} onChanged={state.reload} />} />
+          <ProtectionPanels password={<PasswordPanel />} />
         )}
+        {tab.id === 'sessions' && <SessionPanels sessions={<SessionsPanel sessions={data.sessions} onChanged={state.reload} />} />}
+        {tab.id === 'keys' && <div className="lg:col-span-2"><ApiKeysPanel /></div>}
         {tab.id === 'notifications' && <div className="lg:col-span-2"><NotificationsPanel /></div>}
         {tab.id === 'account' && (
           <>
@@ -206,7 +208,9 @@ export default function Settings() {
 /** The sections of the settings. The section is in the address, so a link can open it. */
 const SETTINGS_TABS: { id: string; label: string; icon: IconName; danger?: boolean }[] = [
   { id: 'profile', label: 'Profile and billing', icon: 'user' },
-  { id: 'security', label: 'Password and security', icon: 'lock' },
+  { id: 'security', label: 'Security', icon: 'lock' },
+  { id: 'sessions', label: 'Sessions', icon: 'user' },
+  { id: 'keys', label: 'API keys', icon: 'code' },
   { id: 'notifications', label: 'Notifications', icon: 'bell' },
   { id: 'account', label: 'Privacy & data', icon: 'warn' },
 ];

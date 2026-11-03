@@ -49,7 +49,7 @@ test.describe('dedicated API key page', () => {
     expect(page.url()).not.toContain('bmk_');
     expect(await page.evaluate(() => JSON.stringify([localStorage, sessionStorage]))).not.toContain('bmk_');
     await page.getByRole('button', { name: 'I saved it' }).click();
-    await page.waitForURL('**/app/settings?tab=security');
+    await page.waitForURL('**/app/settings?tab=keys');
   });
 
   test('guards a draft and fits at 390px', async ({ page }) => {
@@ -66,7 +66,7 @@ test.describe('dedicated API key page', () => {
   test('revoking from the list asks first and sends one DELETE', async ({ page }) => {
     const calls: { revoked?: string[] } = {};
     await stub(page, calls);
-    await page.goto('/app/settings?tab=security');
+    await page.goto('/app/settings?tab=keys');
     await page.getByRole('button', { name: 'Revoke' }).click();
     await expect(page.getByText('Revoke this key?')).toBeVisible();
     expect(calls.revoked).toEqual([]);

@@ -237,34 +237,29 @@ export function ApiKeysPanel() {
   );
 }
 
-/**
- * The panels of the security tab, in two columns that stack on their own, so a short panel never leaves a hole beside a
- * tall one. `left` and `right` are the panels that come from the page (the password, the sessions).
- */
-export function SecurityPanels({ left, right }: { left?: ReactNode; right?: ReactNode }) {
+/** Password, two-factor authentication and passkeys: how the account is protected. */
+export function ProtectionPanels({ password }: { password?: ReactNode }) {
   const state = useAsync<SecurityState>((signal) => get<SecurityState>('/settings/security', undefined, signal), []);
   const loading = state.loading && !state.data;
-  const failed = !loading && (state.error || !state.data);
-  const waiting = loading ? <LoadingBlock rows={2} label="Loading your security settings" /> : null;
-  const broken = failed ? <ErrorState title="Your security settings could not be loaded" message={state.error?.message ?? 'Try again.'} onRetry={state.reload} /> : null;
   return (
     <div className="grid gap-4 lg:col-span-2 lg:grid-cols-2 lg:items-start">
       <div className="grid min-w-0 gap-4">
-        {left}
-        {waiting}
-        {broken}
-        {state.data && (
-          <>
-            <TwoFactorPanel state={state.data.twoFactor} reload={state.reload} />
-            <PasskeysPanel passkeys={state.data.passkeys} reload={state.reload} />
-          </>
-        )}
-        <ApiKeysPanel />
+        {password}
+        {loading && <LoadingBlock rows={2} label="Loading your security settings" />}
+        {!loading && (state.error || !state.data) && <ErrorState title="Your security settings could not be loaded" message={state.error?.message ?? 'Try again.'} onRetry={state.reload} />}
+        {state.data && <TwoFactorPanel state={state.data.twoFactor} reload={state.reload} />}
       </div>
-      <div className="grid min-w-0 gap-4">
-        {right}
-        <SecurityActivityPanel />
-      </div>
+      <div className="grid min-w-0 gap-4">{state.data && <PasskeysPanel passkeys={state.data.passkeys} reload={state.reload} />}</div>
+    </div>
+  );
+}
+
+/** The sessions that are open and the activity of the account. */
+export function SessionPanels({ sessions }: { sessions: ReactNode }) {
+  return (
+    <div className="grid gap-4 lg:col-span-2 lg:grid-cols-2 lg:items-start">
+      <div className="grid min-w-0 gap-4">{sessions}</div>
+      <div className="grid min-w-0 gap-4"><SecurityActivityPanel /></div>
     </div>
   );
 }

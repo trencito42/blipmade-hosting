@@ -5,7 +5,7 @@ import { useRouter } from '../router';
 import { PrimaryButton, SoftButton, TextInput, useToast } from '../ui-app';
 import { PageEditorShell, useUnsavedChangesGuard } from './components/premium';
 
-const BACK_TO = '/app/settings?tab=security';
+const BACK_TO = '/app/settings?tab=keys';
 
 const ACCESS = [
   { value: 'read', title: 'Read only', text: 'Lists and reads your services. Cannot change anything.' },

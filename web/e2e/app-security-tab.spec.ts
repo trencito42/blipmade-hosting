@@ -29,50 +29,45 @@ async function stub(page: Page) {
   });
 }
 
-test('the security tab stacks its panels in two columns without holes and divides the rows', async ({ page }) => {
+test('security, sessions and keys are tabs of their own; each stacks its panels without holes and divides its rows', async ({ page }) => {
   await stub(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/app/settings?tab=security');
-  const panels = page.locator('main section, main [data-panel]').filter({ has: page.getByRole('heading', { level: 2 }) });
-  await expect(page.getByRole('heading', { name: 'Sessions' })).toBeVisible();
-  const titles = ['Password', 'Two-factor authentication', 'Passkeys', 'API keys', 'Sessions', 'Security activity'];
-  const boxes: Record<string, { left: number; top: number; bottom: number }> = {};
-  for (const title of titles) {
-    const box = await page.locator('h2', { hasText: title }).first().evaluate((node) => {
+  const box = (title: string) =>
+    page.locator('h2', { hasText: title }).first().evaluate((node) => {
       let el: HTMLElement | null = node as HTMLElement;
-      while (el && !(getComputedStyle(el).borderTopWidth !== '0px' && el.tagName !== 'H2' && el.getBoundingClientRect().height > 80)) el = el.parentElement;
+      while (el && !(getComputedStyle(el).borderTopWidth !== '0px' && el.tagName !== 'H2' && el.getBoundingClientRect().height > 60)) el = el.parentElement;
       const r = (el ?? (node as HTMLElement)).getBoundingClientRect();
       return { left: Math.round(r.left), top: Math.round(r.top), bottom: Math.round(r.bottom) };
     });
-    boxes[title] = box;
-  }
-  void panels;
-  // Two columns: the password panel and the sessions panel start at the same height, one left of the other.
-  expect(Math.abs(boxes['Password'].top - boxes['Sessions'].top)).toBeLessThan(3);
-  expect(boxes['Sessions'].left).toBeGreaterThan(boxes['Password'].left + 200);
-  // Each column stacks with the same gap: no hole beside a tall panel.
-  const gap = (upper: string, lower: string) => boxes[lower].top - boxes[upper].bottom;
-  for (const [upper, lower] of [['Password', 'Two-factor authentication'], ['Two-factor authentication', 'Passkeys'], ['Passkeys', 'API keys'], ['Sessions', 'Security activity']]) {
-    expect(gap(upper, lower), `${upper} to ${lower}`).toBeGreaterThanOrEqual(12);
-    expect(gap(upper, lower), `${upper} to ${lower}`).toBeLessThanOrEqual(20);
-  }
-  // The session rows are divided and their buttons have one width.
+  await page.goto('/app/settings?tab=security');
+  await expect(page.getByRole('link', { name: 'Turn off' })).toBeVisible();
+  const [password, twoFactor, passkeys] = [await box('Password'), await box('Two-factor authentication'), await box('Passkeys')];
+  expect(Math.abs(password.top - passkeys.top)).toBeLessThan(3);
+  expect(passkeys.left).toBeGreaterThan(password.left + 200);
+  expect(twoFactor.top - password.bottom).toBeGreaterThanOrEqual(12);
+  expect(twoFactor.top - password.bottom).toBeLessThanOrEqual(20);
+  await expect(page.locator('h2', { hasText: 'Sessions' })).toHaveCount(0);
+
+  await page.goto('/app/settings?tab=sessions');
+  await expect(page.locator('h2', { hasText: 'Sessions' }).first()).toBeVisible();
+  const [sessions, activity] = [await box('Sessions'), await box('Security activity')];
+  expect(Math.abs(sessions.top - activity.top)).toBeLessThan(3);
   const sessionRows = page.locator('li').filter({ has: page.getByRole('button', { name: /Sign out|Close session/ }) });
   await expect(sessionRows).toHaveCount(3);
-  const tops = await sessionRows.evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).borderTopWidth));
-  expect(tops).toEqual(['0px', '1px', '1px']);
-  const widths = await sessionRows.evaluateAll((nodes) => nodes.map((node) => Math.round(node.querySelector('button')!.getBoundingClientRect().width)));
-  expect(new Set(widths).size).toBe(1);
+  expect(await sessionRows.evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).borderTopWidth))).toEqual(['0px', '1px', '1px']);
+  expect(new Set(await sessionRows.evaluateAll((nodes) => nodes.map((node) => Math.round(node.querySelector('button')!.getBoundingClientRect().width)))).size).toBe(1);
   await expect(page.getByRole('button', { name: 'Close session' }).first()).toHaveAttribute('data-tip', /End this session/);
-  await page.screenshot({ path: '/tmp/claude-0/-root/aae46db4-fcaf-4b45-85b9-bd3609e50f02/scratchpad/security-tab.png' });
-  const activityTops = await page.locator('li').filter({ hasText: 'Two-factor authentication was turned on' }).evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).borderTopWidth));
-  expect(activityTops).toEqual(['1px']);
+  expect(await page.locator('li').filter({ hasText: 'Two-factor authentication was turned on' }).evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).borderTopWidth))).toEqual(['1px']);
+
+  await page.goto('/app/settings?tab=keys');
+  await expect(page.locator('h2', { hasText: 'API keys' }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: 'New key' })).toHaveAttribute('href', '/app/settings/api-keys/new');
 });
 
 test('the security tab fits at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await stub(page);
-  await page.goto('/app/settings?tab=security');
+  await page.goto('/app/settings?tab=sessions');
   await expect(page.getByRole('heading', { name: 'Sessions' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
 });
