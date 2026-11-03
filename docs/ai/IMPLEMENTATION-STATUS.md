@@ -14,9 +14,9 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 | Route | Status | Remaining |
 |---|---|---|
 | /app Overview | IN_PROGRESS | cross-product alerts, activity beyond apps |
-| /app/deploy, /:slug | IN_PROGRESS | multi-step wizard with `?step=`, region/plan cards |
+| /app/deploy, /:slug | IMPLEMENTED | `?step=` flow exists (Configure/Payment/Deploy); region/plan cards via #20 |
 | /app/instances (+redeem) | IMPLEMENTED | filters type/node, saved views |
-| /app/instances/:id workspace | IN_PROGRESS | sticky resource header, power group, tab grouping |
+| /app/instances/:id workspace | IMPLEMENTED | tab grouping (issue #19) |
 | Instance editors (settings, startup, env, resources, git, backups, schedules, databases, network, access, reinstall) | IMPLEMENTED | access share edit blocked (no API) |
 | /app/domains (+new, :id, edit, delete) | IMPLEMENTED | TLS/readiness status (issue #23) |
 | /app/mail, domain workspace, editors | IN_PROGRESS | DNS tab page (DNS is inline panel) |
@@ -27,7 +27,7 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 | /app/notifications | IMPLEMENTED | grouped sections |
 
 ## Admin 3.0
-NOT_STARTED. Spec: `audit/admin-master-2026-11-03/*`. Shares tooltip/table/pager components; DataTable restyle already affects admin (unverified).
+IN_PROGRESS. 35 admin routes. Done: `/admin/products/:id/edit` (first dedicated admin editor, shell `layout: 'editor'`). Not done: Customer 360 tabs, Activity Explorer, other editors (orders, VPS, pricing, staff, notifications, content, settings, bots, automations, promotions still inline/overlay editors). Spec: `audit/admin-master-2026-11-03/*`. Shares tooltip/table/pager components; DataTable restyle already affects admin (unverified).
 
 ## GitHub issues
 #18 NOT_STARTED · #19 NOT_STARTED · #20 NOT_STARTED · #21 NOT_STARTED (BLOCKED on finance/legal) · #22 NOT_STARTED · #23 NOT_STARTED (BLOCKED on Cloudflare credentials).

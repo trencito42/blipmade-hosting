@@ -72,6 +72,7 @@ const AppOrderView = lazy(() => import('./app/OrderView'));
 const AppSubscriptionView = lazy(() => import('./app/SubscriptionChange').then((module) => ({ default: module.SubscriptionView })));
 const AppRedeemAccess = lazy(() => import('./app/RedeemAccess'));
 const AppDomainDetail = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.DomainDetail })));
+const AdminProductEdit = lazy(() => import('./admin/ProductEdit'));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -258,6 +259,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/services', component: AdminServices, title: 'Services', area: 'admin' },
   { pattern: '/admin/services/:id', component: AdminServiceDetail, title: 'Service control', area: 'admin' },
   { pattern: '/admin/vps', component: AdminVps, title: 'Servers', area: 'admin' },
+  { pattern: '/admin/products/:id/edit', component: AdminProductEdit, title: 'Edit product', area: 'admin', layout: 'editor' },
   { pattern: '/admin/products', component: AdminProducts, title: 'Catalog', area: 'admin' },
   { pattern: '/admin/pricing', component: AdminPricing, title: 'Pricing', area: 'admin' },
   { pattern: '/admin/support/analytics', component: AdminSupportAnalytics, title: 'Support numbers', area: 'admin' },

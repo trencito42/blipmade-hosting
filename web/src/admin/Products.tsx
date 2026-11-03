@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from '../router';
 import { api, del, get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import {
@@ -16,7 +17,6 @@ import {
 } from '../ui-app';
 import { DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
-import ProductEditor from './ProductEditor';
 
 /**
  * Staff catalog — GET /api/admin/products, POST /api/admin/products,
@@ -82,7 +82,6 @@ export default function Products() {
   const [toggle, setToggle] = useState<ToggleTarget | null>(null);
   const [removing, setRemoving] = useState<AdminProduct | null>(null);
   const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
   const state = useAsync((signal) => get<{ products: AdminProduct[] }>('/admin/products', undefined, signal), []);
   const products = state.data?.products ?? [];
   const mayWrite = can(staff, 'products.write');
@@ -144,7 +143,6 @@ export default function Products() {
   return (
     <div className="grid gap-4">
       <LiveRegion message={`${products.length} product${products.length === 1 ? '' : 's'}`} />
-      {editing && <ProductEditor id={editing} mayWrite={mayWrite} onClose={() => setEditing(null)} onSaved={state.reload} />}
       <Panel
         title="Catalog"
         description="Apps and databases that customers can buy. Visibility controls the catalog, deployable controls ordering."
@@ -289,7 +287,7 @@ export default function Products() {
                     align: 'right',
                     render: (product: AdminProduct) => (
                       <span className="inline-flex gap-1.5">
-                        <button type="button" onClick={() => setEditing(product.id)} className={denseGhost}>{mayWrite ? 'Edit' : 'View'}</button>
+                        <Link to={`/admin/products/${encodeURIComponent(product.id)}/edit`} className={denseGhost}>{mayWrite ? 'Edit' : 'View'}</Link>
                         {mayWrite && <button type="button" onClick={() => setRemoving(product)} className={denseDanger}>Delete</button>}
                       </span>
                     ),
@@ -339,7 +337,7 @@ export default function Products() {
                         </dd>
                       </div>
                     </dl>
-                    <div className="mt-3"><button type="button" onClick={() => setEditing(product.id)} className={denseGhost}>{mayWrite ? 'Edit' : 'View'}</button></div>
+                    <div className="mt-3"><Link to={`/admin/products/${encodeURIComponent(product.id)}/edit`} className={denseGhost}>{mayWrite ? 'Edit' : 'View'}</Link></div>
                     {mayWrite && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
