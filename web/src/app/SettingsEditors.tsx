@@ -134,6 +134,7 @@ export function EditBillingAddress() {
 
   return (
     <PageEditorShell
+      stickyActions
       eyebrow="Billing"
       title="Billing address"
       description="These details are saved to your account and copied onto new invoices. Invoices that already exist do not change."

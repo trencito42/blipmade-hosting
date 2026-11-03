@@ -222,6 +222,37 @@ function useSoftwareKeyboard(threshold = 120): boolean {
   return open;
 }
 
+/**
+ * The way back of a dedicated editor page.
+ *
+ * An editor route is marked `layout: 'editor'`. The page itself says where its parent is, because only the page
+ * knows the resource it edits, and the shell shows that one link in its top bar. There is a single source, so the
+ * top bar and the page can never point to two places.
+ */
+export interface EditorBack {
+  to: string;
+  label: string;
+  /** The small context line beside the way back, e.g. the section the page belongs to. */
+  context?: string;
+}
+
+const EditorBackCtx = createContext<{ present: boolean; set: (value: EditorBack | null) => void }>({
+  present: false,
+  set: () => {},
+});
+
+/** Registers the way back of an editor page in the top bar. Returns false when there is no shell to show it. */
+export function useEditorBack(value: EditorBack): boolean {
+  const { present, set } = useContext(EditorBackCtx);
+  const { to, label, context } = value;
+  useEffect(() => {
+    if (!present) return;
+    set({ to, label, context });
+    return () => set(null);
+  }, [present, set, to, label, context]);
+  return present;
+}
+
 export function AppShell({
   nav,
   title,
@@ -231,6 +262,7 @@ export function AppShell({
   environment,
   phoneTabs,
   groups,
+  layout,
 }: {
   nav: NavEntry[];
   title: string;
@@ -241,8 +273,13 @@ export function AppShell({
   phoneTabs?: NavEntry[];
   /** When given, the desktop sidebar shows these groups with sub-menus instead of the flat list. */
   groups?: NavGroup[];
+  /** `editor`: a dedicated create/edit page. The top bar carries the way back, the page carries the heading. */
+  layout?: 'editor';
 }) {
   const { path } = useRouter();
+  const editor = layout === 'editor';
+  const [back, setBack] = useState<EditorBack | null>(null);
+  const backControl = useMemo(() => ({ present: editor, set: setBack }), [editor]);
   const theme = useTheme();
   const isActive = (entry: NavEntry) =>
     entry.exact ? path === entry.to : path === entry.to || path.startsWith(`${entry.to}/`);
@@ -368,23 +405,46 @@ export function AppShell({
           </div>
         </aside>
 
-        <div className="min-w-0 flex-1">
+        <EditorBackCtx.Provider value={backControl}>
+        <div className="flex min-h-[100svh] min-w-0 flex-1 flex-col">
           {/* Top bar. The padding keeps the bar clear of the notch of a
               phone, so the title is never under the camera. */}
           <header data-print-hide="" className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6">
-            {/* The mark of the site is a link on a phone, so it is given the
-                room a finger needs, without changing the size of the mark. */}
-            <Link
-              to="/"
-              className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-xl lg:hidden"
-              aria-label="Blipmade home"
-            >
-              <BrandMark className="h-6 w-auto" />
-            </Link>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[19px] font-semibold tracking-[-0.04em] text-ink sm:text-[22px]">{title}</h1>
-              {subtitle && <p className="truncate text-[13px] text-ink3">{subtitle}</p>}
-            </div>
+            {editor ? (
+              // An editor page: the way back, then the context. The page below carries the one heading.
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                {back ? (
+                  <Link
+                    to={back.to}
+                    className="-ml-2 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-2 text-[14px] font-medium text-ink2 hover:bg-s3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc lg:min-h-9"
+                  >
+                    <Icon name="arrowLeft" size={15} />
+                    <span className="truncate">{back.label}</span>
+                  </Link>
+                ) : (
+                  <span className="min-h-11 lg:min-h-9" aria-hidden="true" />
+                )}
+                {back?.context && (
+                  <span className="hidden min-w-0 truncate text-[13px] text-ink3 sm:inline">/ {back.context}</span>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* The mark of the site is a link on a phone, so it is given the
+                    room a finger needs, without changing the size of the mark. */}
+                <Link
+                  to="/"
+                  className="-m-2 flex size-11 shrink-0 items-center justify-center rounded-xl lg:hidden"
+                  aria-label="Blipmade home"
+                >
+                  <BrandMark className="h-6 w-auto" />
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <h1 className="truncate text-[19px] font-semibold tracking-[-0.04em] text-ink sm:text-[22px]">{title}</h1>
+                  {subtitle && <p className="truncate text-[13px] text-ink3">{subtitle}</p>}
+                </div>
+              </>
+            )}
             {/* The action of the bar is a touch target on a phone, so it
                 grows to 44px there and keeps its dense look on a desktop. */}
             <div className="flex shrink-0 items-center gap-2 [&_a]:min-h-11 lg:[&_a]:min-h-0">{actions}</div>
@@ -400,13 +460,14 @@ export function AppShell({
               the bottom: the last row of a table is never hidden. The reserve
               is on the footer, because the footer is the last thing on the
               page. */}
-          <main className="px-4 pb-8 pt-2 sm:px-6 lg:pb-10">{children}</main>
+          <main className="flex-1 px-4 pb-8 pt-2 sm:px-6 lg:pb-10">{children}</main>
           {/* The legal links are on every page of the app, so the terms
               are never further than one click away. */}
-          <footer data-print-hide="" className="px-4 pb-32 pt-6 sm:px-6 lg:pb-10">
+          <footer data-print-hide="" className={cn('px-4 pt-6 sm:px-6 lg:pb-10', editor ? 'pb-8' : 'pb-32')}>
             <LegalFooter />
           </footer>
         </div>
+        </EditorBackCtx.Provider>
       </div>
 
       {/* Phone bottom bar: a floating pill, so the page keeps its width and the
@@ -415,6 +476,9 @@ export function AppShell({
         aria-label="Primary"
         data-bottom-nav=""
         data-print-hide=""
+        // A dedicated editor has its own way back in the top bar and its own actions, so the phone bar steps aside:
+        // there are never two fixed layers at the bottom.
+        style={editor ? { display: 'none' } : undefined}
         className={cn(
           'fixed inset-x-2.5 bottom-[max(10px,env(safe-area-inset-bottom))] z-30 flex h-[66px] items-center justify-between rounded-full border border-line bg-s1/95 p-1.5 backdrop-blur-md transition-transform duration-200 lg:hidden',
           keyboardOpen && 'pointer-events-none translate-y-[200%]',

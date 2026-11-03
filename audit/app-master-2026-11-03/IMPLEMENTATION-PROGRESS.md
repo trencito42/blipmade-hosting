@@ -489,3 +489,21 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Production build: pass; 172 pages prerendered.
 - Playwright domain suite: 4/4 pass, including row height under 90px for a platform address, the border between rows only, the tooltips, and a screenshot reviewed.
 - Not applied yet: the same compact pattern on the other list pages (instances, databases, backups, mail).
+
+## 2026-11-03 — Global editor shell, divided lists
+
+### Completed
+
+- [x] Routes carry an explicit `layout: 'editor'` (34 dedicated editor routes). `AppShell` then shows the way back in its top bar instead of a title, hides the phone bottom bar (no two fixed layers) and does not float the chat button over the actions.
+- [x] `PageEditorShell` has the one `h1` of the page, an eyebrow, a description, a bounded width (3xl, 5xl with an aside) and no second Back link or second `<main>`/`<footer>`. The way back comes from the same props, registered once in the top bar.
+- [x] Actions follow the form inside its card (short forms), or stick to the bottom of the content column (`stickyActions`: startup, env file, Git settings, billing address, new ticket). "Unsaved changes" only shows when there are some.
+- [x] The content column is a vertical flex region, so the legal footer sits at the bottom of a short page.
+- [x] `document.title` is now set for every route of the app, not only public ones.
+- [x] Tables and card lists use a line between rows and none under the last (all 38 tables and 34 card lists).
+
+### Verification executed
+
+- Web TypeScript check and full web unit suite: pass.
+- New Playwright spec `app-editor-shell` at 1440px and 390px over 9 editors (email, password, billing address, new domain, new ticket, backup create, startup, cancel subscription, mail domain): 18/18 pass (one visible h1 that is not the error page, one `main`, one Back in the header, one footer, no horizontal overflow, no wide fixed layer at the bottom, legal links at the bottom of a short page, phone bar hidden). Screenshots reviewed for the email and startup editors.
+- All other Playwright suites except the admin audit ones that need a seed file: 116 pass; 13 fail on the public site and login (`auth`, `public`, `mobile` specs: two "Log in" buttons, price assertions on the home page). They are in code this checkpoint did not touch.
+- Not covered: 320/430/768/1024/1920px, 200% zoom, software keyboard and safe-area behavior, and the admin area with the shared table style; no real device or browser session.

@@ -11,7 +11,7 @@ import {
 import { cn } from '../../lib';
 import { Icon } from '../../icons';
 import { Link } from '../../router';
-import { Money } from '../../ui-app';
+import { Money, useEditorBack } from '../../ui-app';
 
 /** Contiguous related actions with one accessible group and one outer shape. */
 export function ButtonGroup({
@@ -658,7 +658,15 @@ export function useUnsavedChangesGuard(dirty: boolean, message = 'Discard your u
   }, [dirty, message]);
 }
 
-/** Reusable full-page create/edit frame with breadcrumbs and a mobile-safe action footer. */
+/**
+ * The frame of a dedicated create, edit, review or safety page.
+ *
+ * One heading, one way back, one action region:
+ * - the way back is shown in the top bar of the shell (the route is marked `layout: 'editor'`), not repeated here;
+ * - the heading is the only `h1` of the page; the eyebrow above it names the section;
+ * - the actions follow the form, aligned to its edge. A long form sets `stickyActions`, and the region then sticks
+ *   to the bottom of the content column without crossing the sidebar, the legal footer or the phone bar.
+ */
 export function PageEditorShell({
   eyebrow,
   title,
@@ -669,6 +677,7 @@ export function PageEditorShell({
   aside,
   actions,
   dirty = false,
+  stickyActions = false,
 }: {
   eyebrow: string;
   title: string;
@@ -679,30 +688,49 @@ export function PageEditorShell({
   aside?: ReactNode;
   actions: ReactNode;
   dirty?: boolean;
+  /** For a long, multi-section form: the actions stay in view while the form scrolls. A short form keeps them in the card. */
+  stickyActions?: boolean;
 }) {
+  const inShell = useEditorBack({ to: backTo, label: backLabel, context: eyebrow });
+  const actionRow = (
+    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+      {dirty && (
+        <p className="mr-auto text-[12.5px] text-ink3" aria-live="polite">
+          Unsaved changes
+        </p>
+      )}
+      <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row [&>*]:w-full sm:[&>*]:w-auto">{actions}</div>
+    </div>
+  );
   return (
-    <div className="grid gap-5 pb-24">
-      <header className="grid gap-3">
-        <Link to={backTo} className="inline-flex w-fit items-center gap-2 rounded-lg text-[13.5px] font-medium text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
-          <Icon name="arrowLeft" size={14} />
-          {backLabel}
-        </Link>
-        <div>
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-acc">{eyebrow}</p>
-          <h1 className="mt-1 text-[clamp(1.6rem,3vw,2.25rem)] font-semibold tracking-[-0.045em] text-ink">{title}</h1>
-          {description && <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-ink2">{description}</p>}
-        </div>
+    <div className={cn('mx-auto grid w-full gap-5 pt-3 sm:pt-5', aside ? 'max-w-5xl' : 'max-w-3xl')}>
+      <header className="grid gap-1">
+        {!inShell && (
+          <Link to={backTo} className="mb-2 inline-flex w-fit items-center gap-2 rounded-lg text-[13.5px] font-medium text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+            <Icon name="arrowLeft" size={14} />
+            {backLabel}
+          </Link>
+        )}
+        <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-acc">{eyebrow}</p>
+        <h1 className="text-[clamp(1.5rem,2.6vw,2rem)] font-semibold tracking-[-0.04em] text-ink">{title}</h1>
+        {description && <p className="mt-1 max-w-2xl text-[14px] leading-relaxed text-ink2">{description}</p>}
       </header>
-      <div className={cn('grid gap-5', Boolean(aside) && 'lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start')}>
-        <main className="min-w-0 rounded-2xl bg-s1 p-4 sm:p-6">{children}</main>
+      <div className={cn('grid gap-5', Boolean(aside) && 'lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start')}>
+        <section className="min-w-0 rounded-2xl bg-s1 p-4 sm:p-6">
+          {children}
+          {!stickyActions && <div className="mt-6 border-t border-line pt-4">{actionRow}</div>}
+        </section>
         {aside}
       </div>
-      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/95 px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))] backdrop-blur md:left-[var(--bm-sidebar-width,0px)]">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3">
-          <p className="text-[12.5px] text-ink3" aria-live="polite">{dirty ? 'Unsaved changes' : 'No unsaved changes'}</p>
-          <div className="flex flex-1 flex-col-reverse gap-2 sm:flex-initial sm:flex-row [&>*]:w-full sm:[&>*]:w-auto">{actions}</div>
+      {stickyActions && (
+        <div
+          role="group"
+          aria-label="Actions"
+          className="sticky bottom-3 z-10 rounded-2xl border border-line bg-bg/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur"
+        >
+          {actionRow}
         </div>
-      </footer>
+      )}
     </div>
   );
 }

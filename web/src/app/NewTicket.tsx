@@ -138,7 +138,7 @@ export default function NewTicket() {
   }, [service]);
 
   return (
-    <PageEditorShell
+    <PageEditorShell stickyActions
       eyebrow="Support"
       title="Open a new ticket"
       description="Describe the issue in one focused conversation. After creation, attachments and replies continue in the ticket workspace."
