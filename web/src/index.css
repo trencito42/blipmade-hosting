@@ -358,3 +358,9 @@ select:not([multiple]):not([size]) {
   background-size: 0.75rem 0.5rem;
   padding-right: 2.25rem;
 }
+
+/* The blip of the logo: the two arcs, when the thing it marks is live. One slow pulse, nothing else moves. */
+@keyframes blip-pulse { 0%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
+.blip-arc { animation: blip-pulse 2.4s ease-in-out infinite; }
+.blip-arc-2 { animation-delay: 0.3s; }
+@media (prefers-reduced-motion: reduce) { .blip-arc { animation: none; } }

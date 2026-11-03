@@ -52,9 +52,9 @@ test.describe('the home page', () => {
   test('shows the configurator and the card of rates', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Hosting for everything you run.' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Run it here. Pay for what it eats.' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Price configurator' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'One card of rates. Every app.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'One card of rates. Every product.' })).toBeVisible();
 
     // The four rates of the card are the rates of the platform.
     await expect(page.getByText('per GB of RAM', { exact: true })).toBeVisible();
@@ -63,13 +63,17 @@ test.describe('the home page', () => {
     await expect(page.getByText('base fee', { exact: true })).toBeVisible();
   });
 
-  test('shows the smallest price of every product of the catalog', async ({ page }) => {
+  test('shows the smallest price of every category of the catalog', async ({ page }) => {
     await page.goto('/');
     const products = await catalog(page);
     const deployable = products.filter((product) => product.pricing);
+    const categories = [...new Set(deployable.map((product) => product.category))];
+    expect(categories.length).toBeGreaterThan(3);
 
-    for (const product of deployable) {
-      await expect(page.getByRole('link', { name: new RegExp(product.name) }).first()).toBeVisible();
+    const index = page.locator('section[aria-labelledby="index-h"]');
+    for (const category of categories) {
+      const cheapest = Math.min(...deployable.filter((product) => product.category === category).map((product) => product.pricing!.minimum.amount));
+      await expect(index.getByText(`from ${euros(cheapest)}`, { exact: true }).first()).toBeVisible();
     }
   });
 
@@ -114,7 +118,7 @@ test.describe('the home page', () => {
     // page and the head, and a reader without JavaScript reads the same thing.
     const answer = await page.request.get('/');
     const html = await answer.text();
-    expect(html).toContain('Hosting for everything you run.');
+    expect(html).toContain('Run it here.');
     expect(html).toContain('<title>Blipmade: hosting for bots, apps and databases</title>');
     expect(html).toContain('rel="canonical"');
   });
