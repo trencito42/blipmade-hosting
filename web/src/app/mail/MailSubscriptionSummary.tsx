@@ -109,6 +109,7 @@ export function MailSubscriptionSummary({
   service,
   title,
   onChangePlan,
+  managePlanTo,
   onCancel,
   onReactivate,
   onResume,
@@ -119,6 +120,7 @@ export function MailSubscriptionSummary({
   title?: string;
   /** The customer asked to change the plan. */
   onChangePlan?: () => void;
+  managePlanTo?: string;
   /** The customer asked to cancel the service. */
   onCancel?: () => void;
   /** The customer asked to bring a cancelled service back. */
@@ -144,9 +146,7 @@ export function MailSubscriptionSummary({
           ) : (
             <span className="text-[13px] text-ink3">The webmail is not set up on this platform.</span>
           )}
-          <SoftButton onClick={onChangePlan} disabled={busy || !onChangePlan}>
-            Manage plan
-          </SoftButton>
+          {managePlanTo ? <ButtonLink to={managePlanTo} variant="soft">Manage plan</ButtonLink> : <SoftButton onClick={onChangePlan} disabled={busy || !onChangePlan}>Manage plan</SoftButton>}
           <MoreActions>
             {(close) => (
               <>

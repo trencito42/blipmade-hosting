@@ -137,3 +137,20 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static deletion-route contract test: 1/1 pass.
 - Focused Playwright deletion safety suite: 2/2 pass, including the real DELETE call gate and 390px overflow/action reachability.
+
+## 2026-11-03 — Full-page email plan change
+
+### Completed
+
+- [x] Migrated email plan changes from the dialog to `/app/mail/services/:serviceId/plan/change`.
+- [x] Added server-catalog plan selection, current-usage compatibility checks, a separate financial review step and exact published price/period display.
+- [x] Preserved real order creation and checkout APIs; the active plan remains unchanged until payment succeeds.
+- [x] Prevented duplicate orders when checkout opening is retried in the same editor session and added billing recovery when checkout has no URL.
+- [x] Added Save/Discard semantics, dirty guard, responsive plan cards and safe external-checkout transition.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static plan-change contract test: 1/1 pass.
+- Focused Playwright plan-change suite: 2/2 pass, including order reuse, exact API payload and 390px overflow/action reachability.
