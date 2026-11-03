@@ -53,3 +53,24 @@ test.describe('public pages 2026', () => {
     await expect(page.getByText('Go put something online.').first()).toBeVisible();
   });
 });
+
+test.describe('servers and mail have their own pages only', () => {
+  const product = (slug: string, name: string, category: string) => ({
+    slug, name, category, description: `${name} for the test.`, minRam: 512, minCpu: 1, minDisk: 5, defaultRam: 1024, defaultCpu: 1, defaultDisk: 10, maxRam: 4096, maxCpu: 4, maxDisk: 50,
+    pricing: { currency: 'EUR', minimum: { amount: 249 }, recommended: { amount: 349 }, rates: { ramPerGb: 200, cpuPerUnit: 75, diskPerGb: 5, baseFee: 49 } },
+    availability: { state: 'DEPLOYABLE', orderable: true, visible: true, blockers: [] }, visible: true, deployable: true,
+  });
+  const catalog = { products: [product('discord-bot', 'Discord Bot', 'BOTS'), product('vps-start', 'VPS Start', 'VPS'), product('email-hosting-starter', 'Email Hosting Starter', 'EMAIL_HOSTING')] };
+
+  test('the catalogue does not list them and their old addresses lead to the storefronts', async ({ page }) => {
+    await page.route('**/api/catalog/products', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(catalog) }));
+    await stubPlans(page);
+    await page.goto('/apps');
+    await expect(page.getByRole('link', { name: /Discord Bot/ }).first()).toBeVisible();
+    await expect(page.locator('main').getByText(/VPS Start|Email Hosting Starter/)).toHaveCount(0);
+    await page.goto('/apps/vps-start');
+    await expect(page).toHaveURL(/\/vps$/);
+    await page.goto('/apps/email-hosting-starter');
+    await expect(page).toHaveURL(/\/email$/);
+  });
+});

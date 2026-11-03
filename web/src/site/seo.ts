@@ -51,6 +51,14 @@ const products = productsNow();
 const orderable = products.filter((product) => isOrderable(product));
 
 /**
+ * The servers and the mailboxes have storefronts of their own (/vps and /email), so they are not in the catalogue of /apps and
+ * have no page under it.
+ */
+const STOREFRONT = new Set(['VPS', 'EMAIL_HOSTING']);
+const catalogue = products.filter((product) => !STOREFRONT.has(product.category));
+const catalogueOrderable = catalogue.filter((product) => isOrderable(product));
+
+/**
  * The pages of the documentation, as the head needs them.
  *
  * The head of a page names the page, and it needs the name of the page, the
@@ -143,17 +151,16 @@ export function metaFor(path: string): Meta {
   }
 
   if (path === '/apps') {
-    const coming = products.length - orderable.length;
     return {
       ...base,
       title: `Catalog: games, databases and tools | Blipmade`,
-      description: `${orderable.length} services can be deployed today and ${coming} more are coming soon. One card of rates for every game, database and tool, from ${eur(fromPrice)} a month.`,
+      description: `${catalogueOrderable.length} games, databases and tools you can deploy today. One card of rates for every game, database and tool, from ${eur(fromPrice)} a month.`,
       jsonld: [
         crumbs([['Home', '/'], ['Catalog', '/apps']]),
         {
           '@context': 'https://schema.org',
           '@type': 'ItemList',
-          itemListElement: products.map((product, index) => ({
+          itemListElement: catalogueOrderable.map((product, index) => ({
             '@type': 'ListItem',
             position: index + 1,
             url: `${SITE}/apps/${product.slug}`,
@@ -309,7 +316,7 @@ export function allRoutes(): string[] {
   return [
     '/',
     '/apps',
-    ...products.map((product) => `/apps/${product.slug}`),
+    ...catalogue.map((product) => `/apps/${product.slug}`),
     '/docs',
     ...published.map((article) => `/docs/${article.id}`),
     ...LEGAL_PAGES.map((page) => `/${page.slug}`),

@@ -95,7 +95,7 @@ export function Apps() {
   const products = useProducts();
   const minecraft = products.find((product) => product.slug === 'minecraft-paper') ?? products.find((product) => product.slug.startsWith('minecraft-'));
   // The catalogue lists what can be deployed. A product that is not open yet keeps its own page, but it is not offered here.
-  const displayProducts = products.filter((product) => !product.slug.startsWith('minecraft-') && isOrderable(product));
+  const displayProducts = products.filter((product) => !product.slug.startsWith('minecraft-') && isOrderable(product) && product.category !== 'VPS' && product.category !== 'EMAIL_HOSTING');
   if (minecraft) displayProducts.push({ ...minecraft, slug: 'minecraft', name: 'Minecraft', description: 'Choose Paper, Forge, Vanilla, Bedrock or Folia.' });
   const groups = groupByCategory(displayProducts);
   const [category, setCategory] = useState('all');
@@ -225,6 +225,28 @@ export function Apps() {
  * chooses. A product that is still coming carries its name, its description
  * and the reason it is not ready, and nothing that orders it.
  */
+/** The servers and the mailboxes are sold on their own pages: an address under /apps that names one goes there. */
+function ToStorefront({ product, slug }: { product: Product; slug: string }) {
+  const { navigate } = useRouter();
+  const target = product.category === 'VPS' ? '/vps' : '/email';
+  useEffect(() => {
+    navigate(target, { replace: true });
+  }, [navigate, target]);
+  return (
+    <section aria-labelledby="app-h">
+      <Wrap className="grid gap-8 pt-14 pb-20 sm:pt-20">
+        <Crumbs items={[['Home', '/'], ['Catalog', '/apps'], [product.name, `/apps/${slug}`]]} />
+        <h1 id="app-h" className="max-w-[16em] text-[clamp(42px,6.4vw,84px)] leading-[0.95] font-semibold tracking-[-0.05em]">
+          {product.name} has its own page.
+        </h1>
+        <div>
+          <Btn to={target} variant="mint" size="lg">{product.category === 'VPS' ? 'See the servers' : 'See the mail plans'}</Btn>
+        </div>
+      </Wrap>
+    </section>
+  );
+}
+
 export function AppDetail({ slug }: { slug: string }) {
   const blocks = useSiteContent();
   const products = useProducts();
@@ -290,22 +312,8 @@ export function AppDetail({ slug }: { slug: string }) {
   // disk to choose, so it goes to the storefront of the mail and not to the
   // configurator of the servers.
   if (product.category === 'EMAIL_HOSTING' || product.category === 'VPS') {
-    return (
-      <section aria-labelledby="app-h">
-        <Wrap className="grid gap-8 pt-14 pb-20 sm:pt-20">
-          <Crumbs items={[['Home', '/'], ['Catalog', '/apps'], [product.name, `/apps/${slug}`]]} />
-          <h1 id="app-h" className="max-w-[16em] text-[clamp(42px,6.4vw,84px)] leading-[0.95] font-semibold tracking-[-0.05em]">
-            {product.name} from {eur(product.minPrice)} a month.
-          </h1>
-          <p className="max-w-[34em] text-[18px] text-ink-2">{product.description}</p>
-          <div>
-            <Btn to={product.category === 'VPS' ? '/vps' : '/email'} variant="mint" size="lg">{product.category === 'VPS' ? 'See the servers' : 'See the mail plans'}</Btn>
-          </div>
-        </Wrap>
-      </section>
-    );
+    return <ToStorefront product={product} slug={slug} />;
   }
-
   const words = copy ?? FALLBACK(product.description);
   const tone = toneOf(product.category);
   const meta = categoryOf(product.category);
