@@ -405,7 +405,7 @@ export function AbuseSuspendDialog({
 /** The page of one report of abuse. */
 export default function AbuseDetail() {
   const params = useParams();
-  const { path } = useRouter();
+  const { path, navigate } = useRouter();
   const session = useAdminSession();
   const mayWrite = can(session.staff, 'services.write');
   const toast = useToast();
@@ -534,6 +534,10 @@ export default function AbuseDetail() {
               void startInvestigation();
               return;
             }
+            if (action === 'suspend') {
+              navigate(`/admin/abuse/${encodeURIComponent(id)}/enforcement`);
+              return;
+            }
             setDialog(action);
           }}
         />
@@ -644,30 +648,6 @@ export default function AbuseDetail() {
             return;
           }
           void runAction(dialog, reason);
-        }}
-      />
-
-      <AbuseSuspendDialog
-        open={dialog === 'suspend'}
-        serviceName={service?.name ?? ''}
-        reason={reason}
-        onReasonChange={setReason}
-        confirmation={confirmName}
-        onConfirmationChange={setConfirmName}
-        busy={busy}
-        error={error}
-        onCancel={closeDialog}
-        onConfirm={() => {
-          if (!service) return;
-          if (reason.trim().length < 5) {
-            setError('Write a reason of at least 5 characters. It is written into the journal of the case.');
-            return;
-          }
-          if (confirmName.trim() !== service.name) {
-            setError(`Type the name of the service (${service.name}) to confirm the suspension.`);
-            return;
-          }
-          void runAction('suspend', reason, confirmName.trim());
         }}
       />
     </div>
