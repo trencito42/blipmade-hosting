@@ -249,3 +249,19 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
 - Static backup-restore contract test: 1/1 pass.
 - Focused Playwright backup-restore suite: 2/2 pass, including gated real POST, dirty guard and 390px overflow/action reachability.
+
+## 2026-11-03 — Dedicated schedule creation editor
+
+### Completed
+
+- [x] Migrated schedule creation from the instance tab to `/app/instances/:id/schedules/new`.
+- [x] Added real five-field cron validation, duplicate-name validation and action-specific power, command and backup payloads.
+- [x] Added enable-on-create state, API field errors, Save/Discard, dirty guard and provider execution context.
+- [x] Preserved schedule listing, run-now, pause/resume and deletion behavior in the source tab.
+
+### Verification executed
+
+- Web TypeScript and E2E TypeScript checks: pass.
+- `PATH=/opt/node22/bin:$PATH npm run build` in `web`: pass; 172 pages prerendered.
+- Static schedule-editor contract test: 1/1 pass.
+- Focused Playwright schedule-editor suite: 2/2 pass, including cron validation, exact command POST payload, dirty guard and 390px overflow/action reachability.
