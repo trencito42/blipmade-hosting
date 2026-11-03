@@ -515,6 +515,50 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     }
     return reply.code(204).send();
   });
+
+  const profileSelect = { id: true, name: true, productSlug: true, ram: true, cpu: true, disk: true, createdAt: true } as const;
+
+  app.get('/instances/:id/profiles', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const instance = await loadInstance(user.id, id, 'GET');
+    const profiles = await prisma.serverProfile.findMany({
+      where: { instanceId: instance.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: profileSelect,
+    });
+    return { profiles };
+  });
+
+  app.post('/instances/:id/profiles', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const body = z.object({ name: z.string().trim().min(1).max(80) }).parse(request.body ?? {});
+    const instance = await loadInstance(user.id, id);
+    const count = await prisma.serverProfile.count({ where: { instanceId: instance.id } });
+    if (count >= 20) throw badRequest('This server already has 20 saved profiles.');
+    const profile = await prisma.serverProfile.create({
+      data: { userId: instance.userId, instanceId: instance.id, name: body.name, productSlug: instance.product.slug, ram: instance.ram, cpu: instance.cpu, disk: instance.disk },
+      select: profileSelect,
+    });
+    return { profile };
+  });
+
+  app.delete('/instances/:id/profiles/:profileId', {
+    config: { rateLimit: { max: LIMITS.accountWrite.address, timeWindow: LIMITS.accountWrite.window, keyGenerator: addressRateLimitKey } },
+    preHandler: customerLimit(app, LIMITS.accountWrite),
+  }, async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id, profileId } = z.object({ id: z.string(), profileId: z.string() }).parse(request.params);
+    const instance = await loadInstance(user.id, id);
+    const removed = await prisma.serverProfile.deleteMany({ where: { id: profileId, instanceId: instance.id } });
+    if (!removed.count) throw notFound('Profile not found.');
+    return { ok: true };
+  });
 }
 
 /** The power route answers 202 because the container reacts asynchronously. */

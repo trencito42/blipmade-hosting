@@ -57,6 +57,29 @@ export function isDnsName(name: string): boolean {
  * published the proof yet. A timeout or a broken resolver is reported as an
  * error, so the caller can tell "not yet" apart from "cannot tell".
  */
+/** Reads the A and AAAA records of a hostname. A missing name is an empty list. */
+export async function resolveAddresses(host: string): Promise<TxtLookup> {
+  const name = host.trim().toLowerCase();
+  if (!isDnsName(name) || name.includes('_')) {
+    return { values: [], error: 'The hostname is not a valid DNS name.' };
+  }
+  const resolver = new Resolver();
+  const timer = setTimeout(() => resolver.cancel(), LOOKUP_TIMEOUT_MS);
+  try {
+    const [v4, v6] = await Promise.all([
+      resolver.resolve4(name).catch((error: NodeJS.ErrnoException) => error.code === 'ENOTFOUND' || error.code === 'ENODATA' ? [] : Promise.reject(error)),
+      resolver.resolve6(name).catch((error: NodeJS.ErrnoException) => error.code === 'ENOTFOUND' || error.code === 'ENODATA' ? [] : Promise.reject(error)),
+    ]);
+    return { values: [...v4, ...v6], error: null };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ECANCELLED' || code === 'ETIMEOUT') return { values: [], error: 'The DNS lookup timed out. Try again in a moment.' };
+    return { values: [], error: 'The address records could not be read right now.' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function resolveTxt(host: string): Promise<TxtLookup> {
   const name = host.trim().toLowerCase();
   if (!isDnsName(name)) {

@@ -13,7 +13,7 @@ import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
-import { inspectGitUrl } from '../services/import-inspect.js';
+import { inspectGitUrl, inspectZip } from '../services/import-inspect.js';
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -243,11 +243,17 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
   });
 
   app.post('/catalog/import/inspect', {
+    bodyLimit: 12_000_000,
     config: { rateLimit: { max: 20, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
     handler: async (request) => {
       await requireAuth(request);
-      const body = z.object({ url: z.string().trim().max(300) }).parse(request.body ?? {});
-      return { proposal: await inspectGitUrl(body.url) };
+      const body = z.object({
+        url: z.string().trim().max(300).optional(),
+        zipBase64: z.string().max(12_000_000).optional(),
+      }).parse(request.body ?? {});
+      if (body.zipBase64) return { proposal: inspectZip(Buffer.from(body.zipBase64, 'base64')) };
+      if (body.url) return { proposal: await inspectGitUrl(body.url) };
+      return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, files: [], notes: ['Paste a repository URL or choose a zip.'] } };
     },
   });
 

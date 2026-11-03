@@ -21,6 +21,17 @@ export function ImportProject() {
     const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { url: url.trim() });
     setProposal(answer.proposal);
   });
+  const inspectZip = useAction(async (file: File) => {
+    if (file.size > 8 * 1024 * 1024) {
+      setProposal({ productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['The zip is larger than 8 MB.'] });
+      return;
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { zipBase64: btoa(binary) });
+    setProposal(answer.proposal);
+  });
 
   return (
     <Panel title="Import a project" description="Paste a public GitHub or GitLab URL. Blipmade reads the manifest files only. It does not run the project and it does not create a server.">
@@ -29,6 +40,10 @@ export function ImportProject() {
           <TextInput label="Repository URL" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/owner/project" autoComplete="off" spellCheck={false} />
         </div>
         <PrimaryButton type="button" onClick={() => void inspect.run()} disabled={inspect.pending || !url.trim()}>Look</PrimaryButton>
+        <label className="inline-flex h-11 cursor-pointer items-center rounded-xl border border-line px-4 text-[14px] font-semibold text-ink">
+          Zip
+          <input type="file" accept=".zip,application/zip" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void inspectZip.run(file); }} />
+        </label>
       </div>
       {inspect.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{inspect.error}</p>}
       {proposal && (

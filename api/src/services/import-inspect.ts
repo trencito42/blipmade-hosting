@@ -1,6 +1,8 @@
+import { inflateRawSync } from 'node:zlib';
+
 /**
  * Reads public project manifests and proposes a catalogue product.
- * It never extracts an archive, never runs a command from the project, and never provisions.
+ * A zip is read for those manifest names only. Nothing in it is written to disk or executed.
  */
 
 export interface ImportProposal {
@@ -66,6 +68,63 @@ export function manifestUrls(raw: string): string[] {
     return [];
   }
   return MANIFESTS.map((name) => `${base}/${name}`);
+}
+
+const MAX_ZIP = 8 * 1024 * 1024;
+
+/** Pulls known manifest files out of a zip buffer. Other entries are skipped. */
+export function readZipManifests(zip: Buffer): { path: string; text: string }[] {
+  if (zip.length < 22 || zip.length > MAX_ZIP) return [];
+  let eocd = -1;
+  for (let i = zip.length - 22; i >= Math.max(0, zip.length - 22 - 65_535); i -= 1) {
+    if (zip.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return [];
+  const count = zip.readUInt16LE(eocd + 10);
+  const cdOffset = zip.readUInt32LE(eocd + 16);
+  if (count > 4_000 || cdOffset >= zip.length) return [];
+  const wanted = new Set<string>(MANIFESTS);
+  const files: { path: string; text: string }[] = [];
+  let cursor = cdOffset;
+  for (let index = 0; index < count && cursor + 46 <= zip.length && files.length < MANIFESTS.length; index += 1) {
+    if (zip.readUInt32LE(cursor) !== 0x02014b50) break;
+    const method = zip.readUInt16LE(cursor + 10);
+    const compressedSize = zip.readUInt32LE(cursor + 20);
+    const size = zip.readUInt32LE(cursor + 24);
+    const nameLength = zip.readUInt16LE(cursor + 28);
+    const extraLength = zip.readUInt16LE(cursor + 30);
+    const commentLength = zip.readUInt16LE(cursor + 32);
+    const localOffset = zip.readUInt32LE(cursor + 42);
+    const name = zip.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8').replaceAll('\\', '/');
+    cursor += 46 + nameLength + extraLength + commentLength;
+    const base = name.split('/').pop() ?? '';
+    if (!wanted.has(base) || name.includes('..') || name.startsWith('/') || size > MAX_BYTES || compressedSize > MAX_BYTES) continue;
+    if (size === 0xffffffff || localOffset + 30 > zip.length || zip.readUInt32LE(localOffset) !== 0x04034b50) continue;
+    const localName = zip.readUInt16LE(localOffset + 26);
+    const localExtra = zip.readUInt16LE(localOffset + 28);
+    const start = localOffset + 30 + localName + localExtra;
+    const compressed = zip.subarray(start, start + compressedSize);
+    if (compressed.length !== compressedSize) continue;
+    let raw: Buffer = Buffer.alloc(0);
+    try {
+      if (method === 0) raw = Buffer.from(compressed);
+      else if (method === 8) raw = inflateRawSync(compressed);
+    } catch { continue; }
+    if (raw.length > MAX_BYTES) continue;
+    files.push({ path: base, text: raw.toString('utf8') });
+  }
+  return files;
+}
+
+export function inspectZip(zip: Buffer): ImportProposal {
+  if (zip.length > MAX_ZIP) {
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['The zip is larger than 8 MB.'] };
+  }
+  const files = readZipManifests(zip);
+  if (!files.length) {
+    return { productSlug: null, runtime: null, confidence: 'unknown', start: null, files: [], notes: ['No supported manifest was inside the zip. The archive was not run.'] };
+  }
+  return inspectManifests(files);
 }
 
 export async function inspectGitUrl(raw: string): Promise<ImportProposal> {

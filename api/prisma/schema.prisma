@@ -77,6 +77,7 @@ model User {
   notificationPreference NotificationPreference?
   adminSavedViews AdminSavedView[]
   staffInvitations StaffInvitation[]
+  serverProfiles ServerProfile[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -1051,6 +1052,7 @@ model Instance {
   subscription    Subscription?
   provisioningJobs ProvisioningJob[]
   upgradeOrders   Order[]          @relation("UpgradeOrders")
+  profiles        ServerProfile[]
 
   @@index([userId, status])
   @@index([orderItemId])
@@ -1071,6 +1073,23 @@ model Instance {
   alertMemoryPercent Int?
   alertDiskPercent   Int?
   resourceAlertedAt  DateTime?
+}
+
+/// A remembered size of a server. It does not change the product or the files.
+model ServerProfile {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  instanceId  String
+  instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  name        String
+  productSlug String
+  ram         Int
+  cpu         Float
+  disk        Int
+  createdAt   DateTime @default(now())
+
+  @@index([instanceId, createdAt])
 }
 
 model InstanceEvent {

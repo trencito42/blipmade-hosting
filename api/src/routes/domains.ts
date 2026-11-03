@@ -606,8 +606,23 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
       return { domain: serializeDomain(updated) };
     }
 
-    // The proof was accepted, so the hostname may be routed.
+    // The proof was accepted. The route is added only after the hostname's address
+    // record points at the gateway. Ownership alone is not a working site.
     const verifiedAt = domain.verifiedAt ?? new Date();
+    const expectedAddress = process.env.DOMAIN_TARGET ?? '193.34.214.143';
+    const published = await dns.resolveAddresses(domain.hostname);
+    if (published.error || !published.values.includes(expectedAddress)) {
+      const updated = await prisma.instanceDomain.update({
+        where: { id: domain.id },
+        data: {
+          status: 'PENDING_DNS',
+          verifiedAt,
+          lastError: published.error ?? `Ownership is proven. Publish an A record for ${domain.hostname} to ${expectedAddress}${published.values.length ? `. Found ${published.values.join(', ')}` : ''}.`,
+        },
+        include: { instance: { select: { name: true } } },
+      });
+      return { domain: serializeDomain(updated) };
+    }
     const target = await resolveTarget(domain.instance);
 
     let status: 'ACTIVE' | 'PENDING_DNS' | 'ERROR' = 'ACTIVE';

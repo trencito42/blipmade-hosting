@@ -63,7 +63,7 @@ export function DomainRecords({ domain, copy }: { domain: Domain; copy: (value: 
                     </li>
                   ))}
                 </ol>
-                <p className="mt-1 text-[12.5px] text-ink3">Active means the route for this exact hostname was added. It does not by itself prove the public certificate is already being served. Nameservers are not changed.</p>
+                <p className="mt-1 text-[12.5px] text-ink3">The route is added only after the TXT proof matches and the hostname's A record points at Blipmade. Nameservers are not changed.</p>
                 {domain.lastError && (
                   <p role="alert" className="mt-3 rounded-2xl bg-bad/10 px-3.5 py-2.5 text-[13.5px] text-ink2">
                     <span className="font-bold text-bad">Last error: </span>
