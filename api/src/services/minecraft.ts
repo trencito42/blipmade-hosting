@@ -251,17 +251,18 @@ export async function modpackFilesFor(slug: string, gameVersion: string): Promis
   const { readZipText } = await import('./import-inspect.js');
   const indexText = readZipText(bytes, 'modrinth.index.json');
   if (!indexText) throw badRequest('That modpack has no index.');
-  let parsed: { files?: { path?: string; downloads?: string[]; fileSize?: number }[] };
+  let parsed: { files?: { path?: string; downloads?: string[]; fileSize?: number; env?: { server?: string } }[] };
   try { parsed = JSON.parse(indexText) as typeof parsed; } catch { throw badRequest('That modpack index could not be read.'); }
   const files: ModpackFile[] = [];
   for (const entry of parsed.files ?? []) {
+    if (entry.env?.server === 'unsupported') continue;
     const path = (entry.path ?? '').replaceAll('\\', '/');
     const url = entry.downloads?.find((value) => value.startsWith('https://cdn.modrinth.com/'));
     if (!url || !/^(mods|config)\/[A-Za-z0-9._+-]{1,120}$/.test(path)) continue;
     if ((entry.fileSize ?? 0) > 50 * 1024 * 1024) continue;
+    if (files.length >= 200) throw badRequest('This modpack has more server files than can be installed in one step. It was not partially installed.');
     const slash = path.lastIndexOf('/');
     files.push({ directory: `/${path.slice(0, slash)}`, filename: path.slice(slash + 1), url });
-    if (files.length >= 40) break;
   }
   if (!files.length) throw badRequest('None of the modpack files are hosted on the Modrinth CDN.');
   return { title: pack.name, files };
