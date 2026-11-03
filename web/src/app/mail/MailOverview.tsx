@@ -88,16 +88,6 @@ export default function MailOverview() {
 
   return (
     <div className="grid gap-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-[19px] font-semibold tracking-[-0.035em] text-ink">Email</h2>
-          <p className="text-[13.5px] text-ink3">Manage your email hosting, domains, and mailboxes.</p>
-        </div>
-        <ButtonLink to="/app/mail/domains/new" className="w-full sm:w-auto">
-          <Icon name="plus" size={15} />
-          Add domain
-        </ButtonLink>
-      </header>
 
       {loading ? (
         // The name of the section is there while it loads, so the page does

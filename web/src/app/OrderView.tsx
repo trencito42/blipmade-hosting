@@ -93,8 +93,8 @@ export default function OrderView() {
         </dl>
         {waiting && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-            <p className="min-w-0 flex-1 text-[13.5px] text-ink2">Complete checkout to activate the services of this order. The invoice appears after the payment is confirmed.</p>
-            <PrimaryButton onClick={() => void pay()} disabled={paying}>{paying ? 'Opening checkout…' : 'Pay now'}</PrimaryButton>
+            <span className="min-w-0 flex-1 text-[13.5px] font-medium text-ink">Waiting for payment</span>
+            <PrimaryButton title="Complete checkout to activate the services. The invoice appears after the payment is confirmed." onClick={() => void pay()} disabled={paying}>{paying ? 'Opening checkout…' : 'Pay now'}</PrimaryButton>
           </div>
         )}
       </Panel>

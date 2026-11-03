@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import { Icon } from '../../icons';
 import type { MailDomainView, MailboxView } from '../../lib/api';
 import { memLabel } from '../../lib/pricing';
-import { ButtonLink, CardList, DataTable, DangerButton, EmptyState, PrimaryButton, StatusPill, TextInput } from '../../ui-app';
+import { ButtonLink, CardList, DataTable, DangerButton, EmptyState, Pager, PrimaryButton, StatusPill, TextInput, usePaged } from '../../ui-app';
 import { MAILBOX_STATUS_LABELS, MAILBOX_STATUS_TONES } from './shared';
 
 export function MailboxTable({
@@ -41,6 +41,7 @@ export function MailboxTable({
     if (!needle) return mailboxes;
     return mailboxes.filter((mailbox) => mailbox.address.toLowerCase().includes(needle));
   }, [mailboxes, query]);
+  const paged = usePaged(found, 20, query);
 
   const webmail = domain.webmailUrl;
 
@@ -140,11 +141,11 @@ export function MailboxTable({
                 ),
               },
             ]}
-            rows={found}
+            rows={paged.rows}
             rowKey={(mailbox: MailboxView) => mailbox.id}
             minWidth="620px"
           />
-          <CardList rows={found} rowKey={(mailbox: MailboxView) => mailbox.id}>
+          <CardList rows={paged.rows} rowKey={(mailbox: MailboxView) => mailbox.id}>
             {(mailbox: MailboxView) => (
               <div className="grid gap-2">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -175,6 +176,7 @@ export function MailboxTable({
               </div>
             )}
           </CardList>
+          <Pager paged={paged} label="Pages" />
         </>
       )}
     </section>

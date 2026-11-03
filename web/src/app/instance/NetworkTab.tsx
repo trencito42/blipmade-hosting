@@ -3,6 +3,8 @@ import { useAsync } from '../../lib/useAsync';
 import { listAllocations } from '../../lib/instance-api';
 import {
   CardList,
+  Pager,
+  usePaged,
   ButtonLink,
   DataTable,
   EmptyState,
@@ -26,6 +28,7 @@ export default function NetworkTab({ instance }: TabProps) {
   const allocations = useAsync((signal) => listAllocations(instance.id, signal), [instance.id]);
 
   const rows = allocations.data?.allocations ?? [];
+  const paged = usePaged(rows, 20);
 
 
   const columns: TableColumn<(typeof rows)[number]>[] = [
@@ -87,8 +90,8 @@ export default function NetworkTab({ instance }: TabProps) {
           />
         ) : (
           <>
-            <DataTable columns={columns} rows={rows} rowKey={(row) => String(row.id)} />
-            <CardList rows={rows} rowKey={(row) => String(row.id)}>
+            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => String(row.id)} />
+            <CardList rows={paged.rows} rowKey={(row) => String(row.id)}>
               {(row) => (
                 <ListRow
                   title={
@@ -105,6 +108,7 @@ export default function NetworkTab({ instance }: TabProps) {
                 />
               )}
             </CardList>
+            <Pager paged={paged} label="Pages" />
           </>
         )}
       </Panel>

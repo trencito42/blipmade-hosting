@@ -23,6 +23,7 @@ import { Link, useRouter } from './router';
 import { useSession } from './session';
 import { BrandMark } from './BrandMark';
 import { LegalFooter } from './legal/LegalFooter';
+import { InfoTip, QuietProvider, TooltipLayer, useQuiet } from './tooltip';
 
 /**
  * App-area components. Same visual language as the marketing site: flat
@@ -405,6 +406,7 @@ export function AppShell({
           </div>
         </aside>
 
+        <QuietProvider value={inCustomerArea}>
         <EditorBackCtx.Provider value={backControl}>
         <div className="flex min-h-[100svh] min-w-0 flex-1 flex-col">
           {/* Top bar. The padding keeps the bar clear of the notch of a
@@ -468,6 +470,8 @@ export function AppShell({
           </footer>
         </div>
         </EditorBackCtx.Provider>
+        </QuietProvider>
+        <TooltipLayer />
       </div>
 
       {/* Phone bottom bar: a floating pill, so the page keeps its width and the
@@ -618,6 +622,7 @@ export function Panel({
    */
   actionBelow?: boolean;
 }) {
+  const quiet = useQuiet();
   return (
     <section
       className={cn(
@@ -634,8 +639,14 @@ export function Panel({
           )}
         >
           <div className="min-w-0">
-            {title && <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-ink">{title}</h2>}
-            {description && <p className="mt-1 text-[13.5px] text-ink2">{description}</p>}
+            {title && (
+              <h2 className="flex items-center gap-1.5 text-[17px] font-semibold tracking-[-0.03em] text-ink">
+                {title}
+                {/* In the customer area the explanation of a panel is a tooltip, not a paragraph. */}
+                {description && quiet && <InfoTip text={description} label={`About ${title}`} />}
+              </h2>
+            )}
+            {description && !quiet && <p className="mt-1 text-[13.5px] text-ink2">{description}</p>}
           </div>
           {action && (
             <div className={cn('shrink-0', actionBelow && '[&>*]:w-full sm:[&>*]:w-auto')}>{action}</div>
@@ -879,6 +890,7 @@ export function Field({
   className?: string;
 }) {
   const id = useId();
+  const quiet = useQuiet();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ') || undefined;
@@ -897,20 +909,25 @@ export function Field({
 
   return (
     <div className={cn('grid gap-1.5', className)}>
-      <label htmlFor={htmlFor} className="px-1 text-[14px] font-medium text-ink">
-        {label}
-      </label>
+      <span className="flex items-center gap-1.5">
+        <label htmlFor={htmlFor} className="px-1 text-[14px] font-medium text-ink">
+          {label}
+        </label>
+        {hint && quiet && <InfoTip text={hint} label={`About ${label}`} />}
+      </span>
       {control}
       {error && (
         <p id={errorId} role="alert" className="px-1 text-[12.5px] font-medium text-bad">
           {error}
         </p>
       )}
-      {hint && (
+      {hint && !quiet && (
         <p id={hintId} className="px-1 text-[12.5px] text-ink3">
           {hint}
         </p>
       )}
+      {/* The hint of a quiet field stays reachable for a screen reader, without taking room on the page. */}
+      {hint && quiet && <span id={hintId} className="sr-only">{hint}</span>}
     </div>
   );
 }
@@ -1061,13 +1078,21 @@ const buttonClass: Record<ButtonVariant, string> = {
   danger: dangerButtonClass,
 };
 
+/** A `title` on a button is shown by the tooltip of the design, not by the browser. It still names an icon-only button. */
+function withTip<T extends { title?: string; 'aria-label'?: string; children?: ReactNode }>(props: T): Omit<T, 'title'> & { 'data-tip'?: string } {
+  const { title, ...rest } = props;
+  if (!title) return rest;
+  const named = Boolean(rest['aria-label']) || typeof rest.children === 'string';
+  return { ...rest, 'data-tip': title, ...(named ? {} : { 'aria-label': title }) };
+}
+
 export function PrimaryButton({
   children,
   ...props
 }: React.ComponentProps<'button'> & { children: ReactNode }) {
   return (
     <button
-      {...props}
+      {...withTip(props)}
       className={cn(primaryButtonClass, props.className)}
     >
       {children}
@@ -1082,7 +1107,7 @@ export function SoftButton({
 }: React.ComponentProps<'button'> & { children: ReactNode; surface?: 's3' | 's1' }) {
   return (
     <button
-      {...props}
+      {...withTip(props)}
       className={cn(surface === 's1' ? sunkenSoftButtonClass : softButtonClass, props.className)}
     >
       {children}
@@ -1096,7 +1121,7 @@ export function DangerButton({
 }: React.ComponentProps<'button'> & { children: ReactNode }) {
   return (
     <button
-      {...props}
+      {...withTip(props)}
       className={cn(dangerButtonClass, props.className)}
     >
       {children}
@@ -1132,15 +1157,17 @@ export function ButtonLink({
   className?: string;
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'children' | 'className'>) {
   const classes = cn(buttonClass[variant], className);
+  const linkProps = withTip({ ...rest, children });
+  delete (linkProps as { children?: ReactNode }).children;
   if (href) {
     return (
-      <a href={href} className={classes} {...rest}>
+      <a href={href} className={classes} {...linkProps}>
         {children}
       </a>
     );
   }
   return (
-    <Link to={to ?? ''} className={classes} {...rest}>
+    <Link to={to ?? ''} className={classes} {...linkProps}>
       {children}
     </Link>
   );
@@ -1380,22 +1407,81 @@ export function ConfirmDialog({
   );
 }
 
+// --- pages of a long list ---------------------------------------------------
+
+export interface Paged<T> {
+  rows: T[];
+  page: number;
+  pages: number;
+  total: number;
+  from: number;
+  to: number;
+  setPage: (page: number) => void;
+}
+
+/**
+ * Cuts a list into pages of the screen. A long list is never drawn whole: the page keeps its length, and the reader
+ * walks the pages. `resetKey` brings the reader back to the first page when the list changes (a search, a filter).
+ */
+export function usePaged<T>(rows: T[], size = 20, resetKey: unknown = null): Paged<T> {
+  const [page, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const current = Math.min(page, pages - 1);
+  useEffect(() => setPage(0), [resetKey]);
+  return {
+    rows: rows.slice(current * size, current * size + size),
+    page: current,
+    pages,
+    total: rows.length,
+    from: rows.length === 0 ? 0 : current * size + 1,
+    to: Math.min(rows.length, (current + 1) * size),
+    setPage,
+  };
+}
+
+/** The footer of a paged list: where the reader is, and the way to the previous and the next page. */
+export function Pager<T>({ paged, label = 'Pages' }: { paged: Paged<T>; label?: string }) {
+  if (paged.pages <= 1) return null;
+  return (
+    <nav aria-label={label} className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+      <p className="text-[12.5px] text-ink3" aria-live="polite">
+        {paged.from}–{paged.to} of {paged.total}
+      </p>
+      <div className="flex items-center gap-2">
+        <SoftButton onClick={() => paged.setPage(paged.page - 1)} disabled={paged.page === 0} aria-label="Previous page">
+          Previous
+        </SoftButton>
+        <span className="min-w-16 text-center font-mono text-[12.5px] text-ink2">
+          {paged.page + 1} / {paged.pages}
+        </span>
+        <SoftButton onClick={() => paged.setPage(paged.page + 1)} disabled={paged.page >= paged.pages - 1} aria-label="Next page">
+          Next
+        </SoftButton>
+      </div>
+    </nav>
+  );
+}
+
 // --- data table -----------------------------------------------------------
 
 export function DataTable<T>({
   columns,
   rows,
   rowKey,
+  rowTo,
   empty,
   minWidth = '640px',
 }: {
   columns: TableColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string;
+  /** Where a click on the row leads. The link inside the row stays the keyboard way in; a button or a link of the row keeps its own work. */
+  rowTo?: (row: T) => string;
   empty?: ReactNode;
   /** The smallest width of the table. Below it the table scrolls sideways. */
   minWidth?: string;
 }) {
+  const { navigate } = useRouter();
   if (!rows.length) return <>{empty ?? <EmptyState title="Nothing here yet." />}</>;
   return (
     // A wide table scrolls inside its own box: the page never scrolls
@@ -1425,7 +1511,18 @@ export function DataTable<T>({
         </thead>
         <tbody className="[&>tr:first-child>td]:border-t-0">
           {rows.map((row) => (
-            <tr key={rowKey(row)}>
+            <tr
+              key={rowKey(row)}
+              onClick={
+                rowTo
+                  ? (event) => {
+                      if ((event.target as HTMLElement).closest('a,button,input,select,textarea,label')) return;
+                      navigate(rowTo(row));
+                    }
+                  : undefined
+              }
+              className={rowTo ? 'cursor-pointer transition-colors duration-150 hover:bg-s2/60' : undefined}
+            >
               {columns.map((column, index) => (
                 <td key={column.key} className={cellClass(column, index, columns.length)}>
                   {column.render(row)}

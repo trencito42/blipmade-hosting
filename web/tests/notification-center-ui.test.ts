@@ -432,9 +432,9 @@ describe('the state of the notification centre', () => {
 describe('the page and its actions', () => {
   it('is drawn with the title and the filters of the notification centre', () => {
     const html = render(createElement(notifications.default, {}));
-    assert.match(html, /Notifications/);
+    // The title of the page is in the top bar of the shell, so the page does not write it again.
     assert.match(html, /Category/);
-    assert.match(html, /Only the unread/);
+    assert.match(html, /Unread/);
   });
 
   it('gives every action a name and lets the keyboard reach it', () => {

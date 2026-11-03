@@ -276,7 +276,7 @@ describe('the table of the domains', () => {
   it('shows the columns of the table and every domain once', () => {
     const html = render(createElement(area.MailDomainList, { domains: rows, title: 'Email domains' }));
 
-    for (const header of ['Domain', 'Status', 'Mailboxes', 'Aliases', 'Storage', 'DNS status', 'Actions']) {
+    for (const header of ['Domain', 'Status', 'Mailboxes', 'Aliases', 'Storage', 'DNS status']) {
       assert.match(html, new RegExp(`>${header}<`));
     }
     assert.match(html, /xodo\.ro/);
@@ -291,7 +291,8 @@ describe('the table of the domains', () => {
   it('leads to the page of the domain', () => {
     const html = render(createElement(area.MailDomainList, { domains: rows }));
     assert.match(html, /href="\/app\/mail\/domains\/d1"/);
-    assert.match(html, /Manage/);
+    // The row opens the domain: there is no button of its own for it.
+    assert.doesNotMatch(html, />Manage</);
   });
 });
 

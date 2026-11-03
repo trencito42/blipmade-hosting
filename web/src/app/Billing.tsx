@@ -1,6 +1,6 @@
 import { CreditNotice } from './CreditNotice';
 import { useEffect, useMemo, useState } from 'react';
-import { get, post, type Invoice, type Subscription } from '../lib/api';
+import { get, getAll, post, type Invoice, type Subscription } from '../lib/api';
 import { formatPrice } from '../lib/pricing';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useRouter } from '../router';
@@ -12,10 +12,12 @@ import {
   ErrorState,
   LoadingBlock,
   Money,
+  Pager,
   Panel,
   PrimaryButton,
   StatTile,
   StatusPill,
+  usePaged,
   useToast,
 } from '../ui-app';
 
@@ -348,11 +350,11 @@ export default function Billing() {
     [],
   );
   const invoicesState = useAsync<{ invoices: Invoice[] }>(
-    (signal) => get<{ invoices: Invoice[] }>('/billing/invoices', undefined, signal),
+    async (signal) => ({ invoices: await getAll<Invoice>('/billing/invoices', 'invoices', {}, signal) }),
     [],
   );
   const ordersState = useAsync<{ orders: PendingOrder[] }>(
-    (signal) => get<{ orders: PendingOrder[] }>('/orders', undefined, signal),
+    async (signal) => ({ orders: await getAll<PendingOrder>('/orders', 'orders', {}, signal) }),
     [],
   );
   // Services that were cancelled: when their files are removed, so nothing is a surprise.
@@ -377,6 +379,9 @@ export default function Billing() {
   const invoices = useMemo(() => invoicesState.data?.invoices ?? [], [invoicesState.data]);
   const unpaidOrders = (ordersState.data?.orders ?? []).filter((order) => order.status === 'AWAITING_PAYMENT' || order.status === 'PENDING');
   const subscriptions = useMemo(() => subscriptionsState.data?.subscriptions ?? [], [subscriptionsState.data]);
+  const subscriptionsPaged = usePaged(subscriptions, 20);
+  const ordersPaged = usePaged(ordersState.data?.orders ?? [], 20);
+  const invoicesPaged = usePaged(invoices, 20);
 
   // What the platform says about the payments. The page shows that answer
   // and never decides by itself that a payment is possible.
@@ -634,7 +639,7 @@ export default function Billing() {
           />
         ) : (
           <div className="grid">
-            {subscriptions.map((subscription) => (
+            {subscriptionsPaged.rows.map((subscription) => (
               <div key={subscription.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0 sm:flex sm:items-center sm:gap-4">
                 <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-3">
                   {/* The name keeps its room. On a phone the status and the
@@ -673,6 +678,7 @@ export default function Billing() {
                 </div>
               </div>
             ))}
+            <Pager paged={subscriptionsPaged} label="Subscriptions pages" />
           </div>
         )}
       </Panel>
@@ -719,10 +725,11 @@ export default function Billing() {
                   { key: 'total', header: 'Total', align: 'right', nowrap: true, render: (order) => <Money amount={order.total} currency={order.currency} /> },
                   { key: 'status', header: 'Status', nowrap: true, render: (order) => <StatusPill status={ORDER_TONES[order.status] ?? 'pending'} label={ORDER_LABELS[order.status] ?? order.status.toLowerCase().replace(/_/g, ' ')} /> },
                 ]}
-                rows={ordersState.data?.orders ?? []}
+                rows={ordersPaged.rows}
+                rowTo={(order) => `/app/billing/orders/${encodeURIComponent(order.id)}`}
                 rowKey={(order) => order.id}
               />
-              <CardList rows={ordersState.data?.orders ?? []} rowKey={(order) => order.id}>
+              <CardList rows={ordersPaged.rows} rowKey={(order) => order.id}>
                 {(order) => (
                   <div className="grid gap-1.5">
                     <div className="flex items-start justify-between gap-3">
@@ -737,6 +744,7 @@ export default function Billing() {
                   </div>
                 )}
               </CardList>
+              <Pager paged={ordersPaged} label="Orders pages" />
             </>
           )}
         </Panel>
@@ -825,11 +833,12 @@ export default function Billing() {
                   ),
                 },
               ]}
-              rows={invoices}
+              rows={invoicesPaged.rows}
+              rowTo={(invoice) => `/app/billing/invoices/${invoice.id}`}
               rowKey={(invoice) => invoice.id}
             />
 
-            <CardList rows={invoices} rowKey={(invoice) => invoice.id}>
+            <CardList rows={invoicesPaged.rows} rowKey={(invoice) => invoice.id}>
               {(invoice) => (
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-3">
@@ -874,6 +883,7 @@ export default function Billing() {
                 </div>
               )}
             </CardList>
+            <Pager paged={invoicesPaged} label="Invoices pages" />
           </>
         )}
       </Panel>

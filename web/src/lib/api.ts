@@ -132,6 +132,32 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
 export const get = <T,>(path: string, query?: RequestOptions['query'], signal?: AbortSignal) =>
   api<T>(path, { method: 'GET', query, signal });
 
+/**
+ * Reads every page of a list that the server walks with a cursor.
+ *
+ * The server answers a list in pages of at most 200 rows. A page that is read once shows the first rows and hides the
+ * rest without saying so, so a list that can grow is read until the server says there is no next page. The cap keeps a
+ * broken answer from looping for ever.
+ */
+export async function getAll<T>(
+  path: string,
+  key: string,
+  query: Record<string, string | number | boolean | undefined> = {},
+  signal?: AbortSignal,
+  maxPages = 25,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < maxPages; page += 1) {
+    const answer: Record<string, unknown> & { pagination?: { hasMore?: boolean; nextCursor?: string | null } } = await get(path, { ...query, limit: 200, cursor }, signal);
+    rows.push(...((answer[key] as T[] | undefined) ?? []));
+    const next = answer.pagination;
+    if (!next?.hasMore || !next.nextCursor) break;
+    cursor = next.nextCursor;
+  }
+  return rows;
+}
+
 export const post = <T,>(path: string, body?: unknown, query?: RequestOptions['query']) =>
   api<T>(path, { method: 'POST', body, query });
 

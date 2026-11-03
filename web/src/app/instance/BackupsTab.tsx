@@ -4,6 +4,8 @@ import { useAsync } from '../../lib/useAsync';
 import { deleteBackup, downloadBackup, listBackups } from '../../lib/instance-api';
 import {
   CardList,
+  Pager,
+  usePaged,
   ButtonLink,
   ConfirmDialog,
   DataTable,
@@ -33,6 +35,7 @@ export default function BackupsTab({ instance }: TabProps) {
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   const rows = backups.data?.backups ?? [];
+  const paged = usePaged(rows, 20);
   const limit = backups.data?.limit;
   const preset = backups.data?.preset ?? 'off';
 
@@ -145,8 +148,8 @@ export default function BackupsTab({ instance }: TabProps) {
           />
         ) : (
           <>
-            <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />
-            <CardList rows={rows} rowKey={(row) => row.id}>
+            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => row.id} />
+            <CardList rows={paged.rows} rowKey={(row) => row.id}>
               {(row) => (
                 <ListRow
                   title={row.name}
@@ -165,6 +168,7 @@ export default function BackupsTab({ instance }: TabProps) {
                 />
               )}
             </CardList>
+            <Pager paged={paged} label="Pages" />
           </>
         )}
       </Panel>

@@ -14,7 +14,8 @@ test('email domain creation has one dedicated canonical editor', async () => {
   const specific = routes.indexOf("pattern: '/app/mail/domains/new'");
   const dynamic = routes.indexOf("pattern: '/app/mail/domains/:id'");
   assert.ok(specific > -1 && specific < dynamic, 'new route must precede the dynamic domain route');
-  assert.match(overview, /to="\/app\/mail\/domains\/new"/);
+  assert.match(routes, /label: 'Add domain'/);
+  assert.doesNotMatch(overview, /Add domain/);
   assert.doesNotMatch(overview, /MailAddDomainDialog/);
   assert.match(editor, /PageEditorShell/);
   assert.match(editor, /useUnsavedChangesGuard/);

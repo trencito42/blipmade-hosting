@@ -103,7 +103,6 @@ export default function NewMailbox() {
               <p className="mt-1 text-[13px] text-ink">{domain.mailboxes} of {domain.maxMailboxes} mailboxes used</p>
             </div>
           )}
-          <p className="mt-4 text-[12.5px] leading-relaxed text-ink3">Passwords are never placed in URLs or browser storage. A generated password is returned by the server only once.</p>
         </aside>
       }
       actions={created ? (

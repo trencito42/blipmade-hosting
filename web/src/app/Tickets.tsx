@@ -1,6 +1,5 @@
-import { ButtonGroup } from './components/premium';
 import { useState } from 'react';
-import { get, post, type Ticket } from '../lib/api';
+import { get, getAll, post, type Ticket } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
@@ -11,10 +10,12 @@ import {
   EmptyState,
   ErrorState,
   LoadingBlock,
+  Pager,
   Panel,
   SoftButton,
   StatusPill,
   TextInput,
+  usePaged,
   useToast,
 } from '../ui-app';
 
@@ -67,19 +68,22 @@ function DocsSearch() {
   return (
     <form
       role="search"
-      className="flex flex-wrap items-end gap-2 rounded-2xl bg-s2 p-4"
+      className="flex items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         window.location.assign(`/docs${term.trim() ? `?q=${encodeURIComponent(term.trim())}` : ''}`);
       }}
     >
-      <div className="flex w-full flex-wrap items-end gap-2">
-        <div className="min-w-[14rem] flex-1">
-          <TextInput label="Search the documentation first" value={term} onChange={(event) => setTerm(event.target.value)} placeholder="backups, domains, invoices…" />
-        </div>
-        <SoftButton type="submit" className="h-12">Search</SoftButton>
-      </div>
-      <p className="w-full text-[12.5px] text-ink3">Most questions already have an answer. If yours does not, open a ticket.</p>
+      <input
+        type="search"
+        aria-label="Search the documentation"
+        value={term}
+        onChange={(event) => setTerm(event.target.value)}
+        placeholder="Search the documentation"
+        autoComplete="off"
+        className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-card px-3 text-[14.5px] text-ink placeholder:text-ink3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+      />
+      <SoftButton type="submit">Search</SoftButton>
     </form>
   );
 }
@@ -89,28 +93,18 @@ export default function Tickets() {
   const [closing, setClosing] = useState<Ticket | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
 
-  const tickets = useAsync((signal) => get<{ tickets: Ticket[] }>('/tickets', undefined, signal), []);
+  const tickets = useAsync(async (signal) => ({ tickets: await getAll<Ticket>('/tickets', 'tickets', {}, signal) }), []);
   const categories = useAsync((signal) => get<{ categories: TicketCategory[] }>('/tickets/categories', undefined, signal), []);
 
   const categoryLabel = (id: string) => categories.data?.categories.find((c) => c.id === id)?.label ?? id;
-  const rows = tickets.data?.tickets ?? [];
+  const all = tickets.data?.tickets ?? [];
+  const paged = usePaged(all, 20);
+  const rows = paged.rows;
 
   return (
     <div className="grid gap-4">
-      <DocsSearch />
-
-      <Panel
-        title="Your tickets"
-        description="Every conversation with Blipmade support, newest activity first."
-        actionBelow
-        action={
-          // With no tickets the empty state carries the one action, so the
-          // page never offers two buttons for the same thing.
-          rows.length ? (
-            <ButtonLink to="/app/tickets/new">New ticket</ButtonLink>
-          ) : undefined
-        }
-      >
+      <Panel className="grid gap-4">
+        <DocsSearch />
         {tickets.loading ? (
           <LoadingBlock rows={4} label="Loading your tickets" />
         ) : tickets.error ? (
@@ -119,7 +113,7 @@ export default function Tickets() {
             message={tickets.error.message}
             onRetry={tickets.reload}
           />
-        ) : !rows.length ? (
+        ) : !all.length ? (
           <EmptyState
             title="No tickets yet."
             description="Open a ticket and we will answer in the same thread."
@@ -130,6 +124,7 @@ export default function Tickets() {
             <DataTable<Ticket>
               rows={rows}
               rowKey={(t) => t.id}
+              rowTo={(t) => `/app/tickets/${t.id}`}
               columns={[
                 {
                   key: 'subject',
@@ -170,16 +165,11 @@ export default function Tickets() {
                   align: 'right',
                   nowrap: true,
                   render: (t) => (
-                    <ButtonGroup label={`Actions for ticket ${t.number}`}>
-                      <ButtonLink to={`/app/tickets/${t.id}`} variant="soft" aria-label={`Reply to ticket ${t.number}`} title="Open the conversation and reply">
-                        Reply
-                      </ButtonLink>
-                      {t.status !== 'closed' && (
-                        <SoftButton onClick={() => setClosing(t)} aria-label={`Close ticket ${t.number}`} title="Close this ticket. You can write again to reopen it.">
-                          Close
-                        </SoftButton>
-                      )}
-                    </ButtonGroup>
+                    t.status !== 'closed' ? (
+                      <SoftButton onClick={() => setClosing(t)} aria-label={`Close ticket ${t.number}`} title="Close this ticket. Write again to reopen it.">
+                        Close
+                      </SoftButton>
+                    ) : null
                   ),
                 },
               ]}
@@ -233,6 +223,7 @@ export default function Tickets() {
                 </Link>
               )}
             </CardList>
+            <Pager paged={paged} label="Tickets pages" />
           </div>
         )}
       </Panel>

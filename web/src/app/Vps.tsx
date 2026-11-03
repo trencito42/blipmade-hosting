@@ -18,12 +18,15 @@ import { Icon } from '../icons';
 import { Eyebrow, Footer, Nav, Wrap } from '../site/ui';
 import {
   ButtonLink,
+  CardList,
   ConfirmDialog,
+  DataTable,
   EmptyState,
   ErrorState,
   FadedLoadMore,
   LoadingBlock,
   Money,
+  Pager,
   Select,
   Panel,
   PrimaryButton,
@@ -31,6 +34,7 @@ import {
   StatusPill,
   TextArea,
   TextInput,
+  usePaged,
   useReveal,
   useToast,
 } from '../ui-app';
@@ -416,19 +420,26 @@ function CopyLine({ value }: { value: string }) {
   );
 }
 
-/** The servers of the customer. */
+/** The servers of the customer: the same inventory as the apps, one card, rows that open the server. */
 export function VpsList() {
   const state = useAsync<{ servers: VpsServerView[] }>((signal) => get<{ servers: VpsServerView[] }>('/vps', undefined, signal), []);
   const servers = state.data?.servers ?? [];
+  const paged = usePaged(servers, 20);
+  const { push } = useToast();
   // A server that is being built is looked at again until it is done.
   useEffect(() => {
     if (!servers.some((server) => server.status === 'pending' || server.status === 'provisioning')) return;
     const timer = window.setInterval(state.reload, 6000);
     return () => window.clearInterval(timer);
   }, [servers, state.reload]);
+  const copy = (value: string) =>
+    void navigator.clipboard.writeText(value).then(
+      () => push('Copied.', 'ok'),
+      () => push('The copy did not work. Select the text and copy it by hand.', 'error'),
+    );
 
   return (
-    <Panel title="Your servers" description="Virtual private servers with root access.">
+    <Panel>
       {state.loading && !state.data ? (
         <LoadingBlock rows={2} label="Loading your servers" />
       ) : state.error ? (
@@ -436,28 +447,80 @@ export function VpsList() {
       ) : servers.length === 0 ? (
         <EmptyState title="No server yet." description="A virtual server with root access, ready in a few minutes." action={<ButtonLink to={VPS_NEW_PATH}>Order a server</ButtonLink>} />
       ) : (
-        <ul className="grid">
-          {servers.map((server) => {
-            const status = statusOf(server);
-            return (
-              <li key={server.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link to={`/app/vps/${server.id}`} className="text-[16px] font-semibold text-ink underline-offset-4 hover:underline">
-                      {server.name}
+        <>
+          <DataTable
+            columns={[
+              {
+                key: 'server',
+                header: 'Server',
+                truncate: true,
+                width: '24%',
+                render: (server: VpsServerView) => (
+                  <Link to={`/app/vps/${server.id}`} className="block min-w-0 rounded-lg font-bold text-ink transition-colors hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+                    <span className="block truncate">{server.name}</span>
+                    <span className="block truncate text-[12.5px] font-normal text-ink3">{server.plan.name}</span>
+                  </Link>
+                ),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                nowrap: true,
+                render: (server: VpsServerView) => {
+                  const status = statusOf(server);
+                  return <StatusPill status={status.tone} label={status.label} />;
+                },
+              },
+              {
+                key: 'resources',
+                header: 'Resources',
+                nowrap: true,
+                render: (server: VpsServerView) => <span className="font-mono text-[13px] text-ink2">{memLabel(server.ram)} · {server.cpu} vCPU · {server.disk} GB</span>,
+              },
+              {
+                key: 'address',
+                header: 'Address',
+                truncate: true,
+                render: (server: VpsServerView) =>
+                  server.sshCommand ? (
+                    <button
+                      type="button"
+                      onClick={() => copy(server.sshCommand!)}
+                      data-tip="Copy the SSH command"
+                      className="max-w-full truncate rounded-lg text-left font-mono text-[12.5px] text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                    >
+                      {server.publicIp ?? server.sshCommand}
+                    </button>
+                  ) : (
+                    <span className="text-[13px] text-ink3">{server.lastError ?? '—'}</span>
+                  ),
+              },
+            ]}
+            rows={paged.rows}
+            rowKey={(server: VpsServerView) => server.id}
+            rowTo={(server: VpsServerView) => `/app/vps/${server.id}`}
+          />
+          <CardList rows={paged.rows} rowKey={(server: VpsServerView) => server.id}>
+            {(server: VpsServerView) => {
+              const status = statusOf(server);
+              return (
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Link to={`/app/vps/${server.id}`} className="w-0 min-w-0 flex-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+                      <span className="block truncate text-[15.5px] font-bold tracking-[-0.02em] text-ink">{server.name}</span>
+                      <span className="block truncate text-[12.5px] text-ink3">{server.plan.name}</span>
                     </Link>
-                    <p className="mt-0.5 font-mono text-[12.5px] text-ink3">
-                      {server.plan.name} · {server.cpu} vCPU · {memLabel(server.ram)} · {server.disk} GB
-                    </p>
+                    <StatusPill status={status.tone} label={status.label} />
                   </div>
-                  <StatusPill status={status.tone} label={status.label} />
+                  <p className="font-mono text-[13px] text-ink2">{memLabel(server.ram)} · {server.cpu} vCPU · {server.disk} GB</p>
+                  {server.sshCommand && <CopyLine value={server.sshCommand} />}
+                  {server.lastError && <p className="text-[13px] text-bad">{server.lastError}</p>}
                 </div>
-                {server.sshCommand && <div className="mt-3"><CopyLine value={server.sshCommand} /></div>}
-                {server.lastError && <p className="mt-2 text-[13px] text-bad">{server.lastError}</p>}
-              </li>
-            );
-          })}
-        </ul>
+              );
+            }}
+          </CardList>
+          <Pager paged={paged} label="Servers pages" />
+        </>
       )}
     </Panel>
   );
@@ -1005,8 +1068,8 @@ function ManagePanel({ server, section }: { server: VpsServerView; onChanged?: (
           <ButtonLink to={`${base}/reinstall`} variant="danger" title="Review and reinstall the server. The disk is erased.">Reinstall</ButtonLink>
         </li>
         <li className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-3 last:pb-0">
-          <p className="min-w-0 flex-1 text-[14px] text-ink2">To stop paying for this server, cancel its subscription. It keeps running until the end of the paid period.</p>
-          <ButtonLink to="/app/billing" variant="soft">Go to Billing</ButtonLink>
+          <p className="min-w-0 flex-1 text-[14px] text-ink2">Stop paying for this server</p>
+          <ButtonLink to="/app/billing" variant="soft" title="Cancel its subscription in Billing. The server keeps running until the end of the paid period.">Cancel in Billing</ButtonLink>
         </li>
       </ul>
     </Panel>

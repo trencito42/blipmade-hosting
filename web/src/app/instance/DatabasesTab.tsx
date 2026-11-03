@@ -3,6 +3,8 @@ import { useAsync } from '../../lib/useAsync';
 import { listDatabases } from '../../lib/instance-api';
 import {
   CardList,
+  Pager,
+  usePaged,
   ButtonLink,
   DataTable,
   EmptyState,
@@ -25,6 +27,7 @@ export default function DatabasesTab({ instance }: TabProps) {
   const databases = useAsync((signal) => listDatabases(instance.id, signal), [instance.id]);
 
   const rows = databases.data?.databases ?? [];
+  const paged = usePaged(rows, 20);
   // The panel says how many databases this server may have. 0 means none, so the page says that.
   const noDatabases = databases.data !== undefined && databases.data.limit === 0 && rows.length === 0;
   const limit = databases.data?.limit;
@@ -95,8 +98,8 @@ export default function DatabasesTab({ instance }: TabProps) {
           />
         ) : (
           <>
-            <DataTable columns={columns} rows={rows} rowKey={(row) => String(row.id)} />
-            <CardList rows={rows} rowKey={(row) => String(row.id)}>
+            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => String(row.id)} />
+            <CardList rows={paged.rows} rowKey={(row) => String(row.id)}>
               {(row) => (
                 <ListRow
                   title={<span className="font-mono">{row.database}</span>}
@@ -113,6 +116,7 @@ export default function DatabasesTab({ instance }: TabProps) {
                 />
               )}
             </CardList>
+            <Pager paged={paged} label="Pages" />
           </>
         )}
       </Panel>

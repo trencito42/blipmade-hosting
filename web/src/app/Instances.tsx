@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../icons';
-import { get, post, type CatalogProduct, type Instance } from '../lib/api';
+import { get, getAll, post, type CatalogProduct, type Instance } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link } from '../router';
 import {
@@ -11,10 +11,13 @@ import {
   ErrorState,
   LoadingBlock,
   Money,
+  Pager,
+  Panel,
   Segmented,
   SoftButton,
   StatusPill,
   TextInput,
+  usePaged,
   useToast,
 } from '../ui-app';
 import { catalogPath, formatPrice, periodLabel, productIcon } from '../lib/pricing';
@@ -37,11 +40,25 @@ function RedeemCode({ onDone }: { onDone: () => void }) {
     onDone();
   });
   return (
-    <div className="flex flex-wrap items-end gap-2">
-      <TextInput label="Got an access code?" value={code} onChange={(event) => setCode(event.target.value)} placeholder="ABCD-EFGH-JKLM" autoComplete="off" />
-      <SoftButton className="h-12" onClick={() => void redeem.run()} disabled={redeem.pending || code.trim().length < 8}>{redeem.pending ? 'Checking…' : 'Use code'}</SoftButton>
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (code.trim().length >= 8) void redeem.run();
+      }}
+    >
+      <input
+        aria-label="Access code"
+        value={code}
+        onChange={(event) => setCode(event.target.value)}
+        placeholder="Access code"
+        autoComplete="off"
+        spellCheck={false}
+        className="h-11 w-44 rounded-xl border border-line bg-card px-3 font-mono text-[14px] text-ink placeholder:font-sans placeholder:text-ink3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+      />
+      <SoftButton type="submit" disabled={redeem.pending || code.trim().length < 8}>{redeem.pending ? 'Checking…' : 'Use code'}</SoftButton>
       {redeem.error && <p role="alert" className="basis-full text-[13.5px] font-medium text-bad">{redeem.error}</p>}
-    </div>
+    </form>
   );
 }
 
@@ -160,7 +177,7 @@ function NoInstances() {
 
 export default function Instances() {
   const { data, loading, error, reload } = useAsync(
-    (signal) => get<{ instances: Instance[] }>('/instances', undefined, signal),
+    async (signal) => ({ instances: await getAll<Instance>('/instances', 'instances', {}, signal) }),
     [],
   );
 
@@ -190,21 +207,10 @@ export default function Instances() {
     return [...found].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }, [instances, query, status, sort]);
 
-  const filtersActive = query.trim().length > 0 || status !== 'all';
+  const paged = usePaged(filtered, 20, `${query}|${status}|${sort}`);
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        {/* The title of the page is in the top bar; it is not written a second time here. */}
-        <p className="min-w-0 text-[13.5px] text-ink3">Manage your deployed applications and databases.</p>
-        {/* The selector of the customer area, so the customer picks the
-            product instead of being sent to one by surprise. */}
-        <ButtonLink to="/app/deploy" className="w-full sm:w-auto lg:hidden">
-          <Icon name="rocket" size={16} />
-          Deploy new
-        </ButtonLink>
-      </div>
-
+    <Panel className="grid gap-4">
       <div className="grid gap-3">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-end">
           <TextInput
@@ -215,8 +221,8 @@ export default function Instances() {
             placeholder="Search by name or product"
             autoComplete="off"
           />
-          <label className="grid gap-1.5 text-[13.5px] font-medium text-ink">
-            Sort by
+          <label className="grid gap-1.5 text-[14px] font-medium text-ink">
+            <span className="px-1">Sort by</span>
             <select
               value={sort}
               onChange={(event) => setSort(event.target.value as typeof sort)}
@@ -228,23 +234,20 @@ export default function Instances() {
             </select>
           </label>
         </div>
-
-        {/* The band of filters is the shared selector of the interface: it
-            scrolls sideways on a phone and its right edge fades, so it is
-            clear that there is more to swipe. */}
-        <Segmented
-          role="group"
-          ariaLabel="Filter instances by status"
-          options={[
-            { value: 'all', label: 'All' },
-            ...statuses.map((value) => ({ value, label: stateLabel(value) })),
-          ]}
-          value={status}
-          onChange={setStatus}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Segmented
+            role="group"
+            ariaLabel="Filter instances by status"
+            options={[
+              { value: 'all', label: 'All' },
+              ...statuses.map((value) => ({ value, label: stateLabel(value) })),
+            ]}
+            value={status}
+            onChange={setStatus}
+          />
+          <RedeemCode onDone={reload} />
+        </div>
       </div>
-
-      <RedeemCode onDone={reload} />
 
       {loading ? (
         <LoadingBlock rows={4} label="Loading your instances" />
@@ -339,27 +342,13 @@ export default function Instances() {
                     <span className="text-[13px] text-ink3">Not published yet</span>
                   ),
               },
-              {
-                key: 'actions',
-                header: 'Actions',
-                align: 'right',
-                nowrap: true,
-                render: (instance: Instance) => (
-                  <Link
-                    to={`/app/instances/${instance.id}`}
-                    aria-label={`Manage ${instance.name}`}
-                    className="inline-flex h-9 items-center rounded-full bg-s3 px-4 text-[13px] font-semibold text-ink transition-colors hover:bg-s4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-                  >
-                    Manage
-                  </Link>
-                ),
-              },
             ]}
-            rows={filtered}
+            rows={paged.rows}
             rowKey={(instance: Instance) => instance.id}
+            rowTo={(instance: Instance) => `/app/instances/${instance.id}`}
           />
 
-          <CardList rows={filtered} rowKey={(instance: Instance) => instance.id}>
+          <CardList rows={paged.rows} rowKey={(instance: Instance) => instance.id}>
             {(instance: Instance) => (
               <div className="grid gap-2">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -385,13 +374,9 @@ export default function Instances() {
             )}
           </CardList>
 
-          {filtersActive && (
-            <p className="px-1 text-[13px] text-ink3" aria-live="polite">
-              Showing {filtered.length} of {instances.length} instances.
-            </p>
-          )}
+          <Pager paged={paged} label="Instances pages" />
         </>
       )}
-    </div>
+    </Panel>
   );
 }

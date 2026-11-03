@@ -483,6 +483,9 @@ function contextAction(path: string): { to: string; label: string; icon: 'rocket
   if (path === '/app') return { to: '/app/deploy', label: 'Deploy', icon: 'rocket' };
   if (path === '/app/instances') return { to: '/app/deploy', label: 'New instance', icon: 'plus' };
   if (path === '/app/vps') return { to: '/app/vps/new', label: 'New server', icon: 'plus' };
+  if (path === '/app/domains') return { to: '/app/domains/new', label: 'Add domain', icon: 'plus' };
+  if (path === '/app/mail') return { to: '/app/mail/domains/new', label: 'Add domain', icon: 'plus' };
+  if (path === '/app/tickets') return { to: '/app/tickets/new', label: 'New ticket', icon: 'plus' };
   return null;
 }
 
@@ -492,10 +495,11 @@ function ShellAction({ path }: { path: string }) {
   return (
     <Link
       to={action.to}
-      className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-acc px-4 text-[13.5px] max-lg:hidden font-medium text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+      aria-label={action.label}
+      className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-acc px-3 text-[13.5px] font-medium text-on-acc transition-colors duration-[180ms] hover:bg-acc-h focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc-h focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:px-4"
     >
       <Icon name={action.icon} size={15} />
-      {action.label}
+      <span className="max-sm:sr-only">{action.label}</span>
     </Link>
   );
 }

@@ -29,7 +29,7 @@ export function TwoFactorPanel({ state }: { state: SecurityState['twoFactor']; r
         <p className="min-w-0 flex-1 text-[14px] text-ink2">
           {state.enabled
             ? `On since ${day(state.enabledAt)}. ${state.backupCodesLeft} backup code${state.backupCodesLeft === 1 ? '' : 's'} left.`
-            : 'Off. Add an authenticator app to protect your sign-in.'}
+            : 'Off'}
         </p>
         {state.enabled ? (
           <ButtonGroup label="Two-factor actions">

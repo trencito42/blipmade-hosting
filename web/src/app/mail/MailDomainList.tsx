@@ -9,7 +9,8 @@
 import type { ReactNode } from 'react';
 import { Icon } from '../../icons';
 import { memLabel } from '../../lib/pricing';
-import { ButtonLink, CardList, DataTable, EmptyState, StatusPill } from '../../ui-app';
+import { Link } from '../../router';
+import { ButtonLink, CardList, DataTable, EmptyState, Pager, StatusPill, usePaged } from '../../ui-app';
 import { MAIL_DNS_STATE_LABELS, MAIL_STATUS_TONES, mailDomainPath, type MailDomainRow } from './shared';
 
 export function MailDomainList({
@@ -30,6 +31,7 @@ export function MailDomainList({
   emptyTitle?: string;
   emptyDescription?: string;
 }) {
+  const paged = usePaged(domains, 20);
   if (!domains.length) {
     return (
       <section className="rounded-2xl border border-line bg-card p-4 sm:p-5">
@@ -112,29 +114,18 @@ export function MailDomainList({
               </span>
             ),
           },
-          {
-            key: 'actions',
-            header: 'Actions',
-            srOnlyHeader: true,
-            align: 'right',
-            render: (domain: MailDomainRow) => (
-              <ButtonLink to={mailDomainPath(domain.id)} variant="soft" className="h-9 px-3">
-                Manage
-                <Icon name="chevronDown" size={12} className="-rotate-90" />
-              </ButtonLink>
-            ),
-          },
         ]}
-        rows={domains}
+        rows={paged.rows}
         rowKey={(domain: MailDomainRow) => domain.id}
+        rowTo={(domain: MailDomainRow) => mailDomainPath(domain.id)}
         minWidth="820px"
       />
 
-      <CardList rows={domains} rowKey={(domain: MailDomainRow) => domain.id}>
+      <CardList rows={paged.rows} rowKey={(domain: MailDomainRow) => domain.id}>
         {(domain: MailDomainRow) => (
           <div className="grid gap-2">
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <span className="min-w-0 flex-1 break-all font-bold text-ink">{domain.name}</span>
+              <Link to={mailDomainPath(domain.id)} className="min-w-0 flex-1 break-all font-bold text-ink hover:text-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">{domain.name}</Link>
               <StatusPill status={MAIL_STATUS_TONES[domain.status]} label={domain.statusLabel} />
             </div>
             <span className="font-mono text-[12.5px] text-ink2">
@@ -154,15 +145,10 @@ export function MailDomainList({
                 {domain.lastError}
               </p>
             )}
-            <div>
-              <ButtonLink to={mailDomainPath(domain.id)} variant="soft" className="h-9 w-full px-3">
-                Manage
-                <Icon name="chevronDown" size={12} className="-rotate-90" />
-              </ButtonLink>
-            </div>
           </div>
         )}
       </CardList>
+      <Pager paged={paged} label="Email domains pages" />
     </section>
   );
 }

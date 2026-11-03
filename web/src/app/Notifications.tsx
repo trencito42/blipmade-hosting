@@ -12,6 +12,7 @@ import {
 import { useAction, useAsync } from '../lib/useAsync';
 import { cn } from '../lib';
 import { ButtonGroup } from './components/premium';
+import { Link } from '../router';
 import {
   ButtonLink,
   ConfirmDialog,
@@ -232,21 +233,7 @@ export default function Notifications() {
 
   return (
     <div className="grid gap-4">
-      <Panel
-        title="Notifications"
-        description="Everything the platform tells you about your account, newest first."
-        action={
-          <div className="flex flex-wrap items-center gap-3">
-            <p role="status" className="text-[14px] text-ink2">
-              {unread === 0 ? 'Everything has been read.' : `${unread} unread`}
-            </p>
-            <SoftButton onClick={onMarkAllRead} disabled={markAllRead.pending || unread === 0}>
-              {markAllRead.pending ? 'Working…' : 'Mark all as read'}
-            </SoftButton>
-          </div>
-        }
-        actionBelow
-      >
+      <Panel>
         <div className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
             <Select
@@ -263,15 +250,20 @@ export default function Notifications() {
               ))}
             </Select>
 
-            <label className="flex min-h-14 items-center gap-3 rounded-full bg-s2 px-5">
-              <input
-                type="checkbox"
-                checked={unreadOnly}
-                onChange={(event) => setUnreadOnly(event.target.checked)}
-                className="size-6 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
-              />
-              <span className="text-[14.5px] font-medium text-ink">Only the unread</span>
-            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-line bg-card px-3.5">
+                <input
+                  type="checkbox"
+                  checked={unreadOnly}
+                  onChange={(event) => setUnreadOnly(event.target.checked)}
+                  className="size-5 shrink-0 accent-acc focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                />
+                <span className="text-[14px] font-medium text-ink">Unread{unread > 0 ? ` (${unread})` : ''}</span>
+              </label>
+              <SoftButton onClick={onMarkAllRead} disabled={markAllRead.pending || unread === 0} title="Mark every message as read">
+                {markAllRead.pending ? 'Working…' : 'Mark all as read'}
+              </SoftButton>
+            </div>
           </div>
 
           {loading ? (
@@ -448,9 +440,17 @@ export function NotificationRow({
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {notification.actionUrl ? (
-            <ButtonLink variant="soft" {...actionTarget(notification.actionUrl)} onClick={() => { if (unread) onMarkRead?.(notification); }}>
-              {notification.actionLabel ?? 'Open'}
-            </ButtonLink>
+            (() => {
+              const target = actionTarget(notification.actionUrl);
+              const className = 'rounded-md text-[13.5px] font-semibold text-acc hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc';
+              const label = notification.actionLabel ?? 'Open';
+              const onClick = () => { if (unread) onMarkRead?.(notification); };
+              return target.to ? (
+                <Link to={target.to} className={className} onClick={onClick}>{label}</Link>
+              ) : (
+                <a href={target.href} className={className} onClick={onClick}>{label}</a>
+              );
+            })()
           ) : null}
           <span className="text-[12.5px] text-ink3">{label}</span>
         </div>

@@ -9,7 +9,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../../icons';
 import type { MailAliasView, MailDomainView } from '../../lib/api';
-import { ButtonLink, CardList, DataTable, DangerButton, EmptyState, PrimaryButton, TextInput } from '../../ui-app';
+import { ButtonLink, CardList, DataTable, DangerButton, EmptyState, Pager, PrimaryButton, TextInput, usePaged } from '../../ui-app';
 
 export function AliasTable({
   domain,
@@ -42,6 +42,7 @@ export function AliasTable({
       (alias) => alias.alias.toLowerCase().includes(needle) || alias.target.toLowerCase().includes(needle),
     );
   }, [aliases, query]);
+  const paged = usePaged(found, 20, query);
 
   return (
     <section className="grid gap-3">
@@ -119,11 +120,11 @@ export function AliasTable({
                   ) : null,
               },
             ]}
-            rows={found}
+            rows={paged.rows}
             rowKey={(alias: MailAliasView) => alias.id}
             minWidth="520px"
           />
-          <CardList rows={found} rowKey={(alias: MailAliasView) => alias.id}>
+          <CardList rows={paged.rows} rowKey={(alias: MailAliasView) => alias.id}>
             {(alias: MailAliasView) => (
               <div className="grid gap-2">
                 <span className="min-w-0 break-all font-bold text-ink">{alias.alias}</span>
@@ -138,6 +139,7 @@ export function AliasTable({
               </div>
             )}
           </CardList>
+          <Pager paged={paged} label="Pages" />
         </>
       )}
     </section>

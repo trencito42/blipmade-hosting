@@ -126,7 +126,6 @@ export function ChangeVpsKey() {
       aside={
         server ? (
           <ServerAside server={server}>
-            <p className="mt-3 text-[12.5px] leading-relaxed text-ink3">The server restarts once to read the new key. Its data is not touched, and the old key stops working.</p>
           </ServerAside>
         ) : undefined
       }
@@ -146,7 +145,7 @@ export function ChangeVpsKey() {
             value={key}
             onChange={(event) => setKey(event.target.value)}
             error={save.error ?? (touched && !dirty ? 'Paste a public key.' : undefined)}
-            hint="Starts with ssh-ed25519, ssh-rsa or ecdsa-sha2. Never paste a private key."
+            hint="Starts with ssh-ed25519, ssh-rsa or ecdsa-sha2. Never paste a private key. The server restarts once to read the new key; its data is not touched and the old key stops working."
             rows={4}
             placeholder="ssh-ed25519 AAAA…"
             spellCheck={false}
@@ -286,7 +285,6 @@ export function ReinstallVps() {
         <div className="grid gap-5">
           <div role="alert" className="rounded-2xl border border-bad/25 bg-bad/10 p-4">
             <h2 className="text-[14px] font-semibold text-bad">Everything on the disk of {server.name} is deleted</h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-ink2">The address, the plan and the subscription stay as they are. Take a snapshot first if you may need the current state.</p>
           </div>
           <Select label="Operating system" value={chosen} onChange={(event) => setImage(event.target.value)}>
             {(images.data?.images ?? [{ slug: chosen, label: server.image?.label ?? 'Debian 13' }]).map((entry) => (
@@ -448,7 +446,6 @@ export function RestoreVpsSnapshot() {
         <div className="grid gap-5">
           <div role="alert" className="rounded-2xl border border-bad/25 bg-bad/10 p-4">
             <h2 className="text-[14px] font-semibold text-bad">The disk of {server.name} goes back to this snapshot</h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-ink2">Everything written since the snapshot is lost. Take a new snapshot first if you may need the current state.</p>
           </div>
           <TextInput label={`Type “${snapshot.name}” to confirm`} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" error={touched && !matches ? `Type “${snapshot.name}” exactly.` : undefined} />
           <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border border-line bg-card p-3.5 text-[13.5px] text-ink2">

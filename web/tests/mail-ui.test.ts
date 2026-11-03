@@ -381,21 +381,17 @@ describe('a delete needs a confirmation', () => {
 describe('the page of the email hosting', () => {
   it('draws the compact overview', () => {
     const html = render(createElement(ui.default, {}));
-    // The header of the page: the name of it, the line under it and the one
-    // action that adds a domain.
-    assert.match(html, />Email</);
-    assert.match(html, /Manage your email hosting, domains, and mailboxes\./);
-    assert.match(html, /Add domain/);
+    // The title and the primary action are in the top bar of the shell, so the page does not write them again.
+    assert.doesNotMatch(html, /Manage your email hosting, domains, and mailboxes\./);
     // The summary of the subscription.
     assert.match(html, /Email hosting/);
   });
 
-  it('adds a domain from one place only', () => {
+  it('adds a domain from one place only: the top bar of the shell', () => {
     const html = render(createElement(ui.default, {}));
-    // The button that opens the dialog of a new domain is the only one, so
-    // the function does not live in two places.
-    const buttons = html.match(/Add domain/g) ?? [];
-    assert.equal(buttons.length, 1);
+    assert.equal((html.match(/Add domain/g) ?? []).length, 0);
+    const shell = readFileSync(join(webRoot, 'src/routes.tsx'), 'utf8');
+    assert.match(shell, /path === '\/app\/mail'\) return \{ to: '\/app\/mail\/domains\/new', label: 'Add domain'/);
   });
 
   it('has its own route in the customer area', () => {

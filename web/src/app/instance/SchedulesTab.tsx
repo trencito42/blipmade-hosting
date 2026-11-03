@@ -9,6 +9,8 @@ import {
 } from '../../lib/instance-api';
 import {
   CardList,
+  Pager,
+  usePaged,
   ConfirmDialog,
   DataTable,
   DangerButton,
@@ -37,6 +39,7 @@ export default function SchedulesTab({ instance }: TabProps) {
   const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null);
 
   const rows = schedules.data?.schedules ?? [];
+  const paged = usePaged(rows, 20);
 
   const toggle = async (id: number, active: boolean) => {
     try {
@@ -138,8 +141,8 @@ export default function SchedulesTab({ instance }: TabProps) {
           />
         ) : (
           <>
-            <DataTable columns={columns} rows={rows} rowKey={(row) => String(row.id)} />
-            <CardList rows={rows} rowKey={(row) => String(row.id)}>
+            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => String(row.id)} />
+            <CardList rows={paged.rows} rowKey={(row) => String(row.id)}>
               {(row) => (
                 <ListRow
                   title={row.name}
@@ -159,6 +162,7 @@ export default function SchedulesTab({ instance }: TabProps) {
                 />
               )}
             </CardList>
+            <Pager paged={paged} label="Pages" />
           </>
         )}
       </Panel>

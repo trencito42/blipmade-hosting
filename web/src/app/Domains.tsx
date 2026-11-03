@@ -7,9 +7,11 @@ import {
   EmptyState,
   ErrorState,
   LoadingBlock,
+  Pager,
   Panel,
   SoftButton,
   StatusPill,
+  usePaged,
   useToast,
 } from '../ui-app';
 
@@ -52,6 +54,7 @@ export default function Domains() {
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
   const domains = useMemo(() => domainsState.data?.domains ?? [], [domainsState.data]);
+  const paged = usePaged(domains, 20);
 
   const verify = useAction(async (id: string) => {
     const result = await post<{ domain: Domain }>(`/domains/${id}/verify`);
@@ -71,12 +74,7 @@ export default function Domains() {
 
   return (
     <div className="grid gap-4">
-      <Panel
-        title="Your domains"
-        description="Website hostnames routed to your apps and databases. Ownership and routing remain separate from hosted email."
-        action={<ButtonLink to="/app/domains/new">Add domain</ButtonLink>}
-        actionBelow
-      >
+      <Panel>
         {domainsState.loading ? (
           <LoadingBlock rows={3} label="Loading your domains" />
         ) : domainsState.error ? (
@@ -93,7 +91,7 @@ export default function Domains() {
           />
         ) : (
           <div className="grid">
-            {domains.map((domain) => (
+            {paged.rows.map((domain) => (
               <article key={domain.id} className="border-t border-line py-3.5 first:border-t-0 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="w-0 min-w-0 flex-1">
@@ -296,22 +294,9 @@ export default function Domains() {
                 )}
               </article>
             ))}
+            <Pager paged={paged} label="Domains pages" />
           </div>
         )}
-      </Panel>
-
-      <Panel
-        title="Email domains"
-        description="This page lists the domains routed to your apps and servers. Domains used for hosted email, with their ownership proof and DNS records, are managed in the Email section."
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <ButtonLink to="/app/mail" variant="soft">
-            Go to Email
-          </ButtonLink>
-          <span className="text-sm text-slate-500">
-            An email domain and an app domain are separate and managed separately.
-          </span>
-        </div>
       </Panel>
 
       {verify.error && (

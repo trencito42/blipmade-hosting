@@ -400,13 +400,13 @@ function ProfilePanel({
 /** The password of the account. */
 function PasswordPanel() {
   return (
-    <Panel title="Password" description="The password of this account.">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="min-w-0 flex-1 text-[13.5px] leading-relaxed text-ink2">
-          Changing the password closes the other sessions of the account. The device you are on stays signed in.
-        </p>
-        <ButtonLink to="/app/settings/password" variant="soft">Change password</ButtonLink>
-      </div>
+    <Panel
+      title="Password"
+      description="Changing the password closes the other sessions of the account. The device you are on stays signed in."
+      action={<ButtonLink to="/app/settings/password" variant="soft">Change password</ButtonLink>}
+      className="[&>div]:mb-0"
+    >
+      {null}
     </Panel>
   );
 }
@@ -841,8 +841,7 @@ function AccountPanel({ account }: { account: SettingsResponse['account'] }) {
         </p>
       ) : (
         <p className="text-[14px] leading-relaxed text-ink2">
-          You can ask for the account to be closed. The request is recorded and a person of the team looks at it before anything is
-          removed. Your apps and databases keep running until the end of the period you paid for.
+          Close this account and its services.
           {account.services > 0 ? ` This account has ${account.services} active service${account.services === 1 ? '' : 's'} and ${account.subscriptions} subscription${account.subscriptions === 1 ? '' : 's'}.` : ''}
         </p>
       )}

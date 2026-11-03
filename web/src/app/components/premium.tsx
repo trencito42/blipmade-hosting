@@ -12,6 +12,7 @@ import { cn } from '../../lib';
 import { Icon } from '../../icons';
 import { Link } from '../../router';
 import { Money, useEditorBack } from '../../ui-app';
+import { InfoTip, useQuiet } from '../../tooltip';
 
 /** Contiguous related actions with one accessible group and one outer shape. */
 export function ButtonGroup({
@@ -691,6 +692,7 @@ export function PageEditorShell({
   /** For a long, multi-section form: the actions stay in view while the form scrolls. A short form keeps them in the card. */
   stickyActions?: boolean;
 }) {
+  const quiet = useQuiet();
   const inShell = useEditorBack({ to: backTo, label: backLabel, context: eyebrow });
   const actionRow = (
     <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
@@ -712,8 +714,12 @@ export function PageEditorShell({
           </Link>
         )}
         <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-acc">{eyebrow}</p>
-        <h1 className="text-[clamp(1.5rem,2.6vw,2rem)] font-semibold tracking-[-0.04em] text-ink">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-[14px] leading-relaxed text-ink2">{description}</p>}
+        <h1 className="flex items-center gap-2 text-[clamp(1.5rem,2.6vw,2rem)] font-semibold tracking-[-0.04em] text-ink">
+          {title}
+          {/* In the customer area the description of a page is a tooltip beside the title, not a paragraph under it. */}
+          {description && quiet && <InfoTip text={description} label={`About ${title}`} />}
+        </h1>
+        {description && !quiet && <p className="mt-1 max-w-2xl text-[14px] leading-relaxed text-ink2">{description}</p>}
       </header>
       <div className={cn('grid gap-5', Boolean(aside) && 'lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start')}>
         <section className="min-w-0 rounded-2xl bg-s1 p-4 sm:p-6">
