@@ -6,6 +6,10 @@
 
 **Important:** one single work branch: `audit/admin-master-spec-20261103`, PR #17. Admin 3.0 implementation and testing must be accepted before major /app code changes are merged, so shared design components do not diverge. /app is planned independently and must never expose internal staff-only data.
 
+## New cross-cutting P1 visual QA finding (2026-11-03)
+
+**[GLOBAL-SHELL-EDITOR-UX.md](./GLOBAL-SHELL-EDITOR-UX.md)**: product-owner screenshots revealed a global editor-shell defect, **not** a single email-page issue. Duplicate top-bar and editor `h1`, misplaced parent Back link, legal footer too high on short pages, detached viewport-fixed Save/Discard colliding with shell/mobile navigation. **Fix AppShell + PageEditorShell + route metadata globally before adding more dedicated editors**, execute short/long/mobile layout regressions, then resume the existing implementation order. This is a design-system correction, not a new project or a request to redo completed editors.
+
 ## Read in this order
 
 1. **[VIEW-MATRIX.md](./VIEW-MATRIX.md)**: individually covers all 21 current routes; files, existing features, issues, target UX, fields/components and related destination pages.
