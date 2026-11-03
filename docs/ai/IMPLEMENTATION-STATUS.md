@@ -13,16 +13,16 @@ Legend: NOT_STARTED · IN_PROGRESS · BLOCKED · IMPLEMENTED (code + targeted te
 ## App routes (VIEW-MATRIX)
 | Route | Status | Remaining |
 |---|---|---|
-| /app Overview | IN_PROGRESS | cross-product alerts, activity beyond apps |
+| /app Overview | IMPLEMENTED (basic) | richer cross-product alerts, activity beyond apps |
 | /app/deploy, /:slug | IMPLEMENTED | `?step=` flow exists (Configure/Payment/Deploy); region/plan cards via #20 |
 | /app/instances (+redeem) | IMPLEMENTED | filters type/node, saved views |
 | /app/instances/:id workspace | IMPLEMENTED | tab grouping (issue #19) |
 | Instance editors (settings, startup, env, resources, git, backups, schedules, databases, network, access, reinstall) | IMPLEMENTED | access share edit blocked (no API) |
 | /app/domains (+new, :id, edit, delete) | IMPLEMENTED | TLS/readiness status (issue #23) |
-| /app/mail, domain workspace, editors | IN_PROGRESS | DNS tab page (DNS is inline panel) |
-| /app/vps list + 6 editors | IMPLEMENTED | VPS workspace header, checkout review step |
+| /app/mail, domain workspace (tabs deep-linked `?tab=`), editors | IMPLEMENTED | – |
+| /app/vps list + 6 editors + header + checkout review (`?step=review`, key never in URL) | IMPLEMENTED | – |
 | /app/billing tabs, order, subscription pages | IMPLEMENTED | credit/history tabs (no history API) |
-| /app/tickets list, new, :id | IN_PROGRESS | conversation workspace header; sticky reply done |
+| /app/tickets list, new, :id (compact header, sticky reply) | IMPLEMENTED | – |
 | /app/settings (profile, billing address, email, password, 2FA, passkeys, API keys, closure) | IMPLEMENTED | sessions page, notification prefs stay inline |
 | /app/notifications | IMPLEMENTED | grouped sections |
 

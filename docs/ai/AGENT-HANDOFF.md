@@ -1,30 +1,32 @@
 # Agent handoff
 
-Updated: 2026-11-03.
+Updated: 2026-11-03 (handoff to the next agent, MiniMax, requested by the user).
 
-- Branch: `audit/admin-master-spec-20261103` (working copy `/root/work`). Remote: GitHub via relay (`~/relay` on VM103). Push: `git push -f relay HEAD:refs/heads/incoming` then on VM `cd ~/relay && git push origin incoming:audit/admin-master-spec-20261103`. Do NOT push `main`, merge, or deploy without explicit user approval (latest instruction).
-- Production = `main` @ 3158b3c deployed (VM103 `/opt/blipmade`). `main` on GitHub = 90df83d (published with user approval, not deployed).
-- Objective: finish App 3.0 (then Admin 3.0), incremental targeted checks, UI audit, then full E2E in controlled batches.
+## State
+- Branch `audit/admin-master-spec-20261103`, working copy `/root/work`, clean tree at last update. GitHub audit branch = latest commit (`git log -1`). `main` published with user approval; production deploy NOT requested.
+- Production (VM103 `/opt/blipmade`) = `main` @ 3158b3c. Newer commits are NOT deployed. Deploy only on explicit user approval: `ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd /opt/blipmade && bash scripts/deploy.sh'` (from hypervisor).
+- App 3.0: implemented (see IMPLEMENTATION-STATUS.md). Admin 3.0: only `/admin/products/:id/edit` done; 34 admin routes remain.
 
-## Done
-Editors, shell, tooltip layer, inventory pattern, paging, billing tabs/pages, domain detail, access-code page, compact sticky headers (instance, VPS) with grouped power buttons, admin product editor route. See IMPLEMENTATION-STATUS.md.
+## Rules from the user (keep)
+- Terse replies (Caveman). Minimal code (YAGNI).
+- Finish App before Admin (done). Then Admin. Full E2E only at the end, in sequential bounded batches.
+- No merge/deploy without explicit user approval. Commit + push often; update these docs at each checkpoint.
+- Never print/store secrets. Kill processes by PID, never `pkill -f` with a pattern matching your own command line.
 
-## Uncommitted
-None at last update (branch HEAD = latest commit; `git log -1`). Branch pushed to GitHub audit branch; `main` last published at 872e1ba (user approved "pe main ma pune l"); later commits on audit branch only. Production deploy NOT requested.
+## How to work
+- Edit in `/root/work/web`. `export PATH=/opt/node22/bin:$PATH`. Check: `npx tsc --noEmit`, `npm test` (497 pass), `npm run build` (needed before Playwright; server serves `dist`).
+- E2E: `PLAYWRIGHT_JSON_OUTPUT_NAME=/root/e2e-logs/X.json npx playwright test <specs> --workers=4 --reporter=list,json > /root/e2e-logs/X.log 2>&1; echo EXIT=$?`. Spec stubs must include `/announcements` → `{announcements: []}` or pages crash.
+- Push: `git push -f relay HEAD:refs/heads/incoming` then `ssh -i /root/.ssh/blipmade_vm103 debian@10.77.0.13 'cd ~/relay && git push origin incoming:audit/admin-master-spec-20261103'`. `bash scripts/publish.sh` publishes `main` (needs clean tree, only with user approval).
+- Patterns: see DECISIONS.md. Editor route example: `web/src/app/DomainChange.tsx`; admin: `web/src/admin/ProductEdit.tsx`. Route order matters (`web/src/routes.tsx`): specific before `:id`.
 
-## Next (in order)
-1. Admin 3.0 dedicated editors: Promotions, SupportBots, SupportAutomations (overlay editors), then orders/VPS/pricing/staff/notifications/content/settings per `audit/admin-master-2026-11-03/EDITOR-ROUTE-BLUEPRINT.md`. Pattern: new route with `layout: 'editor'`, wrapper calls `useEditorBack`, one h1, list links to route (see `web/src/admin/ProductEdit.tsx`).
-2. Customer 360 tabs + Activity Explorer (admin).
-3. App leftovers: mail DNS tab, VPS checkout review step, tickets conversation header.
-4. UI audit of every route (screenshots at 1440/390 with large data).
-5. FINAL: build, then full Playwright in sequential batches (`--workers=4`, logs /root/e2e-logs), including audit specs (need `admin-audit-seed.json`). Fix regressions. Update TEST-STATUS.md. No VERIFIED without passing results.
+## Next concrete actions
+1. Admin 3.0 (spec `audit/admin-master-2026-11-03/EDITOR-ROUTE-BLUEPRINT.md`, `PREMIUM-COMPONENTS.md`): move overlay/inline editors to routes — Promotions, SupportBots, SupportAutomations first, then orders, VPS resources, pricing, staff, notifications, content, settings. Then Customer 360 tabs, Activity Explorer. Admin is not in quiet mode.
+2. UI audit of admin routes; app routes with large data.
+3. Final: build, full Playwright batches incl. audit specs (need `admin-audit-seed.json`), fix regressions, update TEST-STATUS.md.
+4. Issues #18–#23: proposals only; see MASTER-ROADMAP.md / OPERATOR-ACTIONS.md. Do not start without product-owner go.
 
-## Known
-- Route order in `web/src/routes.tsx`: specific before `:id`.
-- Unit gate: `cd web && npm test` (496 pass). Last e2e batch A: 167/174 then fixed; rest of suite not rerun since headers/admin changes. Instance/VPS header e2e selectors (open-URL link text) may need updates.
-- 13 pre-existing e2e failures (auth/public/mobile specs).
-- Never `pkill -f` with pattern matching own command (kills shell). Kill by PID.
-- Hypervisor cannot reach GitHub; use relay on VM103.
+## Known failures
+13 pre-existing e2e failures (auth/public/mobile specs), proven on 3158b3c. Not caused by this work.
 
 ## Blockers
-See OPERATOR-ACTIONS.md.
+OPERATOR-ACTIONS.md (rotate MiniMax key, support email placeholder, deploy approval, issues #21/#23 prerequisites).
