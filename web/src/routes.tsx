@@ -41,6 +41,7 @@ const AppEditBackupSchedule = lazy(() => import('./app/instance/EditBackupSchedu
 const AppRestoreBackup = lazy(() => import('./app/instance/RestoreBackup'));
 const AppNewSchedule = lazy(() => import('./app/instance/NewSchedule'));
 const AppEditSchedule = lazy(() => import('./app/instance/EditSchedule'));
+const AppEditGitSettings = lazy(() => import('./app/instance/EditGitSettings'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
 const AppDomains = lazy(() => import('./app/Domains'));
@@ -150,6 +151,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/instances/:id/backups/:backupId/restore', component: AppRestoreBackup, title: 'Restore backup', area: 'customer' },
   { pattern: '/app/instances/:id/schedules/new', component: AppNewSchedule, title: 'New schedule', area: 'customer' },
   { pattern: '/app/instances/:id/schedules/:scheduleId/edit', component: AppEditSchedule, title: 'Edit schedule', area: 'customer' },
+  { pattern: '/app/instances/:id/git/edit', component: AppEditGitSettings, title: 'Git deployment settings', area: 'customer' },
   { pattern: '/app/instances/:id', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/instances/:id/:tab', component: AppInstanceDetail, title: 'Instance', area: 'customer' },
   { pattern: '/app/deploy', component: AppDeployCatalog, title: 'Deploy', area: 'customer', exact: true },
