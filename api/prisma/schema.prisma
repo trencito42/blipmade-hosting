@@ -1061,6 +1061,7 @@ model Instance {
   provisioningJobs ProvisioningJob[]
   upgradeOrders   Order[]          @relation("UpgradeOrders")
   profiles        ServerProfile[]
+  repurposeJobs   RepurposeJob[]
 
   @@index([userId, status])
   @@index([orderItemId])
@@ -1096,6 +1097,23 @@ model ServerProfile {
   cpu         Float
   disk        Int
   createdAt   DateTime @default(now())
+
+  @@index([instanceId, createdAt])
+}
+
+/// A switch from one catalogue product to another. The egg is not changed until the backup archive can be opened.
+model RepurposeJob {
+  id            String   @id @default(cuid())
+  instanceId    String
+  instance      Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  fromProductId String
+  toProductId   String
+  backupUuid    String?
+  /// pending, archive_checked, refused, or switched.
+  state         String   @default("pending")
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([instanceId, createdAt])
 }

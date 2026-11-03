@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { Readable } from 'node:stream';
+import { archiveHeaderProblem, backupCompleted, maySwitchProduct, readStreamPrefix } from '../src/services/repurpose-gate.js';
 import { activationStatus, classifyHttpsResponse, httpDomainUpdate } from '../src/services/domain-activation.js';
 import { approvalDecision, recordsFingerprint, type CustomerRecord, type RecordPreview } from '../src/services/dns-approval.js';
 import {
@@ -157,6 +159,23 @@ describe('DNS approval binding', () => {
       stored: diff,
       live: diff,
     }).ok).toBe(false);
+  });
+});
+
+describe('repurpose backup gate', () => {
+  it('refuses a completed flag when the archive cannot be opened', async () => {
+    expect(backupCompleted({ completedAt: null, successful: true })).toBe(false);
+    expect(backupCompleted({ completedAt: '2026-11-03T00:00:00Z', successful: false })).toBe(false);
+    expect(backupCompleted({ completedAt: '2026-11-03T00:00:00Z', successful: true })).toBe(true);
+    expect(maySwitchProduct({ completed: true, archiveProblem: 'not an archive' }).ok).toBe(false);
+    expect(maySwitchProduct({ completed: false, archiveProblem: null }).ok).toBe(false);
+    expect(maySwitchProduct({ completed: true, archiveProblem: null }).ok).toBe(true);
+    const gzip = Buffer.from([0x1f, 0x8b, 0x08, 0x00]);
+    expect(archiveHeaderProblem(gzip)).toBeNull();
+    expect(archiveHeaderProblem(Buffer.from('{"error":true}'))).toMatch(/not a readable archive/);
+    const stream = Readable.from([Buffer.from([0x1f, 0x8b]), Buffer.from([0x08, 0x00, 0x01])]);
+    const prefix = await readStreamPrefix(stream, 4);
+    expect(prefix).toEqual(gzip);
   });
 });
 

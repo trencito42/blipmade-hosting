@@ -20,6 +20,7 @@ import { formatMoney } from '../lib/money.js';
 import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
+import { archiveHeaderProblem, backupCompleted, maySwitchProduct, readStreamPrefix } from './repurpose-gate.js';
 import {
   generateVariables,
   openVariables,
@@ -738,24 +739,45 @@ export async function repurposeInstance(input: {
   if (!left || !right || left.baseAmount !== right.baseAmount || left.ramPerGb !== right.ramPerGb || left.cpuPerUnit !== right.cpuPerUnit || left.diskPerGb !== right.diskPerGb || left.currency !== right.currency) {
     throw badRequest('That variant has a different price. Order it as its own service.');
   }
-  let backup;
+  const job = await prisma.repurposeJob.create({
+    data: { instanceId: instance.id, fromProductId: instance.productId, toProductId: target.id, state: 'pending' },
+  });
+  const refuse = async (reason: string): Promise<never> => {
+    await prisma.repurposeJob.update({ where: { id: job.id }, data: { state: 'refused', error: reason } });
+    throw conflict(reason);
+  };
+  let backup: pteroClient.ClientBackup;
   try {
     backup = await pteroClient.createBackup(input.token, input.uuid, { name: `Before ${target.name}`.slice(0, 100), locked: true });
-  } catch {
-    throw conflict('A backup could not be made first, so the server was not switched. Delete an old unlocked backup and try again.');
+  } catch (error) {
+    await refuse('A backup could not be made first, so the server was not switched. Delete an old unlocked backup and try again.');
+    throw error;
   }
   const deadline = Date.now() + 120_000;
-  let finished = backup.is_successful && Boolean(backup.completed_at);
+  let finished = backupCompleted({ completedAt: backup.completed_at, successful: backup.is_successful });
+  let latest = backup;
   while (!finished && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 3000));
     const rows = await pteroClient.listBackups(input.token, input.uuid);
     const row = rows.find((entry) => entry.uuid === backup.uuid);
     if (row?.completed_at && !row.is_successful) {
-      throw conflict('The backup failed, so the server was not switched.');
+      await refuse('The backup failed, so the server was not switched.');
     }
-    finished = Boolean(row?.completed_at && row.is_successful);
+    if (row) latest = row;
+    finished = backupCompleted({ completedAt: row?.completed_at ?? null, successful: row?.is_successful === true });
   }
-  if (!finished) throw conflict('The backup did not finish, so the server was not switched.');
+  if (!finished) await refuse('The backup did not finish, so the server was not switched.');
+  await prisma.repurposeJob.update({ where: { id: job.id }, data: { backupUuid: latest.uuid } });
+  let header: Buffer;
+  try {
+    header = await readStreamPrefix(await pteroClient.downloadBackup(input.token, input.uuid, latest.uuid));
+  } catch (error) {
+    await refuse('The backup could not be opened, so the server was not switched.');
+    throw error;
+  }
+  const decision = maySwitchProduct({ completed: true, archiveProblem: archiveHeaderProblem(header) });
+  if (!decision.ok) await refuse(decision.reason);
+  await prisma.repurposeJob.update({ where: { id: job.id }, data: { state: 'archive_checked', error: null } });
   const egg = await resolveEgg(target);
   await ptero.updateServerStartup(instance.pterodactylServerId, {
     egg: egg.egg,
@@ -766,6 +788,7 @@ export async function repurposeInstance(input: {
   });
   await ptero.reinstallServer(instance.pterodactylServerId);
   await prisma.instance.update({ where: { id: instance.id }, data: { productId: target.id } });
+  await prisma.repurposeJob.update({ where: { id: job.id }, data: { state: 'switched', error: null } });
   await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'repurpose', message: `Switched to ${target.name} after a backup. The install is running.` } });
   await audit({ actorId: input.actorId, actorEmail: input.actorEmail, action: 'instance.repurposed', targetType: 'instance', targetId: instance.id, meta: { from: instance.product.slug, to: target.slug } });
   return { name: target.name };
