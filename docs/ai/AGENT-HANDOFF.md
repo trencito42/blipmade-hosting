@@ -3,7 +3,7 @@
 Updated: 2026-11-03.
 
 - Branch: `audit/admin-master-spec-20261103` (working copy `/root/work`). Remote: GitHub via relay (`~/relay` on VM103). Push: `git push -f relay HEAD:refs/heads/incoming` then on VM `cd ~/relay && git push origin incoming:audit/admin-master-spec-20261103`. Do NOT push `main`, merge, or deploy without explicit user approval (latest instruction).
-- Production = `main` @ 3158b3c deployed (VM103 `/opt/blipmade`). `main` on GitHub is 8aebdf0 (2 commits ahead, not deployed).
+- Production = `main` @ 3158b3c deployed (VM103 `/opt/blipmade`). `main` on GitHub = 90df83d (published with user approval, not deployed).
 - Objective: finish App 3.0 (then Admin 3.0), incremental targeted checks, UI audit, then full E2E in controlled batches.
 
 ## Done
