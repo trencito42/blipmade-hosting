@@ -52,6 +52,9 @@ const AppResumeSubscription = lazy(() => import('./app/SubscriptionChange').then
 const AppRollbackDeployment = lazy(() => import('./app/instance/RollbackDeployment'));
 const AppEditDomainAddress = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.EditDomainAddress })));
 const AppDeleteDomain = lazy(() => import('./app/DomainChange').then((module) => ({ default: module.DeleteDomain })));
+const AppChangePassword = lazy(() => import('./app/ChangePassword'));
+const AppChangeEmail = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.ChangeEmail })));
+const AppEditBillingAddress = lazy(() => import('./app/SettingsEditors').then((module) => ({ default: module.EditBillingAddress })));
 const AppEditEnvFile = lazy(() => import('./app/instance/EditEnvFile'));
 const AppDeployCatalog = lazy(() => import('./app/DeployCatalog'));
 const AppDeploy = lazy(() => import('./app/Deploy'));
@@ -202,6 +205,9 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/tickets', component: AppTickets, title: 'Support', area: 'customer' },
   { pattern: '/app/tickets/new', component: AppNewTicket, title: 'New support ticket', area: 'customer' },
   { pattern: '/app/tickets/:id', component: AppTicketDetail, title: 'Ticket', area: 'customer' },
+  { pattern: '/app/settings/email/change', component: AppChangeEmail, title: 'Change email address', area: 'customer' },
+  { pattern: '/app/settings/billing-address', component: AppEditBillingAddress, title: 'Billing address', area: 'customer' },
+  { pattern: '/app/settings/password', component: AppChangePassword, title: 'Change password', area: 'customer' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
   { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },
 

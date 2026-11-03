@@ -457,3 +457,20 @@ This checklist records executable implementation work on `audit/admin-master-spe
 - Static domain tests: 3/3 pass.
 - Production build: pass; 172 pages prerendered.
 - Focused Playwright suites (domain change and add-domain editor): 5/5 pass, including exact PUT/DELETE and 390px overflow.
+
+## 2026-11-03 — Dedicated password, email and billing address pages
+
+### Completed
+
+- [x] Moved the password change to `/app/settings/password` (real `POST /settings/password`), with repeat-password validation, API field errors and a dirty guard. Values are cleared after the request and never stored.
+- [x] Moved the change of the account email to `/app/settings/email/change` (real `POST /settings/email`); the page says the address changes only when the new one answers.
+- [x] Moved the billing address to `/app/settings/billing-address` (real `PUT /settings/billing-address`), with the shared field component, validation and the VIES VAT check.
+- [x] The Settings tabs keep read-only summaries with links; name editing and sign-out stay inline (a single-field change).
+- [ ] Not done: `/app/settings/security/*` (2FA, passkeys, sessions, API keys), `/app/settings/notifications`, `/privacy` and `/closure` routes.
+
+### Verification executed
+
+- Web TypeScript check: pass.
+- Full web unit suite: all pass after this checkpoint.
+- Production build: pass; 172 pages prerendered.
+- Focused Playwright suites (password, email, billing address): 5/5 pass, including exact POST/PUT payloads, validation, dirty guards and 390px overflow.

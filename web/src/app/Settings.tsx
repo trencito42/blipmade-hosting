@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { SecurityPanels } from './SecurityPanels';
 import { BillingAddressFields, emptyBillingAddress, validateBillingAddress, type BillingAddressValue } from './BillingAddressFields';
 import {
@@ -182,7 +182,7 @@ export default function Settings() {
         {tab.id === 'profile' && (
           <>
             <ProfilePanel data={data} emailNotice={emailNotice} setEmailNotice={setEmailNotice} onChanged={state.reload} />
-            <BillingAddressPanel address={data.billingAddress} onChanged={state.reload} />
+            <BillingAddressPanel address={data.billingAddress} />
           </>
         )}
         {tab.id === 'security' && (
@@ -216,7 +216,7 @@ const SETTINGS_TABS: { id: string; label: string; icon: IconName; danger?: boole
 ];
 
 /** Checks the VAT number against VIES (the European Commission), so a typo is found before it is printed on an invoice. */
-function VatCheck({ country, taxId }: { country: string; taxId: string }) {
+export function VatCheck({ country, taxId }: { country: string; taxId: string }) {
   const [result, setResult] = useState<{ checked: boolean; valid?: boolean; name?: string | null; address?: string | null; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => setResult(null), [country, taxId]);
@@ -250,31 +250,23 @@ function VatCheck({ country, taxId }: { country: string; taxId: string }) {
   );
 }
 
-function BillingAddressPanel({ address, onChanged }: { address: BillingAddressValue | null; onChanged: () => void }) {
-  const { push } = useToast();
-  const [value, setValue] = useState<BillingAddressValue>(address ?? emptyBillingAddress);
-  const save = useAction(async () => { await put('/settings/billing-address', value); return true; });
-  const [localErrors, setLocalErrors] = useState<Partial<Record<string, string>>>({});
-  useEffect(() => { setValue(address ?? emptyBillingAddress); }, [address]);
-  const submit = async () => {
-    const problems = validateBillingAddress(value);
-    setLocalErrors(problems);
-    const names = Object.keys(problems);
-    if (names.length > 0) return;
-    const result = await save.run();
-    if (result) { push('Billing address saved'); onChanged(); }
-  };
+function BillingAddressPanel({ address }: { address: BillingAddressValue | null }) {
+  const lines = address
+    ? [address.fullName, address.companyName, address.line1, address.line2, [address.postalCode, address.city].filter(Boolean).join(' '), address.region, address.country, address.taxId ? `Tax ID ${address.taxId}` : '']
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : [];
   return (
     <Panel title="Billing address" description="These details are saved to your account and copied onto new invoices.">
-      <div className="grid gap-4">
-        <VatCheck country={value.country} taxId={value.taxId} />
-        <BillingAddressFields value={value} onChange={(next) => { setValue(next); setLocalErrors({}); }} errors={{ ...save.fieldErrors, ...localErrors }} />
-        <div><PrimaryButton onClick={() => void submit()} disabled={save.pending}>{save.pending ? 'Saving…' : 'Save billing address'}</PrimaryButton></div>
-        {(Object.keys(localErrors).length > 0 || save.error) && (
-          <p role="alert" className="text-[13px] text-bad">
-            {Object.keys(localErrors).length > 0 ? `Please fix ${Object.keys(localErrors).length === 1 ? 'the highlighted field' : `the ${Object.keys(localErrors).length} highlighted fields`} before saving.` : save.error}
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        {lines.length > 0 ? (
+          <address className="min-w-0 flex-1 text-[14px] not-italic leading-relaxed text-ink2">
+            {lines.map((line) => <span key={line} className="block break-words">{line}</span>)}
+          </address>
+        ) : (
+          <p className="min-w-0 flex-1 text-[14px] text-ink3">No billing address yet. Add one before your next invoice.</p>
         )}
+        <ButtonLink to="/app/settings/billing-address" variant="soft">{lines.length > 0 ? 'Edit' : 'Add address'}</ButtonLink>
       </div>
     </Panel>
   );
@@ -298,20 +290,9 @@ function ProfilePanel({
   const [lastName, setLastName] = useState(data.profile.lastName);
   const [touched, setTouched] = useState(false);
 
-  const [changingEmail, setChangingEmail] = useState(false);
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | undefined>();
-
   const save = useAction(async () => {
     await patch('/settings/profile', { firstName: firstName.trim(), lastName: lastName.trim() });
     return true;
-  });
-
-  const requestEmail = useAction(async () => {
-    const result = await post<{ message: string; delivered: boolean; pendingEmail: string }>('/settings/email', {
-      email: email.trim(),
-    });
-    return result;
   });
 
   const resendVerification = useAction(async () => {
@@ -328,23 +309,6 @@ function ProfilePanel({
     if (!done) return;
     toast.push('Name saved', 'ok');
     onChanged();
-  };
-
-  const onRequestEmail = async () => {
-    setEmailError(undefined);
-    try {
-      const result = await requestEmail.run();
-      if (!result) {
-        setEmailError(requestEmail.error ?? 'We could not send the confirmation link.');
-        return;
-      }
-      setChangingEmail(false);
-      setEmail('');
-      setEmailNotice(result.message);
-      onChanged();
-    } catch (error) {
-      setEmailError(messageOf(error, 'We could not send the confirmation link.'));
-    }
   };
 
   const onResendVerification = async () => {
@@ -405,12 +369,12 @@ function ProfilePanel({
               >
                 {data.profile.emailVerified ? 'Verified' : 'Not verified'}
               </span>
-              {!data.profile.emailVerified && !changingEmail && (
+              {!data.profile.emailVerified && (
                 <SoftButton onClick={() => void onResendVerification()} disabled={resendVerification.pending}>
                   {resendVerification.pending ? 'Sending…' : 'Verify email'}
                 </SoftButton>
               )}
-              {!changingEmail && <SoftButton onClick={() => setChangingEmail(true)}>Change</SoftButton>}
+              <ButtonLink to="/app/settings/email/change" variant="soft">Change</ButtonLink>
             </div>
           </div>
 
@@ -427,32 +391,6 @@ function ProfilePanel({
             </p>
           )}
 
-          {changingEmail ? (
-            <div className="grid gap-3">
-              <TextInput
-                label="New email address"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                error={emailError}
-                placeholder="name@example.com"
-              />
-              <p className="text-[12.5px] leading-relaxed text-ink3">
-                The address of the account changes only after the new address has answered. Your current address keeps
-                working until then.
-              </p>
-              <div className="flex flex-wrap justify-end gap-2">
-                <SoftButton onClick={() => setChangingEmail(false)} disabled={requestEmail.pending}>
-                  Cancel
-                </SoftButton>
-                <PrimaryButton onClick={onRequestEmail} disabled={requestEmail.pending || !email.trim()}>
-                  {requestEmail.pending ? 'Sending…' : 'Send the confirmation link'}
-                </PrimaryButton>
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <p className="text-[13px] text-ink3">
@@ -465,89 +403,14 @@ function ProfilePanel({
 
 /** The password of the account. */
 function PasswordPanel() {
-  const toast = useToast();
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [repeat, setRepeat] = useState('');
-  const [touched, setTouched] = useState(false);
-
-  const change = useAction(async () => {
-    const result = await post<{ changed: boolean; closedSessions: number }>('/settings/password', {
-      currentPassword,
-      newPassword,
-    });
-    return result;
-  });
-
-  const currentError = touched && !currentPassword ? 'Enter your current password.' : undefined;
-  const newError =
-    touched && newPassword.length < 10
-      ? 'Use at least 10 characters, an uppercase letter, a lowercase letter and a number.'
-      : undefined;
-  const repeatError = touched && repeat !== newPassword ? 'The two passwords do not match.' : undefined;
-
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setTouched(true);
-    if (!currentPassword || newPassword.length < 10 || repeat !== newPassword) return;
-    const result = await change.run();
-    if (!result) return;
-    setCurrentPassword('');
-    setNewPassword('');
-    setRepeat('');
-    toast.push(
-      result.closedSessions > 0
-        ? `Password changed. ${result.closedSessions} other session${result.closedSessions === 1 ? '' : 's'} closed.`
-        : 'Password changed',
-      'ok',
-    );
-  };
-
   return (
     <Panel title="Password" description="The password of this account.">
-      <form onSubmit={onSubmit} noValidate className="grid gap-3">
-        <TextInput
-          label="Current password"
-          type="password"
-          autoComplete="current-password"
-          value={currentPassword}
-          onChange={(event) => setCurrentPassword(event.target.value)}
-          error={currentError ?? change.fieldErrors.currentPassword}
-        />
-        <TextInput
-          label="New password"
-          type="password"
-          autoComplete="new-password"
-          value={newPassword}
-          onChange={(event) => setNewPassword(event.target.value)}
-          error={newError ?? change.fieldErrors.newPassword}
-          hint="At least 10 characters, an uppercase letter, a lowercase letter and a number."
-        />
-        <TextInput
-          label="Repeat the new password"
-          type="password"
-          autoComplete="new-password"
-          value={repeat}
-          onChange={(event) => setRepeat(event.target.value)}
-          error={repeatError}
-        />
-
-        {change.error && (
-          <p role="alert" className="rounded-2xl bg-bad/10 px-4 py-3 text-[13.5px] font-medium text-bad">
-            {change.error}
-          </p>
-        )}
-
-        <p className="text-[12.5px] leading-relaxed text-ink3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 text-[13.5px] leading-relaxed text-ink2">
           Changing the password closes the other sessions of the account. The device you are on stays signed in.
         </p>
-
-        <div className="flex justify-end">
-          <PrimaryButton type="submit" disabled={change.pending}>
-            {change.pending ? 'Saving…' : 'Change the password'}
-          </PrimaryButton>
-        </div>
-      </form>
+        <ButtonLink to="/app/settings/password" variant="soft">Change password</ButtonLink>
+      </div>
     </Panel>
   );
 }
