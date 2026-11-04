@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 TAG="e2e-import-$(date -u +%Y%m%d%H%M%S)"
 echo "=== Smart import E2E tag=$TAG ==="
-E2E_TAG="$TAG" docker compose -f compose.yml -f compose.api.yml exec -T api node <<'NODE'
+E2E_TAG="$TAG" docker compose -f compose.yml -f compose.api.yml exec -T -e E2E_TAG="$TAG" api node <<'NODE'
 import { prisma } from './dist/db.js';
 import { inspectGitUrl } from './dist/services/import-inspect.js';
 import { cleanCommand, cleanRepoUrl } from './dist/services/git-deploy.js';
