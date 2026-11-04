@@ -96,6 +96,10 @@ export async function unlinkProvider(userId: string, provider: OAuthProviderId):
   const row = await prisma.connectedIdentity.findFirst({ where: { userId, provider } });
   if (!row) throw badRequest('This provider is not connected.');
   await prisma.connectedIdentity.delete({ where: { id: row.id } });
+  if (provider === 'discord') {
+    const { handleDiscordIdentityUnlinked } = await import('../discord/community.js');
+    await handleDiscordIdentityUnlinked(userId);
+  }
 }
 
 export async function listConnections(userId: string) {

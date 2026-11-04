@@ -3,7 +3,11 @@ import { z } from 'zod';
 import { env } from '../env.js';
 import { badRequest } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
-import { syncDiscordRolesForUser } from '../services/discord/community.js';
+import {
+  addMemberWithOAuthAccess,
+  getCustomerCommunityStatus,
+  syncDiscordRolesForUser,
+} from '../services/discord/community.js';
 import { buildAuthorizeRedirect } from '../services/oauth/flow.js';
 import { webReturnToFromRequest, resolveWebAppUrl } from '../services/oauth/providers.js';
 import { consumeOAuthTransaction } from '../services/oauth/transactions.js';
@@ -13,27 +17,15 @@ import { prisma } from '../db.js';
 export async function registerDiscordCommunityRoutes(app: FastifyInstance): Promise<void> {
   app.get('/integrations/discord/community/status', async (request) => {
     const user = await requireAuth(request);
-    const link = await prisma.discordCommunityLink.findUnique({ where: { userId: user.id } });
-    const identity = await prisma.connectedIdentity.findFirst({ where: { userId: user.id, provider: 'discord' } });
-    return {
-      enabled: env.discordCommunityEnabled,
-      discordLinked: Boolean(identity),
-      link: link
-        ? {
-            joinedAt: link.joinedAt?.toISOString() ?? null,
-            syncState: link.syncState,
-            lastSyncAt: link.lastSyncAt?.toISOString() ?? null,
-            lastError: link.lastError,
-          }
-        : null,
-    };
+    return getCustomerCommunityStatus(user.id);
   });
 
   app.post('/integrations/discord/community/join/start', async (request) => {
     const user = await requireAuth(request);
     if (!env.discordCommunityEnabled) throw badRequest('Discord community is not configured.');
-    const identity = await prisma.connectedIdentity.findFirst({ where: { userId: user.id, provider: 'discord' } });
-    if (!identity) throw badRequest('Connect Discord for sign-in first, then join the community server.');
+    const status = await getCustomerCommunityStatus(user.id);
+    if (!status.discordLinked) throw badRequest('Connect Discord under sign-in providers first.');
+    if (status.inGuild) throw badRequest('You are already a member of the community server.');
     const url = await buildAuthorizeRedirect({
       provider: 'discord',
       intent: 'discord_guild_join',
@@ -45,8 +37,15 @@ export async function registerDiscordCommunityRoutes(app: FastifyInstance): Prom
 
   app.post('/integrations/discord/community/sync', async (request) => {
     const user = await requireAuth(request);
+    if (!env.discordCommunityEnabled) throw badRequest('Discord community is not configured.');
     await syncDiscordRolesForUser(user.id);
-    return { ok: true };
+    return getCustomerCommunityStatus(user.id);
+  });
+
+  app.post('/integrations/discord/community/refresh', async (request) => {
+    const user = await requireAuth(request);
+    if (!env.discordCommunityEnabled) throw badRequest('Discord community is not configured.');
+    return getCustomerCommunityStatus(user.id);
   });
 }
 

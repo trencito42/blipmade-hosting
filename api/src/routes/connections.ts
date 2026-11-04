@@ -7,6 +7,7 @@ import { requireAuth } from '../plugins/auth.js';
 import { verifyPassword } from '../lib/password.js';
 import { userHasPassword } from '../services/account-auth-methods.js';
 import { listConnections, unlinkProvider } from '../services/oauth/identity.js';
+import { getCustomerCommunityStatus } from '../services/discord/community.js';
 import { buildAuthorizeRedirect } from '../services/oauth/flow.js';
 import { listLoginProviders, webReturnToFromRequest } from '../services/oauth/providers.js';
 import type { OAuthProviderId } from '../services/oauth/types.js';
@@ -38,7 +39,7 @@ export async function registerConnectionsRoutes(app: FastifyInstance): Promise<v
         _count: { select: { repositories: true } },
       },
     });
-    const discord = await prisma.discordCommunityLink.findUnique({ where: { userId: user.id } });
+    const discordCommunity = await getCustomerCommunityStatus(user.id);
     return {
       providers: listLoginProviders(),
       identities,
@@ -52,15 +53,7 @@ export async function registerConnectionsRoutes(app: FastifyInstance): Promise<v
         connectedAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
       })),
-      discordCommunity: discord
-        ? {
-            guildId: discord.guildId,
-            joinedAt: discord.joinedAt?.toISOString() ?? null,
-            syncState: discord.syncState,
-            lastSyncAt: discord.lastSyncAt?.toISOString() ?? null,
-            lastError: discord.lastError,
-          }
-        : null,
+      discordCommunity,
     };
   });
 

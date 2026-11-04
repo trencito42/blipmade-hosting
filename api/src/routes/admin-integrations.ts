@@ -1,12 +1,22 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { env } from '../env.js';
 import { prisma } from '../db.js';
 import { requirePermission } from '../plugins/auth.js';
+import { audit } from '../lib/audit.js';
+import {
+  adminRetryDiscordSync,
+  fetchGuildRoles,
+  probeDiscordBotHealth,
+  reconcileDiscordCommunity,
+} from '../services/discord/community.js';
+import { DISCORD_RULE_CATALOG, DISCORD_RULE_KEYS, ensureDefaultDiscordRoleMappings } from '../services/discord/rules.js';
 
 export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/admin/integrations', async (request) => {
     await requirePermission('settings.read')(request);
-    const [identities, installations, discordLinks, failedDiscord, suspendedGithub, discordFailures] = await Promise.all([
+    await ensureDefaultDiscordRoleMappings();
+    const [identities, installations, discordLinks, failedDiscord, suspendedGithub, discordFailures, health] = await Promise.all([
       prisma.connectedIdentity.groupBy({ by: ['provider'], _count: { _all: true } }),
       prisma.gitHubAppInstallation.count({ where: { suspendedAt: null } }),
       prisma.discordCommunityLink.count({ where: { joinedAt: { not: null } } }),
@@ -23,6 +33,7 @@ export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Pro
         orderBy: { updatedAt: 'desc' },
         select: { userId: true, syncState: true, lastError: true, lastSyncAt: true },
       }),
+      probeDiscordBotHealth(),
     ]);
     return {
       oauth: {
@@ -44,6 +55,8 @@ export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Pro
       discordCommunity: {
         enabled: env.discordCommunityEnabled,
         guildConfigured: Boolean(env.DISCORD_GUILD_ID),
+        guildName: health.guild?.name ?? null,
+        botHealth: health,
         membersJoined: discordLinks,
         syncErrors: failedDiscord,
         recentFailures: discordFailures.map((row) => ({
@@ -56,20 +69,69 @@ export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Pro
     };
   });
 
+  app.get('/admin/integrations/discord', async (request) => {
+    await requirePermission('settings.read')(request);
+    await ensureDefaultDiscordRoleMappings();
+    const [health, roles, mappings, failures] = await Promise.all([
+      probeDiscordBotHealth(),
+      fetchGuildRoles(),
+      prisma.discordRoleMapping.findMany({ orderBy: { ruleKey: 'asc' } }),
+      prisma.discordCommunityLink.findMany({
+        where: { OR: [{ syncState: 'error' }, { lastError: { not: null } }] },
+        take: 30,
+        orderBy: { updatedAt: 'desc' },
+        select: { userId: true, discordUserId: true, syncState: true, lastError: true, lastSyncAt: true, joinedAt: true },
+      }),
+    ]);
+    return {
+      health,
+      guildRoles: roles.filter((r) => r.name !== '@everyone').map((r) => ({ id: r.id, name: r.name, managed: r.managed })),
+      ruleCatalog: DISCORD_RULE_CATALOG,
+      mappings,
+      failures: failures.map((row) => ({
+        ...row,
+        lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+        joinedAt: row.joinedAt?.toISOString() ?? null,
+      })),
+    };
+  });
+
+  app.post('/admin/integrations/discord/reconcile', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const body = z.object({ limit: z.number().int().min(1).max(200).optional() }).parse(request.body ?? {});
+    const count = await reconcileDiscordCommunity(body.limit ?? 50);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.community_reconcile', meta: { count } });
+    return { reconciled: count };
+  });
+
+  app.post('/admin/integrations/discord/users/:userId/sync', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const userId = (request.params as { userId: string }).userId;
+    await adminRetryDiscordSync(userId, actor.id);
+    return { ok: true };
+  });
+
   app.get('/admin/integrations/discord/roles', async (request) => {
     await requirePermission('settings.read')(request);
-    return { mappings: await prisma.discordRoleMapping.findMany({ orderBy: { ruleKey: 'asc' } }) };
+    await ensureDefaultDiscordRoleMappings();
+    const mappings = await prisma.discordRoleMapping.findMany({ orderBy: { ruleKey: 'asc' } });
+    return { mappings, ruleCatalog: DISCORD_RULE_CATALOG, ruleKeys: DISCORD_RULE_KEYS };
   });
 
   app.put('/admin/integrations/discord/roles/:ruleKey', async (request) => {
-    await requirePermission('settings.write')(request);
+    const actor = await requirePermission('settings.write')(request);
     const ruleKey = (request.params as { ruleKey: string }).ruleKey;
-    const body = (request.body ?? {}) as { discordRoleId?: string; enabled?: boolean };
+    if (!DISCORD_RULE_KEYS.includes(ruleKey)) {
+      const { badRequest } = await import('../lib/errors.js');
+      throw badRequest('Unknown rule key.');
+    }
+    const body = z.object({ discordRoleId: z.string().max(32).optional(), enabled: z.boolean().optional() }).parse(request.body ?? {});
     const row = await prisma.discordRoleMapping.upsert({
       where: { ruleKey },
-      create: { ruleKey, discordRoleId: body.discordRoleId ?? '', enabled: body.enabled ?? true },
-      update: { discordRoleId: body.discordRoleId ?? '', enabled: body.enabled ?? true },
+      create: { ruleKey, discordRoleId: body.discordRoleId ?? '', enabled: body.enabled ?? false },
+      update: { ...(body.discordRoleId !== undefined ? { discordRoleId: body.discordRoleId } : {}), ...(body.enabled !== undefined ? { enabled: body.enabled } : {}) },
     });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.role_mapping_update', meta: { ruleKey, enabled: row.enabled } });
     return { mapping: row };
   });
 }

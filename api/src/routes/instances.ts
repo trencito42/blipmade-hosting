@@ -507,6 +507,10 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'cancelled', message: 'Cancellation requested. The service runs until the end of the paid period.' } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.cancelled', targetType: 'instance', targetId: instance.id });
 
+    void import('../services/discord/community.js')
+      .then((m) => m.queueDiscordCommunitySync(user.id))
+      .catch(() => undefined);
+
     if (!wasCancelled) {
       // The moment of the cancellation is the occurrence, so a service that is
       // cancelled again after a new period has a message of its own.

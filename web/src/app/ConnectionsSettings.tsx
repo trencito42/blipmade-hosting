@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ApiError, del, get, post } from '../lib/api';
 import { useAsync, useAction } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
@@ -32,7 +32,20 @@ interface ConnectionsResponse {
     repositoryCount: number;
     connectedAt: string;
   }[];
-  discordCommunity: { syncState: string; joinedAt: string | null; lastError: string | null } | null;
+  discordCommunity: {
+    enabled: boolean;
+    configured: boolean;
+    discordLinked: boolean;
+    discordUsername: string | null;
+    guildName: string | null;
+    inGuild: boolean;
+    syncState: string;
+    joinedAt: string | null;
+    lastSyncAt: string | null;
+    lastError: string | null;
+    managedRoles: { ruleKey: string; label: string; roleId: string; active: boolean }[];
+    operatorMessage: string | null;
+  };
 }
 
 const PROVIDER_META: Record<string, { title: string; blurb: string; initial: string }> = {
@@ -99,6 +112,15 @@ export function ConnectionsSettings() {
     toast.push('Discord roles synced', 'ok');
     reload();
   });
+  const refreshDiscord = useAction(async () => {
+    await post('/integrations/discord/community/refresh', {});
+    reload();
+  });
+
+  useEffect(() => {
+    if (query.discord_join === '1') void refreshDiscord.run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.discord_join]);
 
   const banner = useMemo(() => {
     if (query.linked === '1') return { tone: 'good' as const, text: 'Provider linked successfully.' };
@@ -203,30 +225,137 @@ export function ConnectionsSettings() {
             )}
           </Panel>
 
-          <Panel title="Discord community" description="Optional server membership and role sync, separate from Discord sign-in.">
-            {data.discordCommunity?.joinedAt ? (
-              <div className="grid gap-3">
-                <p className="text-[14px] text-ink2">
-                  Member since {since(data.discordCommunity.joinedAt)}. Sync: {data.discordCommunity.syncState}.
-                </p>
-                <SoftButton disabled={syncDiscord.pending} onClick={() => syncDiscord.run().catch((e) => toast.push(e instanceof ApiError ? e.message : 'Sync failed', 'error'))}>
-                  Sync roles now
-                </SoftButton>
-              </div>
-            ) : identityMap.has('discord') ? (
-              <div className="grid gap-3">
-                <p className="text-[14px] text-ink2">Connect Discord above, then authorize joining the Blipmade community server (consent for guilds.join).</p>
-                <PrimaryButton disabled={joinDiscord.pending} onClick={() => joinDiscord.run().catch((e) => toast.push(e instanceof ApiError ? e.message : 'Could not start join', 'error'))}>
-                  Join community server
-                </PrimaryButton>
-              </div>
-            ) : (
-              <p className="text-[14px] text-ink2">Connect Discord under sign-in providers first.</p>
-            )}
-            {data.discordCommunity?.lastError ? <p className="mt-2 text-[13px] text-bad">{data.discordCommunity.lastError}</p> : null}
+          <Panel title="Discord community" description="Optional membership in the Blipmade Discord server and automatic roles from your account — not required for hosting.">
+            <DiscordCommunityPanel
+              community={data.discordCommunity}
+              discordConnectPending={link.pending}
+              onConnectDiscord={() => link.run('discord').catch((e) => toast.push(e instanceof ApiError ? e.message : 'Could not start linking', 'error'))}
+              joinPending={joinDiscord.pending}
+              onJoin={() => joinDiscord.run().catch((e) => toast.push(e instanceof ApiError ? e.message : 'Could not start join', 'error'))}
+              syncPending={syncDiscord.pending}
+              onSync={() => syncDiscord.run().catch((e) => toast.push(e instanceof ApiError ? e.message : 'Sync failed', 'error'))}
+              refreshPending={refreshDiscord.pending}
+              onRefresh={() => refreshDiscord.run().catch(() => reload())}
+            />
           </Panel>
         </>
       )}
+    </div>
+  );
+}
+
+function syncLabel(state: string): string {
+  if (state === 'synced') return 'Roles up to date';
+  if (state === 'error') return 'Sync error';
+  if (state === 'not_member') return 'Not in server';
+  if (state === 'joined') return 'Member — roles pending sync';
+  return state.replaceAll('_', ' ');
+}
+
+function DiscordCommunityPanel({
+  community,
+  discordConnectPending,
+  onConnectDiscord,
+  joinPending,
+  onJoin,
+  syncPending,
+  onSync,
+  refreshPending,
+  onRefresh,
+}: {
+  community: ConnectionsResponse['discordCommunity'];
+  discordConnectPending: boolean;
+  onConnectDiscord: () => void;
+  joinPending: boolean;
+  onJoin: () => void;
+  syncPending: boolean;
+  onSync: () => void;
+  refreshPending: boolean;
+  onRefresh: () => void;
+}) {
+  if (!community.enabled) {
+    return <p className="text-[14px] text-ink2">{community.operatorMessage ?? 'Community server integration is not available on this environment.'}</p>;
+  }
+
+  if (community.operatorMessage && !community.discordLinked) {
+    return (
+      <p role="alert" className="rounded-xl bg-bad/10 px-4 py-3 text-[14px] text-bad">
+        {community.operatorMessage}
+      </p>
+    );
+  }
+
+  if (!community.discordLinked) {
+    return (
+      <div className="grid gap-3">
+        <p className="text-[14px] leading-relaxed text-ink2">
+          Link Discord under <strong className="font-semibold text-ink">Sign-in providers</strong> first. That only covers login — joining the community server is a separate step.
+        </p>
+        <PrimaryButton disabled={discordConnectPending} onClick={onConnectDiscord}>
+          Connect Discord for sign-in
+        </PrimaryButton>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium text-ink">{community.discordUsername ?? 'Discord connected'}</p>
+          <p className="mt-0.5 text-[13px] text-ink3">
+            {community.guildName ? `Server: ${community.guildName}` : 'Community server'}
+            {community.inGuild && community.joinedAt ? ` · member since ${since(community.joinedAt)}` : community.inGuild ? ' · member' : ' · not joined yet'}
+          </p>
+        </div>
+        <StatusPill
+          status={community.syncState === 'synced' ? 'available' : community.syncState === 'error' ? 'failed' : 'pending'}
+          label={syncLabel(community.syncState)}
+        />
+      </div>
+
+      {community.operatorMessage ? (
+        <p role="alert" className="rounded-xl bg-bad/10 px-4 py-3 text-[13.5px] text-bad">{community.operatorMessage}</p>
+      ) : null}
+
+      {!community.inGuild ? (
+        <div className="grid gap-2">
+          <p className="text-[14px] text-ink2">
+            You are not in the Blipmade Discord server yet. One consent step adds you with <span className="font-mono text-[13px]">guilds.join</span> — your login scopes stay minimal.
+          </p>
+          <PrimaryButton disabled={joinPending || Boolean(community.operatorMessage)} onClick={onJoin}>
+            {joinPending ? 'Redirecting…' : 'Join Blipmade Discord'}
+          </PrimaryButton>
+        </div>
+      ) : (
+        <>
+          {community.managedRoles.length > 0 ? (
+            <ul className="grid gap-2">
+              {community.managedRoles.map((role) => (
+                <li key={role.ruleKey} className="flex items-center justify-between gap-2 rounded-xl border border-line/80 px-3 py-2 text-[13.5px]">
+                  <span className="text-ink2">{role.label}</span>
+                  <StatusPill status={role.active ? 'available' : 'unavailable'} label={role.active ? 'Active' : 'Not eligible'} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-ink3">No community roles are mapped yet. Operators configure mappings in Admin → Integrations → Discord.</p>
+          )}
+          <p className="text-[12.5px] text-ink3">
+            Last sync: {community.lastSyncAt ? new Date(community.lastSyncAt).toLocaleString() : 'Never'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <SoftButton disabled={syncPending} onClick={onSync}>
+              {syncPending ? 'Syncing…' : 'Sync roles now'}
+            </SoftButton>
+            <SoftButton disabled={refreshPending} onClick={onRefresh}>
+              Refresh membership
+            </SoftButton>
+          </div>
+        </>
+      )}
+
+      {community.lastError ? <p role="alert" className="text-[13px] font-medium text-bad">{community.lastError}</p> : null}
     </div>
   );
 }

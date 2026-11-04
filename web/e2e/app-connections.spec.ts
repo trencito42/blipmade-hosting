@@ -25,7 +25,20 @@ async function stub(page: Page, calls: { unlink?: { url: string; body: unknown }
         ],
         identities: [{ provider: 'github', displayName: 'octo', avatarUrl: null, connectedAt: '2026-11-01T00:00:00.000Z', lastUsedAt: null }],
         githubInstallations: [],
-        discordCommunity: null,
+        discordCommunity: {
+          enabled: true,
+          configured: true,
+          discordLinked: true,
+          discordUsername: 'TestUser',
+          guildName: 'Blipmade',
+          inGuild: false,
+          syncState: 'not_member',
+          joinedAt: null,
+          lastSyncAt: null,
+          lastError: null,
+          managedRoles: [],
+          operatorMessage: null,
+        },
       });
     }
     if (path === '/account/connections/github' && req.method() === 'DELETE') {

@@ -2087,6 +2087,10 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
 
     await audit({ action: 'instance.provisioned', targetType: 'instance', targetId: instance.id });
 
+    void import('./discord/community.js')
+      .then((m) => m.queueDiscordCommunitySync(instance.userId))
+      .catch(() => undefined);
+
     // The customer hears that the service is ready only when the application is ready.
     // An imported project still has to build inside the container and pass its health check.
     if (!importPending) {

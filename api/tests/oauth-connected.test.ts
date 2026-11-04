@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hashOAuthState, generateOAuthState, pkceChallenge, generatePkceVerifier } from '../src/services/oauth/providers.js';
 import { userHasPassword } from '../src/services/account-auth-methods.js';
-import { mergeManagedDiscordRoles } from '../src/services/discord/community.js';
+import { mergeManagedDiscordRoles, computeManagedRoleDelta } from '../src/services/discord/community.js';
 import { readOAuth2faCookie, resolveSecondStepToken } from '../src/services/oauth/oauth-2fa-cookie.js';
 
 describe('oauth providers helpers', () => {
@@ -35,6 +35,10 @@ describe('discord role merge (mocked member roles)', () => {
     const member = ['everyone', 'role-a', 'custom-mod', 'role-b'];
     const grant = ['role-b'];
     expect(mergeManagedDiscordRoles(member, managed, grant)).toEqual(['everyone', 'custom-mod', 'role-b']);
+  });
+
+  it('computes add/remove without patching unrelated roles', () => {
+    expect(computeManagedRoleDelta(['everyone', 'role-a'], ['role-a', 'role-b'], ['role-b'])).toEqual({ add: ['role-b'], remove: ['role-a'] });
   });
 });
 

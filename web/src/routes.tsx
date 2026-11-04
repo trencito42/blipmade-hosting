@@ -201,6 +201,7 @@ const AdminAudit = lazy(() => import('./admin/Audit'));
 const AdminStaff = lazy(() => import('./admin/Staff'));
 const AdminSettings = lazy(() => import('./admin/Settings'));
 const AdminIntegrations = lazy(() => import('./admin/Integrations'));
+const AdminIntegrationsDiscord = lazy(() => import('./admin/IntegrationsDiscord'));
 const AdminEmailNotifications = lazy(() => import('./admin/EmailNotifications'));
 
 interface RouteDef {
@@ -409,6 +410,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/admin/staff/:id/permissions/edit', component: AdminStaffEdit, title: 'Staff rights', area: 'admin', layout: 'editor' },
   { pattern: '/admin/staff', component: AdminStaff, title: 'Staff & permissions', area: 'admin' },
   { pattern: '/staff-invite', component: StaffInviteAccept, title: 'Accept a staff invitation' },
+  { pattern: '/admin/settings/integrations/discord', component: AdminIntegrationsDiscord, title: 'Discord community', area: 'admin' },
   { pattern: '/admin/settings/integrations', component: AdminIntegrations, title: 'Integrations', area: 'admin' },
   { pattern: '/admin/settings/:section/edit', component: AdminSettingsEdit, title: 'Edit settings', area: 'admin', layout: 'editor' },
   { pattern: '/admin/settings', component: AdminSettings, title: 'Settings', area: 'admin' },

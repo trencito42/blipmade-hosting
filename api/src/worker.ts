@@ -542,7 +542,7 @@ async function main(): Promise<void> {
     setInterval(
       () =>
         void import('./services/discord/community.js')
-          .then(({ reconcileDiscordRoles }) => reconcileDiscordRoles(40))
+          .then(({ reconcileDiscordCommunity }) => reconcileDiscordCommunity(40))
           .catch((error) => console.error('[worker] discord role reconcile failed', error)),
       15 * 60_000,
     ),
