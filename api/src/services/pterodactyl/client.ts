@@ -788,8 +788,34 @@ export function createDatabase(
  * list of hosts that may connect cannot be changed by the customer, so the
  * panel does not offer them.
  */
-export function rotateDatabasePassword(token: string, uuid: string, id: string) {
-  return clientRequest<void>('POST', `/api/client/servers/${uuid}/databases/${id}/rotate-password`, { token });
+function mapDatabaseEntry(entry: Record<string, unknown> | undefined): ClientDatabase | null {
+  if (!entry) return null;
+  const attributes = (entry.attributes ?? entry) as Record<string, unknown>;
+  const host = (attributes.host ?? {}) as Record<string, unknown>;
+  const id = String(attributes.id ?? attributes.identifier ?? '');
+  if (!id) return null;
+  return {
+    id,
+    name: String(attributes.name ?? attributes.database ?? ''),
+    username: String(attributes.username ?? attributes.name ?? ''),
+    host: String(host.address ?? attributes.host ?? ''),
+    port: Number(host.port ?? attributes.port ?? 0),
+    password: typeof attributes.password === 'string' ? attributes.password : null,
+    remote: String(attributes.connections_from ?? attributes.remote ?? ''),
+  };
+}
+
+export function rotateDatabasePassword(token: string, uuid: string, id: string): Promise<ClientDatabase> {
+  return clientRequest<unknown>('POST', `/api/client/servers/${uuid}/databases/${id}/rotate-password`, { token }).then(async (payload) => {
+    const direct = mapDatabaseEntry((payload as { attributes?: Record<string, unknown> }) ?? undefined);
+    if (direct?.password) return direct;
+    const fromEnvelope = mapDatabaseEntry(collectionEntries<Record<string, unknown>>(payload)[0]);
+    if (fromEnvelope?.password) return fromEnvelope;
+    const listed = (await listDatabases(token, uuid)).find((database) => database.id === id);
+    if (!listed) throw new Error('The panel does not know this database.');
+    if (!listed.password) throw new Error('The panel did not return a database password.');
+    return listed;
+  });
 }
 
 export function deleteDatabase(token: string, uuid: string, id: string) {

@@ -253,6 +253,7 @@ export async function updateDatabase(
   id: string,
   payload: { password?: string },
 ) {
+  void payload;
   return call(instance, token, (t) => client.rotateDatabasePassword(t, serverUuid(instance), id));
 }
 

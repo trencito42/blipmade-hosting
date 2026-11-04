@@ -158,8 +158,7 @@ async function linkAttachedMysql(app: LinkedApp, sourceId: string): Promise<{ ke
   if (!row?.id) return null;
   let creds = await operations.databaseCredentials(token, instance, row.id);
   if (!creds.password) {
-    await operations.updateDatabase(token, instance, row.id, {});
-    creds = await operations.databaseCredentials(token, instance, row.id);
+    creds = await operations.updateDatabase(token, instance, row.id, {});
   }
   if (!creds.password) return null;
   const endpoint: ServiceEndpoint = {
