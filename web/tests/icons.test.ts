@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ICONS, PRODUCT_ICONS, iconClasses, iconNames } from "../src/icon-map.ts";
+import { ICONS, PRODUCT_ICONS, SOCIAL_ICONS, iconClasses, iconNames } from "../src/icon-map.ts";
 
 /**
  * The icons of the interface.
@@ -83,6 +83,17 @@ test("every icon of a product is an icon the installed font has", (t) => {
   const css = readFileSync(cssPath, "utf8");
   for (const [slug, spec] of Object.entries(PRODUCT_ICONS)) {
     assert.ok(css.includes(`.fa-${spec.name}`), `the font has no icon named ${spec.name}, which ${slug} asks for`);
+  }
+});
+
+test("every mark of a sign-in provider is a brand the installed font has", (t) => {
+  if (!installed) {
+    t.skip("the icon font is not installed on this machine");
+    return;
+  }
+  const css = readFileSync(cssPath, "utf8");
+  for (const [provider, name] of Object.entries(SOCIAL_ICONS)) {
+    assert.ok(css.includes(`.fa-${name}`), `the font has no brand named ${name}, which ${provider} asks for`);
   }
 });
 
