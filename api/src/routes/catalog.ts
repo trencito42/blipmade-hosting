@@ -302,7 +302,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       const repoUrl = body.url ? cleanRepoUrl(body.url) : null;
       const ram = Math.min(product.maxRam ?? product.defaultRam, Math.max(product.defaultRam, proposal.recommendedRam ?? product.defaultRam));
       const quote = await buildQuote([
-        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug },
+        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug, managedImport: true },
         ...companions.map((row) => ({ productSlug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk, name: row.slug })),
       ], null, user.id);
       const plan = await prisma.importSource.create({
@@ -404,9 +404,14 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         const user = await requireAuth(request);
         const source = await prisma.importSource.findFirst({
           where: { id: body.importSourceId, userId: user.id },
-          select: { confirmedServices: true },
+          select: { confirmedServices: true, productSlug: true },
         });
         if (!source) throw badRequest('That import was not found.');
+        items = items.map((item) => (
+          item.productSlug === source.productSlug
+            ? { ...item, importSourceId: body.importSourceId, managedImport: true }
+            : item
+        ));
         const companions = (await Promise.all(source.confirmedServices.map(async (slug) => {
           const row = await prisma.product.findUnique({ where: { slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, visible: true, deployable: true } });
           return row?.visible && row.deployable ? { slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk } : null;

@@ -25,6 +25,7 @@ import { ProductTile } from '../ui';
 import { mailCheckoutPath } from './EmailHosting';
 import { ButtonLink, EmptyState, ErrorState, LoadingBlock, Panel, Segmented, SoftButton, StatusPill, TextInput } from '../ui-app';
 import { get } from '../lib/api';
+import { useRouter } from '../router';
 import { ImportProject } from './ImportProject';
 import { useAsync } from '../lib/useAsync';
 
@@ -181,16 +182,19 @@ function ProductGrid({ products }: { products: CatalogProduct[] }) {
 interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { label?: string; product: { slug: string; name?: string; category?: string; orderable: boolean } }[] }
 
 export default function DeployCatalog() {
+  const { query: routeQuery } = useRouter();
+  const journeyFromQuery = routeQuery.journey === 'import' || routeQuery.journey === 'templates' ? routeQuery.journey : 'catalog';
+  const [journey, setJourney] = useState<'catalog' | 'import' | 'templates'>(journeyFromQuery);
   const { products, loading } = useCatalogProducts();
   const familiesState = useAsync<{ families: CatalogFamilyCard[] }>((signal) => get('/catalog/families', undefined, signal), []);
   const families = familiesState.data?.families ?? [];
-  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState<'recommended' | 'name' | 'price-asc' | 'price-desc'>('recommended');
   // What is shown by default is what can be bought. The rest is one choice away, not a second list.
   const [availability, setAvailability] = useState<'ready' | 'all'>('ready');
   const listRef = useRef<HTMLDivElement>(null);
-  useRevealOnChange(listRef, [category, query, sort, availability], 20);
+  useRevealOnChange(listRef, [category, search, sort, availability], 20);
 
   // Only the categories that really exist in the catalog are offered, in the
   // order of the public catalog.
@@ -202,7 +206,7 @@ export default function DeployCatalog() {
     return [...seen].sort((left, right) => categoryOrder(left) - categoryOrder(right) || left.localeCompare(right));
   }, [products]);
   const matching = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = search.trim().toLowerCase();
     const found = listed.filter((product) => {
       const matchesCategory = category === 'All' || product.category === category;
       const label = categoryOf(product.category).label.toLowerCase();
@@ -224,55 +228,101 @@ export default function DeployCatalog() {
       });
     }
     return found;
-  }, [listed, query, category, sort]);
+  }, [listed, search, category, sort]);
 
   const shownFamilies = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = search.trim().toLowerCase();
     return grouped.filter((family) => {
       const familyCategory = family.variants.find((variant) => variant.product.category)?.product.category;
       const matchesCategory = category === 'All' || familyCategory === category;
       const matchesQuery = !needle || family.name.toLowerCase().includes(needle) || family.variants.some((variant) => (variant.label || variant.product.slug).toLowerCase().includes(needle));
       return matchesCategory && matchesQuery;
     });
-  }, [grouped, query, category]);
+  }, [grouped, search, category]);
   const ready = matching.filter((product) => isOrderable(product));
   const soon = availability === 'all' ? matching.filter((product) => !isOrderable(product)) : [];
   const deployableCount = useMemo(() => products.filter((product) => isOrderable(product)).length, [products]);
 
   const countOf = (code: string) => products.filter((product) => (code === 'All' ? true : product.category === code) && isOrderable(product)).length;
 
+  const templateFamilies = useMemo(
+    () => families.filter((family) => family.variants.some((variant) => variant.product.orderable)),
+    [families],
+  );
+
   return (
-    <div className="grid gap-5">
-      <div className="min-w-0">
-        <h2 className="font-display text-[24px] leading-tight font-semibold tracking-[-0.03em] text-ink">Choose what you want to run.</h2>
-        <p className="mt-1 text-[14px] text-ink3">
-          {loading ? 'Loading the catalog.' : `${deployableCount} ${deployableCount === 1 ? 'product is' : 'products are'} ready to deploy.`}
-        </p>
-      </div>
-      <ImportProject />
-      <Panel title="Discord bot templates" description="Order the Discord bot, then install moderation, welcome or tickets from the server. The files are written into that bot.">
-        <ul className="grid gap-2 text-[14px] text-ink2">
-          <li>Message bot. Commands in one server, discord.js.</li>
-          <li>Slash commands. Registers commands when the bot starts.</li>
-          <li>TypeScript bot. Compiled before the start script runs.</li>
-        </ul>
-        <Link to="/app/deploy/discord-bot" className="mt-3 inline-flex font-semibold text-acc">Order the Discord bot</Link>
-      </Panel>
+    <div className="grid gap-6">
+      <header className="grid gap-3 border-b border-line pb-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-display text-[26px] leading-tight font-semibold tracking-[-0.03em] text-ink sm:text-[28px]">Deploy</h2>
+            <p className="mt-1 max-w-2xl text-[14px] text-ink3">
+              {loading ? 'Loading the catalog.' : `${deployableCount} products are ready to deploy on this platform.`}
+            </p>
+          </div>
+          <Segmented
+            value={journey}
+            onChange={(value) => setJourney(value as typeof journey)}
+            options={[
+              { value: 'catalog', label: 'Catalog' },
+              { value: 'import', label: 'Import project' },
+              { value: 'templates', label: 'Templates' },
+            ]}
+            ariaLabel="Deploy journey"
+          />
+        </div>
+      </header>
+
+      {journey === 'import' && <ImportProject />}
+
+      {journey === 'templates' && (
+        <section className="grid gap-4" aria-label="Starter templates">
+          <p className="max-w-2xl text-[14px] text-ink3">
+            Templates are real catalog families with presets. Choose one, configure resources, and the preset is applied after the server is online.
+          </p>
+          {familiesState.loading ? (
+            <LoadingBlock rows={3} label="Loading templates" />
+          ) : templateFamilies.length === 0 ? (
+            <EmptyState title="No templates yet." description="Order a product from the catalog, then pick a preset on the deploy page." action={<ButtonLink to="/app/deploy">Browse catalog</ButtonLink>} />
+          ) : (
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {templateFamilies.map((family) => (
+                <li key={family.slug}>
+                  <Link
+                    to={`/app/deploy/families/${encodeURIComponent(family.slug)}`}
+                    className="grid h-full gap-3 rounded-[20px] border border-line bg-card p-5 transition-colors hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-display text-[18px] font-semibold tracking-[-0.02em] text-ink">{family.name}</p>
+                      <Icon name="arrow" size={14} className="mt-1 text-ink3" />
+                    </div>
+                    <p className="line-clamp-3 text-[13.5px] leading-relaxed text-ink2">{family.summary}</p>
+                    <p className="text-[12.5px] text-ink3">{family.variants.filter((variant) => variant.product.orderable).length} orderable variants</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {journey === 'catalog' && (
+        <>
       {shownFamilies.length > 0 && (
-        <section className="grid gap-3" aria-label="Grouped products">
+        <section className="grid gap-2" aria-label="Product families">
+          <h3 className="text-[13px] font-semibold uppercase tracking-wide text-ink3">Families</h3>
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {shownFamilies.map((family) => (
               <li key={family.slug}>
-                <Link to={`/app/deploy/families/${encodeURIComponent(family.slug)}`} className="grid h-full gap-2 rounded-[24px] border border-line bg-card p-5 transition-colors hover:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
-                  <p className="font-display text-[20px] font-semibold tracking-[-0.03em] text-ink">{family.name}</p>
-                  <p className="line-clamp-2 text-[13.5px] text-ink2">{family.variants.map((variant) => variant.label || variant.product.name || variant.product.slug).join(', ')}</p>
+                <Link to={`/app/deploy/families/${encodeURIComponent(family.slug)}`} className="grid h-full gap-2 rounded-[20px] border border-line bg-card p-4 transition-colors hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+                  <p className="font-display text-[17px] font-semibold tracking-[-0.02em] text-ink">{family.name}</p>
+                  <p className="line-clamp-2 text-[13px] text-ink2">{family.summary || family.variants.map((variant) => variant.label || variant.product.slug).join(', ')}</p>
                 </Link>
               </li>
             ))}
           </ul>
         </section>
       )}
-
       <div className="grid gap-3 sm:flex sm:items-center">
         <ScrollRow label="Filter the catalog by category" className="flex-1">
           <div className="flex w-max gap-1.5">
@@ -300,8 +350,8 @@ export default function DeployCatalog() {
           <Icon name="search" size={14} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink3" />
           <input
             type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             aria-label="Search the catalog"
             placeholder="Search the catalog"
             autoComplete="off"
@@ -352,7 +402,7 @@ export default function DeployCatalog() {
             title="No product matches your search."
             description="Clear the search or pick another category to see the catalog again."
             action={
-              <SoftButton onClick={() => { setQuery(''); setCategory('All'); }}>Clear filters</SoftButton>
+              <SoftButton onClick={() => { setSearch(''); setCategory('All'); }}>Clear filters</SoftButton>
             }
           />
         ) : (
@@ -375,6 +425,8 @@ export default function DeployCatalog() {
           </>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

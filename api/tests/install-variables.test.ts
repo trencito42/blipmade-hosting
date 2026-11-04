@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { checkCustomerVariables } from '../src/services/instance-credentials.js';
 import { applyInstallVariables, checkoutSpecs } from '../src/services/install-variables.js';
 
 describe('install variables', () => {
-  it('does not require GIT_ADDRESS at quote time', () => {
+  it('does not require GIT_ADDRESS for a managed import quote', () => {
     const specs = checkoutSpecs({ GIT_ADDRESS: { required: true, label: 'Repository' }, EULA: { required: true, label: 'EULA' } });
     expect(specs.GIT_ADDRESS?.required).toBe(false);
     expect(specs.EULA?.required).toBe(true);
+    expect(checkCustomerVariables(specs, { EULA: 'yes' })).toEqual({ EULA: 'yes' });
+  });
+
+  it('requires GIT_ADDRESS for a manual Node.js order', () => {
+    const specs = { GIT_ADDRESS: { required: true, label: 'Repository' }, EULA: { required: true, label: 'EULA' } };
+    expect(() => checkCustomerVariables(specs, {})).toThrow(/GIT_ADDRESS is required/);
   });
 
   it('uses the stored repository and does not invent one for a zip', () => {

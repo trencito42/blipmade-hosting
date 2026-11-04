@@ -53,6 +53,10 @@ export interface OrderLineInput {
   subdomain?: string;
   /** The values of the variables the product asks the customer for. */
   variables?: Record<string, string>;
+  /** A stored import already supplies Git or zip installation variables for this line. */
+  importSourceId?: string;
+  /** Quote-time flag before an ImportSource row exists (import plans). */
+  managedImport?: boolean;
   /** The public key and the name of a virtual private server. */
   sshPublicKey?: string;
   vpsName?: string;
@@ -607,7 +611,8 @@ export async function priceItems(
     // checked here, in the place that prices the line, and they are sealed
     // before they are written anywhere: they are the secrets of the customer.
     const specs = parseCustomerVariableSpecs(product.customerVariables);
-    const accepted = checkCustomerVariables(checkoutSpecs(specs), item.variables);
+    const installationManaged = Boolean(item.importSourceId || item.managedImport);
+    const accepted = checkCustomerVariables(installationManaged ? checkoutSpecs(specs) : specs, item.variables);
     const sealedVariables = Object.keys(accepted).length > 0 ? sealVariables(accepted) : undefined;
 
     const price = await loadResourcePrice(product.id, period, product.fulfilment);
