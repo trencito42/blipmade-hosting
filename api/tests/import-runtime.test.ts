@@ -19,8 +19,8 @@ describe('import runtime plans', () => {
     ]);
     expect(plan.services.map((service) => service.slug)).toEqual(['attached_mysql']);
     expect(plan.services[0]?.certainty).toBe('confirmed');
-    expect(plan.build).toBe('npm install && npx prisma generate && npm run build');
-    expect(plan.start).toBe('next start -p $SERVER_PORT -H 0.0.0.0');
+    expect(plan.build).toBe('npm install && npx prisma generate && npx prisma migrate deploy && npm run build');
+    expect(plan.start).toBe('npx next start -p $SERVER_PORT -H 0.0.0.0');
     expect(plan.envNames).toEqual(['DATABASE_URL', 'NEXTAUTH_SECRET']);
   });
 

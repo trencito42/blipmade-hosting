@@ -98,6 +98,9 @@ export function allocationStart(command: string): string {
     .replace(/(^|\s)-p\s+\d+/g, '$1-p $SERVER_PORT')
     .replace(/-H\s+127\.0\.0\.1/g, '-H 0.0.0.0')
     .replace(/--hostname(?:=|\s+)127\.0\.0\.1/g, '--hostname 0.0.0.0');
+  if (/^next\s/.test(next.trim()) && !/^(npx|npm|\.\/|\/)/.test(next.trim())) {
+    next = `npx ${next.trim()}`;
+  }
   if (/\bnext\s+start\b/.test(next) && !next.includes('$SERVER_PORT') && !/(?:--port|-p)\b/.test(next)) {
     next = `${next} -H 0.0.0.0 -p $SERVER_PORT`;
   }
@@ -132,7 +135,7 @@ export function inspectManifests(files: { path: string; text: string }[]): Impor
     }
     if (parsed && deps && 'next' in deps) {
       const prisma = 'prisma' in deps || '@prisma/client' in deps;
-      const build = ['npm install', prisma ? 'npx prisma generate' : '', hasBuild ? 'npm run build' : ''].filter(Boolean).join(' && ');
+      const build = ['npm install', prisma ? 'npx prisma generate' : '', prisma ? 'npx prisma migrate deploy' : '', hasBuild ? 'npm run build' : ''].filter(Boolean).join(' && ');
       const start = allocationStart(declaredStart ?? 'npx next start -H 0.0.0.0 -p $SERVER_PORT');
       notes.push('Next.js was detected. The production build is included. A Next.js build often needs more than 512 MB, so the quote can be raised before payment.');
       if (prisma) notes.push('Prisma client generation is included. Database migrations are not run unless you confirm them.');

@@ -3,8 +3,8 @@
 set -euo pipefail
 INSTANCE_ID=cmw1bjrpw000tns01od7zntpw
 IMPORT_ID=cmw1bgmja0001ns014z7nw0s5
-BUILD='npm install && npx prisma generate && npm run build'
-START='next start -p $SERVER_PORT -H 0.0.0.0'
+BUILD='npm install && npx prisma generate && npx prisma migrate deploy && npm run build'
+START='npx next start -p $SERVER_PORT -H 0.0.0.0'
 
 cd "$(dirname "$0")/.."
 docker compose exec -T postgres psql -U blipmade -d blipmade <<SQL

@@ -5,6 +5,7 @@ import * as client from './pterodactyl/client.js';
 import * as operations from './panel/operations.js';
 import { connectionVariable, dependencyReady, mariadbGrantCommand, mariadbGrantSql, mariadbPassword, type ServiceEndpoint, ATTACHED_MYSQL } from './project-links.js';
 import { companionProduct } from './import-dependencies.js';
+import { inspectGitUrl } from './import-inspect.js';
 import { generateSecret, openVariables, sealVariables } from './instance-credentials.js';
 import { probeTcpPort } from './domain-activation.js';
 import { databasesIncluded } from '../lib/plan-limits.js';
@@ -106,7 +107,7 @@ async function linkOne(sourceId: string): Promise<boolean> {
     productVariables: app.product.generatedVariables,
   });
   const current = await client.readFile(appToken, app.pterodactylUuid, `${BLIPMADE_DIR}/app.env`).catch(() => ({ content: '', encoding: 'utf-8' }));
-  const merged = { ...parseEnvValues(current.content), ...values };
+  const merged = await seedImportApplicationEnv(source, { ...parseEnvValues(current.content), ...values });
   await client.writeFile(appToken, app.pterodactylUuid, `${BLIPMADE_DIR}/app.env`, renderEnv(merged));
   await client.chmodFile(appToken, app.pterodactylUuid, `${BLIPMADE_DIR}/app.env`, 0o600).catch(() => undefined);
   await prisma.importSource.update({ where: { id: source.id }, data: { servicesLinkedAt: new Date() } });
@@ -174,6 +175,30 @@ async function linkAttachedMysql(app: LinkedApp, sourceId: string): Promise<{ ke
   const portOpen = await probeTcpPort(endpoint.host, endpoint.port);
   if (!dependencyReady({ online: true, portOpen })) return null;
   return variable;
+}
+
+/** Fills missing env vars named in the project example file. Existing values are never overwritten. */
+async function seedImportApplicationEnv(
+  source: { kind: string; repoUrl: string | null },
+  values: Record<string, string>,
+): Promise<Record<string, string>> {
+  if (source.kind !== 'git' || !source.repoUrl) return values;
+  let names: string[] = [];
+  try {
+    const proposal = await inspectGitUrl(source.repoUrl);
+    names = proposal.envNames;
+  } catch {
+    return values;
+  }
+  const next = { ...values };
+  for (const name of names) {
+    if (!name || next[name]) continue;
+    if (name === 'DATABASE_URL') continue;
+    if (/SECRET|PEPPER|PASSWORD|TOKEN|KEY|SALT/i.test(name)) {
+      next[name] = generateSecret(32);
+    }
+  }
+  return next;
 }
 
 async function companionPassword(
