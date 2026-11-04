@@ -156,7 +156,11 @@ async function linkAttachedMysql(app: LinkedApp, sourceId: string): Promise<{ ke
     row = fresh.find((entry) => entry.name === wantedName || entry.name.includes(wantedName));
   }
   if (!row?.id) return null;
-  const creds = await operations.databaseCredentials(token, instance, row.id);
+  let creds = await operations.databaseCredentials(token, instance, row.id);
+  if (!creds.password) {
+    await operations.updateDatabase(token, instance, row.id, {});
+    creds = await operations.databaseCredentials(token, instance, row.id);
+  }
   if (!creds.password) return null;
   const endpoint: ServiceEndpoint = {
     slug: ATTACHED_MYSQL,

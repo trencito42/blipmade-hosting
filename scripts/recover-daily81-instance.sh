@@ -35,12 +35,12 @@ SET "applicationReadyAt" = NULL,
 WHERE id = '${INSTANCE_ID}';
 SQL
 
-docker compose exec -T api node --import tsx/esm <<'NODE'
-import { prisma } from './src/db.js';
-import { recoverStoredImports } from './src/services/import-apply.js';
+docker compose -f compose.yml -f compose.api.yml exec -T api node -e "
+import { recoverStoredImports } from './dist/services/import-apply.js';
+import { prisma } from './dist/db.js';
 const n = await recoverStoredImports();
-console.info('recoverStoredImports:', n);
-await prisma.$disconnect();
-NODE
+console.info('recoverStoredImports', n);
+await prisma.\$disconnect();
+"
 
 echo "Recovery SQL applied. Watch worker logs and instance deploy events."
