@@ -8,7 +8,7 @@ import { verifyPassword } from '../lib/password.js';
 import { userHasPassword } from '../services/account-auth-methods.js';
 import { listConnections, unlinkProvider } from '../services/oauth/identity.js';
 import { buildAuthorizeRedirect } from '../services/oauth/flow.js';
-import { listLoginProviders } from '../services/oauth/providers.js';
+import { listLoginProviders, webReturnToFromRequest } from '../services/oauth/providers.js';
 import type { OAuthProviderId } from '../services/oauth/types.js';
 
 const providerParam = z.enum(['github', 'google', 'discord', 'apple']);
@@ -68,11 +68,12 @@ export async function registerConnectionsRoutes(app: FastifyInstance): Promise<v
     const user = await requireAuth(request);
     const provider = providerParam.parse((request.params as { provider: string }).provider) as OAuthProviderId;
     const body = z.object({ returnTo: z.string().max(500).optional() }).parse(request.body ?? {});
+    const origin = typeof request.headers.origin === 'string' ? request.headers.origin : undefined;
     const url = await buildAuthorizeRedirect({
       provider,
       intent: 'link',
       userId: user.id,
-      returnTo: body.returnTo ?? '/app/settings/connections',
+      returnTo: webReturnToFromRequest(origin, body.returnTo ?? '/app/settings/connections'),
     });
     return { url };
   });

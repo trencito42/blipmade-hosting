@@ -16,14 +16,13 @@ import {
   fullName,
 } from '../services/oauth/identity.js';
 import { buildAuthorizeRedirect, completeOAuthCallback } from '../services/oauth/flow.js';
-import { listLoginProviders, providerEnabled } from '../services/oauth/providers.js';
+import { listLoginProviders, providerEnabled, resolveWebAppUrl } from '../services/oauth/providers.js';
 import type { OAuthProviderId } from '../services/oauth/types.js';
 
 const providerParam = z.enum(['github', 'google', 'discord', 'apple']);
 
-function appReturnUrl(path: string): string {
-  const base = env.APP_ORIGIN.replace(/\/+$/, '');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+function appReturnUrl(pathOrUrl: string): string {
+  return resolveWebAppUrl(pathOrUrl);
 }
 
 async function finishOAuthLogin(

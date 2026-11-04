@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { env } from '../env.js';
+import { resolveWebAppUrl } from '../services/oauth/providers.js';
 import { badRequest } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
 import { addMemberWithOAuthAccess } from '../services/discord/community.js';
@@ -47,7 +48,7 @@ export async function registerGitHubSetupRoute(app: FastifyInstance): Promise<vo
       })
       .parse(request.query ?? {});
     if (query.setup_action === 'request') {
-      return reply.redirect(`${env.APP_ORIGIN.replace(/\/+$/, '')}/app/settings/connections?github=install`);
+      return reply.redirect(resolveWebAppUrl('/app/settings/connections?github=install'));
     }
     let userId: string | null = null;
     if (query.state) {
@@ -59,7 +60,7 @@ export async function registerGitHubSetupRoute(app: FastifyInstance): Promise<vo
       }
     }
     if (!userId) {
-      return reply.redirect(`${env.APP_ORIGIN.replace(/\/+$/, '')}/app/settings/connections?github=error`);
+      return reply.redirect(resolveWebAppUrl('/app/settings/connections?github=error'));
     }
     const row = await prisma.gitHubAppInstallation.upsert({
       where: { installationId: query.installation_id },
@@ -72,6 +73,6 @@ export async function registerGitHubSetupRoute(app: FastifyInstance): Promise<vo
       update: { suspendedAt: null },
     });
     await syncInstallationRepositories(row.id);
-    return reply.redirect(`${env.APP_ORIGIN.replace(/\/+$/, '')}/app/settings/connections?github=connected`);
+    return reply.redirect(resolveWebAppUrl('/app/settings/connections?github=connected'));
   });
 }

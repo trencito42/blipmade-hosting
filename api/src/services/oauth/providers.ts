@@ -14,6 +14,77 @@ export function oauthApiOrigin(): string {
   return `${base}/api`;
 }
 
+/** Every browser origin allowed for CORS (comma-separated in APP_ORIGIN). */
+export function appOrigins(): string[] {
+  return env.APP_ORIGIN.split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+}
+
+function originOf(value: string): string | null {
+  try {
+    return new URL(value.includes('://') ? value : `https://${value}`).origin;
+  } catch {
+    return null;
+  }
+}
+
+/** Default web origin for redirects when the caller did not specify one. */
+export function primaryAppOrigin(): string {
+  const publicBase = env.publicWebUrl.replace(/\/+$/, '');
+  const origins = appOrigins();
+  if (origins.some((o) => originOf(o) === originOf(publicBase))) return publicBase;
+  return origins[0] ?? publicBase;
+}
+
+/** Builds a safe post-OAuth browser URL from a path or a full URL on an allowed origin. */
+export function resolveWebAppUrl(pathOrUrl: string): string {
+  const trimmed = pathOrUrl.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      const target = new URL(trimmed);
+      const allowed = appOrigins().some((o) => originOf(o) === target.origin);
+      if (allowed) return target.toString();
+    } catch {
+      /* fall through */
+    }
+  }
+  const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${primaryAppOrigin()}${path}`;
+}
+
+/** Remembers which site the customer used (IP vs domain) for the post-OAuth redirect. */
+export function webReturnToFromRequest(originHeader: string | undefined, path: string): string {
+  const pathNorm = path.startsWith('/') ? path : `/${path}`;
+  if (originHeader) {
+    const origin = originHeader.replace(/\/+$/, '');
+    if (appOrigins().some((o) => originOf(o) === origin)) {
+      return `${origin}${pathNorm}`;
+    }
+  }
+  return resolveWebAppUrl(pathNorm);
+}
+
+export function sanitizeReturnTo(value: string | null | undefined): string | null {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (trimmed.includes('\n')) return null;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return trimmed.slice(0, 500);
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      const target = new URL(trimmed);
+      if (appOrigins().some((o) => originOf(o) === target.origin)) {
+        return trimmed.slice(0, 500);
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function providerEnabled(id: OAuthProviderId): boolean {
   switch (id) {
     case 'github':
