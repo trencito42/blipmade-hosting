@@ -1,8 +1,33 @@
 import { prisma } from '../../db.js';
 import { env } from '../../env.js';
-import { mintInstallationToken } from './client.js';
+import { githubAppJwt, mintInstallationToken } from './client.js';
+
+/** Fetches account login/type from GitHub for an installation row. */
+export async function refreshInstallationProfile(installationDbId: string): Promise<void> {
+  const row = await prisma.gitHubAppInstallation.findUnique({ where: { id: installationDbId } });
+  if (!row) return;
+  const jwt = githubAppJwt();
+  const res = await fetch(`https://api.github.com/app/installations/${row.installationId}`, {
+    headers: { Authorization: `Bearer ${jwt}`, Accept: 'application/vnd.github+json', 'User-Agent': 'Blipmade' },
+  });
+  if (!res.ok) return;
+  const inst = (await res.json()) as {
+    account?: { login?: string; type?: string };
+    repository_selection?: string;
+  };
+  if (!inst.account?.login) return;
+  await prisma.gitHubAppInstallation.update({
+    where: { id: installationDbId },
+    data: {
+      accountLogin: inst.account.login,
+      accountType: inst.account.type ?? row.accountType,
+      repositorySelection: inst.repository_selection ?? row.repositorySelection,
+    },
+  });
+}
 
 export async function syncInstallationRepositories(installationDbId: string): Promise<number> {
+  await refreshInstallationProfile(installationDbId);
   const row = await prisma.gitHubAppInstallation.findUnique({ where: { id: installationDbId } });
   if (!row) return 0;
   const token = await mintInstallationToken(row.installationId);

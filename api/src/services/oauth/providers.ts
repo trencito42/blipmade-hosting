@@ -29,40 +29,32 @@ function originOf(value: string): string | null {
   }
 }
 
-/** Default web origin for redirects when the caller did not specify one. */
+/** Canonical customer-facing site URL for redirects (PUBLIC_WEB_URL). */
 export function primaryAppOrigin(): string {
-  const publicBase = env.publicWebUrl.replace(/\/+$/, '');
-  const origins = appOrigins();
-  if (origins.some((o) => originOf(o) === originOf(publicBase))) return publicBase;
-  return origins[0] ?? publicBase;
+  return env.publicWebUrl.replace(/\/+$/, '');
 }
 
 /** Builds a safe post-OAuth browser URL from a path or a full URL on an allowed origin. */
 export function resolveWebAppUrl(pathOrUrl: string): string {
   const trimmed = pathOrUrl.trim();
+  const base = primaryAppOrigin();
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
     try {
       const target = new URL(trimmed);
       const allowed = appOrigins().some((o) => originOf(o) === target.origin);
-      if (allowed) return target.toString();
+      if (allowed) return `${base}${target.pathname}${target.search}`;
     } catch {
       /* fall through */
     }
   }
   const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return `${primaryAppOrigin()}${path}`;
+  return `${base}${path}`;
 }
 
-/** Remembers which site the customer used (IP vs domain) for the post-OAuth redirect. */
-export function webReturnToFromRequest(originHeader: string | undefined, path: string): string {
+/** Store a path-only return target; redirects always use PUBLIC_WEB_URL. */
+export function webReturnToFromRequest(_originHeader: string | undefined, path: string): string {
   const pathNorm = path.startsWith('/') ? path : `/${path}`;
-  if (originHeader) {
-    const origin = originHeader.replace(/\/+$/, '');
-    if (appOrigins().some((o) => originOf(o) === origin)) {
-      return `${origin}${pathNorm}`;
-    }
-  }
-  return resolveWebAppUrl(pathNorm);
+  return pathNorm.slice(0, 500);
 }
 
 export function sanitizeReturnTo(value: string | null | undefined): string | null {
@@ -76,7 +68,7 @@ export function sanitizeReturnTo(value: string | null | undefined): string | nul
     try {
       const target = new URL(trimmed);
       if (appOrigins().some((o) => originOf(o) === target.origin)) {
-        return trimmed.slice(0, 500);
+        return `${target.pathname}${target.search}`.slice(0, 500);
       }
     } catch {
       return null;
