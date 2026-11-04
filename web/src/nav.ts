@@ -70,6 +70,7 @@ export const ADMIN_NAV: NavEntry[] = [
   { to: '/admin/activity', label: 'Activity', shortLabel: 'Activity', icon: 'term' },
   { to: '/admin/staff', label: 'Staff', shortLabel: 'Staff', icon: 'bot' },
   { to: '/admin/settings', label: 'Settings', shortLabel: 'Settings', icon: 'restart' },
+  { to: '/admin/settings/integrations', label: 'Integrations', shortLabel: 'Integrations', icon: 'restart' },
 ];
 
 /**

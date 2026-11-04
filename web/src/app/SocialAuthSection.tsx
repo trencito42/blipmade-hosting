@@ -46,7 +46,7 @@ export function SocialAuthSection({ intent = 'login', leading, label = 'or conti
                   className={SOCIAL_BUTTON}
                 >
                   {mark ? <i aria-hidden="true" className={`${mark} text-[19px]`} /> : null}
-                  <span className="truncate">{name}</span>
+                  <span className="sr-only min-[460px]:not-sr-only min-[460px]:truncate">{name}</span>
                 </a>
               );
             })}
