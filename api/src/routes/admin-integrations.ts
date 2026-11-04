@@ -6,11 +6,23 @@ import { requirePermission } from '../plugins/auth.js';
 export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Promise<void> {
   app.get('/admin/integrations', async (request) => {
     await requirePermission('settings.read')(request);
-    const [identities, installations, discordLinks, failedDiscord] = await Promise.all([
+    const [identities, installations, discordLinks, failedDiscord, suspendedGithub, discordFailures] = await Promise.all([
       prisma.connectedIdentity.groupBy({ by: ['provider'], _count: { _all: true } }),
       prisma.gitHubAppInstallation.count({ where: { suspendedAt: null } }),
       prisma.discordCommunityLink.count({ where: { joinedAt: { not: null } } }),
       prisma.discordCommunityLink.count({ where: { syncState: 'error' } }),
+      prisma.gitHubAppInstallation.findMany({
+        where: { suspendedAt: { not: null } },
+        take: 20,
+        orderBy: { updatedAt: 'desc' },
+        select: { installationId: true, accountLogin: true, suspendedAt: true, userId: true },
+      }),
+      prisma.discordCommunityLink.findMany({
+        where: { OR: [{ syncState: 'error' }, { lastError: { not: null } }] },
+        take: 20,
+        orderBy: { updatedAt: 'desc' },
+        select: { userId: true, syncState: true, lastError: true, lastSyncAt: true },
+      }),
     ]);
     return {
       oauth: {
@@ -19,12 +31,27 @@ export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Pro
         discord: { enabled: env.oauthDiscordEnabled, linkedAccounts: identities.find((r) => r.provider === 'discord')?._count._all ?? 0 },
         apple: { enabled: env.oauthAppleEnabled, linkedAccounts: identities.find((r) => r.provider === 'apple')?._count._all ?? 0 },
       },
-      githubApp: { enabled: env.githubAppEnabled, activeInstallations: installations, slug: env.GITHUB_APP_SLUG || null },
+      githubApp: {
+        enabled: env.githubAppEnabled,
+        activeInstallations: installations,
+        slug: env.GITHUB_APP_SLUG || null,
+        suspendedInstallations: suspendedGithub.map((row) => ({
+          installationId: row.installationId,
+          accountLogin: row.accountLogin,
+          suspendedAt: row.suspendedAt?.toISOString() ?? null,
+        })),
+      },
       discordCommunity: {
         enabled: env.discordCommunityEnabled,
         guildConfigured: Boolean(env.DISCORD_GUILD_ID),
         membersJoined: discordLinks,
         syncErrors: failedDiscord,
+        recentFailures: discordFailures.map((row) => ({
+          userId: row.userId,
+          syncState: row.syncState,
+          lastError: row.lastError,
+          lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+        })),
       },
     };
   });

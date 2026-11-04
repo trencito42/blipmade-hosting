@@ -155,12 +155,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const secondStep = useCallback(
-    async (token: string, code: string) => adopt((await post<{ user: SessionUser }>('/auth/login/2fa', { token, code })).user),
+    async (token: string, code: string) =>
+      adopt((await post<{ user: SessionUser }>('/auth/login/2fa', { ...(token ? { token } : {}), code })).user),
     [adopt],
   );
 
   const secondStepPasskey = useCallback(
-    async (token: string) => adopt((await secondStepWithPasskey<{ user: SessionUser }>(token)).user),
+    async (token: string) => adopt((await secondStepWithPasskey<{ user: SessionUser }>(token || undefined)).user),
     [adopt],
   );
 

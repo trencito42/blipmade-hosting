@@ -537,6 +537,16 @@ async function main(): Promise<void> {
   // that a failure is seen while the customer is still waiting, and rare
   // enough that the log of the worker stays readable.
   timers.push(setInterval(() => void watchDeadLetters().catch((error) => console.error('[worker] the dead-letter watch failed', error)), 3 * 60_000));
+  // Discord community role sync — preserves non-Blipmade roles while updating mapped ones.
+  timers.push(
+    setInterval(
+      () =>
+        void import('./services/discord/community.js')
+          .then(({ reconcileDiscordRoles }) => reconcileDiscordRoles(40))
+          .catch((error) => console.error('[worker] discord role reconcile failed', error)),
+      15 * 60_000,
+    ),
+  );
   // The containers are asked about every minute: the customer zone shows
   // what the node says, so the state of a service that runs has to be fresh.
   timers.push(setInterval(() => void watchRuntimeState().catch((error) => console.error('[worker] the state of the containers could not be read', error)), 60_000));

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { post } from '../lib/api';
+import { get, post } from '../lib/api';
 import { useAction } from '../lib/useAsync';
 import { useRouter, Link } from '../router';
 import { Panel, PrimaryButton, SoftButton, TextInput } from '../ui-app';
@@ -40,7 +40,13 @@ function ReviewRow({ label, children }: { label: string; children: ReactNode }) 
 
 /** Git or zip import: inspect manifests, confirm dependencies, then open the deploy wizard with a stored ImportSource. */
 export function ImportProject({ compact = false }: { compact?: boolean }) {
+  const [sourceMode, setSourceMode] = useState<'url' | 'github'>('url');
   const [url, setUrl] = useState('');
+  const [githubRepos, setGithubRepos] = useState<
+    { installationId: string; repositoryId: string; fullName: string; defaultBranch: string; isPrivate: boolean }[]
+  >([]);
+  const [githubPick, setGithubPick] = useState<{ installationId: string; repositoryId: string; fullName: string; branch: string } | null>(null);
+  const [branches, setBranches] = useState<string[]>([]);
   const { navigate } = useRouter();
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [confirmed, setConfirmed] = useState<string[]>([]);
@@ -54,7 +60,45 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
     setProposal(answer.proposal);
     setConfirmed(defaultConfirmed(answer.proposal.services ?? []));
   });
+  const loadGithubRepos = useAction(async () => {
+    const answer = await get<{ repositories: typeof githubRepos; githubAppEnabled: boolean }>('/integrations/github/repositories');
+    setGithubRepos(answer.repositories);
+    if (answer.repositories.length === 0) {
+      setProposal({
+        productSlug: null,
+        runtime: null,
+        confidence: 'unknown',
+        start: null,
+        files: [],
+        services: [],
+        notes: ['No authorized repositories yet. Install the GitHub App under Settings → Connections.'],
+      });
+    }
+  });
+  const inspectGithub = useAction(async () => {
+    if (!githubPick) return;
+    const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect/github', {
+      installationId: githubPick.installationId,
+      repositoryId: githubPick.repositoryId,
+      branch: githubPick.branch,
+    });
+    setZipBase64(null);
+    setZipName(null);
+    setConfirmed([]);
+    setProposal(answer.proposal);
+    setConfirmed(defaultConfirmed(answer.proposal.services ?? []));
+  });
   const plan = useAction(async () => {
+    if (githubPick && !zipBase64) {
+      const answer = await post<{ plan: { continueTo: string; total: number; currency: string } }>('/catalog/import/plans/github', {
+        installationId: githubPick.installationId,
+        repositoryId: githubPick.repositoryId,
+        branch: githubPick.branch,
+        confirmServices: confirmed,
+      });
+      navigate(answer.plan.continueTo);
+      return;
+    }
     const answer = await post<{ plan: { continueTo: string; total: number; currency: string } }>('/catalog/import/plans', {
       ...(zipBase64 ? { zipBase64 } : { url: url.trim() }),
       confirmServices: confirmed,
@@ -88,37 +132,115 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
         <div className="grid gap-1">
           <h3 className="font-display text-[20px] font-semibold tracking-[-0.03em] text-ink">Import your repository or zip</h3>
           <p className="max-w-2xl text-[14px] leading-relaxed text-ink3">
-            Blipmade reads public manifest files only. The same archive or repository is kept for the order — you do not paste the URL again at checkout.
+            Blipmade reads manifest files from public URLs, authorized private GitHub repositories, or a zip up to 8 MB.
           </p>
         </div>
       )}
+      <div className="flex flex-wrap gap-2">
+        <SoftButton type="button" className={sourceMode === 'url' ? 'ring-2 ring-green/40' : ''} onClick={() => setSourceMode('url')}>
+          Public Git URL
+        </SoftButton>
+        <SoftButton type="button" className={sourceMode === 'github' ? 'ring-2 ring-green/40' : ''} onClick={() => { setSourceMode('github'); if (githubRepos.length === 0) void loadGithubRepos.run(); }}>
+          GitHub App
+        </SoftButton>
+      </div>
       <Panel
         title={compact ? 'Source' : undefined}
-        description={compact ? 'Public GitHub or GitLab URL, or a zip up to 8 MB.' : undefined}
+        description={compact ? 'Public GitHub or GitLab URL, authorized private GitHub repos, or a zip up to 8 MB.' : undefined}
         className={compact ? '' : 'border-line/80 bg-s1/40'}
       >
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-[240px] flex-1">
-            <TextInput
-              label="Repository URL"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://github.com/owner/project"
-              autoComplete="off"
-              spellCheck={false}
-              disabled={Boolean(zipBase64)}
-            />
+        {sourceMode === 'github' ? (
+          <div className="grid gap-3">
+            {githubRepos.length === 0 ? (
+              <p className="text-[14px] text-ink2">
+                Load repositories after installing the GitHub App in{' '}
+                <Link to="/app/settings/connections" className="font-semibold text-green underline underline-offset-4">
+                  Connections
+                </Link>
+                .
+              </p>
+            ) : (
+              <label className="grid gap-1 text-[13px] text-ink2">
+                Repository
+                <select
+                  className="h-11 rounded-xl border border-line bg-night-2 px-3 text-[14px] text-ink"
+                  value={githubPick ? `${githubPick.installationId}:${githubPick.repositoryId}` : ''}
+                  onChange={(event) => {
+                    const repo = githubRepos.find((row) => `${row.installationId}:${row.repositoryId}` === event.target.value);
+                    if (!repo) {
+                      setGithubPick(null);
+                      setBranches([]);
+                      return;
+                    }
+                    const pick = { installationId: repo.installationId, repositoryId: repo.repositoryId, fullName: repo.fullName, branch: repo.defaultBranch };
+                    setGithubPick(pick);
+                    void get<{ branches: string[] }>(`/integrations/github/repositories/${repo.installationId}/${repo.repositoryId}/branches`).then((answer) => {
+                      setBranches(answer.branches.length ? answer.branches : [repo.defaultBranch]);
+                    });
+                  }}
+                >
+                  <option value="">Choose a repository…</option>
+                  {githubRepos.map((repo) => (
+                    <option key={`${repo.installationId}:${repo.repositoryId}`} value={`${repo.installationId}:${repo.repositoryId}`}>
+                      {repo.fullName}
+                      {repo.isPrivate ? ' (private)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {githubPick && branches.length > 0 ? (
+              <label className="grid gap-1 text-[13px] text-ink2">
+                Branch
+                <select
+                  className="h-11 rounded-xl border border-line bg-night-2 px-3 text-[14px] text-ink"
+                  value={githubPick.branch}
+                  onChange={(event) => setGithubPick((current) => (current ? { ...current, branch: event.target.value } : current))}
+                >
+                  {branches.map((branch) => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <SoftButton type="button" onClick={() => void loadGithubRepos.run()} disabled={loadGithubRepos.pending}>
+                {loadGithubRepos.pending ? 'Loading…' : 'Refresh list'}
+              </SoftButton>
+              <SoftButton type="button" onClick={() => void inspectGithub.run()} disabled={inspectGithub.pending || !githubPick}>
+                {inspectGithub.pending ? 'Inspecting…' : 'Inspect'}
+              </SoftButton>
+            </div>
+            {inspectGithub.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{inspectGithub.error}</p>}
           </div>
-          <SoftButton type="button" onClick={() => void inspect.run()} disabled={inspect.pending || !url.trim() || Boolean(zipBase64)}>
-            {inspect.pending ? 'Inspecting…' : 'Inspect'}
-          </SoftButton>
-          <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line px-4 text-[14px] font-semibold text-ink">
-            Zip file
-            <input type="file" accept=".zip,application/zip" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void inspectZip.run(file); }} />
-          </label>
-        </div>
-        {zipName && <p className="mt-2 text-[13px] text-ink3">Attached: {zipName}</p>}
-        {inspect.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{inspect.error}</p>}
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[240px] flex-1">
+                <TextInput
+                  label="Repository URL"
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  placeholder="https://github.com/owner/project"
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={Boolean(zipBase64)}
+                />
+              </div>
+              <SoftButton type="button" onClick={() => void inspect.run()} disabled={inspect.pending || !url.trim() || Boolean(zipBase64)}>
+                {inspect.pending ? 'Inspecting…' : 'Inspect'}
+              </SoftButton>
+              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line px-4 text-[14px] font-semibold text-ink">
+                Zip file
+                <input type="file" accept=".zip,application/zip" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void inspectZip.run(file); }} />
+              </label>
+            </div>
+            {zipName && <p className="mt-2 text-[13px] text-ink3">Attached: {zipName}</p>}
+            {inspect.error && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{inspect.error}</p>}
+          </>
+        )}
       </Panel>
 
       {proposal && (
@@ -132,7 +254,15 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
                 <span className="text-ink3"> · confidence {proposal.confidence}</span>
               </ReviewRow>
               <ReviewRow label="Source">
-                {zipName ? <>Zip archive <span className="font-mono text-[13px]">{zipName}</span></> : <span className="break-all font-mono text-[13px]">{url.trim()}</span>}
+                {zipName ? (
+                  <>Zip archive <span className="font-mono text-[13px]">{zipName}</span></>
+                ) : githubPick ? (
+                  <span className="break-all font-mono text-[13px]">
+                    {githubPick.fullName}@{githubPick.branch}
+                  </span>
+                ) : (
+                  <span className="break-all font-mono text-[13px]">{url.trim()}</span>
+                )}
               </ReviewRow>
               {proposal.build && (
                 <ReviewRow label="Build">

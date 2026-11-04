@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { OtpInput } from '../OtpInput';
 import { passkeyFailure, passkeysSupported } from '../lib/passkeys';
-import { ApiError, post } from '../lib/api';
+import { ApiError, get, post } from '../lib/api';
 import { loginFailureMessage } from '../lib/login-message';
 import { PASSWORD_RULES, passwordIssues } from '../lib/password-rules';
 import { postLoginTarget } from '../auth-guard';
@@ -210,6 +210,34 @@ export function AuthLogin() {
   const [code, setCode] = useState('');
   const [backup, setBackup] = useState(false);
   const [backupCode, setBackupCode] = useState('');
+
+  // After OAuth sign-in, the API sets an httpOnly cookie and sends the browser here for 2FA.
+  useEffect(() => {
+    const oauth = typeof query.oauth === 'string' ? query.oauth : null;
+    if (oauth === '2fa') {
+      let alive = true;
+      get<{ methods: string[] }>('/oauth/second-step/methods')
+        .then((data) => {
+          if (alive) setSecond({ token: '', methods: data.methods });
+        })
+        .catch(() => {
+          if (alive) setMsg('This sign-in expired. Try again.');
+        });
+      return () => {
+        alive = false;
+      };
+    }
+    if (oauth === 'denied') {
+      setMsg('Sign-in was cancelled on the provider.');
+    } else if (oauth === 'link_required') {
+      setMsg('An account already uses this email. Sign in with your password, then link the provider under Settings → Connections.');
+    } else if (oauth === 'provider_error') {
+      setMsg('The provider could not finish sign-in. Try again or use email.');
+    } else if (oauth && oauth !== '2fa') {
+      setMsg('Sign-in could not be completed. Try again.');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.oauth]);
 
   const land = (role: Parameters<typeof postLoginTarget>[0]) => {
     // The page the visitor asked for is only used when their role is allowed

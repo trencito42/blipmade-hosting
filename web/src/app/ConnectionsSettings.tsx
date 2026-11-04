@@ -90,10 +90,22 @@ export function ConnectionsSettings() {
     reload();
   });
 
+  const joinDiscord = useAction(async () => {
+    const answer = await post<{ url: string }>('/integrations/discord/community/join/start', {});
+    window.location.href = answer.url;
+  });
+  const syncDiscord = useAction(async () => {
+    await post('/integrations/discord/community/sync', {});
+    toast.push('Discord roles synced', 'ok');
+    reload();
+  });
+
   const banner = useMemo(() => {
     if (query.linked === '1') return { tone: 'good' as const, text: 'Provider linked successfully.' };
     if (query.disconnected === '1') return { tone: 'good' as const, text: 'Provider disconnected.' };
+    if (query.discord_join === '1') return { tone: 'good' as const, text: 'Discord community authorization finished. Role sync may take a minute.' };
     if (query.github === 'connected') return { tone: 'good' as const, text: 'GitHub App connected. Refresh repositories below.' };
+    if (query.error === 'github_setup') return { tone: 'bad' as const, text: 'GitHub App setup expired or was started from another session. Try Connect GitHub App again.' };
     if (query.error === 'linked_elsewhere') return { tone: 'bad' as const, text: 'That provider account is already linked to another Blipmade account.' };
     return null;
   }, [query]);
@@ -193,9 +205,23 @@ export function ConnectionsSettings() {
 
           <Panel title="Discord community" description="Optional server membership and role sync, separate from Discord sign-in.">
             {data.discordCommunity?.joinedAt ? (
-              <p className="text-[14px] text-ink2">Member since {since(data.discordCommunity.joinedAt)}. Sync: {data.discordCommunity.syncState}.</p>
+              <div className="grid gap-3">
+                <p className="text-[14px] text-ink2">
+                  Member since {since(data.discordCommunity.joinedAt)}. Sync: {data.discordCommunity.syncState}.
+                </p>
+                <SoftButton disabled={syncDiscord.pending} onClick={() => syncDiscord.run().catch((e) => toast.push(e instanceof ApiError ? e.message : 'Sync failed', 'error'))}>
+                  Sync roles now
+                </SoftButton>
+              </div>
+            ) : identityMap.has('discord') ? (
+              <div className="grid gap-3">
+                <p className="text-[14px] text-ink2">Connect Discord above, then authorize joining the Blipmade community server (consent for guilds.join).</p>
+                <PrimaryButton disabled={joinDiscord.pending} onClick={() => joinDiscord.run().catch((e) => toast.push(e instanceof ApiError ? e.message : 'Could not start join', 'error'))}>
+                  Join community server
+                </PrimaryButton>
+              </div>
             ) : (
-              <p className="text-[14px] text-ink2">Connect Discord under sign-in providers when community features are enabled for your environment.</p>
+              <p className="text-[14px] text-ink2">Connect Discord under sign-in providers first.</p>
             )}
             {data.discordCommunity?.lastError ? <p className="mt-2 text-[13px] text-bad">{data.discordCommunity.lastError}</p> : null}
           </Panel>

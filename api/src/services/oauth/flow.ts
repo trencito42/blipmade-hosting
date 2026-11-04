@@ -54,6 +54,11 @@ async function exchangeCode(
     if (!json.access_token) throw badRequest('Discord authorization failed. Try again.');
     return { accessToken: json.access_token, refreshToken: json.refresh_token };
   }
+  if (provider === 'apple') {
+    const { exchangeAppleAuthorizationCode } = await import('./apple-client.js');
+    const apple = await exchangeAppleAuthorizationCode(code);
+    return { accessToken: apple.accessToken, idToken: apple.idToken, refreshToken: apple.refreshToken };
+  }
   throw badRequest('This provider is not available.');
 }
 
@@ -184,8 +189,10 @@ export async function buildAuthorizeRedirect(input: {
     }
     if (tx.nonce) params.set('nonce', tx.nonce);
   } else if (input.provider === 'discord') {
-    params.set('scope', 'identify email');
-    params.set('prompt', 'none');
+    const scopes =
+      input.intent === 'discord_guild_join' ? 'identify guilds.join' : 'identify email';
+    params.set('scope', scopes);
+    params.set('prompt', input.intent === 'discord_guild_join' ? 'consent' : 'none');
     if (tx.codeVerifier) {
       params.set('code_challenge', pkceChallenge(tx.codeVerifier));
       params.set('code_challenge_method', 'S256');
@@ -213,6 +220,7 @@ export async function completeOAuthCallback(input: {
   returnTo: string | null;
   profile: ProviderProfile;
   refreshToken?: string;
+  accessToken: string;
 }> {
   const { consumeOAuthTransaction } = await import('./transactions.js');
   const tx = await consumeOAuthTransaction(input.provider, input.state);
@@ -224,5 +232,6 @@ export async function completeOAuthCallback(input: {
     returnTo: tx.returnTo,
     profile,
     refreshToken: tokens.refreshToken,
+    accessToken: tokens.accessToken,
   };
 }

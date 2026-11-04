@@ -114,5 +114,5 @@ export const ADMIN_GROUPS: NavGroup[] = [
   { id: 'trust-status', label: 'Trust & status', icon: 'shield', items: [A('/admin/abuse'), A('/admin/incidents')] },
   { id: 'platform-operations', label: 'Operations', icon: 'heart', items: [A('/admin/ops'), A('/admin/queues'), A('/admin/tools'), A('/admin/audit'), A('/admin/activity')] },
   { id: 'communications', label: 'Communications', icon: 'mail', items: [A('/admin/notifications'), A('/admin/email-templates'), A('/admin/content')] },
-  { id: 'team-configuration', label: 'Team & settings', icon: 'shield', items: [A('/admin/staff'), A('/admin/settings')] },
+  { id: 'team-configuration', label: 'Team & settings', icon: 'shield', items: [A('/admin/staff'), A('/admin/settings'), A('/admin/settings/integrations')] },
 ];

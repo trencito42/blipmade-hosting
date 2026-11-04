@@ -8,6 +8,7 @@ import {
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
+import { resolveSecondStepToken, clearOAuth2faCookie } from '../services/oauth/oauth-2fa-cookie.js';
 import { prisma } from '../db.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { badRequest, notFound, unauthorized } from '../lib/errors.js';
@@ -43,6 +44,7 @@ async function finishSignIn(request: FastifyRequest, reply: FastifyReply, userId
   if (user.suspendedAt) throw suspendedAccountError();
   await createSession(request, reply, user.id, user.email);
   await recordSignIn(request, user, via);
+  clearOAuth2faCookie(reply);
   return { user: { ...publicUser(user), permissions: user.staff?.permissions ?? [] } };
 }
 
@@ -98,20 +100,24 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
   // --- the second step of a sign-in ------------------------------------------------
 
   app.post('/auth/login/2fa', { config: stepLimit }, async (request, reply) => {
-    const body = z.object({ token: z.string().min(10).max(200), code: z.string().min(6).max(32) }).parse(request.body ?? {});
-    const userId = await takeTry(body.token);
+    const body = z.object({ token: z.string().min(10).max(200).optional(), code: z.string().min(6).max(32) }).parse(request.body ?? {});
+    const token = resolveSecondStepToken(request, body.token);
+    if (!token) throw unauthorized('This sign-in expired or was tried too many times. Sign in again.');
+    const userId = await takeTry(token);
     if (!userId) throw unauthorized('This sign-in expired or was tried too many times. Sign in again.');
     if (!(await checkSecondFactorCode(userId, body.code))) {
       await audit({ actorId: userId, action: 'auth.2fa_failed', ip: request.ip });
       throw unauthorized('That code is not correct.');
     }
-    await endSecondStep(body.token);
+    await endSecondStep(token);
     return finishSignIn(request, reply, userId, '2fa');
   });
 
   app.post('/auth/login/2fa/passkey/options', { config: stepLimit }, async (request) => {
-    const body = z.object({ token: z.string().min(10).max(200) }).parse(request.body ?? {});
-    const userId = await takeTry(body.token);
+    const body = z.object({ token: z.string().min(10).max(200).optional() }).parse(request.body ?? {});
+    const token = resolveSecondStepToken(request, body.token);
+    if (!token) throw unauthorized('This sign-in expired. Sign in again.');
+    const userId = await takeTry(token);
     if (!userId) throw unauthorized('This sign-in expired. Sign in again.');
     const keys = await prisma.passkey.findMany({ where: { userId } });
     if (keys.length === 0) throw badRequest('This account has no passkey.');
@@ -120,16 +126,18 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
       userVerification: 'required',
       allowCredentials: keys.map((key) => ({ id: key.credentialId, transports: key.transports })),
     });
-    await saveChallenge(`2fa:${hashToken(body.token)}`, { challenge: options.challenge, userId });
+    await saveChallenge(`2fa:${hashToken(token)}`, { challenge: options.challenge, userId });
     return { options };
   });
 
   app.post('/auth/login/2fa/passkey/verify', { config: stepLimit }, async (request, reply) => {
-    const body = z.object({ token: z.string().min(10).max(200), response: responseSchema }).parse(request.body ?? {});
-    const saved = await takeChallenge(`2fa:${hashToken(body.token)}`);
+    const body = z.object({ token: z.string().min(10).max(200).optional(), response: responseSchema }).parse(request.body ?? {});
+    const token = resolveSecondStepToken(request, body.token);
+    if (!token) throw unauthorized('This sign-in expired. Sign in again.');
+    const saved = await takeChallenge(`2fa:${hashToken(token)}`);
     if (!saved?.userId) throw unauthorized('This sign-in expired. Sign in again.');
     await verifyPasskeyAnswer(body.response as unknown as AuthenticationResponseJSON, saved.challenge, saved.userId);
-    await endSecondStep(body.token);
+    await endSecondStep(token);
     return finishSignIn(request, reply, saved.userId, 'passkey-2fa');
   });
 

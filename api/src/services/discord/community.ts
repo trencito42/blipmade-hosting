@@ -43,14 +43,32 @@ export async function addMemberWithOAuthAccess(userId: string, accessToken: stri
   throw badRequest('Discord could not add you to the server. Complete any membership screening in the Discord app and try again.');
 }
 
+export function mergeManagedDiscordRoles(memberRoles: string[], managedRoleIds: Iterable<string>, grantRoleIds: string[]): string[] {
+  const managedIds = new Set(managedRoleIds);
+  const preserved = memberRoles.filter((roleId) => !managedIds.has(roleId));
+  return [...new Set([...preserved, ...grantRoleIds])];
+}
+
 export async function syncDiscordRolesForUser(userId: string): Promise<void> {
   const link = await prisma.discordCommunityLink.findUnique({ where: { userId } });
   if (!link?.joinedAt) return;
   const mappings = await prisma.discordRoleMapping.findMany({ where: { enabled: true } });
   const eligible = await evaluateRoleRules(userId, mappings.map((m) => m.ruleKey));
-  const roleIds = mappings.filter((m) => eligible.has(m.ruleKey)).map((m) => m.discordRoleId);
+  const managedIds = new Set(mappings.map((m) => m.discordRoleId));
+  const grantIds = mappings.filter((m) => eligible.has(m.ruleKey)).map((m) => m.discordRoleId);
   const guildId = env.DISCORD_GUILD_ID;
-  const res = await botFetch(`/guilds/${guildId}/members/${link.discordUserId}`, { method: 'PATCH', body: JSON.stringify({ roles: roleIds }) });
+  const memberRes = await botFetch(`/guilds/${guildId}/members/${link.discordUserId}`);
+  if (!memberRes.ok) {
+    const text = await memberRes.text();
+    await prisma.discordCommunityLink.update({
+      where: { userId },
+      data: { syncState: 'error', lastError: text.slice(0, 500), lastSyncAt: new Date() },
+    });
+    return;
+  }
+  const member = (await memberRes.json()) as { roles?: string[] };
+  const roles = mergeManagedDiscordRoles(member.roles ?? [], managedIds, grantIds);
+  const res = await botFetch(`/guilds/${guildId}/members/${link.discordUserId}`, { method: 'PATCH', body: JSON.stringify({ roles }) });
   if (!res.ok) {
     const text = await res.text();
     await prisma.discordCommunityLink.update({
@@ -61,7 +79,7 @@ export async function syncDiscordRolesForUser(userId: string): Promise<void> {
   }
   await prisma.discordCommunityLink.update({
     where: { userId },
-    data: { syncState: 'synced', rolesSynced: roleIds, lastSyncAt: new Date(), lastError: null },
+    data: { syncState: 'synced', rolesSynced: grantIds, lastSyncAt: new Date(), lastError: null },
   });
 }
 

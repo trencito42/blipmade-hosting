@@ -70,6 +70,7 @@ const CONTROL_AREAS = [
   ['/admin/email-templates', 'Email wording', 'Preview the transactional templates customers receive.'],
   ['/admin/notifications', 'Email & notifications', 'Delivery health, categories, preferences and failed events.'],
   ['/admin/staff', 'Staff & permissions', 'Roles and the exact actions each operator may perform.'],
+  ['/admin/settings/integrations', 'Integrations', 'OAuth providers, GitHub App health, Discord community sync and role mappings.'],
 ] as const;
 
 /**

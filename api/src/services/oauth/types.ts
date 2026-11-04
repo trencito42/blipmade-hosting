@@ -1,6 +1,6 @@
 export type OAuthProviderId = 'github' | 'google' | 'discord' | 'apple';
 
-export type OAuthIntent = 'login' | 'link' | 'github_app_install';
+export type OAuthIntent = 'login' | 'link' | 'github_app_install' | 'discord_guild_join';
 
 export interface ProviderProfile {
   provider: OAuthProviderId;

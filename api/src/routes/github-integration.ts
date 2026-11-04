@@ -8,7 +8,7 @@ import { requireAuth } from '../plugins/auth.js';
 import { beginOAuthTransaction, consumeOAuthTransaction } from '../services/oauth/transactions.js';
 import { hashOAuthState } from '../services/oauth/providers.js';
 import { githubAppInstallUrl } from '../services/github-app/client.js';
-import { listUserRepositories, syncInstallationRepositories } from '../services/github-app/repositories.js';
+import { listUserRepositories, syncInstallationRepositories, upsertInstallationRepositories, revokeInstallationRepositories, listRepositoryBranches } from '../services/github-app/repositories.js';
 
 export async function registerGitHubIntegrationRoutes(app: FastifyInstance): Promise<void> {
   app.get('/integrations/github/status', async (request) => {
@@ -32,6 +32,14 @@ export async function registerGitHubIntegrationRoutes(app: FastifyInstance): Pro
     const user = await requireAuth(request);
     const query = z.object({ q: z.string().max(100).optional() }).parse(request.query ?? {});
     return listUserRepositories(user.id, query.q);
+  });
+
+  app.get('/integrations/github/repositories/:installationId/:repositoryId/branches', async (request) => {
+    const user = await requireAuth(request);
+    const params = z
+      .object({ installationId: z.string().min(1), repositoryId: z.string().min(1) })
+      .parse(request.params ?? {});
+    return listRepositoryBranches(user.id, params.installationId, params.repositoryId);
   });
 
   app.post('/integrations/github/installations/:installationId/sync', async (request) => {
@@ -110,6 +118,44 @@ export async function registerGitHubAppWebhookRoutes(app: FastifyInstance): Prom
             where: { installationId: String(installation.id) },
             data: { suspendedAt: new Date() },
           });
+        }
+      }
+
+      if (event === 'installation_repositories') {
+        const installation = body.installation as { id: number } | undefined;
+        const action = body.action as string | undefined;
+        if (installation?.id && (action === 'added' || action === 'removed')) {
+          const row = await prisma.gitHubAppInstallation.findUnique({ where: { installationId: String(installation.id) } });
+          if (row) {
+            const repos = (body.repositories_readded ?? body.repositories_added ?? body.repositories_removed ?? []) as {
+              id: number;
+              full_name: string;
+              default_branch?: string;
+              private: boolean;
+            }[];
+            if (action === 'added') {
+              await upsertInstallationRepositories(row.id, repos);
+            } else {
+              await revokeInstallationRepositories(
+                row.id,
+                repos.map((r) => String(r.id)),
+              );
+            }
+          }
+        }
+      }
+
+      if (event === 'installation' && body.action === 'unsuspend') {
+        const installation = body.installation as { id: number };
+        if (installation?.id) {
+          const row = await prisma.gitHubAppInstallation.updateMany({
+            where: { installationId: String(installation.id) },
+            data: { suspendedAt: null },
+          });
+          if (row.count) {
+            const inst = await prisma.gitHubAppInstallation.findUnique({ where: { installationId: String(installation.id) } });
+            if (inst) await syncInstallationRepositories(inst.id);
+          }
         }
       }
 

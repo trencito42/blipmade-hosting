@@ -1,40 +1,52 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { env } from '../env.js';
-import { resolveWebAppUrl } from '../services/oauth/providers.js';
 import { badRequest } from '../lib/errors.js';
 import { requireAuth } from '../plugins/auth.js';
-import { addMemberWithOAuthAccess } from '../services/discord/community.js';
+import { syncDiscordRolesForUser } from '../services/discord/community.js';
 import { buildAuthorizeRedirect } from '../services/oauth/flow.js';
-import { beginOAuthTransaction, consumeOAuthTransaction } from '../services/oauth/transactions.js';
-import { prisma } from '../db.js';
+import { webReturnToFromRequest, resolveWebAppUrl } from '../services/oauth/providers.js';
+import { consumeOAuthTransaction } from '../services/oauth/transactions.js';
 import { syncInstallationRepositories } from '../services/github-app/repositories.js';
+import { prisma } from '../db.js';
 
 export async function registerDiscordCommunityRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/integrations/discord/community/join', async (request) => {
+  app.get('/integrations/discord/community/status', async (request) => {
+    const user = await requireAuth(request);
+    const link = await prisma.discordCommunityLink.findUnique({ where: { userId: user.id } });
+    const identity = await prisma.connectedIdentity.findFirst({ where: { userId: user.id, provider: 'discord' } });
+    return {
+      enabled: env.discordCommunityEnabled,
+      discordLinked: Boolean(identity),
+      link: link
+        ? {
+            joinedAt: link.joinedAt?.toISOString() ?? null,
+            syncState: link.syncState,
+            lastSyncAt: link.lastSyncAt?.toISOString() ?? null,
+            lastError: link.lastError,
+          }
+        : null,
+    };
+  });
+
+  app.post('/integrations/discord/community/join/start', async (request) => {
     const user = await requireAuth(request);
     if (!env.discordCommunityEnabled) throw badRequest('Discord community is not configured.');
-    const body = z.object({ accessToken: z.string().min(20).max(4096) }).parse(request.body ?? {});
-    await addMemberWithOAuthAccess(user.id, body.accessToken);
-    return { ok: true };
+    const identity = await prisma.connectedIdentity.findFirst({ where: { userId: user.id, provider: 'discord' } });
+    if (!identity) throw badRequest('Connect Discord for sign-in first, then join the community server.');
+    const url = await buildAuthorizeRedirect({
+      provider: 'discord',
+      intent: 'discord_guild_join',
+      userId: user.id,
+      returnTo: webReturnToFromRequest(undefined, '/app/settings/connections?discord_join=1'),
+    });
+    return { url };
   });
 
   app.post('/integrations/discord/community/sync', async (request) => {
     const user = await requireAuth(request);
-    const { syncDiscordRolesForUser } = await import('../services/discord/community.js');
     await syncDiscordRolesForUser(user.id);
     return { ok: true };
-  });
-
-  app.get('/integrations/discord/community/join/start', async (request) => {
-    const user = await requireAuth(request);
-    const url = await buildAuthorizeRedirect({
-      provider: 'discord',
-      intent: 'link',
-      userId: user.id,
-      returnTo: '/app/settings/connections?discord_join=1',
-    });
-    return { url, note: 'After linking, call community join with the OAuth access token from a guilds.join scope flow.' };
   });
 }
 
@@ -60,7 +72,7 @@ export async function registerGitHubSetupRoute(app: FastifyInstance): Promise<vo
       }
     }
     if (!userId) {
-      return reply.redirect(resolveWebAppUrl('/app/settings/connections?github=error'));
+      return reply.redirect(resolveWebAppUrl('/app/settings/connections?error=github_setup'));
     }
     const row = await prisma.gitHubAppInstallation.upsert({
       where: { installationId: query.installation_id },

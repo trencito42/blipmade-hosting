@@ -89,6 +89,73 @@ export async function listUserRepositories(userId: string, query: string | undef
   return { repositories: repos, githubAppEnabled: env.githubAppEnabled };
 }
 
+export async function revokeInstallationRepositories(
+  installationDbId: string,
+  repositoryIds: string[],
+): Promise<number> {
+  if (repositoryIds.length === 0) return 0;
+  const res = await prisma.gitHubAuthorizedRepository.updateMany({
+    where: { installationId: installationDbId, repositoryId: { in: repositoryIds }, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  return res.count;
+}
+
+export async function upsertInstallationRepositories(
+  installationDbId: string,
+  repos: { id: number; full_name: string; default_branch?: string; private: boolean }[],
+): Promise<number> {
+  let count = 0;
+  for (const repo of repos) {
+    await prisma.gitHubAuthorizedRepository.upsert({
+      where: { installationId_repositoryId: { installationId: installationDbId, repositoryId: String(repo.id) } },
+      create: {
+        installationId: installationDbId,
+        repositoryId: String(repo.id),
+        fullName: repo.full_name,
+        defaultBranch: repo.default_branch ?? 'main',
+        isPrivate: repo.private,
+        revokedAt: null,
+        syncedAt: new Date(),
+      },
+      update: {
+        fullName: repo.full_name,
+        defaultBranch: repo.default_branch ?? 'main',
+        isPrivate: repo.private,
+        revokedAt: null,
+        syncedAt: new Date(),
+      },
+    });
+    count += 1;
+  }
+  return count;
+}
+
+export async function listRepositoryBranches(
+  userId: string,
+  installationDbId: string,
+  repositoryId: string,
+): Promise<{ branches: string[] }> {
+  const { installation } = await assertUserRepositoryAccess(userId, installationDbId, repositoryId);
+  const token = await mintInstallationToken(installation.installationId);
+  const branches: string[] = [];
+  let page = 1;
+  for (;;) {
+    const res = await fetch(
+      `https://api.github.com/repositories/${repositoryId}/branches?per_page=100&page=${page}`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'Blipmade' } },
+    );
+    if (!res.ok) break;
+    const batch = (await res.json()) as { name: string }[];
+    if (!batch.length) break;
+    branches.push(...batch.map((b) => b.name));
+    if (batch.length < 100) break;
+    page += 1;
+    if (page > 10) break;
+  }
+  return { branches };
+}
+
 export async function assertUserRepositoryAccess(userId: string, installationDbId: string, repositoryId: string) {
   const inst = await prisma.gitHubAppInstallation.findFirst({
     where: { id: installationDbId, userId, suspendedAt: null },

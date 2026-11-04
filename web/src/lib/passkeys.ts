@@ -20,11 +20,11 @@ export async function authenticateWithPasskey<T>(): Promise<T> {
   return post<T>('/auth/passkey/verify', { challengeId, response });
 }
 
-/** The second step of a password sign-in, with a passkey. */
-export async function secondStepWithPasskey<T>(token: string): Promise<T> {
-  const { options } = await post<{ options: Parameters<typeof startAuthentication>[0]['optionsJSON'] }>('/auth/login/2fa/passkey/options', { token });
+/** The second step of a password sign-in, with a passkey. Token may be omitted when the pending OAuth cookie is set. */
+export async function secondStepWithPasskey<T>(token?: string): Promise<T> {
+  const { options } = await post<{ options: Parameters<typeof startAuthentication>[0]['optionsJSON'] }>('/auth/login/2fa/passkey/options', token ? { token } : {});
   const response = await startAuthentication({ optionsJSON: options });
-  return post<T>('/auth/login/2fa/passkey/verify', { token, response });
+  return post<T>('/auth/login/2fa/passkey/verify', token ? { token, response } : { response });
 }
 
 /** Adds a passkey to the account that is signed in. */
