@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollRow } from '../ScrollRow';
 import { Link } from '../router';
 import { useRevealOnChange } from '../lib/useReveal';
-import { categoryOf, categoryOrder } from '../site/categories';
+import { categoryOf, categoryOrder, CATEGORIES } from '../site/categories';
 import { Icon } from '../icons';
 import type { CatalogProduct } from '../lib/api';
 import {
@@ -308,7 +308,7 @@ export default function DeployCatalog() {
 
       {journey === 'catalog' && (
         <>
-      {shownFamilies.length > 0 && (
+      {shownFamilies.length > 0 && category !== 'All' && (
         <section className="grid gap-2" aria-label="Product families">
           <h3 className="text-[13px] font-semibold uppercase tracking-wide text-ink3">Families</h3>
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -407,7 +407,37 @@ export default function DeployCatalog() {
           />
         ) : (
           <>
-            {ready.length > 0 ? (
+            {category === 'All' ? (
+              CATEGORIES.filter((meta) => categories.includes(meta.id)).map((meta) => {
+                const sectionProducts = ready.filter((product) => product.category === meta.id);
+                const sectionFamilies = shownFamilies.filter((family) => family.variants.some((variant) => variant.product.category === meta.id));
+                if (sectionProducts.length === 0 && sectionFamilies.length === 0) return null;
+                return (
+                  <section key={meta.id} aria-labelledby={`cat-${meta.id}`} className="grid gap-4 rounded-[24px] border border-line bg-card/40 p-5">
+                    <header className="grid gap-1 border-b border-line/80 pb-4">
+                      <h3 id={`cat-${meta.id}`} className="flex items-center gap-2 font-display text-[20px] font-semibold tracking-[-0.03em] text-ink">
+                        <Icon name={meta.icon} size={18} />
+                        {meta.label}
+                      </h3>
+                      <p className="max-w-2xl text-[14px] text-ink3">{meta.blurb}</p>
+                    </header>
+                    {sectionFamilies.length > 0 && (
+                      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {sectionFamilies.map((family) => (
+                          <li key={family.slug}>
+                            <Link to={`/app/deploy/families/${encodeURIComponent(family.slug)}`} className="grid h-full gap-2 rounded-[18px] border border-line bg-card p-4 transition-colors hover:border-ink/35">
+                              <p className="font-display text-[16px] font-semibold text-ink">{family.name}</p>
+                              <p className="line-clamp-2 text-[13px] text-ink2">{family.summary}</p>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {sectionProducts.length > 0 && <ProductGrid products={sectionProducts} />}
+                  </section>
+                );
+              })
+            ) : ready.length > 0 ? (
               <ProductGrid products={ready} />
             ) : shownFamilies.length > 0 ? null : (
               <p className="rounded-2xl bg-s2 px-4 py-3 text-[14px] text-ink2">Nothing in this view can be deployed yet.</p>

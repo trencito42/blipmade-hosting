@@ -1,9 +1,16 @@
+import {
+  ATTACHED_MYSQL,
+  companionProduct,
+  defaultConfirmedServices,
+  importServiceBillable,
+  importServiceLinkable,
+} from './import-dependencies.js';
+
 /**
  * Optional databases for an imported project.
  *
- * A dependency is linked only when the manifest declared it and the customer confirmed it.
- * MariaDB has no egg password variable. The platform generates one password per database
- * and applies it with the MariaDB client after the port accepts a connection.
+ * MySQL uses the panel database on the application server when the plan allows it.
+ * PostgreSQL, Redis and an optional standalone MariaDB server are separate instances.
  */
 
 export const LINKABLE_SERVICES = ['postgresql', 'redis', 'mariadb'] as const;
@@ -11,17 +18,30 @@ export type LinkableService = (typeof LINKABLE_SERVICES)[number];
 
 const LINKABLE = new Set<string>(LINKABLE_SERVICES);
 
+export { ATTACHED_MYSQL, companionProduct, defaultConfirmedServices, importServiceBillable, importServiceLinkable };
+
 export function linkableService(slug: string): slug is LinkableService {
   return LINKABLE.has(slug);
 }
 
 /** The services the customer may add. Anything else in the list is refused. */
-export function confirmedServiceSelection(detected: string[], requested: string[]): { ok: true; chosen: LinkableService[] } | { ok: false; message: string } {
-  const known = new Set(detected.filter(linkableService));
-  const chosen: LinkableService[] = [];
+export function confirmedServiceSelection(
+  detected: string[],
+  requested: string[],
+): { ok: true; chosen: string[] } | { ok: false; message: string } {
+  const known = new Set(detected);
+  const chosen: string[] = [];
   for (const slug of requested) {
-    if (!linkableService(slug) || !known.has(slug) || chosen.includes(slug)) {
-      return { ok: false, message: `${slug} was not detected in this project.` };
+    if (!known.has(slug) || chosen.includes(slug)) {
+      return {
+        ok: false,
+        message: slug === ATTACHED_MYSQL
+          ? 'This project was not detected as needing MySQL.'
+          : `${slug} was not detected in this project.`,
+      };
+    }
+    if (slug !== ATTACHED_MYSQL && !linkableService(slug)) {
+      return { ok: false, message: `${slug} cannot be added to this import.` };
     }
     chosen.push(slug);
   }
@@ -51,7 +71,7 @@ export function quoteItemsForImport<T extends { productSlug: string; ram?: numbe
 ): T[] {
   const next = [...items];
   for (const service of confirmed) {
-    if (next.some((item) => item.productSlug === service.slug)) continue;
+    if (service.slug === ATTACHED_MYSQL || next.some((item) => item.productSlug === service.slug)) continue;
     next.push({ productSlug: service.slug, ram: service.ram, cpu: service.cpu, disk: service.disk } as T);
   }
   return next;
@@ -79,7 +99,7 @@ export function connectionVariable(endpoint: ServiceEndpoint): { key: string; va
   if (endpoint.slug === 'redis') {
     return { key: 'REDIS_URL', value: `redis://:${password}@${host}:${endpoint.port}` };
   }
-  if (endpoint.slug === 'mariadb') {
+  if (endpoint.slug === 'mariadb' || endpoint.slug === ATTACHED_MYSQL) {
     const database = encodeURIComponent(endpoint.database || 'blipmade');
     return { key: 'DATABASE_URL', value: `mysql://${user}:${password}@${host}:${endpoint.port}/${database}` };
   }

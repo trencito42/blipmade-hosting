@@ -3,9 +3,11 @@ import { BLIPMADE_DIR, parseEnvValues, renderEnv } from './git-deploy.js';
 import * as application from './pterodactyl/application.js';
 import * as client from './pterodactyl/client.js';
 import * as operations from './panel/operations.js';
-import { connectionVariable, dependencyReady, mariadbGrantCommand, mariadbGrantSql, mariadbPassword, type ServiceEndpoint } from './project-links.js';
+import { connectionVariable, dependencyReady, mariadbGrantCommand, mariadbGrantSql, mariadbPassword, type ServiceEndpoint, ATTACHED_MYSQL } from './project-links.js';
+import { companionProduct } from './import-dependencies.js';
 import { generateSecret, openVariables, sealVariables } from './instance-credentials.js';
 import { probeTcpPort } from './domain-activation.js';
+import { databasesIncluded } from '../lib/plan-limits.js';
 
 /**
  * Writes confirmed database URLs into the application container after every
@@ -41,14 +43,25 @@ async function linkOne(sourceId: string): Promise<boolean> {
     include: { product: { select: { generatedVariables: true } } },
   });
   if (!app?.orderId || app.status !== 'ONLINE' || !app.pterodactylUuid || !app.pterodactylServerId) return false;
-  const companions = await prisma.instance.findMany({
-    where: { orderId: app.orderId, userId: app.userId, status: 'ONLINE', product: { slug: { in: source.confirmedServices } } },
-    include: { product: { select: { slug: true, generatedVariables: true } } },
-  });
-  if (source.confirmedServices.some((slug) => !companions.some((row) => row.product.slug === slug))) return false;
 
+  const wantsAttached = source.confirmedServices.includes(ATTACHED_MYSQL);
+  const companionSlugs = source.confirmedServices.filter((slug) => companionProduct(slug));
   const values: Record<string, string> = {};
-  for (const companion of companions) {
+
+  if (wantsAttached) {
+    const attached = await linkAttachedMysql(app as LinkedApp & { pterodactylUuid: string }, source.id);
+    if (!attached) return false;
+    values[attached.key] = attached.value;
+  }
+
+  if (companionSlugs.length > 0) {
+    const companions = await prisma.instance.findMany({
+      where: { orderId: app.orderId, userId: app.userId, status: 'ONLINE', product: { slug: { in: companionSlugs } } },
+      include: { product: { select: { slug: true, generatedVariables: true } } },
+    });
+    if (companionSlugs.some((slug) => !companions.some((row) => row.product.slug === slug))) return false;
+
+    for (const companion of companions) {
     if (!companion.pterodactylServerId || !companion.pterodactylUuid) return false;
     const server = await application.getServer(companion.pterodactylServerId);
     const token = await operations.customerToken({
@@ -79,7 +92,8 @@ async function linkOne(sourceId: string): Promise<boolean> {
       const granted = await grantMariaDb(token, companion.pterodactylUuid, password);
       if (!granted) return false;
     }
-    values[variable.key] = variable.value;
+      values[variable.key] = variable.value;
+    }
   }
 
   const appToken = await operations.customerToken({
@@ -100,6 +114,63 @@ async function linkOne(sourceId: string): Promise<boolean> {
     data: { instanceId: app.id, type: 'deploy', message: `Connected ${source.confirmedServices.join(', ')}. The credentials stay in the server.` },
   });
   return true;
+}
+
+type LinkedApp = {
+  id: string;
+  userId: string;
+  ram: number;
+  pterodactylUuid: string;
+  pterodactylServerId: number | null;
+  status: string;
+  generatedVariables: string | null;
+  product: { generatedVariables: unknown };
+};
+
+function owned(app: LinkedApp) {
+  return {
+    id: app.id,
+    userId: app.userId,
+    pterodactylUuid: app.pterodactylUuid,
+    pterodactylServerId: app.pterodactylServerId,
+    status: app.status,
+    generatedVariables: app.generatedVariables,
+    productVariables: app.product.generatedVariables,
+  };
+}
+
+/** Creates or reuses a panel database on the application server and returns DATABASE_URL parts. */
+async function linkAttachedMysql(app: LinkedApp, sourceId: string): Promise<{ key: string; value: string } | null> {
+  const instance = owned(app);
+  const token = await operations.customerToken(instance);
+  const server = await operations.serverInfo(token, instance);
+  if (databasesIncluded(app.ram) < 1 || server.feature_limits.databases < 1) return null;
+  const safe = sourceId.replace(/[^a-z0-9]/gi, '').slice(0, 16).toLowerCase() || 'import';
+  const wantedName = `blip_${safe}`;
+  const rows = await operations.databases(token, instance);
+  let row = rows.find((entry) => entry.name === wantedName || entry.name.includes(wantedName));
+  if (!row && rows.length >= server.feature_limits.databases) return null;
+  if (!row) {
+    await operations.createDatabase(token, instance, { database: wantedName, remote: '%' });
+    const fresh = await operations.databases(token, instance);
+    row = fresh.find((entry) => entry.name === wantedName || entry.name.includes(wantedName));
+  }
+  if (!row?.id) return null;
+  const creds = await operations.databaseCredentials(token, instance, row.id);
+  if (!creds.password) return null;
+  const endpoint: ServiceEndpoint = {
+    slug: ATTACHED_MYSQL,
+    user: creds.username,
+    password: creds.password,
+    host: creds.host,
+    port: creds.port,
+    database: creds.name,
+  };
+  const variable = connectionVariable(endpoint);
+  if (!variable) return null;
+  const portOpen = await probeTcpPort(endpoint.host, endpoint.port);
+  if (!dependencyReady({ online: true, portOpen })) return null;
+  return variable;
 }
 
 async function companionPassword(

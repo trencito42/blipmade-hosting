@@ -26,6 +26,7 @@ import {
   cpuOptions,
   deployContextFromQuery,
   deployPathFor,
+  catalogInstallFromQuery,
   diskOptions,
   isOrderable,
   optionCodesFromQuery,
@@ -550,11 +551,12 @@ export default function Deploy() {
     if (!product || seeded.current === product.id) return;
     seeded.current = product.id;
     setName(product.slug);
-    // The values of the variables of the previous product are the secrets of
-    // another product, and they are not kept when the customer chooses
-    // another one.
-    setVariables({});
-  }, [product]);
+    const next: Record<string, string> = {};
+    if (query.mcVersion && product.slug.startsWith('minecraft-')) {
+      next.MINECRAFT_VERSION = query.mcVersion;
+    }
+    setVariables(next);
+  }, [product, query.mcVersion]);
 
   /**
    * The address of the deploy page with a configuration, a step and an order.
@@ -742,6 +744,7 @@ export default function Deploy() {
                   ...(query.preset ? { presetSlug: query.preset } : {}),
                   ...(query.presetVersion && Number.isInteger(Number(query.presetVersion)) ? { presetVersion: Number(query.presetVersion) } : {}),
                   addonSlugs: query.addons ? query.addons.split(',').map((value) => value.trim()).filter(Boolean) : [],
+                  ...(catalogInstallFromQuery(query) ? { install: catalogInstallFromQuery(query) } : {}),
                 },
               }
             : {}),

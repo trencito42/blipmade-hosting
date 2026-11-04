@@ -72,8 +72,16 @@ function suggestServices(files: { path: string; text: string }[]): SuggestedServ
   const add = (slug: string, reason: string, certainty: SuggestedService['certainty']) => {
     if (!services.some((entry) => entry.slug === slug)) services.push({ slug, reason, certainty });
   };
-  if (provider === 'mysql' || keys.has('mysql2') || keys.has('mysql') || python.includes('pymysql') || python.includes('mariadb')) {
-    add('mariadb', provider === 'mysql' ? 'Prisma is configured for MySQL.' : 'The project declares MySQL or MariaDB.', 'confirmed');
+  if (provider === 'sqlite') {
+    add('sqlite', 'Prisma is configured for SQLite. No separate database server is required.', 'confirmed');
+  } else if (provider === 'mysql' || keys.has('mysql2') || keys.has('mysql') || python.includes('pymysql') || python.includes('mariadb')) {
+    add(
+      'attached_mysql',
+      provider === 'mysql'
+        ? 'This project uses MySQL. When your plan includes a database slot, Blipmade creates and connects a database on the same server — no separate MariaDB product.'
+        : 'This project declares MySQL. A database can be attached to your application server when your plan includes a slot.',
+      'confirmed',
+    );
   }
   if (provider === 'postgresql' || keys.has('pg') || python.includes('psycopg') || python.includes('postgresql')) {
     add('postgresql', provider === 'postgresql' ? 'Prisma is configured for PostgreSQL.' : 'The project declares PostgreSQL.', 'confirmed');

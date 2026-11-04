@@ -18,7 +18,19 @@ import { inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-
 import { IMPORT_ZIP_TTL_MS, zipQuotaProblem } from '../services/import-lifecycle.js';
 import { purgeExpiredImportArchives } from '../services/import-apply.js';
 import { cleanCommand, cleanRepoUrl } from '../services/git-deploy.js';
-import { confirmedServiceSelection, linkableService, quoteItemsForImport } from '../services/project-links.js';
+import { confirmedServiceSelection, defaultConfirmedServices, importServiceBillable, importServiceLinkable, quoteItemsForImport, companionProduct } from '../services/project-links.js';
+import type { ImportProposal } from '../services/import-inspect.js';
+
+function enrichImportServices(proposal: ImportProposal): ImportProposal {
+  return {
+    ...proposal,
+    services: proposal.services.map((service) => ({
+      ...service,
+      linkable: importServiceLinkable(service.slug),
+      billable: importServiceBillable(service.slug),
+    })),
+  };
+}
 
 const quoteItemSchema = z.object({
   productSlug: z.string().min(1),
@@ -256,8 +268,14 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         url: z.string().trim().max(300).optional(),
         zipBase64: z.string().max(12_000_000).optional(),
       }).parse(request.body ?? {});
-      if (body.zipBase64) return { proposal: inspectZip(Buffer.from(body.zipBase64, 'base64')) };
-      if (body.url) return { proposal: await inspectGitUrl(body.url) };
+      if (body.zipBase64) {
+        const proposal = inspectZip(Buffer.from(body.zipBase64, 'base64'));
+        return { proposal: enrichImportServices(proposal) };
+      }
+      if (body.url) {
+        const proposal = await inspectGitUrl(body.url);
+        return { proposal: enrichImportServices(proposal) };
+      }
       return { proposal: { productSlug: null, runtime: null, confidence: 'unknown' as const, start: null, build: null, files: [], services: [], notes: ['Paste a repository URL or choose a zip.'], envNames: [], recommendedRam: null } };
     },
   });
@@ -290,9 +308,15 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       if (!proposal?.productSlug || !proposal.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
       const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, maxRam: true, deployable: true, visible: true } });
       if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
-      const selection = confirmedServiceSelection(proposal.services.map((service) => service.slug), body.confirmServices ?? []);
+      const detected = proposal.services.map((service) => service.slug);
+      const requested = body.confirmServices;
+      const selection = confirmedServiceSelection(
+        detected,
+        requested && requested.length > 0 ? requested : defaultConfirmedServices(detected),
+      );
       if (!selection.ok) throw badRequest(selection.message);
-      const companions = await Promise.all(selection.chosen.map(async (slug) => {
+      const companionSlugs = selection.chosen.filter((slug) => companionProduct(slug));
+      const companions = await Promise.all(companionSlugs.map(async (slug) => {
         const row = await prisma.product.findUnique({ where: { slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, deployable: true, visible: true } });
         if (!row?.visible || !row.deployable) throw badRequest(`${slug} cannot be ordered with this project.`);
         return row;
@@ -331,7 +355,11 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           disk: product.defaultDisk,
           total: quote.total,
           currency: quote.currency,
-          services: proposal.services.map((service) => ({ ...service, linkable: linkableService(service.slug) })),
+          services: proposal.services.map((service) => ({
+            ...service,
+            linkable: importServiceLinkable(service.slug),
+            billable: importServiceBillable(service.slug),
+          })),
           confirmed: selection.chosen,
           companions: companions.map((row) => ({ slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk })),
           notes: proposal.notes,
@@ -466,6 +494,35 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           total: quote.total + tax,
         },
       };
+    },
+  });
+
+  app.get('/catalog/minecraft/versions', {
+    handler: async (request) => {
+      await requireAuth(request);
+      const { product } = z.object({ product: z.enum(['minecraft-paper', 'minecraft-folia', 'minecraft-forge', 'minecraft-bedrock']) }).parse(request.query ?? {});
+      const { paperVersions } = await import('../services/minecraft.js');
+      if (product === 'minecraft-paper' || product === 'minecraft-folia') {
+        return { supported: true, versions: (await paperVersions()).slice(0, 30) };
+      }
+      if (product === 'minecraft-forge') {
+        return { supported: true, versions: (await paperVersions()).slice(0, 20), note: 'Forge uses MC_VERSION on the egg; pick the game version your modpack targets.' };
+      }
+      return { supported: false, versions: [], note: 'Bedrock versions are fixed by the egg image.' };
+    },
+  });
+
+  app.get('/catalog/minecraft/plugins/search', {
+    handler: async (request) => {
+      await requireAuth(request);
+      const { q, version, loader } = z.object({
+        q: z.string().min(1).max(60),
+        version: z.string().regex(/^\d+\.\d+(\.\d+)?$/),
+        loader: z.enum(['paper', 'forge']).default('paper'),
+      }).parse(request.query ?? {});
+      const { searchPlugins, searchModpacks } = await import('../services/minecraft.js');
+      if (loader === 'forge') return { results: await searchModpacks(q, version) };
+      return { results: await searchPlugins(q, version) };
     },
   });
 }

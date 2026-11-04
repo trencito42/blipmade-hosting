@@ -13,6 +13,16 @@ describe('confirmed project services', () => {
     expect(chosen.ok).toBe(false);
   });
 
+  it('accepts attached MySQL without ordering a standalone MariaDB server', () => {
+    const chosen = confirmedServiceSelection(['attached_mysql'], ['attached_mysql']);
+    expect(chosen).toEqual({ ok: true, chosen: ['attached_mysql'] });
+    const items = quoteItemsForImport(
+      [{ productSlug: 'nodejs', ram: 2048 }],
+      [{ slug: 'attached_mysql', ram: 0, cpu: 0, disk: 0 }],
+    );
+    expect(items.map((item) => item.productSlug)).toEqual(['nodejs']);
+  });
+
   it('provisions MariaDB when the project declared it and the customer confirmed it', () => {
     const chosen = confirmedServiceSelection(['mariadb'], ['mariadb']);
     expect(chosen).toEqual({ ok: true, chosen: ['mariadb'] });

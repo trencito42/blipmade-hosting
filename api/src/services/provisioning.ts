@@ -20,7 +20,7 @@ import { formatMoney } from '../lib/money.js';
 import { patchDefaultConf, patchFastcgiParams } from './nginx-proxy.js';
 import { looksLikeStarter, planStarterFiles, starterFiles, usesStarterApplication } from './starter-apps.js';
 import { ArchiveError, verifyBackupStream } from './backup-archive.js';
-import { applyCatalogInstall } from './catalog-install-apply.js';
+import { applyCatalogInstall, applyCatalogOrderInstall } from './catalog-install-apply.js';
 import { presetChosen } from './catalog-install.js';
 import { applyInstallVariables } from './install-variables.js';
 import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
@@ -1788,7 +1788,12 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       // values of nobody.
       const customer = openVariables(instance.customerVariables) ?? {};
       const importSource = await storedImportForInstance(instance);
-      const environment: Record<string, string> = applyInstallVariables({ ...egg.environment, ...made, ...customer }, importSource);
+      let environment: Record<string, string> = applyInstallVariables({ ...egg.environment, ...made, ...customer }, importSource);
+      if (instance.orderItemId) {
+        const line = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });
+        const gameVersion = (line?.config as { catalog?: { install?: { gameVersion?: string } } } | null)?.catalog?.install?.gameVersion;
+        if (gameVersion && 'MINECRAFT_VERSION' in environment) environment = { ...environment, MINECRAFT_VERSION: gameVersion };
+      }
 
       const created = await ptero.createServer({
         name: instance.name,
@@ -2072,6 +2077,7 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
       if (fresh) await applyStoredImport(fresh);
     }
     await applyCatalogInstall(instance.id);
+    await applyCatalogOrderInstall(instance.id);
 
     // The order is fulfilled when its servers are online and any imported application is healthy.
     if (instance.orderId) await syncOrderFulfillment(instance.orderId);

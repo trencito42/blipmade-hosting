@@ -92,16 +92,17 @@ describe('POST /catalog/import/plans', () => {
     };
     expect(proposal.productSlug).toBe('nodejs');
     expect(proposal.files).toContain('prisma/schema.prisma');
-    expect(proposal.services.map((service) => service.slug)).toEqual(['mariadb']);
+    expect(proposal.services.map((service) => service.slug)).toEqual(['attached_mysql']);
     expect(proposal.build).toContain('npm run build');
     expect(proposal.start).toContain('$SERVER_PORT');
     expect(proposal.start).not.toContain('3007');
 
     const plan = await client.request('POST', '/api/catalog/import/plans', {
       url: 'https://github.com/trencito42/daily81',
-      confirmServices: ['mariadb'],
     });
     expect(plan.status).toBe(200);
+    expect(plan.body.plan.confirmed).toEqual(['attached_mysql']);
+    expect(plan.body.plan.companions).toEqual([]);
     expect(plan.body.plan.continueTo).toMatch(/^\/app\/deploy\/nodejs\?import=/);
     expect(plan.body.plan.total).toBeGreaterThan(0);
   }, 60_000);

@@ -3,6 +3,7 @@ import { catalogInstallPlan, presetOutcome, runCatalogInstall } from './catalog-
 import * as operations from './panel/operations.js';
 import * as panelClient from './pterodactyl/client.js';
 import * as ptero from './pterodactyl/application.js';
+import { modpackFilesFor, pluginFileFor } from './minecraft.js';
 
 interface StoredCatalog {
   preset?: { slug?: string; version?: number } | null;
@@ -178,4 +179,78 @@ export async function retryCatalogInstalls(): Promise<number> {
     if (result === 'installed') count += 1;
   }
   return count;
+}
+
+interface OrderInstall {
+  gameVersion?: string;
+  plugins?: { slug: string; version: string }[];
+  modpack?: { slug: string; version: string };
+}
+
+/** Downloads Modrinth plugins or modpack files chosen at checkout into the running server. */
+export async function applyCatalogOrderInstall(instanceId: string): Promise<'installed' | 'skipped' | 'failed' | 'none'> {
+  const instance = await prisma.instance.findUnique({
+    where: { id: instanceId },
+    include: { product: { select: { slug: true, generatedVariables: true } }, orderItem: { select: { config: true } } },
+  });
+  if (!instance?.pterodactylUuid || !instance.orderItem?.config) return 'none';
+  const install = (instance.orderItem.config as { catalog?: { install?: OrderInstall } }).catalog?.install;
+  if (!install?.gameVersion && !install?.plugins?.length && !install?.modpack) return 'none';
+  const manifest = instance.installationManifest as { orderInstall?: { status?: string } } | null;
+  if (manifest?.orderInstall?.status === 'installed') return 'skipped';
+
+  try {
+    const token = await operations.customerToken({
+      id: instance.id,
+      userId: instance.userId,
+      status: instance.status,
+      pterodactylUuid: instance.pterodactylUuid,
+      pterodactylServerId: instance.pterodactylServerId,
+      generatedVariables: instance.generatedVariables,
+      productVariables: instance.product.generatedVariables,
+    });
+    const uuid = instance.pterodactylUuid;
+    const files: string[] = [];
+    const version = install.gameVersion ?? '';
+    if (install.plugins?.length && version && instance.product.slug === 'minecraft-paper') {
+      try { await panelClient.createFolder(token, uuid, '/plugins'); } catch { /* exists */ }
+      for (const plugin of install.plugins) {
+        const file = await pluginFileFor(plugin.slug, version);
+        await panelClient.pullFile(token, uuid, file.url, '/plugins', file.filename);
+        files.push(`/plugins/${file.filename}`);
+      }
+    }
+    if (install.modpack && version && instance.product.slug === 'minecraft-forge') {
+      const pack = await modpackFilesFor(install.modpack.slug, version);
+      for (const file of pack.files) {
+        try { await panelClient.createFolder(token, uuid, file.directory); } catch { /* exists */ }
+        await panelClient.pullFile(token, uuid, file.url, file.directory, file.filename);
+        files.push(`${file.directory}/${file.filename}`);
+      }
+    }
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: {
+        installationManifest: {
+          ...(instance.installationManifest as object | null),
+          orderInstall: { status: 'installed', files, installedAt: new Date().toISOString() },
+        },
+      },
+    });
+    await prisma.instanceEvent.create({
+      data: { instanceId: instance.id, type: 'preset', message: files.length ? `Checkout install wrote ${files.length} file(s). Restart the server to load them.` : 'Checkout install finished.' },
+    });
+    return files.length ? 'installed' : 'none';
+  } catch (error) {
+    await prisma.instance.update({
+      where: { id: instance.id },
+      data: {
+        installationManifest: {
+          ...(instance.installationManifest as object | null),
+          orderInstall: { status: 'failed', error: error instanceof Error ? error.message : 'Install failed.' },
+        },
+      },
+    });
+    return 'failed';
+  }
 }

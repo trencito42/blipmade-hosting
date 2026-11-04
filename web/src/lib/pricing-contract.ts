@@ -280,7 +280,7 @@ export function optionCodesFromQuery(
  * The configuration travels in the address, so a refresh, a link and the back
  * button all bring the customer back to the same deployment.
  */
-const DEPLOY_CONTEXT = ['import', 'family', 'variant', 'preset', 'presetVersion', 'addons'] as const;
+const DEPLOY_CONTEXT = ['import', 'family', 'variant', 'preset', 'presetVersion', 'addons', 'mcVersion', 'mcPlugins'] as const;
 
 /** Query values that must survive a resource change, a step change and a refresh. Secrets are not among them. */
 export function deployContextFromQuery(query: Record<string, string | undefined>): Record<string, string> {
@@ -291,6 +291,8 @@ export function deployContextFromQuery(query: Record<string, string | undefined>
     preset: /^[a-z0-9-]{1,80}$/i,
     presetVersion: /^\d{1,6}$/,
     addons: /^[a-z0-9,-]{1,200}$/i,
+    mcVersion: /^\d+\.\d+(\.\d+)?$/,
+    mcPlugins: /^[a-z0-9_:-]{0,400}$/i,
   };
   const extra: Record<string, string> = {};
   for (const key of DEPLOY_CONTEXT) {
@@ -298,6 +300,29 @@ export function deployContextFromQuery(query: Record<string, string | undefined>
     if (value && rules[key].test(value)) extra[key] = value;
   }
   return extra;
+}
+
+/** Plugins chosen in the family wizard: slug:version pairs separated by commas. */
+export function parseMcPlugins(raw: string | undefined): { slug: string; version: string }[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((part) => part.trim())
+    .map((part) => {
+      const [slug, version] = part.split(':');
+      if (!slug || !version || !/^[a-z0-9-]+$/.test(slug)) return null;
+      if (!/^\d+\.\d+(\.\d+)?$/.test(version)) return null;
+      return { slug, version };
+    })
+    .filter((entry): entry is { slug: string; version: string } => entry !== null)
+    .slice(0, 15);
+}
+
+export function catalogInstallFromQuery(query: Record<string, string | undefined>): { gameVersion?: string; plugins?: { slug: string; version: string }[] } | undefined {
+  const gameVersion = query.mcVersion;
+  const plugins = parseMcPlugins(query.mcPlugins);
+  if (!gameVersion && plugins.length === 0) return undefined;
+  return { ...(gameVersion ? { gameVersion } : {}), ...(plugins.length ? { plugins } : {}) };
 }
 
 export function deployPathFor(

@@ -17,7 +17,7 @@ describe('import runtime plans', () => {
       { path: 'prisma/schema.prisma', text: 'generator client {\n  provider = "prisma-client-js"\n}\n\ndatasource db {\n  provider = "mysql"\n  url = env("DATABASE_URL")\n}\n' },
       { path: '.env.example', text: 'DATABASE_URL=\nNEXTAUTH_SECRET=\n' },
     ]);
-    expect(plan.services.map((service) => service.slug)).toEqual(['mariadb']);
+    expect(plan.services.map((service) => service.slug)).toEqual(['attached_mysql']);
     expect(plan.services[0]?.certainty).toBe('confirmed');
     expect(plan.build).toBe('npm install && npx prisma generate && npm run build');
     expect(plan.start).toBe('next start -p $SERVER_PORT -H 0.0.0.0');

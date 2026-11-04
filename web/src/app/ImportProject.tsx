@@ -14,7 +14,19 @@ interface Proposal {
   notes: string[];
   envNames?: string[];
   recommendedRam?: number | null;
-  services?: { slug: string; reason: string; certainty?: string; linkable?: boolean }[];
+  services?: { slug: string; reason: string; certainty?: string; linkable?: boolean; billable?: boolean }[];
+}
+
+function importServiceLabel(slug: string): string {
+  if (slug === 'attached_mysql') return 'MySQL (attached to your app server)';
+  if (slug === 'mariadb') return 'MariaDB server (standalone product)';
+  if (slug === 'postgresql') return 'PostgreSQL';
+  if (slug === 'redis') return 'Redis';
+  return slug;
+}
+
+function defaultConfirmed(services: NonNullable<Proposal['services']>): string[] {
+  return services.filter((service) => service.linkable && (service.slug === 'attached_mysql' || service.certainty === 'confirmed')).map((service) => service.slug);
 }
 
 function ReviewRow({ label, children }: { label: string; children: ReactNode }) {
@@ -40,6 +52,7 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
     setZipName(null);
     setConfirmed([]);
     setProposal(answer.proposal);
+    setConfirmed(defaultConfirmed(answer.proposal.services ?? []));
   });
   const plan = useAction(async () => {
     const answer = await post<{ plan: { continueTo: string; total: number; currency: string } }>('/catalog/import/plans', {
@@ -63,6 +76,7 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
     const answer = await post<{ proposal: Proposal }>('/catalog/import/inspect', { zipBase64: encoded });
     setConfirmed([]);
     setProposal(answer.proposal);
+    setConfirmed(defaultConfirmed(answer.proposal.services ?? []));
   });
 
   const requiredServices = (proposal?.services ?? []).filter((service) => service.certainty === 'confirmed' && service.linkable);
@@ -158,8 +172,14 @@ export function ImportProject({ compact = false }: { compact?: boolean }) {
                           />
                         ) : null}
                         <span>
-                          <span className="font-medium text-ink">{service.slug}</span> — {service.reason}
-                          {service.linkable ? ' Add it to this order.' : ' Not provisioned automatically.'}
+                          <span className="font-medium text-ink">{importServiceLabel(service.slug)}</span> — {service.reason}
+                          {service.linkable
+                            ? service.billable
+                              ? ' Add this product to your order.'
+                              : service.slug === 'attached_mysql'
+                                ? ' Included when your plan has a database slot.'
+                                : ' Connected automatically when eligible.'
+                            : ' Not provisioned automatically.'}
                         </span>
                       </li>
                     ))}

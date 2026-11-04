@@ -14,6 +14,13 @@ export const catalogSelectionSchema = z
     presetSlug: slug.optional(),
     presetVersion: z.number().int().positive().optional(),
     addonSlugs: z.array(slug).max(20).default([]),
+    install: z
+      .object({
+        gameVersion: z.string().regex(/^\d+\.\d+(\.\d+)?$/).optional(),
+        plugins: z.array(z.object({ slug: slug, version: z.string().max(24) })).max(15).optional(),
+        modpack: z.object({ slug: slug, version: z.string().max(24) }).optional(),
+      })
+      .optional(),
   })
   .strict();
 
@@ -24,6 +31,7 @@ export interface StoredCatalogSelection {
   variantSlug: string;
   preset: { slug: string; version: number } | null;
   addons: { slug: string; kind: string; version: number }[];
+  install?: { gameVersion?: string; plugins?: { slug: string; version: string }[]; modpack?: { slug: string; version: string } };
 }
 
 const publicVariantSelect = {
@@ -200,5 +208,5 @@ export async function resolveCatalogSelection(productSlug: string, optionCodes: 
     }
     return { slug: addon.slug, kind: addon.kind, version: addon.version };
   });
-  return { familySlug: family.slug, variantSlug: variant.slug, preset, addons };
+  return { familySlug: family.slug, variantSlug: variant.slug, preset, addons, ...(input.install ? { install: input.install } : {}) };
 }
