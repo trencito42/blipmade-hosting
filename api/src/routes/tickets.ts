@@ -462,6 +462,11 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     }
 
     await publishSupportEvent({ type: 'message', ticketId: ticket.id, ownerId: ticket.userId, internal: message.internal, seq: String(message.seq) });
+    if (!message.internal) {
+      void import('../services/discord/support-bridge.js')
+        .then(({ pushBlipmadeMessageToDiscord }) => pushBlipmadeMessageToDiscord(message.id))
+        .catch(() => undefined);
+    }
     if (!body.internal) {
       if (reopens) await fireAutomations('reopened', ticket.id, message.id);
       await fireAutomations(isStaff ? 'staff_replied' : 'customer_replied', ticket.id, message.id);

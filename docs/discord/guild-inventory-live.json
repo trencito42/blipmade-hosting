@@ -1,0 +1,10 @@
+{
+  "source": "Discord REST API export from VM103 development guild; studio ZIP parsed at docs/discord/guild-inventory-studio-zip.json (/root/blipmade-discord-studio.zip)",
+  "guildId": "207468519221100544",
+  "guildName": "Blipmade",
+  "exportedAt": "2026-11-04",
+  "protectedChannelIds": ["1565844667147493376"],
+  "protectedChannelPurpose": "Forum channel #bugs under LOGS — internal bug tracking with tags (UI, pending, closed, working). Must never be deleted or recreated.",
+  "channelCount": 26,
+  "notes": "Run GET /admin/integrations/discord/guild/inventory to refresh from the live guild."
+}

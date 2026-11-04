@@ -131,6 +131,10 @@ const schema = z.object({
   /** Discord community bot (guild join + role sync — separate from OAuth login). */
   DISCORD_BOT_TOKEN: z.string().default(''),
   DISCORD_GUILD_ID: z.string().default(''),
+  /** Discord application id (slash commands + interactions). */
+  DISCORD_APPLICATION_ID: z.string().default(''),
+  /** Ed25519 public key hex from the Discord developer portal (interaction verification). */
+  DISCORD_PUBLIC_KEY: z.string().default(''),
 
   SMTP_URL: z.string().default(''),
   /**
@@ -582,6 +586,7 @@ export const env = {
   ),
   githubAppEnabled: Boolean(raw.GITHUB_APP_ID && raw.GITHUB_APP_PRIVATE_KEY),
   discordCommunityEnabled: Boolean(raw.DISCORD_BOT_TOKEN && raw.DISCORD_GUILD_ID),
+  discordInteractionsEnabled: Boolean(raw.DISCORD_PUBLIC_KEY && raw.DISCORD_APPLICATION_ID && raw.DISCORD_BOT_TOKEN),
 } as const;
 
 export type Env = typeof env;

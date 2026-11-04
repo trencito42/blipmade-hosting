@@ -2,9 +2,9 @@ import { env } from '../../env.js';
 import { prisma } from '../../db.js';
 import { audit } from '../../lib/audit.js';
 import { badRequest } from '../../lib/errors.js';
+import { hasPermission, type Permission } from '../../lib/permissions.js';
 import { DISCORD_RULE_CATALOG, evaluateDiscordRoleRules, ensureDefaultDiscordRoleMappings } from './rules.js';
-
-const API = 'https://discord.com/api/v10';
+import { botFetch, parseDiscordError } from './http.js';
 
 export type DiscordCommunitySyncState =
   | 'not_configured'
@@ -33,41 +33,6 @@ export function mergeManagedDiscordRoles(memberRoles: string[], managedRoleIds: 
   const managedIds = new Set(managedRoleIds);
   const preserved = memberRoles.filter((roleId) => !managedIds.has(roleId));
   return [...new Set([...preserved, ...grantRoleIds])];
-}
-
-function parseDiscordError(text: string): string {
-  try {
-    const json = JSON.parse(text) as { message?: string; code?: number };
-    if (json.code === 50013) return 'The bot lacks permission (often role hierarchy — move the bot role above managed roles).';
-    if (json.code === 10007) return 'This Discord user is not in the server anymore.';
-    if (json.code === 10004) return 'The configured Discord server was not found. Check DISCORD_GUILD_ID.';
-    if (json.message) return json.message;
-  } catch {
-    /* plain text */
-  }
-  return text.slice(0, 500) || 'Discord API error';
-}
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function botFetch(path: string, init?: RequestInit, attempt = 0): Promise<Response> {
-  if (!env.DISCORD_BOT_TOKEN) throw badRequest('Discord community is not configured.');
-  const res = await fetch(`${API}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  });
-  if (res.status === 429 && attempt < 4) {
-    const retry = Number(res.headers.get('retry-after') ?? '1');
-    await sleep(Math.min(10, retry) * 1000);
-    return botFetch(path, init, attempt + 1);
-  }
-  return res;
 }
 
 export async function fetchGuildSnapshot(): Promise<{ id: string; name: string } | null> {
@@ -268,8 +233,16 @@ export async function syncDiscordRolesForUser(userId: string): Promise<void> {
     userId,
     configured.map((m) => m.ruleKey),
   );
-  const managedIds = configured.map((m) => m.discordRoleId);
-  const grantIds = configured.filter((m) => eligible.has(m.ruleKey)).map((m) => m.discordRoleId);
+  const staffGrantIds = await resolveStaffDiscordRoleIds(userId);
+  const staffMappings = await prisma.discordStaffRoleMapping.findMany({ where: { enabled: true } });
+  const staffManagedIds = staffMappings.filter((m) => m.discordRoleId.trim()).map((m) => m.discordRoleId);
+  const managedIds = [...new Set([...configured.map((m) => m.discordRoleId), ...staffManagedIds])];
+  const grantIds = [
+    ...new Set([
+      ...configured.filter((m) => eligible.has(m.ruleKey)).map((m) => m.discordRoleId),
+      ...staffGrantIds,
+    ]),
+  ];
 
   const member = await fetchGuildMember(link.discordUserId);
   if (!member) {
@@ -431,4 +404,32 @@ export async function reconcileDiscordRoles(limit = 50): Promise<number> {
 export async function adminRetryDiscordSync(userId: string, actorId: string): Promise<void> {
   await syncDiscordRolesForUser(userId);
   await audit({ actorId, action: 'discord.community_sync_retry', targetType: 'user', targetId: userId });
+}
+
+async function resolveStaffDiscordRoleIds(userId: string): Promise<string[]> {
+  const staff = await prisma.staffMember.findUnique({
+    where: { userId },
+    include: { user: { select: { role: true, suspendedAt: true } } },
+  });
+  if (!staff?.user || staff.user.suspendedAt) return [];
+  const mappings = await prisma.discordStaffRoleMapping.findMany({ where: { enabled: true } });
+  const grant: string[] = [];
+  for (const row of mappings) {
+    if (!row.discordRoleId.trim()) continue;
+    if (hasPermission(staff.user.role, staff.permissions, row.permission as Permission)) {
+      grant.push(row.discordRoleId);
+    }
+  }
+  return grant;
+}
+
+export async function ensureDefaultDiscordStaffRoleMappings(): Promise<void> {
+  const defaults = ['support.read', 'support.write', 'support.assign', 'settings.read', 'settings.write'] as const;
+  for (const permission of defaults) {
+    await prisma.discordStaffRoleMapping.upsert({
+      where: { permission },
+      create: { permission, discordRoleId: '', enabled: false },
+      update: {},
+    });
+  }
 }

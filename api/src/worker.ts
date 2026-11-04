@@ -547,6 +547,15 @@ async function main(): Promise<void> {
       15 * 60_000,
     ),
   );
+  timers.push(
+    setInterval(
+      () =>
+        void import('./services/discord/support-bridge.js')
+          .then(({ ingestDiscordThreadMessages }) => ingestDiscordThreadMessages(15))
+          .catch((error) => console.error('[worker] discord ticket ingest failed', error)),
+      30_000,
+    ),
+  );
   // The containers are asked about every minute: the customer zone shows
   // what the node says, so the state of a service that runs has to be fresh.
   timers.push(setInterval(() => void watchRuntimeState().catch((error) => console.error('[worker] the state of the containers could not be read', error)), 60_000));

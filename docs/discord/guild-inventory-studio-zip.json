@@ -1,0 +1,65 @@
+{
+  "archivePath": "/root/blipmade-discord-studio.zip",
+  "archiveKind": "blipmade-discord-studio-application",
+  "note": "This ZIP is the Discord Studio deploy app + BLIPMADE_OFFICIAL_TEMPLATE (v1.2.0), not a Discord server JSON export. Live guild state is fetched separately via REST (see guild-inventory-live.json).",
+  "template": {
+    "id": "blipmade-official-v1",
+    "name": "Blipmade | Official Hosting Community",
+    "version": "1.2.0"
+  },
+  "roles": [
+    { "name": "Owner", "conceptualMap": "manual / not Blipmade-managed" },
+    { "name": "Administrator", "conceptualMap": "manual / Discord admin" },
+    { "name": "Support Team", "conceptualMap": "DiscordStaffRoleMapping from support.read/support.write" },
+    { "name": "Verified Customer", "conceptualMap": "DiscordRoleMapping active_customer + verified_member" },
+    { "name": "Community Member", "conceptualMap": "DiscordRoleMapping verified_member (no active service)" }
+  ],
+  "categories": [
+    { "name": "START HERE", "type": 4 },
+    { "name": "HELP & SUPPORT", "type": 4 },
+    { "name": "HOSTING", "type": 4 },
+    { "name": "COMMUNITY", "type": 4 },
+    { "name": "BLIPMADE TEAM (PRIVATE)", "type": 4, "everyoneDenyView": true }
+  ],
+  "channels": [
+    { "name": "welcome", "type": "text", "category": "START HERE" },
+    { "name": "rules", "type": "text", "category": "START HERE", "everyoneReadOnly": true },
+    { "name": "announcements", "type": "announcement", "category": "START HERE" },
+    { "name": "service-status", "type": "text", "category": "START HERE" },
+    { "name": "community-help", "type": "text", "category": "HELP & SUPPORT", "slowmodeSec": 10 },
+    { "name": "guides", "type": "text", "category": "HELP & SUPPORT" },
+    { "name": "suggestions", "type": "text", "category": "HELP & SUPPORT", "slowmodeSec": 60 },
+    { "name": "vps-hosting", "type": "text", "category": "HOSTING" },
+    { "name": "game-servers", "type": "text", "category": "HOSTING" },
+    { "name": "apps-and-bots", "type": "text", "category": "HOSTING" },
+    { "name": "domains-and-email", "type": "text", "category": "HOSTING" },
+    { "name": "general", "type": "text", "category": "COMMUNITY" },
+    { "name": "showcase", "type": "text", "category": "COMMUNITY" },
+    { "name": "General Voice", "type": "voice", "category": "COMMUNITY" },
+    { "name": "staff-chat", "type": "text", "category": "BLIPMADE TEAM (PRIVATE)" },
+    { "name": "ops-alerts", "type": "text", "category": "BLIPMADE TEAM (PRIVATE)" },
+    { "name": "moderation-log", "type": "text", "category": "BLIPMADE TEAM (PRIVATE)" }
+  ],
+  "studioVsPlatformDiscord30": {
+    "summary": "Studio template is the visual deploy blueprint; platform desired-state (api/src/services/discord/desired-state.ts) adds support-desk, ticket threads, staff queue, and preserves live #bugs forum by ID.",
+    "platformOnlyChannels": [
+      "support-desk",
+      "service-help",
+      "incidents",
+      "support-queue",
+      "escalations",
+      "staff-announcements",
+      "bot-operations"
+    ],
+    "liveOnlyChannels": [
+      { "id": "1565844667147493376", "name": "bugs", "type": "forum", "purpose": "Bug tracking forum with tags — never delete/recreate" }
+    ],
+    "recommendedRoleMapping": {
+      "verified_member": "Community Member (or dedicated Verified role on guild)",
+      "active_customer": "Verified Customer",
+      "staff support.*": "Support Team (+ staff hub category access via Discord permissions)"
+    }
+  },
+  "protectedChannelIdsNotInTemplate": ["1565844667147493376"],
+  "protectedChannelNote": "Live forum #bugs (id 1565844667147493376) exists on the dev/production guild under LOGS; automation must never delete, recreate, or move it."
+}

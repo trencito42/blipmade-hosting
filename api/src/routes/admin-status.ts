@@ -48,6 +48,16 @@ export async function registerAdminStatusRoutes(app: FastifyInstance): Promise<v
       include: { updates: true },
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.incident.create', targetType: 'incident', targetId: incident.id, ip: request.ip });
+    void import('../services/discord/channel-content.js')
+      .then(({ publishDiscordIncidentUpdate }) =>
+        publishDiscordIncidentUpdate({
+          title: incident.title,
+          status: body.status,
+          message: body.message,
+          impact: body.impact,
+        }),
+      )
+      .catch(() => undefined);
     return { incident };
   });
 
@@ -67,6 +77,16 @@ export async function registerAdminStatusRoutes(app: FastifyInstance): Promise<v
       include: { updates: { orderBy: { createdAt: 'desc' } } },
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.incident.update', targetType: 'incident', targetId: id, meta: { status: body.status }, ip: request.ip });
+    void import('../services/discord/channel-content.js')
+      .then(({ publishDiscordIncidentUpdate }) =>
+        publishDiscordIncidentUpdate({
+          title: incident.title,
+          status: body.status,
+          message: body.message,
+          impact: incident.impact,
+        }),
+      )
+      .catch(() => undefined);
     return { incident };
   });
 
@@ -100,6 +120,13 @@ export async function registerAdminStatusRoutes(app: FastifyInstance): Promise<v
     if (body.endsAt && new Date(body.endsAt) <= new Date(body.startsAt ?? Date.now())) throw badRequest('The end must be after the start.', { endsAt: 'The end must be after the start.' });
     const row = await prisma.announcement.create({ data: { ...body, startsAt: body.startsAt ? new Date(body.startsAt) : new Date(), endsAt: body.endsAt ? new Date(body.endsAt) : null } });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'admin.announcement.create', targetType: 'announcement', targetId: row.id, ip: request.ip });
+    if (row.active) {
+      void import('../services/discord/channel-content.js')
+        .then(({ publishDiscordAnnouncement }) =>
+          publishDiscordAnnouncement({ title: row.title, body: row.body, severity: row.severity as 'info' | 'warning' | 'maintenance' }),
+        )
+        .catch(() => undefined);
+    }
     return { announcement: row };
   });
 

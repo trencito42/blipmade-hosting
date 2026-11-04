@@ -37,6 +37,27 @@ export default function AdminIntegrationsDiscord() {
     toast.push(`Reconciled ${answer.reconciled} linked Discord accounts.`, 'ok');
     state.reload();
   });
+  const importLive = useAction(async () => {
+    const answer = await post<{ channelCount: number; bindingCount: number }>('/admin/integrations/discord/server/import-live', {});
+    toast.push(`Imported live template: ${answer.channelCount} channels, ${answer.bindingCount} bindings.`, 'ok');
+    state.reload();
+  });
+  const syncContent = useAction(async (replace: boolean) => {
+    const answer = await post<{ posted: string[]; skipped: string[]; errors: { slot: string }[] }>(
+      '/admin/integrations/discord/server/content-sync',
+      { replace },
+    );
+    toast.push(`Content sync: ${answer.posted.length} posted, ${answer.skipped.length} skipped.`, answer.errors.length ? 'warn' : 'ok');
+  });
+  const syncGuildDry = useAction(async () => {
+    const answer = await post<{ diff: { createChannels: unknown[] } }>('/admin/integrations/discord/server/sync', { dryRun: true });
+    toast.push(`Dry run: ${answer.diff.createChannels.length} channels would be created.`, 'ok');
+  });
+  const syncGuildApply = useAction(async () => {
+    const answer = await post<{ createdChannels: { key: string }[]; error: string | null }>('/admin/integrations/discord/server/sync', { apply: true });
+    if (answer.error) toast.push(answer.error, 'error');
+    else toast.push(`Applied: ${answer.createdChannels.length} new channels. Bot will post templates where mapped.`, 'ok');
+  });
   const retryUser = useAction(async (userId: string) => {
     await post(`/admin/integrations/discord/users/${encodeURIComponent(userId)}/sync`, {});
     toast.push('Sync queued for that user.', 'ok');
@@ -138,6 +159,23 @@ export default function AdminIntegrationsDiscord() {
             );
           })}
         </ul>
+      </Panel>
+
+      <Panel title="Server template & bot posts" description="Import the current Discord layout as the template, create missing planned channels, then let the Blipmade bot post welcome/rules/status and the support panel.">
+        <div className="flex flex-wrap gap-2">
+          {mayWrite ? (
+            <>
+              <SoftButton disabled={importLive.pending} onClick={() => void importLive.run()}>Import live server</SoftButton>
+              <SoftButton disabled={syncGuildDry.pending} onClick={() => void syncGuildDry.run()}>Preview channel sync</SoftButton>
+              <SoftButton disabled={syncGuildApply.pending} onClick={() => void syncGuildApply.run()}>Apply channel sync</SoftButton>
+              <SoftButton disabled={syncContent.pending} onClick={() => void syncContent.run(false)}>Post bot templates</SoftButton>
+              <SoftButton disabled={syncContent.pending} onClick={() => void syncContent.run(true)}>Refresh bot templates</SoftButton>
+            </>
+          ) : (
+            <p className="text-[13px] text-ink3">Requires settings.write.</p>
+          )}
+        </div>
+        <p className="mt-3 text-[12.5px] text-ink3">Protected channel 1565844667147493376 (#bugs) is never deleted. Announcements and incidents from Admin also post to mapped Discord channels.</p>
       </Panel>
 
       <Panel title="Recent sync failures" description="Customers still in the guild but role updates failed (hierarchy, rate limits, missing roles).">

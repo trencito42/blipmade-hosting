@@ -1332,6 +1332,60 @@ model DiscordRoleMapping {
   updatedAt     DateTime @updatedAt
 }
 
+/// Versioned desired guild layout + channel ID bindings (Discord 3.0).
+model DiscordServerConfig {
+  id                  String   @id @default("default")
+  desiredStateVersion Int      @default(1)
+  desiredState        Json
+  channelBindings     Json     @default("{}")
+  protectedChannelIds String[] @default(["1565844667147493376"])
+  supportPanelMessageId String?
+  /// Maps content slot keys (welcome_start, welcome_rules, …) to Discord message IDs for idempotent updates.
+  contentAnchors        Json     @default("{}")
+  liveTemplateImportedAt DateTime?
+  lastGuildSyncAt     DateTime?
+  lastGuildSyncError  String?
+  updatedAt           DateTime @updatedAt
+}
+
+/// Maps Blipmade staff permission keys to Discord roles (presentation only; RBAC stays in Blipmade).
+model DiscordStaffRoleMapping {
+  id            String   @id @default(cuid())
+  permission    String   @unique
+  discordRoleId String
+  enabled       Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+}
+
+/// Links a Blipmade ticket to a private Discord thread/channel.
+model DiscordTicketBridge {
+  id                    String   @id @default(cuid())
+  ticketId              String   @unique
+  ticket                Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  discordGuildId        String
+  discordChannelId      String   @unique
+  openedByDiscordUserId String
+  syncState             String   @default("active")
+  lastDiscordMessageId  String?
+  lastBlipmadeMessageSeq BigInt?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  messages DiscordMessageBridge[]
+}
+
+model DiscordMessageBridge {
+  id               String   @id @default(cuid())
+  bridgeId         String
+  bridge           DiscordTicketBridge @relation(fields: [bridgeId], references: [id], onDelete: Cascade)
+  ticketMessageId  String   @unique
+  discordMessageId String   @unique
+  direction        String
+  createdAt        DateTime @default(now())
+
+  @@index([bridgeId])
+}
+
 /// Processed GitHub App webhook deliveries for idempotency.
 model GitHubWebhookDelivery {
   id          String   @id
@@ -1405,6 +1459,7 @@ enum SupportChannel {
   TICKET
   CHAT
   EMAIL
+  DISCORD
 }
 
 /// What a member of the staff says about their own availability. The live state is the one in SupportPresence.
@@ -1605,6 +1660,7 @@ model Ticket {
   messages TicketMessage[]
   events   TicketEvent[]
   attachments Attachment[]
+  discordBridge DiscordTicketBridge?
 
   @@index([userId, status])
   @@index([assignedToId])

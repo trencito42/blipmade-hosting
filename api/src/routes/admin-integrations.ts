@@ -6,10 +6,17 @@ import { requirePermission } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
 import {
   adminRetryDiscordSync,
+  ensureDefaultDiscordStaffRoleMappings,
   fetchGuildRoles,
   probeDiscordBotHealth,
   reconcileDiscordCommunity,
 } from '../services/discord/community.js';
+import { computeGuildStructureDiff, applyGuildStructureSync, exportGuildInventorySnapshot, fetchGuildChannelInventory } from '../services/discord/guild-sync.js';
+import { importLiveGuildIntoConfig } from '../services/discord/guild-template.js';
+import { syncChannelContent } from '../services/discord/channel-content.js';
+import { ensureDiscordServerConfig } from '../services/discord/server-config.js';
+import { postSupportDeskPanel, registerDiscordSlashCommands } from '../services/discord/support-panel.js';
+import { defaultServerConfigJson } from '../services/discord/desired-state.js';
 import { DISCORD_RULE_CATALOG, DISCORD_RULE_KEYS, ensureDefaultDiscordRoleMappings } from '../services/discord/rules.js';
 
 export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Promise<void> {
@@ -133,5 +140,124 @@ export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Pro
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.role_mapping_update', meta: { ruleKey, enabled: row.enabled } });
     return { mapping: row };
+  });
+
+  app.get('/admin/integrations/discord/server', async (request) => {
+    await requirePermission('settings.read')(request);
+    await ensureDefaultDiscordStaffRoleMappings();
+    const [config, diff, inventory] = await Promise.all([
+      ensureDiscordServerConfig(),
+      computeGuildStructureDiff(),
+      fetchGuildChannelInventory(),
+    ]);
+    return {
+      config: {
+        desiredStateVersion: config.desiredStateVersion,
+        channelBindings: config.channelBindings,
+        protectedChannelIds: config.protectedChannelIds,
+        supportPanelMessageId: config.supportPanelMessageId,
+      },
+      diff,
+      inventory: exportGuildInventorySnapshot(inventory),
+    };
+  });
+
+  app.put('/admin/integrations/discord/server/bindings', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const body = z.object({ bindings: z.record(z.string(), z.string().max(32)) }).parse(request.body ?? {});
+    await ensureDiscordServerConfig();
+    await prisma.discordServerConfig.update({
+      where: { id: 'default' },
+      data: { channelBindings: body.bindings as never },
+    });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.channel_bindings_update' });
+    return { ok: true };
+  });
+
+  app.post('/admin/integrations/discord/server/sync', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const body = z.object({ dryRun: z.boolean().optional(), apply: z.boolean().optional() }).parse(request.body ?? {});
+    const dryRun = body.apply ? false : body.dryRun !== false;
+    const result = await applyGuildStructureSync({ dryRun });
+    await audit({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: dryRun ? 'discord.guild_sync_dry_run' : 'discord.guild_sync_apply',
+      meta: { createdChannels: result.createdChannels.length, bindingsUpdated: result.bindingsUpdated.length, error: result.error },
+    });
+    return result;
+  });
+
+  app.post('/admin/integrations/discord/support-panel', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const body = z.object({ replace: z.boolean().optional() }).parse(request.body ?? {});
+    await postSupportDeskPanel(body.replace ?? false);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.support_panel_post' });
+    return { ok: true };
+  });
+
+  app.post('/admin/integrations/discord/commands/register', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const result = await registerDiscordSlashCommands();
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.commands_register', meta: result });
+    return result;
+  });
+
+  app.get('/admin/integrations/discord/staff-roles', async (request) => {
+    await requirePermission('settings.read')(request);
+    await ensureDefaultDiscordStaffRoleMappings();
+    const mappings = await prisma.discordStaffRoleMapping.findMany({ orderBy: { permission: 'asc' } });
+    return { mappings };
+  });
+
+  app.put('/admin/integrations/discord/staff-roles/:permission', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const permission = (request.params as { permission: string }).permission;
+    const body = z.object({ discordRoleId: z.string().max(32).optional(), enabled: z.boolean().optional() }).parse(request.body ?? {});
+    const row = await prisma.discordStaffRoleMapping.upsert({
+      where: { permission },
+      create: { permission, discordRoleId: body.discordRoleId ?? '', enabled: body.enabled ?? false },
+      update: {
+        ...(body.discordRoleId !== undefined ? { discordRoleId: body.discordRoleId } : {}),
+        ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
+      },
+    });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.staff_role_mapping_update', meta: { permission } });
+    return { mapping: row };
+  });
+
+  app.post('/admin/integrations/discord/server/import-live', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const result = await importLiveGuildIntoConfig();
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.import_live_template', meta: result });
+    return result;
+  });
+
+  app.post('/admin/integrations/discord/server/content-sync', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const body = z.object({ dryRun: z.boolean().optional(), replace: z.boolean().optional() }).parse(request.body ?? {});
+    const result = await syncChannelContent({ dryRun: body.dryRun ?? false, replace: body.replace ?? false });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.content_sync', meta: result });
+    return result;
+  });
+
+  app.post('/admin/integrations/discord/server/reset-desired-state', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const defaults = defaultServerConfigJson();
+    await prisma.discordServerConfig.upsert({
+      where: { id: 'default' },
+      create: {
+        id: 'default',
+        desiredStateVersion: defaults.desiredState.version,
+        desiredState: defaults.desiredState as never,
+        channelBindings: defaults.channelBindings as never,
+      },
+      update: {
+        desiredStateVersion: defaults.desiredState.version,
+        desiredState: defaults.desiredState as never,
+      },
+    });
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.desired_state_reset' });
+    return { ok: true };
   });
 }

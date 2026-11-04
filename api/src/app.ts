@@ -71,6 +71,7 @@ import { registerGitHubIntegrationRoutes, registerGitHubAppWebhookRoutes } from 
 import { registerGitHubSetupRoute } from './routes/discord-community.js';
 import { registerDiscordCommunityRoutes } from './routes/discord-community.js';
 import { registerAdminIntegrationsRoutes } from './routes/admin-integrations.js';
+import { registerDiscordInteractionRoutes } from './routes/discord-interactions.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -180,6 +181,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.removeContentTypeParser('application/json');
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (request, body, done) => {
     const raw = typeof body === 'string' ? body : body.toString('utf-8');
+    const needsRaw =
+      request.url.startsWith('/api/webhooks/') || request.url.startsWith('/api/integrations/discord/interactions');
+    if (needsRaw) {
+      (request as { rawBody?: Buffer }).rawBody = Buffer.from(raw);
+    }
     if (request.url.startsWith('/api/webhooks/')) {
       done(null, raw);
       return;
@@ -246,6 +252,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerGitHubAppWebhookRoutes(api);
       await registerGitHubSetupRoute(api);
       await registerDiscordCommunityRoutes(api);
+      await registerDiscordInteractionRoutes(api);
       await registerCatalogRoutes(api);
       await registerOrderRoutes(api);
       await registerBillingRoutes(api);
