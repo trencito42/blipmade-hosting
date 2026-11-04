@@ -730,6 +730,14 @@ export function chmodFile(token: string, uuid: string, path: string, mode: numbe
 
 // --- databases ------------------------------------------------------------
 
+function passwordFromDatabaseAttributes(attributes: Record<string, unknown>): string | null {
+  if (typeof attributes.password === 'string') return attributes.password;
+  const relationships = attributes.relationships as Record<string, unknown> | undefined;
+  const passwordRel = relationships?.password as Record<string, unknown> | undefined;
+  const nested = (passwordRel?.attributes ?? passwordRel) as Record<string, unknown> | undefined;
+  return typeof nested?.password === 'string' ? nested.password : null;
+}
+
 export interface ClientDatabase {
   /**
    * The panel names a database with a hash id, not with a number, so the id
@@ -765,7 +773,7 @@ export function listDatabases(token: string, uuid: string): Promise<ClientDataba
         username: String(attributes.username ?? ''),
         host: String(host.address ?? ''),
         port: Number(host.port ?? 0),
-        password: typeof attributes.password === 'string' ? attributes.password : null,
+        password: passwordFromDatabaseAttributes(attributes),
         remote: String(attributes.connections_from ?? ''),
       };
     }),
@@ -800,7 +808,7 @@ function mapDatabaseEntry(entry: Record<string, unknown> | undefined): ClientDat
     username: String(attributes.username ?? attributes.name ?? ''),
     host: String(host.address ?? attributes.host ?? ''),
     port: Number(host.port ?? attributes.port ?? 0),
-    password: typeof attributes.password === 'string' ? attributes.password : null,
+    password: passwordFromDatabaseAttributes(attributes),
     remote: String(attributes.connections_from ?? attributes.remote ?? ''),
   };
 }

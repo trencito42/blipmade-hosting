@@ -184,6 +184,30 @@ describe('the databases of the server', () => {
       password: 'secret',
     });
   });
+
+  it('reads the password from relationships when the panel nests it there', async () => {
+    stubFetch({
+      object: 'list',
+      data: [
+        {
+          object: 'database',
+          attributes: {
+            id: 'eK3pQz',
+            name: 'app',
+            username: 'u_app',
+            host: { address: '10.77.0.11', port: 3306 },
+            connections_from: '%',
+            relationships: {
+              password: { object: 'database_password', attributes: { password: 'nested-secret' } },
+            },
+          },
+        },
+      ],
+    });
+
+    const databases = await listDatabases(CLIENT_KEY, 'server-uuid');
+    expect(databases[0]?.password).toBe('nested-secret');
+  });
 });
 
 describe('the files of the server', () => {
