@@ -229,7 +229,7 @@ function securityHeaders() {
       "form-action 'self'",
       "script-src 'self' https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob: https://avatars.githubusercontent.com https://lh3.googleusercontent.com https://cdn.discordapp.com",
       "font-src 'self'",
       // The origins the browser may call besides this site: Turnstile, and (CONNECT_SRC_EXTRA) the address
       // that receives the errors of the browser, for example the GlitchTip of the platform.
