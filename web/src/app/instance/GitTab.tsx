@@ -48,7 +48,7 @@ export default function GitTab({ instance }: TabProps) {
   const data = state.data;
 
   // While a build runs, the page looks again every few seconds.
-  const building = data?.status?.state === 'building' || history.data?.deployments.some((entry) => entry.state === 'started');
+  const building = data?.status?.state === 'building' || data?.status?.state === 'built' || history.data?.deployments.some((entry) => entry.state === 'started');
   useEffect(() => {
     if (!building) return;
     const timer = window.setInterval(() => { state.reload(); history.reload(); }, 5000);
@@ -103,8 +103,25 @@ export default function GitTab({ instance }: TabProps) {
         description="A public repository on GitHub, GitLab, Bitbucket or Codeberg. It is cloned, built and started inside this server, with the memory, CPU and disk of your plan."
         action={<div className="flex flex-wrap gap-2"><ButtonLink to={`/app/instances/${encodeURIComponent(instance.id)}/git/${data?.configured ? 'settings' : 'connect'}`} variant="soft">{data?.configured ? 'Edit settings' : 'Connect repository'}</ButtonLink>{data?.configured && <PrimaryButton onClick={() => void deploy.run()} disabled={deploy.pending || building}>{building ? 'Deploying…' : 'Deploy now'}</PrimaryButton>}</div>}
       >
-        {data?.configured ? <div className="grid gap-3 text-[13.5px] sm:grid-cols-2"><div><p className="text-ink3">Repository</p><p className="mt-1 break-all font-mono text-ink">{data.repoUrl}</p></div><div><p className="text-ink3">Branch</p><p className="mt-1 font-mono text-ink">{data.branch}</p></div><div><p className="text-ink3">Automatic deploy</p><p className="mt-1 text-ink">{data.autoDeploy ? 'Enabled' : 'Off'}</p></div><div className="flex items-end"><SoftButton onClick={() => setConfirmRemove(true)}>Turn off Git deployment</SoftButton></div></div> : <EmptyState title="No repository connected." description="Connect a public Git repository to configure build and start commands." />}
+        {data?.configured ? <div className="grid gap-3 text-[13.5px] sm:grid-cols-2"><div><p className="text-ink3">Repository</p><p className="mt-1 break-all font-mono text-ink">{data.repoUrl}</p></div><div><p className="text-ink3">Branch</p><p className="mt-1 font-mono text-ink">{data.branch}</p></div><div><p className="text-ink3">Build</p><p className="mt-1 font-mono text-[12.5px] text-ink">{data.buildCommand?.trim() ? data.buildCommand : 'None — only the clone runs.'}</p></div><div><p className="text-ink3">Start</p><p className="mt-1 font-mono text-[12.5px] text-ink">{data.startCommand}</p></div><div><p className="text-ink3">Automatic deploy</p><p className="mt-1 text-ink">{data.autoDeploy ? 'Enabled' : 'Off'}</p></div><div className="flex items-end"><SoftButton onClick={() => setConfirmRemove(true)}>Turn off Git deployment</SoftButton></div></div> : <EmptyState title="No repository connected." description="Connect a public Git repository to configure build and start commands." />}
       </Panel>
+
+      {data?.configured && (
+        <Panel title="Live application files" description="Deployments keep releases under .blipmade/releases. The running app is always .blipmade/current — the root folder may look empty on purpose.">
+          <p className="text-[13.5px] text-ink2">
+            {data.current ? (
+              <>Active release <span className="font-mono text-ink">{data.current}</span>{data.status?.commit ? <> · commit <span className="font-mono">{data.status.commit}</span></> : null}</>
+            ) : (
+              'No successful release yet.'
+            )}
+          </p>
+          {data.current && (
+            <p className="mt-2 text-[13px] text-ink3">
+              In Files, open <span className="font-mono text-ink">.blipmade/current</span> to browse the deployed source and build output.
+            </p>
+          )}
+        </Panel>
+      )}
 
       {(secret || (data?.configured && data.autoDeploy)) && (
         <Panel title="Webhook" description="In your repository: Settings → Webhooks → Add webhook. Content type application/json, event: just the push event.">

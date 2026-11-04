@@ -8,9 +8,6 @@ import {
   afterQueueAttempt,
   deployOutcomeFromMessage,
   fulfillmentAllowed,
-  healthKind,
-  interpretHttpStatus,
-  interpretProcessState,
   orderFulfillmentDecision,
   queuedImportIsStale,
   zipShouldPurge,
@@ -19,10 +16,9 @@ import {
 import { notifyInstanceProvisioned } from './notifications.js';
 import { importMayBuild } from './project-links.js';
 import { linkImportDependencies } from './project-links-apply.js';
+import { probeApplicationHealth } from './deploy-health.js';
 import * as operations from './panel/operations.js';
-import * as panelClient from './pterodactyl/client.js';
 import { currentGitDeploy, enqueueGitDeploy } from './queue.js';
-import { resolveTarget } from './domain-routing.js';
 
 type OpenImport = {
   id: string;
@@ -113,25 +109,8 @@ export async function syncOrderFulfillment(orderId: string): Promise<void> {
   });
 }
 
-async function probeApplication(instance: Instance, productSlug: string): Promise<ApplicationHealth> {
-  if (!instance.pterodactylUuid || !instance.pterodactylServerId) return 'unknown';
-  if (healthKind(productSlug) === 'process') {
-    try {
-      const owned = await operations.loadOwnedInstance(instance.userId, instance.id);
-      const token = await operations.customerToken(owned);
-      const resources = await panelClient.getResources(token, instance.pterodactylUuid);
-      return interpretProcessState(resources.state);
-    } catch {
-      return 'unknown';
-    }
-  }
-  try {
-    const target = await resolveTarget(instance);
-    const response = await fetch(`http://${target.host}:${target.port}/`, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
-    return interpretHttpStatus(response.status, true);
-  } catch {
-    return interpretHttpStatus(null, false);
-  }
+async function probeApplication(instance: Instance, productSlug: string) {
+  return probeApplicationHealth(instance, productSlug);
 }
 
 async function rememberOutcome(instance: Instance, source: OpenImport, observed: { state: 'succeeded' | 'failed' | 'building' | 'none'; message: string }, health: ApplicationHealth): Promise<void> {
@@ -235,19 +214,20 @@ export async function applyStoredImport(instance: Instance): Promise<void> {
   if (!source) return;
   if (source.phase === 'applied' || source.appliedAt) return;
   if (source.phase === 'queued' || source.phase === 'checking') return;
+  if (source.phase === 'failed' && source.attempts >= IMPORT_MAX_ATTEMPTS) return;
+
+  if (source.confirmedServices.length > 0) {
+    await linkImportDependencies(source.id);
+  }
   const dependencies = importMayBuild({ confirmed: source.confirmedServices.length, linked: Boolean(source.servicesLinkedAt) });
   if (!dependencies.build) {
     await prisma.importSource.update({
       where: { id: source.id },
       data: { instanceId: instance.id, phase: 'pending', deployId: null, lastError: dependencies.reason },
     });
-    const linked = await linkImportDependencies(source.id);
-    if (!linked) {
-      await prisma.instance.update({ where: { id: instance.id }, data: { applicationError: dependencies.reason } });
-      return;
-    }
+    await prisma.instance.update({ where: { id: instance.id }, data: { applicationError: dependencies.reason } });
+    return;
   }
-  if (source.phase === 'failed' && source.attempts >= IMPORT_MAX_ATTEMPTS) return;
 
   const deployId = randomUUID();
   try {

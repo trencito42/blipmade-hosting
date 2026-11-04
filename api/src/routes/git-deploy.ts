@@ -10,7 +10,7 @@ import * as operations from '../services/panel/operations.js';
 import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
 import { DISCORD_TEMPLATES } from '../services/discord-templates.js';
-import { zipLayoutProblem } from '../services/import-inspect.js';
+import { inspectGitUrl, zipLayoutProblem } from '../services/import-inspect.js';
 import { enqueueGitDeploy } from '../services/queue.js';
 import {
   GIT_RUNTIMES, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, currentRelease, installArchive, installGit, listReleases, newWebhookSecret,
@@ -86,12 +86,23 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
       buildCommand: cleanCommand(body.buildCommand, 'buildCommand', false),
       startCommand: cleanCommand(body.startCommand, 'startCommand', true),
     };
+    if (!config.buildCommand.trim()) {
+      try {
+        const proposal = await inspectGitUrl(config.repoUrl);
+        if (proposal.build) config.buildCommand = cleanCommand(proposal.build, 'buildCommand', false);
+        if (proposal.start && (!body.startCommand || body.startCommand === 'npm start')) {
+          config.startCommand = cleanCommand(proposal.start, 'startCommand', true);
+        }
+      } catch {
+        // Keep what the customer typed.
+      }
+    }
     const token = await operations.customerToken(instance);
     const uuid = instance.pterodactylUuid as string;
 
     // The variables: the customer's own values, written into the container only.
     let env: Record<string, string> | null = null;
-    if (body.env) {
+    if (body.env !== undefined && Object.keys(body.env).length > 0) {
       let old: Record<string, string> = {};
       try {
         old = parseEnvValues((await client.readFile(token, uuid, `${BLIPMADE_DIR}/app.env`)).content);

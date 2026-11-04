@@ -34,6 +34,7 @@ import { recordDeployEvent, runDeploy } from './services/git-deploy.js';
 import { retryCatalogInstalls } from './services/catalog-install-apply.js';
 import { linkConfirmedServices } from './services/project-links-apply.js';
 import { purgeExpiredImportArchives, recoverStoredImports, settleImportedDeploy } from './services/import-apply.js';
+import { waitForApplicationHealth } from './services/deploy-health.js';
 import { sweepResourceAlerts } from './services/resource-alerts.js';
 import { sweepAutomations } from './services/support-automation.js';
 import { sweepGuests } from './services/support-guest.js';
@@ -198,7 +199,22 @@ const gitWorker = createGitDeployWorker(async (job) => {
   if (!row || !row.pterodactylUuid) return;
   const instance = { id: row.id, userId: row.userId, pterodactylUuid: row.pterodactylUuid, pterodactylServerId: row.pterodactylServerId, status: row.status, generatedVariables: row.generatedVariables, productVariables: row.product.generatedVariables };
   await recordDeployEvent(instanceId, `deploy:${deployId}:started:${action}:${by}`);
-  const result = await runDeploy(instance, deployId, action, release);
+  let result = await runDeploy(instance, deployId, action, release);
+  if (action === 'build' && (result.state === 'built' || result.state === 'succeeded')) {
+    const full = await prisma.instance.findUnique({ where: { id: instanceId }, include: { product: { select: { slug: true } } } });
+    if (full) {
+      const health = await waitForApplicationHealth(full, full.product.slug);
+      if (health !== 'ready') {
+        result = {
+          ...result,
+          state: 'failed',
+          message: health === 'unhealthy' ? 'The application failed its health check after deploy.' : 'The application did not become healthy in time.',
+        };
+      } else {
+        result = { ...result, state: 'succeeded', message: 'Application passed the health check.' };
+      }
+    }
+  }
   await recordDeployEvent(instanceId, `deploy:${deployId}:${result.state}:${result.release}:${result.commit}:${result.message}`);
   await prisma.gitDeploy.updateMany({ where: { instanceId }, data: { lastDeployAt: new Date() } });
   await settleImportedDeploy(instanceId, deployId, result);

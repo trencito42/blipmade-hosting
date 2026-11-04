@@ -204,7 +204,7 @@ if [ -f "$B/request" ]; then
       build > "$LOG" 2>&1; rc=$?
       if [ "$rc" -eq 0 ]; then
         ln -sfn "$B/releases/$REL" "$B/current.new" && mv -T "$B/current.new" "$B/current"
-        status succeeded "$ID" "$REL" "$COMMIT" "deployed"
+        status built "$ID" "$REL" "$COMMIT" "release built, starting application"
         prune
       else
         [ -n "$REL" ] && rm -rf "\${B:?}/releases/\${REL:?}"
@@ -320,7 +320,7 @@ export async function uninstallGit(instance: Instance, previousStartup: string |
 }
 
 export interface DeployStatus {
-  state: 'building' | 'succeeded' | 'failed' | 'none';
+  state: 'building' | 'built' | 'succeeded' | 'failed' | 'none';
   id: string;
   release: string;
   commit: string;
@@ -360,7 +360,7 @@ export async function listReleases(instance: Instance): Promise<string[]> {
 export async function currentRelease(instance: Instance): Promise<string | null> {
   // The link is not readable through the panel API; the status of the last successful deploy names it.
   const status = await readStatus(instance);
-  return status.state === 'succeeded' && status.release ? status.release : null;
+  return (status.state === 'succeeded' || status.state === 'built') && status.release ? status.release : null;
 }
 
 /**
@@ -378,7 +378,9 @@ export async function runDeploy(instance: Instance, id: string, action: 'build' 
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 5000));
     last = await readStatus(instance);
-    if (last.id === id && (last.state === 'succeeded' || last.state === 'failed')) return last;
+    if (last.id !== id) continue;
+    if (last.state === 'failed') return last;
+    if (last.state === 'built' || last.state === 'succeeded') return last;
   }
   return { ...last, state: 'failed', message: 'The deployment did not finish in time.' };
 }

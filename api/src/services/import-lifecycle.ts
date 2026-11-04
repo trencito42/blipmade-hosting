@@ -54,7 +54,7 @@ export function deployOutcomeFromMessage(message: string, deployId: string): 'su
  * Success is applied only when the health check is ready. Queue submission is not success.
  */
 export function afterDeployObservation(input: {
-  deployState: 'succeeded' | 'failed' | 'building' | 'none';
+  deployState: 'succeeded' | 'failed' | 'building' | 'built' | 'none';
   health: ApplicationHealth;
   attempts: number;
 }): {
@@ -65,7 +65,7 @@ export function afterDeployObservation(input: {
   error: string | null;
   retry: boolean;
 } {
-  if (input.deployState === 'building' || input.deployState === 'none') {
+  if (input.deployState === 'building' || input.deployState === 'none' || input.deployState === 'built') {
     return { phase: 'queued', markApplied: false, clearZip: false, fulfill: false, error: null, retry: false };
   }
   if (input.deployState === 'failed') {
