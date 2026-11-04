@@ -45,6 +45,18 @@ function importIdFromConfig(config: unknown): string | null {
   return typeof value === 'string' && value ? value : null;
 }
 
+/** Keeps ImportSource.instanceId aligned with the server that owns the order line. */
+export async function linkImportSourceToOrderItem(instance: { id: string; userId: string; orderItemId: string | null }): Promise<void> {
+  if (!instance.orderItemId) return;
+  const item = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });
+  const importSourceId = importIdFromConfig(item?.config);
+  if (!importSourceId) return;
+  await prisma.importSource.updateMany({
+    where: { id: importSourceId, userId: instance.userId },
+    data: { instanceId: instance.id },
+  });
+}
+
 async function openImportForInstance(instance: { id: string; userId: string; orderItemId: string | null }): Promise<OpenImport | null> {
   if (!instance.orderItemId) return null;
   const item = await prisma.orderItem.findUnique({ where: { id: instance.orderItemId }, select: { config: true } });

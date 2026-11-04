@@ -15,6 +15,7 @@ interface GitState {
   webhookUrl?: string;
   hasWebhookSecret?: boolean;
   envKeys?: string[];
+  suggestedEnvNames?: string[];
   status?: { state: string; id: string; release: string; commit: string; at: string | null; message: string };
   releases?: string[];
   current?: string | null;
@@ -105,6 +106,12 @@ export default function GitTab({ instance }: TabProps) {
       >
         {data?.configured ? <div className="grid gap-3 text-[13.5px] sm:grid-cols-2"><div><p className="text-ink3">Repository</p><p className="mt-1 break-all font-mono text-ink">{data.repoUrl}</p></div><div><p className="text-ink3">Branch</p><p className="mt-1 font-mono text-ink">{data.branch}</p></div><div><p className="text-ink3">Build</p><p className="mt-1 font-mono text-[12.5px] text-ink">{data.buildCommand?.trim() ? data.buildCommand : 'None — only the clone runs.'}</p></div><div><p className="text-ink3">Start</p><p className="mt-1 font-mono text-[12.5px] text-ink">{data.startCommand}</p></div><div><p className="text-ink3">Automatic deploy</p><p className="mt-1 text-ink">{data.autoDeploy ? 'Enabled' : 'Off'}</p></div><div className="flex items-end"><SoftButton onClick={() => setConfirmRemove(true)}>Turn off Git deployment</SoftButton></div></div> : <EmptyState title="No repository connected." description="Connect a public Git repository to configure build and start commands." />}
       </Panel>
+
+      {data?.configured && (data.suggestedEnvNames?.length ?? 0) > 0 && (
+        <Panel title="Environment variables still missing" description="These names appeared in the project example env file but are not in app.env yet. Add them under Git settings or they may be generated at import when safe.">
+          <p className="font-mono text-[13px] text-ink">{data.suggestedEnvNames!.join(', ')}</p>
+        </Panel>
+      )}
 
       {data?.configured && (
         <Panel title="Live application files" description="Deployments keep releases under .blipmade/releases. The running app is always .blipmade/current — the root folder may look empty on purpose.">

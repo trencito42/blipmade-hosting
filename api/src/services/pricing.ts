@@ -83,6 +83,10 @@ export interface PricedItem extends ResourceConfig {
   vps?: { name: string; sshPublicKey: string; dedicatedIp: boolean };
   /** The values the customer gave for the variables of the product, sealed. */
   sealedVariables?: string;
+  /** Stored Smart Deploy import attached to this server line. */
+  importSourceId?: string;
+  /** The line is priced as a managed import even before checkout sends the id. */
+  managedImport?: boolean;
   /**
    * The price of the line, broken down into what it is made of.
    *
@@ -658,6 +662,8 @@ export async function priceItems(
       ...(product.fulfilment === 'SERVER' && item.subdomain ? { subdomain: item.subdomain } : {}),
       ...(vps ? { vps } : {}),
       ...(breakdown ? { breakdown } : {}),
+      ...(item.importSourceId ? { importSourceId: item.importSourceId } : {}),
+      ...(item.managedImport ? { managedImport: true } : {}),
     });
   }
 

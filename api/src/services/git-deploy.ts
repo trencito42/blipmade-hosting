@@ -124,6 +124,25 @@ export function parseEnvValues(text: string): Record<string, string> {
   return out;
 }
 
+/**
+ * Applies a Git settings env patch. Returns null when the client did not send env changes (empty object must not wipe secrets).
+ */
+export function mergeGitEnvUpdate(
+  existing: Record<string, string>,
+  patch: Record<string, string | null> | undefined,
+): Record<string, string> | null {
+  if (patch === undefined || Object.keys(patch).length === 0) return null;
+  const merged: Record<string, string> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) {
+      if (key in existing) merged[key] = existing[key]!;
+    } else {
+      merged[key] = value;
+    }
+  }
+  return cleanEnv(merged);
+}
+
 /** What the container runs as its startup command while Git deployment is on. */
 export const GIT_STARTUP = 'bash /home/container/.blipmade/run.sh';
 

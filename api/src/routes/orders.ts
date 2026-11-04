@@ -20,7 +20,15 @@ import { enqueueProvisioning } from '../services/queue.js';
 import { notifyOrderCanceled, notifyOrderCreated, notifyPaymentRequired } from '../services/notifications.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { catalogSelectionSchema, resolveCatalogSelection } from '../services/catalog-projection.js';
-import { missingCompanions } from '../services/project-links.js';
+import { missingCompanions, quoteItemsForImport } from '../services/project-links.js';
+import { companionProduct } from '../services/import-dependencies.js';
+import type { PricedItem } from '../services/pricing.js';
+
+function importSourceIdForOrderLine(bodyItem: { importSourceId?: string } | undefined, priced: PricedItem): string | undefined {
+  const fromBody = bodyItem?.importSourceId?.trim();
+  if (fromBody) return fromBody;
+  return priced.importSourceId;
+}
 
 /**
  * The routes of an order that has no limit of their own.
@@ -55,6 +63,7 @@ const orderItemSchema = z.object({
   variables: z.record(z.string(), z.string().max(400)).optional(),
   catalog: catalogSelectionSchema.optional(),
   importSourceId: z.string().max(40).optional(),
+  managedImport: z.boolean().optional(),
 });
 
 function serializeOrder(order: {
@@ -124,20 +133,48 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           // period as the one that was quoted, otherwise the order would be
           // priced with another period than the one the customer was shown.
           period: z.enum(['MONTHLY', 'YEARLY']).default('MONTHLY'),
+          importSourceId: z.string().max(40).optional(),
           // The customer accepted the Minecraft EULA. Required for a Minecraft server: the customer agrees, not us.
           acceptEula: z.boolean().optional(),
         })
         .parse(request.body);
 
-      for (const item of body.items) {
+      let orderItems = body.items;
+      if (body.importSourceId) {
+        const source = await prisma.importSource.findFirst({
+          where: { id: body.importSourceId, userId: user.id, appliedAt: null },
+          select: { confirmedServices: true, productSlug: true },
+        });
+        if (!source) throw badRequest('That import was not found.');
+        orderItems = orderItems.map((item) => (
+          item.productSlug === source.productSlug
+            ? { ...item, importSourceId: body.importSourceId, managedImport: true as const }
+            : item
+        ));
+        const companions = (await Promise.all(source.confirmedServices.filter((slug) => companionProduct(slug)).map(async (slug) => {
+          const row = await prisma.product.findUnique({ where: { slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, visible: true, deployable: true } });
+          return row?.visible && row.deployable ? { slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk } : null;
+        }))).filter((row) => row !== null);
+        orderItems = quoteItemsForImport(orderItems, companions);
+      }
+
+      for (const item of orderItems) {
         if (!item.importSourceId) continue;
         const source = await prisma.importSource.findFirst({ where: { id: item.importSourceId, userId: user.id, appliedAt: null } });
         if (!source || source.productSlug !== item.productSlug) throw badRequest('That import does not match this product.');
-        const missing = missingCompanions(source.confirmedServices, body.items.map((line) => line.productSlug));
+        const missing = missingCompanions(source.confirmedServices, orderItems.map((line) => line.productSlug));
         if (missing.length) throw badRequest(`Confirm the order includes ${missing.join(', ')}. They were selected with this project.`);
       }
 
-      const quote = await buildQuote(body.items, body.promotionCode, user.id, body.period);
+      const quote = await buildQuote(orderItems, body.promotionCode, user.id, body.period);
+
+      for (let index = 0; index < quote.items.length; index += 1) {
+        const priced = quote.items[index];
+        if (!priced?.managedImport) continue;
+        if (!importSourceIdForOrderLine(orderItems[index], priced)) {
+          throw badRequest('This order included an imported project, but the import link was lost. Open deploy again from your import review.');
+        }
+      }
 
       // A Minecraft server runs under the EULA of Mojang. The platform never accepts it on a customer's behalf.
       const minecraft = quote.items.some((item) => item.productSlug.startsWith('minecraft-'));
@@ -232,7 +269,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 // they travel with the line until the instance is built.
                 sealedVariables: item.sealedVariables ?? null,
                 ...(catalogByLine[index] ? { catalog: catalogByLine[index] } : {}),
-                ...(body.items[index]?.importSourceId ? { importSourceId: body.items[index].importSourceId } : {}),
+                ...((): Record<string, string> => {
+                  const importSourceId = importSourceIdForOrderLine(orderItems[index], item);
+                  return importSourceId ? { importSourceId } : {};
+                })(),
               } as unknown as Prisma.InputJsonValue,
             })),
           },

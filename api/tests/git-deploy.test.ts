@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  RUN_SCRIPT, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, parseEnvValues, renderConf, renderEnv, shq, verifyGithubSignature,
+  RUN_SCRIPT, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, mergeGitEnvUpdate, parseEnvValues, renderConf, renderEnv, shq, verifyGithubSignature,
 } from '../src/services/git-deploy.js';
 
 describe('git deploy: what is accepted', () => {
@@ -49,6 +49,32 @@ describe('git deploy: what is written into the container', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gitdeploy-'));
     writeFileSync(join(dir, 'run.sh'), RUN_SCRIPT);
     execFileSync('bash', ['-n', join(dir, 'run.sh')]);
+  });
+
+  it('does not run BUILD_CMD when it is empty (clone-only deployments)', () => {
+    expect(RUN_SCRIPT).toContain('if [ -n "$BUILD_CMD" ]');
+    expect(RUN_SCRIPT).toContain('[blipmade] building: $BUILD_CMD');
+  });
+});
+
+describe('git deploy: env updates', () => {
+  it('ignores an empty env object so secrets are not wiped', () => {
+    const existing = { DATABASE_URL: 'mysql://x', NEXTAUTH_SECRET: 'secret' };
+    expect(mergeGitEnvUpdate(existing, {})).toBeNull();
+    expect(mergeGitEnvUpdate(existing, undefined)).toBeNull();
+  });
+
+  it('merges explicit env changes without dropping untouched keys', () => {
+    const existing = { DATABASE_URL: 'mysql://x', NEXTAUTH_SECRET: 'secret' };
+    const delta = mergeGitEnvUpdate(existing, { FOO: 'bar' });
+    expect(delta).toEqual({ FOO: 'bar' });
+    expect({ ...existing, ...delta! }).toEqual({ DATABASE_URL: 'mysql://x', NEXTAUTH_SECRET: 'secret', FOO: 'bar' });
+  });
+
+  it('preserves existing values when null means leave unchanged', () => {
+    const existing = { DATABASE_URL: 'mysql://x' };
+    const merged = mergeGitEnvUpdate(existing, { DATABASE_URL: null, FOO: 'bar' });
+    expect(merged).toEqual({ DATABASE_URL: 'mysql://x', FOO: 'bar' });
   });
 });
 

@@ -13,7 +13,7 @@ import { DISCORD_TEMPLATES } from '../services/discord-templates.js';
 import { inspectGitUrl, zipLayoutProblem } from '../services/import-inspect.js';
 import { enqueueGitDeploy } from '../services/queue.js';
 import {
-  GIT_RUNTIMES, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, currentRelease, installArchive, installGit, listReleases, newWebhookSecret,
+  GIT_RUNTIMES, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, currentRelease, installArchive, installGit, listReleases, mergeGitEnvUpdate, newWebhookSecret,
   openWebhookSecret, parseEnvKeys, parseEnvValues, readLog, readStatus, uninstallGit, verifyGithubSignature, BLIPMADE_DIR,
 } from '../services/git-deploy.js';
 
@@ -58,6 +58,15 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
       envKeys = [];
     }
     const [status, releases, current] = await Promise.all([readStatus(instance), listReleases(instance), currentRelease(instance)]);
+    let suggestedEnvNames: string[] = [];
+    if (row.repoUrl.startsWith('https://')) {
+      try {
+        const proposal = await inspectGitUrl(row.repoUrl);
+        suggestedEnvNames = proposal.envNames.filter((name) => !envKeys.includes(name));
+      } catch {
+        suggestedEnvNames = [];
+      }
+    }
     return {
       supported,
       configured: true,
@@ -69,6 +78,7 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
       webhookUrl: `${process.env.PUBLIC_ORIGIN ?? 'https://blipmade.com'}/api/webhooks/github/${instance.id}`,
       hasWebhookSecret: Boolean(row.webhookSecret),
       envKeys,
+      suggestedEnvNames,
       status,
       releases,
       current,
@@ -102,22 +112,15 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
 
     // The variables: the customer's own values, written into the container only.
     let env: Record<string, string> | null = null;
-    if (body.env !== undefined && Object.keys(body.env).length > 0) {
+    if (body.env !== undefined) {
       let old: Record<string, string> = {};
       try {
         old = parseEnvValues((await client.readFile(token, uuid, `${BLIPMADE_DIR}/app.env`)).content);
       } catch {
         old = {};
       }
-      const merged: Record<string, string> = {};
-      for (const [key, value] of Object.entries(body.env)) {
-        if (value === null) {
-          if (key in old) merged[key] = old[key]!;
-        } else {
-          merged[key] = value;
-        }
-      }
-      env = cleanEnv(merged);
+      env = mergeGitEnvUpdate(old, body.env);
+      if (env) env = cleanEnv({ ...old, ...env });
     }
 
     const existing = await prisma.gitDeploy.findUnique({ where: { instanceId: instance.id } });

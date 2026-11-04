@@ -452,6 +452,12 @@ export default function Deploy() {
   const [mailDomain, setMailDomain] = useState('');
 
   const seeded = useRef<string | null>(null);
+  const importStorageKey = 'blipmade:deploy:import';
+  const importSourceId = query.import ?? (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(importStorageKey) : null) ?? undefined;
+
+  useEffect(() => {
+    if (query.import) sessionStorage.setItem(importStorageKey, query.import);
+  }, [query.import]);
 
   // --- hosted mail add-on --------------------------------------------------
 
@@ -462,8 +468,8 @@ export default function Deploy() {
     [],
   );
   const companionState = useAsync<{ plan: { companions: { slug: string; ram: number; cpu: number; disk: number }[] } } | null>(
-    async (signal) => (query.import ? get(`/catalog/import/plans/${query.import}`, undefined, signal) : null),
-    [query.import],
+    async (signal) => (importSourceId ? get(`/catalog/import/plans/${importSourceId}`, undefined, signal) : null),
+    [importSourceId],
   );
   const companions = companionState.data?.plan.companions ?? [];
   const companionKey = companions.map((row) => row.slug).join(',');
@@ -634,7 +640,7 @@ export default function Deploy() {
           ...companions.map((row) => ({ productSlug: row.slug, ram: row.ram, cpu: row.cpu, disk: row.disk, name: row.slug })),
         ],
         ...(trimmedPromo ? { promotionCode: trimmedPromo } : {}),
-        ...(query.import ? { importSourceId: query.import } : {}),
+        ...(importSourceId ? { importSourceId } : {}),
         period: quotePeriod,
       ...(billingAddress.line1.trim() ? { billingAddress } : {}),
       },
@@ -735,7 +741,7 @@ export default function Deploy() {
           optionCodes,
           variables,
           ...(chosenSubdomain ? { subdomain: chosenSubdomain } : {}),
-          ...(query.import ? { importSourceId: query.import } : {}),
+          ...(importSourceId ? { importSourceId } : {}),
           ...(query.family && query.variant
             ? {
                 catalog: {
@@ -757,6 +763,7 @@ export default function Deploy() {
       // The order is placed with the period of the quote, so the sum that was
       // shown to the customer is the sum that is charged.
       ...(quote ? { period: quote.period } : {}),
+      ...(importSourceId ? { importSourceId } : {}),
       ...(product.slug.startsWith('minecraft-') ? { acceptEula } : {}),
     });
     const createdOrder = created.order;

@@ -23,7 +23,7 @@ import { ArchiveError, verifyBackupStream } from './backup-archive.js';
 import { applyCatalogInstall, applyCatalogOrderInstall } from './catalog-install-apply.js';
 import { presetChosen } from './catalog-install.js';
 import { applyInstallVariables } from './install-variables.js';
-import { applyStoredImport, syncOrderFulfillment } from './import-apply.js';
+import { applyStoredImport, linkImportSourceToOrderItem, syncOrderFulfillment } from './import-apply.js';
 import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
 import {
   generateVariables,
@@ -2074,7 +2074,10 @@ export async function provisionInstance(instanceId: string, options: ProvisionOp
     await completeProvisioning(instance.id, { applicationReady: !importPending && !presetPending });
     if (importPending) {
       const fresh = await prisma.instance.findUnique({ where: { id: instance.id } });
-      if (fresh) await applyStoredImport(fresh);
+      if (fresh) {
+        await linkImportSourceToOrderItem(fresh);
+        await applyStoredImport(fresh);
+      }
     }
     await applyCatalogInstall(instance.id);
     await applyCatalogOrderInstall(instance.id);
