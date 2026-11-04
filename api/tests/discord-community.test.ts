@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { computeManagedRoleDelta, mergeManagedDiscordRoles } from '../src/services/discord/community.js';
+import { computeManagedRoleDelta, mergeManagedDiscordRoles, computeMemberPermissionBits, memberCanManageRoles } from '../src/services/discord/community.js';
+
+describe('discord member permission computation', () => {
+  it('treats Administrator role as Manage Roles', () => {
+    const guildRoles = [
+      { id: '1', permissions: '8' },
+      { id: 'bot', permissions: '8' },
+    ];
+    expect(memberCanManageRoles(['1', 'bot'], guildRoles)).toBe(true);
+  });
+
+  it('detects explicit Manage Roles without Administrator', () => {
+    const guildRoles = [
+      { id: '1', permissions: '0' },
+      { id: 'bot', permissions: String(1 << 28) },
+    ];
+    expect(memberCanManageRoles(['1', 'bot'], guildRoles)).toBe(true);
+  });
+});
 
 describe('discord managed role delta', () => {
   it('adds grant roles and removes only managed roles no longer eligible', () => {

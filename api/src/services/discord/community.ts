@@ -79,12 +79,37 @@ export async function fetchGuildSnapshot(): Promise<{ id: string; name: string }
   return { id: guild.id, name: guild.name };
 }
 
-export async function fetchGuildRoles(): Promise<{ id: string; name: string; managed: boolean; position: number }[]> {
+const PERMISSION_ADMINISTRATOR = 1n << 3n;
+const PERMISSION_MANAGE_ROLES = 1n << 28n;
+
+/** Discord REST member payloads omit computed permissions — derive from role bitfields. */
+export function computeMemberPermissionBits(
+  memberRoleIds: string[],
+  guildRoles: { id: string; permissions: string }[],
+): bigint {
+  const byId = new Map(guildRoles.map((role) => [role.id, BigInt(role.permissions)]));
+  let bits = 0n;
+  for (const roleId of memberRoleIds) {
+    const roleBits = byId.get(roleId);
+    if (roleBits !== undefined) bits |= roleBits;
+  }
+  return bits;
+}
+
+export function memberCanManageRoles(memberRoleIds: string[], guildRoles: { id: string; permissions: string }[]): boolean {
+  const bits = computeMemberPermissionBits(memberRoleIds, guildRoles);
+  if ((bits & PERMISSION_ADMINISTRATOR) === PERMISSION_ADMINISTRATOR) return true;
+  return (bits & PERMISSION_MANAGE_ROLES) === PERMISSION_MANAGE_ROLES;
+}
+
+export async function fetchGuildRoles(): Promise<
+  { id: string; name: string; managed: boolean; position: number; permissions: string }[]
+> {
   const guildId = env.DISCORD_GUILD_ID;
   if (!guildId) return [];
   const res = await botFetch(`/guilds/${guildId}/roles`);
   if (!res.ok) return [];
-  const roles = (await res.json()) as { id: string; name: string; managed: boolean; position: number }[];
+  const roles = (await res.json()) as { id: string; name: string; managed: boolean; position: number; permissions: string }[];
   return roles.sort((a, b) => b.position - a.position);
 }
 
@@ -112,10 +137,9 @@ export async function probeDiscordBotHealth(): Promise<{
   const botInGuild = memberRes.ok;
   let canManageRoles = false;
   if (botInGuild) {
-    const member = (await memberRes.json()) as { permissions?: string };
-    const perm = BigInt(member.permissions ?? '0');
-    const MANAGE_ROLES = 1n << 28n;
-    canManageRoles = (perm & MANAGE_ROLES) === MANAGE_ROLES;
+    const member = (await memberRes.json()) as { roles?: string[] };
+    const guildRoles = await fetchGuildRoles();
+    canManageRoles = memberCanManageRoles(member.roles ?? [], guildRoles);
   }
   const ok = botInGuild && canManageRoles;
   return {
@@ -124,7 +148,11 @@ export async function probeDiscordBotHealth(): Promise<{
     guild,
     botInGuild,
     canManageRoles,
-    message: ok ? null : botInGuild ? 'Bot is in the guild but lacks Manage Roles permission.' : 'Bot is not in the guild — use the OAuth2 URL generator to add it.',
+    message: ok
+      ? null
+      : botInGuild
+        ? 'Bot is in the guild but cannot manage roles — check role order (bot role above assigned roles) or grant Manage Roles / Administrator.'
+        : 'Bot is not in the guild — use the OAuth2 URL generator to add it.',
   };
 }
 
@@ -331,13 +359,16 @@ export async function getCustomerCommunityStatus(userId: string): Promise<Custom
   }
 
   const health = await probeDiscordBotHealth();
-  if (!health.ok) {
-    return {
-      ...base,
-      guildName: health.guild?.name ?? null,
-      syncState: 'error',
-      operatorMessage: health.message,
-    };
+  base.guildName = health.guild?.name ?? null;
+  if (!health.botReachable) {
+    return { ...base, syncState: 'error', operatorMessage: health.message };
+  }
+  if (!health.botInGuild) {
+    return { ...base, syncState: 'error', operatorMessage: health.message };
+  }
+  // Role sync needs Manage Roles; joining the guild only needs the bot present + guilds.join OAuth.
+  if (!health.canManageRoles) {
+    base.operatorMessage = health.message;
   }
 
   const identity = await prisma.connectedIdentity.findFirst({ where: { userId, provider: 'discord' } });
@@ -347,7 +378,6 @@ export async function getCustomerCommunityStatus(userId: string): Promise<Custom
 
   base.discordLinked = true;
   base.discordUsername = identity.displayName;
-  base.guildName = health.guild?.name ?? null;
 
   const { inGuild } = await refreshCommunityMembership(userId);
   const link = await prisma.discordCommunityLink.findUnique({ where: { userId } });
