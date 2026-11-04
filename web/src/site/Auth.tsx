@@ -415,24 +415,23 @@ export function AuthLogin() {
           <Btn type="submit" size="lg" disabled={busy} className="w-full">
             {busy ? 'One moment…' : 'Log in'}
           </Btn>
-          {passkeysSupported() && (
-            <>
-              <p aria-hidden="true" className="flex items-center gap-3 text-[13px] text-ink-3">
-                <span className="h-px flex-1 bg-line" />
-                or
-                <span className="h-px flex-1 bg-line" />
-              </p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void withPasskey(passkeyLogin)}
-                className="min-h-12 w-full rounded-full bg-night-3 px-5 text-[16px] font-semibold text-ink transition-colors hover:bg-night-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:opacity-60"
-              >
-                Log in with a passkey
-              </button>
-            </>
-          )}
-          <SocialAuthSection intent="login" />
+          <SocialAuthSection
+            intent="login"
+            label="or"
+            leading={
+              passkeysSupported() ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void withPasskey(passkeyLogin)}
+                  className="flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full bg-night-3 px-5 text-[16px] font-semibold text-ink transition-colors hover:bg-night-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green disabled:opacity-60"
+                >
+                  <Icon name="passkey" size={18} />
+                  Use a passkey
+                </button>
+              ) : null
+            }
+          />
           <p className="text-[15.5px] text-ink-2">
             New to Blipmade?{' '}
             <Link to="/register" className="font-semibold text-ink underline underline-offset-4">
@@ -595,6 +594,7 @@ export function AuthRegister() {
             <Btn type="submit" size="lg" disabled={busy || !human.ready} className="w-full">
               {busy ? 'One moment…' : 'Create account'}
             </Btn>
+            <SocialAuthSection intent="login" label="or sign up with" />
             <p className="text-[14px] text-ink-3">
               By creating an account you agree to the{' '}
               <Link to="/terms" className="underline underline-offset-2">

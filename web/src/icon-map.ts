@@ -100,6 +100,7 @@ export const ICONS = {
   archive: { name: "box-archive" },
   info: { name: "circle-info" },
   server: { name: "server" },
+  passkey: { name: "key" },
 } as const satisfies Record<string, IconSpec>;
 
 /** The names of the icons of the interface. */
@@ -230,4 +231,18 @@ export function productIconClasses(slug: string, fallback: IconName): string {
   const spec: ProductIconSpec | undefined = slug.startsWith('minecraft') ? { name: 'cube' } : PRODUCT_ICONS[slug];
   if (!spec) return iconClasses(fallback);
   return spec.brand ? `fa-brands fa-${spec.name}` : `fa-sharp-duotone fa-regular fa-${spec.name}`;
+}
+
+/** The marks of the accounts a customer can sign in with, from the brand family of the font. */
+export const SOCIAL_ICONS: Record<string, string> = {
+  github: 'github',
+  google: 'google',
+  discord: 'discord',
+  apple: 'apple',
+};
+
+/** The classes of the mark of a provider of sign-in, or `null` when the font has none for it. */
+export function socialIconClasses(provider: string): string | null {
+  const name = SOCIAL_ICONS[provider];
+  return name ? `fa-brands fa-${name}` : null;
 }
