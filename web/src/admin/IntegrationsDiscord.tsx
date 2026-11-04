@@ -47,7 +47,7 @@ export default function AdminIntegrationsDiscord() {
       '/admin/integrations/discord/server/content-sync',
       { replace },
     );
-    toast.push(`Content sync: ${answer.posted.length} posted, ${answer.skipped.length} skipped.`, answer.errors.length ? 'warn' : 'ok');
+    toast.push(`Content sync: ${answer.posted.length} posted, ${answer.skipped.length} skipped.`, answer.errors.length ? 'error' : 'ok');
   });
   const syncGuildDry = useAction(async () => {
     const answer = await post<{ diff: { createChannels: unknown[] } }>('/admin/integrations/discord/server/sync', { dryRun: true });
