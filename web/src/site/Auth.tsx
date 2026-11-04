@@ -12,6 +12,7 @@ import { categoryOf, toneOf } from './categories';
 import { breakdownOfResources, eur, fmtRam } from './pricing';
 import { Icon } from '../icons';
 import { Btn, Logo, cx } from './ui';
+import { SocialAuthSection } from '../app/SocialAuthSection';
 import { useHumanCheck } from '../lib/turnstile';
 
 /**
@@ -403,6 +404,7 @@ export function AuthLogin() {
               </button>
             </>
           )}
+          <SocialAuthSection intent="login" />
           <p className="text-[15.5px] text-ink-2">
             New to Blipmade?{' '}
             <Link to="/register" className="font-semibold text-ink underline underline-offset-4">

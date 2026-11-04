@@ -65,6 +65,12 @@ import { registerAdminControlRoutes } from './routes/admin-control.js';
 import { registerOpsRoutes } from './routes/ops.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 import { registerHealthRoutes, registerStatusRoutes } from './routes/health.js';
+import { registerOAuthRoutes } from './routes/oauth.js';
+import { registerConnectionsRoutes } from './routes/connections.js';
+import { registerGitHubIntegrationRoutes, registerGitHubAppWebhookRoutes } from './routes/github-integration.js';
+import { registerGitHubSetupRoute } from './routes/discord-community.js';
+import { registerDiscordCommunityRoutes } from './routes/discord-community.js';
+import { registerAdminIntegrationsRoutes } from './routes/admin-integrations.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -234,6 +240,12 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerHealthRoutes(api);
       await registerStatusRoutes(api);
       await registerAuthRoutes(api);
+      await registerOAuthRoutes(api);
+      await registerConnectionsRoutes(api);
+      await registerGitHubIntegrationRoutes(api);
+      await registerGitHubAppWebhookRoutes(api);
+      await registerGitHubSetupRoute(api);
+      await registerDiscordCommunityRoutes(api);
       await registerCatalogRoutes(api);
       await registerOrderRoutes(api);
       await registerBillingRoutes(api);
@@ -275,6 +287,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await registerAbuseRoutes(api);
       await registerAdminStaffLifecycleRoutes(api);
       await registerAdminRoutes(api);
+      await registerAdminIntegrationsRoutes(api);
       await registerAdminSavedViewRoutes(api);
       await registerAdminControlRoutes(api);
       await registerAdminActRoutes(api);

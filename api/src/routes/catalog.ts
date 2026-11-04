@@ -369,6 +369,108 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
     },
   });
 
+  app.post('/catalog/import/inspect/github', {
+    config: { rateLimit: { max: 20, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
+    handler: async (request) => {
+      const user = await requireAuth(request);
+      const body = z
+        .object({
+          installationId: z.string().min(1),
+          repositoryId: z.string().min(1),
+          branch: z.string().max(120).optional(),
+        })
+        .parse(request.body ?? {});
+      const { inspectGithubRepository } = await import('../services/import-github-inspect.js');
+      const proposal = await inspectGithubRepository(user.id, body.installationId, body.repositoryId, body.branch);
+      return { proposal: enrichImportServices(proposal) };
+    },
+  });
+
+  app.post('/catalog/import/plans/github', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute', keyGenerator: addressRateLimitKey } },
+    handler: async (request) => {
+      const user = await requireAuth(request);
+      const body = z
+        .object({
+          installationId: z.string().min(1),
+          repositoryId: z.string().min(1),
+          branch: z.string().max(120).optional(),
+          buildCommand: z.string().max(500).optional(),
+          startCommand: z.string().max(500).optional(),
+          confirmServices: z.array(z.string().max(40)).max(3).optional(),
+        })
+        .parse(request.body ?? {});
+      const { inspectGithubRepository } = await import('../services/import-github-inspect.js');
+      const { assertUserRepositoryAccess } = await import('../services/github-app/repositories.js');
+      const inspected = await inspectGithubRepository(user.id, body.installationId, body.repositoryId, body.branch);
+      const { repo } = await assertUserRepositoryAccess(user.id, body.installationId, body.repositoryId);
+      const proposal = inspected;
+      if (!proposal?.productSlug || !proposal.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
+      const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, maxRam: true, deployable: true, visible: true } });
+      if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
+      const detected = proposal.services.map((service) => service.slug);
+      const requested = body.confirmServices;
+      const selection = confirmedServiceSelection(
+        detected,
+        requested && requested.length > 0 ? requested : defaultConfirmedServices(detected),
+      );
+      if (!selection.ok) throw badRequest(selection.message);
+      const companionSlugs = selection.chosen.filter((slug) => companionProduct(slug));
+      const companions = await Promise.all(companionSlugs.map(async (slug) => {
+        const row = await prisma.product.findUnique({ where: { slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, deployable: true, visible: true } });
+        if (!row?.visible || !row.deployable) throw badRequest(`${slug} cannot be ordered with this project.`);
+        return row;
+      }));
+      const buildCommand = cleanCommand(body.buildCommand ?? proposal.build, 'buildCommand', false);
+      const startCommand = cleanCommand(body.startCommand ?? proposal.start, 'startCommand', true);
+      const branch = body.branch || repo.defaultBranch;
+      const repoUrl = `https://github.com/${repo.fullName}`;
+      const ram = Math.min(product.maxRam ?? product.defaultRam, Math.max(product.defaultRam, proposal.recommendedRam ?? product.defaultRam));
+      const quote = await buildQuote([
+        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug, managedImport: true },
+        ...companions.map((row) => ({ productSlug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk, name: row.slug })),
+      ], null, user.id);
+      const plan = await prisma.importSource.create({
+        data: {
+          userId: user.id,
+          productSlug: product.slug,
+          kind: 'git',
+          repoUrl,
+          branch,
+          buildCommand,
+          startCommand,
+          confirmedServices: selection.chosen,
+          githubInstallationId: body.installationId,
+          githubRepositoryId: body.repositoryId,
+          githubRepositoryFullName: repo.fullName,
+        },
+      });
+      return {
+        plan: {
+          id: plan.id,
+          productSlug: product.slug,
+          buildCommand,
+          startCommand,
+          ram,
+          cpu: product.defaultCpu,
+          disk: product.defaultDisk,
+          total: quote.total,
+          currency: quote.currency,
+          services: proposal.services.map((service) => ({
+            ...service,
+            linkable: importServiceLinkable(service.slug),
+            billable: importServiceBillable(service.slug),
+          })),
+          confirmed: selection.chosen,
+          companions: companions.map((row) => ({ slug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk })),
+          notes: proposal.notes,
+          continueTo: `/app/deploy/${product.slug}?import=${plan.id}&ram=${ram}&cpu=${product.defaultCpu}&disk=${product.defaultDisk}`,
+          github: { fullName: repo.fullName, branch, isPrivate: repo.isPrivate },
+        },
+      };
+    },
+  });
+
   app.get('/catalog/import/plans/:id', async (request) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string().min(1).max(40) }).parse(request.params);

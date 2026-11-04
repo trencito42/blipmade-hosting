@@ -461,6 +461,9 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       const account = await prisma.user.findUnique({ where: { id: user.id } });
       if (!account) throw notFound('This account does not exist.');
 
+      if (!account.passwordHash) {
+        throw badRequest('This account signs in with a connected provider. Set a password from the connected accounts page or use social sign-in.');
+      }
       const ok = await verifyPassword(body.currentPassword, account.passwordHash);
       if (!ok) {
         throw badRequest('The current password is not correct.', {
@@ -477,7 +480,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       if (problems.length) {
         throw badRequest(problems.join(' '), { newPassword: problems.join(' ') });
       }
-      if (await verifyPassword(body.newPassword, account.passwordHash)) {
+      if (await verifyPassword(body.newPassword, account.passwordHash!)) {
         throw badRequest('The new password is the same as the current one.', {
           newPassword: 'Choose a password you have not used here.',
         });
@@ -631,6 +634,9 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
 
       const account = await prisma.user.findUnique({ where: { id: user.id } });
       if (!account) throw notFound('This account does not exist.');
+      if (!account.passwordHash) {
+        throw badRequest('Enter your password.', { password: 'OAuth-only accounts must set a password before closing the account.' });
+      }
       const ok = await verifyPassword(body.password, account.passwordHash);
       if (!ok) {
         throw badRequest('The password is not correct.', { password: 'The password is not correct.' });

@@ -157,6 +157,7 @@ const AppBilling = lazy(() => import('./app/Billing'));
 const AppTickets = lazy(() => import('./app/Tickets'));
 const AppNewTicket = lazy(() => import('./app/NewTicket'));
 const AppTicketDetail = lazy(() => import('./app/TicketDetail'));
+const AppConnectionsSettings = lazy(() => import('./app/ConnectionsSettings').then((m) => ({ default: m.ConnectionsSettings })));
 const AppSettings = lazy(() => import('./app/Settings'));
 const AppNotifications = lazy(() => import('./app/Notifications'));
 
@@ -313,6 +314,7 @@ export const ROUTES: RouteDef[] = [
   { pattern: '/app/settings/security/passkeys/new', component: AppPasskeyNew, title: 'Add a passkey', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/closure', component: AppCloseAccount, title: 'Close the account', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings/password', component: AppChangePassword, title: 'Change password', area: 'customer', layout: 'editor' },
+  { pattern: '/app/settings/connections', component: AppConnectionsSettings, title: 'Connected accounts', area: 'customer', layout: 'editor' },
   { pattern: '/app/settings', component: AppSettings, title: 'Settings', area: 'customer' },
   { pattern: '/app/activity', component: AppActivity, title: 'Activity', area: 'customer' },
   { pattern: '/app/notifications', component: AppNotifications, title: 'Notifications', area: 'customer' },

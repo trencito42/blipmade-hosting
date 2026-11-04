@@ -108,6 +108,30 @@ const schema = z.object({
   /** The public key of the same Turnstile widget. The page shows the check only when both are set. */
   TURNSTILE_SITE_KEY: z.string().default(''),
 
+  /** Social login — empty client id means the provider is hidden in the UI. */
+  OAUTH_GITHUB_CLIENT_ID: z.string().default(''),
+  OAUTH_GITHUB_CLIENT_SECRET: z.string().default(''),
+  OAUTH_GOOGLE_CLIENT_ID: z.string().default(''),
+  OAUTH_GOOGLE_CLIENT_SECRET: z.string().default(''),
+  OAUTH_DISCORD_CLIENT_ID: z.string().default(''),
+  OAUTH_DISCORD_CLIENT_SECRET: z.string().default(''),
+  OAUTH_APPLE_CLIENT_ID: z.string().default(''),
+  OAUTH_APPLE_TEAM_ID: z.string().default(''),
+  OAUTH_APPLE_KEY_ID: z.string().default(''),
+  /** PEM or base64 PKCS8 private key for Apple client secret JWT. */
+  OAUTH_APPLE_PRIVATE_KEY: z.string().default(''),
+
+  /** GitHub App (repository access — separate from OAuth login client). */
+  GITHUB_APP_ID: z.string().default(''),
+  GITHUB_APP_SLUG: z.string().default(''),
+  /** PEM private key for the GitHub App (may be base64-encoded). */
+  GITHUB_APP_PRIVATE_KEY: z.string().default(''),
+  GITHUB_APP_WEBHOOK_SECRET: z.string().default(''),
+
+  /** Discord community bot (guild join + role sync — separate from OAuth login). */
+  DISCORD_BOT_TOKEN: z.string().default(''),
+  DISCORD_GUILD_ID: z.string().default(''),
+
   SMTP_URL: z.string().default(''),
   /**
    * The certificate that the relay of the platform is allowed to be signed by.
@@ -550,6 +574,14 @@ export const env = {
    * The directory of the state of the operations.
    */
   opsStatusDir: raw.OPS_STATUS_DIR,
+  oauthGithubEnabled: Boolean(raw.OAUTH_GITHUB_CLIENT_ID && raw.OAUTH_GITHUB_CLIENT_SECRET),
+  oauthGoogleEnabled: Boolean(raw.OAUTH_GOOGLE_CLIENT_ID && raw.OAUTH_GOOGLE_CLIENT_SECRET),
+  oauthDiscordEnabled: Boolean(raw.OAUTH_DISCORD_CLIENT_ID && raw.OAUTH_DISCORD_CLIENT_SECRET),
+  oauthAppleEnabled: Boolean(
+    raw.OAUTH_APPLE_CLIENT_ID && raw.OAUTH_APPLE_TEAM_ID && raw.OAUTH_APPLE_KEY_ID && raw.OAUTH_APPLE_PRIVATE_KEY,
+  ),
+  githubAppEnabled: Boolean(raw.GITHUB_APP_ID && raw.GITHUB_APP_PRIVATE_KEY),
+  discordCommunityEnabled: Boolean(raw.DISCORD_BOT_TOKEN && raw.DISCORD_GUILD_ID),
 } as const;
 
 export type Env = typeof env;

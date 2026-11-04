@@ -382,6 +382,32 @@ export async function currentRelease(instance: Instance): Promise<string | null>
   return (status.state === 'succeeded' || status.state === 'built') && status.release ? status.release : null;
 }
 
+export async function refreshGitHubAppCloneUrl(instanceId: string): Promise<void> {
+  const source = await prisma.importSource.findFirst({
+    where: { instanceId, githubInstallationId: { not: null }, githubRepositoryId: { not: null } },
+    select: { githubInstallationId: true, githubRepositoryId: true, buildCommand: true, startCommand: true, branch: true, repoUrl: true },
+  });
+  if (!source?.githubInstallationId || !source.githubRepositoryId) return;
+  const row = await prisma.gitDeploy.findUnique({ where: { instanceId } });
+  if (!row) return;
+  const { cloneUrlForRepository } = await import('./github-app/repositories.js');
+  const { url } = await cloneUrlForRepository(source.githubInstallationId, source.githubRepositoryId);
+  const instance = await operations.loadOwnedInstance(
+    (await prisma.instance.findUnique({ where: { id: instanceId }, select: { userId: true } }))!.userId,
+    instanceId,
+  );
+  await installGit(
+    instance,
+    {
+      repoUrl: url,
+      branch: source.branch || row.branch,
+      buildCommand: row.buildCommand,
+      startCommand: row.startCommand,
+    },
+    null,
+  );
+}
+
 /**
  * Asks the container to build or roll back, restarts it, and waits for the answer of the script.
  * Returns the final status. Nothing here throws on a failed build: a failed build is an answer, not an error.

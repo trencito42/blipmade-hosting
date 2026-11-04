@@ -16,7 +16,7 @@ export type StaffStepUpCredential = { password: string } | { code: string };
 export async function verifyStaffStepUp(userId: string, credential: StaffStepUpCredential): Promise<'password' | 'totp' | null> {
   if ('password' in credential) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
-    if (!user || !(await verifyPassword(credential.password, user.passwordHash))) return null;
+    if (!user || !user.passwordHash || !(await verifyPassword(credential.password, user.passwordHash))) return null;
     return 'password';
   }
 

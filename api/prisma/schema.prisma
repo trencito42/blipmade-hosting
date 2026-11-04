@@ -25,7 +25,8 @@ model User {
   email          String    @unique
   /// Provider-aware canonical address used to stop trivial alias accounts.
   emailIdentity  String?   @unique
-  passwordHash   String
+  /// Null for OAuth-only accounts. Never assign a random password as a shortcut.
+  passwordHash   String?
   // The name of the customer in two parts. The panel account of this customer
   // carries the same two parts, so no name is ever invented.
   firstName      String
@@ -81,6 +82,9 @@ model User {
   cloudflareZone CloudflareZoneLink?
   importSources ImportSource[]
   dnsApprovals DnsApproval[]
+  connectedIdentities ConnectedIdentity[]
+  githubAppInstallations GitHubAppInstallation[]
+  discordCommunityLinks DiscordCommunityLink[]
 
   @@index([role])
   @@index([pterodactylUserId])
@@ -1219,9 +1223,122 @@ model ImportSource {
   confirmedServices String[] @default([])
   /// Set after the connection variables were written into the application container.
   servicesLinkedAt DateTime?
+  /// GitHub App installation used for this import (not the OAuth login identity).
+  githubInstallationId String?
+  githubInstallation GitHubAppInstallation? @relation(fields: [githubInstallationId], references: [id], onDelete: SetNull)
+  /// Numeric GitHub repository id as a string.
+  githubRepositoryId String?
+  githubRepositoryFullName String?
 
   @@index([userId, createdAt])
   @@index([phase, appliedAt])
+}
+
+/// A social or OIDC provider identity linked to a Blipmade account.
+model ConnectedIdentity {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// github | google | discord | apple
+  provider       String
+  /// Immutable subject from the provider (Discord snowflake, GitHub user id, OIDC sub).
+  providerUserId String
+  displayName    String?
+  avatarUrl      String?
+  emailSnapshot  String?
+  /// Encrypted OAuth refresh token when the provider issued one (never returned to the client).
+  refreshTokenSealed String?
+  connectedAt    DateTime @default(now())
+  lastUsedAt     DateTime?
+
+  @@unique([provider, providerUserId])
+  @@index([userId, provider])
+}
+
+/// Short-lived OAuth state / PKCE / nonce for one authorization attempt.
+model OAuthTransaction {
+  id           String   @id @default(cuid())
+  provider     String
+  /// login | link | github_app_install
+  intent       String
+  stateHash    String   @unique
+  codeVerifier String?
+  nonce        String?
+  userId       String?
+  returnTo     String?
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+/// A GitHub App installation authorized for a Blipmade user (user or org account).
+model GitHubAppInstallation {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installationId   String   @unique
+  accountLogin     String
+  accountType      String
+  repositorySelection String @default("selected")
+  suspendedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  repositories     GitHubAuthorizedRepository[]
+  importSources    ImportSource[]
+
+  @@index([userId])
+}
+
+/// Repository the GitHub App may read for deployments.
+model GitHubAuthorizedRepository {
+  id               String   @id @default(cuid())
+  installationId   String
+  installation     GitHubAppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  repositoryId     String
+  fullName         String
+  defaultBranch    String   @default("main")
+  isPrivate        Boolean  @default(false)
+  revokedAt        DateTime?
+  syncedAt         DateTime @default(now())
+
+  @@unique([installationId, repositoryId])
+  @@index([fullName])
+}
+
+/// Opt-in Discord community membership separate from Discord login identity.
+model DiscordCommunityLink {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discordUserId   String   @unique
+  guildId         String
+  joinedAt        DateTime?
+  syncState       String   @default("pending")
+  lastSyncAt      DateTime?
+  lastError       String?
+  rolesSynced     String[] @default([])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// Admin-configured Discord role mapping (Blipmade rule → Discord role id).
+model DiscordRoleMapping {
+  id            String   @id @default(cuid())
+  ruleKey       String   @unique
+  discordRoleId String
+  enabled       Boolean  @default(true)
+  updatedAt     DateTime @updatedAt
+}
+
+/// Processed GitHub App webhook deliveries for idempotency.
+model GitHubWebhookDelivery {
+  id          String   @id
+  event       String
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
 }
 
 /// A server-generated DNS diff. Writing requires this exact preview, before it expires.

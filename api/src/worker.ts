@@ -199,6 +199,10 @@ const gitWorker = createGitDeployWorker(async (job) => {
   if (!row || !row.pterodactylUuid) return;
   const instance = { id: row.id, userId: row.userId, pterodactylUuid: row.pterodactylUuid, pterodactylServerId: row.pterodactylServerId, status: row.status, generatedVariables: row.generatedVariables, productVariables: row.product.generatedVariables };
   await recordDeployEvent(instanceId, `deploy:${deployId}:started:${action}:${by}`);
+  if (action === 'build') {
+    const { refreshGitHubAppCloneUrl } = await import('./services/git-deploy.js');
+    await refreshGitHubAppCloneUrl(instanceId).catch(() => undefined);
+  }
   let result = await runDeploy(instance, deployId, action, release);
   if (action === 'build' && (result.state === 'built' || result.state === 'succeeded')) {
     const full = await prisma.instance.findUnique({ where: { id: instanceId }, include: { product: { select: { slug: true } } } });

@@ -14,6 +14,7 @@ export async function passwordUsedByOtherStaff(password: string, exceptUserId: s
     take: 200,
   });
   for (const member of staff) {
+    if (!member.passwordHash) continue;
     if (await verifyPassword(password, member.passwordHash)) return true;
   }
   return false;

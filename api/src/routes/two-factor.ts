@@ -274,7 +274,7 @@ export async function registerTwoFactorRoutes(app: FastifyInstance): Promise<voi
     const user = await requireAuth(request);
     const { password, code } = z.object({ password: z.string().min(1).max(200), code: z.string().min(6).max(32) }).parse(request.body ?? {});
     const full = await prisma.user.findUnique({ where: { id: user.id } });
-    if (!full || !(await verifyPassword(password, full.passwordHash))) throw badRequest('The password is not correct.', { password: 'The password is not correct.' });
+    if (!full?.passwordHash || !(await verifyPassword(password, full.passwordHash))) throw badRequest('The password is not correct.', { password: 'The password is not correct.' });
     if (!(await checkSecondFactorCode(user.id, code))) throw badRequest('That code is not correct.', { code: 'That code is not correct.' });
     await prisma.userTwoFactor.delete({ where: { userId: user.id } });
     await audit({ actorId: user.id, actorEmail: user.email, action: 'settings.2fa_disabled', targetType: 'user', targetId: user.id, ip: request.ip });

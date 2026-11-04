@@ -186,7 +186,18 @@ export default function Settings() {
           </>
         )}
         {tab.id === 'security' && (
-          <ProtectionPanels password={<PasswordPanel />} />
+          <>
+            <div className="lg:col-span-2">
+              <Panel
+                title="Connected accounts"
+                description="Social sign-in, GitHub App repository access, and Discord community options."
+                action={<ButtonLink to="/app/settings/connections" variant="soft">Manage connections</ButtonLink>}
+              >
+                <p className="text-[13.5px] text-ink3">Link GitHub, Google, Discord or Apple for sign-in. Grant repository access separately through the GitHub App.</p>
+              </Panel>
+            </div>
+            <ProtectionPanels password={<PasswordPanel />} />
+          </>
         )}
         {tab.id === 'sessions' && <SessionPanels sessions={<SessionsPanel sessions={data.sessions} onChanged={state.reload} />} />}
         {tab.id === 'keys' && <div className="lg:col-span-2"><ApiKeysPanel /></div>}
