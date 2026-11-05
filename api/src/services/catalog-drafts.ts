@@ -259,6 +259,45 @@ export async function ensureStarterPresets(): Promise<{ created: number }> {
 }
 
 /**
+ * Minecraft presets with plugins. They are written as DRAFTS (version 1, not published), so a staff member reads them
+ * and publishes them from the back office. Slugs are Modrinth project slugs; a plugin without a build for the version
+ * the customer picks is skipped at install time. Existing presets are left alone, and `dryRun` only counts.
+ */
+export const DRAFT_PLUGIN_PRESETS = [
+  { slug: 'paper-starter', name: 'Paper starter', summary: 'Permissions and a world editor from the first start.', notes: 'LuckPerms and WorldEdit. Restart the server once after the first install.', plugins: ['luckperms', 'worldedit'], ramMb: 4096, cpu: 2, diskGb: 15 },
+  { slug: 'paper-protected', name: 'Paper protected', summary: 'Claims and region protection for a public server.', notes: 'LuckPerms, WorldEdit and WorldGuard. Staff set the regions in game.', plugins: ['luckperms', 'worldedit', 'worldguard'], ramMb: 6144, cpu: 2, diskGb: 20 },
+  { slug: 'paper-skyblock', name: 'Paper skyblock', summary: 'Island gamemodes with BentoBox.', notes: 'BentoBox and LuckPerms. The island gamemode addons are chosen after the first start.', plugins: ['bentobox', 'luckperms'], ramMb: 6144, cpu: 2, diskGb: 20 },
+] as const;
+
+export async function ensureDraftPluginPresets(dryRun = false): Promise<{ created: string[]; existing: string[]; missingFamily: boolean }> {
+  const family = await prisma.catalogFamily.findUnique({ where: { slug: 'minecraft' }, select: { id: true } });
+  const variant = family ? await prisma.catalogVariant.findFirst({ where: { slug: 'minecraft-paper', familyId: family.id }, select: { id: true } }) : null;
+  if (!family || !variant) return { created: [], existing: [], missingFamily: true };
+  const created: string[] = [];
+  const existing: string[] = [];
+  for (const preset of DRAFT_PLUGIN_PRESETS) {
+    if (await prisma.catalogPreset.findUnique({ where: { familyId_slug: { familyId: family.id, slug: preset.slug } }, select: { id: true } })) {
+      existing.push(preset.slug);
+      continue;
+    }
+    if (!dryRun) {
+      await prisma.catalogPreset.create({
+        data: {
+          familyId: family.id,
+          variantId: variant.id,
+          slug: preset.slug,
+          name: preset.name,
+          sortOrder: 50,
+          versions: { create: { version: 1, summary: preset.summary, notes: preset.notes, plugins: [...preset.plugins], recommendedRamMb: preset.ramMb, recommendedCpu: preset.cpu, recommendedDiskGb: preset.diskGb, publishedAt: null } },
+        },
+      });
+    }
+    created.push(preset.slug);
+  }
+  return { created, existing, missingFamily: false };
+}
+
+/**
  * Opens a draft to customers only when its product can already be ordered.
  * Products, prices and eggs stay as they are.
  */
