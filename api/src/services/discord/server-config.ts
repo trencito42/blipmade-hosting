@@ -1,5 +1,5 @@
 import { prisma } from '../../db.js';
-import { defaultServerConfigJson } from './desired-state.js';
+import { defaultServerConfigJson, type GuildSyncMode } from './desired-state.js';
 
 export async function ensureDiscordServerConfig(): Promise<{
   id: string;
@@ -46,4 +46,10 @@ export async function setChannelBinding(key: string, channelId: string): Promise
     where: { id: 'default' },
     data: { channelBindings: next as never },
   });
+}
+
+export async function setGuildSyncMode(mode: GuildSyncMode): Promise<void> {
+  const config = await ensureDiscordServerConfig();
+  const state = (config.desiredState && typeof config.desiredState === 'object' ? config.desiredState : defaultServerConfigJson().desiredState) as Record<string, unknown>;
+  await prisma.discordServerConfig.update({ where: { id: 'default' }, data: { desiredState: { ...state, mode } as never } });
 }

@@ -47,3 +47,15 @@ describe('interaction signature verification', () => {
     expect(verifyDiscordInteractionSignature('{"type":2}', sig, timestamp, pubHex)).toBe(false);
   });
 });
+
+describe('protected-only sync mode', () => {
+  it('plans nothing but the protected channel', async () => {
+    const { desiredStateFromConfig } = await import('../src/services/discord/guild-sync.js');
+    const { DESIRED_GUILD_STATE_V1 } = await import('../src/services/discord/desired-state.js');
+    const full = desiredStateFromConfig(DESIRED_GUILD_STATE_V1);
+    expect(full.channels.length).toBeGreaterThan(5);
+    const only = desiredStateFromConfig({ ...DESIRED_GUILD_STATE_V1, mode: 'protected_only' });
+    expect(only.categories).toEqual([]);
+    expect(only.channels.map((channel) => channel.existingId)).toEqual(['1565844667147493376']);
+  });
+});

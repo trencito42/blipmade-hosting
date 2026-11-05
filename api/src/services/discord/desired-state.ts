@@ -3,8 +3,15 @@ export const PROTECTED_DISCORD_CHANNEL_IDS = ['1565844667147493376'] as const;
 
 export type DesiredChannelBindingKey = string;
 
+/**
+ * `full` creates and binds every planned channel. `protected_only` leaves the server as it is: only the protected
+ * channels are known to Blipmade, so a sync creates nothing and the bot posts nowhere else.
+ */
+export type GuildSyncMode = 'full' | 'protected_only';
+
 export interface DesiredGuildState {
   version: number;
+  mode?: GuildSyncMode;
   categories: { key: string; name: string }[];
   channels: {
     key: string;

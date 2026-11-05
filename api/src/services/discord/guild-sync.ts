@@ -16,6 +16,7 @@ export type LiveGuildChannel = {
 
 export type GuildStructureDiff = {
   version: number;
+  mode: 'full' | 'protected_only';
   guildId: string | null;
   protectedChannelIds: string[];
   protectedPresent: boolean;
@@ -43,9 +44,10 @@ export async function fetchGuildChannelInventory(): Promise<LiveGuildChannel[]> 
   return (await res.json()) as LiveGuildChannel[];
 }
 
-function desiredStateFromConfig(raw: unknown): DesiredGuildState {
-  if (raw && typeof raw === 'object' && 'channels' in raw) return raw as DesiredGuildState;
-  return DESIRED_GUILD_STATE_V1;
+export function desiredStateFromConfig(raw: unknown): DesiredGuildState {
+  const state = raw && typeof raw === 'object' && 'channels' in raw ? (raw as DesiredGuildState) : DESIRED_GUILD_STATE_V1;
+  if (state.mode !== 'protected_only') return state;
+  return { ...state, categories: [], channels: state.channels.filter((channel) => channel.preserveOnly) };
 }
 
 export async function computeGuildStructureDiff(): Promise<GuildStructureDiff> {
@@ -60,6 +62,7 @@ export async function computeGuildStructureDiff(): Promise<GuildStructureDiff> {
 
   const diff: GuildStructureDiff = {
     version: desired.version,
+    mode: desired.mode ?? 'full',
     guildId,
     protectedChannelIds: protectedIds,
     protectedPresent: Boolean(protectedChannel),
@@ -128,7 +131,8 @@ export async function computeGuildStructureDiff(): Promise<GuildStructureDiff> {
   }
 
   const desiredNames = new Set(desired.channels.map((c) => c.name));
-  for (const ch of live) {
+  // In protected-only mode nothing is planned, so every other channel is simply not Blipmade's business.
+  for (const ch of desired.mode === 'protected_only' ? [] : live) {
     if (protectedIds.includes(ch.id)) continue;
     if (ch.type === 4) continue;
     if (desiredNames.has(ch.name)) continue;

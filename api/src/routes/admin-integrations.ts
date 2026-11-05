@@ -14,7 +14,7 @@ import {
 import { computeGuildStructureDiff, applyGuildStructureSync, exportGuildInventorySnapshot, fetchGuildChannelInventory } from '../services/discord/guild-sync.js';
 import { importLiveGuildIntoConfig } from '../services/discord/guild-template.js';
 import { syncChannelContent } from '../services/discord/channel-content.js';
-import { ensureDiscordServerConfig } from '../services/discord/server-config.js';
+import { ensureDiscordServerConfig, setGuildSyncMode } from '../services/discord/server-config.js';
 import { postSupportDeskPanel, registerDiscordSlashCommands } from '../services/discord/support-panel.js';
 import { defaultServerConfigJson } from '../services/discord/desired-state.js';
 import { DISCORD_RULE_CATALOG, DISCORD_RULE_KEYS, ensureDefaultDiscordRoleMappings } from '../services/discord/rules.js';
@@ -156,6 +156,7 @@ export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Pro
         channelBindings: config.channelBindings,
         protectedChannelIds: config.protectedChannelIds,
         supportPanelMessageId: config.supportPanelMessageId,
+        syncMode: diff.mode,
       },
       diff,
       inventory: exportGuildInventorySnapshot(inventory),
@@ -172,6 +173,14 @@ export async function registerAdminIntegrationsRoutes(app: FastifyInstance): Pro
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.channel_bindings_update' });
     return { ok: true };
+  });
+
+  app.put('/admin/integrations/discord/server/sync-mode', async (request) => {
+    const actor = await requirePermission('settings.write')(request);
+    const { mode } = z.object({ mode: z.enum(['full', 'protected_only']) }).parse(request.body ?? {});
+    await setGuildSyncMode(mode);
+    await audit({ actorId: actor.id, actorEmail: actor.email, action: 'discord.guild_sync_mode', meta: { mode } });
+    return { mode };
   });
 
   app.post('/admin/integrations/discord/server/sync', async (request) => {

@@ -37,6 +37,14 @@ export default function AdminIntegrationsDiscord() {
     toast.push(`Reconciled ${answer.reconciled} linked Discord accounts.`, 'ok');
     state.reload();
   });
+  const serverState = useAsync<{ config: { syncMode: 'full' | 'protected_only' } }>((signal) => get('/admin/integrations/discord/server', undefined, signal), []);
+  const syncMode = serverState.data?.config.syncMode ?? 'full';
+  const protectedOnly = syncMode === 'protected_only';
+  const setSyncMode = useAction(async (mode: 'full' | 'protected_only') => {
+    await put('/admin/integrations/discord/server/sync-mode', { mode });
+    toast.push(mode === 'protected_only' ? 'Blipmade now leaves your Discord channels alone. Only #bugs is kept.' : 'Blipmade will create the planned channels on the next sync.', 'ok');
+    serverState.reload();
+  });
   const importLive = useAction(async () => {
     const answer = await post<{ channelCount: number; bindingCount: number }>('/admin/integrations/discord/server/import-live', {});
     toast.push(`Imported live template: ${answer.channelCount} channels, ${answer.bindingCount} bindings.`, 'ok');
@@ -169,12 +177,27 @@ export default function AdminIntegrationsDiscord() {
       </Panel>
 
       <Panel title="Server template & bot posts" description="Import the current Discord layout as the template, create missing planned channels, then let the Blipmade bot post welcome/rules/status and the support panel.">
+        {mayWrite ? (
+          <label className="mb-3 flex items-start gap-3 rounded-2xl bg-s2 p-4 text-[13.5px] text-ink2">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-5 accent-[var(--color-acc)]"
+              checked={protectedOnly}
+              disabled={setSyncMode.pending || serverState.loading}
+              onChange={(event) => void setSyncMode.run(event.target.checked ? 'protected_only' : 'full')}
+            />
+            <span>
+              <strong className="block text-ink">Only keep the protected channel (#bugs)</strong>
+              Blipmade creates no categories or channels and changes no permissions. Your own channels and webhooks are not touched.
+            </span>
+          </label>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {mayWrite ? (
             <>
               <SoftButton disabled={importLive.pending} onClick={() => void importLive.run()}>Import live server</SoftButton>
               <SoftButton disabled={syncGuildDry.pending} onClick={() => void syncGuildDry.run()}>Preview channel sync</SoftButton>
-              <SoftButton disabled={syncGuildApply.pending} onClick={() => void syncGuildApply.run()}>Apply channel sync</SoftButton>
+              <SoftButton disabled={syncGuildApply.pending || protectedOnly} onClick={() => void syncGuildApply.run()}>Apply channel sync</SoftButton>
               <SoftButton disabled={syncContent.pending} onClick={() => void syncContent.run(false)}>Post bot templates</SoftButton>
               <SoftButton disabled={syncContent.pending} onClick={() => void syncContent.run(true)}>Refresh bot templates</SoftButton>
             </>
