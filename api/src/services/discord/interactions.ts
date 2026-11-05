@@ -8,7 +8,7 @@ import {
   updateMessage,
   verifyDiscordInteractionSignature,
 } from './interaction-util.js';
-import { listDiscordTicketsForUser, openDiscordSupportTicket } from './support-bridge.js';
+import { listDiscordTicketsForUser, openDiscordSupportTicket, staffDiscordAction } from './support-bridge.js';
 import { getCustomerCommunityStatus, syncDiscordRolesForUser } from './community.js';
 import { ensureDiscordServerConfig } from './server-config.js';
 import { postSupportDeskPanel } from './support-panel.js';
@@ -28,6 +28,11 @@ type Interaction = {
   message?: { id: string; channel_id: string };
   channel_id?: string;
 };
+
+function openedTicketText(result: { ticketNumber: number; threadId: string | null; bridgeError: string | null }): string {
+  if (result.threadId) return `Ticket #${result.ticketNumber} opened. Continue in <#${result.threadId}>.`;
+  return `Ticket #${result.ticketNumber} is open in Blipmade. Discord did not create the thread: ${result.bridgeError ?? 'unknown error'}.`;
+}
 
 function discordUserId(interaction: Interaction): string | null {
   return interaction.member?.user.id ?? interaction.user?.id ?? null;
@@ -118,6 +123,14 @@ export async function handleDiscordInteraction(rawBody: string, headers: Record<
 
     if (interaction.type === 3 && interaction.data?.custom_id) {
       const id = interaction.data.custom_id;
+      if (id.startsWith('bm:staff:')) {
+        const [, , action, ticketId] = id.split(':');
+        if (action !== 'claim' && action !== 'resolve' && action !== 'reopen') {
+          return interactionJsonResponse(ephemeral('Unknown staff action.'));
+        }
+        const result = await staffDiscordAction(userId, action, ticketId ?? '');
+        return interactionJsonResponse(ephemeral(result));
+      }
       if (id === 'bm:support:sync_roles') {
         const linked = await resolveBlipmadeUserFromDiscord(userId);
         if (!linked) return interactionJsonResponse(ephemeral('Connect Discord to Blipmade under Account → Connections first.'));
@@ -217,9 +230,7 @@ export async function handleDiscordInteraction(rawBody: string, headers: Record<
           category: 'TECHNICAL',
           instanceId,
         });
-        return interactionJsonResponse(
-          ephemeral(`Ticket #${result.ticketNumber} opened. Continue in <#${result.threadId}>.`),
-        );
+        return interactionJsonResponse(ephemeral(openedTicketText(result)));
       }
 
       const kind = customId.replace('bm:modal:', '');
@@ -233,7 +244,7 @@ export async function handleDiscordInteraction(rawBody: string, headers: Record<
         category,
         priority,
       });
-      return interactionJsonResponse(ephemeral(`Ticket #${result.ticketNumber} opened. Continue in <#${result.threadId}>.`));
+      return interactionJsonResponse(ephemeral(openedTicketText(result)));
     }
 
     if (interaction.type === 3 && interaction.data?.custom_id === 'bm:admin:refresh_panel') {

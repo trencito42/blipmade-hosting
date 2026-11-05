@@ -50,8 +50,15 @@ export default function AdminIntegrationsDiscord() {
     toast.push(`Content sync: ${answer.posted.length} posted, ${answer.skipped.length} skipped.`, answer.errors.length ? 'error' : 'ok');
   });
   const syncGuildDry = useAction(async () => {
-    const answer = await post<{ diff: { createChannels: unknown[] } }>('/admin/integrations/discord/server/sync', { dryRun: true });
-    toast.push(`Dry run: ${answer.diff.createChannels.length} channels would be created.`, 'ok');
+    const answer = await post<{ diff: { createChannels: unknown[]; permissionPlan: { denyEveryone: boolean }[]; protectedChannelIds: string[] } }>(
+      '/admin/integrations/discord/server/sync',
+      { dryRun: true },
+    );
+    const hidden = answer.diff.permissionPlan.filter((row) => row.denyEveryone).length;
+    toast.push(
+      `Dry run: ${answer.diff.createChannels.length} channels would be created. ${hidden} channels deny @everyone. Protected: ${answer.diff.protectedChannelIds.join(', ')}.`,
+      'ok',
+    );
   });
   const syncGuildApply = useAction(async () => {
     const answer = await post<{ createdChannels: { key: string }[]; error: string | null }>('/admin/integrations/discord/server/sync', { apply: true });

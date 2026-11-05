@@ -2,6 +2,7 @@ import { env } from '../../env.js';
 import { badRequest } from '../../lib/errors.js';
 import { prisma } from '../../db.js';
 import { botFetch, parseDiscordError } from './http.js';
+import { accessLevelFor, isProtectedDiscordChannel, permissionOverwrites, type AccessRoles } from './channel-access.js';
 import { DESIRED_GUILD_STATE_V1, PROTECTED_DISCORD_CHANNEL_IDS, type DesiredGuildState } from './desired-state.js';
 import { ensureDiscordServerConfig, setChannelBinding } from './server-config.js';
 
@@ -25,6 +26,7 @@ export type GuildStructureDiff = {
   renameOrMove: { channelId: string; key: string; fromName: string; toName: string; note: string }[];
   obsoleteChannels: { id: string; name: string; type: number; reason: string }[];
   warnings: string[];
+  permissionPlan: { key: string; level: string; denyEveryone: boolean }[];
 };
 
 const CHANNEL_TYPE: Record<'text' | 'announcement' | 'forum', number> = {
@@ -68,6 +70,12 @@ export async function computeGuildStructureDiff(): Promise<GuildStructureDiff> {
     renameOrMove: [],
     obsoleteChannels: [],
     warnings: [],
+    permissionPlan: desired.channels
+      .filter((ch) => !ch.preserveOnly)
+      .map((ch) => {
+        const level = accessLevelFor(ch.categoryKey, ch.key);
+        return { key: ch.key, level, denyEveryone: level !== 'public' };
+      }),
   };
 
   if (!guildId) diff.warnings.push('DISCORD_GUILD_ID is not configured.');
@@ -165,11 +173,16 @@ export async function applyGuildStructureSync(options: { dryRun?: boolean } = {}
     if (match) categoryIdByKey.set(cat.key, match.id);
   }
 
+  const roles = await accessRoles();
   try {
     for (const cat of diff.createCategories) {
       const res = await botFetch(`/guilds/${guildId}/channels`, {
         method: 'POST',
-        body: JSON.stringify({ name: cat.name, type: 4 }),
+        body: JSON.stringify({
+          name: cat.name,
+          type: 4,
+          permission_overwrites: permissionOverwrites(accessLevelFor(cat.key, ''), roles),
+        }),
       });
       if (!res.ok) throw new Error(parseDiscordError(await res.text()));
       const created = (await res.json()) as { id: string };
@@ -185,14 +198,14 @@ export async function applyGuildStructureSync(options: { dryRun?: boolean } = {}
     }
 
     for (const ch of diff.createChannels) {
-      if (PROTECTED_DISCORD_CHANNEL_IDS.some((id) => bindingsUpdated.includes(id))) {
-        /* no-op guard */
-      }
+      if (ch.key === 'protected_bugs_forum') continue;
       const parent = categoryIdByKey.get(ch.categoryKey) ?? null;
+      const level = accessLevelFor(ch.categoryKey, ch.key);
       const payload: Record<string, unknown> = {
         name: ch.name,
         type: CHANNEL_TYPE[ch.type],
         parent_id: parent,
+        permission_overwrites: permissionOverwrites(level, roles),
       };
       if (ch.topic) payload.topic = ch.topic;
       const res = await botFetch(`/guilds/${guildId}/channels`, {
@@ -204,6 +217,29 @@ export async function applyGuildStructureSync(options: { dryRun?: boolean } = {}
       await setChannelBinding(ch.key, created.id);
       createdChannels.push({ key: ch.key, id: created.id });
       bindingsUpdated.push(ch.key);
+    }
+
+    const live = await fetchGuildChannelInventory();
+    for (const cat of desired.categories) {
+      const row = live.find((c) => c.type === 4 && c.name.toLowerCase() === cat.name.toLowerCase());
+      if (!row || isProtectedDiscordChannel(row.id)) continue;
+      await botFetch(`/channels/${row.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ permission_overwrites: permissionOverwrites(accessLevelFor(cat.key, ''), roles) }),
+      });
+    }
+
+    for (const bind of diff.bindExisting) {
+      if (isProtectedDiscordChannel(bind.channelId) || bind.key === 'protected_bugs_forum') continue;
+      const spec = desired.channels.find((ch) => ch.key === bind.key);
+      if (!spec) continue;
+      const level = accessLevelFor(spec.categoryKey, spec.key);
+      const overwrites = permissionOverwrites(level, roles);
+      if (overwrites.length === 0) continue;
+      await botFetch(`/channels/${bind.channelId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ permission_overwrites: overwrites }),
+      });
     }
 
     await prisma.discordServerConfig.update({
@@ -222,6 +258,20 @@ export async function applyGuildStructureSync(options: { dryRun?: boolean } = {}
     });
     return { dryRun: false, diff, createdCategories, createdChannels, bindingsUpdated, error: message };
   }
+}
+
+async function accessRoles(): Promise<AccessRoles> {
+  const [customer, staff] = await Promise.all([
+    prisma.discordRoleMapping.findMany({ where: { enabled: true } }),
+    prisma.discordStaffRoleMapping.findMany({ where: { enabled: true } }),
+  ]);
+  const id = (rule: string) => customer.find((row) => row.ruleKey === rule)?.discordRoleId.trim() || null;
+  return {
+    everyoneId: env.DISCORD_GUILD_ID,
+    verifiedRoleId: id('verified_member'),
+    customerRoleId: id('active_customer'),
+    staffRoleIds: [...new Set(staff.map((row) => row.discordRoleId.trim()).filter((row) => /^\d{5,}$/.test(row)))],
+  };
 }
 
 export function exportGuildInventorySnapshot(channels: LiveGuildChannel[]): Record<string, unknown> {
