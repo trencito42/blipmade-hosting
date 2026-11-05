@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { del, get, post, put } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
-import { EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Segmented, Select, SoftButton, TextInput, useToast } from '../../ui-app';
+import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, PrimaryButton, Segmented, Select, SoftButton, TextInput, useToast } from '../../ui-app';
 import type { TabProps } from './common';
 
 interface Minecraft {
@@ -24,7 +24,20 @@ const PROPERTY_LABELS: Record<string, string> = {
 const WORLD_KEYS = new Set(['level-name', 'level-seed', 'level-type', 'generator-settings', 'allow-nether', 'generate-structures', 'max-world-size']);
 
 function WorldList({ instanceId }: { instanceId: string }) {
+  const toast = useToast();
   const state = useAsync<{ worlds: { name: string; entries: number }[] }>((signal) => get(`/instances/${encodeURIComponent(instanceId)}/minecraft/worlds`, undefined, signal), [instanceId]);
+  const [resetting, setResetting] = useState(false);
+  const base = `/instances/${encodeURIComponent(instanceId)}/minecraft/worlds`;
+  const backup = useAction(async () => {
+    const answer = await post<{ note: string }>(`${base}/backup`, {});
+    toast.push(answer.note, 'ok');
+  });
+  const reset = useAction(async () => {
+    const answer = await post<{ note: string }>(`${base}/reset`, { confirm: 'reset the world' });
+    toast.push(answer.note, 'ok');
+    setResetting(false);
+    state.reload();
+  });
   return (
     <Panel title="World folders" description="These are the folders the server has created. A new seed does not rewrite them. Restore a world from Backups.">
       {(state.data?.worlds.length ?? 0) > 0 ? (
@@ -32,6 +45,21 @@ function WorldList({ instanceId }: { instanceId: string }) {
           {state.data!.worlds.map((world) => <li key={world.name}>{world.name} · {world.entries} entries</li>)}
         </ul>
       ) : <p className="text-[14px] text-ink3">{state.loading ? 'Looking for world folders.' : 'No world folder yet. Start the server once.'}</p>}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <SoftButton type="button" onClick={() => void backup.run()} disabled={backup.pending}>{backup.pending ? 'Backing up…' : 'Back up the world now'}</SoftButton>
+        {(state.data?.worlds.length ?? 0) > 0 && <SoftButton type="button" onClick={() => setResetting(true)}>Start a new world…</SoftButton>}
+      </div>
+      {(backup.error || reset.error) && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{backup.error || reset.error}</p>}
+      <ConfirmDialog
+        open={resetting}
+        title="Start a new world?"
+        description="The server must be stopped. A locked backup is made first, and if it cannot be made nothing is removed. Then the world folders are removed and the server makes a new world when it starts."
+        confirmLabel="Remove the world"
+        requireText="reset the world"
+        busy={reset.pending}
+        onCancel={() => setResetting(false)}
+        onConfirm={() => void reset.run()}
+      />
     </Panel>
   );
 }

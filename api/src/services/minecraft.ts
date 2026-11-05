@@ -311,3 +311,10 @@ export function pluginToggleName(name: string, enable: boolean): string {
   const base = name.replace(/\.disabled$/, '');
   return enable ? base : `${base}.disabled`;
 }
+
+/** The folders of a world: the one the server names in `level-name`, and the two of its dimensions. Nothing else is ever listed for removal. */
+export function worldFolders(levelName: string | undefined): string[] {
+  const name = (levelName ?? '').trim() || 'world';
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/.test(name) || name.includes('..')) return ['world', 'world_nether', 'world_the_end'];
+  return [name, `${name}_nether`, `${name}_the_end`];
+}

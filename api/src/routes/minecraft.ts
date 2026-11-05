@@ -10,7 +10,7 @@ import * as operations from '../services/panel/operations.js';
 import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
 import {
-  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
+  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, worldFolders, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
   pluginFileFor, pluginEntries, pluginToggleName, PLUGIN_FILE, searchPlugins, searchModpacks, modpackFilesFor, type PlayerAction,
 } from '../services/minecraft.js';
 
@@ -202,6 +202,48 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
       } catch { /* The world has not been created yet. */ }
     }
     return { worlds };
+  });
+
+  /** A copy of the worlds that is kept until the owner removes it. */
+  app.post('/instances/:id/minecraft/worlds/backup', write, async (request: FastifyRequest) => {
+    const { user, instance, token, uuid } = await load(request);
+    try {
+      await client.createBackup(token, uuid, { name: `World ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, locked: true });
+    } catch {
+      throw conflict('The backup could not be made. Delete an old unlocked backup and try again.');
+    }
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_world_backup', targetType: 'instance', targetId: instance.id });
+    return { started: true, note: 'A locked backup of the server is being made. It appears in the Backups tab when it is ready.' };
+  });
+
+  /**
+   * Starts the world again from nothing: the folders of the world are removed and the server makes new ones when it
+   * starts. It needs the server stopped, the name typed on purpose, and a backup that was made first; when the backup
+   * cannot be made nothing is removed.
+   */
+  app.post('/instances/:id/minecraft/worlds/reset', write, async (request: FastifyRequest) => {
+    const { user, instance, token, uuid } = await load(request);
+    z.object({ confirm: z.literal('reset the world') }).strict().parse(request.body ?? {});
+    const resources = await client.getResources(token, uuid);
+    if (resources.state !== 'offline') throw conflict('Stop the server first. A world is not removed while the server runs.');
+    try {
+      await client.createBackup(token, uuid, { name: `Before world reset ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, locked: true });
+    } catch {
+      throw conflict('A backup could not be made first, so the world was not removed. Delete an old unlocked backup and try again.');
+    }
+    const properties = parseProperties(await readText(token, uuid, '/server.properties'));
+    const removed: string[] = [];
+    for (const name of worldFolders(properties['level-name'])) {
+      try {
+        await client.listFiles(token, uuid, `/${name}`);
+      } catch {
+        continue; // That folder does not exist: nothing to remove.
+      }
+      await client.deleteFile(token, uuid, `/${name}`);
+      removed.push(name);
+    }
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_world_reset', targetType: 'instance', targetId: instance.id, meta: { removed } });
+    return { reset: removed, note: removed.length ? 'The world was removed after a backup was made. The server makes a new one when it starts.' : 'There was no world folder to remove.' };
   });
 
   app.get('/instances/:id/minecraft/modpacks/search', async (request: FastifyRequest) => {
