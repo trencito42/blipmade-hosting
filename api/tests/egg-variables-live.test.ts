@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { panelEnv } from './panel-test-env.js';
 
 /**
  * The variables of an egg are read from the panel.
@@ -19,19 +20,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  */
 
 const TOKEN = 'test-panel-key';
-const PANEL_PORT = 23122;
 
+const savedPanelEnv = { url: '', key: '', enabled: false };
 vi.mock('../src/env.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/env.js')>();
-  return {
-    ...actual,
-    env: {
-      ...actual.env,
-      PTERODACTYL_URL: `http://127.0.0.1:${PANEL_PORT}`,
-      PTERODACTYL_APP_KEY: TOKEN,
-      pterodactylEnabled: true,
-    },
-  };
+  savedPanelEnv.url = actual.env.PTERODACTYL_URL;
+  savedPanelEnv.key = actual.env.PTERODACTYL_APP_KEY;
+  savedPanelEnv.enabled = actual.env.pterodactylEnabled;
+  const settings = panelEnv(actual.env);
+  settings.PTERODACTYL_APP_KEY = TOKEN;
+  settings.pterodactylEnabled = true;
+  return actual;
 });
 
 const panel = {
@@ -133,10 +132,25 @@ beforeAll(async () => {
   server = createServer((request, response) => {
     void answerPanel(request, response);
   });
-  await new Promise<void>((done) => server.listen(PANEL_PORT, '127.0.0.1', done));
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  const { env } = await import('../src/env.js');
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('The fake panel did not bind a port.');
+  const settings = panelEnv(env);
+  settings.PTERODACTYL_URL = `http://127.0.0.1:${address.port}`;
+  settings.PTERODACTYL_APP_KEY = TOKEN;
+  settings.pterodactylEnabled = true;
 });
 
 afterAll(async () => {
+  const { env } = await import('../src/env.js');
+  const settings = panelEnv(env);
+  settings.PTERODACTYL_URL = savedPanelEnv.url;
+  settings.PTERODACTYL_APP_KEY = savedPanelEnv.key;
+  settings.pterodactylEnabled = savedPanelEnv.enabled;
   await new Promise<void>((done) => server.close(() => done()));
 });
 

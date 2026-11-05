@@ -1,5 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { panelEnv } from './panel-test-env.js';
 
 /**
  * The lists of the panel, and the environment of the eggs.
@@ -19,20 +20,18 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const TOKEN = 'test-panel-key';
 
+const savedPanelEnv = { url: '', key: '', enabled: false };
 vi.mock('../src/env.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/env.js')>();
-  return {
-    ...actual,
-    env: {
-      ...actual.env,
-      PTERODACTYL_URL: 'http://127.0.0.1:23120',
-      PTERODACTYL_APP_KEY: TOKEN,
-      // The flag is computed from the raw values when the module is loaded,
-      // so it is set here as well. The test must not depend on the panel of
-      // the machine it runs on.
-      pterodactylEnabled: true,
-    },
-  };
+  savedPanelEnv.url = actual.env.PTERODACTYL_URL;
+  savedPanelEnv.key = actual.env.PTERODACTYL_APP_KEY;
+  savedPanelEnv.enabled = actual.env.pterodactylEnabled;
+  // The client is imported by the test setup before this file runs, so it
+  // already holds this object. Replacing the object would leave that client
+  // pointed at the real panel.
+  panelEnv(actual.env).PTERODACTYL_APP_KEY = TOKEN;
+  panelEnv(actual.env).pterodactylEnabled = true;
+  return actual;
 });
 
 /** The pages the fake panel answers with. */
@@ -119,11 +118,26 @@ function answerPanel(request: { url?: string; headers: Record<string, unknown> }
 let server: Server;
 
 beforeAll(async () => {
+  const { env } = await import('../src/env.js');
   server = createServer(answerPanel as never);
-  await new Promise<void>((resolve) => server.listen(23120, '127.0.0.1', resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('The fake panel did not bind a port.');
+  const settings = panelEnv(env);
+  settings.PTERODACTYL_URL = `http://127.0.0.1:${address.port}`;
+  settings.PTERODACTYL_APP_KEY = TOKEN;
+  settings.pterodactylEnabled = true;
 });
 
 afterAll(async () => {
+  const { env } = await import('../src/env.js');
+  const settings = panelEnv(env);
+  settings.PTERODACTYL_URL = savedPanelEnv.url;
+  settings.PTERODACTYL_APP_KEY = savedPanelEnv.key;
+  settings.pterodactylEnabled = savedPanelEnv.enabled;
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 

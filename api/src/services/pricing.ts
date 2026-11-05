@@ -569,6 +569,8 @@ export async function priceItems(
   for (const item of items) {
     const product = productBySlug.get(item.productSlug);
     if (!product) throw notFound(`Unknown product: ${item.productSlug}`);
+    const activePrices = await prisma.productPrice.count({ where: { productId: product.id, active: true } });
+    if (activePrices === 0) throw notFound('This product has no active price.');
     // The same rule as the catalog: a product that the panel cannot build is
     // not orderable, whatever the flag of the catalog row says. A product of
     // mail needs no panel, but it needs the sale of the mail to be open.

@@ -30,6 +30,19 @@ vi.mock('../src/services/pterodactyl/application.js', async (importOriginal) => 
   };
 });
 
+vi.mock('../src/services/panel/operations.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/services/panel/operations.js')>();
+  return { ...actual, customerToken: vi.fn(async () => 'client-token') };
+});
+
+vi.mock('../src/services/pterodactyl/client.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/services/pterodactyl/client.js')>();
+  return {
+    ...actual,
+    getResources: vi.fn(async () => ({ state: 'running', disk: { used: 1024 } })),
+  };
+});
+
 const { prisma } = await import('../src/db.js');
 const { applyUpgradeOrder, settleFreeUpgradeOrder } = await import('../src/services/upgrades.js');
 const { closeApp, getApp, registerAndLogin, resetDatabase } = await import('./helpers.js');
