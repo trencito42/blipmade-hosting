@@ -115,8 +115,6 @@ export const RUNTIME_STATE_HOLD_MS = 60_000;
  * says so, and not because the node says so, so the state of the node is not
  * shown for it. The states that are deployed are the ones the run looks at.
  */
-const DEPLOYED_STATUSES = ['ONLINE', 'RESTARTING', 'DEGRADED'];
-
 /**
  * The label of the customer zone for every condition.
  *
@@ -235,9 +233,11 @@ export function conditionOf(observation: RuntimeStateObservation): RuntimeCondit
 export function customerStatusOf(instance: {
   status: string;
   runtimeCondition: string | null;
+  runtimeStateStale?: boolean;
 }): string {
   const platform = instance.status.toLowerCase();
-  if (!DEPLOYED_STATUSES.includes(instance.status)) return platform;
+  if (!['ONLINE', 'RESTARTING', 'DEGRADED', 'STOPPED'].includes(instance.status)) return platform;
+  if (instance.runtimeStateStale) return platform;
   const condition = instance.runtimeCondition as RuntimeCondition | null;
   if (!condition) return platform;
   return CONDITION_LABEL[condition] ?? platform;
@@ -429,7 +429,7 @@ export async function reconcileRuntimeState(
     // as degraded is one of them: the state is transitional, and nothing else
     // in the platform moves it, so it has to be resolved by what the node
     // says.
-    where: { status: { in: ['ONLINE', 'RESTARTING', 'DEGRADED'] } },
+    where: { status: { in: ['ONLINE', 'RESTARTING', 'DEGRADED', 'STOPPED'] } },
     select: {
       id: true,
       name: true,

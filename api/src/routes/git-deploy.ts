@@ -13,9 +13,10 @@ import { DISCORD_TEMPLATES } from '../services/discord-templates.js';
 import { inspectGitUrl, zipLayoutProblem } from '../services/import-inspect.js';
 import { enqueueGitDeploy } from '../services/queue.js';
 import {
-  GIT_RUNTIMES, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, currentRelease, installArchive, installGit, listReleases, mergeGitEnvUpdate, newWebhookSecret,
+  GIT_RUNTIMES, cleanBranch, cleanCommand, cleanEnv, cleanRepoUrl, currentRelease, DEPLOY_STALE_MS, deploymentsFromEvents, installArchive, installGit, listReleases, mergeGitEnvUpdate, newWebhookSecret,
   openWebhookSecret, parseEnvKeys, parseEnvValues, readLog, readStatus, uninstallGit, verifyGithubSignature, BLIPMADE_DIR,
 } from '../services/git-deploy.js';
+import { currentGitDeploy } from '../services/queue.js';
 
 /**
  * Deploy from Git, from the Deploy tab of an instance. The build runs in the instance's own container (see
@@ -185,25 +186,13 @@ export async function registerGitDeployRoutes(app: FastifyInstance): Promise<voi
       take: 100,
       select: { message: true, createdAt: true },
     });
-    const byId = new Map<string, { id: string; state: string; action: string; by: string; release: string; commit: string; message: string; at: Date; startedAt: Date | null }>();
-    for (const event of events.slice().reverse()) {
-      const [, id, state, ...rest] = event.message.split(':');
-      if (!id || !state) continue;
-      const entry = byId.get(id) ?? { id, state: 'started', action: 'build', by: '', release: '', commit: '', message: '', at: event.createdAt, startedAt: null };
-      if (state === 'started') {
-        entry.action = rest[0] ?? 'build';
-        entry.by = rest.slice(1).join(':');
-        entry.startedAt = event.createdAt;
-      } else {
-        entry.state = state;
-        entry.release = rest[0] ?? '';
-        entry.commit = rest[1] ?? '';
-        entry.message = rest.slice(2).join(':');
-        entry.at = event.createdAt;
-      }
-      byId.set(id, entry);
+    let activeDeployId: string | null | 'unknown' = null;
+    try {
+      activeDeployId = (await currentGitDeploy(instance.id))?.deployId ?? null;
+    } catch {
+      activeDeployId = 'unknown';
     }
-    return { deployments: [...byId.values()].sort((a, b) => b.at.getTime() - a.at.getTime()) };
+    return { deployments: deploymentsFromEvents(events, { now: Date.now(), activeDeployId, staleMs: DEPLOY_STALE_MS }) };
   });
 
   app.get('/instances/:id/git/log', async (request: FastifyRequest) => {

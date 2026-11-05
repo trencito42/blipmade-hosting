@@ -48,8 +48,10 @@ export default function GitTab({ instance }: TabProps) {
   const [confirmRemove, setConfirmRemove] = useState(false);
   const data = state.data;
 
-  // While a build runs, the page looks again every few seconds.
-  const building = data?.status?.state === 'building' || data?.status?.state === 'built' || history.data?.deployments.some((entry) => entry.state === 'started');
+  // Only the newest deployment can make the button say Deploying. An older started row does not.
+  const latest = history.data?.deployments[0];
+  const open = latest?.state === 'starting' || latest?.state === 'queued' || latest?.state === 'building' || latest?.state === 'verifying';
+  const building = Boolean(open);
   useEffect(() => {
     if (!building) return;
     const timer = window.setInterval(() => { state.reload(); history.reload(); }, 5000);
@@ -117,9 +119,15 @@ export default function GitTab({ instance }: TabProps) {
         <Panel title="Live application files" description="Deployments keep releases under .blipmade/releases. The running app is always .blipmade/current — the root folder may look empty on purpose.">
           <p className="text-[13.5px] text-ink2">
             {data.current ? (
-              <>Active release <span className="font-mono text-ink">{data.current}</span>{data.status?.commit ? <> · commit <span className="font-mono">{data.status.commit}</span></> : null}</>
+              <>The startup script last linked <span className="font-mono text-ink">{data.current}</span>. That link is not a health check.</>
             ) : (
-              'No successful release yet.'
+              'No release is linked yet.'
+            )}
+            {latest?.state === 'succeeded' && latest.release && (
+              <span> The last deployment the platform confirmed is <span className="font-mono text-ink">{latest.release}</span>.</span>
+            )}
+            {data.status?.state === 'building' && !open && (
+              <span> The status file still says building from {data.status.at ? when(data.status.at) : 'an earlier attempt'}. That attempt is not running.</span>
             )}
           </p>
           {data.current && (
@@ -154,7 +162,7 @@ export default function GitTab({ instance }: TabProps) {
               <li key={entry.id} className="grid gap-1.5 rounded-2xl bg-s2 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-                    <StatusPill status={entry.state === 'succeeded' ? 'available' : entry.state === 'failed' ? 'failed' : 'pending'} label={entry.state === 'started' ? 'running' : entry.state} />
+                    <StatusPill status={entry.state === 'succeeded' ? 'available' : entry.state === 'failed' || entry.state === 'interrupted' ? 'failed' : 'pending'} label={entry.state} />
                     {entry.action === 'rollback' ? 'Rollback' : 'Deploy'} {entry.commit && <span className="font-mono text-[12.5px] font-normal text-ink2">{entry.commit}</span>}
                   </span>
                   <span className="text-[12.5px] text-ink3">{when(entry.at)} · {entry.by}</span>

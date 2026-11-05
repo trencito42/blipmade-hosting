@@ -30,7 +30,7 @@ import { watchDeadLetterQueue } from './services/dead-letter-monitor.js';
 import { pruneUptimeChecks } from './services/uptime.js';
 import { pruneDeviceSignals } from './services/device-signal.js';
 import { sweepBackupRetention } from './services/backup-policy.js';
-import { recordDeployEvent, runDeploy } from './services/git-deploy.js';
+import { closeAbandonedGitDeploys, recordDeployEvent, runDeploy } from './services/git-deploy.js';
 import { retryCatalogInstalls } from './services/catalog-install-apply.js';
 import { linkConfirmedServices } from './services/project-links-apply.js';
 import { purgeExpiredImportArchives, recoverStoredImports, settleImportedDeploy } from './services/import-apply.js';
@@ -224,11 +224,20 @@ const gitWorker = createGitDeployWorker(async (job) => {
   await prisma.gitDeploy.updateMany({ where: { instanceId }, data: { lastDeployAt: new Date() } });
   await settleImportedDeploy(instanceId, deployId, result);
 });
-gitWorker.on('failed', (job, error) => console.error(`[worker] git deploy job ${job?.id} failed: ${error.message}`));
+gitWorker.on('failed', (job, error) => {
+  console.error(`[worker] git deploy job ${job?.id} failed: ${error.message}`);
+  if (!job) return;
+  void recordDeployEvent(job.data.instanceId, `deploy:${job.data.deployId}:failed:::${error.message.slice(0, 180)}`).catch(() => undefined);
+});
 
 /** Puts instances that were left running mid-flight back into the queue. */
 async function reconcile(): Promise<void> {
   const count = await reconcileInterruptedInstances();
+  const abandoned = await closeAbandonedGitDeploys().catch((error) => {
+    console.error('[worker] an abandoned deployment could not be closed', error);
+    return 0;
+  });
+  if (abandoned) console.info(`[worker] closed ${abandoned} abandoned deployment(s) without starting them again`);
   if (count) {
     console.info(`[worker] requeued ${count} interrupted instance(s)`);
     const stuck = await prisma.instance.findMany({

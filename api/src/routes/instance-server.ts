@@ -145,15 +145,17 @@ export async function registerInstanceServerRoutes(app: FastifyInstance): Promis
     return withInstance(request, async (token, instance) => {
       try {
         const resources = await operations.resources(token, instance);
+        const stopped = resources.state === 'offline' || resources.state === 'stopped' || resources.state === 'stopping';
         return {
           resources: {
             state: resources.state,
             is_suspended: resources.is_suspended,
-            cpu_absolute: resources.cpu_absolute,
-            memory_bytes: resources.memory_bytes,
+            // A stopped container has no current processor or memory use. Disk stays, because the files are still there.
+            cpu_absolute: stopped ? null : resources.cpu_absolute,
+            memory_bytes: stopped ? null : resources.memory_bytes,
             network: { rx: resources.network.rx, tx: resources.network.tx },
             disk: { used: resources.disk.used },
-            uptime: resources.uptime,
+            uptime: stopped ? 0 : resources.uptime,
           },
         };
       } catch (error) {

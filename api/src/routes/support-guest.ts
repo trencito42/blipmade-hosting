@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { env } from '../env.js';
 import { audit } from '../lib/audit.js';
-import { clearGuestCookie, GUEST_EMAIL_DOMAIN, issueGuestToken, requireGuest, readOptionalGuest } from '../lib/guest.js';
+import { clearGuestCookie, GUEST_COOKIE, GUEST_EMAIL_DOMAIN, issueGuestToken, requireGuest, readOptionalGuest } from '../lib/guest.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { LIMITS } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth, requirePermission } from '../plugins/auth.js';
@@ -196,6 +196,8 @@ export async function registerSupportGuestRoutes(app: FastifyInstance): Promise<
   app.post('/support/guest/claim', limit(10, '1 hour'), async (request: FastifyRequest, reply) => {
     sameOrigin(request);
     const user = await requireAuth(request);
+    // No guest cookie is the normal case for a signed-in customer. That is not a failed login.
+    if (!request.cookies?.[GUEST_COOKIE]) return { claimed: 0 };
     const guest = await requireGuest(request);
     if (guest.userId === user.id) throw badRequest('Nothing to claim.');
     const moved = await prisma.$transaction(async (tx) => {

@@ -379,8 +379,71 @@ export async function listReleases(instance: Instance): Promise<string[]> {
 export async function currentRelease(instance: Instance): Promise<string | null> {
   // The link is not readable through the panel API; the status of the last successful deploy names it.
   const status = await readStatus(instance);
+  // `built` means the script pointed .blipmade/current at a release. It is not a health check.
   return (status.state === 'succeeded' || status.state === 'built') && status.release ? status.release : null;
 }
+
+/** A deployment the worker has finished with. An open `started` row is not one of these. */
+const DEPLOY_DONE = new Set(['succeeded', 'failed', 'interrupted']);
+
+export interface DeploymentView {
+  id: string;
+  state: string;
+  action: string;
+  by: string;
+  release: string;
+  commit: string;
+  message: string;
+  at: Date;
+  startedAt: Date | null;
+}
+
+/**
+ * Turns deploy events into one row per deployment.
+ * A `started` row is "starting" only while its job is the current one, or it is still inside the build window.
+ * An older `started` row whose job is gone is interrupted. Nothing here starts that deployment again.
+ */
+export function deploymentsFromEvents(
+  events: { message: string; createdAt: Date }[],
+  options: { now: number; activeDeployId: string | null | 'unknown'; staleMs: number },
+): DeploymentView[] {
+  const byId = new Map<string, DeploymentView>();
+  for (const event of [...events].reverse()) {
+    const [, id, state, ...rest] = event.message.split(':');
+    if (!id || !state) continue;
+    const entry = byId.get(id) ?? { id, state: 'started', action: 'build', by: '', release: '', commit: '', message: '', at: event.createdAt, startedAt: null };
+    if (state === 'started') {
+      entry.action = rest[0] ?? 'build';
+      entry.by = rest.slice(1).join(':');
+      entry.startedAt = event.createdAt;
+    } else {
+      entry.state = state;
+      entry.release = rest[0] ?? '';
+      entry.commit = rest[1] ?? '';
+      entry.message = rest.slice(2).join(':');
+      entry.at = event.createdAt;
+    }
+    byId.set(id, entry);
+  }
+  for (const entry of byId.values()) {
+    if (DEPLOY_DONE.has(entry.state)) continue;
+    if (options.activeDeployId === 'unknown' || entry.id === options.activeDeployId) {
+      if (entry.state === 'started') entry.state = 'starting';
+      continue;
+    }
+    const began = entry.startedAt ?? entry.at;
+    if (options.now - began.getTime() >= options.staleMs) {
+      entry.state = 'interrupted';
+      entry.message = entry.message || 'The worker stopped before this deployment finished. The release already in place was left as it was.';
+    } else if (entry.state === 'started') {
+      entry.state = 'starting';
+    }
+  }
+  return [...byId.values()].sort((a, b) => b.at.getTime() - a.at.getTime());
+}
+
+/** How long a deployment may stay open before a missing job means it was interrupted. */
+export const DEPLOY_STALE_MS = 35 * 60 * 1000;
 
 export async function refreshGitHubAppCloneUrl(instanceId: string): Promise<void> {
   const source = await prisma.importSource.findFirst({
@@ -432,4 +495,35 @@ export async function runDeploy(instance: Instance, id: string, action: 'build' 
 
 export async function recordDeployEvent(instanceId: string, text: string): Promise<void> {
   await prisma.instanceEvent.create({ data: { instanceId, type: 'deploy', message: text } });
+}
+
+/**
+ * Writes interrupted for a deployment whose job is gone and whose start is older than the build window.
+ * It does not queue the deployment again and it does not move the release the container is running.
+ */
+export async function closeAbandonedGitDeploys(limit = 20): Promise<number> {
+  const { currentGitDeploy } = await import('./queue.js');
+  const rows = await prisma.gitDeploy.findMany({ orderBy: { updatedAt: 'asc' }, take: limit, select: { instanceId: true } });
+  let closed = 0;
+  for (const row of rows) {
+    let active: string | null;
+    try {
+      active = (await currentGitDeploy(row.instanceId))?.deployId ?? null;
+    } catch {
+      continue;
+    }
+    if (active) continue;
+    const events = await prisma.instanceEvent.findMany({
+      where: { instanceId: row.instanceId, type: 'deploy' },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+      select: { message: true, createdAt: true },
+    });
+    const latest = deploymentsFromEvents(events, { now: Date.now(), activeDeployId: null, staleMs: DEPLOY_STALE_MS })[0];
+    if (!latest || latest.state !== 'interrupted') continue;
+    if (events.some((event) => event.message.startsWith(`deploy:${latest.id}:interrupted`))) continue;
+    await recordDeployEvent(row.instanceId, `deploy:${latest.id}:interrupted:::The worker stopped before this deployment finished. The release already in place was left as it was.`);
+    closed += 1;
+  }
+  return closed;
 }

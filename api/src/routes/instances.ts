@@ -243,9 +243,8 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
       throw error;
     }
 
-    const status = action === 'stop' ? 'STOPPED' : action === 'start' ? 'ONLINE' : 'RESTARTING';
-    await prisma.instance.update({ where: { id: instance.id }, data: { status } });
-    await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'power', message: `Power action: ${action}.` } });
+    // The panel accepted the signal. That is not the container having reached the new state.
+    await prisma.instanceEvent.create({ data: { instanceId: instance.id, type: 'power', message: `Power action accepted: ${action}. The container state changes when the node reports it.` } });
     await audit({ actorId: user.id, actorEmail: user.email, action: `instance.power.${action}`, targetType: 'instance', targetId: instance.id });
 
     if (wasSuspended && action === 'start') {

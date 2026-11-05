@@ -2,24 +2,7 @@ import type { Instance } from '@prisma/client';
 import { healthKind, interpretHttpStatus, interpretProcessState, type ApplicationHealth } from './import-lifecycle.js';
 import * as operations from './panel/operations.js';
 import * as panelClient from './pterodactyl/client.js';
-import { BLIPMADE_DIR } from './git-deploy.js';
 import { resolveTarget } from './domain-routing.js';
-
-async function probeViaPanel(instance: Instance): Promise<ApplicationHealth> {
-  if (!instance.pterodactylUuid) return 'unknown';
-  try {
-    const owned = await operations.loadOwnedInstance(instance.userId, instance.id);
-    const token = await operations.customerToken(owned);
-    const resources = await panelClient.getResources(token, instance.pterodactylUuid);
-    if (resources.state !== 'running') return interpretProcessState(resources.state);
-    const file = await panelClient.readFile(token, instance.pterodactylUuid, `${BLIPMADE_DIR}/status.json`);
-    const status = JSON.parse(file.content) as { state?: string };
-    if (status.state === 'built' || status.state === 'succeeded') return 'ready';
-    return 'unknown';
-  } catch {
-    return 'unknown';
-  }
-}
 
 /** Probes whether the application inside an online instance is actually serving traffic. */
 export async function probeApplicationHealth(instance: Instance, productSlug: string): Promise<ApplicationHealth> {
@@ -39,7 +22,8 @@ export async function probeApplicationHealth(instance: Instance, productSlug: st
     const response = await fetch(`http://${target.host}:${target.port}/`, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
     return interpretHttpStatus(response.status, true);
   } catch {
-    return probeViaPanel(instance);
+    // The status file and a container that is up are not a successful HTTP check.
+    return 'unknown';
   }
 }
 

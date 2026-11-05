@@ -84,6 +84,14 @@ const RULES: Rule[] = [
     tab: 'console',
   },
   {
+    id: 'next-action', test: /Failed to find Server Action|failed to find server action/i, only: /^(nodejs|discord-bot)$/,
+    title: 'A request named a Server Action this app does not have',
+    why: 'Next.js refused an action id. A short id such as "x" or "y" is not one the app generates. The process can still be up.',
+    fix: 'If the site itself loads, this came from outside the app. It does not mean the deployment failed.',
+    confidence: 'medium',
+    tab: 'console',
+  },
+  {
     id: 'discord-intent', test: /Used disallowed intents|PrivilegedIntentsRequired|disallowed intents/i, only: /^discord-bot$/,
     title: 'Discord refused a privileged intent',
     why: 'The bot asks Discord for an intent that is not turned on for the application.',
@@ -216,6 +224,16 @@ export function findingsFromFacts(facts: DiagnosisFacts): Finding[] {
       title: 'The preset did not stay running',
       why: 'The files of the preset were written, and the server did not stay running afterwards.',
       fix: 'Open the Console tab to see why the process stopped, then start the server again.',
+    });
+  }
+  if (facts.deployState === 'building' || facts.deployState === 'built') {
+    found.push({
+      id: 'deploy-open', confidence: 'high', tab: 'git',
+      title: 'A deployment is still marked unfinished',
+      why: facts.deployState === 'built'
+        ? 'The release was linked, and the platform has not recorded that the application passed a health check.'
+        : 'The deployment status still says building. That is not the same as the application answering requests.',
+      fix: 'Open the Deploy tab. An old unfinished deployment is not started again. The release already in place stays until a new deploy finishes.',
     });
   }
   if (facts.deployState === 'failed') {

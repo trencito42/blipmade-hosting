@@ -101,7 +101,7 @@ export default function ChatWidget() {
     return data.ticket;
   }, []);
 
-  // A visitor who chatted as a guest and then signed in brings the conversation along. Without a credential of a guest it answers 401, which is fine.
+  // A visitor who chatted as a guest and then signed in brings the conversation along. No guest cookie answers claimed: 0. A bad cookie still answers 401.
   const [claimed, setClaimed] = useState(0);
   useEffect(() => {
     void post<{ claimed: number }>('/support/guest/claim').then((res) => setClaimed(res.claimed)).catch(() => undefined);

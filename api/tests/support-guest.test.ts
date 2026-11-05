@@ -225,7 +225,9 @@ describe('signing in afterwards', () => {
     await start(guest);
     expect((await guest.request('POST', '/api/support/guest/claim')).status).toBe(401); // no session
     const { client: customer } = await registerAndLogin(app, 'nocookie@example.com');
-    expect((await customer.request('POST', '/api/support/guest/claim')).status).toBe(401); // no credential of a guest
+    const none = await customer.request('POST', '/api/support/guest/claim');
+    expect(none.status).toBe(200); // signed in, no guest cookie: nothing to claim
+    expect(none.body.claimed).toBe(0);
   });
 });
 

@@ -3,7 +3,8 @@ import { useRevealOnChange } from '../lib/useReveal';
 import { ProductTile } from '../ui';
 import { Icon, type IconName } from '../icons';
 import { del, get, post, put, type CatalogProduct, type Domain, type Instance } from '../lib/api';
-import { listEvents } from '../lib/instance-api';
+import { getResources, listEvents, type ResourceSample } from '../lib/instance-api';
+import { POWER_LABEL as observedLabel, presentUsage } from '../lib/runtime-view';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
 import OverviewTab from './instance/OverviewTab';
@@ -542,13 +543,21 @@ export default function InstanceDetail() {
   // A cancelled service is closed: it cannot be started, changed or opened. Only what happened to it can be read.
   const closed = instance?.status === 'cancelled';
 
+  const [observed, setObserved] = useState<{ sample: ResourceSample | null; error: string | null; loading: boolean }>({ sample: null, error: null, loading: true });
   useEffect(() => {
-    if (!provisioning || !id) return;
-    const timer = window.setInterval(() => {
-      void get<{ instance: Instance }>(`/instances/${id}`).then((fresh) => setData(fresh)).catch(() => {});
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [id, provisioning, setData]);
+    if (!id || closed) return;
+    let stopped = false;
+    const tick = () => {
+      void getResources(id).then(
+        (sample) => { if (!stopped) setObserved({ sample, error: null, loading: false }); },
+        () => { if (!stopped) setObserved((current) => ({ sample: current.sample, error: 'The node could not be read.', loading: false })); },
+      );
+      void get<{ instance: Instance }>(`/instances/${id}`).then((fresh) => { if (!stopped) setData(fresh); }).catch(() => undefined);
+    };
+    tick();
+    const timer = window.setInterval(tick, provisioning ? 5000 : 15000);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [id, closed, provisioning, setData]);
 
   const power = useAction(async (action: PowerAction) => {
     const res = await post<{ instance: Instance }>(`/instances/${id}/power`, { action });
@@ -584,9 +593,16 @@ export default function InstanceDetail() {
   }
 
   const status = instance.status;
-  const canStart = status === 'stopped' || status === 'failed';
-  const canStop = status === 'online' || status === 'degraded';
-  const canRestart = status === 'online' || status === 'degraded' || status === 'stopped';
+  const live = presentUsage({
+    state: observed.sample?.state,
+    memoryBytes: observed.sample?.memoryBytes,
+    cpuPercent: observed.sample?.cpuPercent,
+    diskBytes: observed.sample?.diskBytes,
+    readable: !observed.loading && !observed.error && !!observed.sample,
+  });
+  const canStart = live.power === 'stopped' || live.power === 'unknown' && (status === 'stopped' || status === 'failed');
+  const canStop = live.power === 'running' || live.power === 'starting' || (live.power === 'unknown' && (status === 'online' || status === 'degraded'));
+  const canRestart = canStart || canStop;
 
   return (
     <div className="grid gap-4">
@@ -610,7 +626,7 @@ export default function InstanceDetail() {
             </div>
           </div>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <StatusPill status={instance.status} />
+            <StatusPill status={live.power === 'running' ? 'online' : live.power === 'stopped' ? 'stopped' : live.power === 'unknown' ? instance.status : 'pending'} label={live.power === 'unknown' ? `${instance.status}${instance.runtime.stale ? ' · not fresh' : ''}` : observedLabel[live.power]} />
             {!closed && instance.url && (
               <a
                 href={instance.url}
@@ -673,7 +689,7 @@ export default function InstanceDetail() {
           </Panel>
         ) : (
         <Suspense fallback={<LoadingBlock rows={4} label="Loading section" />}>
-          {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} />}
+          {tab === 'overview' && <OverviewTab instance={instance} onGoTo={setTab} observed={observed} />}
           {tab === 'overview' && instance.catalog && (
             <div className="mt-4">
               <Panel title="Installed catalogue choice" description="This is the family, variant and add-ons saved with the order. Installing more software still uses the tools of this server.">

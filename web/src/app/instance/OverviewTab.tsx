@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAsync } from '../../lib/useAsync';
-import { getResources, listEvents } from '../../lib/instance-api';
+import { listEvents, type ResourceSample } from '../../lib/instance-api';
+import { POWER_LABEL, presentUsage } from '../../lib/runtime-view';
 import CredentialsCard from './CredentialsCard';
 import {
   EmptyState,
@@ -25,21 +26,27 @@ import {
  * the limits the customer bought, next to each other.
  */
 
-export default function OverviewTab({ instance, onGoTo }: TabProps) {
-  const resources = useAsync((signal) => getResources(instance.id, signal), [instance.id]);
+export default function OverviewTab({ instance, onGoTo, observed }: TabProps & { observed: { sample: ResourceSample | null; error: string | null; loading: boolean } }) {
   const events = useAsync((signal) => listEvents(instance.id, signal), [instance.id]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => { resources.reload(); events.reload(); }, 10000);
+    const timer = window.setInterval(() => { events.reload(); }, 15000);
     return () => window.clearInterval(timer);
-  }, [instance.id, resources.reload, events.reload]);
+  }, [events.reload]);
 
-  const sample = resources.data;
+  const sample = observed.sample;
+  const usage = presentUsage({
+    state: sample?.state,
+    memoryBytes: sample?.memoryBytes,
+    cpuPercent: sample?.cpuPercent,
+    diskBytes: sample?.diskBytes,
+    readable: !observed.loading && !observed.error && !!sample,
+  });
   const recent = events.data?.events ?? [];
-  const containerState = instance.runtime.condition === 'serving' ? 'Running'
-    : instance.runtime.condition === 'stopped' ? 'Stopped'
-    : instance.runtime.condition === 'starting' ? 'Starting'
-    : sample?.state ?? 'Unknown';
+  const containerState = observed.error
+    ? 'Unknown'
+    : POWER_LABEL[usage.power];
+  const checked = instance.runtime.checkedAt ? fmtDateTime(instance.runtime.checkedAt) : null;
 
   const memoryLimitBytes = instance.ram * 1024 * 1024;
   const diskLimitBytes = instance.disk * 1024 * 1024 * 1024;
@@ -79,24 +86,22 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
       </div>
 
       <Panel title="Allocated resources" description="What the instance may use, against what it uses right now.">
-        {resources.loading ? (
+        {observed.loading && !sample ? (
           <LoadingBlock rows={2} label="Loading the resources" />
-        ) : resources.error ? (
-          <ApiErrorState error={resources.error} onRetry={resources.reload} title="We could not read the resources" />
+        ) : observed.error ? (
+          <p className="text-[13.5px] text-ink2">The node could not be read{checked ? ` (last reading ${checked})` : ''}. Usage is not shown as zero. {instance.runtime.stale ? 'The saved state is not fresh.' : ''}</p>
         ) : (
           <div className="grid gap-4">
             <div className="grid gap-1.5">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-[14px] font-medium text-ink">Memory</span>
                 <span className="font-mono text-[13px] tabular-nums text-ink2">
-                  {sample?.memoryBytes === null || sample?.memoryBytes === undefined
-                    ? '—'
-                    : fmtBytes(sample.memoryBytes)}{' '}
+                  {usage.memoryBytes === null ? (usage.power === 'stopped' || usage.power === 'stopping' ? 'Not in use' : '—') : fmtBytes(usage.memoryBytes)}{' '}
                   <span className="text-ink3">of {fmtRam(instance.ram)}</span>
                 </span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-s3">
-                <div className="h-full rounded-full bg-acc" style={{ width: `${memoryRatio ?? 0}%` }} />
+                <div className="h-full rounded-full bg-acc" style={{ width: `${usage.memoryBytes === null ? 0 : memoryRatio ?? 0}%` }} />
               </div>
             </div>
 
@@ -115,10 +120,10 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
 
             <dl className="grid gap-3 sm:grid-cols-2">
               <Detail label="Processor" mono>
-                {instance.cpu} vCPU
+                {usage.cpuPercent === null ? (usage.power === 'stopped' || usage.power === 'stopping' ? 'Not in use' : '—') : `${Math.round(usage.cpuPercent)}% of ${instance.cpu} vCPU`}
               </Detail>
               <Detail label="Container state" mono>
-                {containerState}
+                {containerState}{instance.runtime.stale ? ' · saved state is not fresh' : ''}
               </Detail>
             </dl>
           </div>
@@ -129,10 +134,10 @@ export default function OverviewTab({ instance, onGoTo }: TabProps) {
 
       <div className="grid gap-3 lg:grid-cols-2">
         <Panel title="Network" description="Traffic counted by the panel since the instance started.">
-          {resources.loading ? (
+          {observed.loading && !sample ? (
             <LoadingBlock rows={2} label="Loading the network" />
-          ) : resources.error ? (
-            <ApiErrorState error={resources.error} onRetry={resources.reload} title="We could not read the network" />
+          ) : observed.error ? (
+            <p className="text-[13.5px] text-ink2">Traffic could not be read. It is not shown as zero.</p>
           ) : sample ? (
             <dl className="grid gap-3">
               <Detail label="Received" mono>
