@@ -23,8 +23,7 @@ test('a prepared family continues into the existing product checkout', async ({ 
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('radio', { name: /Survival/ }).check();
   await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByRole('button', { name: 'Review checkout' }).click();
+  await page.getByRole('button', { name: 'Go to checkout' }).click();
   await expect(page).toHaveURL(/\/app\/deploy\/minecraft-paper\?/);
   await expect(page).toHaveURL(/family=minecraft/);
   await expect(page).toHaveURL(/variant=paper/);
@@ -66,8 +65,7 @@ test('every Minecraft software lists its own versions and reaches checkout', asy
     await page.getByText(VERSIONS[slug][1], { exact: true }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Review checkout' }).click();
+    await page.getByRole('button', { name: 'Go to checkout' }).click();
     await expect(page).toHaveURL(new RegExp(`/app/deploy/${slug}\\?`));
     await expect(page).toHaveURL(new RegExp(`mcVersion=${VERSIONS[slug][1].replaceAll('.', '\\.')}`));
   }
@@ -75,8 +73,7 @@ test('every Minecraft software lists its own versions and reaches checkout', asy
   await page.getByRole('button', { name: /^Bedrock/ }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByRole('button', { name: 'Continue' }).click();
-  await page.getByRole('button', { name: 'Review checkout' }).click();
+  await page.getByRole('button', { name: 'Go to checkout' }).click();
   await expect(page).toHaveURL(/\/app\/deploy\/minecraft-bedrock\?/);
 });
 
@@ -90,4 +87,23 @@ test('a version list that fails to load says so and can be retried', async ({ pa
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByText('Versions could not be loaded')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
+});
+
+test('an added plugin can be taken out again', async ({ page }) => {
+  await stubAdmin(page, (path) => {
+    if (path === '/catalog/families/minecraft') return { family: FAMILY };
+    if (path === '/catalog/minecraft/versions') return { supported: true, versions: ['1.21.1'] };
+    if (path === '/catalog/minecraft/plugins/search') return { results: [{ slug: 'essentials', title: 'Essentials', description: 'Basics' }] };
+    return undefined;
+  });
+  await page.goto('/app/deploy/families/minecraft');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Search Modrinth').fill('ess');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('button', { name: 'Add' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Essentials' })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove Essentials' }).click();
+  await expect(page.getByRole('button', { name: 'Remove Essentials' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add' })).toBeVisible();
 });

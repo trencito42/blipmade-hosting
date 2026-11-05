@@ -139,10 +139,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
         description: isForge ? 'Search Forge modpacks from Modrinth. Optional — skip to deploy without mods.' : 'Search Paper-compatible plugins from Modrinth, or pick a preset template. Optional.',
       });
     }
-    base.push(
-      { id: 'resources', title: 'Resources', description: 'More RAM helps larger worlds and mod/plugin load. Player counts depend on gameplay and cannot be guaranteed.' },
-      { id: 'review', title: 'Review', description: 'Confirm software, version, add-ons and sizing before checkout.' },
-    );
+    base.push({ id: 'review', title: 'Review', description: 'Check what you picked. The next page asks for the name, the size and the payment.' });
     return base;
   }, [isBedrock, isForge]);
 
@@ -166,7 +163,6 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
     const step = steps[stepIndex]?.id;
     if (step === 'software') return Boolean(variant?.product.orderable);
     if (step === 'version') return isBedrock || Boolean(gameVersion);
-    if (step === 'resources') return ram >= 512 && cpu >= 0.5 && disk >= 5;
     return true;
   })();
 
@@ -200,7 +196,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
       {gameVersion ? <div><dt className="text-ink3">Game version</dt><dd className="font-mono text-ink">{gameVersion}</dd></div> : null}
       {preset ? <div><dt className="text-ink3">Preset</dt><dd className="text-ink">{preset.name} <span className="text-ink3">(revision {preset.version})</span></dd></div> : null}
       {plugins.length ? <div><dt className="text-ink3">Add-ons</dt><dd className="text-ink">{plugins.map((entry) => entry.title).join(', ')}</dd></div> : null}
-      <div><dt className="text-ink3">Resources</dt><dd className="font-mono text-ink">{memLabel(ram)} · {cpu} vCPU · {disk} GB</dd></div>
+      <div><dt className="text-ink3">Starting size</dt><dd className="font-mono text-ink">{memLabel(ram)} · {cpu} vCPU · {disk} GB</dd></div>
     </dl>
   );
 
@@ -215,6 +211,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
       backLabel="All products"
       steps={steps}
       stepIndex={stepIndex}
+      finalLabel="Go to checkout"
       onStep={setStepIndex}
       canContinue={canContinue}
       onContinue={onContinue}
@@ -306,48 +303,41 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
                     <p className="font-medium text-ink">{hit.title}</p>
                     <p className="text-[12.5px] text-ink3 line-clamp-2">{hit.description}</p>
                   </div>
-                  <SoftButton
-                    type="button"
-                    disabled={plugins.some((entry) => entry.slug === hit.slug)}
-                    onClick={() => setPlugins((current) => [...current, { slug: hit.slug, title: hit.title, version: gameVersion }])}
-                  >
-                    Add
-                  </SoftButton>
+                  {plugins.some((entry) => entry.slug === hit.slug) ? (
+                    <SoftButton type="button" onClick={() => setPlugins((current) => current.filter((entry) => entry.slug !== hit.slug))}>Remove</SoftButton>
+                  ) : (
+                    <SoftButton type="button" onClick={() => setPlugins((current) => [...current, { slug: hit.slug, title: hit.title, version: gameVersion }])}>Add</SoftButton>
+                  )}
                 </li>
               ))}
             </ul>
             {plugins.length > 0 && (
-              <p className="mt-3 text-[13px] text-ink2">Selected: {plugins.map((entry) => entry.title).join(', ')}</p>
+              <div className="mt-4 grid gap-2">
+                <p className="text-[13px] font-semibold text-ink">Selected</p>
+                <ul className="flex flex-wrap gap-2">
+                  {plugins.map((entry) => (
+                    <li key={entry.slug} className="inline-flex items-center gap-1 rounded-full bg-acc/15 py-1 pl-3 pr-1 text-[13px] text-ink">
+                      {entry.title}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${entry.title}`}
+                        onClick={() => setPlugins((current) => current.filter((item) => item.slug !== entry.slug))}
+                        className="grid size-7 place-items-center rounded-full hover:bg-ink/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </Panel>
         </div>
       )}
-      {stepId === 'resources' && (
-        <Panel title="Server size">
-          <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Quick sizes">
-            {[2048, 4096, 6144, 8192].map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => setRam(size)}
-                aria-pressed={ram === size}
-                className={`min-h-11 rounded-full px-4 text-[13.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${ram === size ? 'bg-acc text-bg' : 'bg-s1 text-ink hover:bg-ink/10'}`}
-              >
-                {memLabel(size)}
-              </button>
-            ))}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <TextInput label="RAM (MB)" value={String(ram)} onChange={(event) => setRam(Number(event.target.value) || ram)} inputMode="numeric" />
-            <TextInput label="vCPU" value={String(cpu)} onChange={(event) => setCpu(Number(event.target.value) || cpu)} inputMode="decimal" />
-            <TextInput label="Disk (GB)" value={String(disk)} onChange={(event) => setDisk(Number(event.target.value) || disk)} inputMode="numeric" />
-          </div>
-        </Panel>
-      )}
       {stepId === 'review' && (
         <Panel title="What happens next">
           <p className="text-[14px] leading-relaxed text-ink2">
-            You continue to checkout with this configuration. After payment, the server installs Minecraft {gameVersion || '…'} on {variant?.label}.
+            Next is the checkout page: you name the server, set its size with the sliders (it starts at the size above) and pay. Then the server installs Minecraft {gameVersion || '…'} on {variant?.label}.
             {plugins.length ? ` Modrinth downloads ${plugins.length} add-on(s) during provisioning.` : ''}
             {' '}You must accept the Minecraft EULA on the checkout page.
           </p>

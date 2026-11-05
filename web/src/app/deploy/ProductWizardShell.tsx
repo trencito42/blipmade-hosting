@@ -20,6 +20,7 @@ interface ProductWizardShellProps {
   onStep: (index: number) => void;
   canContinue: boolean;
   continueLabel?: string;
+  finalLabel?: string;
   onContinue: () => void;
   summary?: ReactNode;
   children: ReactNode;
@@ -37,6 +38,7 @@ export function ProductWizardShell({
   onStep,
   canContinue,
   continueLabel = 'Continue',
+  finalLabel = 'Review checkout',
   onContinue,
   summary,
   children,
@@ -63,7 +65,7 @@ export function ProductWizardShell({
             </Link>
           )}
           <PrimaryButton type="button" disabled={!canContinue} onClick={onContinue}>
-            {stepIndex >= steps.length - 1 ? 'Review checkout' : continueLabel}
+            {stepIndex >= steps.length - 1 ? finalLabel : continueLabel}
           </PrimaryButton>
         </div>
       }
