@@ -50,6 +50,7 @@ export function ProductWizardShell({
       backTo={backTo}
       backLabel={backLabel}
       stickyActions
+      wide
       actions={
         <div className="flex flex-wrap items-center gap-2">
           {stepIndex > 0 ? (

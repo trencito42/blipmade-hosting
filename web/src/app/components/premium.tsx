@@ -679,6 +679,7 @@ export function PageEditorShell({
   actions,
   dirty = false,
   stickyActions = false,
+  wide = false,
 }: {
   eyebrow: string;
   title: string;
@@ -691,6 +692,8 @@ export function PageEditorShell({
   dirty?: boolean;
   /** For a long, multi-section form: the actions stay in view while the form scrolls. A short form keeps them in the card. */
   stickyActions?: boolean;
+  /** A step wizard with its own summary column: it uses the full width of the page, like the other deploy pages. */
+  wide?: boolean;
 }) {
   const quiet = useQuiet();
   const inShell = useEditorBack({ to: backTo, label: backLabel, context: eyebrow });
@@ -705,7 +708,7 @@ export function PageEditorShell({
     </div>
   );
   return (
-    <div className={cn('mx-auto grid w-full gap-5 pt-3 sm:pt-5', aside ? 'max-w-5xl' : 'max-w-3xl')}>
+    <div className={cn('mx-auto grid w-full gap-5 pt-3 sm:pt-5', wide ? 'max-w-none' : aside ? 'max-w-5xl' : 'max-w-3xl')}>
       <header className="grid gap-1">
         {!inShell && (
           <Link to={backTo} className="mb-2 inline-flex w-fit items-center gap-2 rounded-lg text-[13.5px] font-medium text-ink2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
