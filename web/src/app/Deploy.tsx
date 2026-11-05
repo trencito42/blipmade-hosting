@@ -557,12 +557,11 @@ export default function Deploy() {
     if (!product || seeded.current === product.id) return;
     seeded.current = product.id;
     setName(product.slug);
-    const next: Record<string, string> = {};
-    if (query.mcVersion && product.slug.startsWith('minecraft-')) {
-      next[product.slug === 'minecraft-forge' ? 'MC_VERSION' : 'MINECRAFT_VERSION'] = query.mcVersion;
-    }
-    setVariables(next);
-  }, [product, query.mcVersion]);
+    // The Minecraft version the customer chose in the wizard travels as `mcVersion` in the address and is stored on the
+    // order (catalog.install.gameVersion); the server puts it in the environment of the server. It is not a variable the
+    // product asks for, so it is never sent as one: the API refuses a variable the product does not declare.
+    setVariables({});
+  }, [product]);
 
   /**
    * The address of the deploy page with a configuration, a step and an order.
