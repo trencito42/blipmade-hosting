@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
-import { Link } from '../router';
+import { Link, useRouter } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
 import { ConfirmDialog } from '../ui-app';
 import { denseInput } from './Overview';
 import { ConfirmWithReason, DASH, LiveRegion, can, denseDanger, denseGhost, fmtDate, maskEmail, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { ListPreferences, useColumnPicker, type SavedQuery } from './ListPreferences';
 
 /**
@@ -68,9 +70,11 @@ export default function Orders() {
   const staff = session.staff;
   const mayWrite = can(staff, 'orders.write');
   const toast = useToast();
+  const menuKit = useMenuKit();
   const [status, setStatus] = useState('');
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
+  const { query: urlQuery } = useRouter();
+  const [search, setSearch] = useState(urlQuery.search ?? '');
+  const [query, setQuery] = useState((urlQuery.search ?? '').trim());
   const [pageCursors, setPageCursors] = useState<string[]>([]);
   const cursor = pageCursors[pageCursors.length - 1];
   useEffect(() => {
@@ -125,6 +129,26 @@ export default function Orders() {
       </div>
     );
   }
+
+  const mayCustomers = can(staff, 'customers.read');
+  /** The right-click menu, the three dots and the Menu key of a row: the same links the buttons of the row use. */
+  const orderActions = (order: AdminOrder): MenuItem[] => {
+    const id = encodeURIComponent(order.id);
+    const items: MenuItem[] = [menuKit.go('open', 'Open order', 'arrowUR', `/admin/orders/${id}`)];
+    if (order.customer?.id && mayCustomers) items.push(menuKit.go('customer', 'Open customer', 'user', `/admin/customers/${encodeURIComponent(order.customer.id)}`));
+    items.push(menuKit.copy('copy-number', 'order number', order.number, { separated: true }), menuKit.copy('copy-id', 'order ID', order.id));
+    if (mayWrite) {
+      // The retry editor itself says "nothing to retry" unless the order is paid and not delivered yet.
+      if (order.status === 'paid') items.push(menuKit.go('retry', 'Retry delivery', 'refresh', `/admin/orders/${id}/retry`, { separated: true }));
+      if (canBeRefunded(order)) {
+        items.push(
+          menuKit.go('refund-part', 'Refund part…', 'card', `/admin/orders/${id}/partial-refund`, { separated: true }),
+          menuKit.go('refund', 'Refund in full…', 'card', `/admin/orders/${id}/refund`, { danger: true }),
+        );
+      }
+    }
+    return items;
+  };
 
   const refundButton = (order: AdminOrder) =>
     mayWrite && canBeRefunded(order) ? (
@@ -184,6 +208,8 @@ export default function Orders() {
               <DataTable<AdminOrder>
                 rows={orders}
                 rowKey={(order) => order.id}
+                rowActions={orderActions}
+                rowLabel={(order) => `order ${order.number}`}
                 columns={([
                   {
                     key: 'number',
@@ -258,7 +284,7 @@ export default function Orders() {
                     : []),
                 ] satisfies TableColumn<AdminOrder>[]).filter((column) => columnPicker.visible.includes(column.key))}
               />
-              <CardList<AdminOrder> rows={orders} rowKey={(order) => order.id}>
+              <CardList<AdminOrder> rows={orders} rowKey={(order) => order.id} rowActions={orderActions} rowLabel={(order) => `order ${order.number}`}>
                 {(order) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">

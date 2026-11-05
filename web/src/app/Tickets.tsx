@@ -1,3 +1,5 @@
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { useState } from 'react';
 import { get, getAll, post, type Ticket } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
@@ -90,6 +92,7 @@ function DocsSearch() {
 
 export default function Tickets() {
   const toast = useToast();
+  const menuKit = useMenuKit();
   const [closing, setClosing] = useState<Ticket | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
 
@@ -100,6 +103,17 @@ export default function Tickets() {
   const all = tickets.data?.tickets ?? [];
   const paged = usePaged(all, 20);
   const rows = paged.rows;
+  /** The actions of one of the customer's tickets. Closing opens the same confirmation as the Close button. */
+  const ticketActions = (t: Ticket): MenuItem[] => {
+    const items: MenuItem[] = [
+      menuKit.go('open', 'Open conversation', 'chat', `/app/tickets/${encodeURIComponent(t.id)}`),
+      menuKit.copy('copy-number', 'ticket number', `#${t.number}`, { separated: true }),
+      menuKit.copy('copy-link', 'ticket link', `${window.location.origin}/app/tickets/${encodeURIComponent(t.id)}`),
+    ];
+    if (t.instanceId) items.push(menuKit.go('service', `Open service${t.instanceName ? ` ${t.instanceName}` : ''}`, 'server', `/app/instances/${encodeURIComponent(t.instanceId)}`, { separated: true }));
+    if (t.status.toLowerCase() !== 'closed') items.push({ key: 'close', label: 'Close ticket…', icon: 'check', separated: true, onSelect: () => setClosing(t) });
+    return items;
+  };
 
   return (
     <div className="grid gap-4">
@@ -125,6 +139,8 @@ export default function Tickets() {
               rows={rows}
               rowKey={(t) => t.id}
               rowTo={(t) => `/app/tickets/${t.id}`}
+              rowActions={ticketActions}
+              rowLabel={(t) => `ticket #${t.number}`}
               columns={[
                 {
                   key: 'subject',
@@ -198,7 +214,7 @@ export default function Tickets() {
               }}
             />
 
-            <CardList<Ticket> rows={rows} rowKey={(t) => t.id}>
+            <CardList<Ticket> rows={rows} rowKey={(t) => t.id} rowActions={ticketActions} rowLabel={(t) => `ticket #${t.number}`}>
               {(t) => (
                 <Link
                   to={`/app/tickets/${t.id}`}

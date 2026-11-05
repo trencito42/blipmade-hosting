@@ -41,6 +41,8 @@ import {
   useAdminSession,
 } from './Overview';
 import type { TableColumn } from '../lib/table';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 
 /**
  * The back office of the hosted mail.
@@ -353,6 +355,28 @@ export function AdminMailServicesTable({
   mayWrite: boolean;
   onAction: (service: AdminMailService, action: AdminMailServiceAction) => void;
 }) {
+  const menuKit = useMenuKit();
+  const staff = useAdminSession().staff;
+  /** The actions of a mail service: the ones its state allows (the same list as the buttons of the row) and the way to its owner. */
+  const serviceActions = (service: AdminMailService): MenuItem[] => {
+    const items: MenuItem[] = [];
+    if (can(staff, 'customers.read')) items.push(menuKit.go('customer', 'Open customer', 'user', `/admin/customers/${encodeURIComponent(service.userId)}`));
+    items.push(menuKit.copy('copy-id', 'service ID', service.id, { separated: items.length > 0 }));
+    if (service.customerEmail) items.push(menuKit.copy('copy-email', 'customer e-mail', service.customerEmail));
+    if (mayWrite) {
+      adminMailServiceActions(service.status).forEach((action, index) =>
+        items.push({
+          key: action,
+          label: `${SERVICE_ACTION_LABEL[action]}…`,
+          icon: action === 'cancel' ? 'trash' : action === 'suspend' ? 'lock' : 'refresh',
+          danger: action === 'cancel',
+          separated: index === 0,
+          onSelect: () => onAction(service, action),
+        }),
+      );
+    }
+    return items;
+  };
   const columns: TableColumn<AdminMailService>[] = [
     {
       key: 'customer',
@@ -442,8 +466,8 @@ export function AdminMailServicesTable({
 
   return (
     <>
-      <DataTable<AdminMailService> rows={services} rowKey={(service) => service.id} minWidth="1080px" columns={columns} />
-      <CardList<AdminMailService> rows={services} rowKey={(service) => service.id}>
+      <DataTable<AdminMailService> rows={services} rowKey={(service) => service.id} minWidth="1080px" columns={columns} rowActions={serviceActions} rowLabel={(service) => `mail service ${service.customerEmail ?? service.id}`} />
+      <CardList<AdminMailService> rows={services} rowKey={(service) => service.id} rowActions={serviceActions} rowLabel={(service) => `mail service ${service.customerEmail ?? service.id}`}>
         {(service) => (
           <div>
             <div className="flex items-start justify-between gap-3">
@@ -707,11 +731,21 @@ export function AdminMailUsagePanel({ usage }: { usage: AdminMailUsage }) {
  * it uses and the words of the last failure all come from the API.
  */
 export function AdminMailDomainsTable({ domains }: { domains: AdminMailDomain[] }) {
+  const menuKit = useMenuKit();
+  const staff = useAdminSession().staff;
+  const domainActions = (domain: AdminMailDomain): MenuItem[] => {
+    const items: MenuItem[] = [menuKit.copy('copy-name', 'domain', domain.name)];
+    if (can(staff, 'customers.read') && domain.customer?.id) items.unshift(menuKit.go('customer', 'Open customer', 'user', `/admin/customers/${encodeURIComponent(domain.customer.id)}`));
+    items.push(menuKit.copy('copy-id', 'domain ID', domain.id));
+    return items;
+  };
   return (
     <>
       <DataTable<AdminMailDomain>
         rows={domains}
         rowKey={(domain) => domain.id}
+        rowActions={domainActions}
+        rowLabel={(domain) => `domain ${domain.name}`}
         minWidth="900px"
         columns={[
           {
@@ -783,7 +817,7 @@ export function AdminMailDomainsTable({ domains }: { domains: AdminMailDomain[] 
           },
         ]}
       />
-      <CardList<AdminMailDomain> rows={domains} rowKey={(domain) => domain.id}>
+      <CardList<AdminMailDomain> rows={domains} rowKey={(domain) => domain.id} rowActions={domainActions} rowLabel={(domain) => `domain ${domain.name}`}>
         {(domain) => (
           <div>
             <div className="flex items-start justify-between gap-3">

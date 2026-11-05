@@ -17,6 +17,8 @@ import {
 } from '../../ui-app';
 import { LiveRegion, can, denseGhost, fmtDate, maskEmail, useAdminSession } from '../Overview';
 import type { TableColumn } from '../../lib/table';
+import { useMenuKit } from '../../lib/menu-actions';
+import type { MenuItem } from '../../context-menu';
 import { ABUSE_STATE_TONES } from './types';
 import type { AbuseList, AbuseReport } from './types';
 
@@ -71,6 +73,22 @@ export function abuseListQuery(
  */
 export function AbuseReportList({ reports, revealEmails }: { reports: AbuseReport[]; revealEmails: boolean }) {
   const email = (value: string) => (revealEmails ? value : maskEmail(value));
+  const menuKit = useMenuKit();
+  const staff = useAdminSession().staff;
+  /** The actions of a report. The reporter's address is copied only once it has been revealed on this page. */
+  const reportActions = (report: AbuseReport): MenuItem[] => {
+    const id = encodeURIComponent(report.id);
+    const items: MenuItem[] = [menuKit.go('open', 'Open report', 'arrowUR', `/admin/abuse/${id}`)];
+    if (report.service && can(staff, 'services.read')) items.push(menuKit.go('service', `Open service ${report.service.name}`, 'server', `/admin/services/${encodeURIComponent(report.service.id)}`));
+    items.push(menuKit.copy('copy-id', 'report ID', report.id, { separated: true }), menuKit.copy('copy-target', 'reported target', report.target));
+    if (revealEmails && report.reporterEmail) items.push(menuKit.copy('copy-email', 'reporter e-mail', report.reporterEmail));
+    if (can(staff, 'services.write')) {
+      const closed = report.status === 'resolved' || report.status === 'dismissed';
+      if (closed) items.push(menuKit.go('reopen', 'Reopen the case…', 'refresh', `/admin/abuse/${id}/reopen`, { separated: true }));
+      else if (report.service) items.push(menuKit.go('enforce', 'Suspend the service…', 'lock', `/admin/abuse/${id}/enforcement`, { separated: true, danger: true }));
+    }
+    return items;
+  };
 
   const columns: TableColumn<AbuseReport>[] = [
     {
@@ -148,8 +166,8 @@ export function AbuseReportList({ reports, revealEmails }: { reports: AbuseRepor
 
   return (
     <>
-      <DataTable<AbuseReport> rows={reports} rowKey={(report) => report.id} columns={columns} minWidth="860px" />
-      <CardList<AbuseReport> rows={reports} rowKey={(report) => report.id}>
+      <DataTable<AbuseReport> rows={reports} rowKey={(report) => report.id} columns={columns} minWidth="860px" rowActions={reportActions} rowLabel={(report) => `report ${report.target}`} />
+      <CardList<AbuseReport> rows={reports} rowKey={(report) => report.id} rowActions={reportActions} rowLabel={(report) => `report ${report.target}`}>
         {(report) => (
           <div>
             <div className="flex items-start justify-between gap-3">

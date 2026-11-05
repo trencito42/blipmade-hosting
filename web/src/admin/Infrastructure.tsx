@@ -1,3 +1,5 @@
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { useState } from 'react';
 import { get, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
@@ -66,6 +68,12 @@ export default function Infrastructure() {
   const eggs = state.data?.eggs ?? [];
   const stats = state.data?.stats;
   const mayWrite = can(staff, 'infrastructure.write');
+  const menuKit = useMenuKit();
+  const nodeActions = (node: AdminNode): MenuItem[] => [
+    menuKit.go('open', 'Open node', 'arrowUR', `/admin/infrastructure/nodes/${encodeURIComponent(node.id)}`),
+    menuKit.copy('copy-fqdn', 'node address', node.fqdn, { separated: true }),
+    menuKit.copy('copy-id', 'node ID', node.id),
+  ];
 
   const runSync = async () => {
     const result = await sync.run();
@@ -167,6 +175,8 @@ export default function Infrastructure() {
             <DataTable<AdminNode>
               rows={nodes}
               rowKey={(node) => node.id}
+              rowActions={nodeActions}
+              rowLabel={(node) => `node ${node.name}`}
               rowTo={(node: AdminNode) => `/admin/infrastructure/nodes/${encodeURIComponent(node.id)}`}
               columns={[
                 {
@@ -229,7 +239,7 @@ export default function Infrastructure() {
                 },
               ]}
             />
-            <CardList<AdminNode> rows={nodes} rowKey={(node) => node.id}>
+            <CardList<AdminNode> rows={nodes} rowKey={(node) => node.id} rowActions={nodeActions} rowLabel={(node) => `node ${node.name}`}>
               {(node) => (
                 <div>
                   <div className="flex items-start justify-between gap-3">

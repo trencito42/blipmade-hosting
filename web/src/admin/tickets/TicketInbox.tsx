@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
-import { get, relativeTime } from '../../lib/api';
+import { get, post, relativeTime } from '../../lib/api';
+import { isMenuKey, onRecordContextMenu, RowMenuButton, useContextMenu, type MenuItem } from '../../context-menu';
+import { useMenuKit } from '../../lib/menu-actions';
 import { useAsync } from '../../lib/useAsync';
 import { Icon } from '../../icons';
 import { Link, useRouter } from '../../router';
 import { EmptyState, ErrorState, Field, LoadingBlock, Panel, Segmented, SoftButton, StatusPill } from '../../ui-app';
-import { DASH, LiveRegion, denseInput, denseSelect, fmtDateTime, maskEmail } from '../Overview';
+import { DASH, LiveRegion, can, denseInput, denseSelect, fmtDateTime, maskEmail, useAdminSession } from '../Overview';
 import TicketDetail from './TicketDetail';
 import { ListPreferences, useColumnPicker, type SavedQuery } from '../ListPreferences';
 import {
@@ -126,13 +128,23 @@ export function TicketInboxTable({
   selectedId = '',
   showEmails = false,
   visibleColumns,
+  actions,
 }: {
   tickets: TicketRow[];
   selectedId?: string;
   /** The addresses of the customers are shown as they are. */
   showEmails?: boolean;
   visibleColumns?: string[];
+  /** The actions of a ticket: the right click, the Menu key and the three dots of the row. */
+  actions?: (ticket: TicketRow) => MenuItem[];
 }) {
+  const menu = useContextMenu();
+  const { owner, close } = menu;
+  // A ticket that left the page (a filter, a change of state) takes its menu with it.
+  const ownerGone = owner !== null && !tickets.some((ticket) => ticket.id === owner);
+  useEffect(() => {
+    if (ownerGone) close();
+  }, [ownerGone, close]);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const onRowKeys = useRowKeys(bodyRef);
   const email = (value: string) => (showEmails ? value : maskEmail(value));
@@ -264,9 +276,25 @@ export function TicketInboxTable({
         </thead>
         <tbody ref={bodyRef}>
           {tickets.map((ticket) => {
-            const selected = ticket.id === selectedId;
+            const selected = ticket.id === selectedId || (menu.isOpen && menu.owner === ticket.id);
             return (
-              <tr key={ticket.id} className="group">
+              <tr
+                key={ticket.id}
+                className="group"
+                aria-haspopup={actions ? 'menu' : undefined}
+                onContextMenu={actions ? (event) => onRecordContextMenu(event, menu, actions(ticket), ticket.id) : undefined}
+                onKeyDown={
+                  actions
+                    ? (event) => {
+                        if (!isMenuKey(event)) return;
+                        const items = actions(ticket);
+                        if (!items.length) return;
+                        event.preventDefault();
+                        menu.openAt(event.target as HTMLElement, items, ticket.id);
+                      }
+                    : undefined
+                }
+              >
                 {columns.map((column, index) => (
                   <td key={column.key} className={cellClass(selected, index === 0, index === columns.length - 1, column)}>
                     {column.key === 'ticket' ? (
@@ -279,6 +307,11 @@ export function TicketInboxTable({
                       >
                         {column.render(ticket)}
                       </Link>
+                    ) : column.key === 'actions' && actions ? (
+                      <span className="inline-flex items-center gap-1">
+                        {column.render(ticket)}
+                        <RowMenuButton items={actions(ticket)} owner={ticket.id} menu={menu} label={`ticket #${ticket.number}`} />
+                      </span>
                     ) : (
                       column.render(ticket)
                     )}
@@ -289,6 +322,7 @@ export function TicketInboxTable({
           })}
         </tbody>
       </table>
+      {menu.element}
     </div>
   );
 }
@@ -298,12 +332,21 @@ export function TicketInboxList({
   tickets,
   selectedId = '',
   showEmails = false,
+  actions,
 }: {
   tickets: TicketRow[];
   selectedId?: string;
   /** The addresses of the customers are shown as they are. */
   showEmails?: boolean;
+  /** The same actions as the table: the three dots of a line, and the right click of a larger screen. */
+  actions?: (ticket: TicketRow) => MenuItem[];
 }) {
+  const menu = useContextMenu();
+  const { owner, close } = menu;
+  const ownerGone = owner !== null && !tickets.some((ticket) => ticket.id === owner);
+  useEffect(() => {
+    if (ownerGone) close();
+  }, [ownerGone, close]);
   const listRef = useRef<HTMLUListElement>(null);
   const onRowKeys = useRowKeys(listRef);
   const email = (value: string) => (showEmails ? value : maskEmail(value));
@@ -315,13 +358,17 @@ export function TicketInboxList({
       {tickets.map((ticket) => {
         const selected = ticket.id === selectedId;
         return (
-          <li key={ticket.id}>
+          <li
+            key={ticket.id}
+            className="flex items-start"
+            onContextMenu={actions ? (event) => onRecordContextMenu(event, menu, actions(ticket), ticket.id) : undefined}
+          >
             <Link
               to={ticketConversationPath(ticket.id)}
               data-ticket-row
               aria-current={selected ? 'true' : undefined}
               onKeyDown={onRowKeys}
-              className={`flex items-start gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
+              className={`flex min-w-0 flex-1 items-start gap-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc ${
                 selected ? 'bg-acc/10' : ''
               }`}
             >
@@ -351,9 +398,15 @@ export function TicketInboxList({
                 </span>
               </span>
             </Link>
+            {actions && (
+              <div className="pt-1.5">
+                <RowMenuButton items={actions(ticket)} owner={ticket.id} menu={menu} label={`ticket #${ticket.number}`} />
+              </div>
+            )}
           </li>
         );
       })}
+      {menu.element}
     </ul>
   );
 }
@@ -396,6 +449,8 @@ export function TicketInboxEmpty({ filtered, onClear }: { filtered: boolean; onC
  * the conversation of the address.
  */
 export function TicketQueue({ selectedId = '', channel = 'tickets' }: TicketInboxProps) {
+  const staff = useAdminSession().staff;
+  const menuKit = useMenuKit();
   const [filters, setFilters] = useState<TicketFilters>(EMPTY_TICKET_FILTERS);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -433,6 +488,54 @@ export function TicketQueue({ selectedId = '', channel = 'tickets' }: TicketInbo
   );
 
   const tickets = list.data?.tickets ?? [];
+  const mayWrite = can(staff, 'tickets.write');
+  /**
+   * The actions of a ticket. They call the same endpoints as the buttons of the conversation (the status and the
+   * assignment) and the list is read again afterwards, so a ticket that no longer matches the filter leaves the page.
+   */
+  const ticketActions = (ticket: TicketRow): MenuItem[] => {
+    const closed = ticket.status.toUpperCase() === 'CLOSED';
+    const id = encodeURIComponent(ticket.id);
+    const run = (done: string, request: () => Promise<unknown>) => async () => {
+      try {
+        await request();
+        menuKit.toast.push(done, 'ok');
+        list.reload();
+      } catch (error) {
+        menuKit.toast.push(error instanceof Error ? error.message : 'The change was not saved.', 'error');
+      }
+    };
+    const setStatus = (status: string, done: string) => run(done, () => post(`/tickets/${id}/status`, { status }));
+    const mine = Boolean(staff?.id) && ticket.assignedToId === staff?.id;
+    const items: MenuItem[] = [
+      menuKit.go('open', 'Open conversation', 'chat', ticketConversationPath(ticket.id)),
+      menuKit.copy('copy-number', 'ticket number', `#${ticket.number}`, { separated: true }),
+      menuKit.copy('copy-link', 'ticket link', `${window.location.origin}${ticketConversationPath(ticket.id)}`),
+    ];
+    if (can(staff, 'customers.read') && ticket.customer?.id) items.push(menuKit.go('customer', 'Open customer', 'user', `/admin/customers/${encodeURIComponent(ticket.customer.id)}`, { separated: true }));
+    if (ticket.instance && can(staff, 'services.read')) items.push(menuKit.go('service', `Open service ${ticket.instance.name}`, 'server', `/admin/services/${encodeURIComponent(ticket.instance.id)}`));
+    if (mayWrite) {
+      items.push({
+        key: 'claim',
+        label: mine ? 'Assigned to you' : 'Claim ticket',
+        icon: 'user',
+        separated: true,
+        disabled: mine,
+        reason: 'You already own this ticket.',
+        onSelect: run('Ticket assigned to you.', () => post(`/admin/tickets/${id}/assign`, { userId: staff?.id })),
+      });
+      items.push(menuKit.go('assign', 'Assign or reassign…', 'user', ticketConversationPath(ticket.id)));
+      if (ticket.assignedToId) items.push({ key: 'unassign', label: 'Unassign', icon: 'close', onSelect: run('Assignment cleared.', () => post(`/admin/tickets/${id}/assign`, { userId: null })) });
+      if (closed) items.push({ key: 'reopen', label: 'Reopen', icon: 'refresh', separated: true, onSelect: setStatus('OPEN', 'Ticket reopened.') });
+      else {
+        items.push(
+          { key: 'hold', label: 'Put on hold', icon: 'minus', separated: true, disabled: ticket.status.toUpperCase() === 'ON_HOLD', reason: 'The ticket is already on hold.', onSelect: setStatus('ON_HOLD', 'Ticket put on hold.') },
+          { key: 'resolve', label: 'Resolve and close', icon: 'check', onSelect: setStatus('CLOSED', 'Ticket closed.') },
+        );
+      }
+    }
+    return items;
+  };
   const total = list.data?.total;
   const pagination = list.data?.pagination;
   const hasMore = Boolean(pagination?.hasMore);
@@ -626,8 +729,8 @@ export function TicketQueue({ selectedId = '', channel = 'tickets' }: TicketInbo
             <TicketInboxEmpty filtered={filtersAreActive} onClear={clearFilters} />
           ) : (
             <div className="grid gap-3">
-              <TicketInboxTable tickets={tickets} selectedId={selectedId} showEmails={showEmails} visibleColumns={columnPicker.visible} />
-              <TicketInboxList tickets={tickets} selectedId={selectedId} showEmails={showEmails} />
+              <TicketInboxTable tickets={tickets} selectedId={selectedId} showEmails={showEmails} visibleColumns={columnPicker.visible} actions={ticketActions} />
+              <TicketInboxList tickets={tickets} selectedId={selectedId} showEmails={showEmails} actions={ticketActions} />
             </div>
           )}
 

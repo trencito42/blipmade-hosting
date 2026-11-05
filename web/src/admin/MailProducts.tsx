@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { del, get, patch, post } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import type { TableColumn } from '../lib/table';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { Link } from '../router';
 import {
   ButtonLink,
@@ -524,6 +526,21 @@ export function AdminMailPlansTable({
   onDelete: (plan: MailPlan) => void;
   onToggleSale: (plan: MailPlan) => void;
 }) {
+  const menuKit = useMenuKit();
+  /** The actions of a mail plan: the same handlers as the buttons of the row. */
+  const planActions = (plan: MailPlan): MenuItem[] => {
+    const items: MenuItem[] = [];
+    if (mayWrite && editTo) items.push(menuKit.go('edit', 'Edit plan', 'pen', editTo(plan)));
+    else if (mayWrite && onEdit) items.push({ key: 'edit', label: 'Edit plan', icon: 'pen', onSelect: () => onEdit(plan) });
+    items.push(menuKit.copy('copy-slug', 'plan slug', plan.slug, { separated: items.length > 0 }), menuKit.copy('copy-id', 'plan ID', plan.id));
+    if (mayWrite) {
+      items.push(
+        { key: 'sale', label: plan.deployable ? 'Take off sale…' : 'Put on sale…', icon: plan.deployable ? 'eyeOff' : 'eye', separated: true, onSelect: () => onToggleSale(plan) },
+        { key: 'delete', label: 'Delete…', icon: 'trash', danger: true, separated: true, onSelect: () => onDelete(plan) },
+      );
+    }
+    return items;
+  };
   const columns: TableColumn<MailPlan>[] = [
     {
       key: 'plan',
@@ -615,8 +632,8 @@ export function AdminMailPlansTable({
 
   return (
     <>
-      <DataTable<MailPlan> rows={plans} rowKey={(plan) => plan.id} minWidth="1080px" columns={columns} />
-      <CardList<MailPlan> rows={plans} rowKey={(plan) => plan.id}>
+      <DataTable<MailPlan> rows={plans} rowKey={(plan) => plan.id} minWidth="1080px" columns={columns} rowActions={planActions} rowLabel={(plan) => `plan ${plan.name}`} />
+      <CardList<MailPlan> rows={plans} rowKey={(plan) => plan.id} rowActions={planActions} rowLabel={(plan) => `plan ${plan.name}`}>
         {(plan) => (
           <div>
             <div className="flex items-start justify-between gap-3">

@@ -5,6 +5,8 @@ import { Icon } from '../icons';
 import { Link } from '../router';
 import { CardList, DataTable, EmptyState, ErrorState, LoadingBlock, Panel, StatusPill } from '../ui-app';
 import { DASH, LiveRegion, denseGhost, densePrimary, maskEmail, useAdminSession } from './Overview';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 
 /**
  * Staff and permissions — GET /api/admin/staff, PUT /api/admin/staff/:userId
@@ -51,6 +53,19 @@ export default function Staff() {
   const pendingInvitations = invites.data?.invitations ?? [];
 
   const email = (value: string) => (showEmails ? value : maskEmail(value));
+  const menuKit = useMenuKit();
+  /** The actions of a member of the staff. Only an administrator can change rights or remove access, as the buttons of the row. */
+  const memberActions = (member: StaffMember): MenuItem[] => {
+    const id = encodeURIComponent(member.userId);
+    const items: MenuItem[] = [menuKit.go('rights', mayEdit ? 'Edit rights' : 'View rights', 'shield', `/admin/staff/${id}/permissions/edit`)];
+    if (staff?.role === 'ADMIN' || staff?.permissions?.includes('customers.read')) items.push(menuKit.go('customer', 'Open customer account', 'user', `/admin/customers/${id}`));
+    items.push(menuKit.copy('copy-id', 'staff ID', member.userId, { separated: true }));
+    if (showEmails) items.push(menuKit.copy('copy-email', 'e-mail', member.email));
+    if (mayEdit) {
+      items.push(menuKit.go('remove', 'Remove access…', 'close', `/admin/staff/${id}/remove`, { danger: true, separated: true, disabled: member.removable === false, reason: 'This account cannot be removed.' }));
+    }
+    return items;
+  };
 
   if (session.loading) {
     return (
@@ -108,6 +123,8 @@ export default function Staff() {
               <DataTable<StaffMember>
                 rows={members}
                 rowKey={(member) => member.userId}
+                rowActions={memberActions}
+                rowLabel={(member) => `staff member ${member.name ?? maskEmail(member.email)}`}
                 rowTo={(member: StaffMember) => `/admin/staff/${encodeURIComponent(member.userId)}/permissions/edit`}
                 columns={[
                   {
@@ -160,7 +177,7 @@ export default function Staff() {
                   },
                 ]}
               />
-              <CardList<StaffMember> rows={members} rowKey={(member) => member.userId}>
+              <CardList<StaffMember> rows={members} rowKey={(member) => member.userId} rowActions={memberActions} rowLabel={(member) => `staff member ${member.name ?? maskEmail(member.email)}`}>
                 {(member) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">

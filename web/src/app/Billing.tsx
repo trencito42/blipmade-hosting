@@ -1,3 +1,5 @@
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { CreditNotice } from './CreditNotice';
 import { useEffect, useMemo, useState } from 'react';
 import { get, getAll, post, type Invoice, type Subscription } from '../lib/api';
@@ -402,6 +404,19 @@ export default function Billing() {
   const subscriptions = useMemo(() => subscriptionsState.data?.subscriptions ?? [], [subscriptionsState.data]);
   const subscriptionsPaged = usePaged(subscriptions, 20);
   const ordersPaged = usePaged(ordersState.data?.orders ?? [], 20);
+  const menuKit = useMenuKit();
+  const orderActions = (order: { id: string; number: string }): MenuItem[] => [
+    menuKit.go('open', 'Open order', 'arrowUR', `/app/billing/orders/${encodeURIComponent(order.id)}`),
+    menuKit.copy('copy-number', 'order number', order.number, { separated: true }),
+  ];
+  const invoiceActions = (invoice: Invoice): MenuItem[] => {
+    const items: MenuItem[] = [menuKit.go('open', 'View invoice', 'arrowUR', `/app/billing/invoices/${encodeURIComponent(invoice.id)}`)];
+    // The copies the payment provider holds are other sites: they open in a new tab, never in this one.
+    if (invoice.hostedUrl) items.push({ key: 'hosted', label: 'Open the payment page', icon: 'card', onSelect: () => { window.open(invoice.hostedUrl!, '_blank', 'noopener,noreferrer'); } });
+    if (invoice.pdfUrl) items.push({ key: 'pdf', label: 'Download PDF', icon: 'download', onSelect: () => { window.open(invoice.pdfUrl!, '_blank', 'noopener,noreferrer'); } });
+    items.push(menuKit.copy('copy-number', 'invoice number', invoice.number, { separated: true }));
+    return items;
+  };
   const invoicesPaged = usePaged(invoices, 20);
   const history = useMemo(
     () =>
@@ -793,8 +808,10 @@ export default function Billing() {
                 rows={ordersPaged.rows}
                 rowTo={(order) => `/app/billing/orders/${encodeURIComponent(order.id)}`}
                 rowKey={(order) => order.id}
+                rowActions={orderActions}
+                rowLabel={(order) => `order ${order.number}`}
               />
-              <CardList rows={ordersPaged.rows} rowKey={(order) => order.id}>
+              <CardList rows={ordersPaged.rows} rowKey={(order) => order.id} rowActions={orderActions} rowLabel={(order) => `order ${order.number}`}>
                 {(order) => (
                   <div className="grid gap-1.5">
                     <div className="flex items-start justify-between gap-3">
@@ -901,9 +918,11 @@ export default function Billing() {
               rows={invoicesPaged.rows}
               rowTo={(invoice) => `/app/billing/invoices/${invoice.id}`}
               rowKey={(invoice) => invoice.id}
+              rowActions={invoiceActions}
+              rowLabel={(invoice) => `invoice ${invoice.number}`}
             />
 
-            <CardList rows={invoicesPaged.rows} rowKey={(invoice) => invoice.id}>
+            <CardList rows={invoicesPaged.rows} rowKey={(invoice) => invoice.id} rowActions={invoiceActions} rowLabel={(invoice) => `invoice ${invoice.number}`}>
               {(invoice) => (
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-3">

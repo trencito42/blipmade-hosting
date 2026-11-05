@@ -1,3 +1,5 @@
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { get } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { Link } from '../router';
@@ -71,6 +73,14 @@ export default function Promotions() {
   const promotions = state.data?.promotions ?? [];
   const total = state.data?.total;
   const mayWrite = can(staff, 'promotions.write');
+  const menuKit = useMenuKit();
+  const promotionActions = (promotion: AdminPromotion): MenuItem[] => {
+    const id = encodeURIComponent(promotion.id);
+    const items: MenuItem[] = [menuKit.go('open', mayWrite ? 'Manage campaign' : 'Open campaign', 'arrowUR', `/admin/promotions/${id}`)];
+    if (mayWrite) items.push(menuKit.go('edit', 'Edit campaign', 'pen', `/admin/promotions/${id}/edit`));
+    items.push(menuKit.copy('copy-code', 'code', promotion.code, { separated: true }), menuKit.copy('copy-id', 'campaign ID', promotion.id));
+    return items;
+  };
 
   const valueLabel = (promotion: AdminPromotion) => {
     if (promotion.type === 'percent') {
@@ -136,6 +146,8 @@ export default function Promotions() {
               <DataTable<AdminPromotion>
                 rows={promotions}
                 rowKey={(promotion) => promotion.id}
+                rowActions={promotionActions}
+                rowLabel={(promotion) => `campaign ${promotion.code}`}
                 columns={[
                   {
                     key: 'code',
@@ -206,7 +218,7 @@ export default function Promotions() {
                   },
                 ]}
               />
-              <CardList<AdminPromotion> rows={promotions} rowKey={(promotion) => promotion.id}>
+              <CardList<AdminPromotion> rows={promotions} rowKey={(promotion) => promotion.id} rowActions={promotionActions} rowLabel={(promotion) => `campaign ${promotion.code}`}>
                 {(promotion) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">

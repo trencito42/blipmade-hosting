@@ -18,10 +18,10 @@ function matches(text, pattern) {
   return [...text.matchAll(pattern)].map((match) => match[1]);
 }
 
-test('all 30 primary admin routes remain in the sidebar once and only once', () => {
+test('all 31 primary admin routes remain in the sidebar once and only once', () => {
   const all = matches(section(nav, 'export const ADMIN_NAV: NavEntry[] = ['), /\bto:\s*'([^']+)'/g);
   const grouped = matches(section(nav, 'export const ADMIN_GROUPS: NavGroup[] = ['), /A\('([^']+)'\)/g);
-  assert.equal(all.length, 30);
+  assert.equal(all.length, 31);
   assert.ok(all.includes('/admin/catalog/families'));
   assert.equal(new Set(all).size, all.length);
   assert.deepEqual([...grouped].sort(), [...all].sort());

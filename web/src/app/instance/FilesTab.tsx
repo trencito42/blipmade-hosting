@@ -19,7 +19,7 @@ import {
 import { useAsync } from '../../lib/useAsync';
 import { Icon } from '../../icons';
 import { ConfirmDialog, LoadingBlock, SoftButton, useToast } from '../../ui-app';
-import ContextMenu, { type MenuItem } from './files/ContextMenu';
+import ContextMenu, { type MenuItem } from '../../context-menu';
 import FileViewer from './files/FileViewer';
 import PromptDialog from './files/PromptDialog';
 import { iconOfFile, isInside, saveBlob, uniqueName } from './files/file-utils';
@@ -359,7 +359,7 @@ export default function FilesTab({ instance }: TabProps) {
       items.push({ key: 'extract', label: 'Extract here', icon: 'fileZip', onSelect: () => void extract(path) });
     }
     if (single) items.push({ key: 'permissions', label: 'Permissions', icon: 'lock', onSelect: () => setPrompt({ kind: 'permissions', path }) });
-    items.push({ key: 'delete', label: 'Delete', icon: 'trash', hint: 'Del', danger: true, separated: true, onSelect: () => guardOpen(paths) && setConfirmDelete(paths) });
+    items.push({ key: 'delete', label: 'Delete', icon: 'trash', hint: 'Del', danger: true, separated: true, onSelect: () => { if (guardOpen(paths)) setConfirmDelete(paths); } });
     return items;
   };
 

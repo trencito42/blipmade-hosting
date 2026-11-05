@@ -6,6 +6,8 @@ import { Link } from '../router';
 import { Icon } from '../icons';
 import { ButtonLink, CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, Segmented, StatusPill, useToast } from '../ui-app';
 import { ConfirmWithReason, DASH, LiveRegion, TruncationNote, can, denseDanger, denseGhost, denseInput, fmtDate, maskEmail, useAdminSession } from './Overview';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { ListPreferences, useColumnPicker, type SavedQuery } from './ListPreferences';
 
 /**
@@ -114,6 +116,28 @@ export default function Services() {
     toast.push(`Provisioning queued for ${target.name}`, 'ok');
   };
 
+  const menuKit = useMenuKit();
+  const serviceActions = (service: AdminService): MenuItem[] => {
+    const id = encodeURIComponent(service.id);
+    const items: MenuItem[] = [menuKit.go('open', 'Open service control', 'arrowUR', `/admin/services/${id}`)];
+    if (can(staff, 'customers.read') && service.customer?.id) items.push(menuKit.go('customer', 'Open customer', 'user', `/admin/customers/${encodeURIComponent(service.customer.id)}`));
+    items.push(menuKit.copy('copy-id', 'instance ID', service.id, { separated: true }), menuKit.copy('copy-name', 'instance name', service.name));
+    if (service.pterodactylServerId) items.push(menuKit.copy('copy-panel', 'panel server ID', String(service.pterodactylServerId)));
+    if (mayWrite) {
+      items.push(menuKit.go('limits', 'Change resources…', 'bolt', `/admin/services/${id}/limits/edit`, { separated: true }));
+      const needsRecovery = ['pending', 'provisioning', 'failed', 'degraded'].includes(service.status);
+      items.push({
+        key: 'retry',
+        label: 'Retry provisioning…',
+        icon: 'refresh',
+        disabled: !needsRecovery,
+        reason: 'Only a pending, failed or degraded service can be retried.',
+        onSelect: () => openRetry(service),
+      });
+    }
+    return items;
+  };
+
   const resources = (service: AdminService) => (
     <span className="font-mono text-[12.5px] text-ink2">
       {fmtRam(service.ram)} · {service.cpu} vCPU · {service.disk} GB
@@ -191,6 +215,8 @@ export default function Services() {
               <DataTable<AdminService>
                 rows={services}
                 rowKey={(service) => service.id}
+                rowActions={serviceActions}
+                rowLabel={(service) => `service ${service.name}`}
                 columns={([
                   {
                     key: 'name',
@@ -267,7 +293,7 @@ export default function Services() {
                     : []),
                 ] satisfies TableColumn<AdminService>[]).filter((column) => columnPicker.visible.includes(column.key))}
               />
-              <CardList<AdminService> rows={services} rowKey={(service) => service.id}>
+              <CardList<AdminService> rows={services} rowKey={(service) => service.id} rowActions={serviceActions} rowLabel={(service) => `service ${service.name}`}>
                 {(service) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">

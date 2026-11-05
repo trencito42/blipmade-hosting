@@ -21,6 +21,8 @@ import {
   useToast,
 } from '../ui-app';
 import { catalogPath, formatPrice, periodLabel, productIcon } from '../lib/pricing';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { deployPathFor, isOrderable, startingConfiguration } from '../lib/pricing-contract';
 
 /**
@@ -182,6 +184,43 @@ export default function Instances() {
   }, [instances, query, status, sort, type, node]);
 
   const paged = usePaged(filtered, 20, `${query}|${status}|${sort}|${type}|${node}`);
+  const menuKit = useMenuKit();
+  /**
+   * The actions of one of the customer's own services. They follow what the buttons of the service page allow: the
+   * sections a shared-access role can see, and the power buttons only while the state allows them.
+   */
+  const instanceActions = (instance: Instance): MenuItem[] => {
+    const id = encodeURIComponent(instance.id);
+    const access = instance.access ?? 'owner';
+    const closed = instance.status === 'cancelled';
+    const items: MenuItem[] = [menuKit.go('open', 'Open dashboard', 'arrowUR', `/app/instances/${id}`)];
+    if (!closed) {
+      items.push(menuKit.go('console', 'Open console', 'term', `/app/instances/${id}/console`));
+      if (access !== 'viewer') items.push(menuKit.go('files', 'Open files', 'folder', `/app/instances/${id}/files`));
+      if (access !== 'viewer') items.push(menuKit.go('backups', 'View backups', 'archive', `/app/instances/${id}/backups`), menuKit.go('databases', 'View databases', 'db', `/app/instances/${id}/databases`));
+      if (access === 'owner') items.push(menuKit.go('settings', 'Open settings', 'bolt', `/app/instances/${id}/settings`));
+    }
+    items.push(menuKit.copy('copy-id', 'service ID', instance.id, { separated: true }));
+    if (instance.url) items.push(menuKit.copy('copy-url', 'address', instance.url));
+    if (!closed && access !== 'viewer') {
+      const power = (action: 'start' | 'restart', done: string) => async () => {
+        try {
+          await post(`/instances/${id}/power`, { action });
+          menuKit.toast.push(done, 'ok');
+          reload();
+        } catch (failure) {
+          menuKit.toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+        }
+      };
+      const canStart = instance.status === 'stopped' || instance.status === 'failed';
+      const canRestart = instance.status === 'online' || instance.status === 'degraded' || instance.status === 'stopped';
+      items.push(
+        { key: 'start', label: 'Start', icon: 'rocket', separated: true, disabled: !canStart, reason: 'It is not stopped.', onSelect: power('start', 'Start requested.') },
+        { key: 'restart', label: 'Restart', icon: 'restart', disabled: !canRestart, reason: instance.status === 'provisioning' || instance.status === 'pending' ? 'Unavailable while it is being set up.' : 'It cannot be restarted now.', onSelect: power('restart', 'Restart requested.') },
+      );
+    }
+    return items;
+  };
 
   return (
     <Panel className="grid gap-4">
@@ -350,9 +389,11 @@ export default function Instances() {
             rows={paged.rows}
             rowKey={(instance: Instance) => instance.id}
             rowTo={(instance: Instance) => `/app/instances/${instance.id}`}
+            rowActions={instanceActions}
+            rowLabel={(instance: Instance) => `service ${instance.name}`}
           />
 
-          <CardList rows={paged.rows} rowKey={(instance: Instance) => instance.id}>
+          <CardList rows={paged.rows} rowKey={(instance: Instance) => instance.id} rowActions={instanceActions} rowLabel={(instance: Instance) => `service ${instance.name}`}>
             {(instance: Instance) => (
               <div className="grid gap-2">
                 <div className="flex flex-wrap items-start justify-between gap-2">

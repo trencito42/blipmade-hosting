@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { del, get, patch, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
@@ -180,6 +182,38 @@ export default function CustomerDetail() {
   const suspended = Boolean(customer?.suspendedAt);
   const mayWrite = can(staff, 'customers.write');
   const mayCollect = can(staff, 'orders.write');
+  const menuKit = useMenuKit();
+  // The records of this customer: each menu is the one of the same record in its own list.
+  const instanceActions = (instance: DetailInstance): MenuItem[] => [
+    menuKit.go('open', 'Open service control', 'arrowUR', `/admin/services/${encodeURIComponent(instance.id)}`),
+    menuKit.copy('copy-id', 'instance ID', instance.id, { separated: true }),
+    menuKit.copy('copy-name', 'instance name', instance.name),
+    ...(can(staff, 'services.write') ? [menuKit.go('limits', 'Change resources…', 'bolt', `/admin/services/${encodeURIComponent(instance.id)}/limits/edit`, { separated: true })] : []),
+  ];
+  const orderActions = (order: DetailOrder): MenuItem[] => {
+    const items: MenuItem[] = [
+      menuKit.go('open', 'Open order', 'arrowUR', `/admin/orders/${encodeURIComponent(order.id)}`),
+      menuKit.copy('copy-number', 'order number', order.number, { separated: true }),
+      menuKit.copy('copy-id', 'order ID', order.id),
+    ];
+    if (mayCollect && order.total > 0 && (order.status === 'paid' || order.status === 'fulfilled')) {
+      items.push(
+        menuKit.go('refund-part', 'Refund part…', 'card', `/admin/orders/${encodeURIComponent(order.id)}/partial-refund`, { separated: true }),
+        menuKit.go('refund', 'Refund in full…', 'card', `/admin/orders/${encodeURIComponent(order.id)}/refund`, { danger: true }),
+      );
+    }
+    return items;
+  };
+  const ticketActions = (ticket: DetailTicket): MenuItem[] => [
+    menuKit.go('open', 'Open conversation', 'chat', `/admin/tickets/${encodeURIComponent(ticket.id)}`),
+    menuKit.copy('copy-number', 'ticket number', `#${ticket.number}`, { separated: true }),
+    menuKit.copy('copy-link', 'ticket link', `${window.location.origin}/admin/tickets/${encodeURIComponent(ticket.id)}`),
+  ];
+  // There is no invoice page for the staff: the number and the id are what a billing question needs.
+  const invoiceActions = (invoice: DetailInvoice): MenuItem[] => [
+    menuKit.copy('copy-number', 'invoice number', invoice.number),
+    menuKit.copy('copy-id', 'invoice ID', invoice.id),
+  ];
 
   if (session.loading) {
     return (
@@ -353,6 +387,8 @@ export default function CustomerDetail() {
             <DataTable<DetailInstance>
               rows={customer.instances}
               rowKey={(instance) => instance.id}
+              rowActions={instanceActions}
+              rowLabel={(instance) => `instance ${instance.name}`}
               columns={[
                 {
                   key: 'name',
@@ -400,7 +436,7 @@ export default function CustomerDetail() {
                 },
               ]}
             />
-            <CardList<DetailInstance> rows={customer.instances} rowKey={(instance) => instance.id}>
+            <CardList<DetailInstance> rows={customer.instances} rowKey={(instance) => instance.id} rowActions={instanceActions} rowLabel={(instance) => `instance ${instance.name}`}>
               {(instance) => (
                 <div>
                   <div className="flex items-start justify-between gap-3">
@@ -454,6 +490,8 @@ export default function CustomerDetail() {
             <DataTable<DetailInvoice>
               rows={customer.invoices}
               rowKey={(invoice) => invoice.id}
+              rowActions={invoiceActions}
+              rowLabel={(invoice) => `invoice ${invoice.number}`}
               columns={[
                 {
                   key: 'number',
@@ -491,7 +529,7 @@ export default function CustomerDetail() {
                   : []),
               ]}
             />
-            <CardList<DetailInvoice> rows={customer.invoices} rowKey={(invoice) => invoice.id}>
+            <CardList<DetailInvoice> rows={customer.invoices} rowKey={(invoice) => invoice.id} rowActions={invoiceActions} rowLabel={(invoice) => `invoice ${invoice.number}`}>
               {(invoice) => (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -529,6 +567,8 @@ export default function CustomerDetail() {
             <DataTable<DetailTicket>
               rows={customer.tickets}
               rowKey={(ticket) => ticket.id}
+              rowActions={ticketActions}
+              rowLabel={(ticket) => `ticket #${ticket.number}`}
               columns={[
                 {
                   key: 'number',
@@ -567,7 +607,7 @@ export default function CustomerDetail() {
                 },
               ]}
             />
-            <CardList<DetailTicket> rows={customer.tickets} rowKey={(ticket) => ticket.id}>
+            <CardList<DetailTicket> rows={customer.tickets} rowKey={(ticket) => ticket.id} rowActions={ticketActions} rowLabel={(ticket) => `ticket #${ticket.number}`}>
               {(ticket) => (
                 <Link to={`/admin/tickets?ticket=${ticket.id}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <div className="flex items-start justify-between gap-3">
@@ -602,6 +642,8 @@ export default function CustomerDetail() {
             <DataTable<DetailOrder>
               rows={customer.orders}
               rowKey={(order) => order.id}
+              rowActions={orderActions}
+              rowLabel={(order) => `order ${order.number}`}
               columns={[
                 {
                   key: 'number',
@@ -630,7 +672,7 @@ export default function CustomerDetail() {
                 },
               ]}
             />
-            <CardList<DetailOrder> rows={customer.orders} rowKey={(order) => order.id}>
+            <CardList<DetailOrder> rows={customer.orders} rowKey={(order) => order.id} rowActions={orderActions} rowLabel={(order) => `order ${order.number}`}>
               {(order) => (
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">

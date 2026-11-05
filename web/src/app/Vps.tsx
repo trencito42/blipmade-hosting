@@ -5,6 +5,8 @@
  * never writes a price or a size of its own.
  */
 
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { LineChart } from './LineChart';
 import { Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError, api, del, get, post, type Order, type VpsUsageView, type VpsPlanView, type VpsServerView } from '../lib/api';
@@ -494,6 +496,32 @@ export function VpsList() {
     return [...found].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }, [servers, query, status, sort]);
   const paged = usePaged(filtered, 20, `${query}|${status}|${sort}`);
+  const menuKit = useMenuKit();
+  /** The actions of one of the customer's own servers. Start and restart call the endpoint of the power buttons of the server page. */
+  const serverActions = (server: VpsServerView): MenuItem[] => {
+    const id = encodeURIComponent(server.id);
+    const active = server.status === 'active';
+    const items: MenuItem[] = [menuKit.go('open', 'Open server', 'arrowUR', `/app/vps/${id}`)];
+    items.push(menuKit.copy('copy-id', 'server ID', server.id, { separated: true }));
+    if (server.publicIp) items.push(menuKit.copy('copy-ip', 'public address', server.publicIp));
+    if (server.sshCommand) items.push(menuKit.copy('copy-ssh', 'SSH command', server.sshCommand));
+    if (active) {
+      const power = (action: 'start' | 'reboot', done: string) => async () => {
+        try {
+          await post(`/vps/${id}/power`, { action });
+          menuKit.toast.push(done, 'ok');
+          state.reload();
+        } catch (failure) {
+          menuKit.toast.push(failure instanceof Error ? failure.message : 'That did not work.', 'error');
+        }
+      };
+      items.push(
+        { key: 'start', label: 'Start', icon: 'rocket', separated: true, disabled: server.power === 'running', reason: 'The server is already running.', onSelect: power('start', 'Starting.') },
+        { key: 'reboot', label: 'Restart', icon: 'restart', disabled: server.power !== 'running', reason: 'The server is not running.', onSelect: power('reboot', 'Restarting.') },
+      );
+    }
+    return items;
+  };
   const { push } = useToast();
   // A server that is being built is looked at again until it is done.
   useEffect(() => {
@@ -605,8 +633,10 @@ export function VpsList() {
             rows={paged.rows}
             rowKey={(server: VpsServerView) => server.id}
             rowTo={(server: VpsServerView) => `/app/vps/${server.id}`}
+            rowActions={serverActions}
+            rowLabel={(server: VpsServerView) => `server ${server.name}`}
           />
-          <CardList rows={paged.rows} rowKey={(server: VpsServerView) => server.id}>
+          <CardList rows={paged.rows} rowKey={(server: VpsServerView) => server.id} rowActions={serverActions} rowLabel={(server: VpsServerView) => `server ${server.name}`}>
             {(server: VpsServerView) => {
               const status = statusOf(server);
               return (

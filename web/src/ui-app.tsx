@@ -20,6 +20,7 @@ import { cellClass, headerClass, type TableColumn } from './lib/table';
 import { get, post, relativeTime, type NotificationView } from './lib/api';
 import { Icon, type IconName } from './icons';
 import { Link, useRouter } from './router';
+import { isMenuKey, onRecordContextMenu, RowMenuButton, useContextMenu, type MenuItem } from './context-menu';
 import { useSession } from './session';
 import { BrandMark } from './BrandMark';
 import { LegalFooter } from './legal/LegalFooter';
@@ -1496,10 +1497,19 @@ export function DataTable<T>({
   rowTo,
   empty,
   minWidth = '640px',
+  rowActions,
+  rowLabel,
 }: {
   columns: TableColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string;
+  /**
+   * The actions of a record: its right-click menu, the Menu key and Shift+F10, and the three dots at the end of the row.
+   * Built when the menu opens, for the exact row. An empty list gives the browser its own menu back.
+   */
+  rowActions?: (row: T) => MenuItem[];
+  /** The name of a row for the label of its three dots. */
+  rowLabel?: (row: T) => string;
   /** Where a click on the row leads. The link inside the row stays the keyboard way in; a button or a link of the row keeps its own work. */
   rowTo?: (row: T) => string;
   empty?: ReactNode;
@@ -1507,6 +1517,14 @@ export function DataTable<T>({
   minWidth?: string;
 }) {
   const { navigate } = useRouter();
+  const menu = useContextMenu();
+  // A record that left the list (a page, a filter, a delete) takes its menu with it.
+  const owner = menu.owner;
+  const { close } = menu;
+  const ownerGone = owner !== null && !rows.some((row) => rowKey(row) === owner);
+  useEffect(() => {
+    if (ownerGone) close();
+  }, [ownerGone, close]);
   if (!rows.length) return <>{empty ?? <EmptyState title="Nothing here yet." />}</>;
   return (
     // A wide table scrolls inside its own box: the page never scrolls
@@ -1532,12 +1550,33 @@ export function DataTable<T>({
                 {column.header}
               </th>
             ))}
+            {rowActions && (
+              <th scope="col" className="w-12 px-2">
+                <span className="sr-only">Actions</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="[&>tr:first-child>td]:border-t-0">
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const key = rowKey(row);
+            const opened = menu.isOpen && menu.owner === key;
+            return (
             <tr
-              key={rowKey(row)}
+              key={key}
+              aria-haspopup={rowActions ? 'menu' : undefined}
+              onContextMenu={rowActions ? (event) => onRecordContextMenu(event, menu, rowActions(row), key) : undefined}
+              onKeyDown={
+                rowActions
+                  ? (event) => {
+                      if (!isMenuKey(event) || (event.target as HTMLElement).closest('input,textarea,select,[contenteditable]')) return;
+                      const items = rowActions(row);
+                      if (!items.length) return;
+                      event.preventDefault();
+                      menu.openAt(event.target as HTMLElement, items, key);
+                    }
+                  : undefined
+              }
               onClick={
                 rowTo
                   ? (event) => {
@@ -1546,33 +1585,74 @@ export function DataTable<T>({
                     }
                   : undefined
               }
-              className={rowTo ? 'cursor-pointer transition-colors duration-150 hover:bg-s2/60' : undefined}
+              className={cn(rowTo && 'cursor-pointer transition-colors duration-150 hover:bg-s2/60', opened && 'bg-s2/70')}
             >
               {columns.map((column, index) => (
                 <td key={column.key} className={cellClass(column, index, columns.length)}>
                   {column.render(row)}
                 </td>
               ))}
+              {rowActions && (
+                <td className="w-12 border-t border-line px-2 py-0 text-right align-middle">
+                  <RowMenuButton items={rowActions(row)} owner={key} menu={menu} label={rowLabel ? rowLabel(row) : key} />
+                </td>
+              )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
+      {menu.element}
     </div>
   );
 }
 
 /** Phone rendering of the same data as {@link DataTable}. */
-export function CardList<T>({ rows, rowKey, children }: { rows: T[]; rowKey: (row: T) => string; children: (row: T) => ReactNode }) {
+export function CardList<T>({
+  rows,
+  rowKey,
+  children,
+  rowActions,
+  rowLabel,
+}: {
+  rows: T[];
+  rowKey: (row: T) => string;
+  children: (row: T) => ReactNode;
+  /** The same provider as the one of {@link DataTable}: the three dots of a card, and the right click of a larger screen. */
+  rowActions?: (row: T) => MenuItem[];
+  rowLabel?: (row: T) => string;
+}) {
+  const menu = useContextMenu();
+  const owner = menu.owner;
+  const { close } = menu;
+  const ownerGone = owner !== null && !rows.some((row) => rowKey(row) === owner);
+  useEffect(() => {
+    if (ownerGone) close();
+  }, [ownerGone, close]);
   if (!rows.length) return null;
   return (
     // The column of the cards may be smaller than a long text inside a card,
     // so the cards never make the page wider than the screen.
     <div className="grid grid-cols-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-line bg-card md:hidden">
-      {rows.map((row) => (
-        <div key={rowKey(row)} className="border-t border-line p-3.5 first:border-t-0">
-          {children(row)}
-        </div>
-      ))}
+      {rows.map((row) => {
+        const key = rowKey(row);
+        const items = rowActions ? rowActions(row) : [];
+        return (
+          <div
+            key={key}
+            onContextMenu={rowActions ? (event) => onRecordContextMenu(event, menu, items, key) : undefined}
+            className={cn('relative border-t border-line p-3.5 first:border-t-0', items.length > 0 && 'pr-12', menu.isOpen && menu.owner === key && 'bg-s2/70')}
+          >
+            {children(row)}
+            {items.length > 0 && (
+              <div className="absolute right-1 top-1.5">
+                <RowMenuButton items={items} owner={key} menu={menu} label={rowLabel ? rowLabel(row) : key} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {menu.element}
     </div>
   );
 }

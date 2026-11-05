@@ -1,3 +1,5 @@
+import { useMenuKit } from '../../lib/menu-actions';
+import type { MenuItem } from '../../context-menu';
 import { ButtonGroup } from '../components/premium';
 import { useState } from 'react';
 import { useAsync } from '../../lib/useAsync';
@@ -67,6 +69,15 @@ export default function BackupsTab({ instance }: TabProps) {
       setPendingDelete(null);
     }
   };
+
+  const menuKit = useMenuKit();
+  /** The actions of a backup: the same handlers as its buttons. Delete opens the same confirmation. */
+  const backupActions = (row: (typeof rows)[number]): MenuItem[] => [
+    { key: 'download', label: 'Download', icon: 'download', onSelect: () => download(row.id, row.name) },
+    menuKit.go('restore', 'Restore…', 'refresh', `/app/instances/${encodeURIComponent(instance.id)}/backups/${encodeURIComponent(row.id)}/restore`),
+    menuKit.copy('copy-name', 'backup name', row.name, { separated: true }),
+    { key: 'delete', label: 'Delete…', icon: 'trash', danger: true, separated: true, onSelect: () => setPendingDelete({ id: row.id, name: row.name }) },
+  ];
 
   const columns: TableColumn<(typeof rows)[number]>[] = [
     {
@@ -148,8 +159,8 @@ export default function BackupsTab({ instance }: TabProps) {
           />
         ) : (
           <>
-            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => row.id} />
-            <CardList rows={paged.rows} rowKey={(row) => row.id}>
+            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => row.id} rowActions={backupActions} rowLabel={(row) => `backup ${row.name}`} />
+            <CardList rows={paged.rows} rowKey={(row) => row.id} rowActions={backupActions} rowLabel={(row) => `backup ${row.name}`}>
               {(row) => (
                 <ListRow
                   title={row.name}

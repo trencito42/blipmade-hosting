@@ -1,3 +1,5 @@
+import { isMenuKey, onRecordContextMenu, RowMenuButton, useContextMenu, type MenuItem } from '../context-menu';
+import { useMenuKit } from '../lib/menu-actions';
 import { useEffect, useRef, useState } from 'react';
 import { del, get, post, put } from '../lib/api';
 import { useAction, useAsync } from '../lib/useAsync';
@@ -108,6 +110,24 @@ export default function Support() {
     (signal) => get<{ conversations: Conversation[]; pagination: { hasMore: boolean } }>('/admin/support/conversations', { view, q: search || undefined, departmentId: departmentId || undefined }, signal),
     [view, search, departmentId],
   );
+  const menu = useContextMenu();
+  const menuKit = useMenuKit();
+  const rows = list.data?.conversations;
+  const { owner: menuOwner, close: closeMenu } = menu;
+  useEffect(() => {
+    if (menuOwner !== null && rows && !rows.some((row) => row.id === menuOwner)) closeMenu();
+  }, [menuOwner, rows, closeMenu]);
+  /** The actions of a conversation of the queue. The changes of state and the assignment stay in the conversation itself. */
+  const conversationActions = (row: Conversation): MenuItem[] => {
+    const to = `/admin/tickets?ticket=${encodeURIComponent(row.id)}`;
+    const items: MenuItem[] = [
+      menuKit.go('open', 'Open conversation', 'chat', to),
+      menuKit.copy('copy-number', 'ticket number', `#${row.number}`, { separated: true }),
+      menuKit.copy('copy-link', 'conversation link', `${window.location.origin}${to}`),
+    ];
+    if (can(session.staff, 'customers.read') && row.customer?.id) items.push(menuKit.go('customer', 'Open customer', 'user', `/admin/customers/${encodeURIComponent(row.customer.id)}`, { separated: true }));
+    return items;
+  };
   const counts = useAsync((signal) => get<{ counts: Record<string, number> }>('/admin/support/counts', undefined, signal), []);
   const departments = useAsync((signal) => get<{ departments: Department[] }>('/admin/support/departments', undefined, signal), []);
   const presence = useAsync((signal) => get<{ staff: { userId: string; chosen: string; status: string; name: string }[] }>('/admin/support/presence', undefined, signal), []);
@@ -177,8 +197,8 @@ export default function Support() {
         ) : (
           <ul className="grid gap-1.5">
             {list.data!.conversations.map((row) => (
-              <li key={row.id}>
-                <Link to={`/admin/tickets?ticket=${row.id}`} className="grid gap-1 rounded-2xl border border-line bg-card px-4 py-3 transition-colors hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+              <li key={row.id} className="flex items-start gap-1" onContextMenu={(event) => onRecordContextMenu(event, menu, conversationActions(row), row.id)}>
+                <Link to={`/admin/tickets?ticket=${row.id}`} onKeyDown={(event) => { if (isMenuKey(event)) { event.preventDefault(); menu.openAt(event.currentTarget, conversationActions(row), row.id); } }} className="grid min-w-0 flex-1 gap-1 rounded-2xl border border-line bg-card px-4 py-3 transition-colors hover:bg-s2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="min-w-0 flex-1 break-words text-[14.5px] font-semibold text-ink">#{row.number} · {row.subject}</span>
                     {(row.sla === 'breached' || row.sla === 'at_risk') && <StatusPill status={row.sla === 'breached' ? 'late' : 'at risk'} />}
@@ -192,8 +212,10 @@ export default function Support() {
                     <span className="font-mono">{fmtDateTime(row.updatedAt)}</span>
                   </span>
                 </Link>
+                <RowMenuButton items={conversationActions(row)} owner={row.id} menu={menu} label={`conversation #${row.number}`} className="mt-1.5" />
               </li>
             ))}
+            {menu.element}
             {list.data!.pagination.hasMore && <li className="pt-1 text-center text-[12.5px] text-ink3">Showing the newest conversations. Narrow the view or search to see the rest.</li>}
           </ul>
         )}

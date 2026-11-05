@@ -1,3 +1,5 @@
+import { useMenuKit } from '../../lib/menu-actions';
+import type { MenuItem } from '../../context-menu';
 import { Link } from '../../router';
 import { get, post } from '../../lib/api';
 import { useAction, useAsync } from '../../lib/useAsync';
@@ -17,6 +19,14 @@ export default function CatalogFamilies() {
   });
   const families = state.data?.families ?? [];
   const paged = usePaged(families, 20, families.length);
+  const menuKit = useMenuKit();
+  const familyActions = (family: FamilySummary): MenuItem[] => {
+    const id = encodeURIComponent(family.id);
+    const items: MenuItem[] = [menuKit.go('open', 'Open family', 'arrowUR', `/admin/catalog/families/${id}`)];
+    if (mayWrite) items.push(menuKit.go('edit', 'Edit family', 'pen', `/admin/catalog/families/${id}/edit`));
+    items.push(menuKit.copy('copy-id', 'family ID', family.id, { separated: true }));
+    return items;
+  };
   const columns: TableColumn<FamilySummary>[] = [
     { key: 'name', header: 'Family', render: (family) => <Link to={`/admin/catalog/families/${family.id}`} className="font-medium text-ink hover:text-acc">{family.name}</Link> },
     { key: 'group', header: 'Group', render: (family) => groupLabel(family.group) },
@@ -41,8 +51,8 @@ export default function CatalogFamilies() {
         : families.length === 0 ? <EmptyState title="No catalogue families yet." description="A family groups products that already exist. The public catalogue stays as it is." />
         : (
           <div className="grid gap-3">
-            <DataTable columns={columns} rows={paged.rows} rowKey={(family) => family.id} rowTo={(family) => `/admin/catalog/families/${family.id}`} minWidth="760px" />
-            <CardList rows={paged.rows} rowKey={(family) => family.id}>
+            <DataTable columns={columns} rows={paged.rows} rowKey={(family) => family.id} rowTo={(family) => `/admin/catalog/families/${family.id}`} minWidth="760px" rowActions={familyActions} rowLabel={(family) => `family ${family.name}`} />
+            <CardList rows={paged.rows} rowKey={(family) => family.id} rowActions={familyActions} rowLabel={(family) => `family ${family.name}`}>
               {(family) => (
                 <div className="grid gap-2 p-4">
                   <Link to={`/admin/catalog/families/${family.id}`} className="font-medium text-ink">{family.name}</Link>

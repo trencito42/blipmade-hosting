@@ -1,3 +1,5 @@
+import { useMenuKit } from '../../lib/menu-actions';
+import type { MenuItem } from '../../context-menu';
 import { ButtonGroup } from '../components/premium';
 import { useAsync } from '../../lib/useAsync';
 import { listDatabases } from '../../lib/instance-api';
@@ -33,6 +35,15 @@ export default function DatabasesTab({ instance }: TabProps) {
   const limit = databases.data?.limit;
   const full = limit !== undefined && limit > 0 && rows.length >= limit;
 
+
+  const menuKit = useMenuKit();
+  /** The actions of a database. Nothing secret is copied: the password is shown, or rotated, only on the security page. */
+  const databaseActions = (row: (typeof rows)[number]): MenuItem[] => [
+    menuKit.go('security', 'Credentials and security…', 'shield', `/app/instances/${encodeURIComponent(instance.id)}/databases/${encodeURIComponent(row.id)}/security`),
+    menuKit.copy('copy-name', 'database name', row.database, { separated: true }),
+    menuKit.copy('copy-user', 'user name', row.username),
+    menuKit.copy('copy-address', 'address', `${row.host}:${row.port}`),
+  ];
 
   const columns: TableColumn<(typeof rows)[number]>[] = [
     {
@@ -98,8 +109,8 @@ export default function DatabasesTab({ instance }: TabProps) {
           />
         ) : (
           <>
-            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => String(row.id)} />
-            <CardList rows={paged.rows} rowKey={(row) => String(row.id)}>
+            <DataTable columns={columns} rows={paged.rows} rowKey={(row) => String(row.id)} rowActions={databaseActions} rowLabel={(row) => `database ${row.database}`} />
+            <CardList rows={paged.rows} rowKey={(row) => String(row.id)} rowActions={databaseActions} rowLabel={(row) => `database ${row.database}`}>
               {(row) => (
                 <ListRow
                   title={<span className="font-mono">{row.database}</span>}

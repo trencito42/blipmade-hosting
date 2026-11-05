@@ -241,6 +241,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(
 
 /* The one orchestrated moment: the gauges of the resources fill when the page
    loads. */
+@keyframes bm-menu-in { from { opacity: 0; transform: scale(0.97); } }
 @keyframes bm-fill { from { transform: scaleX(0); } }
 .gauge { transform-origin: left; animation: bm-fill 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s backwards; }
 

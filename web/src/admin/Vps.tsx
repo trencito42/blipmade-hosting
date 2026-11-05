@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { del, get, post } from '../lib/api';
 import { useAsync } from '../lib/useAsync';
 import { memLabel } from '../lib/pricing';
@@ -6,6 +6,8 @@ import { Link } from '../router';
 import { ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Panel, StatusPill, useToast } from '../ui-app';
 import { can, denseDanger, denseGhost, fmtDate, useAdminSession } from './Overview';
 import { VpsAllocations, VpsBillingCheck } from './VpsOperations';
+import { onRecordContextMenu, RowMenuButton, useContextMenu, type MenuItem } from '../context-menu';
+import { useMenuKit } from '../lib/menu-actions';
 
 /**
  * Virtual private servers, for the staff: every server of the platform, with the owner,
@@ -82,6 +84,42 @@ export default function AdminVpsPage() {
   };
 
   const servers = state.data?.servers ?? [];
+  const menu = useContextMenu();
+  const menuKit = useMenuKit();
+  const { owner: menuOwner, close: closeMenu } = menu;
+  // A server that is gone from the list (deleted, or the list was read again) takes its menu with it.
+  useEffect(() => {
+    if (menuOwner !== null && !servers.some((server) => server.id === menuOwner)) closeMenu();
+  }, [menuOwner, servers, closeMenu]);
+
+  /** The actions of a server: the same handlers as the buttons of its card. Force stop stays a button: it is not a one-click action. */
+  const serverActions = (server: AdminVps): MenuItem[] => {
+    const id = encodeURIComponent(server.id);
+    const items: MenuItem[] = [];
+    if (can(session.staff, 'customers.read')) items.push(menuKit.go('customer', 'Open customer', 'user', `/admin/customers/${encodeURIComponent(server.owner.id)}`));
+    items.push(menuKit.copy('copy-id', 'server ID', server.id, { separated: items.length > 0 }), menuKit.copy('copy-name', 'server name', server.name));
+    if (server.publicIp) items.push(menuKit.copy('copy-ip', 'public address', `${server.publicIp}${server.sshPort ? `:${server.sshPort}` : ''}`));
+    if (server.vmid !== null) items.push(menuKit.copy('copy-vm', 'VM number', String(server.vmid)));
+    if (!mayWrite) return items;
+    if (server.status === 'active') {
+      items.push(
+        { key: 'start', label: 'Start', icon: 'rocket', separated: true, disabled: busy !== null || server.power === 'running', reason: busy !== null ? 'Another action is running.' : 'The server is already running.', onSelect: () => run(server.id, () => post(`/admin/vps/${server.id}/power`, { action: 'start' }), 'Starting.') },
+        { key: 'reboot', label: 'Restart', icon: 'restart', disabled: busy !== null || server.power !== 'running', reason: busy !== null ? 'Another action is running.' : 'The server is not running.', onSelect: () => run(server.id, () => post(`/admin/vps/${server.id}/power`, { action: 'reboot' }), 'Restarting.') },
+      );
+      if (can(session.staff, 'pricing.write')) {
+        items.push(
+          menuKit.go('plan', 'Change plan…', 'card', `/admin/vps/${id}/plan/change`, { separated: true }),
+          menuKit.go('resources', 'Adjust resources…', 'bolt', `/admin/vps/${id}/resources/edit`),
+        );
+      }
+    }
+    if (server.status === 'failed' || server.status === 'pending') {
+      items.push({ key: 'retry', label: 'Build again', icon: 'refresh', separated: true, disabled: busy !== null, reason: 'Another action is running.', onSelect: () => run(server.id, () => post(`/admin/vps/${server.id}/retry`), 'Build queued again.') });
+    }
+    if (server.status === 'active') items.push({ key: 'reinstall', label: 'Reinstall…', icon: 'refresh', danger: true, separated: true, disabled: busy !== null, reason: 'Another action is running.', onSelect: () => setConfirm({ kind: 'reinstall', server }) });
+    if (server.status !== 'cancelled') items.push({ key: 'destroy', label: 'Delete the machine…', icon: 'trash', danger: true, separated: server.status !== 'active', disabled: busy !== null, reason: 'Another action is running.', onSelect: () => setConfirm({ kind: 'destroy', server }) });
+    return items;
+  };
   return (
     <div className="grid gap-4">
       <Panel title="Servers" description="Every virtual private server of the platform.">
@@ -94,7 +132,12 @@ export default function AdminVpsPage() {
         ) : (
           <ul className="grid gap-3">
             {servers.map((server) => (
-              <li key={server.id} className="grid gap-2 rounded-2xl bg-s2 p-4">
+              <li
+                key={server.id}
+                aria-haspopup="menu"
+                onContextMenu={(event) => onRecordContextMenu(event, menu, serverActions(server), server.id)}
+                className={`grid gap-2 rounded-2xl p-4 ${menu.isOpen && menu.owner === server.id ? 'bg-s3' : 'bg-s2'}`}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-[15.5px] font-bold text-ink">{server.name}</p>
@@ -106,7 +149,10 @@ export default function AdminVpsPage() {
                       <Link to={`/admin/customers/${server.owner.id}`} className="text-acc hover:underline">{server.owner.email}</Link> · {fmtDate(server.createdAt)}
                     </p>
                   </div>
-                  <StatusPill status={server.status} label={`${server.status}${server.power !== 'unknown' ? ` · ${server.power}` : ''}`} />
+                  <span className="inline-flex items-center gap-1">
+                    <StatusPill status={server.status} label={`${server.status}${server.power !== 'unknown' ? ` · ${server.power}` : ''}`} />
+                    <RowMenuButton items={serverActions(server)} owner={server.id} menu={menu} label={`server ${server.name}`} />
+                  </span>
                 </div>
                 {server.lastError && <p role="alert" className="rounded-xl bg-bad/10 px-3 py-2 text-[13px] text-bad">{server.lastError}</p>}
                 {server.status === 'active' && server.power === 'running' && <UsageLine id={server.id} />}
@@ -135,6 +181,7 @@ export default function AdminVpsPage() {
           </ul>
         )}
       </Panel>
+      {menu.element}
 
       {can(session.staff, 'infrastructure.read') && <VpsAllocations mayWrite={can(session.staff, 'infrastructure.write')} />}
       <VpsBillingCheck />

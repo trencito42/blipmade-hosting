@@ -15,6 +15,8 @@ import {
   StatusPill,
   useToast,
 } from '../ui-app';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { DASH, LiveRegion, can, denseDanger, denseGhost, denseInput, densePrimary, denseSelect, useAdminSession } from './Overview';
 import type { TableColumn } from '../lib/table';
 
@@ -84,6 +86,25 @@ export default function Products() {
   const state = useAsync((signal) => get<{ products: AdminProduct[] }>('/admin/products', undefined, signal), []);
   const products = state.data?.products ?? [];
   const mayWrite = can(staff, 'products.write');
+
+  const menuKit = useMenuKit();
+  /** The actions of a product. Showing, hiding and deleting open the same confirmations as the buttons of the row. */
+  const productActions = (product: AdminProduct): MenuItem[] => {
+    const id = encodeURIComponent(product.id);
+    const items: MenuItem[] = [menuKit.go('edit', mayWrite ? 'Edit product' : 'View product', 'pen', `/admin/products/${id}/edit`)];
+    // The price editor takes the id of a price, not of the product: the active one is the one in force.
+    const price = product.prices.find((entry) => entry.active) ?? product.prices[0];
+    if (price && can(staff, 'pricing.read')) items.push(menuKit.go('pricing', can(staff, 'pricing.write') ? 'Manage pricing' : 'View pricing', 'card', `/admin/pricing/products/${encodeURIComponent(price.id)}/edit`));
+    items.push(menuKit.copy('copy-slug', 'product slug', product.slug, { separated: true }), menuKit.copy('copy-id', 'product ID', product.id));
+    if (mayWrite) {
+      items.push(
+        { key: 'visible', label: product.visible ? 'Hide from the catalogue…' : 'Show in the catalogue…', icon: product.visible ? 'eyeOff' : 'eye', separated: true, onSelect: () => setToggle({ product, field: 'visible', next: !product.visible }) },
+        { key: 'deployable', label: product.deployable ? 'Stop deployments…' : 'Allow deployments…', icon: 'rocket', onSelect: () => setToggle({ product, field: 'deployable', next: !product.deployable }) },
+        { key: 'delete', label: 'Delete…', icon: 'trash', danger: true, separated: true, onSelect: () => setRemoving(product) },
+      );
+    }
+    return items;
+  };
 
   const patchProduct = useAction(async (id: string, body: { visible?: boolean; deployable?: boolean; eggId?: number | null; confirmRisky?: boolean }) => {
     return api<{ product: AdminProduct }>(`/admin/products/${id}`, { method: 'PATCH', body });
@@ -165,6 +186,8 @@ export default function Products() {
               <DataTable<AdminProduct>
                 rows={products}
                 rowKey={(product) => product.id}
+                rowActions={productActions}
+                rowLabel={(product) => `product ${product.name}`}
                 columns={[
                   {
                     key: 'product',
@@ -290,7 +313,7 @@ export default function Products() {
                   },
                 ]}
               />
-              <CardList<AdminProduct> rows={products} rowKey={(product) => product.id}>
+              <CardList<AdminProduct> rows={products} rowKey={(product) => product.id} rowActions={productActions} rowLabel={(product) => `product ${product.name}`}>
                 {(product) => (
                   <div>
                     <div className="flex items-start justify-between gap-3">

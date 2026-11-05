@@ -5,7 +5,9 @@ import { Link, useRouter } from '../router';
 import { Icon } from '../icons';
 import { CardList, DataTable, EmptyState, ErrorState, Field, LoadingBlock, Money, Panel, StatusPill } from '../ui-app';
 import type { TableColumn } from '../lib/table';
-import { DASH, LiveRegion, denseGhost, denseInput, fmtDate, maskEmail } from './Overview';
+import { DASH, LiveRegion, can, denseGhost, denseInput, fmtDate, maskEmail, useAdminSession } from './Overview';
+import { useMenuKit } from '../lib/menu-actions';
+import type { MenuItem } from '../context-menu';
 import { ListPreferences, useColumnPicker, type SavedQuery } from './ListPreferences';
 
 /**
@@ -32,9 +34,11 @@ interface AdminCustomer {
 }
 
 export default function Customers() {
-  const { navigate } = useRouter();
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
+  const { navigate, query: urlQuery } = useRouter();
+  const staff = useAdminSession().staff;
+  const menuKit = useMenuKit();
+  const [search, setSearch] = useState(urlQuery.search ?? '');
+  const [query, setQuery] = useState((urlQuery.search ?? '').trim());
   const [pageCursors, setPageCursors] = useState<string[]>([]);
   const cursor = pageCursors[pageCursors.length - 1];
   const [showEmails, setShowEmails] = useState(false);
@@ -74,6 +78,27 @@ export default function Customers() {
   const total = state.data?.total;
   const pagination = state.data?.pagination;
   const email = (value: string) => (showEmails ? value : maskEmail(value));
+
+  const mayWrite = can(staff, 'customers.write');
+  /** The right-click menu of a customer. The e-mail is copied only once it has been revealed on this page, like the cell shows it. */
+  const customerActions = (customer: AdminCustomer): MenuItem[] => {
+    const id = encodeURIComponent(customer.id);
+    const items: MenuItem[] = [
+      menuKit.go('open', 'View customer', 'user', `/admin/customers/${id}`),
+      menuKit.go('orders', 'Open orders', 'card', `/admin/orders?search=${encodeURIComponent(customer.email)}`, { separated: true, disabled: !can(staff, 'orders.read'), reason: 'Your role cannot read orders.' }),
+      menuKit.go('security', 'View security', 'shield', `/admin/customers/${id}/security`),
+      menuKit.copy('copy-id', 'customer ID', customer.id, { separated: true }),
+    ];
+    if (showEmails && customer.email) items.push(menuKit.copy('copy-email', 'e-mail', customer.email));
+    if (mayWrite) {
+      items.push(
+        menuKit.go('edit', 'Edit profile', 'pen', `/admin/customers/${id}/profile/edit`, { separated: true }),
+        menuKit.go('note', 'Add internal note', 'doc', `/admin/customers/${id}/notes/new`),
+        menuKit.go('action', customer.suspended ? 'Account action (unsuspend)…' : 'Account action (suspend)…', 'lock', `/admin/customers/${id}/account-action`, { danger: !customer.suspended }),
+      );
+    }
+    return items;
+  };
 
   const toggle = (id: string) => setSelected((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]));
   const columns = ([
@@ -247,9 +272,11 @@ export default function Customers() {
               <DataTable<AdminCustomer>
                 rows={customers}
                 rowKey={(customer) => customer.id}
+                rowActions={customerActions}
+                rowLabel={(customer) => `customer ${customer.name ?? maskEmail(customer.email)}`}
                 columns={columns}
               />
-              <CardList<AdminCustomer> rows={customers} rowKey={(customer) => customer.id}>
+              <CardList<AdminCustomer> rows={customers} rowKey={(customer) => customer.id} rowActions={customerActions} rowLabel={(customer) => `customer ${customer.name ?? maskEmail(customer.email)}`}>
                 {(customer) => (
                   <Link to={`/admin/customers/${customer.id}`} className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                     <div className="flex items-start justify-between gap-3">

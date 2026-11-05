@@ -48,7 +48,8 @@ test('the tickets page aligns the docs search and keeps Close for an open ticket
   expect(Math.abs((await centre(search)) - (await centre(go)))).toBeLessThan(2);
   const rows = page.locator('table tbody tr');
   await expect(rows.nth(0).getByRole('button', { name: 'Close ticket 101' })).toHaveAttribute('data-tip', /Close this ticket/);
-  await expect(rows.nth(2).getByRole('button')).toHaveCount(0);
+  // A closed ticket has no Close button. The three dots of its menu are a button of their own, and the menu has no Close either.
+  await expect(rows.nth(2).getByRole('button', { name: /^Close/ })).toHaveCount(0);
   await rows.nth(0).locator('td').nth(1).click();
   await page.waitForURL(/\/app\/tickets\/t\d+$/);
 });
