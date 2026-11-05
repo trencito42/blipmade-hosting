@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteOwnedRecords, previewCustomerRecords, publishCustomerRecords, zoneForToken } from '../src/services/customer-cloudflare.js';
+import { deleteOwnedRecords, previewCustomerRecords, publishCustomerRecords, zoneForToken, type CustomerRecord } from '../src/services/customer-cloudflare.js';
 
 /** A small Cloudflare: one zone with records, and a log of every call, so the tests can say what was and was not written. */
 interface Row { id: string; type: string; name: string; content?: string; proxied?: boolean; data?: Record<string, unknown> }
@@ -53,7 +53,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const a = { type: 'A', name: 'app.example.com', content: '203.0.113.10' };
+const a: CustomerRecord = { type: 'A', name: 'app.example.com', content: '203.0.113.10' };
 
 describe('the token of a customer', () => {
   it('is kept only when it is active and sees exactly one active zone it can read', async () => {
@@ -105,20 +105,20 @@ describe('writing records', () => {
     expect(rows[0]!.content).toBe('203.0.113.10');
     rows.length = 0;
     rows.push({ id: 'c', type: 'CNAME', name: 'www.example.com', content: 'elsewhere.example.net' });
-    const clash = await publishCustomerRecords('t', 'z1', 'example.com', [{ type: 'A', name: 'www.example.com', content: '203.0.113.10' }]);
+    const clash = await publishCustomerRecords('t', 'z1', 'example.com', [{ type: 'A', name: 'www.example.com', content: '203.0.113.10' } satisfies CustomerRecord]);
     expect(clash.skipped.join(' ')).toMatch(/different value/);
     expect(rows).toHaveLength(1);
   });
 
   it('adds a proof of ownership beside the TXT records that are already there and keeps them', async () => {
     rows.push({ id: 'spf', type: 'TXT', name: 'example.com', content: 'v=spf1 include:_spf.example.net ~all' });
-    const result = await publishCustomerRecords('t', 'z1', 'example.com', [{ type: 'TXT', name: 'example.com', content: 'blipmade-verify=abc' }]);
+    const result = await publishCustomerRecords('t', 'z1', 'example.com', [{ type: 'TXT', name: 'example.com', content: 'blipmade-verify=abc' } satisfies CustomerRecord]);
     expect(result.written).toEqual(['TXT example.com']);
     expect(rows.map((row) => row.content)).toEqual(['v=spf1 include:_spf.example.net ~all', 'blipmade-verify=abc']);
   });
 
   it('writes the game address as a SRV record and skips a name outside the connected zone', async () => {
-    const srv = { type: 'SRV', name: '_minecraft._tcp.example.com', content: '0 5 25565 play.example.com', data: { priority: 0, weight: 5, port: 25565, target: 'play.example.com' } };
+    const srv: CustomerRecord = { type: 'SRV', name: '_minecraft._tcp.example.com', content: '0 5 25565 play.example.com', data: { priority: 0, weight: 5, port: 25565, target: 'play.example.com' } };
     const result = await publishCustomerRecords('t', 'z1', 'example.com', [srv, { type: 'A', name: 'x.other.com', content: '203.0.113.10' }]);
     expect(result.written).toEqual(['SRV _minecraft._tcp.example.com']);
     expect(result.skipped.join(' ')).toMatch(/outside the connected zone/);

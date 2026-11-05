@@ -8,6 +8,17 @@ describe('catalogue preset install', () => {
     expect(presetOutcome('offline', 5)).toBe('gave_up');
   });
 
+  it('plans a blank Node bot, a blank Python bot, and leaves Git and ZIP to the existing importer', () => {
+    const node = catalogInstallPlan('nodejs', 'blank');
+    expect(node?.startup).toBe('npm install && node index.js');
+    expect(node?.files.map((file) => file.path)).toEqual(['/package.json', '/index.js']);
+    const python = catalogInstallPlan('python', 'blank');
+    expect(python?.startup).toBe('pip install -r requirements.txt && python main.py');
+    expect(python?.files.map((file) => file.path)).toEqual(['/requirements.txt', '/main.py']);
+    expect(catalogInstallPlan('discord-bot', 'git')).toEqual({ productSlug: 'discord-bot', presetSlug: 'git', files: [], startup: null, environment: {} });
+    expect(catalogInstallPlan('discord-bot', 'zip')?.files).toEqual([]);
+  });
+
   it('writes the Discord ticket bot and installs its dependency on startup', () => {
     const plan = catalogInstallPlan('discord-bot', 'tickets');
     expect(plan?.startup).toBe('npm install && node index.js');

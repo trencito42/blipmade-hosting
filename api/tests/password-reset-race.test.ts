@@ -25,7 +25,8 @@ describe('single-use password reset tokens', () => {
 
     expect([first.status, second.status].sort()).toEqual([204, 400]);
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    expect(Number(await verifyPassword(firstPassword, user.passwordHash)) + Number(await verifyPassword(secondPassword, user.passwordHash))).toBe(1);
+    expect(user.passwordHash).toEqual(expect.any(String));
+    expect(Number(await verifyPassword(firstPassword, user.passwordHash!)) + Number(await verifyPassword(secondPassword, user.passwordHash!))).toBe(1);
     expect((await prisma.verificationToken.findUniqueOrThrow({ where: { tokenHash: hashToken(token) } })).usedAt).not.toBeNull();
     expect(await prisma.session.count({ where: { userId } })).toBe(0);
     expect((await signedIn.request('GET', '/api/auth/session')).body.user).toBeNull();
@@ -40,6 +41,7 @@ describe('single-use password reset tokens', () => {
     expect(first.status).toBe(204);
     expect(second.status).toBe(400);
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    expect(await verifyPassword('FirstValidPassword123', user.passwordHash)).toBe(true);
+    expect(user.passwordHash).toEqual(expect.any(String));
+    expect(await verifyPassword('FirstValidPassword123', user.passwordHash!)).toBe(true);
   });
 });

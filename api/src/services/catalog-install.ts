@@ -71,6 +71,34 @@ export function catalogInstallPlan(productSlug: string, presetSlug: string): Cat
       environment: {},
     };
   }
+  const runtime = productSlug === 'discord-bot' || productSlug === 'nodejs' || productSlug === 'python';
+  if (runtime && presetSlug === 'blank' && productSlug === 'python') {
+    return {
+      productSlug,
+      presetSlug,
+      files: [
+        { path: '/requirements.txt', content: '' },
+        { path: '/main.py', content: 'print("blipmade bot is running")\n' },
+      ],
+      startup: 'pip install -r requirements.txt && python main.py',
+      environment: {},
+    };
+  }
+  if (runtime && presetSlug === 'blank') {
+    return {
+      productSlug,
+      presetSlug,
+      files: [
+        { path: '/package.json', content: JSON.stringify({ name: 'blipmade-bot', private: true, main: 'index.js' }, null, 2) },
+        { path: '/index.js', content: 'console.log("blipmade bot is running");\n' },
+      ],
+      startup: 'npm install && node index.js',
+      environment: {},
+    };
+  }
+  if (runtime && (presetSlug === 'git' || presetSlug === 'zip')) {
+    return { productSlug, presetSlug, files: [], startup: null, environment: {} };
+  }
   if (productSlug === 'minecraft-paper' && presetSlug === 'paper-survival') {
     return {
       productSlug,

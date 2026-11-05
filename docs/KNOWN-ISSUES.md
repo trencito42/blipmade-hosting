@@ -14,7 +14,9 @@ Date 2026-11-05. Severity: **S1** security/money/data, **S2** wrong behaviour or
 
 ## Tests
 
-Full API suite on the bench (213 test files) did **not** finish inside its 1500 s timeout on 2026-11-05, so there is no total. These failures appeared (names from the log `~/api-full-24.log` on VM103):
+Full API suite on the bench (213 test files) did **not** finish inside its 1500 s timeout on 2026-11-05 morning, so that log has no total. A later split of the same tree (`~/api-baseline-6b91-fixed-half1.log` and `half2.log`, read 2026-11-05 17:50 UTC+2, not started by this pass) finished: half 1 **105 files / 842 tests passed**; half 2 **103 passed, 2 skipped / 982 passed, 7 skipped**. Skipped files in half 2: `stripe-sandbox-live` (6), `support-load` (1). No FAIL line in either log.
+
+These failures appeared in the earlier timed-out log `~/api-full-24.log`. The evening split **passed** the same files, so they are not current failures of that bench copy. The cause of the morning failures was not re-run against an older tree.
 
 | File | Failing | Verdict |
 |---|---|---|
@@ -23,9 +25,10 @@ Full API suite on the bench (213 test files) did **not** finish inside its 1500 
 | `support-email` | 2 (file stored on message, file of a reply) | Pre-existing (attachment storage). |
 | `support-p0` | 1 ("stores a real png and lets the owner download it") | Pre-existing: also failed in `api-full-rest.log` earlier. |
 | `panel-pagination` | 6 | The bench cannot reach a Pterodactyl panel ("could not be reached"). Environment, not a code regression; I did not confirm it against an older tree. |
-| `yearly-term` | 1 ("refuses a monthly quote of a product that has no price") | **Not compared to a baseline.** My diff does not touch pricing, so probably pre-existing or order dependent. Check first. |
+| `yearly-term` | 1 in the morning log ("refuses a monthly quote of a product that has no price") | Passed 11/11 in `api-baseline-6b91-fixed-half2.log`. The morning failure was not reproduced. Still not compared with an older tree. |
 
-- `npx tsc -p tsconfig.test.json --noEmit` on the bench reports errors in `api/src/lib/validation-messages.ts` (zod issue types such as `origin`, `invalid_format`). The bench's installed zod differs from the repo lockfile. Run `npm ci` on the bench and re-run; CI result unread. UNVERIFIED whether CI is green.
+- CI on `6b91cecc` (run 42044944943): Web typecheck and build, schema drift, secret scan, workflow lint and dependency audit **passed**. API typecheck **failed**. Unit and integration tests **failed**. GitHub does not show the log without a token. Local `npx tsc -p api/tsconfig.test.json --noEmit` on `6b91cecc` reproduced 19 errors in `customer-cloudflare.test.ts` (`type: string` vs `CustomerRecord`), `oauth-connected.test.ts` (cookie stub vs `FastifyRequest`) and `password-reset-race.test.ts` (`passwordHash` possibly null). Those three files are fixed in the next commit; CI has not run it. The unit-job failure itself is UNVERIFIED beyond "the job failed".
+- The bench `tsc` error in `validation-messages.ts` (zod `origin` / `invalid_format`) was the lockfile mismatch named earlier. The evening split ran. This pass did not re-run `npm ci` on the bench.
 - Web: 29 related Playwright specs passed this session; the whole web e2e suite was not re-run (it takes more than 10 minutes with 1 worker; use `--workers=4` per `docs/ai/TEST-STATUS.md`).
 - Passing and relevant: `game-connect` (14), `catalog-order-install` (2), `catalog-draft-presets` (3), `domains`, `domains-cloudflare-routes`, `instance-access-role`, `customer-cloudflare` (44 related in total).
 
@@ -36,7 +39,7 @@ Full API suite on the bench (213 test files) did **not** finish inside its 1500 
 | K-10 | S2 | Smart Connect never tested with a real Minecraft, Factorio or FiveM client. FiveM is OFF because `_cfx._udp` is not confirmed. | `GAME_PROFILES` in `game-connect.ts` | Staging test per client; only then set `CLIENT_VERIFIED` (there is no staff switch for it yet). |
 | K-11 | S2 | No end-to-end proof that two servers on one IP resolve to two ports. | n/a | Staging with real Cloudflare and two Wings servers. |
 | K-12 | S3 | No AAAA record support in Smart Connect; the public address must be IPv4. | `isPublicIpv4` | Add only when the node has IPv6. |
-| K-13 | S2 | Preset install is not proven on a live Pterodactyl server (plugin download, file write, manifest `verifying` then `installed`). | `catalog-install.ts`, `catalog-install-apply.ts` | Disposable node run (roadmap P1). |
+| K-13 | S2 | Preset install is not proven on a live Pterodactyl server (plugin download, file write, manifest `verifying` then `installed`). The three drafts `paper-starter`, `paper-protected`, `paper-skyblock` were written on 2026-11-05 as version 1 with `publishedAt` null. They are not published and were not installed on a server. | `catalog-install.ts`, `catalog-install-apply.ts` | Disposable node run (roadmap P1). A live Node/Python bot run is also still missing. |
 | K-14 | S2 | Order-time install covers only `minecraft-paper` plugins and `minecraft-forge` modpacks; other families ignore `install.plugins`. | `catalog-install-apply.ts` lines about `instance.product.slug` | Generalise through the family/variant capability, not slugs, when more families get plugins. |
 | K-15 | S3 | `publishReadyFamilies` is not run by deploy; new families stay hidden until it runs. | `catalog-drafts.ts` | Decide with the owner (it flips visibility). |
 | K-16 | S2 | Daily81 import never built on a disposable node; MariaDB egg has no password variable (platform stores one password per database); Go/Rust imports have no start command. | `docs/IMPLEMENTATION-18-23-STATUS.md`, `import-*.ts` | Disposable node run. |

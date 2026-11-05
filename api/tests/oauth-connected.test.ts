@@ -44,13 +44,13 @@ describe('discord role merge (mocked member roles)', () => {
 
 describe('oauth 2fa cookie resolution', () => {
   it('prefers body token when present', () => {
-    const request = { cookies: { bm_oauth_2fa: 'cookie-token-1234567890' } } as Parameters<typeof readOAuth2faCookie>[0];
+    const request = { cookies: { bm_oauth_2fa: 'cookie-token-1234567890' } } as unknown as Parameters<typeof readOAuth2faCookie>[0];
     expect(resolveSecondStepToken(request, 'body-token-1234567890')).toBe('body-token-1234567890');
     expect(readOAuth2faCookie(request)).toBe('cookie-token-1234567890');
   });
 
   it('falls back to cookie when body omitted', () => {
-    const request = { cookies: { bm_oauth_2fa: 'cookie-token-1234567890' } } as Parameters<typeof readOAuth2faCookie>[0];
+    const request = { cookies: { bm_oauth_2fa: 'cookie-token-1234567890' } } as unknown as Parameters<typeof readOAuth2faCookie>[0];
     expect(resolveSecondStepToken(request, undefined)).toBe('cookie-token-1234567890');
   });
 });
