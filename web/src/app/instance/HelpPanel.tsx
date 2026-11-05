@@ -5,7 +5,27 @@ import { Panel, PrimaryButton, SoftButton, useToast } from '../../ui-app';
 import { useRouter } from '../../router';
 import type { TabProps } from './common';
 
-interface Finding { id: string; title: string; why: string; fix: string }
+interface Finding { id: string; title: string; why: string; fix: string; confidence: 'high' | 'medium'; tab?: string }
+interface Source { id: string; label: string; state: 'available' | 'missing' | 'inaccessible' | 'unsupported' | 'failed'; note: string }
+interface Diagnosis { verdict: 'clear' | 'insufficient' | 'issue' | 'unreachable'; summary: string; findings: Finding[]; sources: Source[] }
+
+const STATE_LABEL: Record<Source['state'], string> = {
+  available: 'Read',
+  missing: 'Not there',
+  inaccessible: 'Not allowed',
+  unsupported: 'Not stored',
+  failed: 'Could not be read',
+};
+
+const TAB_LABEL: Record<string, string> = {
+  console: 'Console',
+  files: 'Files',
+  startup: 'Startup',
+  git: 'Deploy',
+  databases: 'Databases',
+  resources: 'Resources',
+  activity: 'Activity',
+};
 
 /** What to do next for a product that was just deployed, in the words of that product. */
 const NEXT_STEPS: Record<string, string[]> = {
@@ -24,10 +44,9 @@ const NEXT_STEPS: Record<string, string[]> = {
 export default function HelpPanel({ instance, productSlug }: TabProps & { productSlug: string }) {
   const { push } = useToast();
   const { navigate } = useRouter();
-  const [findings, setFindings] = useState<{ list: Finding[]; looked: string[] } | null>(null);
+  const [report, setReport] = useState<Diagnosis | null>(null);
   const check = useAction(async () => {
-    const answer = await get<{ findings: Finding[]; looked: string[] }>(`/instances/${encodeURIComponent(instance.id)}/diagnose`);
-    setFindings({ list: answer.findings, looked: answer.looked });
+    setReport(await get<Diagnosis>(`/instances/${encodeURIComponent(instance.id)}/diagnose`));
   });
   const ask = useAction(async () => {
     const bundle = await get<{ subject: string; body: string; instanceId: string }>(`/instances/${encodeURIComponent(instance.id)}/support-bundle`);
@@ -59,25 +78,38 @@ export default function HelpPanel({ instance, productSlug }: TabProps & { produc
       )}
       <Panel
         title="Something not working?"
-        description="We read the logs of this server for the usual causes, and we can open a ticket with the facts support asks for."
+        description="We read the logs this server actually keeps, say which ones we could open, and we can attach that to a ticket. The live console is not a saved log."
         action={<SoftButton onClick={() => void check.run()} disabled={check.pending}>{check.pending ? 'Reading…' : 'Check my logs'}</SoftButton>}
         actionBelow
       >
         {check.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{check.error}</p>}
-        {findings && (
-          findings.list.length === 0 ? (
-            <p className="text-[13.5px] text-ink2">No known cause in {findings.looked.length ? findings.looked.join(' and ') : 'the logs we can read'}. Open a ticket and we will look.</p>
-          ) : (
-            <ul className="grid gap-2">
-              {findings.list.map((finding) => (
-                <li key={finding.id} className="grid gap-1 rounded-2xl bg-s2 p-4">
-                  <p className="text-[14px] font-semibold text-ink">{finding.title}</p>
-                  <p className="text-[13px] text-ink2">{finding.why}</p>
-                  <p className="text-[13px] text-ink"><strong>What to do:</strong> {finding.fix}</p>
+        {report && (
+          <div className="grid gap-3" data-testid="diagnosis">
+            <p className="text-[13.5px] text-ink2" data-testid="diagnosis-summary">{report.summary}</p>
+            <ul className="grid gap-1">
+              {report.sources.map((source) => (
+                <li key={source.id} className="text-[13px] text-ink2" data-testid={`source-${source.id}`}>
+                  <span className="font-semibold text-ink">{source.label}:</span> {STATE_LABEL[source.state]}. {source.note}
                 </li>
               ))}
             </ul>
-          )
+            {report.findings.length > 0 && (
+              <ul className="grid gap-2">
+                {report.findings.map((finding) => (
+                  <li key={finding.id} className="grid gap-1 rounded-2xl bg-s2 p-4">
+                    <p className="text-[14px] font-semibold text-ink">{finding.title}</p>
+                    <p className="text-[13px] text-ink2">{finding.why} {finding.confidence === 'medium' ? 'This is a clue, not a confirmed cause.' : ''}</p>
+                    <p className="text-[13px] text-ink"><strong>What to do:</strong> {finding.fix}</p>
+                    {finding.tab && TAB_LABEL[finding.tab] && (
+                      <button type="button" className="w-fit text-[13px] font-semibold text-accent" onClick={() => navigate(`/app/instances/${instance.id}/${finding.tab}`)}>
+                        Open {TAB_LABEL[finding.tab]}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
         <div className="mt-3">
           <PrimaryButton onClick={() => void ask.run()} disabled={ask.pending}>{ask.pending ? 'Opening…' : 'Ask support, with details'}</PrimaryButton>

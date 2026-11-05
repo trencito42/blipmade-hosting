@@ -1,14 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { diagnose, redact } from '../src/services/diagnosis.js';
+import { buildReport, diagnose, redact, type CollectedSource, type DiagnosisFacts } from '../src/services/diagnosis.js';
+
+const emptyFacts: DiagnosisFacts = { provisionError: null, applicationError: null, installStatus: null, deployState: null, deployMessage: null, importPhase: null, importError: null };
+
+function source(partial: Partial<CollectedSource> & Pick<CollectedSource, 'id' | 'state'>): CollectedSource {
+  return { label: partial.id, note: '', ...partial };
+}
 
 describe('diagnosis', () => {
   it('names the usual causes in plain words', () => {
     expect(diagnose('[ServerMain] You need to agree to the EULA in order to run the server.', 'minecraft-paper').map((f) => f.id)).toContain('eula');
     expect(diagnose('You need to agree to the EULA', 'nodejs')).toEqual([]);
     expect(diagnose('java.lang.OutOfMemoryError: Java heap space').map((f) => f.id)).toContain('oom');
+    expect(diagnose('Player Killed the dragon').map((f) => f.id)).not.toContain('oom');
     expect(diagnose('Error: listen EADDRINUSE: address already in use :::3000').map((f) => f.id)).toContain('port-in-use');
     expect(diagnose("Error: Cannot find module 'express'").map((f) => f.id)).toContain('node-module');
+    expect(diagnose('---- Minecraft Crash Report ----', 'minecraft-paper').map((f) => f.id)).toContain('mc-crash');
+    expect(diagnose('---- Minecraft Crash Report ----', 'nodejs')).toEqual([]);
+    expect(diagnose("ModuleNotFoundError: No module named 'discord'", 'python').map((f) => f.id)).toContain('py-module');
+    expect(diagnose('Used disallowed intents', 'discord-bot').map((f) => f.id)).toContain('discord-intent');
     expect(diagnose('all is well')).toEqual([]);
+  });
+
+  it('says clear only after a log was read, and insufficient when a read failed', () => {
+    const clean = source({ id: 'latest-log', state: 'available', text: 'Done (1.2s)! For help, type "help"' });
+    expect(buildReport('minecraft-paper', [clean, source({ id: 'crash-report', state: 'missing' })], emptyFacts).verdict).toBe('clear');
+    expect(buildReport('minecraft-paper', [source({ id: 'latest-log', state: 'missing' }), source({ id: 'container', state: 'available' })], emptyFacts).verdict).toBe('insufficient');
+    expect(buildReport('minecraft-paper', [clean, source({ id: 'crash-report', state: 'failed' })], emptyFacts).verdict).toBe('insufficient');
+    expect(buildReport('minecraft-paper', [source({ id: 'latest-log', state: 'failed' }), source({ id: 'container', state: 'failed' })], emptyFacts).verdict).toBe('unreachable');
+    const crashed = buildReport('discord-bot', [source({ id: 'deploy-log', state: 'available', text: 'uncaughtException: boom' })], emptyFacts);
+    expect(crashed.verdict).toBe('issue');
+    expect(crashed.findings.map((finding) => finding.id)).toContain('node-crash');
   });
   it('removes secrets before a ticket leaves', () => {
     const text = 'DATABASE_URL=postgres://user:hunter2@db:5432/x\nDISCORD_TOKEN=MTIzNDU2Nzg5MDEyMzQ1Njc4.abcdef.ghijklmnopqrstuvwxyz123456\nAuthorization: Bearer abc.def.ghi-jkl-123456\npassword: "s3cr3t value"\nlistening on :3000';
