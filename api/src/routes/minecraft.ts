@@ -10,7 +10,7 @@ import * as operations from '../services/panel/operations.js';
 import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
 import {
-  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, crossplayStatus, lagAdvice, parseTps, setGeyserBedrockPort, worldFolders, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
+  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, WORLD_ARCHIVE, WORLD_ARCHIVE_MAX_BYTES, crossplayStatus, lagAdvice, parseTps, setGeyserBedrockPort, worldFolders, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
   pluginFileFor, pluginEntries, pluginToggleName, PLUGIN_FILE, searchPlugins, searchModpacks, modpackFilesFor, type PlayerAction,
 } from '../services/minecraft.js';
 
@@ -273,6 +273,65 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
     }
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_crossplay_port', targetType: 'instance', targetId: instance.id, meta: { port } });
     return { port, changed: next !== config, note: 'Restart the server to apply it. Bedrock players join with this address and the same port.' };
+  });
+
+  /**
+   * Puts a world from a ZIP in place of the current one. The ZIP is uploaded to the root of the server first (Files). The
+   * server must be stopped, the words typed, and a backup made before anything is removed. The archive is unpacked in a
+   * folder of its own and only a folder with a `level.dat` is accepted, so a ZIP that is not a world changes nothing.
+   */
+  app.post('/instances/:id/minecraft/worlds/import', write, async (request: FastifyRequest) => {
+    const { user, instance, token, uuid } = await load(request);
+    const { archive } = z.object({ archive: z.string().regex(WORLD_ARCHIVE, 'Name a ZIP in the root of the server.'), confirm: z.literal('replace the world') }).strict().parse(request.body ?? {});
+    const resources = await client.getResources(token, uuid);
+    if (resources.state !== 'offline') throw conflict('Stop the server first. A world is not replaced while the server runs.');
+    const root = await client.listFiles(token, uuid, '/');
+    const file = root.find((entry) => entry.name === archive && entry.is_file);
+    if (!file) throw badRequest('That ZIP is not in the root of the server. Upload it from Files first.');
+    if (file.size > WORLD_ARCHIVE_MAX_BYTES) throw badRequest('That ZIP is larger than 2 GB.');
+    try {
+      await client.createBackup(token, uuid, { name: `Before world import ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`, locked: true });
+    } catch {
+      throw conflict('A backup could not be made first, so nothing was changed. Delete an old unlocked backup and try again.');
+    }
+    const temp = '/_world-import';
+    const cleanup = async () => { try { await client.deleteFile(token, uuid, temp); } catch { /* It is not there. */ } };
+    await cleanup();
+    let source: string | null = null;
+    try {
+      await client.createFolder(token, uuid, temp);
+      await client.moveFile(token, uuid, `/${archive}`, `${temp}/${archive}`);
+      await client.decompressArchive(token, uuid, `${temp}/${archive}`);
+      const inside = await client.listFiles(token, uuid, temp);
+      if (inside.some((entry) => entry.name === 'level.dat' && entry.is_file)) source = temp;
+      else {
+        for (const entry of inside.filter((item) => item.is_directory).slice(0, 20)) {
+          const children = await client.listFiles(token, uuid, `${temp}/${entry.name}`);
+          if (children.some((child) => child.name === 'level.dat' && child.is_file)) { source = `${temp}/${entry.name}`; break; }
+        }
+      }
+    } catch {
+      await cleanup();
+      throw conflict('The ZIP could not be unpacked. Nothing was changed.');
+    }
+    if (!source) {
+      await cleanup();
+      throw badRequest('That ZIP has no world in it (no level.dat). Nothing was changed.');
+    }
+    const properties = parseProperties(await readText(token, uuid, '/server.properties'));
+    const folders = worldFolders(properties['level-name']);
+    try {
+      for (const name of folders) {
+        try { await client.listFiles(token, uuid, `/${name}`); } catch { continue; }
+        await client.deleteFile(token, uuid, `/${name}`);
+      }
+      await client.moveFile(token, uuid, source, `/${folders[0]}`);
+      await cleanup();
+    } catch {
+      throw conflict('The world could not be put in place. The backup made before it is in Backups: restore it to get the old world back.');
+    }
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_world_import', targetType: 'instance', targetId: instance.id, meta: { archive, world: folders[0] } });
+    return { imported: folders[0], note: 'The world from the ZIP is in place. Start the server to load it. The old world is in the backup made before.' };
   });
 
   /** A copy of the worlds that is kept until the owner removes it. */

@@ -96,6 +96,8 @@ function WorldList({ instanceId }: { instanceId: string }) {
   const toast = useToast();
   const state = useAsync<{ worlds: { name: string; entries: number }[] }>((signal) => get(`/instances/${encodeURIComponent(instanceId)}/minecraft/worlds`, undefined, signal), [instanceId]);
   const [resetting, setResetting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [archive, setArchive] = useState('');
   const base = `/instances/${encodeURIComponent(instanceId)}/minecraft/worlds`;
   const backup = useAction(async () => {
     const answer = await post<{ note: string }>(`${base}/backup`, {});
@@ -105,6 +107,13 @@ function WorldList({ instanceId }: { instanceId: string }) {
     const answer = await post<{ note: string }>(`${base}/reset`, { confirm: 'reset the world' });
     toast.push(answer.note, 'ok');
     setResetting(false);
+    state.reload();
+  });
+  const importWorld = useAction(async () => {
+    const answer = await post<{ note: string }>(`${base}/import`, { archive: archive.trim(), confirm: 'replace the world' });
+    toast.push(answer.note, 'ok');
+    setImporting(false);
+    setArchive('');
     state.reload();
   });
   return (
@@ -117,7 +126,19 @@ function WorldList({ instanceId }: { instanceId: string }) {
       <div className="mt-4 flex flex-wrap gap-2">
         <SoftButton type="button" onClick={() => void backup.run()} disabled={backup.pending}>{backup.pending ? 'Backing up…' : 'Back up the world now'}</SoftButton>
         {(state.data?.worlds.length ?? 0) > 0 && <SoftButton type="button" onClick={() => setResetting(true)}>Start a new world…</SoftButton>}
+        <SoftButton type="button" onClick={() => setImporting(true)}>Import a world from a ZIP…</SoftButton>
       </div>
+      {importing && (
+        <div className="mt-4 grid gap-2 rounded-2xl bg-s2 p-4">
+          <p className="text-[13.5px] text-ink2">Upload the ZIP to the root of the server from Files first. The server must be stopped. A locked backup is made, the old world is removed, and the world from the ZIP takes its place. A ZIP with no <span className="font-mono">level.dat</span> changes nothing.</p>
+          <TextInput label="Name of the ZIP in the root of the server" value={archive} onChange={(event) => setArchive(event.target.value)} placeholder="my-world.zip" autoComplete="off" />
+          <div className="flex gap-2">
+            <SoftButton type="button" onClick={() => { setImporting(false); setArchive(''); }}>Cancel</SoftButton>
+            <PrimaryButton type="button" disabled={importWorld.pending || !archive.trim().toLowerCase().endsWith('.zip')} onClick={() => void importWorld.run()}>{importWorld.pending ? 'Importing…' : 'Replace the world'}</PrimaryButton>
+          </div>
+          {importWorld.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{importWorld.error}</p>}
+        </div>
+      )}
       {(backup.error || reset.error) && <p role="alert" className="mt-2 text-[13.5px] font-medium text-bad">{backup.error || reset.error}</p>}
       <ConfirmDialog
         open={resetting}

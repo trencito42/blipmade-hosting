@@ -376,3 +376,7 @@ export function crossplayStatus(input: { plugins: string[]; gamePort: number | n
     ],
   };
 }
+
+/** An archive a customer uploaded to the root of the server, named plainly: a name with a path or odd characters is never used. */
+export const WORLD_ARCHIVE = /^[A-Za-z0-9][A-Za-z0-9 _.+()-]{0,98}\.zip$/;
+export const WORLD_ARCHIVE_MAX_BYTES = 2 * 1024 ** 3;
