@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { prisma } from '../db.js';
 import { nextOrderNumber } from './order-numbers.js';
 import { badRequest } from '../lib/errors.js';
@@ -91,6 +92,38 @@ export interface ResourceQuote {
   requiresPayment: boolean;
   /** Why no credit is given for a decrease, when the unused time was not collected. Null when nothing is withheld. */
   creditWithheld: string | null;
+  /** What the price depends on, in one string. The change is refused when it differs at the moment of paying. */
+  fingerprint: string;
+  /** The quote is frozen for a short time. After it the customer has to look at the price again. */
+  expiresAt: string;
+}
+
+export const QUOTE_TTL_MS = 15 * 60 * 1000;
+
+/** The facts a quote stands on. Two quotes with the same fingerprint charge and credit the same amounts. */
+export function quoteFingerprint(parts: {
+  from: ResourceRequest;
+  to: ResourceRequest;
+  currentPrice: number;
+  newPrice: number;
+  dueNow: number;
+  currency: string;
+  period: string;
+  periodEnd: Date | null;
+  subscriptionStatus: string | null;
+}): string {
+  return createHash('sha256')
+    .update(JSON.stringify([parts.from, parts.to, parts.currentPrice, parts.newPrice, parts.dueNow, parts.currency, parts.period, parts.periodEnd?.toISOString() ?? null, parts.subscriptionStatus]))
+    .digest('hex')
+    .slice(0, 32);
+}
+
+/** True when a quote the customer saw can still be used for the change they asked for. */
+export function quoteStillValid(seen: { fingerprint: string; issuedAt: string } | undefined, current: { fingerprint: string }, now = Date.now()): boolean {
+  if (!seen) return false;
+  const issued = Date.parse(seen.issuedAt);
+  if (!Number.isFinite(issued) || now - issued > QUOTE_TTL_MS || issued > now + 60_000) return false;
+  return seen.fingerprint === current.fingerprint;
 }
 
 export const RESIZE_LIMIT = 2;
@@ -338,6 +371,18 @@ export async function quoteResourceChange(
     nextChangeAt,
     requiresPayment: prorated.dueNow > 0,
     creditWithheld,
+    fingerprint: quoteFingerprint({
+      from: currentConfig,
+      to: request,
+      currentPrice,
+      newPrice,
+      dueNow: prorated.dueNow,
+      currency: price.currency,
+      period,
+      periodEnd: subscription?.currentPeriodEnd ?? null,
+      subscriptionStatus: subscription?.status ?? null,
+    }),
+    expiresAt: new Date(Date.now() + QUOTE_TTL_MS).toISOString(),
   };
 }
 

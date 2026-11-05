@@ -5,7 +5,7 @@ import { prisma } from '../db.js';
 import { redis } from '../redis.js';
 import { pageOf, pageOrder, parsePagination, withCursor } from '../lib/perf-data-pagination.js';
 import { env } from '../env.js';
-import { AppError, badRequest, notFound, unavailable } from '../lib/errors.js';
+import { AppError, badRequest, notFound, unavailable, conflict } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requireAuth } from '../plugins/auth.js';
 import { audit } from '../lib/audit.js';
@@ -14,7 +14,7 @@ import { failPanelServerMissing, isPanelServerMissing } from '../services/panel-
 import { hasCustomerCredential, resolveCustomerCredential } from '../services/panel/credentials.js';
 import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
-import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeUpgradeOrder } from '../services/upgrades.js';
+import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, quoteStillValid, settleFreeUpgradeOrder } from '../services/upgrades.js';
 import { assessRepurpose, repurposeInstance } from '../services/provisioning.js';
 import { repurposeConfirmed } from '../services/repurpose-gate.js';
 import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
@@ -395,12 +395,22 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
   }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z
-      .object({ ram: z.number().int().positive(), cpu: z.number().int().positive(), disk: z.number().int().positive() })
+    const parsed = z
+      .object({
+        ram: z.number().int().positive(),
+        cpu: z.number().int().positive(),
+        disk: z.number().int().positive(),
+        // The quote the customer looked at. When it is given it has to still be true at the moment of paying.
+        quote: z.object({ fingerprint: z.string().min(8).max(64), issuedAt: z.string().max(40) }).optional(),
+      })
       .parse(request.body);
+    const body = { ram: parsed.ram, cpu: parsed.cpu, disk: parsed.disk };
 
     const instance = await loadInstance(user.id, id);
     const quote = await quoteResourceChange(instance, body);
+    if (parsed.quote && !quoteStillValid(parsed.quote, quote)) {
+      throw conflict('The price or the state of the service changed, or the quote expired. Check the new price and confirm again.');
+    }
 
     if (!quote.requiresPayment) {
       // A change that costs less is applied right away and the recurring

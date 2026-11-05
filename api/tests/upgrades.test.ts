@@ -359,3 +359,38 @@ describe('resource changes', () => {
     expect(answer.body.credits[0]).toMatchObject({ amount: 120, currency: 'EUR', reason: 'Unused time after a resource decrease', orderNumber: null });
   });
 });
+
+describe('the quote that was shown', () => {
+  it('is frozen for a short time and stands on what the price depends on', async () => {
+    const { quoteFingerprint, quoteStillValid, QUOTE_TTL_MS } = await import('../src/services/upgrades.js');
+    const parts = { from: { ram: 1024, cpu: 1, disk: 10 }, to: { ram: 2048, cpu: 1, disk: 10 }, currentPrice: 374, newPrice: 500, dueNow: 60, currency: 'EUR', period: 'MONTHLY', periodEnd: new Date('2026-12-01T00:00:00.000Z'), subscriptionStatus: 'ACTIVE' };
+    const a = quoteFingerprint(parts);
+    expect(quoteFingerprint({ ...parts })).toBe(a);
+    for (const change of [{ newPrice: 501 }, { dueNow: 61 }, { periodEnd: new Date('2026-12-02T00:00:00.000Z') }, { subscriptionStatus: 'PAST_DUE' }, { from: { ram: 1536, cpu: 1, disk: 10 } }]) {
+      expect(quoteFingerprint({ ...parts, ...change })).not.toBe(a);
+    }
+    const now = Date.parse('2026-11-05T12:00:00.000Z');
+    const seen = (ago: number) => ({ fingerprint: a, issuedAt: new Date(now - ago).toISOString() });
+    expect(quoteStillValid(seen(60_000), { fingerprint: a }, now)).toBe(true);
+    expect(quoteStillValid(seen(QUOTE_TTL_MS + 1000), { fingerprint: a }, now)).toBe(false);
+    expect(quoteStillValid(seen(60_000), { fingerprint: 'other' }, now)).toBe(false);
+    expect(quoteStillValid(undefined, { fingerprint: a }, now)).toBe(false);
+    expect(quoteStillValid({ fingerprint: a, issuedAt: 'not a date' }, { fingerprint: a }, now)).toBe(false);
+  });
+
+  it('refuses a change whose quote is not true any more, and creates no order', async () => {
+    const { client, instance } = await seedInstance();
+    const quote = await client.request('GET', `/api/instances/${instance.id}/resources/quote?ram=2048&cpu=1&disk=10`);
+    const seen = { fingerprint: quote.body.quote.fingerprint as string, issuedAt: new Date().toISOString() };
+    const stale = await client.request('PUT', `/api/instances/${instance.id}/resources`, { ram: 2048, cpu: 1, disk: 10, quote: { ...seen, fingerprint: 'f'.repeat(32) } });
+    expect(stale.status).toBe(409);
+    const expired = await client.request('PUT', `/api/instances/${instance.id}/resources`, { ram: 2048, cpu: 1, disk: 10, quote: { ...seen, issuedAt: new Date(Date.now() - 3_600_000).toISOString() } });
+    expect(expired.status).toBe(409);
+    expect(await prisma.order.count({ where: { instanceId: instance.id, kind: 'UPGRADE' } })).toBe(0);
+    // A quote that is still true goes on to the order, and what the customer saw is not stored as a resource.
+    const good = await client.request('PUT', `/api/instances/${instance.id}/resources`, { ram: 2048, cpu: 1, disk: 10, quote: seen });
+    expect(good.status).not.toBe(409);
+    const order = await prisma.order.findFirst({ where: { instanceId: instance.id, kind: 'UPGRADE' } });
+    expect(order?.requestedConfig).toEqual({ ram: 2048, cpu: 1, disk: 10 });
+  });
+});

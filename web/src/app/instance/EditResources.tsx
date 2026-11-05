@@ -18,6 +18,9 @@ interface Quote {
   nextChangeAt?: string | null;
   /** Why no credit is given for a decrease (the period is not paid), or null. */
   creditWithheld?: string | null;
+  /** What the price stands on, and when it was frozen: sent back when the change is paid, so a stale price is refused. */
+  fingerprint?: string;
+  expiresAt?: string;
 }
 
 interface SaveResult {
@@ -67,11 +70,18 @@ export default function EditResources() {
   );
   const priced = quote.data?.quote;
 
-  const save = useAction(async () => put<SaveResult>(`/instances/${encodeURIComponent(id)}/resources`, current));
+  const save = useAction(async () =>
+    put<SaveResult>(`/instances/${encodeURIComponent(id)}/resources`, {
+      ...current,
+      // The price the customer looked at, frozen for 15 minutes. The server refuses the change when it is not true any more.
+      ...(priced?.fingerprint && priced.expiresAt ? { quote: { fingerprint: priced.fingerprint, issuedAt: new Date(Date.parse(priced.expiresAt) - 15 * 60 * 1000).toISOString() } } : {}),
+    }),
+  );
   const submit = async () => {
     if (!instance || !current || !dirty) return;
     const result = await save.run();
-    if (!result) return;
+    // A price that is not true any more is refused by the server: the new price is read so the customer sees it.
+    if (!result) { quote.reload(); return; }
     if (result.status === 'requires_payment' && result.checkoutUrl) {
       setPayment({ url: result.checkoutUrl, orderNumber: result.order?.number ?? '' });
       toast.push('Pay for the change before it is applied.', 'ok');
