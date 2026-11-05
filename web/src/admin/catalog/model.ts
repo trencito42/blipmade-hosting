@@ -46,6 +46,8 @@ export interface PresetVersion {
   recommendedRamMb: number | null;
   recommendedCpu: number | null;
   recommendedDiskGb: number | null;
+  /** The plugins this version installs with the server, as Modrinth slugs. */
+  plugins: string[];
   publishedAt: string | null;
 }
 

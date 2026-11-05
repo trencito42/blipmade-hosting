@@ -13,6 +13,8 @@ const slug = z.string().trim().min(2).max(60).regex(/^[a-z0-9-]+$/, 'Use lowerca
 const label = z.string().trim().min(2).max(120);
 const summary = z.string().trim().min(2).max(500);
 const notes = z.string().trim().max(2000);
+/** Modrinth project slugs a preset installs with the server. The same shape the order flow accepts. */
+const plugins = z.array(z.string().regex(/^[A-Za-z0-9_-]{2,64}$/, 'A plugin is its Modrinth slug: letters, numbers, - and _.')).max(15).transform((list) => [...new Set(list)]);
 const sortOrder = z.number().int().min(0).max(10_000);
 const ram = z.number().int().min(256).max(65_536).nullable();
 const cpu = z.number().min(0.5).max(64).nullable();
@@ -40,6 +42,7 @@ function viewVersion(version: {
   recommendedRamMb: number | null;
   recommendedCpu: number | null;
   recommendedDiskGb: number | null;
+  plugins: string[];
   publishedAt: Date | null;
   createdAt: Date;
 }) {
@@ -51,6 +54,7 @@ function viewVersion(version: {
     recommendedRamMb: version.recommendedRamMb,
     recommendedCpu: version.recommendedCpu,
     recommendedDiskGb: version.recommendedDiskGb,
+    plugins: version.plugins,
     publishedAt: version.publishedAt?.toISOString() ?? null,
     createdAt: version.createdAt.toISOString(),
   };
@@ -280,6 +284,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
         recommendedRamMb: ram.nullable().default(null),
         recommendedCpu: cpu.nullable().default(null),
         recommendedDiskGb: disk.nullable().default(null),
+        plugins: plugins.default([]),
       })
       .strict()
       .parse(request.body);
@@ -305,6 +310,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
             recommendedRamMb: body.recommendedRamMb,
             recommendedCpu: body.recommendedCpu,
             recommendedDiskGb: body.recommendedDiskGb,
+            plugins: body.plugins,
           },
         },
       },
@@ -317,7 +323,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
   app.patch('/admin/catalog/preset-versions/:versionId', { ...limited, preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request: FastifyRequest) => {
     const actor = await requireStaff(request);
     const { versionId } = z.object({ versionId: z.string().min(1) }).parse(request.params);
-    const body = z.object({ summary, notes, recommendedRamMb: ram, recommendedCpu: cpu, recommendedDiskGb: disk }).partial().strict().parse(request.body);
+    const body = z.object({ summary, notes, recommendedRamMb: ram, recommendedCpu: cpu, recommendedDiskGb: disk, plugins }).partial().strict().parse(request.body);
     if (Object.keys(body).length === 0) throw badRequest('Nothing to change.');
     const before = await prisma.catalogPresetVersion.findUnique({ where: { id: versionId }, select: { id: true, version: true, publishedAt: true, presetId: true } });
     if (!before) throw notFound('Preset version not found.');
@@ -341,7 +347,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
   app.post('/admin/catalog/presets/:presetId/versions', { ...limited, preHandler: [requirePermission('products.write'), customerLimit(app, LIMITS.adminWrite)] }, async (request: FastifyRequest, reply) => {
     const actor = await requireStaff(request);
     const { presetId } = z.object({ presetId: z.string().min(1) }).parse(request.params);
-    const body = z.object({ summary: summary.optional(), notes: notes.optional(), recommendedRamMb: ram.optional(), recommendedCpu: cpu.optional(), recommendedDiskGb: disk.optional() }).strict().parse(request.body ?? {});
+    const body = z.object({ summary: summary.optional(), notes: notes.optional(), recommendedRamMb: ram.optional(), recommendedCpu: cpu.optional(), recommendedDiskGb: disk.optional(), plugins: plugins.optional() }).strict().parse(request.body ?? {});
     const preset = await prisma.catalogPreset.findUnique({ where: { id: presetId }, include: { versions: { orderBy: { version: 'desc' }, take: 1 } } });
     if (!preset) throw notFound('Preset not found.');
     const latest = preset.versions[0];
@@ -356,6 +362,7 @@ export async function registerAdminCatalogStructureRoutes(app: FastifyInstance):
         recommendedRamMb: body.recommendedRamMb === undefined ? latest.recommendedRamMb : body.recommendedRamMb,
         recommendedCpu: body.recommendedCpu === undefined ? latest.recommendedCpu : body.recommendedCpu,
         recommendedDiskGb: body.recommendedDiskGb === undefined ? latest.recommendedDiskGb : body.recommendedDiskGb,
+        plugins: body.plugins === undefined ? latest.plugins : body.plugins,
       },
     });
     await audit({ actorId: actor.id, actorEmail: actor.email, action: 'catalog.preset.version.created', targetType: 'catalog_preset_version', targetId: version.id, meta: { presetId, version: version.version }, ip: request.ip });

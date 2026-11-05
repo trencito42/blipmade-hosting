@@ -59,7 +59,7 @@ test('the instance sections: the everyday ones first, the others under More, and
   const main = page.getByRole('group', { name: 'Instance sections' }).or(page.locator('[aria-label="Instance sections"]'));
   await expect(main.getByRole('tab', { name: 'Backups' }).or(main.getByRole('button', { name: 'Backups' })).first()).toBeVisible();
   await expect(page.locator('[aria-label="More instance sections"]')).toHaveCount(0);
-  await page.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
   const more = page.locator('[aria-label="More instance sections"]');
   await expect(more).toBeVisible();
   for (const name of ['Network', 'Startup', 'Schedules', 'Activity']) await expect(more.getByText(name, { exact: true })).toBeVisible();

@@ -62,6 +62,7 @@ export default function CatalogFamilyDetail() {
                       { key: 'name', header: 'Preset', render: (row) => row.name },
                       { key: 'variant', header: 'Variant', render: (row) => row.variant?.label ?? 'Any variant' },
                       { key: 'version', header: 'Latest', render: (row) => `v${row.versions[0]?.version ?? 0}${row.versions[0]?.publishedAt ? '' : ' draft'}` },
+                      { key: 'installs', header: 'Installs', render: (row) => row.versions[0]?.plugins?.length ? <span className="text-[13px] text-ink2">{row.versions[0].plugins.join(', ')}</span> : <span className="text-ink3">No plugins</span> },
                       { key: 'edit', header: '', width: '7rem', render: (row) => <Link to={`/admin/catalog/families/${family.id}/presets/${row.id}/edit`} className={denseGhost}>{mayWrite ? 'Edit' : 'View'}</Link> },
                     ]}
                   />

@@ -22,6 +22,8 @@ interface FamilyPreset {
   recommendedRamMb: number | null;
   recommendedCpu: number | null;
   recommendedDiskGb: number | null;
+  /** The plugins this preset installs with the server (Modrinth slugs). The server adds them when the order is made. */
+  plugins?: string[];
 }
 interface FamilyAddon {
   slug: string;
@@ -194,7 +196,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
     <dl className="grid gap-2 text-[13px]">
       <div><dt className="text-ink3">Software</dt><dd className="font-medium text-ink">{variant?.label}</dd></div>
       {gameVersion ? <div><dt className="text-ink3">Game version</dt><dd className="font-mono text-ink">{gameVersion}</dd></div> : null}
-      {preset ? <div><dt className="text-ink3">Preset</dt><dd className="text-ink">{preset.name} <span className="text-ink3">(revision {preset.version})</span></dd></div> : null}
+      {preset ? <div><dt className="text-ink3">Preset</dt><dd className="text-ink">{preset.name} <span className="text-ink3">(revision {preset.version})</span>{preset.plugins?.length ? <span className="block text-[12.5px] text-ink2">with {preset.plugins.join(', ')}</span> : null}</dd></div> : null}
       {plugins.length ? <div><dt className="text-ink3">Add-ons</dt><dd className="text-ink">{plugins.map((entry) => entry.title).join(', ')}</dd></div> : null}
       <div><dt className="text-ink3">Starting size</dt><dd className="font-mono text-ink">{memLabel(ram)} · {cpu} vCPU · {disk} GB</dd></div>
     </dl>
@@ -281,7 +283,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
                 {presets.map((entry) => (
                   <label key={entry.slug} className="flex min-h-10 items-center gap-3 rounded-xl bg-s1 px-3 text-[14px]">
                     <input type="radio" name="preset" checked={presetSlug === entry.slug} onChange={() => setPresetSlug(entry.slug)} />
-                    <span>{entry.name}<span className="mt-0.5 block text-[12.5px] text-ink3">Revision {entry.version}. {entry.summary}</span></span>
+                    <span>{entry.name}<span className="mt-0.5 block text-[12.5px] text-ink3">Revision {entry.version}. {entry.summary}</span>{entry.plugins?.length ? <span className="mt-1 block text-[12.5px] text-ink2">Installs: {entry.plugins.join(', ')}</span> : null}</span>
                   </label>
                 ))}
               </div>

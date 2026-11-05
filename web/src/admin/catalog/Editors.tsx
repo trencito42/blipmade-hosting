@@ -187,13 +187,30 @@ export function VariantEdit() {
   );
 }
 
+/** The plugins of a preset, one Modrinth slug a line. */
+function pluginList(text: string): string[] {
+  return [...new Set(text.split(/[\n,]/).map((line) => line.trim()).filter(Boolean))];
+}
+function pluginsValid(text: string): boolean {
+  const list = pluginList(text);
+  return list.length <= 15 && list.every((slug) => /^[A-Za-z0-9_-]{2,64}$/.test(slug));
+}
+function PluginsField({ id, value, disabled, onChange }: { id: string; value: string; disabled: boolean; onChange: (value: string) => void }) {
+  const invalid = !pluginsValid(value);
+  return (
+    <Field label="Plugins installed with the server" htmlFor={id} hint="One Modrinth slug a line, at most 15 (for example essentialsx, luckperms). They are installed for the Minecraft version the customer picks. A published version never changes: a new version starts from this list." error={invalid ? 'Each plugin is a Modrinth slug: letters, numbers, - and _. At most 15.' : undefined}>
+      <textarea id={id} className={`${denseSelect} h-28 py-2 font-mono`} value={value} disabled={disabled} spellCheck={false} onChange={(event) => onChange(event.target.value)} />
+    </Field>
+  );
+}
+
 export function PresetNew() {
   const { id = '' } = useParams();
   const toast = useToast();
   const mayWrite = can(useAdminSession().staff, 'products.write');
   const backTo = `/admin/catalog/families/${id}`;
   const state = useAsync<FamilyDetail>((signal) => get(`/admin/catalog/families/${encodeURIComponent(id)}`, undefined, signal), [id]);
-  const [draft, setDraft] = useState({ slug: '', name: '', variantId: '', summary: '', notes: '', ram: '', sortOrder: '0' });
+  const [draft, setDraft] = useState({ slug: '', name: '', variantId: '', summary: '', notes: '', ram: '', cpu: '', disk: '', plugins: '', sortOrder: '0' });
   const { dirty, discard, finish } = useLeave(backTo, draft.slug !== '' || draft.name !== '' || draft.summary !== '', 'Discard this preset?');
   const send = useAction(async () => post(`/admin/catalog/families/${encodeURIComponent(id)}/presets`, {
     slug: draft.slug.trim(),
@@ -203,8 +220,11 @@ export function PresetNew() {
     notes: draft.notes.trim(),
     sortOrder: Number(draft.sortOrder),
     recommendedRamMb: draft.ram === '' ? null : Number(draft.ram),
+    recommendedCpu: draft.cpu === '' ? null : Number(draft.cpu),
+    recommendedDiskGb: draft.disk === '' ? null : Number(draft.disk),
+    plugins: pluginList(draft.plugins),
   }));
-  const ok = mayWrite && /^[a-z0-9-]{2,60}$/.test(draft.slug.trim()) && draft.name.trim().length >= 2 && draft.summary.trim().length >= 2 && /^\d+$/.test(draft.sortOrder) && (draft.ram === '' || /^\d+$/.test(draft.ram)) && !send.pending;
+  const ok = mayWrite && /^[a-z0-9-]{2,60}$/.test(draft.slug.trim()) && draft.name.trim().length >= 2 && draft.summary.trim().length >= 2 && /^\d+$/.test(draft.sortOrder) && (draft.ram === '' || /^\d+$/.test(draft.ram)) && (draft.cpu === '' || /^\d+(\.\d)?$/.test(draft.cpu)) && (draft.disk === '' || /^\d+$/.test(draft.disk)) && pluginsValid(draft.plugins) && !send.pending;
   return (
     <PageEditorShell eyebrow="Catalogue" title="New preset" description="Version 1 starts as a draft. Publishing it does not install anything." backTo={backTo} backLabel="Back to family" dirty={dirty}
       actions={<><SoftButton type="button" onClick={discard} disabled={send.pending}>Discard</SoftButton><PrimaryButton type="button" disabled={!ok} onClick={() => void send.run().then((result) => { if (!result) return; toast.push('The preset was created.', 'ok'); finish(); })}>{send.pending ? 'Creating…' : 'Create preset'}</PrimaryButton></>}>
@@ -221,6 +241,9 @@ export function PresetNew() {
             <TextInput label="Summary" value={draft.summary} disabled={!mayWrite} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} />
             <Field label="Notes" htmlFor="preset-notes"><textarea id="preset-notes" className={`${denseSelect} h-28 py-2`} value={draft.notes} disabled={!mayWrite} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></Field>
             <TextInput label="Recommended RAM (MB)" inputMode="numeric" value={draft.ram} disabled={!mayWrite} hint="Optional. Leave empty when the product minimum is enough." onChange={(event) => setDraft({ ...draft, ram: event.target.value })} />
+            <TextInput label="Recommended vCPU" inputMode="decimal" value={draft.cpu} disabled={!mayWrite} hint="Optional." onChange={(event) => setDraft({ ...draft, cpu: event.target.value })} />
+            <TextInput label="Recommended disk (GB)" inputMode="numeric" value={draft.disk} disabled={!mayWrite} hint="Optional." onChange={(event) => setDraft({ ...draft, disk: event.target.value })} />
+            <PluginsField id="preset-plugins" value={draft.plugins} disabled={!mayWrite} onChange={(plugins) => setDraft({ ...draft, plugins })} />
             <Err message={send.error} />
           </div>
         )}
@@ -239,16 +262,35 @@ export function PresetEdit() {
   const draftVersion = latest && !latest.publishedAt ? latest : null;
   const [summary, setSummary] = useState<string | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
+  const [plugins, setPlugins] = useState<string | null>(null);
+  const [ram, setRam] = useState<string | null>(null);
+  const [cpu, setCpu] = useState<string | null>(null);
+  const [disk, setDisk] = useState<string | null>(null);
+  const baseVersion = draftVersion ?? latest;
+  const shownPlugins = plugins ?? (baseVersion?.plugins ?? []).join('\n');
+  const shownRam = ram ?? String(baseVersion?.recommendedRamMb ?? '');
+  const shownCpu = cpu ?? String(baseVersion?.recommendedCpu ?? '');
+  const shownDisk = disk ?? String(baseVersion?.recommendedDiskGb ?? '');
   const shownSummary = summary ?? draftVersion?.summary ?? latest?.summary ?? '';
   const shownNotes = notes ?? draftVersion?.notes ?? latest?.notes ?? '';
-  const changed = Boolean(preset) && (draftVersion ? shownSummary !== draftVersion.summary || shownNotes !== draftVersion.notes : summary !== null || notes !== null);
+  const touched = summary !== null || notes !== null || plugins !== null || ram !== null || cpu !== null || disk !== null;
+  const changed = Boolean(preset) && (draftVersion ? shownSummary !== draftVersion.summary || shownNotes !== draftVersion.notes || shownPlugins !== draftVersion.plugins.join('\n') || shownRam !== String(draftVersion.recommendedRamMb ?? '') || shownCpu !== String(draftVersion.recommendedCpu ?? '') || shownDisk !== String(draftVersion.recommendedDiskGb ?? '') : touched);
   const { dirty, discard, finish } = useLeave(backTo, changed, 'Discard the preset draft?');
   const save = useAction(async () => {
-    if (draftVersion) return api(`/admin/catalog/preset-versions/${encodeURIComponent(draftVersion.id)}`, { method: 'PATCH', body: { summary: shownSummary.trim(), notes: shownNotes.trim() } });
-    return post(`/admin/catalog/presets/${encodeURIComponent(presetId)}/versions`, { summary: shownSummary.trim(), notes: shownNotes.trim() });
+    const body = {
+      summary: shownSummary.trim(),
+      notes: shownNotes.trim(),
+      plugins: pluginList(shownPlugins),
+      recommendedRamMb: shownRam === '' ? null : Number(shownRam),
+      recommendedCpu: shownCpu === '' ? null : Number(shownCpu),
+      recommendedDiskGb: shownDisk === '' ? null : Number(shownDisk),
+    };
+    if (draftVersion) return api(`/admin/catalog/preset-versions/${encodeURIComponent(draftVersion.id)}`, { method: 'PATCH', body });
+    return post(`/admin/catalog/presets/${encodeURIComponent(presetId)}/versions`, body);
   });
   const publish = useAction(async () => post(`/admin/catalog/preset-versions/${encodeURIComponent(draftVersion!.id)}/publish`, {}));
-  const ok = mayWrite && changed && shownSummary.trim().length >= 2 && !save.pending;
+  const numbersOk = (shownRam === '' || /^\d+$/.test(shownRam)) && (shownCpu === '' || /^\d+(\.\d)?$/.test(shownCpu)) && (shownDisk === '' || /^\d+$/.test(shownDisk));
+  const ok = mayWrite && changed && numbersOk && pluginsValid(shownPlugins) && shownSummary.trim().length >= 2 && !save.pending;
   return (
     <PageEditorShell eyebrow="Catalogue" title={preset?.name ?? 'Preset'} description="A published version stays as written. The next edit is a new version, and nothing is installed from here." backTo={backTo} backLabel="Back to family" dirty={dirty} stickyActions
       actions={<>
@@ -267,6 +309,10 @@ export function PresetEdit() {
             </ul>
             <TextInput label={draftVersion ? 'Draft summary' : 'New version summary'} value={shownSummary} disabled={!mayWrite} onChange={(event) => setSummary(event.target.value)} />
             <Field label="Notes" htmlFor="preset-notes"><textarea id="preset-notes" className={`${denseSelect} h-28 py-2`} value={shownNotes} disabled={!mayWrite} onChange={(event) => setNotes(event.target.value)} /></Field>
+            <TextInput label="Recommended RAM (MB)" inputMode="numeric" value={shownRam} disabled={!mayWrite} onChange={(event) => setRam(event.target.value)} />
+            <TextInput label="Recommended vCPU" inputMode="decimal" value={shownCpu} disabled={!mayWrite} onChange={(event) => setCpu(event.target.value)} />
+            <TextInput label="Recommended disk (GB)" inputMode="numeric" value={shownDisk} disabled={!mayWrite} onChange={(event) => setDisk(event.target.value)} />
+            <PluginsField id="preset-plugins" value={shownPlugins} disabled={!mayWrite} onChange={setPlugins} />
             <Err message={save.error ?? publish.error} />
           </div>
         )}

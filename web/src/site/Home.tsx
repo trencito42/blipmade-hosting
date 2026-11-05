@@ -309,7 +309,9 @@ function Panel() {
             </button>
           ))}
         </div>
-        <figure id="screen-view" role="tabpanel" aria-labelledby={`screen-tab-${tab}`} className="mt-5 grid gap-3">
+        {/* The tab panel is a plain box: a figure may not take the role of a panel. */}
+        <div id="screen-view" role="tabpanel" aria-labelledby={`screen-tab-${tab}`}>
+        <figure className="mt-5 grid gap-3">
           <div className="overflow-hidden rounded-[22px] bg-paper-2 shadow-[10px_10px_0_0_rgba(78,229,149,0.16)]">
             {SCREENS.map(([label, file, , alt], index) => (
               <img
@@ -329,6 +331,7 @@ function Panel() {
             {current[2]} <span className="text-ink-3">Example data, real screens.</span>
           </figcaption>
         </figure>
+        </div>
       </Wrap>
     </section>
   );

@@ -107,3 +107,17 @@ test('an added plugin can be taken out again', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Remove Essentials' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Add' })).toBeVisible();
 });
+
+test('a preset shows the plugins it installs, in the list and in the summary', async ({ page }) => {
+  await stubAdmin(page, (path) => {
+    if (path === '/catalog/families/minecraft') return { family: { ...FAMILY, presets: [{ ...FAMILY.presets[0], plugins: ['essentialsx', 'luckperms'] }] } };
+    if (path === '/catalog/minecraft/versions') return { supported: true, versions: ['1.21.1'] };
+    return undefined;
+  });
+  await page.goto('/app/deploy/families/minecraft');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByText('Installs: essentialsx, luckperms')).toBeVisible();
+  await page.getByRole('radio', { name: /Survival/ }).check();
+  await expect(page.getByText('with essentialsx, luckperms')).toBeVisible();
+});

@@ -9,6 +9,7 @@ test.describe('bulk tags on their own page', () => {
     await stubAdmin(page, (path, method, body) => {
       if (path === '/admin/customers/bulk-tags' && method === 'POST') { sent = body; return {}; }
       if (path === '/admin/tags') return { tags: [] };
+      if (path === '/admin/saved-views') return { views: [] };
       if (path === '/admin/customers') return CUSTOMERS;
       return undefined;
     });

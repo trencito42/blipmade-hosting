@@ -100,7 +100,7 @@ function presentFamily(family: {
   group: string;
   discovery: string;
   variants: { id: string; slug: string; label: string; product: { slug: string; name: string; icon: string; category: string; fulfilment: ProductFulfilment; description: string; visible: boolean; deployable: boolean; eggId: number | null; eggName: string | null; defaultRam: number; defaultCpu: number; defaultDisk: number } }[];
-  presets: { slug: string; name: string; variantId: string | null; versions: { version: number; summary: string; notes: string; recommendedRamMb: number | null; recommendedCpu: number | null; recommendedDiskGb: number | null }[] }[];
+  presets: { slug: string; name: string; variantId: string | null; versions: { version: number; summary: string; notes: string; recommendedRamMb: number | null; recommendedCpu: number | null; recommendedDiskGb: number | null; plugins: string[] }[] }[];
   addons: { slug: string; name: string; summary: string; kind: string; version: number; compatibilities: { variantId: string }[]; productOption: { code: string; name: string; amount: number; currency: string; active: boolean } | null; product: { slug: string; name: string; visible: boolean } | null }[];
 }) {
   const variants = family.variants
@@ -144,6 +144,7 @@ function presentFamily(family: {
         recommendedRamMb: preset.versions[0]!.recommendedRamMb,
         recommendedCpu: preset.versions[0]!.recommendedCpu,
         recommendedDiskGb: preset.versions[0]!.recommendedDiskGb,
+        plugins: preset.versions[0]!.plugins,
       })),
     addons: family.addons
       .map((addon) => ({
@@ -187,6 +188,7 @@ export async function resolveCatalogSelection(productSlug: string, optionCodes: 
     throw badRequest('The variant does not match this product.');
   }
   let preset: StoredCatalogSelection['preset'] = null;
+  let presetPlugins: string[] = [];
   if (input.presetSlug) {
     const row = family.presets.find((entry) => entry.slug === input.presetSlug);
     if (!row) throw badRequest('That preset is not part of this family.');
@@ -194,6 +196,7 @@ export async function resolveCatalogSelection(productSlug: string, optionCodes: 
     const version = row.versions.find((entry) => entry.version === input.presetVersion && entry.publishedAt);
     if (!version) throw badRequest('Choose a published preset version.');
     preset = { slug: row.slug, version: version.version };
+    presetPlugins = version.plugins;
   }
   if (input.addonSlugs.length !== family.addons.length) throw badRequest('An add-on in this choice is not active.');
   const addons = input.addonSlugs.map((addonSlug) => {
@@ -208,5 +211,13 @@ export async function resolveCatalogSelection(productSlug: string, optionCodes: 
     }
     return { slug: addon.slug, kind: addon.kind, version: addon.version };
   });
-  return { familySlug: family.slug, variantSlug: variant.slug, preset, addons, ...(input.install ? { install: input.install } : {}) };
+  // What the preset installs is decided here, from the version that was published, and not by the browser: the plugins of
+  // the version join the ones the customer picked, each for the game version that was chosen.
+  let install = input.install;
+  if (presetPlugins.length && input.install?.gameVersion) {
+    const chosen = input.install.plugins ?? [];
+    const merged = [...chosen, ...presetPlugins.filter((slug) => !chosen.some((entry) => entry.slug === slug)).map((slug) => ({ slug, version: input.install!.gameVersion! }))];
+    install = { ...input.install, plugins: merged.slice(0, 15) };
+  }
+  return { familySlug: family.slug, variantSlug: variant.slug, preset, addons, ...(install ? { install } : {}) };
 }

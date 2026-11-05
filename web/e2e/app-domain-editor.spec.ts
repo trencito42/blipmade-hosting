@@ -58,7 +58,7 @@ test.describe('the dedicated add-domain editor', () => {
     await page.getByRole('button', { name: 'Create domain claim' }).click();
 
     await page.waitForURL('**/app/domains?created=domain-1');
-    expect(sent).toEqual({ path: '/instances/instance-domain-1/domains', body: { hostname: 'app.example.com' } });
+    expect(sent).toEqual({ path: '/instances/instance-domain-1/domains', body: { hostname: 'app.example.com', purpose: 'http' } });
   });
 
   test('fits the complete editor at 390px without horizontal page overflow', async ({ page }) => {

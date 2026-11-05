@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/lib/password.js';
+import { resolveCatalogSelection } from '../src/services/catalog-projection.js';
 import { closeApp, getApp, makeClient, resetDatabase, VALID_PASSWORD } from './helpers.js';
 
 let app: FastifyInstance;
@@ -141,8 +142,13 @@ describe('catalogue families', () => {
       summary: 'A quiet survival world.',
       notes: 'Paper only.',
       recommendedRamMb: 4096,
+      plugins: ['essentialsx', 'luckperms', 'essentialsx'],
     });
     expect(preset.status).toBe(201);
+    // The same plugin twice is kept once, and a name that is not a Modrinth slug is refused.
+    expect(preset.body.preset.versions[0].plugins).toEqual(['essentialsx', 'luckperms']);
+    const badPlugin = await client.request('PATCH', `/api/admin/catalog/preset-versions/${preset.body.preset.versions[0].id}`, { plugins: ['not a slug!'] });
+    expect(badPlugin.status).toBe(400);
     const versionId = preset.body.preset.versions[0].id as string;
     const published = await client.request('POST', `/api/admin/catalog/preset-versions/${versionId}/publish`, {});
     expect(published.status).toBe(200);
@@ -152,6 +158,11 @@ describe('catalogue families', () => {
     expect(next.status).toBe(201);
     expect(next.body.version.version).toBe(2);
     expect(next.body.version.publishedAt).toBeNull();
+    // A new version starts from the plugins of the last one, and changes them on its own.
+    expect(next.body.version.plugins).toEqual(['essentialsx', 'luckperms']);
+    const changed = await client.request('PATCH', `/api/admin/catalog/preset-versions/${next.body.version.id}`, { plugins: ['spark'] });
+    expect(changed.body.version.plugins).toEqual(['spark']);
+    expect((await prisma.catalogPresetVersion.findUniqueOrThrow({ where: { id: versionId } })).plugins).toEqual(['essentialsx', 'luckperms']);
 
     const software = await client.request('POST', `/api/admin/catalog/families/${familyId}/addons`, {
       slug: 'spark',
@@ -192,5 +203,34 @@ describe('catalogue families', () => {
     const bumped = await client.request('PATCH', `/api/admin/catalog/addons/${feature.body.addon.id}`, { expectedVersion: 1, name: 'Dedicated IPv4' });
     expect(bumped.status).toBe(200);
     expect(bumped.body.addon.version).toBe(2);
+  });
+
+  it('adds the plugins of the published preset on the server, for the game version that was chosen', async () => {
+    const paper = await product('minecraft-paper');
+    const client = await writer();
+    const family = await client.request('POST', '/api/admin/catalog/families', { slug: 'minecraft', name: 'Minecraft', summary: 'One family for the Minecraft runtimes.', group: 'games', prepared: true });
+    const familyId = family.body.family.id as string;
+    const variant = await client.request('POST', `/api/admin/catalog/families/${familyId}/variants`, { productId: paper.id, slug: 'paper', label: 'Paper', active: true });
+    const preset = await client.request('POST', `/api/admin/catalog/families/${familyId}/presets`, {
+      slug: 'survival', name: 'Survival', variantId: variant.body.variant.id, summary: 'A quiet survival world.', plugins: ['essentialsx', 'luckperms'],
+    });
+    await client.request('POST', `/api/admin/catalog/preset-versions/${preset.body.preset.versions[0].id}/publish`, {});
+
+    // The customer picked one plugin and a game version: the preset's two are added, the customer's one is kept once.
+    const chosen = await resolveCatalogSelection('minecraft-paper', [], {
+      familySlug: 'minecraft', variantSlug: 'paper', presetSlug: 'survival', presetVersion: 1, addonSlugs: [],
+      install: { gameVersion: '1.21.4', plugins: [{ slug: 'luckperms', version: '1.21.4' }, { slug: 'spark', version: '1.21.4' }] },
+    });
+    expect(chosen.install?.plugins).toEqual([
+      { slug: 'luckperms', version: '1.21.4' },
+      { slug: 'spark', version: '1.21.4' },
+      { slug: 'essentialsx', version: '1.21.4' },
+    ]);
+    expect(chosen.preset).toEqual({ slug: 'survival', version: 1 });
+
+    // Without a preset nothing is added, and a draft version cannot be chosen.
+    const plain = await resolveCatalogSelection('minecraft-paper', [], { familySlug: 'minecraft', variantSlug: 'paper', addonSlugs: [], install: { gameVersion: '1.21.4' } });
+    expect(plain.install?.plugins).toBeUndefined();
+    await expect(resolveCatalogSelection('minecraft-paper', [], { familySlug: 'minecraft', variantSlug: 'paper', presetSlug: 'survival', presetVersion: 2, addonSlugs: [] })).rejects.toThrow();
   });
 });

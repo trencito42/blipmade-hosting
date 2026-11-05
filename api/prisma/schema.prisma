@@ -626,6 +626,8 @@ model CatalogPresetVersion {
   recommendedRamMb  Int?
   recommendedCpu    Float?
   recommendedDiskGb Int?
+  /// Plugins this preset installs with the server (Modrinth slugs). Fixed once the version is published.
+  plugins           String[]      @default([])
   publishedAt       DateTime?
   createdAt         DateTime      @default(now())
 

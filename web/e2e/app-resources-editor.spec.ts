@@ -58,7 +58,7 @@ test.describe('dedicated resources page', () => {
     await stub(page, saved);
     await page.goto('/app/instances/i1/resources/edit');
     await page.getByRole('button', { name: 'Increase Memory' }).click();
-    await expect(page.getByText('This change is paid for before it is applied.')).toBeVisible();
+    await expect(page.getByText('Only the days left in this period are charged now. The new price renews afterwards.')).toBeVisible();
     await page.getByRole('button', { name: 'Continue to payment' }).click();
     const pay = page.getByRole('link', { name: 'Pay and apply the change' });
     await expect(pay).toHaveAttribute('href', 'https://pay.example.test/session/abc');
