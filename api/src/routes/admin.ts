@@ -28,10 +28,12 @@ import {
 } from '../services/panel/credentials.js';
 import { externalIdFor } from '../services/panel/identity.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { evaluateGate, gateFacts, withGate } from '../services/readiness-gate.js';
 import {
   countEffectiveRedemptions,
   defaultLimitPerUser,
   promotionRisk,
+  priceConfiguration,
   resourceRates,
   saveResourceRates,
   RESOURCE_RATES_KEY,
@@ -779,6 +781,8 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       include: { prices: true, options: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
+    const facts = await gateFacts();
+    const rates = await resourceRates();
     return {
       products: products.map((product) => ({
         id: product.id,
@@ -793,7 +797,18 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         eggName: product.eggName,
         dockerImage: product.dockerImage,
         // What the catalog and the ordering will answer for this product.
-        availability: deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }),
+        availability: withGate(
+          deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED }),
+          evaluateGate(
+            product,
+            product.prices,
+            (() => {
+              const monthly = product.prices.find((price) => price.period === 'MONTHLY' && price.active);
+              return monthly ? priceConfiguration(monthly, product, { ram: product.defaultRam, cpu: product.defaultCpu, disk: product.defaultDisk }, [], rates, 'MONTHLY', 0) : null;
+            })(),
+            facts,
+          ),
+        ),
         minRam: product.minRam,
         minCpu: product.minCpu,
         minDisk: product.minDisk,

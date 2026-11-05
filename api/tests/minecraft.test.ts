@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi as spy } from 'vitest';
-import { forgeVersions, papermcVersions, applyProperties, cleanPlayer, cleanRawCommand, commandFor, namesOfList, parseProperties } from '../src/services/minecraft.js';
+import { forgeVersions, papermcVersions, applyProperties, cleanPlayer, cleanRawCommand, commandFor, namesOfList, parseProperties, pluginEntries, pluginToggleName, PLUGIN_FILE } from '../src/services/minecraft.js';
 
 describe('minecraft tools', () => {
   it('only lets real names into a command', () => {
@@ -60,5 +60,23 @@ describe('versions to pick', () => {
   it('lists the Minecraft versions Forge builds for, newest first', async () => {
     answer({ promos: { '1.20.1-latest': 'a', '1.20.1-recommended': 'b', '1.21.11-latest': 'c', '1.9.4-latest': 'd', '26.2-recommended': 'e', 'junk': 'x' } });
     expect(await forgeVersions()).toEqual(['26.2', '1.21.11', '1.20.1', '1.9.4']);
+  });
+});
+
+describe('plugin manager', () => {
+  it('lists jars and disabled jars, nothing else', () => {
+    const files = [
+      { name: 'b.jar', size: 2, is_file: true }, { name: 'a.jar.disabled', size: 1, is_file: true },
+      { name: 'cfg', size: 0, is_file: false }, { name: 'notes.txt', size: 3, is_file: true },
+    ];
+    expect(pluginEntries(files)).toEqual([{ name: 'a.jar.disabled', size: 1, enabled: false }, { name: 'b.jar', size: 2, enabled: true }]);
+  });
+  it('turns a plugin on and off by name only', () => {
+    expect(pluginToggleName('a.jar', false)).toBe('a.jar.disabled');
+    expect(pluginToggleName('a.jar.disabled', true)).toBe('a.jar');
+    expect(pluginToggleName('a.jar', true)).toBe('a.jar');
+  });
+  it('rejects paths and other extensions', () => {
+    for (const bad of ['../a.jar', 'a/b.jar', 'a.zip', '.jar.x']) expect(PLUGIN_FILE.test(bad)).toBe(false);
   });
 });

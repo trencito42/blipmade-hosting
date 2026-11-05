@@ -8,6 +8,7 @@ import { AppError, badRequest, conflict, notFound } from '../lib/errors.js';
 import { LIMITS, customerLimit } from '../lib/rate-limit.js';
 import { addressRateLimitKey, requirePermission, requireStaff } from '../plugins/auth.js';
 import { deploymentAvailability } from '../services/availability.js';
+import { productGate } from '../services/readiness-gate.js';
 import { lifecycleOf, planProductChange, productPatchSchema, readinessOf, usageOf, type ProductPatch } from '../services/product-editor.js';
 
 /**
@@ -65,8 +66,9 @@ export async function registerAdminProductRoutes(app: FastifyInstance): Promise<
 
   app.get('/admin/products/:id/readiness', { preHandler: requirePermission('products.read') }, async (request: FastifyRequest) => {
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const checks = await readinessOf(await load(id));
-    return { checks, ready: checks.every((check) => check.level !== 'blocker' || check.ok) };
+    const product = await load(id);
+    const checks = await readinessOf(product);
+    return { checks, ready: checks.every((check) => check.level !== 'blocker' || check.ok), gate: await productGate(product) };
   });
 
   /** What a change would do. It writes nothing. */

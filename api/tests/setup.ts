@@ -25,3 +25,15 @@ export async function resetDatabase(): Promise<void> {
   if (!names.length) return;
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${names.join(', ')} CASCADE;`);
 }
+
+/**
+ * The suite has no panel, so the readiness gate reads facts that say the
+ * panel answers and has room. The gate itself is tested with its own facts.
+ */
+import { setGateFactsSource } from '../src/services/readiness-gate.js';
+setGateFactsSource(async () => ({
+  panelConfigured: true,
+  eggs: { known: false, ids: new Set(), names: new Set() },
+  nodes: [{ freeMemoryMb: 1_000_000, freeDiskMb: 100_000_000 }],
+  proxmoxConfigured: true,
+}));

@@ -11,7 +11,7 @@ import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
 import {
   EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
-  pluginFileFor, searchPlugins, searchModpacks, modpackFilesFor, type PlayerAction,
+  pluginFileFor, pluginEntries, pluginToggleName, PLUGIN_FILE, searchPlugins, searchModpacks, modpackFilesFor, type PlayerAction,
 } from '../services/minecraft.js';
 
 /**
@@ -140,7 +140,7 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
     const { token, uuid } = await load(request);
     try {
       const files = await client.listFiles(token, uuid, '/plugins');
-      return { installed: files.filter((file) => file.is_file && file.name.endsWith('.jar')).map((file) => ({ name: file.name, size: file.size })) };
+      return { installed: pluginEntries(files) };
     } catch {
       return { installed: [] };
     }
@@ -170,10 +170,26 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
   app.delete('/instances/:id/minecraft/plugins', write, async (request: FastifyRequest) => {
     const { user, instance, token, uuid, slug } = await load(request);
     if (slug !== 'minecraft-paper') throw badRequest('Plugins are removed from Paper servers.');
-    const { name } = z.object({ name: z.string().regex(/^[A-Za-z0-9._+-]{1,120}\.jar$/) }).parse(request.body ?? {});
+    const { name } = z.object({ name: z.string().regex(PLUGIN_FILE) }).parse(request.body ?? {});
+    try {
+      await client.createBackup(token, uuid, { name: `Before removing ${name}`.slice(0, 100), locked: true });
+    } catch {
+      throw conflict('A backup could not be made first, so the plugin was not removed. Delete an old unlocked backup and try again.');
+    }
     await client.deleteFile(token, uuid, `/plugins/${name}`);
     await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_plugin_removed', targetType: 'instance', targetId: instance.id, meta: { file: name } });
     return { removed: name, note: 'Restart the server to unload it.' };
+  });
+
+  app.put('/instances/:id/minecraft/plugins', write, async (request: FastifyRequest) => {
+    const { user, instance, token, uuid, slug } = await load(request);
+    if (slug !== 'minecraft-paper') throw badRequest('Plugins are managed on Paper servers.');
+    const { name, enabled } = z.object({ name: z.string().regex(PLUGIN_FILE), enabled: z.boolean() }).parse(request.body ?? {});
+    const to = pluginToggleName(name, enabled);
+    if (to === name) return { name, enabled, note: 'Nothing to change.' };
+    await client.renameFile(token, uuid, `/plugins/${name}`, to);
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_plugin_toggled', targetType: 'instance', targetId: instance.id, meta: { file: name, enabled } });
+    return { name: to, enabled, note: 'Restart the server to apply.' };
   });
 
   app.get('/instances/:id/minecraft/worlds', async (request: FastifyRequest) => {

@@ -59,7 +59,7 @@ export default function MinecraftTab({ instance }: TabProps) {
   const [version, setVersion] = useState('');
   const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'settings'>('players');
   const versions = useAsync<{ supported: boolean; versions: string[]; current: string | null }>((signal) => get(`${base}/versions`, undefined, signal), [instance.id]);
-  const plugins = useAsync<{ installed: { name: string; size: number }[] }>((signal) => get(`${base}/plugins`, undefined, signal), [instance.id]);
+  const plugins = useAsync<{ installed: { name: string; size: number; enabled: boolean }[] }>((signal) => get(`${base}/plugins`, undefined, signal), [instance.id]);
   const data = state.data;
   const gameVersion = (data?.status.version ?? '').match(/\d+\.\d+(\.\d+)?/)?.[0] ?? versions.data?.current ?? '';
 
@@ -99,6 +99,11 @@ export default function MinecraftTab({ instance }: TabProps) {
   const removePlugin = useAction(async (name: string) => {
     const answer = await del<{ removed: string; note: string }>(`${base}/plugins`, { name });
     push(`${answer.removed} removed. ${answer.note}`, 'ok');
+    plugins.reload();
+  });
+  const togglePlugin = useAction(async (name: string, enabled: boolean) => {
+    const answer = await put<{ note: string }>(`${base}/plugins`, { name, enabled });
+    push(`${enabled ? 'Enabled' : 'Disabled'}. ${answer.note}`, 'ok');
     plugins.reload();
   });
   const changeVersion = useAction(async () => {
@@ -254,12 +259,16 @@ export default function MinecraftTab({ instance }: TabProps) {
               </div>
             ))}
             {install.error && <p role="alert" className="text-[13.5px] font-medium text-bad">{install.error}</p>}
+            {(togglePlugin.error || removePlugin.error) && <p role="alert" className="text-[13.5px] font-medium text-bad">{togglePlugin.error || removePlugin.error}</p>}
             {(plugins.data?.installed.length ?? 0) > 0 ? (
               <ul className="grid gap-1 text-[13px] text-ink2">
                 {plugins.data!.installed.map((entry) => (
                   <li key={entry.name} className="flex items-center justify-between gap-2">
-                    <span className="font-mono">{entry.name}</span>
-                    <button type="button" className="text-[13px] font-semibold text-acc" onClick={() => void removePlugin.run(entry.name)}>Remove</button>
+                    <span className={`font-mono ${entry.enabled ? '' : 'text-ink3 line-through'}`}>{entry.name.replace(/\.disabled$/, '')}{entry.enabled ? '' : ' (off)'}</span>
+                    <span className="flex gap-3">
+                      <button type="button" className="text-[13px] font-semibold text-acc" disabled={togglePlugin.pending} onClick={() => void togglePlugin.run(entry.name, !entry.enabled)}>{entry.enabled ? 'Disable' : 'Enable'}</button>
+                      <button type="button" className="text-[13px] font-semibold text-acc" disabled={removePlugin.pending} onClick={() => { if (window.confirm(`Remove ${entry.name}? A backup is made first.`)) void removePlugin.run(entry.name); }}>Remove</button>
+                    </span>
                   </li>
                 ))}
               </ul>

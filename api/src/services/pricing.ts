@@ -17,6 +17,7 @@ import {
   type ResourceRates,
 } from '../lib/resource-pricing.js';
 import { deploymentAvailability, unavailableMessage } from './availability.js';
+import { productGate } from './readiness-gate.js';
 import { assertValidMailDomain } from './mail.js';
 import { checkCustomerVariables, parseCustomerVariableSpecs, sealVariables } from './instance-credentials.js';
 import { checkoutSpecs } from './install-variables.js';
@@ -573,6 +574,10 @@ export async function priceItems(
     // mail needs no panel, but it needs the sale of the mail to be open.
     const availability = deploymentAvailability(product, { emailSalesEnabled: env.MAIL_SALES_ENABLED });
     if (!availability.orderable) throw badRequest(unavailableMessage(product, availability));
+    // The full gate: the egg, the provider, a real price and room on a node.
+    // Visible and deployable are what the operator wants, not what is true.
+    const gate = await productGate({ ...product, prices: await prisma.productPrice.findMany({ where: { productId: product.id } }) });
+    if (!gate.ready) throw badRequest(`${product.name} cannot be ordered right now: ${gate.blockers.join(' ')}`);
 
     // A line of mail has no resources: the plan of the line is the whole
     // configuration, so the price of the line is the price of the plan.

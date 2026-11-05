@@ -295,3 +295,19 @@ export async function modpackFilesFor(slug: string, gameVersion: string): Promis
   if (!files.length) throw badRequest('None of the modpack files are hosted on the Modrinth CDN.');
   return { title: pack.name, files };
 }
+
+/** A plugin file in /plugins: a .jar is on, a .jar.disabled is switched off (Paper does not load it). */
+export const PLUGIN_FILE = /^[A-Za-z0-9._+-]{1,120}\.jar(\.disabled)?$/;
+
+export function pluginEntries(files: { name: string; size: number; is_file: boolean }[]): { name: string; size: number; enabled: boolean }[] {
+  return files
+    .filter((file) => file.is_file && PLUGIN_FILE.test(file.name))
+    .map((file) => ({ name: file.name, size: file.size, enabled: !file.name.endsWith('.disabled') }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The file name a plugin must have to be on or off. */
+export function pluginToggleName(name: string, enable: boolean): string {
+  const base = name.replace(/\.disabled$/, '');
+  return enable ? base : `${base}.disabled`;
+}
