@@ -121,3 +121,40 @@ test('a preset shows the plugins it installs, in the list and in the summary', a
   await page.getByRole('radio', { name: /Survival/ }).check();
   await expect(page.getByText('with essentialsx, luckperms')).toBeVisible();
 });
+
+test('a search for a variant or a preset opens its family with that choice already made', async ({ page }) => {
+  const variant = (slug: string, label: string) => ({ slug, label, product: { slug: `minecraft-${slug}`, name: `Minecraft ${label}`, category: 'GAMES', orderable: true, availability: 'DEPLOYABLE', defaultRam: 2048, defaultCpu: 1, defaultDisk: 10 } });
+  const family = {
+    ...FAMILY,
+    variants: [variant('paper', 'Paper'), variant('folia', 'Folia'), variant('forge', 'Forge'), variant('bedrock', 'Bedrock')],
+    presets: [
+      { slug: 'survival', name: 'Survival SMP', variantSlug: 'paper', version: 1, summary: 'A quiet world.', recommendedRamMb: 4096, recommendedCpu: 2, recommendedDiskGb: 20, plugins: [] },
+      { slug: 'modpack', name: 'Modpack', variantSlug: 'forge', version: 1, summary: 'Mods.', recommendedRamMb: 6144, recommendedCpu: 2, recommendedDiskGb: 30, plugins: [] },
+    ],
+  };
+  await stubAdmin(page, (path) => {
+    if (path === '/catalog/families') return { families: [family] };
+    if (path === '/catalog/families/minecraft') return { family };
+    // One more game, so the catalogue has a games section that the family sits in.
+    if (path === '/catalog/products') return { products: [{ slug: 'rust', name: 'Rust', category: 'GAMES', description: 'Rust server', icon: 'box', options: [], price: { currency: 'EUR', period: 'MONTHLY', baseAmount: 500, ramPerGb: 0, cpuPerUnit: 0, diskPerGb: 0 }, minRam: 512, maxRam: 8192, minCpu: 1, maxCpu: 4, minDisk: 5, maxDisk: 50, defaultRam: 2048, defaultCpu: 1, defaultDisk: 10, deployable: true, visible: true, availability: { orderable: true, state: 'DEPLOYABLE', blockers: [] } }] };
+    if (path === '/catalog/minecraft/versions') return { supported: true, versions: ['1.20.1'] };
+    return undefined;
+  });
+  await page.goto('/app/deploy');
+  const search = page.getByRole('searchbox').first();
+  await search.fill('forge');
+  const link = page.getByRole('link', { name: /Minecraft/ }).first();
+  await expect(link).toHaveAttribute('href', '/app/deploy/families/minecraft?variant=forge');
+  await link.click();
+  await expect(page).toHaveURL(/variant=forge/);
+  await expect(page.getByRole('button', { name: /^Forge/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: /^Paper/ })).toHaveAttribute('aria-pressed', 'false');
+
+  await page.goto('/app/deploy');
+  await page.getByRole('searchbox').first().fill('survival');
+  await expect(page.getByRole('link', { name: /Minecraft/ }).first()).toHaveAttribute('href', '/app/deploy/families/minecraft?variant=paper&preset=survival');
+  await page.goto('/app/deploy/families/minecraft?variant=paper&preset=survival');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('radio', { name: /Survival/ })).toBeChecked();
+});

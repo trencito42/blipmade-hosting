@@ -84,7 +84,10 @@ function ChoiceCard({ selected, title, body, meta, onSelect }: { selected: boole
 function MinecraftWizard({ family }: { family: PublicFamily }) {
   const { navigate } = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
-  const [variantSlug, setVariantSlug] = useState(family.variants[0]?.slug ?? '');
+  // A search or a link can name the variant and the preset: the family opens with them already chosen.
+  const { query: asked } = useRouter();
+  const askedVariant = family.variants.find((entry) => entry.slug === asked.variant && entry.product.orderable)?.slug;
+  const [variantSlug, setVariantSlug] = useState(askedVariant ?? family.variants.find((entry) => entry.product.orderable)?.slug ?? family.variants[0]?.slug ?? '');
   const variant = family.variants.find((entry) => entry.slug === variantSlug) ?? family.variants[0] ?? null;
   const productSlug = variant?.product.slug ?? '';
   const isBedrock = productSlug === 'minecraft-bedrock';
@@ -117,7 +120,7 @@ function MinecraftWizard({ family }: { family: PublicFamily }) {
     () => family.presets.filter((preset) => preset.variantSlug === null || preset.variantSlug === variant?.slug),
     [family.presets, variant?.slug],
   );
-  const [presetSlug, setPresetSlug] = useState<string | null>(null);
+  const [presetSlug, setPresetSlug] = useState<string | null>(() => (family.presets.some((entry) => entry.slug === asked.preset && (entry.variantSlug === null || entry.variantSlug === (askedVariant ?? family.variants[0]?.slug))) ? asked.preset ?? null : null));
   const preset = presets.find((entry) => entry.slug === presetSlug) ?? null;
   const [ram, setRam] = useState(variant?.product.defaultRam ?? 2048);
   const [cpu, setCpu] = useState(variant?.product.defaultCpu ?? 1);

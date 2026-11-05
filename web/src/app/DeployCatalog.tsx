@@ -179,7 +179,30 @@ function ProductGrid({ products }: { products: CatalogProduct[] }) {
   );
 }
 
-interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { label?: string; product: { slug: string; name?: string; category?: string; orderable: boolean } }[] }
+interface CatalogFamilyCard { slug: string; name: string; summary: string; group: string; variants: { slug?: string; label?: string; product: { slug: string; name?: string; category?: string; orderable: boolean } }[]; presets?: { slug: string; name: string; variantSlug: string | null }[] }
+
+/**
+ * What a search word means inside a family: a variant ("forge") or a preset ("survival"). The family opens with it
+ * already chosen, so the search lands on the thing that was asked for and not on the first card.
+ */
+export function familyMatch(family: CatalogFamilyCard, word: string): { variant?: string; preset?: string } {
+  const needle = word.trim().toLowerCase();
+  if (needle.length < 2) return {};
+  const variant = family.variants.find((entry) => entry.product.orderable && entry.slug && [entry.slug, entry.label, entry.product.slug, entry.product.name].some((text) => (text ?? '').toLowerCase().includes(needle)));
+  if (variant) return { variant: variant.slug };
+  const preset = (family.presets ?? []).find((entry) => `${entry.slug} ${entry.name}`.toLowerCase().includes(needle));
+  return preset ? { preset: preset.slug, ...(preset.variantSlug ? { variant: preset.variantSlug } : {}) } : {};
+}
+
+/** The address of a family, with the variant or the preset that the search asked for. */
+export function familyTo(family: CatalogFamilyCard, word: string): string {
+  const match = familyMatch(family, word);
+  const query = new URLSearchParams();
+  if (match.variant) query.set('variant', match.variant);
+  if (match.preset) query.set('preset', match.preset);
+  const text = query.toString();
+  return `/app/deploy/families/${encodeURIComponent(family.slug)}${text ? `?${text}` : ''}`;
+}
 
 export default function DeployCatalog() {
   const { query: routeQuery } = useRouter();
@@ -235,7 +258,7 @@ export default function DeployCatalog() {
     return grouped.filter((family) => {
       const familyCategory = family.variants.find((variant) => variant.product.category)?.product.category;
       const matchesCategory = category === 'All' || familyCategory === category;
-      const matchesQuery = !needle || family.name.toLowerCase().includes(needle) || family.variants.some((variant) => (variant.label || variant.product.slug).toLowerCase().includes(needle));
+      const matchesQuery = !needle || family.name.toLowerCase().includes(needle) || family.variants.some((variant) => (variant.label || variant.product.slug).toLowerCase().includes(needle)) || (family.presets ?? []).some((preset) => `${preset.slug} ${preset.name}`.toLowerCase().includes(needle));
       return matchesCategory && matchesQuery;
     });
   }, [grouped, search, category]);
@@ -289,7 +312,7 @@ export default function DeployCatalog() {
               {templateFamilies.map((family) => (
                 <li key={family.slug}>
                   <Link
-                    to={`/app/deploy/families/${encodeURIComponent(family.slug)}`}
+                    to={familyTo(family, search)}
                     className="grid h-full gap-3 rounded-[20px] border border-line bg-card p-5 transition-colors hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -314,7 +337,7 @@ export default function DeployCatalog() {
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {shownFamilies.map((family) => (
               <li key={family.slug}>
-                <Link to={`/app/deploy/families/${encodeURIComponent(family.slug)}`} className="grid h-full gap-2 rounded-[20px] border border-line bg-card p-4 transition-colors hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
+                <Link to={familyTo(family, search)} className="grid h-full gap-2 rounded-[20px] border border-line bg-card p-4 transition-colors hover:border-ink/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acc">
                   <p className="font-display text-[17px] font-semibold tracking-[-0.02em] text-ink">{family.name}</p>
                   <p className="line-clamp-2 text-[13px] text-ink2">{family.summary || family.variants.map((variant) => variant.label || variant.product.slug).join(', ')}</p>
                 </Link>
@@ -425,7 +448,7 @@ export default function DeployCatalog() {
                       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         {sectionFamilies.map((family) => (
                           <li key={family.slug}>
-                            <Link to={`/app/deploy/families/${encodeURIComponent(family.slug)}`} className="grid h-full gap-2 rounded-[18px] border border-line bg-card p-4 transition-colors hover:border-ink/35">
+                            <Link to={familyTo(family, search)} className="grid h-full gap-2 rounded-[18px] border border-line bg-card p-4 transition-colors hover:border-ink/35">
                               <p className="font-display text-[16px] font-semibold text-ink">{family.name}</p>
                               <p className="line-clamp-2 text-[13px] text-ink2">{family.summary}</p>
                             </Link>
