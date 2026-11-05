@@ -37,7 +37,7 @@ export function ServerProfiles({ instance }: { instance: { id: string; ram: numb
             <li key={profile.id} className="flex flex-wrap items-center gap-2 rounded-2xl bg-s2 px-3 py-2 text-[13.5px] text-ink2">
               <span className="font-semibold text-ink">{profile.name}</span>
               <span>{profile.ram} MB · {profile.cpu} vCPU · {profile.disk} GB</span>
-              {same ? <span className="text-acc">Current</span> : <Link to={`/app/instances/${encodeURIComponent(instance.id)}/resources/edit`} className="font-semibold text-acc">Change resources</Link>}
+              {same ? <span className="text-acc">Current</span> : <Link to={`/app/instances/${encodeURIComponent(instance.id)}/resources/edit?ram=${profile.ram}&cpu=${profile.cpu}&disk=${profile.disk}`} className="font-semibold text-acc">Apply this size</Link>}
               <SoftButton type="button" onClick={() => void remove.run(profile.id)} disabled={remove.pending}>Delete</SoftButton>
             </li>
           );

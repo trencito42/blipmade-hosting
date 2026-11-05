@@ -77,4 +77,22 @@ test.describe('dedicated resources page', () => {
     await expect(page).toHaveURL(/resources\/edit$/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   });
+
+  test('a saved profile opens the page with its size typed in, and the change is the one the profile says', async ({ page }) => {
+    const saved: unknown[] = [];
+    await stub(page, saved);
+    await page.goto('/app/instances/i1/resources/edit?ram=768&cpu=1&disk=10');
+    const save = page.getByRole('button', { name: 'Save resources' });
+    await expect(save).toBeEnabled();
+    await save.click();
+    await page.waitForURL('**/app/instances/i1/resources');
+    expect(saved).toEqual([{ ram: 768, cpu: 1, disk: 10 }]);
+  });
+
+  test('a size in the address that is not whole numbers is ignored', async ({ page }) => {
+    const saved: unknown[] = [];
+    await stub(page, saved);
+    await page.goto('/app/instances/i1/resources/edit?ram=abc&cpu=0.5&disk=-3');
+    await expect(page.getByRole('button', { name: 'Save resources' })).toBeDisabled();
+  });
 });

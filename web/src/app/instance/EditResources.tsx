@@ -39,7 +39,7 @@ const fmtRam = (mb: number) => (mb < 1024 ? `${mb} MB` : `${Math.round((mb / 102
  */
 export default function EditResources() {
   const { id = '' } = useParams();
-  const { navigate } = useRouter();
+  const { navigate, query: asked } = useRouter();
   const toast = useToast();
   const backTo = `/app/instances/${encodeURIComponent(id)}/resources`;
   const instanceState = useAsync<{ instance: Instance }>((signal) => get<{ instance: Instance }>(`/instances/${encodeURIComponent(id)}`, undefined, signal), [id]);
@@ -51,7 +51,13 @@ export default function EditResources() {
   );
   const product = slug ? productState.data?.product : undefined;
 
-  const [draft, setDraft] = useState<{ ram: number; cpu: number; disk: number } | null>(null);
+  // A saved profile opens this page with its size already typed in: the price is quoted like any other change.
+  const [draft, setDraft] = useState<{ ram: number; cpu: number; disk: number } | null>(() => {
+    const ram = Number(asked.ram);
+    const cpu = Number(asked.cpu);
+    const disk = Number(asked.disk);
+    return Number.isInteger(ram) && Number.isInteger(cpu) && Number.isInteger(disk) && ram > 0 && cpu > 0 && disk > 0 ? { ram, cpu, disk } : null;
+  });
   const [settled, setSettled] = useState<{ ram: number; cpu: number; disk: number } | null>(null);
   const [payment, setPayment] = useState<{ url: string; orderNumber: string } | null>(null);
   const current = draft ?? (instance ? { ram: instance.ram, cpu: instance.cpu, disk: instance.disk } : null);
