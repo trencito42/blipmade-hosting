@@ -214,25 +214,27 @@ export async function publishDiscordIncidentUpdate(input: {
   const statusChannel =
     bindings.welcome_status ?? Object.entries(bindings).find(([k]) => k.includes('status'))?.[1];
   const incidentChannel = bindings.support_incidents ?? statusChannel;
-  const channelId = incidentChannel ?? statusChannel;
-  if (!channelId) return { ok: false, error: 'no_status_channel' };
+  // An incident goes to #incidents and, when that is another channel, to #status too: the status channel is where people look.
+  const targets = [...new Set([incidentChannel, statusChannel].filter((id): id is string => Boolean(id)))];
+  if (!targets.length) return { ok: false, error: 'no_status_channel' };
 
-  const res = await botFetch(`/channels/${channelId}/messages`, {
-    method: 'POST',
-    body: JSON.stringify({
-      embeds: [
-        {
-          title: input.title.slice(0, 256),
-          description: [`**Status:** ${input.status}`, input.impact ? `**Impact:** ${input.impact}` : '', '', input.message]
-            .filter(Boolean)
-            .join('\n')
-            .slice(0, 4000),
-          color: 0xef4444,
-          footer: { text: 'Blipmade incident' },
-        },
-      ],
-    }),
+  const body = JSON.stringify({
+    embeds: [
+      {
+        title: input.title.slice(0, 256),
+        description: [`**Status:** ${input.status}`, input.impact ? `**Impact:** ${input.impact}` : '', '', input.message]
+          .filter(Boolean)
+          .join('\n')
+          .slice(0, 4000),
+        color: 0xef4444,
+        footer: { text: 'Blipmade incident' },
+      },
+    ],
   });
-  if (!res.ok) return { ok: false, error: parseDiscordError(await res.text()) };
-  return { ok: true };
+  let error: string | null = null;
+  for (const channelId of targets) {
+    const res = await botFetch(`/channels/${channelId}/messages`, { method: 'POST', body });
+    if (!res.ok) error = parseDiscordError(await res.text());
+  }
+  return error ? { ok: false, error } : { ok: true };
 }

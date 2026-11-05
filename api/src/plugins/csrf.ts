@@ -30,6 +30,8 @@ export function csrfGuard(request: FastifyRequest): void {
   if (SAFE_METHODS.has(request.method)) return;
   if (request.url.split('?')[0]!.startsWith('/api/webhooks/')) return;
   if (request.url.split('?')[0]!.startsWith('/api/oauth/')) return;
+  // Discord calls this with a signature of its own and no cookie: the signature is checked in the handler.
+  if (request.url.split('?')[0] === '/api/integrations/discord/interactions') return;
   // The backup agents call with a shared secret and carry no cookie, so there is no ambient authority to abuse.
   if (request.url.split('?')[0]!.startsWith('/api/internal/backups/') && !request.cookies['bm_session']) return;
   // The mail system hands over email with its own key and no browser: there is no cookie to forge, so a token would add nothing.
