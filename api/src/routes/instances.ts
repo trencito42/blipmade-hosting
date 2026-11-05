@@ -15,7 +15,8 @@ import { hasCustomerCredential, resolveCustomerCredential } from '../services/pa
 import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
 import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, settleFreeUpgradeOrder } from '../services/upgrades.js';
-import { repurposeInstance } from '../services/provisioning.js';
+import { assessRepurpose, repurposeInstance } from '../services/provisioning.js';
+import { repurposeConfirmed } from '../services/repurpose-gate.js';
 import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
 import { parseGeneratedVariableSpecs } from '../services/instance-credentials.js';
 import { createCheckout } from '../services/stripe.js';
@@ -567,15 +568,27 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
     return { ok: true };
   });
 
+  /** What a switch would do, judged by the same rules as the switch itself, before anything is touched. */
+  app.get('/instances/:id/repurpose/preview', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const { productSlug } = z.object({ productSlug: z.string().trim().min(2).max(80) }).parse(request.query ?? {});
+    const instance = await loadInstance(user.id, id);
+    const assessed = await assessRepurpose(instance.id, productSlug);
+    return { target: { slug: assessed.target.slug, name: assessed.target.name }, ...assessed.verdict };
+  });
+
   app.post('/instances/:id/repurpose', {
     config: { rateLimit: { max: LIMITS.panel.address, timeWindow: LIMITS.panel.window, keyGenerator: addressRateLimitKey } },
     preHandler: customerLimit(app, LIMITS.panel),
   }, async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);
-    const body = z.object({ productSlug: z.string().trim().min(2).max(80) }).parse(request.body ?? {});
+    const body = z.object({ productSlug: z.string().trim().min(2).max(80), confirm: z.boolean().optional(), confirmSlug: z.string().optional() }).parse(request.body ?? {});
     const instance = await loadInstance(user.id, id);
     if (!instance.pterodactylUuid) throw badRequest('This server is not on the panel yet.');
+    // Replacing the program is not a one-click step: the customer names the target on purpose.
+    if (!repurposeConfirmed(body, body.productSlug)) throw badRequest('Confirm the switch by naming the variant you are moving to.');
     const credential = await resolveCustomerCredential(user.id);
     const result = await repurposeInstance({
       instanceId: instance.id,

@@ -28,19 +28,98 @@ async function cf(token: string, method: string, path: string, body?: unknown): 
   };
 }
 
-/** Checks a customer token and keeps it only when it can see exactly one zone. */
-export async function zoneForToken(token: string): Promise<{ zoneId: string; zoneName: string }> {
+/** The customer feature can be switched off without a deploy: CUSTOMER_CLOUDFLARE_DNS=off. */
+export function customerCloudflareEnabled(): boolean {
+  return !['off', '0', 'false'].includes((process.env.CUSTOMER_CLOUDFLARE_DNS ?? 'on').trim().toLowerCase());
+}
+
+/**
+ * Checks a customer token and keeps it only when it is active and sees exactly one active zone
+ * it can read DNS in. Nameservers are only read, never changed.
+ */
+export async function zoneForToken(token: string): Promise<{ zoneId: string; zoneName: string; nameServers: string[] }> {
+  const verified = await cf(token, 'GET', '/user/tokens/verify');
+  const state = verified.result && typeof verified.result === 'object' ? (verified.result as { status?: string }).status : undefined;
+  // Account-owned tokens have another verify path; those are judged by the zone calls below.
+  if (verified.ok && state !== 'active') throw badRequest('Cloudflare says this token is not active. Create a new one.');
   const listed = await cf(token, 'GET', '/zones?per_page=5');
   if (!listed.ok) throw badRequest(listed.errors[0] ?? 'Cloudflare did not accept that token.');
-  const zones = Array.isArray(listed.result) ? listed.result as { id?: string; name?: string }[] : [];
-  if (zones.length !== 1 || !zones[0]?.id || !zones[0]?.name) {
+  const zones = Array.isArray(listed.result) ? listed.result as { id?: string; name?: string; status?: string; name_servers?: string[] }[] : [];
+  const zone = zones[0];
+  if (zones.length !== 1 || !zone?.id || !zone.name) {
     throw badRequest('Create a token that can edit DNS on exactly one zone.');
   }
-  return { zoneId: zones[0].id, zoneName: zones[0].name.toLowerCase() };
+  if (zone.status && zone.status !== 'active') {
+    throw badRequest('That zone is not active on Cloudflare yet. Finish moving its nameservers at your registrar first; Blipmade never changes them.');
+  }
+  const probe = await cf(token, 'GET', `/zones/${zone.id}/dns_records?per_page=1`);
+  if (!probe.ok) throw badRequest('The token cannot read DNS records on that zone. Give it Zone: DNS: Edit on this one zone.');
+  return { zoneId: zone.id, zoneName: zone.name.toLowerCase(), nameServers: zone.name_servers ?? [] };
 }
 
 export const sealZoneToken = (token: string) => encryptSecret(token);
 export const openZoneToken = (sealed: string) => decryptSecret(sealed);
+
+interface CfRow {
+  id?: string;
+  type?: string;
+  content?: string;
+  data?: { priority?: number; weight?: number; port?: number; target?: string };
+}
+
+function inZone(name: string, zoneName: string): boolean {
+  return name === zoneName || name.endsWith(`.${zoneName}`);
+}
+
+function srvText(data: { priority?: number; weight?: number; port?: number; target?: string } | undefined): string | null {
+  return data ? `${data.priority ?? 0} ${data.weight ?? 0} ${data.port ?? 0} ${(data.target ?? '').replace(/\.$/, '').toLowerCase()}` : null;
+}
+
+function rowValue(type: string, row: CfRow): string | null {
+  if (type === 'SRV') return srvText(row.data) ?? row.content ?? null;
+  return row.content ?? null;
+}
+
+function wantedValue(record: CustomerRecord): string {
+  return record.type === 'SRV' && record.data ? srvText(record.data) ?? record.content : record.content;
+}
+
+interface Inspection {
+  action: RecordPreview['action'];
+  current: string | null;
+  ours: CfRow | undefined;
+}
+
+/**
+ * The one decision, used by the preview and by the write, so they cannot disagree.
+ * - the same value already there: unchanged (running twice writes nothing)
+ * - a record this platform created with another value: update it
+ * - a TXT with other values: add ours beside them, shared values are never touched
+ * - any other value, or a CNAME next to an address record: conflict, left in place
+ */
+async function inspect(token: string, zoneId: string, zoneName: string, record: CustomerRecord, owned: OwnedRecord[]): Promise<Inspection> {
+  const name = record.name.toLowerCase();
+  if (!WRITABLE.has(record.type) || !inZone(name, zoneName)) return { action: 'skip', current: null, ours: undefined };
+  const listed = await cf(token, 'GET', `/zones/${zoneId}/dns_records?name=${encodeURIComponent(name)}&per_page=100`);
+  if (!listed.ok) return { action: 'skip', current: null, ours: undefined };
+  const all = (Array.isArray(listed.result) ? listed.result : []) as CfRow[];
+  const same = all.filter((row) => row.type === record.type);
+  const wanted = wantedValue(record);
+  const exact = same.find((row) => rowValue(record.type, row)?.toLowerCase() === wanted.toLowerCase());
+  const ownedId = owned.find((row) => row.type === record.type && row.name === name)?.cloudflareId ?? null;
+  const ours = ownedId ? same.find((row) => row.id === ownedId) : undefined;
+  const current = rowValue(record.type, same[0] ?? {}) ?? null;
+  const ADDRESS = ['A', 'AAAA', 'CNAME'];
+  const clashing = ADDRESS.includes(record.type)
+    ? all.find((row) => row.type !== record.type && ADDRESS.includes(row.type ?? '') && (record.type === 'CNAME' || row.type === 'CNAME'))
+    : undefined;
+  if (exact) return { action: 'unchanged', current: wanted, ours };
+  if (clashing) return { action: 'conflict', current: clashing.content ?? null, ours };
+  if (same.length === 0) return { action: 'create', current: null, ours };
+  if (ours) return { action: 'update', current, ours };
+  if (record.type === 'TXT') return { action: 'create', current, ours };
+  return { action: 'conflict', current, ours };
+}
 
 /** Reads the zone and says what a write would do. It does not change the zone. */
 export async function previewCustomerRecords(
@@ -52,23 +131,8 @@ export async function previewCustomerRecords(
 ): Promise<RecordPreview[]> {
   const preview: RecordPreview[] = [];
   for (const record of records) {
-    const name = record.name.toLowerCase();
-    if (!WRITABLE.has(record.type) || (name !== zoneName && !name.endsWith(`.${zoneName}`))) {
-      preview.push({ type: record.type, name, wanted: record.content, current: null, action: 'skip' });
-      continue;
-    }
-    const listed = await cf(token, 'GET', `/zones/${zoneId}/dns_records?type=${record.type}&name=${encodeURIComponent(name)}`);
-    const existing = listed.ok && Array.isArray(listed.result) ? listed.result as { id?: string; content?: string }[] : [];
-    const current = existing[0]?.content ?? null;
-    const ownedId = owned.find((row) => row.type === record.type && row.name === name)?.cloudflareId ?? null;
-    const ours = ownedId ? existing.find((row) => row.id === ownedId) : undefined;
-    let action: RecordPreview['action'] = 'skip';
-    if (!listed.ok) action = 'skip';
-    else if (current === null) action = 'create';
-    else if (current === record.content) action = 'unchanged';
-    else if (ours) action = 'update';
-    else action = 'conflict';
-    preview.push({ type: record.type, name, wanted: record.content, current, action });
+    const found = await inspect(token, zoneId, zoneName, record, owned);
+    preview.push({ type: record.type, name: record.name.toLowerCase(), wanted: wantedValue(record), current: found.current, action: found.action });
   }
   return preview;
 }
@@ -80,7 +144,7 @@ export interface PublishedRecord {
   cloudflareId: string;
 }
 
-/** Writes approved address records. A conflicting record this platform does not own is left in place. */
+/** Writes approved records. A conflicting record this platform does not own is left in place. */
 export async function publishCustomerRecords(
   token: string,
   zoneId: string,
@@ -94,46 +158,39 @@ export async function publishCustomerRecords(
   for (const record of records) {
     if (!WRITABLE.has(record.type)) continue;
     const name = record.name.toLowerCase();
-    if (name !== zoneName && !name.endsWith(`.${zoneName}`)) {
-      skipped.push(`${record.type} ${name} is outside the connected zone.`);
+    const label = `${record.type} ${name}`;
+    if (!inZone(name, zoneName)) {
+      skipped.push(`${label} is outside the connected zone.`);
       continue;
     }
-    const listed = await cf(token, 'GET', `/zones/${zoneId}/dns_records?type=${record.type}&name=${encodeURIComponent(name)}`);
-    if (!listed.ok) {
-      skipped.push(listed.errors[0] ?? `${record.type} ${name} could not be read.`);
+    const found = await inspect(token, zoneId, zoneName, record, owned);
+    if (found.action === 'unchanged') {
+      written.push(label);
       continue;
     }
-    const existing = (Array.isArray(listed.result) ? listed.result : []) as { id?: string; content?: string }[];
-    const ownedId = owned.find((row) => row.type === record.type && row.name === name)?.cloudflareId ?? null;
-    const ours = ownedId ? existing.find((row) => row.id === ownedId) : undefined;
-    const same = existing.find((row) => row.content === record.content);
-    if (existing.length > 0 && !same && !ours) {
-      skipped.push(`${record.type} ${name} already has a different value. It was left unchanged.`);
+    if (found.action === 'conflict') {
+      skipped.push(`${label} already has a different value. It was left unchanged.`);
       continue;
     }
-    if (same?.id && !ours) {
-      written.push(`${record.type} ${name}`);
-      continue;
-    }
-    if (ours?.id && ours.content === record.content) {
-      written.push(`${record.type} ${name}`);
+    if (found.action === 'skip') {
+      skipped.push(`${label} could not be read.`);
       continue;
     }
     const payload = record.type === 'SRV'
-      ? { type: 'SRV', name, data: record.data, ttl: 120, proxied: false }
-      : { type: record.type, name, content: record.content, ttl: 120, proxied: false };
-    if (ours?.id) {
-      const saved = await cf(token, 'PATCH', `/zones/${zoneId}/dns_records/${ours.id}`, payload);
-      if (!saved.ok) skipped.push(saved.errors[0] ?? `${record.type} ${name} was not updated.`);
-      else written.push(`${record.type} ${name}`);
+      ? { type: 'SRV', name, data: record.data, ttl: 120 }
+      : { type: record.type, name, content: record.content, ttl: 120, ...(record.type === 'TXT' ? {} : { proxied: false }) };
+    if (found.action === 'update' && found.ours?.id) {
+      const saved = await cf(token, 'PATCH', `/zones/${zoneId}/dns_records/${found.ours.id}`, payload);
+      if (!saved.ok) skipped.push(saved.errors[0] ?? `${label} was not updated.`);
+      else written.push(label);
       continue;
     }
     const saved = await cf(token, 'POST', `/zones/${zoneId}/dns_records`, payload);
     const cloudflareId = saved.ok && saved.result && typeof saved.result === 'object' && 'id' in saved.result ? String((saved.result as { id?: unknown }).id ?? '') : '';
-    if (!saved.ok || !cloudflareId) skipped.push(saved.errors[0] ?? `${record.type} ${name} was not written.`);
+    if (!saved.ok || !cloudflareId) skipped.push(saved.errors[0] ?? `${label} was not written.`);
     else {
-      written.push(`${record.type} ${name}`);
-      created.push({ type: record.type, name, content: record.content, cloudflareId });
+      written.push(label);
+      created.push({ type: record.type, name, content: wantedValue(record), cloudflareId });
     }
   }
   return { written, skipped, created };

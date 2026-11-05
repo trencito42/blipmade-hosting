@@ -24,7 +24,7 @@ import { applyCatalogInstall, applyCatalogOrderInstall } from './catalog-install
 import { presetChosen } from './catalog-install.js';
 import { applyInstallVariables } from './install-variables.js';
 import { applyStoredImport, linkImportSourceToOrderItem, syncOrderFulfillment } from './import-apply.js';
-import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
+import { backupCompleted, interruptedSwitchNeedsRestore, maySwitchProduct, repurposeVerdict, runRepurposeSwitch, type RepurposeRollback } from './repurpose-gate.js';
 import {
   generateVariables,
   openVariables,
@@ -716,6 +716,39 @@ async function resolveEgg(product: Product): Promise<{ egg: number; image: strin
   throw new ProvisioningError('server_created', 'The mapped egg is not available on the panel.');
 }
 
+/** Reads what decides a product switch and judges it. Used by the preview and by the switch itself. */
+export async function assessRepurpose(instanceId: string, productSlug: string) {
+  const instance = await prisma.instance.findUnique({
+    where: { id: instanceId },
+    include: { product: { include: { prices: { where: { active: true, period: 'MONTHLY' } } } } },
+  });
+  if (!instance?.pterodactylServerId) throw badRequest('This server is not on the panel yet.');
+  const target = await prisma.product.findUnique({
+    where: { slug: productSlug },
+    include: { prices: { where: { active: true, period: 'MONTHLY' } } },
+  });
+  if (!target) throw badRequest('That product cannot replace this server.');
+  const [currentVariant, targetVariant] = await Promise.all([
+    prisma.catalogVariant.findUnique({ where: { productId: instance.productId }, select: { familyId: true } }),
+    prisma.catalogVariant.findUnique({ where: { productId: target.id }, select: { familyId: true } }),
+  ]);
+  const left = instance.product.prices[0];
+  const right = target.prices[0];
+  const priceEqual = Boolean(left && right && left.baseAmount === right.baseAmount && left.ramPerGb === right.ramPerGb && left.cpuPerUnit === right.cpuPerUnit && left.diskPerGb === right.diskPerGb && left.currency === right.currency);
+  const sameEgg = (instance.product.eggId != null && instance.product.eggId === target.eggId)
+    || (instance.product.eggId == null && target.eggId == null && Boolean(instance.product.eggName) && instance.product.eggName === target.eggName);
+  const verdict = repurposeVerdict({
+    sameProduct: instance.productId === target.id,
+    targetSellable: Boolean(target.visible && target.deployable && target.fulfilment === 'SERVER'),
+    bothInCatalogue: Boolean(currentVariant && targetVariant),
+    sameFamily: Boolean(currentVariant && targetVariant && currentVariant.familyId === targetVariant.familyId),
+    belowMinimum: instance.ram < target.minRam || instance.cpu < target.minCpu || instance.disk < target.minDisk,
+    priceEqual,
+    sameEgg,
+  });
+  return { instance, target, verdict };
+}
+
 /**
  * Switches a running server to another variant in the same family.
  * A locked backup is made first. The price card must be the same, so the renewal does not change.
@@ -729,32 +762,9 @@ export async function repurposeInstance(input: {
   token: string;
   uuid: string;
 }): Promise<{ name: string }> {
-  const instance = await prisma.instance.findUnique({
-    where: { id: input.instanceId },
-    include: { product: { include: { prices: { where: { active: true, period: 'MONTHLY' } } } } },
-  });
-  if (!instance?.pterodactylServerId) throw badRequest('This server is not on the panel yet.');
-  if (instance.product.slug === input.productSlug) throw badRequest('The server already runs this product.');
-  const target = await prisma.product.findUnique({
-    where: { slug: input.productSlug },
-    include: { prices: { where: { active: true, period: 'MONTHLY' } } },
-  });
-  if (!target?.visible || !target.deployable || target.fulfilment !== 'SERVER') throw badRequest('That product cannot replace this server.');
-  const [currentVariant, targetVariant] = await Promise.all([
-    prisma.catalogVariant.findUnique({ where: { productId: instance.productId }, select: { familyId: true } }),
-    prisma.catalogVariant.findUnique({ where: { productId: target.id }, select: { familyId: true } }),
-  ]);
-  if (!currentVariant || !targetVariant) {
-    throw badRequest('Both products have to be in the catalogue before a server can move.');
-  }
-  if (instance.ram < target.minRam || instance.cpu < target.minCpu || instance.disk < target.minDisk) {
-    throw badRequest('This server is below the minimum size of that product. Raise the resources first.');
-  }
-  const left = instance.product.prices[0];
-  const right = target.prices[0];
-  if (!left || !right || left.baseAmount !== right.baseAmount || left.ramPerGb !== right.ramPerGb || left.cpuPerUnit !== right.cpuPerUnit || left.diskPerGb !== right.diskPerGb || left.currency !== right.currency) {
-    throw badRequest('That variant has a different price. Order it as its own service.');
-  }
+  const assessed = await assessRepurpose(input.instanceId, input.productSlug);
+  if (!assessed.verdict.eligible) throw badRequest(assessed.verdict.reasons[0] ?? 'That product cannot replace this server.');
+  const { instance, target } = assessed;
   const job = await prisma.repurposeJob.create({
     data: { instanceId: instance.id, fromProductId: instance.productId, toProductId: target.id, state: 'pending' },
   });
