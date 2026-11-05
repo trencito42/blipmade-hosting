@@ -4,6 +4,7 @@ import { audit } from '../lib/audit.js';
 import * as pteroClient from './pterodactyl/client.js';
 import { withCustomerKey } from './provisioning.js';
 import { judgeContainer } from './pterodactyl/types.js';
+export { customerStatusOf } from './runtime-status.js';
 
 /**
  * The state of the containers of the customers, compared with what the
@@ -122,12 +123,6 @@ export const RUNTIME_STATE_HOLD_MS = 60_000;
  * not confirm it: the doubt is written down in the journal of the instance,
  * and the customer is not shown a service that works as a broken one.
  */
-const CONDITION_LABEL: Record<RuntimeCondition, string> = {
-  serving: 'online',
-  starting: 'starting',
-  stopped: 'stopped',
-};
-
 /**
  * Asks the node about the container of an instance.
  *
@@ -230,19 +225,6 @@ export function conditionOf(observation: RuntimeStateObservation): RuntimeCondit
  * and the customer zone shows it: a node that is quiet is not a service that
  * is broken.
  */
-export function customerStatusOf(instance: {
-  status: string;
-  runtimeCondition: string | null;
-  runtimeStateStale?: boolean;
-}): string {
-  const platform = instance.status.toLowerCase();
-  if (!['ONLINE', 'RESTARTING', 'DEGRADED', 'STOPPED'].includes(instance.status)) return platform;
-  if (instance.runtimeStateStale) return platform;
-  const condition = instance.runtimeCondition as RuntimeCondition | null;
-  if (!condition) return platform;
-  return CONDITION_LABEL[condition] ?? platform;
-}
-
 /**
  * The part of a message that says what was found.
  *

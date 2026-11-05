@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { deploymentsFromEvents } from '../src/services/git-deploy.js';
+import { deploymentsFromEvents } from '../src/services/git-history.js';
 import { buildReport, type CollectedSource, type DiagnosisFacts } from '../src/services/diagnosis.js';
-import { customerStatusOf } from '../src/services/runtime-state.js';
+import { customerStatusOf } from '../src/services/runtime-status.js';
 
 const stale = 35 * 60 * 1000;
 const now = Date.parse('2026-11-05T18:00:00Z');
