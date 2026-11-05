@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** The world manager: a backup on request, and a new world only after a backup, with the server stopped and the words typed. */
-const panel = { state: 'offline', backupFails: false, folders: ['world', 'world_nether'] as string[], deleted: [] as string[], backups: [] as string[], properties: 'level-name=world\n', log: '', commands: [] as string[] };
+const panel = { state: 'offline', backupFails: false, folders: ['world', 'world_nether'] as string[], deleted: [] as string[], backups: [] as string[], properties: 'level-name=world\n', log: '', commands: [] as string[], plugins: [] as string[], geyser: '', written: {} as Record<string, string> };
 
 vi.mock('../src/services/panel/credentials.js', () => ({
   resolveCustomerCredential: vi.fn(async () => ({ token: 'ptlc_testtoken', panelUserId: 1, externalId: 'ext', source: 'issued' })),
@@ -15,9 +15,12 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
     panel.backups.push(payload.name);
     return { uuid: 'b1', name: payload.name };
   }),
-  readFile: vi.fn(async (_token: string, _uuid: string, path: string) => ({ content: path === '/logs/latest.log' ? panel.log : panel.properties, encoding: 'utf-8' })),
+  readFile: vi.fn(async (_token: string, _uuid: string, path: string) => ({ content: path === '/logs/latest.log' ? panel.log : path === '/plugins/Geyser-Spigot/config.yml' ? panel.geyser : panel.properties, encoding: 'utf-8' })),
   sendCommand: vi.fn(async (_token: string, _uuid: string, command: string) => { panel.commands.push(command); }),
+  listAllocations: vi.fn(async () => [{ id: 1, ip: '203.0.113.5', port: 25570, alias: null, is_default: true }]),
+  writeFile: vi.fn(async (_token: string, _uuid: string, path: string, content: string) => { panel.written[path] = content; }),
   listFiles: vi.fn(async (_token: string, _uuid: string, path: string) => {
+    if (path === '/plugins') return panel.plugins.map((name) => ({ name }));
     if (!panel.folders.includes(path.slice(1))) throw new Error('not found');
     return [{ name: 'level.dat' }];
   }),
@@ -26,14 +29,14 @@ vi.mock('../src/services/pterodactyl/client.js', () => ({
 }));
 
 const { prisma } = await import('../src/db.js');
-const { worldFolders, parseTps, lagAdvice } = await import('../src/services/minecraft.js');
+const { worldFolders, parseTps, lagAdvice, setGeyserBedrockPort, crossplayStatus } = await import('../src/services/minecraft.js');
 const { closeApp, getApp, registerAndLogin, resetDatabase } = await import('./helpers.js');
 
 beforeAll(async () => { await getApp(); });
 afterAll(async () => { await closeApp(); });
 beforeEach(async () => {
   await resetDatabase();
-  Object.assign(panel, { state: 'offline', backupFails: false, folders: ['world', 'world_nether'], deleted: [], backups: [], properties: 'level-name=world\n', log: '', commands: [] });
+  Object.assign(panel, { state: 'offline', backupFails: false, folders: ['world', 'world_nether'], deleted: [], backups: [], properties: 'level-name=world\n', log: '', commands: [], plugins: [], geyser: '', written: {} });
 });
 
 async function seed() {
@@ -126,5 +129,42 @@ describe('is the server lagging', () => {
     const on = await client.request('GET', url);
     expect(panel.commands).toEqual(['tps']);
     expect(on.body).toMatchObject({ running: true, verdict: 'bad', tps: { m1: 14.2, m5: 17, m15: 18.8 } });
+  });
+});
+
+const GEYSER_YAML = ['bedrock:', '  # The IP address that Geyser listens on', '  address: 0.0.0.0', '  port: 19132 # the port', '  clone-remote-port: false', 'remote:', '  address: auto', '  port: 25565', ''].join('\n');
+
+describe('Bedrock crossplay with Geyser', () => {
+  it('changes only the Bedrock port of the config, and refuses what it cannot place', () => {
+    const next = setGeyserBedrockPort(GEYSER_YAML, 25570)!;
+    expect(next).toContain('  port: 25570 # the port');
+    expect(next).toContain('remote:\n  address: auto\n  port: 25565');
+    expect(next.split('\n')).toHaveLength(GEYSER_YAML.split('\n').length);
+    expect(setGeyserBedrockPort(GEYSER_YAML, 80)).toBeNull();
+    expect(setGeyserBedrockPort('remote:\n  port: 25565\n', 25570)).toBeNull();
+  });
+
+  it('lists the steps and ticks what is done', () => {
+    const none = crossplayStatus({ plugins: ['LuckPerms.jar'], gamePort: 25570, configured: null });
+    expect(none.steps.map((step) => step.done)).toEqual([false, false, false, false]);
+    const done = crossplayStatus({ plugins: ['Geyser-Spigot.jar', 'floodgate-spigot.jar'], gamePort: 25570, configured: true });
+    expect(done.steps.map((step) => step.done)).toEqual([true, true, true, true]);
+  });
+
+  it('writes the game port into the config of Geyser and keeps the old file', async () => {
+    const { client, instance } = await seed();
+    const status = `/api/instances/${instance.id}/minecraft/crossplay`;
+    panel.plugins = ['Geyser-Spigot.jar'];
+    expect((await client.request('GET', status)).body).toMatchObject({ supported: true, geyser: true, floodgate: false, joinPort: 25570 });
+    const missing = await client.request('POST', `${status}/port`, {});
+    expect(missing.status).toBe(409);
+    panel.geyser = GEYSER_YAML;
+    const done = await client.request('POST', `${status}/port`, {});
+    expect(done.status).toBe(200);
+    expect(done.body).toMatchObject({ port: 25570, changed: true });
+    expect(panel.written['/plugins/Geyser-Spigot/config.yml.bak']).toBe(GEYSER_YAML);
+    expect(panel.written['/plugins/Geyser-Spigot/config.yml']).toContain('port: 25570');
+    panel.geyser = panel.written['/plugins/Geyser-Spigot/config.yml']!;
+    expect((await client.request('GET', status)).body.steps.find((step: { key: string }) => step.key === 'port').done).toBe(true);
   });
 });

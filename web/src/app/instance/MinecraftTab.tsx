@@ -53,6 +53,45 @@ function LagCheck({ instanceId }: { instanceId: string }) {
   );
 }
 
+interface Cross { supported: boolean; note?: string; geyser?: boolean; floodgate?: boolean; joinPort?: number | null; steps?: { key: string; label: string; done: boolean }[] }
+
+/** Bedrock players on this Java server: Geyser and Floodgate, step by step. Nothing is changed until a button is pressed. */
+function Crossplay({ instanceId, gameVersion, address }: { instanceId: string; gameVersion: string; address: string | null }) {
+  const toast = useToast();
+  const base = `/instances/${encodeURIComponent(instanceId)}/minecraft`;
+  const state = useAsync<Cross>((signal) => get(`${base}/crossplay`, undefined, signal), [instanceId]);
+  const install = useAction(async (slug: string) => {
+    const answer = await post<{ installed: string }>(`${base}/plugins`, { slug, version: gameVersion });
+    toast.push(`${answer.installed} installed. Restart the server to load it.`, 'ok');
+    state.reload();
+  });
+  const port = useAction(async () => {
+    const answer = await post<{ note: string }>(`${base}/crossplay/port`, {});
+    toast.push(answer.note, 'ok');
+    state.reload();
+  });
+  if (state.data && !state.data.supported) return <Panel title="Bedrock players" description={state.data.note}><p className="text-[14px] text-ink2">{state.data.note}</p></Panel>;
+  const steps = state.data?.steps ?? [];
+  return (
+    <Panel title="Bedrock players on this server" description="Geyser lets players on phones, consoles and Windows 10 Bedrock join this Java server. Floodgate lets them in without a Java account.">
+      {state.loading ? <LoadingBlock rows={2} label="Reading the crossplay state" /> : (
+        <div className="grid gap-3">
+          <ol className="grid gap-1.5 text-[14px]">
+            {steps.map((step) => <li key={step.key} className={step.done ? 'text-ink' : 'text-ink2'}><span aria-hidden="true" className={step.done ? 'text-acc' : 'text-ink3'}>{step.done ? '● ' : '○ '}</span>{step.label}</li>)}
+          </ol>
+          <div className="flex flex-wrap gap-2">
+            <SoftButton type="button" disabled={install.pending || state.data?.geyser || !gameVersion} onClick={() => void install.run('geyser')}>Install Geyser</SoftButton>
+            <SoftButton type="button" disabled={install.pending || state.data?.floodgate || !gameVersion} onClick={() => void install.run('floodgate')}>Install Floodgate</SoftButton>
+            <SoftButton type="button" disabled={port.pending || !state.data?.geyser} onClick={() => void port.run()}>Use the game port{state.data?.joinPort ? ` ${state.data.joinPort}` : ''}</SoftButton>
+          </div>
+          {(install.error || port.error) && <p role="alert" className="text-[13.5px] font-medium text-bad">{install.error || port.error}</p>}
+          <p className="text-[13px] text-ink3">Bedrock players add a server with the address {address ? <span className="font-mono text-ink2">{address.replace(/:\d+$/, '')}</span> : 'of this server'} and the port {state.data?.joinPort ?? 'of the server'}. The game port is open for them too: no second port is needed.</p>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function WorldList({ instanceId }: { instanceId: string }) {
   const toast = useToast();
   const state = useAsync<{ worlds: { name: string; entries: number }[] }>((signal) => get(`/instances/${encodeURIComponent(instanceId)}/minecraft/worlds`, undefined, signal), [instanceId]);
@@ -115,7 +154,7 @@ export default function MinecraftTab({ instance }: TabProps) {
   const [packQuery, setPackQuery] = useState('');
   const [packs, setPacks] = useState<PluginHit[]>([]);
   const [version, setVersion] = useState('');
-  const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'performance' | 'settings'>('players');
+  const [section, setSection] = useState<'players' | 'addons' | 'worlds' | 'performance' | 'crossplay' | 'settings'>('players');
   const versions = useAsync<{ supported: boolean; versions: string[]; current: string | null }>((signal) => get(`${base}/versions`, undefined, signal), [instance.id]);
   const plugins = useAsync<{ installed: { name: string; size: number; enabled: boolean }[] }>((signal) => get(`${base}/plugins`, undefined, signal), [instance.id]);
   const data = state.data;
@@ -216,6 +255,7 @@ export default function MinecraftTab({ instance }: TabProps) {
           { value: 'addons', label: 'Add-ons' },
           { value: 'worlds', label: 'Worlds' },
           { value: 'performance', label: 'Lag' },
+          ...(instance.product.slug === 'minecraft-paper' ? [{ value: 'crossplay' as const, label: 'Bedrock players' }] : []),
           { value: 'settings', label: 'Settings' },
         ]}
       />
@@ -366,6 +406,7 @@ export default function MinecraftTab({ instance }: TabProps) {
         </Panel>
       )}
       {section === 'performance' && <LagCheck instanceId={instance.id} />}
+      {section === 'crossplay' && <Crossplay instanceId={instance.id} gameVersion={gameVersion} address={data.address} />}
       {section === 'worlds' && <WorldList instanceId={instance.id} />}
       {section === 'worlds' && (
         <Panel title="Worlds" description="A new seed applies to a new world. It does not rewrite the world that is already there. Copies of the world are the Backups tab.">

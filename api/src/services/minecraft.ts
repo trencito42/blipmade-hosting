@@ -341,3 +341,38 @@ export function lagAdvice(input: { tps: { m1: number } | null; memoryBytes: numb
   if (verdict !== 'good') lines.push(input.hasSpark ? 'Spark is installed: run /spark profiler start for a minute, then /spark profiler stop, to see which plugin takes the time.' : 'Install the Spark plugin and run /spark profiler to see which plugin takes the time.');
   return { verdict, lines };
 }
+
+/** In the config of Geyser, the port of the Bedrock side: the first `port:` line under `bedrock:`. Everything else stays as it was. */
+export function setGeyserBedrockPort(yaml: string, port: number): string | null {
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) return null;
+  const lines = yaml.split('\n');
+  let inBedrock = false;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (/^bedrock:\s*$/.test(line)) { inBedrock = true; continue; }
+    if (inBedrock && /^\S/.test(line)) break; // The next top-level section starts: no port line was found.
+    if (inBedrock && /^\s+port:\s*\d+\s*(#.*)?$/.test(line)) {
+      lines[index] = line.replace(/port:\s*\d+/, `port: ${port}`);
+      return lines.join('\n');
+    }
+  }
+  return null;
+}
+
+/** Where the Bedrock crossplay of a Java server stands, step by step. */
+export function crossplayStatus(input: { plugins: string[]; gamePort: number | null; configured: boolean | null }): { geyser: boolean; floodgate: boolean; steps: { key: string; label: string; done: boolean }[]; joinPort: number | null } {
+  const has = (name: string) => input.plugins.some((entry) => entry.toLowerCase().includes(name));
+  const geyser = has('geyser');
+  const floodgate = has('floodgate');
+  return {
+    geyser,
+    floodgate,
+    joinPort: input.gamePort,
+    steps: [
+      { key: 'geyser', label: 'Install Geyser', done: geyser },
+      { key: 'floodgate', label: 'Install Floodgate (lets Bedrock players in without a Java account)', done: floodgate },
+      { key: 'start', label: 'Restart the server once, so Geyser writes its config', done: input.configured !== null },
+      { key: 'port', label: `Point Geyser at the game port${input.gamePort ? ` ${input.gamePort}` : ''}`, done: input.configured === true },
+    ],
+  };
+}

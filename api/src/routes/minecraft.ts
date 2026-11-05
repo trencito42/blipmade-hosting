@@ -10,7 +10,7 @@ import * as operations from '../services/panel/operations.js';
 import * as application from '../services/pterodactyl/application.js';
 import * as client from '../services/pterodactyl/client.js';
 import {
-  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, lagAdvice, parseTps, worldFolders, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
+  EDITABLE_PROPERTIES, MINECRAFT_JAVA, applyProperties, crossplayStatus, lagAdvice, parseTps, setGeyserBedrockPort, worldFolders, cleanRawCommand, commandFor, namesOfList, paperVersions, parseProperties, pingJava,
   pluginFileFor, pluginEntries, pluginToggleName, PLUGIN_FILE, searchPlugins, searchModpacks, modpackFilesFor, type PlayerAction,
 } from '../services/minecraft.js';
 
@@ -228,6 +228,51 @@ export async function registerMinecraftRoutes(app: FastifyInstance): Promise<voi
     const memoryLimitMb = (await prisma.instance.findUnique({ where: { id: (request.params as { id: string }).id }, select: { ram: true } }))?.ram ?? 0;
     const advice = lagAdvice({ tps, memoryBytes: resources.memory_bytes, memoryLimitMb, hasSpark });
     return { running: true, verdict: advice.verdict, tps, memoryBytes: resources.memory_bytes, memoryLimitMb, cpuPercent: Math.round(resources.cpu_absolute), lines: advice.lines };
+  });
+
+  const GEYSER_CONFIG = '/plugins/Geyser-Spigot/config.yml';
+
+  async function primaryPort(token: string, uuid: string): Promise<number | null> {
+    try {
+      return (await client.listAllocations(token, uuid)).find((entry) => entry.is_default)?.port ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Bedrock players on a Java server (Geyser and Floodgate). The two plugins are installed with the plugin installer;
+   * this says what is done and what is next. Geyser has to listen on the game port of the server: allocations open
+   * both TCP and UDP, so no second port is needed.
+   */
+  app.get('/instances/:id/minecraft/crossplay', async (request: FastifyRequest) => {
+    const { slug, token, uuid } = await load(request);
+    if (slug !== 'minecraft-paper') return { supported: false, note: 'Bedrock crossplay runs on Paper. Folia and Forge need other software.' };
+    let plugins: string[] = [];
+    try { plugins = (await client.listFiles(token, uuid, '/plugins')).map((file) => file.name); } catch { /* No plugins folder yet. */ }
+    const gamePort = await primaryPort(token, uuid);
+    let configured: boolean | null = null;
+    const config = await readText(token, uuid, GEYSER_CONFIG);
+    if (config) configured = gamePort !== null && setGeyserBedrockPort(config, gamePort) === config;
+    return { supported: true, ...crossplayStatus({ plugins, gamePort, configured }) };
+  });
+
+  /** Writes the game port into the config of Geyser. The old file is kept beside it. It takes effect at the next start. */
+  app.post('/instances/:id/minecraft/crossplay/port', write, async (request: FastifyRequest) => {
+    const { user, instance, token, uuid, slug } = await load(request);
+    if (slug !== 'minecraft-paper') throw badRequest('Bedrock crossplay runs on Paper.');
+    const port = await primaryPort(token, uuid);
+    if (!port) throw conflict('The game port of this server could not be read.');
+    const config = await readText(token, uuid, GEYSER_CONFIG);
+    if (!config) throw conflict('Geyser has not written its config yet. Install it, start the server once, then try again.');
+    const next = setGeyserBedrockPort(config, port);
+    if (next === null) throw conflict('The config of Geyser has no Bedrock port line that can be changed here. Edit it in Files.');
+    if (next !== config) {
+      await client.writeFile(token, uuid, `${GEYSER_CONFIG}.bak`, config);
+      await client.writeFile(token, uuid, GEYSER_CONFIG, next);
+    }
+    await audit({ actorId: user.id, actorEmail: user.email, action: 'instance.minecraft_crossplay_port', targetType: 'instance', targetId: instance.id, meta: { port } });
+    return { port, changed: next !== config, note: 'Restart the server to apply it. Bedrock players join with this address and the same port.' };
   });
 
   /** A copy of the worlds that is kept until the owner removes it. */
