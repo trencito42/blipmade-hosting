@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteOwnedRecords, previewCustomerRecords, publishCustomerRecords, zoneForToken } from '../src/services/customer-cloudflare.js';
 
 /** A small Cloudflare: one zone with records, and a log of every call, so the tests can say what was and was not written. */
-interface Row { id: string; type: string; name: string; content?: string; data?: Record<string, unknown> }
+interface Row { id: string; type: string; name: string; content?: string; proxied?: boolean; data?: Record<string, unknown> }
 let rows: Row[];
 let calls: string[];
 let zones: { id: string; name: string; status: string; name_servers: string[] }[];
@@ -135,5 +135,20 @@ describe('writing records', () => {
     expect(removed).toHaveLength(1);
     expect(rows.map((row) => row.id)).toEqual(['theirs']);
     expect(await deleteOwnedRecords('t', 'z1', ['../zones/z1'])).toEqual([]);
+  });
+
+  it('does not call a proxied record unchanged: a record of the customer is named, one of ours is put back to DNS only', async () => {
+    rows.push({ id: 'theirs', type: 'A', name: 'app.example.com', content: '203.0.113.10', proxied: true } as Row);
+    const preview = await previewCustomerRecords('t', 'z1', 'example.com', [a], []);
+    expect(preview[0]).toMatchObject({ action: 'conflict', current: '203.0.113.10 (proxied by Cloudflare)' });
+    const refused = await publishCustomerRecords('t', 'z1', 'example.com', [a], []);
+    expect(refused.written).toEqual([]);
+    expect(refused.skipped.join(' ')).toMatch(/proxied by Cloudflare\. Turn the proxy off/);
+    expect((rows[0] as Row & { proxied?: boolean }).proxied).toBe(true);
+
+    const fixed = await publishCustomerRecords('t', 'z1', 'example.com', [a], [{ type: 'A', name: 'app.example.com', cloudflareId: 'theirs' }]);
+    expect(fixed.written).toEqual(['A app.example.com']);
+    expect((rows[0] as Row & { proxied?: boolean }).proxied).toBe(false);
+    expect((await previewCustomerRecords('t', 'z1', 'example.com', [a], []))[0]!.action).toBe('unchanged');
   });
 });

@@ -65,3 +65,48 @@ describe('the Cloudflare zone of a customer', () => {
     expect((await client.request('GET', '/api/domains/cloudflare')).body.connected).toBe(false);
   });
 });
+
+describe('who may write the DNS of a hostname', () => {
+  async function ownerWithDomain() {
+    const owner = await registerAndLogin(await getApp(), 'dns-owner@example.com');
+    const product = await prisma.product.create({ data: { slug: 'wordpress', name: 'WordPress', category: 'WEB_CMS', description: 'A website.', icon: 'globe', deployable: true, eggId: 1 } });
+    const instance = await prisma.instance.create({ data: { userId: owner.userId, productId: product.id, name: 'site', status: 'ONLINE', ram: 1024, cpu: 1, disk: 10, price: 149, pterodactylServerId: 4242 } });
+    const domain = await prisma.instanceDomain.create({ data: { instanceId: instance.id, hostname: 'app.example.com', claimedByUserId: owner.userId, verificationToken: 'tok', verificationHost: '_blipmade-verify.app.example.com', verifiedAt: new Date() } });
+    return { owner, instance, domain };
+  }
+  const member = async (email: string, instanceId: string, role: 'manager' | 'viewer') => {
+    const person = await registerAndLogin(await getApp(), email);
+    await prisma.instanceShare.create({ data: { instanceId, userId: person.userId, role, codeHash: `h-${email}`, expiresAt: new Date(Date.now() + 86_400_000), redeemedAt: new Date() } });
+    return person;
+  };
+
+  it('is open to the owner and closed to a manager, a viewer and a stranger, even with a zone of their own', async () => {
+    const { owner, instance, domain } = await ownerWithDomain();
+    expect((await owner.client.request('PUT', '/api/domains/cloudflare', { token: TOKEN })).status).toBe(200);
+    const shown = await owner.client.request('POST', `/api/domains/${domain.id}/cloudflare`, {});
+    expect(shown.status).toBe(200);
+    expect(Array.isArray(shown.body.preview)).toBe(true);
+
+    const manager = await member('dns-manager@example.com', instance.id, 'manager');
+    const viewer = await member('dns-viewer@example.com', instance.id, 'viewer');
+    const stranger = await registerAndLogin(await getApp(), 'dns-stranger@example.com');
+    for (const person of [manager, viewer, stranger]) {
+      // The member connects a zone of their own: it is theirs and it never reaches the hostname of the owner.
+      expect((await person.client.request('PUT', '/api/domains/cloudflare', { token: TOKEN })).status).toBe(200);
+      expect((await person.client.request('POST', `/api/domains/${domain.id}/cloudflare`, {})).status).toBe(404);
+      expect((await person.client.request('POST', `/api/domains/${domain.id}/cloudflare`, { approve: true, previewId: shown.body.previewId })).status).toBe(404);
+    }
+    expect(await prisma.dnsApproval.count({ where: { userId: { not: owner.userId } } })).toBe(0);
+    expect(await prisma.dnsRecordGrant.count()).toBe(0);
+  });
+
+  it('never suggests a www record next to the hostname of a customer', async () => {
+    const { owner, instance } = await ownerWithDomain();
+    await prisma.instanceDomain.create({ data: { instanceId: instance.id, hostname: 'example.org', claimedByUserId: owner.userId, verificationToken: 'tok2', verificationHost: '_blipmade-verify.example.org' } });
+    const list = await owner.client.request('GET', '/api/domains');
+    expect(list.status).toBe(200);
+    const names = (list.body.domains as { dnsRecords: { name: string }[] }[]).flatMap((row) => row.dnsRecords.map((record) => record.name));
+    expect(names.length).toBeGreaterThan(0);
+    expect(names.filter((name) => name.startsWith('www.'))).toEqual([]);
+  });
+});

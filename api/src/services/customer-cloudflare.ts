@@ -64,6 +64,7 @@ interface CfRow {
   id?: string;
   type?: string;
   content?: string;
+  proxied?: boolean;
   data?: { priority?: number; weight?: number; port?: number; target?: string };
 }
 
@@ -113,7 +114,15 @@ async function inspect(token: string, zoneId: string, zoneName: string, record: 
   const clashing = ADDRESS.includes(record.type)
     ? all.find((row) => row.type !== record.type && ADDRESS.includes(row.type ?? '') && (record.type === 'CNAME' || row.type === 'CNAME'))
     : undefined;
-  if (exact) return { action: 'unchanged', current: wanted, ours };
+  if (exact) {
+    // A record that Cloudflare proxies (the orange cloud) hides the address: the certificate of the gateway cannot be
+    // issued for it and a game connection cannot reach the server. A record we wrote is put back to DNS only; one that is not
+    // ours is left in place and named.
+    if (ADDRESS.includes(record.type) && exact.proxied === true) {
+      return { action: ours && ours.id === exact.id ? 'update' : 'conflict', current: `${wanted} (proxied by Cloudflare)`, ours };
+    }
+    return { action: 'unchanged', current: wanted, ours };
+  }
   if (clashing) return { action: 'conflict', current: clashing.content ?? null, ours };
   if (same.length === 0) return { action: 'create', current: null, ours };
   if (ours) return { action: 'update', current, ours };
@@ -169,7 +178,7 @@ export async function publishCustomerRecords(
       continue;
     }
     if (found.action === 'conflict') {
-      skipped.push(`${label} already has a different value. It was left unchanged.`);
+      skipped.push(found.current?.includes('proxied by Cloudflare') ? `${label} is proxied by Cloudflare. Turn the proxy off (DNS only) and run it again. It was left unchanged.` : `${label} already has a different value. It was left unchanged.`);
       continue;
     }
     if (found.action === 'skip') {
