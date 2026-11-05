@@ -304,6 +304,34 @@ async function appliedResizes(instanceId: string): Promise<number> {
   });
 }
 
+/**
+ * Where the quota of an instance stands, without pricing anything: how many changes count in the last 30 days, when the
+ * next one is allowed, and a change that waits for its payment (it already holds a slot).
+ */
+export async function resizeStatus(instanceId: string): Promise<{
+  used: number;
+  allowed: number;
+  remaining: number;
+  nextChangeAt: string | null;
+  pending: { orderId: string; number: string } | null;
+}> {
+  const since = new Date(Date.now() - RESIZE_WINDOW_MS);
+  const [counted, oldest, waiting] = await Promise.all([
+    appliedResizes(instanceId),
+    prisma.order.findFirst({ where: { instanceId, kind: 'UPGRADE', status: { in: ['PENDING', 'AWAITING_PAYMENT', 'PAID', 'FULFILLED'] }, createdAt: { gt: since } }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
+    prisma.order.findFirst({ where: { instanceId, kind: 'UPGRADE', status: { in: ['PENDING', 'AWAITING_PAYMENT'] }, createdAt: { gt: since } }, orderBy: { createdAt: 'desc' }, select: { id: true, number: true } }),
+  ]);
+  const remaining = Math.max(0, RESIZE_LIMIT - counted);
+  return {
+    used: counted,
+    allowed: RESIZE_LIMIT,
+    remaining,
+    // The date matters only when no change is left: it is when the oldest one leaves the window.
+    nextChangeAt: remaining === 0 && oldest ? new Date(oldest.createdAt.getTime() + RESIZE_WINDOW_MS).toISOString() : null,
+    pending: waiting ? { orderId: waiting.id, number: waiting.number } : null,
+  };
+}
+
 export async function quoteResourceChange(
   instance: InstanceWithProduct,
   request: ResourceRequest,

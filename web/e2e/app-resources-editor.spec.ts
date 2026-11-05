@@ -8,6 +8,8 @@ async function json(route: Route, body: unknown) {
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
 }
 
+let status: unknown = { used: 0, allowed: 2, remaining: 2, nextChangeAt: null, pending: null };
+
 async function stub(page: Page, saved: unknown[]) {
   await page.route('**/api/**', async (route) => {
     const req = route.request();
@@ -21,6 +23,7 @@ async function stub(page: Page, saved: unknown[]) {
     if (path === '/support/chat/current' || path === '/support/bot/current') return json(route, { conversation: null });
     if (path === '/instances/i1' && req.method() === 'GET') return json(route, { instance: INSTANCE });
     if (path === '/catalog/products/wordpress') return json(route, { product: PRODUCT });
+    if (path === '/instances/i1/resources/status') return json(route, status);
     if (path === '/instances/i1/resources/quote') {
       const ram = Number(url.searchParams.get('ram'));
       const delta = Math.round(((ram - 1024) / 256) * 100);
@@ -94,5 +97,26 @@ test.describe('dedicated resources page', () => {
     await stub(page, saved);
     await page.goto('/app/instances/i1/resources/edit?ram=abc&cpu=0.5&disk=-3');
     await expect(page.getByRole('button', { name: 'Save resources' })).toBeDisabled();
+  });
+
+  test('with no change left the page says so, with the date, and nothing can be saved', async ({ page }) => {
+    status = { used: 2, allowed: 2, remaining: 0, nextChangeAt: '2026-11-20T10:00:00.000Z', pending: null };
+    await stub(page, []);
+    await page.goto('/app/instances/i1/resources/edit');
+    await expect(page.getByText('0 of 2 changes remaining.')).toBeVisible();
+    await expect(page.getByText(/next change is available on 20 November 2026/)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Ask support' })).toHaveAttribute('href', '/app/tickets/new');
+    await expect(page.getByRole('button', { name: 'Decrease Memory' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Save resources' })).toBeDisabled();
+    status = { used: 0, allowed: 2, remaining: 2, nextChangeAt: null, pending: null };
+  });
+
+  test('a change that waits for payment is named, with the way to its order', async ({ page }) => {
+    status = { used: 1, allowed: 2, remaining: 1, nextChangeAt: null, pending: { orderId: 'o9', number: 'BM-900' } };
+    await stub(page, []);
+    await page.goto('/app/instances/i1/resources/edit');
+    await expect(page.getByRole('link', { name: 'order #BM-900' })).toHaveAttribute('href', '/app/billing/orders/o9');
+    await expect(page.getByRole('button', { name: 'Decrease Memory' })).toBeEnabled();
+    status = { used: 0, allowed: 2, remaining: 2, nextChangeAt: null, pending: null };
   });
 });

@@ -14,7 +14,7 @@ import { failPanelServerMissing, isPanelServerMissing } from '../services/panel-
 import { hasCustomerCredential, resolveCustomerCredential } from '../services/panel/credentials.js';
 import { nodeAddressFor } from '../services/panel/nodes.js';
 import * as pteroApp from '../services/pterodactyl/application.js';
-import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, quoteStillValid, settleFreeUpgradeOrder } from '../services/upgrades.js';
+import { applyUpgradeOrder, createUpgradeOrder, quoteResourceChange, quoteStillValid, resizeStatus, settleFreeUpgradeOrder } from '../services/upgrades.js';
 import { assessRepurpose, repurposeInstance } from '../services/provisioning.js';
 import { repurposeConfirmed } from '../services/repurpose-gate.js';
 import { notifyInstanceCanceled, notifyInstanceUnsuspended } from '../services/notifications.js';
@@ -367,6 +367,14 @@ export async function registerInstanceRoutes(app: FastifyInstance): Promise<void
    * Prices a resource change without changing anything. The client shows the
    * difference before the customer commits to it.
    */
+  /** The quota of resource changes of an instance and a change that waits for payment. Nothing is priced. */
+  app.get('/instances/:id/resources/status', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+    const instance = await loadInstance(user.id, id);
+    return resizeStatus(instance.id);
+  });
+
   app.get('/instances/:id/resources/quote', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     const { id } = z.object({ id: z.string() }).parse(request.params);

@@ -393,4 +393,29 @@ describe('the quote that was shown', () => {
     const order = await prisma.order.findFirst({ where: { instanceId: instance.id, kind: 'UPGRADE' } });
     expect(order?.requestedConfig).toEqual({ ram: 2048, cpu: 1, disk: 10 });
   });
+
+  it('reports the quota: slots used, the date the next one frees up, and a change that waits for payment', async () => {
+    const { client, instance } = await seedInstance();
+    const empty = await client.request('GET', `/api/instances/${instance.id}/resources/status`);
+    expect(empty.status).toBe(200);
+    expect(empty.body).toEqual({ used: 0, allowed: 2, remaining: 2, nextChangeAt: null, pending: null });
+    const day = 86_400_000;
+    const order = (ago: number, status: 'FULFILLED' | 'AWAITING_PAYMENT' | 'FAILED', number: string) => prisma.order.create({ data: { number, userId: instance.userId, status, kind: 'UPGRADE', instanceId: instance.id, total: 100, currency: 'EUR', createdAt: new Date(Date.now() - ago * day) } });
+    await order(20, 'FULFILLED', 'BM-S1');
+    await order(40, 'FULFILLED', 'BM-S2'); // outside the 30 days: not counted
+    await order(2, 'FAILED', 'BM-S3'); // a failed change holds nothing
+    expect((await client.request('GET', `/api/instances/${instance.id}/resources/status`)).body).toMatchObject({ used: 1, remaining: 1, nextChangeAt: null, pending: null });
+    await order(1, 'AWAITING_PAYMENT', 'BM-S4');
+    const full = (await client.request('GET', `/api/instances/${instance.id}/resources/status`)).body;
+    expect(full).toMatchObject({ used: 2, remaining: 0, pending: { number: 'BM-S4' } });
+    // The oldest counted change was 20 days ago: the next one is free in 10 days.
+    const freed = Date.parse(full.nextChangeAt) - Date.now();
+    expect(freed).toBeGreaterThan(9 * day);
+    expect(freed).toBeLessThan(10.1 * day);
+    // The quote refuses with the same date, and somebody else's instance is not readable.
+    const quote = await client.request('GET', `/api/instances/${instance.id}/resources/quote?ram=2048&cpu=1&disk=10`);
+    expect(quote.status).toBe(400);
+    const stranger = await registerAndLogin(await getApp(), 'stranger-status@example.com');
+    expect((await stranger.client.request('GET', `/api/instances/${instance.id}/resources/status`)).status).toBe(404);
+  });
 });
