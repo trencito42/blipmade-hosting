@@ -390,7 +390,7 @@ describe('the state of an instance that the platform shows as online', () => {
     expect(after?.status).toBe('ONLINE');
   });
 
-  it('looks only at the instances the platform believes are running', async () => {
+  it('still asks the node when the platform status says stopped', async () => {
     fakePanel();
     panel.states.set('uuid-stopped', 'offline');
     const { instance } = await seedOnlineInstance({ uuid: 'uuid-stopped' });
@@ -398,7 +398,8 @@ describe('the state of an instance that the platform shows as online', () => {
 
     const result = await reconcileRuntimeState();
 
-    expect(result.observed).toBe(0);
-    expect(result.notRunning).toBe(0);
+    // A stopped row can be stale. The node is asked, and an offline container is counted.
+    expect(result.observed).toBe(1);
+    expect(result.notRunning).toBe(1);
   });
 });
