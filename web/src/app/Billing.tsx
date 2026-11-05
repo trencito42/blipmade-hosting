@@ -76,6 +76,7 @@ const BILLING_TABS = [
 /** The credit of the account, as the payment provider holds it. */
 function CreditBalance() {
   const state = useAsync<{ credit: number; currency: string }>((signal) => get<{ credit: number; currency: string }>('/billing/credit', undefined, signal), []);
+  const history = useAsync<{ credits: { id: string; amount: number; currency: string; reason: string; orderNumber: string | null; createdAt: string }[] }>((signal) => get('/billing/credit/history', undefined, signal), []);
   return (
     <Panel title="Credit" description="Credit is taken off your next invoice automatically.">
       {state.loading ? (
@@ -86,6 +87,23 @@ function CreditBalance() {
         <p className="font-mono text-[26px] font-semibold tracking-[-0.03em] text-ink"><Money amount={state.data!.credit} currency={state.data!.currency} /></p>
       ) : (
         <p className="text-[14px] text-ink3">No credit on this account.</p>
+      )}
+      {history.data && history.data.credits.length > 0 && (
+        <div className="mt-5">
+          <p className="mb-2 text-[13px] font-semibold text-ink">Credits you were given</p>
+          <ul className="divide-y divide-line">
+            {history.data.credits.map((row) => (
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-[13.5px]">
+                <span className="min-w-0 text-ink2">
+                  {row.reason}
+                  {row.orderNumber ? <span className="text-ink3"> · change {row.orderNumber}</span> : null}
+                  <span className="block text-[12px] text-ink3">{formatDate(row.createdAt)}</span>
+                </span>
+                <span className="font-mono text-ink"><Money amount={row.amount} currency={row.currency} /></span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </Panel>
   );

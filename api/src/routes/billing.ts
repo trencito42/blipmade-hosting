@@ -58,6 +58,30 @@ export async function registerBillingRoutes(app: FastifyInstance): Promise<void>
     return { credit: balance !== null && balance < 0 ? -balance : 0, currency: payment.currency ?? 'EUR' };
   });
 
+  /** The credits the account was given, newest first: why, for which order, how much and when. Only the account's own rows. */
+  app.get('/billing/credit/history', async (request: FastifyRequest) => {
+    const user = await requireAuth(request);
+    const rows = await prisma.moneyAdjustment.findMany({
+      where: { userId: user.id, kind: 'credit' },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: { id: true, orderId: true, amount: true, currency: true, reason: true, createdAt: true },
+    });
+    const orderIds = [...new Set(rows.map((row) => row.orderId).filter((id): id is string => Boolean(id)))];
+    const orders = orderIds.length ? await prisma.order.findMany({ where: { id: { in: orderIds }, userId: user.id }, select: { id: true, number: true } }) : [];
+    const numbers = new Map(orders.map((order) => [order.id, order.number]));
+    return {
+      credits: rows.map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        currency: row.currency,
+        reason: row.reason,
+        orderNumber: row.orderId ? numbers.get(row.orderId) ?? null : null,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    };
+  });
+
   app.get('/billing/summary', async (request: FastifyRequest) => {
     const user = await requireAuth(request);
     // The lists of the summary are bounded. The totals are made from their own queries,

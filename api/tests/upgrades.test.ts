@@ -342,4 +342,20 @@ describe('resource changes', () => {
     expect(orders).toBeLessThanOrEqual(2);
     expect(answers.filter((answer) => answer.status >= 400).length).toBeGreaterThanOrEqual(2);
   });
+
+  it('lists the credits of the account, and only its own', async () => {
+    const { client, instance } = await seedInstance();
+    const other = await prisma.user.create({ data: { email: 'someone-else@example.com', passwordHash: 'x', firstName: 'S', lastName: 'E' } });
+    await prisma.moneyAdjustment.createMany({
+      data: [
+        { userId: instance.userId, kind: 'credit', amount: 120, currency: 'EUR', reason: 'Unused time after a resource decrease' },
+        { userId: instance.userId, kind: 'refund', amount: 999, currency: 'EUR', reason: 'A refund is not a credit' },
+        { userId: other.id, kind: 'credit', amount: 555, currency: 'EUR', reason: 'Somebody else' },
+      ],
+    });
+    const answer = await client.request('GET', '/api/billing/credit/history');
+    expect(answer.status).toBe(200);
+    expect(answer.body.credits).toHaveLength(1);
+    expect(answer.body.credits[0]).toMatchObject({ amount: 120, currency: 'EUR', reason: 'Unused time after a resource decrease', orderNumber: null });
+  });
 });
