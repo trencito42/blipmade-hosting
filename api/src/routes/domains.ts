@@ -15,6 +15,7 @@ import { httpDomainUpdate, probeHostname, probeTcpPort } from '../services/domai
 import { deleteOwnedRecords, openZoneToken, previewCustomerRecords, publishCustomerRecords, recordsFingerprint, sealZoneToken, zoneForToken, DNS_PREVIEW_TTL_MS, approvalDecision, type CustomerRecord, type RecordPreview } from '../services/customer-cloudflare.js';
 import * as operations from '../services/panel/operations.js';
 import * as panelClient from '../services/pterodactyl/client.js';
+import { gamePlacement as placementOf, profileForProduct, srvServiceOf } from '../services/game-connect.js';
 import { resolveTarget } from '../services/domain-routing.js';
 import {
   notifyDomainDnsIncomplete,
@@ -127,6 +128,7 @@ interface DomainRow {
   purpose: string;
   gameAddress: string | null;
   srvPort: number | null;
+  srvService?: string | null;
   lastError: string | null;
   verificationToken: string | null;
   verificationHost: string | null;
@@ -275,7 +277,7 @@ function serializeDomain(domain: DomainRow, changeAvailableAt: Date | null = nul
     ? [{ name: domain.hostname, type: 'A', value: domain.gameAddress }]
     : gateway.dnsRecordsFor(domain.hostname, target);
   if (domain.purpose === 'game' && domain.srvPort && domain.gameAddress) {
-    records.push({ name: `_minecraft._tcp.${domain.hostname}`, type: 'SRV', value: `0 5 ${domain.srvPort} ${domain.hostname}` });
+    records.push({ name: `_${domain.srvService ?? 'minecraft._tcp'}.${domain.hostname}`, type: 'SRV', value: `0 5 ${domain.srvPort} ${domain.hostname}` });
   }
   if (domain.verificationHost && domain.verificationToken) {
     records.push({ name: domain.verificationHost, type: 'TXT', value: domain.verificationToken });
@@ -314,34 +316,18 @@ function serializeDomain(domain: DomainRow, changeAvailableAt: Date | null = nul
   };
 }
 
-const JAVA_GAMES = new Set(['minecraft-paper', 'minecraft-folia', 'minecraft-forge']);
+/** The public address, the real port and the SRV service of a game server, from its allocation and the registry of Smart Connect. */
+async function gamePlacement(instanceId: string): Promise<{ address: string | null; port: number; srvPort: number | null; srvService: string | null }> {
+  const place = await placementOf(instanceId);
+  const row = await prisma.instance.findUnique({ where: { id: instanceId }, select: { product: { select: { slug: true } } } });
+  const service = srvServiceFor(row?.product.slug ?? '');
+  return { ...place, srvPort: service && place.address ? place.port : null, srvService: service };
+}
 
-/** The public address and port of a game server, read from its allocation. */
-async function gamePlacement(instanceId: string): Promise<{ address: string | null; port: number; srvPort: number | null }> {
-  const instance = await prisma.instance.findUnique({
-    where: { id: instanceId },
-    select: {
-      id: true, userId: true, status: true, pterodactylUuid: true, pterodactylServerId: true, generatedVariables: true,
-      product: { select: { slug: true, generatedVariables: true } },
-    },
-  });
-  if (!instance?.pterodactylUuid || !instance.pterodactylServerId) return { address: null, port: 0, srvPort: null };
-  const token = await operations.customerToken({
-    id: instance.id,
-    userId: instance.userId,
-    status: instance.status,
-    pterodactylUuid: instance.pterodactylUuid,
-    pterodactylServerId: instance.pterodactylServerId,
-    generatedVariables: instance.generatedVariables,
-    productVariables: instance.product.generatedVariables,
-  });
-  const allocations = await panelClient.listAllocations(token, instance.pterodactylUuid);
-  const primary = allocations.find((item) => item.is_default) ?? allocations[0];
-  if (!primary) return { address: null, port: 0, srvPort: null };
-  const raw = primary.ip && primary.ip !== '0.0.0.0' && primary.ip !== '127.0.0.1'
-    ? primary.ip
-    : (primary.alias && /^\d{1,3}(\.\d{1,3}){3}$/.test(primary.alias) ? primary.alias : null);
-  return { address: raw, port: primary.port, srvPort: JAVA_GAMES.has(instance.product.slug) ? primary.port : null };
+/** The SRV service label of a game, from the registry of Smart Connect. A game that is not enabled there gets none. */
+function srvServiceFor(slug: string): string | null {
+  const profile = profileForProduct(slug);
+  return profile?.enabled ? srvServiceOf(profile) : null;
 }
 
 export async function registerDomainRoutes(app: FastifyInstance): Promise<void> {
@@ -539,6 +525,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
           purpose,
           gameAddress: placement?.address ?? null,
           srvPort: placement?.srvPort ?? null,
+          srvService: placement?.srvService ?? null,
           status: 'VERIFYING',
           verificationToken: token,
           verificationHost,
@@ -566,6 +553,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
           purpose,
           gameAddress: placement?.address ?? null,
           srvPort: placement?.srvPort ?? null,
+          srvService: placement?.srvService ?? null,
           status: 'VERIFYING',
           lastError: null,
         },
@@ -580,6 +568,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
           purpose,
           gameAddress: placement?.address ?? null,
           srvPort: placement?.srvPort ?? null,
+          srvService: placement?.srvService ?? null,
           status: 'VERIFYING',
           verificationToken: token,
           verificationHost,
@@ -691,6 +680,7 @@ export async function registerDomainRoutes(app: FastifyInstance): Promise<void> 
           verifiedAt,
           gameAddress: expected,
           srvPort: placement.srvPort ?? domain.srvPort,
+          srvService: placement.srvService ?? domain.srvService ?? null,
           targetPort: port,
           lastError: ready
             ? null

@@ -13,11 +13,15 @@ export interface DnsWrite {
   type: 'A' | 'AAAA' | 'CNAME' | 'TXT' | 'SRV';
   name: string;
   content: string;
+  /** A SRV record carries its parts as data, not as content. */
+  data?: { priority: number; weight: number; port: number; target: string };
 }
 
 interface CloudflareResult {
   published: boolean;
   reason: string | null;
+  /** The id of the record at the provider, so the platform can remove exactly the record it wrote. */
+  id?: string;
 }
 
 async function cloudflare(method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number; result: unknown; errors: string[] }> {
@@ -46,11 +50,14 @@ export async function upsertZoneRecord(record: DnsWrite): Promise<CloudflareResu
   const listed = await cloudflare('GET', `/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records?type=${record.type}&name=${encodeURIComponent(record.name)}`);
   if (!listed.ok) return { published: false, reason: listed.errors[0] ?? 'The DNS record could not be read.' };
   const existing = Array.isArray(listed.result) ? (listed.result as { id?: string }[])[0] : undefined;
-  const payload = { type: record.type, name: record.name, content: record.content, ttl: 120, proxied: false };
+  const payload = record.type === 'SRV' && record.data
+    ? { type: 'SRV', name: record.name, data: record.data, ttl: 120 }
+    : { type: record.type, name: record.name, content: record.content, ttl: 120, proxied: false };
   const saved = existing?.id
     ? await cloudflare('PUT', `/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records/${existing.id}`, payload)
     : await cloudflare('POST', `/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records`, payload);
-  return saved.ok ? { published: true, reason: null } : { published: false, reason: saved.errors[0] ?? 'The DNS record could not be written.' };
+  const savedId = saved.result && typeof saved.result === 'object' && 'id' in saved.result ? String((saved.result as { id?: unknown }).id ?? '') : existing?.id ?? '';
+  return saved.ok ? { published: true, reason: null, id: savedId || undefined } : { published: false, reason: saved.errors[0] ?? 'The DNS record could not be written.' };
 }
 
 /** Removes one platform record. The zone apex and every mail or nameserver record stay. */
@@ -66,4 +73,13 @@ export async function deleteZoneRecord(type: DnsWrite['type'], name: string): Pr
     if (!removed.ok) return { published: false, reason: removed.errors[0] ?? 'The DNS record could not be removed.' };
   }
   return { published: true, reason: null };
+}
+
+/** Removes one record by the id the platform kept when it wrote it. Anything it did not write is never touched this way. */
+export async function deleteZoneRecordById(id: string): Promise<CloudflareResult> {
+  if (!env.cloudflareDnsEnabled) return { published: false, reason: 'Cloudflare DNS is not configured.' };
+  if (!/^[a-zA-Z0-9]{8,64}$/.test(id)) return { published: false, reason: null };
+  const removed = await cloudflare('DELETE', `/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records/${id}`);
+  // A record that is already gone is the state that was asked for.
+  return removed.ok || removed.status === 404 ? { published: true, reason: null } : { published: false, reason: removed.errors[0] ?? 'The DNS record could not be removed.' };
 }

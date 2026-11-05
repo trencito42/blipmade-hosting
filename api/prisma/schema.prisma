@@ -1069,6 +1069,7 @@ model Instance {
   provisioningJobs ProvisioningJob[]
   upgradeOrders   Order[]          @relation("UpgradeOrders")
   profiles        ServerProfile[]
+  gameConnect     GameConnect?
   repurposeJobs   RepurposeJob[]
 
   @@index([userId, status])
@@ -1161,6 +1162,8 @@ model InstanceDomain {
   gameAddress String?
   /// Set for a Java game hostname that should also publish an SRV record.
   srvPort     Int?
+  /// The service label of the SRV record of a game hostname, for example `minecraft._tcp`. Null for a website.
+  srvService  String?
   status      DomainStatus @default(PENDING_DNS)
   // Random per-domain proof of ownership. The customer has to publish it as a
   // TXT record before the domain can be routed.
@@ -2462,4 +2465,29 @@ model ContentRevision {
   publishedAt DateTime?
 
   @@index([key, status, createdAt])
+}
+
+/// Smart Connect: a clean hostname for a game server. Blipmade writes an A and an SRV record in its own zone and keeps the
+/// ids of the records it wrote, so it only ever removes its own. The real port of the allocation stays; SRV points at it.
+model GameConnect {
+  id               String    @id @default(cuid())
+  instanceId       String?   @unique
+  instance         Instance? @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  label            String    @unique
+  /// The profile of the capability registry: minecraft-java, factorio, fivem.
+  profile          String
+  /// PENDING_DNS, DNS_VERIFIED, CLIENT_VERIFIED (set by hand after a real join), DEGRADED, UNSUPPORTED.
+  state            String    @default("PENDING_DNS")
+  publicAddress    String?
+  port             Int?
+  aRecordId        String?
+  srvRecordId      String?
+  lastError        String?
+  lastSyncedAt     DateTime?
+  clientVerifiedAt DateTime?
+  removeRequestedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([state])
 }

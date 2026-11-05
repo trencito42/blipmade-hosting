@@ -209,6 +209,12 @@ const schema = z.object({
    * instead of pretending that it works.
    */
   PAYMENTS_ENABLED: bool(false),
+  /** Smart Connect: clean hostnames for game servers. Off until the operator turns it on. */
+  GAME_CONNECT_ENABLED: bool(false),
+  /** The domain the clean hostnames live under. It has to be inside the platform zone. */
+  GAME_JOIN_DOMAIN: z.string().default('play.blipmade.com'),
+  /** The public address of the game node, used when the allocation shows a private one. */
+  GAME_PUBLIC_ADDRESS: z.string().default(''),
 
   INTERNAL_API_TOKEN: z.string().default(''),
   BLIPMADE_INTERNAL_API_TOKEN: z.string().default(''),
@@ -555,6 +561,7 @@ export const env = {
    */
   paymentsEnabled: raw.PAYMENTS_ENABLED && raw.STRIPE_SECRET_KEY.startsWith('sk_'),
   mailEnabled: Boolean(raw.SMTP_URL),
+  gameConnectEnabled: raw.GAME_CONNECT_ENABLED,
   cloudflareDnsEnabled: Boolean(raw.CLOUDFLARE_API_TOKEN && raw.CLOUDFLARE_ZONE_ID && raw.CLOUDFLARE_ZONE_NAME),
   pterodactylEnabled: Boolean(raw.PTERODACTYL_URL && raw.PTERODACTYL_APP_KEY),
   /**

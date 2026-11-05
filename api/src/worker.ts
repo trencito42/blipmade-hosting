@@ -52,6 +52,7 @@ import { reconcileWithProvider, releaseStalePromotionReservations, sweepSubscrip
 import { provisionMailService, sweepMailServices } from './services/mail-commerce.js';
 import { provisionVps, sweepVps } from './services/vps.js';
 import { reconcileDomainRoutes } from './services/domain-routing.js';
+import { reconcileGameConnects } from './services/game-connect.js';
 import { dispatchPendingEvents } from './services/notification-dispatch.js';
 import { runOpsSweep } from './services/ops-health.js';
 import { retryFailedWebhookEvents } from './routes/webhooks.js';
@@ -519,6 +520,8 @@ async function main(): Promise<void> {
   // the gateway is not a file of the platform, so a change on the edge takes
   // the routes away and this is what brings them back.
   timers.push(setInterval(() => void reconcileRoutes().catch((error) => console.error('[worker] the route repair failed', error)), 60_000));
+  // Clean hostnames of game servers (off until GAME_CONNECT_ENABLED): written, checked, and removed with the server.
+  timers.push(setInterval(() => void reconcileGameConnects().catch((error) => console.error('[worker] smart connect failed', error)), 5 * 60_000));
   timers.push(setInterval(() => void pruneQueue().catch(() => undefined), 10 * 60_000));
   timers.push(setInterval(() => void pruneSessions().catch(() => undefined), 60 * 60_000));
   timers.push(setInterval(() => void sweepBilling().catch((error) => console.error('[worker] billing sweep failed', error)), 15 * 60_000));

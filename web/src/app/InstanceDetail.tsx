@@ -7,6 +7,7 @@ import { listEvents } from '../lib/instance-api';
 import { useAction, useAsync } from '../lib/useAsync';
 import { Link, useParams, useRouter } from '../router';
 import OverviewTab from './instance/OverviewTab';
+import { Connect } from './instance/Connect';
 import { ServerProfiles } from './instance/ServerProfiles';
 import { Repurpose } from './instance/Repurpose';
 import { ButtonGroup } from './components/premium';
@@ -685,6 +686,7 @@ export default function InstanceDetail() {
               </Panel>
             </div>
           )}
+          {tab === 'overview' && <div className="mt-4"><Connect instance={instance} canCheck={instance.access !== 'viewer'} /></div>}
           {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><ServerProfiles instance={instance} /></div>}
           {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><Repurpose instance={instance} /></div>}
           {tab === 'overview' && instance.access !== 'viewer' && <div className="mt-4"><HelpPanel instance={instance} onGoTo={setTab} productSlug={instance.product.slug} /></div>}
