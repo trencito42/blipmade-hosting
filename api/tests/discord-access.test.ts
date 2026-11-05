@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { accessLevelFor, discordStaffMayReply, isProtectedDiscordChannel, permissionOverwrites } from '../src/services/discord/channel-access.js';
 import { DESIRED_GUILD_STATE_V1 } from '../src/services/discord/desired-state.js';
+import { vpsCustomerEligibleFromHosting } from '../src/services/discord/role-eligibility.js';
 
 describe('channel access', () => {
   const roles = {
@@ -29,5 +30,10 @@ describe('channel access', () => {
     expect(discordStaffMayReply({ role: 'STAFF', permissions: ['tickets.write'], suspended: false })).toBe(true);
     expect(discordStaffMayReply({ role: 'ADMIN', permissions: [], suspended: true })).toBe(false);
     expect(discordStaffMayReply({ role: 'CUSTOMER', permissions: ['tickets.write'], suspended: false })).toBe(false);
+  });
+
+  it('counts VPS on VpsService rows, not only game/app Instance rows', () => {
+    expect(vpsCustomerEligibleFromHosting([], [{ product: { slug: 'vps-start' } }])).toBe(true);
+    expect(vpsCustomerEligibleFromHosting([{ product: { slug: 'minecraft-paper' } }], [])).toBe(false);
   });
 });
