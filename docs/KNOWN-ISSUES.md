@@ -14,6 +14,19 @@ Date 2026-11-05. Severity: **S1** security/money/data, **S2** wrong behaviour or
 
 ## Tests
 
+GitHub Actions on `f26ba9c1` is green: run [42067609717](https://github.com/trencito42/blipmade-hosting/actions/runs/42067609717), all seven jobs success (schema drift, secret scan, workflow lint, dependency audit, web typecheck and build, API typecheck, unit and integration tests). Read from the public Actions API on 2026-11-05. The job log itself is not public. Production was not deployed.
+
+The 16 failures on `8d7ae250` (run 42059178815) were reproduced on the bench and fixed without relaxing the assertions:
+
+- The panel client keeps the shared env object. The three panel files now bind a free port and point that object at the fake panel. `panel-pagination`, `egg-environment-template` and `egg-variables-live` passed on the bench (18 tests).
+- A disk shrink needs a known usage. `downgrade-credit` now supplies that usage. The shrink rule is unchanged.
+- A quote for an unknown `nodejs` product now has a product row in that test.
+- `scripts/recover-daily81-instance.sh` bounds its node process, which is what `script-node-exit` checks.
+- An open product with no active price is a 404. A closed product, including a mail draft with no price, stays a 400. `yearly-term` and `email-hosting-drafts` passed together (20 tests).
+- Eight VPS orders created at once no longer upsert the same product slug. `vps-allocator` passed (10 tests).
+
+The suite skips tests in only three places: 6 in `stripe-sandbox-live` (needs `STRIPE_SANDBOX_E2E=1` and a test key), 1 in `support-load` (needs `LOAD=1`), and 7 backup tests when `bash`, `openssl`, `tar`, `sha256sum` or `md5sum` is missing. The bench split logged 7 skips, which is the Stripe and load set; those binaries exist on the bench, so the backup tests run. Run 42059178815 reported 14 skips, which is those three groups together. This green run's skip count was not in the public API.
+
 Full API suite on the bench (213 test files) did **not** finish inside its 1500 s timeout on 2026-11-05 morning, so that log has no total. A later split of the same tree (`~/api-baseline-6b91-fixed-half1.log` and `half2.log`, read 2026-11-05 17:50 UTC+2, not started by this pass) finished: half 1 **105 files / 842 tests passed**; half 2 **103 passed, 2 skipped / 982 passed, 7 skipped**. Skipped files in half 2: `stripe-sandbox-live` (6), `support-load` (1). No FAIL line in either log.
 
 These failures appeared in the earlier timed-out log `~/api-full-24.log`. The evening split **passed** the same files, so they are not current failures of that bench copy. The cause of the morning failures was not re-run against an older tree.

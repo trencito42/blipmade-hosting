@@ -111,8 +111,13 @@ Core: `NODE_ENV PORT HOST DATABASE_URL REDIS_URL SESSION_SECRET DATA_ENCRYPTION_
 - **#25 to #27** are deferred roadmap items, listed in `docs/IMPLEMENTATION-ROADMAP.md` (P5).
 
 ## 7. Things I could not verify
-- Production state after 14:15 UTC on 2026-11-05 (worker health after start, error logs beyond 3 minutes).
+- Production state after 14:15 UTC on 2026-11-05 (worker health after start, error logs beyond 3 minutes). Production was not deployed in the CI-fix pass, so the last deploy evidence is still `d5d9430f5`.
 - Whether production Stripe is live and `PAYMENTS_ENABLED` is on.
 - Any claim about a real game client, a real Cloudflare zone, or a real panel install.
-- CI status on GitHub (no CI run was read).
 - The credentials disclosed in chat (see `KNOWN-ISSUES.md`, K-01).
+
+## 8. CI fix, 2026-11-05 evening
+
+GitHub `main` is `f26ba9c1`. Actions run [42067609717](https://github.com/trencito42/blipmade-hosting/actions/runs/42067609717) is success on every job. That commit contains `39e5c01c` (Git and ZIP presets return no file plan, so `applyCatalogInstall` does not restart the server) and the test fixes in `KNOWN-ISSUES.md`. An earlier push of `39e5c01c` was rejected by GitHub with `fatal error in commit_refs`; a later fast-forward of the same history succeeded. Main was not force-pushed.
+
+Do not deploy until the owner asks. Draft catalog products stay unpublished. The next catalogue work is issue #20: a Discord Bot Blank preset must start from the written plan, and Git/ZIP must go through the import path rather than the file installer. Live panel proof is still missing.
