@@ -1,6 +1,7 @@
 import type { OfferingVariant } from '../../../lib/deploy-studio';
 import { StatusPill } from '../../../ui-app';
 import { Icon } from '../../../icons';
+import { ProductTile } from '../../../ui';
 
 interface VariantSelectionStepProps {
   variants: OfferingVariant[];
@@ -34,13 +35,7 @@ export function VariantSelectionStep({
                   : 'border-line/40 bg-card/40 opacity-60 cursor-not-allowed'
             }`}
           >
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-display text-[16px] font-bold ${
-                selected ? 'bg-acc text-on-acc' : 'bg-s1 text-ink2 group-hover:text-ink'
-              }`}
-            >
-              {v.label.charAt(0)}
-            </div>
+            <ProductTile slug={v.productSlug || v.slug} icon={v.icon || 'box'} size={40} />
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">

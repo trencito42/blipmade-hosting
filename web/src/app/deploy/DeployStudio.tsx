@@ -434,7 +434,14 @@ export default function DeployStudio({ initialSlug }: { initialSlug?: string } =
         <span className="text-ink3">Estimated Price</span>
         <div className="mt-1 flex items-baseline gap-1.5">
           <span className="font-display text-[22px] font-bold text-acc">
-            {quote ? formatPrice(quote.total, quote.currency) : activeVariant?.price ? formatPrice(activeVariant.price.amount, activeVariant.price.currency) : '—'}
+            {(() => {
+              if (quote) return formatPrice(quote.total, quote.currency);
+              const isYearly = period === 'YEARLY';
+              const p = isYearly
+                ? (activeVariant?.yearlyPrice ?? (activeVariant?.price ? { ...activeVariant.price, amount: activeVariant.price.amount * 12 } : null))
+                : activeVariant?.price;
+              return p ? formatPrice(p.amount, p.currency) : '—';
+            })()}
           </span>
           <span className="text-[12px] text-ink3">
             {periodSuffix(period)}
@@ -446,7 +453,7 @@ export default function DeployStudio({ initialSlug }: { initialSlug?: string } =
 
   return (
     <ProductWizardShell
-      eyebrow="Deploy Studio 3.0"
+      eyebrow="Deploy"
       title={offering.name}
       description={offering.summary}
       backTo="/app/deploy"

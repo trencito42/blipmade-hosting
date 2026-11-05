@@ -170,7 +170,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         if (missing.length) throw badRequest(`Confirm the order includes ${missing.join(', ')}. They were selected with this project.`);
       }
 
-      const quote = await buildQuote(orderItems, body.promotionCode, user.id, body.period);
+      const quote = await buildQuote(orderItems, body.promotionCode, user.id, body.period, { requireCredentials: true });
 
       for (let index = 0; index < quote.items.length; index += 1) {
         const priced = quote.items[index];

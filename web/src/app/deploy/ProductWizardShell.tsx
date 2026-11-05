@@ -64,9 +64,11 @@ export function ProductWizardShell({
               {backLabel}
             </Link>
           )}
-          <PrimaryButton type="button" disabled={!canContinue} onClick={onContinue}>
-            {stepIndex >= steps.length - 1 ? finalLabel : continueLabel}
-          </PrimaryButton>
+          {stepIndex < steps.length - 1 && (
+            <PrimaryButton type="button" disabled={!canContinue} onClick={onContinue}>
+              {continueLabel}
+            </PrimaryButton>
+          )}
         </div>
       }
     >

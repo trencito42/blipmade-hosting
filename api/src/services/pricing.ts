@@ -559,7 +559,9 @@ export async function loadOptions(
 export async function priceItems(
   items: OrderLineInput[],
   period: BillingPeriod = 'MONTHLY',
+  options?: { requireCredentials?: boolean },
 ): Promise<PricedItem[]> {
+  const requireCredentials = options?.requireCredentials ?? false;
   const slugs = [...new Set(items.map((item) => item.productSlug))];
   const products = await prisma.product.findMany({ where: { slug: { in: slugs } } });
   const productBySlug = new Map(products.map((product) => [product.slug, product]));
@@ -602,8 +604,9 @@ export async function priceItems(
       if (dedicatedIp && !(await freeDedicatedAddress())) {
         throw badRequest('No dedicated address is free right now. Use the shared address, or ask us for one.');
       }
+      const rawKey = item.sshPublicKey?.trim();
       vps = {
-        sshPublicKey: validSshKey(item.sshPublicKey),
+        sshPublicKey: rawKey ? validSshKey(rawKey) : (requireCredentials ? validSshKey(rawKey) : ''),
         name: validVpsName(item.vpsName, `server-${randomToken(3).toLowerCase().replace(/[^a-z0-9]/g, 'x')}`),
         dedicatedIp,
       };
@@ -614,10 +617,11 @@ export async function priceItems(
     // with a domain that the platform would refuse later.
     let mailDomain: string | undefined;
     if (isMail) {
-      if (!item.mailDomain) {
+      if (item.mailDomain?.trim()) {
+        mailDomain = assertValidMailDomain(item.mailDomain);
+      } else if (requireCredentials) {
         throw badRequest('Enter the domain you want to use for hosted mail.', { mailDomain: 'Enter a domain.' });
       }
-      mailDomain = assertValidMailDomain(item.mailDomain);
     }
 
     // The values the customer gives for the variables of the product are
@@ -625,7 +629,15 @@ export async function priceItems(
     // before they are written anywhere: they are the secrets of the customer.
     const specs = parseCustomerVariableSpecs(product.customerVariables);
     const installationManaged = Boolean(item.importSourceId || item.managedImport);
-    const accepted = checkCustomerVariables(installationManaged ? checkoutSpecs(specs) : specs, item.variables);
+    const effectiveSpecs = installationManaged ? checkoutSpecs(specs) : specs;
+    let accepted: Record<string, string> = {};
+    if (requireCredentials) {
+      accepted = checkCustomerVariables(effectiveSpecs, item.variables);
+    } else {
+      for (const [k, v] of Object.entries(item.variables ?? {})) {
+        if (typeof v === 'string') accepted[k] = v.trim();
+      }
+    }
     const sealedVariables = Object.keys(accepted).length > 0 ? sealVariables(accepted) : undefined;
 
     const price = await loadResourcePrice(product.id, period, product.fulfilment);
@@ -957,8 +969,9 @@ export async function buildQuote(
   promotionCode?: string | null,
   userId?: string | null,
   period: BillingPeriod = 'MONTHLY',
+  options?: { requireCredentials?: boolean },
 ): Promise<QuoteResult> {
-  const priced = await priceItems(items, period);
+  const priced = await priceItems(items, period, options);
   const subtotal = priced.reduce((sum, item) => sum + item.total, 0);
   const currency = priced[0]?.currency ?? 'EUR';
 

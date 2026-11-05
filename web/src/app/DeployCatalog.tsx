@@ -179,7 +179,7 @@ export default function DeployCatalog() {
       {/* Editorial Header */}
       <header className="grid gap-4 border-b border-line pb-6 pt-2">
         <div className="flex flex-col gap-2">
-          <span className="font-mono text-[12px] font-bold uppercase tracking-wider text-acc">Deploy Studio 3.0</span>
+          <span className="font-mono text-[12px] font-bold uppercase tracking-wider text-acc">Deploy</span>
           <h1 className="font-display text-[30px] font-bold tracking-tight text-ink sm:text-[36px]">
             What are you deploying today?
           </h1>

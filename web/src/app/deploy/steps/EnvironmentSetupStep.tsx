@@ -18,12 +18,14 @@ export function EnvironmentSetupStep({
   onChangeSshKey,
   serviceName,
   onChangeServiceName,
-  variables = {},
+  variables,
   onChangeVariable,
-  variableSpecs = {},
+  variableSpecs,
   error,
 }: EnvironmentSetupStepProps) {
-  const hasVars = Object.keys(variableSpecs).length > 0;
+  const safeSpecs = variableSpecs || {};
+  const safeVars = variables || {};
+  const hasVars = Object.keys(safeSpecs).length > 0;
 
   return (
     <div className="grid gap-6">
@@ -64,11 +66,11 @@ export function EnvironmentSetupStep({
         <div className="grid gap-4 rounded-2xl border border-line bg-card p-5">
           <h4 className="font-semibold text-ink">Application Configuration & Environment</h4>
           <div className="grid gap-4">
-            {Object.entries(variableSpecs).map(([key, spec]) => (
+            {Object.entries(safeSpecs).map(([key, spec]) => (
               <div key={key} className="grid gap-1.5">
                 <TextInput
                   label={`${spec.label}${spec.required ? ' *' : ''}`}
-                  value={variables[key] ?? spec.defaultValue ?? ''}
+                  value={safeVars[key] ?? spec.defaultValue ?? ''}
                   onChange={(e) => onChangeVariable(key, e.target.value)}
                   placeholder={spec.defaultValue ?? ''}
                 />

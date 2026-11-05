@@ -153,7 +153,7 @@ describe('Deploy Studio 3.0 API', () => {
       data: {
         slug: 'php-laravel',
         name: 'PHP Laravel App',
-        category: 'WEBSITES_APPS',
+        category: 'DEVELOPER_TOOLS',
         description: 'Full stack PHP Laravel hosting',
         icon: 'rocket',
         eggId: 5,
