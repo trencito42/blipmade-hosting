@@ -162,7 +162,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       for (const item of orderItems) {
         if (!item.importSourceId) continue;
         const source = await prisma.importSource.findFirst({ where: { id: item.importSourceId, userId: user.id, appliedAt: null } });
-        if (!source || source.productSlug !== item.productSlug) throw badRequest('That import does not match this product.');
+        if (!source) throw badRequest('That import does not match this product.');
+        if (source.productSlug !== item.productSlug) {
+          throw badRequest(`This project was prepared for ${source.productSlug}. Check it again for ${item.productSlug}. The order was not changed.`);
+        }
         const missing = missingCompanions(source.confirmedServices, orderItems.map((line) => line.productSlug));
         if (missing.length) throw badRequest(`Confirm the order includes ${missing.join(', ')}. They were selected with this project.`);
       }

@@ -462,11 +462,10 @@ function GenericFamilyWizard({ family }: { family: PublicFamily }) {
     setProjectError(null);
     setProjectId(null);
     try {
-      const answer = await post<{ plan: { id: string; productSlug: string } }>('/catalog/import/plans', zipBase64 ? { zipBase64 } : { url: projectUrl.trim() });
-      if (answer.plan.productSlug !== variant.product.slug) {
-        setProjectError(`This project is for ${answer.plan.productSlug}. Choose that product, or use a project that matches ${variant.label}.`);
-        return;
-      }
+      const answer = await post<{ plan: { id: string; productSlug: string } }>('/catalog/import/plans', {
+        ...(zipBase64 ? { zipBase64 } : { url: projectUrl.trim() }),
+        productSlug: variant.product.slug,
+      });
       setProjectId(answer.plan.id);
     } catch (error) {
       setProjectError(error instanceof Error ? error.message : 'The project could not be read.');

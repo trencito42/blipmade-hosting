@@ -123,3 +123,5 @@ GitHub `main` is `f26ba9c1`. Actions run [42067609717](https://github.com/trenci
 Do not deploy until the owner asks. Draft catalog products stay unpublished.
 
 Discord Blank, Git and ZIP are wired through the existing order and import path. A blank preset is stored on the order and waits for the file installer. A Git or ZIP preset is refused until an import of the same kind and product is attached, and that import is what provisioning runs. The family wizard collects the repository or archive before checkout. Proven on the bench by `discord-deploy.test.ts` and in the browser by the Git-preset e2e, both with fakes. A live Pterodactyl install is still UNVERIFIED. Node.js and Python were not given a second product. Draft presets were not published.
+
+A Node.js project can be ordered as Discord Bot when the customer selects that product. The detected product stays Node.js when they do not. A discord.py project stays on the Python product and is refused as the Node.js Discord Bot. An import prepared for one product is not moved onto an order for another.

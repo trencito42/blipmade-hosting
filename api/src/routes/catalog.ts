@@ -15,7 +15,7 @@ import { priceRowFor } from '../services/pricing.js';
 import { MAX_OPTION_CODES, MAX_ORDER_LINES } from '../lib/bounded.js';
 import { PUBLIC_OPERATOR_SETTING_KEYS } from '../services/operator-settings.js';
 import { publicFamilies, publicFamily } from '../services/catalog-projection.js';
-import { inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-inspect.js';
+import { importProductFor, inspectGitUrl, inspectZip, zipLayoutProblem } from '../services/import-inspect.js';
 import { IMPORT_ZIP_TTL_MS, zipQuotaProblem } from '../services/import-lifecycle.js';
 import { purgeExpiredImportArchives } from '../services/import-apply.js';
 import { cleanCommand, cleanRepoUrl } from '../services/git-deploy.js';
@@ -298,6 +298,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         buildCommand: z.string().max(500).optional(),
         startCommand: z.string().max(500).optional(),
         confirmServices: z.array(z.string().max(40)).max(3).optional(),
+        productSlug: z.string().trim().min(1).max(40).optional(),
       }).parse(request.body ?? {});
       const zip = body.zipBase64 ? Buffer.from(body.zipBase64, 'base64') : null;
       if (zip) {
@@ -312,9 +313,11 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
         if (quota) throw badRequest(quota);
       }
       const proposal = zip ? inspectZip(zip) : body.url ? await inspectGitUrl(body.url) : null;
-      if (!proposal?.productSlug || !proposal.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
-      const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, maxRam: true, deployable: true, visible: true } });
-      if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
+      if (!proposal?.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
+      const chosen = importProductFor(proposal, body.productSlug);
+      if ('error' in chosen) throw badRequest(chosen.error);
+      const product = await prisma.product.findUnique({ where: { slug: chosen.slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, maxRam: true, deployable: true, visible: true } });
+      if (!product?.visible || !product.deployable) throw badRequest('The selected product cannot be ordered.');
       const detected = proposal.services.map((service) => service.slug);
       const requested = body.confirmServices;
       const selection = confirmedServiceSelection(
@@ -333,7 +336,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       const repoUrl = body.url ? cleanRepoUrl(body.url) : null;
       const ram = Math.min(product.maxRam ?? product.defaultRam, Math.max(product.defaultRam, proposal.recommendedRam ?? product.defaultRam));
       const quote = await buildQuote([
-        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug, managedImport: true },
+        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: product.slug, managedImport: true },
         ...companions.map((row) => ({ productSlug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk, name: row.slug })),
       ], null, user.id);
       const plan = await prisma.importSource.create({
@@ -405,6 +408,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
           buildCommand: z.string().max(500).optional(),
           startCommand: z.string().max(500).optional(),
           confirmServices: z.array(z.string().max(40)).max(3).optional(),
+          productSlug: z.string().trim().min(1).max(40).optional(),
         })
         .parse(request.body ?? {});
       const { inspectGithubRepository } = await import('../services/import-github-inspect.js');
@@ -412,9 +416,11 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       const inspected = await inspectGithubRepository(user.id, body.installationId, body.repositoryId, body.branch);
       const { repo } = await assertUserRepositoryAccess(user.id, body.installationId, body.repositoryId);
       const proposal = inspected;
-      if (!proposal?.productSlug || !proposal.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
-      const product = await prisma.product.findUnique({ where: { slug: proposal.productSlug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, maxRam: true, deployable: true, visible: true } });
-      if (!product?.visible || !product.deployable) throw badRequest('The detected product cannot be ordered.');
+      if (!proposal?.start || !proposal.build) throw badRequest('This project has no supported runtime. Choose a product yourself from the catalogue.');
+      const chosen = importProductFor(proposal, body.productSlug);
+      if ('error' in chosen) throw badRequest(chosen.error);
+      const product = await prisma.product.findUnique({ where: { slug: chosen.slug }, select: { slug: true, defaultRam: true, defaultCpu: true, defaultDisk: true, maxRam: true, deployable: true, visible: true } });
+      if (!product?.visible || !product.deployable) throw badRequest('The selected product cannot be ordered.');
       const detected = proposal.services.map((service) => service.slug);
       const requested = body.confirmServices;
       const selection = confirmedServiceSelection(
@@ -434,7 +440,7 @@ export async function registerCatalogRoutes(app: FastifyInstance): Promise<void>
       const repoUrl = `https://github.com/${repo.fullName}`;
       const ram = Math.min(product.maxRam ?? product.defaultRam, Math.max(product.defaultRam, proposal.recommendedRam ?? product.defaultRam));
       const quote = await buildQuote([
-        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: proposal.productSlug, managedImport: true },
+        { productSlug: product.slug, ram, cpu: product.defaultCpu, disk: product.defaultDisk, name: product.slug, managedImport: true },
         ...companions.map((row) => ({ productSlug: row.slug, ram: row.defaultRam, cpu: row.defaultCpu, disk: row.defaultDisk, name: row.slug })),
       ], null, user.id);
       const plan = await prisma.importSource.create({

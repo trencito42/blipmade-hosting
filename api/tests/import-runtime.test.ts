@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { VITE_START, inspectManifests, manifestUrls } from '../src/services/import-inspect.js';
+import { VITE_START, importProductFor, inspectManifests, manifestUrls } from '../src/services/import-inspect.js';
 
 describe('import runtime plans', () => {
   it('builds Next.js and starts it on the server port', () => {
@@ -66,5 +66,31 @@ describe('import runtime plans', () => {
     expect(plan.confidence).toBe('confirmed');
     expect(plan.start).toBe('node server.js');
     expect(plan.services).toEqual([]);
+  });
+
+  it('lets the customer deploy a Node.js project as a Discord Bot, and keeps Python on Python', () => {
+    const node = inspectManifests([{ path: 'package.json', text: JSON.stringify({ scripts: { start: 'node index.js' } }) }]);
+    expect(node.productSlug).toBe('nodejs');
+    expect(node.runtime).toBe('nodejs');
+    expect(importProductFor(node, 'discord-bot')).toEqual({ slug: 'discord-bot' });
+    expect(importProductFor(node, 'nodejs')).toEqual({ slug: 'nodejs' });
+    expect(importProductFor(node)).toEqual({ slug: 'nodejs' });
+    const refused = importProductFor(node, 'python');
+    expect('error' in refused && refused.error).toMatch(/cannot be deployed as Python/);
+    expect('error' in refused && refused.error).toMatch(/Discord Bot or Node\.js/);
+
+    const discordJs = inspectManifests([{ path: 'package.json', text: JSON.stringify({ dependencies: { 'discord.js': '14.0.0' }, scripts: { start: 'node index.js' } }) }]);
+    expect(discordJs.productSlug).toBe('discord-bot');
+    expect(importProductFor(discordJs, 'nodejs')).toEqual({ slug: 'nodejs' });
+    expect(importProductFor(discordJs, 'discord-bot')).toEqual({ slug: 'discord-bot' });
+
+    const pythonBot = inspectManifests([{ path: 'requirements.txt', text: 'discord.py==2.4.0\n' }]);
+    expect(pythonBot.productSlug).toBe('python');
+    expect(pythonBot.runtime).toBe('python');
+    expect(pythonBot.notes.join(' ')).toMatch(/Python runtime/);
+    expect(importProductFor(pythonBot, 'python')).toEqual({ slug: 'python' });
+    const notNode = importProductFor(pythonBot, 'discord-bot');
+    expect('error' in notNode && notNode.error).toMatch(/runs on Python/);
+    expect('error' in notNode && notNode.error).toMatch(/Choose Python/);
   });
 });

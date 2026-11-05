@@ -160,6 +160,9 @@ export function inspectManifests(files: { path: string; text: string }[]): Impor
   if (python) {
     const text = python.text.toLowerCase();
     const build = python.path === 'requirements.txt' ? 'pip install -r requirements.txt' : 'pip install .';
+    if (/discord\.py|py-cord|nextcord|disnake/.test(text)) {
+      notes.push('A Python Discord library was detected. It stays on the Python runtime and is not the Node.js Discord Bot product.');
+    }
     if (text.includes('fastapi')) {
       notes.push('FastAPI was detected. The start command uses main:app. Change it if the application object lives elsewhere.');
       return proposal({ productSlug: 'python', runtime: 'python', confidence: 'likely', start: 'python -m uvicorn main:app --host 0.0.0.0 --port $SERVER_PORT', build, files: found, notes }, files);
@@ -192,6 +195,64 @@ export function inspectManifests(files: { path: string; text: string }[]): Impor
     notes.push('A Dockerfile was found. Blipmade does not build an arbitrary image from it.');
   }
   return proposal({ productSlug: null, runtime: null, confidence: 'unknown', start: null, build: null, files: found, notes }, files);
+}
+
+/** The runtime a product can actually start. Discord Bot is a Node.js egg, not a separate language. */
+const PRODUCT_RUNTIME: Record<string, string> = {
+  'discord-bot': 'nodejs',
+  nodejs: 'nodejs',
+  python: 'python',
+  golang: 'go',
+  'rust-runtime': 'rust',
+  php: 'php',
+};
+
+const PRODUCT_NAME: Record<string, string> = {
+  'discord-bot': 'Discord Bot',
+  nodejs: 'Node.js',
+  python: 'Python',
+  golang: 'Go',
+  'rust-runtime': 'Rust',
+  php: 'PHP',
+};
+
+const RUNTIME_NAME: Record<string, string> = {
+  nodejs: 'Node.js',
+  python: 'Python',
+  go: 'Go',
+  rust: 'Rust',
+  php: 'PHP',
+};
+
+const RUNTIME_CHOICE: Record<string, string> = {
+  nodejs: 'Discord Bot or Node.js',
+  python: 'Python',
+  go: 'Go',
+  rust: 'Rust',
+  php: 'PHP',
+};
+
+/**
+ * The product the customer asked for, when the detected runtime can run it.
+ * Omitting the choice keeps the detected product. An existing order is never rewritten here.
+ */
+export function importProductFor(
+  proposal: Pick<ImportProposal, 'runtime' | 'productSlug'>,
+  requested?: string,
+): { slug: string } | { error: string } {
+  const asked = requested?.trim();
+  if (!asked) {
+    if (!proposal.productSlug) return { error: 'This project has no supported runtime. Choose a product yourself from the catalogue.' };
+    return { slug: proposal.productSlug };
+  }
+  if (asked === proposal.productSlug) return { slug: asked };
+  const wanted = PRODUCT_RUNTIME[asked];
+  const found = proposal.runtime;
+  if (wanted && found && wanted === found) return { slug: asked };
+  const chosen = PRODUCT_NAME[asked] ?? asked;
+  const runtime = found ? RUNTIME_NAME[found] ?? found : 'an unsupported runtime';
+  const choice = found ? RUNTIME_CHOICE[found] ?? found : 'a product that matches this project';
+  return { error: `This project runs on ${runtime}, so it cannot be deployed as ${chosen}. Choose ${choice}.` };
 }
 
 /** Turns a public GitHub or GitLab project URL into the manifest URLs that may be fetched. */

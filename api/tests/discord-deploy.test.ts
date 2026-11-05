@@ -1,3 +1,4 @@
+import { crc32 } from 'node:zlib';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../src/db.js';
@@ -57,6 +58,37 @@ beforeEach(async () => {
   await resetDatabase();
 });
 
+function storedZip(name: string, text: string): string {
+  const data = Buffer.from(text);
+  const nameBuf = Buffer.from(name);
+  const crc = crc32(data);
+  const local = Buffer.alloc(30 + nameBuf.length + data.length);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt32LE(crc >>> 0, 14);
+  local.writeUInt32LE(data.length, 18);
+  local.writeUInt32LE(data.length, 22);
+  local.writeUInt16LE(nameBuf.length, 26);
+  nameBuf.copy(local, 30);
+  data.copy(local, 30 + nameBuf.length);
+  const central = Buffer.alloc(46 + nameBuf.length);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt16LE(20, 4);
+  central.writeUInt16LE(20, 6);
+  central.writeUInt32LE(crc >>> 0, 16);
+  central.writeUInt32LE(data.length, 20);
+  central.writeUInt32LE(data.length, 24);
+  central.writeUInt16LE(nameBuf.length, 28);
+  nameBuf.copy(central, 46);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(1, 8);
+  eocd.writeUInt16LE(1, 10);
+  eocd.writeUInt32LE(central.length, 12);
+  eocd.writeUInt32LE(local.length, 16);
+  return Buffer.concat([local, central, eocd]).toString('base64');
+}
+
 describe('a Discord bot ordered from its family', () => {
   it('stores a blank preset and refuses Git until a matching repository is attached', async () => {
     const product = await sellable('discord-bot');
@@ -103,5 +135,41 @@ describe('a Discord bot ordered from its family', () => {
     });
     expect(node.status).toBe(201);
     expect((node.body.order.items[0].config as { catalog?: unknown }).catalog).toBeUndefined();
+  });
+
+  it('keeps a Node.js archive on Discord Bot when that product was chosen, and does not move an existing order', async () => {
+    const bot = await sellable('discord-bot');
+    await sellable('nodejs');
+    await discordFamily(bot.id);
+    const { client } = await registerAndLogin(app, 'archive@blipmade.test');
+    const zipBase64 = storedZip('package.json', JSON.stringify({ scripts: { start: 'node index.js' } }));
+    const resources = { ram: 1024, cpu: 1, disk: 10, optionCodes: [] as string[] };
+    const catalog = { familySlug: 'discord-bot', variantSlug: 'discord-bot', presetSlug: 'zip', presetVersion: 1, addonSlugs: [] as string[] };
+
+    const chosen = await client.request('POST', '/api/catalog/import/plans', { zipBase64, productSlug: 'discord-bot' });
+    expect(chosen.status).toBe(200);
+    expect(chosen.body.plan.productSlug).toBe('discord-bot');
+
+    const detected = await client.request('POST', '/api/catalog/import/plans', { zipBase64 });
+    expect(detected.status).toBe(200);
+    expect(detected.body.plan.productSlug).toBe('nodejs');
+
+    const python = await client.request('POST', '/api/catalog/import/plans', { zipBase64, productSlug: 'python' });
+    expect(python.status).toBe(400);
+    expect(String(python.body.error?.message)).toMatch(/cannot be deployed as Python/);
+
+    const stolen = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'discord-bot', name: 'stolen', ...resources, importSourceId: detected.body.plan.id as string, catalog }],
+    });
+    expect(stolen.status).toBe(400);
+    expect(String(stolen.body.error?.message)).toMatch(/prepared for nodejs/);
+    expect(await prisma.order.count()).toBe(0);
+
+    const ordered = await client.request('POST', '/api/orders', {
+      items: [{ productSlug: 'discord-bot', name: 'chosen', ...resources, importSourceId: chosen.body.plan.id as string, catalog }],
+    });
+    expect(ordered.status).toBe(201);
+    expect(ordered.body.order.items[0].productSlug).toBe('discord-bot');
+    expect((ordered.body.order.items[0].config as { importSourceId: string }).importSourceId).toBe(chosen.body.plan.id);
   });
 });
